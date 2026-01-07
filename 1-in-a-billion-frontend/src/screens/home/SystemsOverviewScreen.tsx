@@ -70,6 +70,7 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
     navigation.navigate('SystemExplainer', {
       system: system.id,
       forPurchase: true,
+      readingType: forPartner ? 'overlay' : 'individual',
       forPartner,
       partnerName,
       partnerBirthDate,

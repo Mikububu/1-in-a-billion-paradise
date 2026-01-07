@@ -124,7 +124,8 @@ const SYSTEM_CONTENT: Record<SystemType, {
 export const SystemExplainerScreen = ({ navigation, route }: Props) => {
   const { 
     system = 'western', 
-    forPurchase = true, 
+    forPurchase = true,
+    readingType = 'individual',
     forPartner,
     partnerName,
     partnerBirthDate,
@@ -138,16 +139,30 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
   const listRef = useRef<FlatList>(null);
 
   const handleGetReading = () => {
-    // DEV MODE: Skip payment, go directly to reading calculation
-    // In production, this would trigger Apple Pay first
-    navigation.navigate('FullReading', { 
-      system,
-      forPartner,
-      partnerName,
-      partnerBirthDate,
-      partnerBirthTime,
-      partnerBirthCity,
-    });
+    // Route through injection screens (PersonalContext or RelationshipContext)
+    if (readingType === 'overlay' && partnerName) {
+      // Overlay reading → RelationshipContext
+      navigation.navigate('RelationshipContext', {
+        readingType: 'overlay',
+        forPartner: false,
+        userName: 'You',
+        partnerName,
+        partnerBirthDate,
+        partnerBirthTime,
+        partnerBirthCity,
+        preselectedSystem: system,
+      });
+    } else {
+      // Individual reading → PersonalContext
+      navigation.navigate('PersonalContext', {
+        personName: (forPartner && partnerName) ? partnerName : 'You',
+        readingType: forPartner ? 'other' : 'self',
+        personBirthDate: forPartner ? partnerBirthDate : undefined,
+        personBirthTime: forPartner ? partnerBirthTime : undefined,
+        personBirthCity: forPartner ? partnerBirthCity : undefined,
+        preselectedSystem: system,
+      });
+    }
   };
 
   const pages = [

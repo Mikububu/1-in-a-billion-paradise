@@ -167,6 +167,7 @@ export type MainStackParamList = {
     partnerBirthTime?: string | null;
     partnerBirthCity?: CityOption | null;
     personId?: string;
+    preselectedSystem?: string;
     person1Override?: {
       name: string;
       birthDate: string;
@@ -307,6 +308,7 @@ export type MainStackParamList = {
   SystemExplainer: {
     system: 'western' | 'vedic' | 'human_design' | 'gene_keys' | 'kabbalah';
     forPurchase?: boolean;
+    readingType?: 'individual' | 'overlay';
     forPartner?: boolean;
     partnerName?: string;
     partnerBirthDate?: string;
