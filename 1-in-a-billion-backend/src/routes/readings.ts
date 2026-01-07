@@ -25,8 +25,14 @@ const sunCache = new ResponseCache<ReadingResponse>();
 const moonCache = new ResponseCache<ReadingResponse>();
 const risingCache = new ResponseCache<ReadingResponse>();
 
-const buildResponse = (reading: ReadingResponse['reading'], cacheHit: boolean, source: 'deepseek' | 'fallback'): ReadingResponse => ({
+const buildResponse = (
+  reading: ReadingResponse['reading'],
+  placements: ReadingResponse['placements'] | undefined,
+  cacheHit: boolean,
+  source: 'deepseek' | 'fallback'
+): ReadingResponse => ({
   reading,
+  placements,
   metadata: {
     cacheHit,
     generatedAt: new Date().toISOString(),
@@ -49,7 +55,7 @@ router.post('/sun', async (c) => {
     payload: parsed,
     placements, // Pass full placements with degrees!
   });
-  const response = buildResponse(reading, false, source);
+  const response = buildResponse(reading, placements, false, source);
   sunCache.set(cacheKey, response);
   return c.json(response);
 });
@@ -67,7 +73,7 @@ router.post('/moon', async (c) => {
     payload: parsed,
     placements, // Pass full placements with degrees!
   });
-  const response = buildResponse(reading, false, source);
+  const response = buildResponse(reading, placements, false, source);
   moonCache.set(cacheKey, response);
   return c.json(response);
 });
@@ -85,7 +91,7 @@ router.post('/rising', async (c) => {
     payload: parsed,
     placements, // Pass full placements with degrees!
   });
-  const response = buildResponse(reading, false, source);
+  const response = buildResponse(reading, placements, false, source);
   risingCache.set(cacheKey, response);
   return c.json(response);
 });

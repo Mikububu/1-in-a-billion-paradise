@@ -44,10 +44,16 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         // 2. Save LOCALLY (Critical for immediate UI access)
         if (name && birthDataObject) {
             console.log('💾 Saving user locally to ProfileStore...');
+            const placements = hookReadings ? {
+                sunSign: hookReadings.sun?.sign || '',
+                moonSign: hookReadings.moon?.sign || '',
+                risingSign: hookReadings.rising?.sign || '',
+            } : undefined;
             useProfileStore.getState().addPerson({
                 name,
                 isUser: true,
                 birthData: birthDataObject,
+                placements,
                 hookReadings: hookReadings as any
             });
         }

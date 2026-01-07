@@ -21,8 +21,18 @@ export type HookReading = {
   main: string;
 };
 
+export type Placements = {
+  sunSign: string;
+  sunDegree?: string;
+  moonSign: string;
+  moonDegree?: string;
+  risingSign: string;
+  risingDegree?: string;
+};
+
 export type ReadingResponse = {
   reading: HookReading;
+  placements?: Placements;
   metadata: {
     cacheHit: boolean;
     generatedAt: string;

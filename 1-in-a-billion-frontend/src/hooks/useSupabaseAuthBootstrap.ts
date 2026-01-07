@@ -103,6 +103,11 @@ export function useSupabaseAuthBootstrap() {
         if (session) {
           console.log('✅ Bootstrap: Session exists, setting auth state');
 
+          // #region agent log
+          // H12: Bootstrap sees a session and will attempt to set authStore
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useSupabaseAuthBootstrap.ts:104',message:'Bootstrap session exists',data:{hasUser:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'BOOT1'})}).catch(()=>{});
+          // #endregion
+
           // CRITICAL: Check if user actually exists in database
           // This handles orphaned sessions for deleted users
           try {
@@ -132,6 +137,10 @@ export function useSupabaseAuthBootstrap() {
 
           setSession(session);
           setUser(session.user);
+          // #region agent log
+          // H13: Auth store setUser executed
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useSupabaseAuthBootstrap.ts:133',message:'Auth store updated from Supabase session',data:{userId:session.user?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'BOOT2'})}).catch(()=>{});
+          // #endregion
           const name =
             session.user.user_metadata?.full_name ||
             session.user.email?.split('@')?.[0] ||
@@ -149,18 +158,72 @@ export function useSupabaseAuthBootstrap() {
               .limit(1);
 
             if (!profileError && profiles && profiles.length > 0) {
-              console.log('✅ Bootstrap: User has profile in Supabase - marking onboarding complete');
               const { useOnboardingStore } = await import('@/store/onboardingStore');
-              useOnboardingStore.getState().setHasCompletedOnboarding(true);
-
-              // Optionally hydrate hook readings if they exist
               const profile = profiles[0];
-              if (profile.hook_readings && Array.isArray(profile.hook_readings)) {
+              
+              // Only mark onboarding complete if user has hook readings
+              // Having a profile doesn't mean onboarding is complete - user might have just created account
+              if (profile.hook_readings && Array.isArray(profile.hook_readings) && profile.hook_readings.length > 0) {
+                console.log('✅ Bootstrap: User has profile AND hook readings - marking onboarding complete');
+                
+                // #region agent log
+                // Check INVARIANT 3: Bootstrap Flag Setting
+                if (__DEV__) {
+                  import('@/utils/architectureDebugger').then(({ checkInvariant3_BootstrapFlag, instrumentStateChange }) => {
+                    const oldValue = useOnboardingStore.getState().hasCompletedOnboarding;
+                    useOnboardingStore.getState().setHasCompletedOnboarding(true);
+                    
+                    // Check invariant
+                    const check = checkInvariant3_BootstrapFlag();
+                    if (!check.passed && check.violation) {
+                      console.warn('⚠️ INVARIANT 3 CHECK:', check.violation);
+                    }
+                    
+                    // Instrument state change
+                    instrumentStateChange('onboarding', {
+                      key: 'hasCompletedOnboarding',
+                      oldValue,
+                      newValue: true,
+                      reason: 'Bootstrap: User has hook readings in Supabase',
+                    });
+                  }).catch(() => {
+                    // Fallback if import fails
+                    useOnboardingStore.getState().setHasCompletedOnboarding(true);
+                  });
+                } else {
+                  useOnboardingStore.getState().setHasCompletedOnboarding(true);
+                }
+                // #endregion
+                
+                // Hydrate hook readings
                 profile.hook_readings.forEach((reading: any) => {
                   if (reading && reading.type) {
                     useOnboardingStore.getState().setHookReading(reading);
                   }
                 });
+              } else {
+                console.log('🔄 Bootstrap: User has profile but no hook readings - onboarding incomplete');
+                
+                // #region agent log
+                // Instrument state change
+                if (__DEV__) {
+                  import('@/utils/architectureDebugger').then(({ instrumentStateChange }) => {
+                    const oldValue = useOnboardingStore.getState().hasCompletedOnboarding;
+                    useOnboardingStore.getState().setHasCompletedOnboarding(false);
+                    
+                    instrumentStateChange('onboarding', {
+                      key: 'hasCompletedOnboarding',
+                      oldValue,
+                      newValue: false,
+                      reason: 'Bootstrap: User has profile but no hook readings',
+                    });
+                  }).catch(() => {
+                    useOnboardingStore.getState().setHasCompletedOnboarding(false);
+                  });
+                } else {
+                  useOnboardingStore.getState().setHasCompletedOnboarding(false);
+                }
+                // #endregion
               }
             } else {
               console.log('🔄 Bootstrap: No profile found - user needs to complete onboarding');

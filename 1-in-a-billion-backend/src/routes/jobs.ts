@@ -140,6 +140,8 @@ const getJobHandler = async (c: any) => {
         artifactsByDoc[docNum].pdf = artifact;
       } else if (artifact.artifact_type === 'audio' || artifact.artifact_type === 'audio_mp3') {
         artifactsByDoc[docNum].audio = artifact;
+      } else if (artifact.artifact_type === 'audio_song') {
+        artifactsByDoc[docNum].song = artifact;
       }
     }
 
@@ -153,6 +155,7 @@ const getJobHandler = async (c: any) => {
       text?: string;
       audioUrl?: string;
       pdfUrl?: string;
+      songUrl?: string; // Personalized song for this document
     }> = [];
 
     const docNums = Object.keys(artifactsByDoc).map(Number).sort((a, b) => a - b);
@@ -162,6 +165,7 @@ const getJobHandler = async (c: any) => {
       const textMeta = artifacts.text?.metadata || {};
       const audioMeta = artifacts.audio?.metadata || {};
       const pdfMeta = artifacts.pdf?.metadata || {};
+      const songMeta = artifacts.song?.metadata || {};
 
       documents.push({
         id: `doc_${docNum}`,
@@ -172,6 +176,7 @@ const getJobHandler = async (c: any) => {
         // Include URLs if available (signed URLs already generated above)
         audioUrl: artifacts.audio?.public_url,
         pdfUrl: artifacts.pdf?.public_url,
+        songUrl: artifacts.song?.public_url, // Personalized song URL
         // Don't include full text in response (too large) - can be fetched separately
       });
     }
@@ -574,23 +579,114 @@ router.post('/v2/start', async (c) => {
         },
       });
 
-      // Song generation task (for paid users - after all text/PDF/audio complete)
-      // TODO: Add paid user check here (e.g., payload.isPaidUser or check subscription)
-      // For now, we'll add it for all nuclear_v2 jobs (can be filtered later)
-      if (payload.includeSong !== false) { // Default to true, can be disabled
+      // Song generation tasks - ONE song per document (16 songs total)
+      // Each document's text → lyrics (LLM) → song (MiniMax)
+      // Songs are created after text tasks complete (sequence 100+)
+      if (payload.includeSong !== false) {
+        // Person 1 songs (5 songs, docs 1-5)
+        for (let i = 0; i < 5; i++) {
+          tasks.push({
+            taskType: 'song_generation' as const,
+            sequence: 100 + i, // After all text tasks
+            input: {
+              docNum: i + 1,
+              docType: 'person1',
+              system: systemOrder[i],
+              personName: payload.person1.name,
+            },
+          });
+        }
+
+        // Person 2 songs (5 songs, docs 6-10)
+        for (let i = 0; i < 5; i++) {
+          tasks.push({
+            taskType: 'song_generation' as const,
+            sequence: 105 + i,
+            input: {
+              docNum: i + 6,
+              docType: 'person2',
+              system: systemOrder[i],
+              personName: payload.person2?.name || 'Person 2',
+            },
+          });
+        }
+
+        // Overlay songs (5 songs, docs 11-15)
+        for (let i = 0; i < 5; i++) {
+          tasks.push({
+            taskType: 'song_generation' as const,
+            sequence: 110 + i,
+            input: {
+              docNum: i + 11,
+              docType: 'overlay',
+              system: systemOrder[i],
+              personName: `${payload.person1.name} & ${payload.person2?.name}`,
+            },
+          });
+        }
+
+        // Verdict song (1 song, doc 16)
         tasks.push({
           taskType: 'song_generation' as const,
-          sequence: 16, // After all other tasks
+          sequence: 115,
           input: {
-            jobId: '', // Will be set after job creation
-            userId,
-            personName: payload.person1.name,
-            relationshipContext: payload.relationshipContext,
+            docNum: 16,
+            docType: 'verdict',
+            system: null,
+            personName: `${payload.person1.name} & ${payload.person2?.name}`,
+          },
+        });
+
+        console.log(`🎵 Added 16 song generation tasks`);
+      }
+
+      console.log(`📋 Generated ${tasks.length} tasks for nuclear_v2`);
+    } else if (payload.type === 'extended') {
+      // Extended job: 1-5 systems for 1 person
+      // Each system = 1 text + 1 PDF + 1 audio + 1 song
+      const systemsToProcess = payload.systems?.length > 0 ? payload.systems : ['western'];
+      const systemNames: Record<string, string> = {
+        western: 'Western Astrology',
+        vedic: 'Vedic (Jyotish)',
+        human_design: 'Human Design',
+        gene_keys: 'Gene Keys',
+        kabbalah: 'Kabbalah',
+      };
+
+      // Text tasks for each system (sequence 0-4)
+      for (let i = 0; i < systemsToProcess.length; i++) {
+        const system = systemsToProcess[i];
+        tasks.push({
+          taskType: 'text_generation' as const,
+          sequence: i,
+          input: {
+            system,
+            docType: 'individual',
+            docNum: i + 1,
+            title: `${systemNames[system] || system} - ${payload.person1.name}`,
           },
         });
       }
 
-      console.log(`📋 Generated ${tasks.length} tasks for nuclear_v2`);
+      // Song tasks for each system (sequence 100+)
+      if (payload.includeSong !== false) {
+        for (let i = 0; i < systemsToProcess.length; i++) {
+          const system = systemsToProcess[i];
+          tasks.push({
+            taskType: 'song_generation' as const,
+            sequence: 100 + i,
+            input: {
+              docNum: i + 1,
+              docType: 'individual',
+              system,
+              personName: payload.person1.name,
+            },
+          });
+        }
+        console.log(`🎵 Added ${systemsToProcess.length} song generation tasks`);
+      }
+
+      console.log(`📋 Generated ${tasks.length} tasks for extended (${systemsToProcess.length} systems)`);
     }
 
     const jobId = await jobQueueV2.createJob({
@@ -734,6 +830,14 @@ ${name2.toUpperCase()} WESTERN CHART:
 // EXTENDED READING PROCESSOR (Single Person, Single System)
 // ═══════════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════════
+// EXTENDED PROCESSOR (One Person, 1-5 Systems)
+// ═══════════════════════════════════════════════════════════════════════════
+// Product Tiers:
+// - Single Reading: 1 person, 1 system = 1 document
+// - Combined Package: 1 person, 5 systems = 5 documents
+// ═══════════════════════════════════════════════════════════════════════════
+
 jobQueue.registerProcessor('extended', async (job, updateProgress) => {
   const { person1, relationshipIntensity, systems, style } = job.params;
 
@@ -742,7 +846,13 @@ jobQueue.registerProcessor('extended', async (job, updateProgress) => {
   const spiceLevel = validateSpiceLevel(relationshipIntensity ?? userPreference ?? 5);
 
   const writingStyle: StyleName = style || 'production';
-  const system = systems?.[0] || 'western';
+  
+  // Support 1-5 systems (single reading OR combined package)
+  const systemsToProcess = systems?.length > 0 ? systems : ['western'];
+  const totalSystems = systemsToProcess.length;
+  const isCombinedPackage = totalSystems > 1;
+
+  console.log(`📦 Extended job ${job.id}: ${totalSystems} system(s) for ${person1.name}`);
 
   try {
     updateProgress({
@@ -772,36 +882,59 @@ jobQueue.registerProcessor('extended', async (job, updateProgress) => {
       birthPlace: `${person1.latitude.toFixed(2)}°N, ${person1.longitude.toFixed(2)}°E`,
     };
 
-    updateProgress({
-      percent: 20,
-      phase: 'text',
-      message: `📝 Generating ${system} analysis...`,
-      currentStep: 'Claude API call',
-    });
+    // Generate reading for EACH system
+    const chapters: { name: string; text: string; docNum: number }[] = [];
+    const allTexts: string[] = [];
 
-    const prompt = buildIndividualPrompt({
-      type: 'individual',
-      style: writingStyle,
-      spiceLevel,
-      system: system as any,
-      voiceMode: 'other', // 3rd person (using NAME)
-      person: p1Data,
-      chartData,
-    });
+    for (let i = 0; i < totalSystems; i++) {
+      const system = systemsToProcess[i];
+      const progressPercent = 10 + Math.round((i / totalSystems) * 80);
 
-    const reading = await llm.generate(prompt, `extended-${system}`);
+      updateProgress({
+        percent: progressPercent,
+        phase: 'text',
+        message: `📝 Generating ${system} analysis... (${i + 1}/${totalSystems})`,
+        currentStep: `${system} - Claude API call`,
+        completedTasks: i,
+        totalTasks: totalSystems,
+      });
+
+      const prompt = buildIndividualPrompt({
+        type: 'individual',
+        style: writingStyle,
+        spiceLevel,
+        system: system as any,
+        voiceMode: 'other', // 3rd person (using NAME)
+        person: p1Data,
+        chartData,
+      });
+
+      const reading = await llm.generate(prompt, `extended-${system}`);
+
+      chapters.push({
+        name: system,
+        text: reading,
+        docNum: i + 1, // 1-indexed document number
+      });
+      allTexts.push(reading);
+
+      console.log(`✅ Extended job ${job.id}: ${system} complete (${i + 1}/${totalSystems})`);
+    }
 
     const results: Job['results'] = {
       readings: [],
-      fullText: reading,
-      chapters: [{
-        name: system,
-        text: reading,
-      }],
+      fullText: allTexts.join('\n\n---\n\n'),
+      chapters,
+      documents: chapters.map((ch, idx) => ({
+        docNum: idx + 1,
+        system: ch.name,
+        docType: 'individual',
+        text: ch.text,
+      })),
     };
 
     jobQueue.completeJob(job.id, results);
-    console.log(`🎉 Extended job ${job.id} complete!`);
+    console.log(`🎉 Extended job ${job.id} complete! Generated ${totalSystems} document(s)`);
 
   } catch (error: any) {
     console.error('Extended job error:', error);

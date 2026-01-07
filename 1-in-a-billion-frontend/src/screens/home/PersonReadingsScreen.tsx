@@ -51,6 +51,7 @@ type Reading = {
   name: string;
   pdfPath?: string;
   audioPath?: string;
+  songPath?: string; // Personalized song for this document
   duration?: number; // seconds
 };
 
@@ -163,7 +164,17 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     [ensureAudioCacheDir, getCachedAudioPath]
   );
 
-  const getDocRange = () => {
+  // Document ranges per person type
+  // - Nuclear Package: person1=[1-5], person2=[6-10], overlay=[11-16]
+  // - Extended/Combined: individual=[1-5] (or fewer, based on actual systems)
+  const getDocRange = (jobType?: string, systemCount?: number) => {
+    // For extended jobs, docs are always 1-N where N = number of systems
+    if (personType === 'individual' || jobType === 'extended') {
+      const count = systemCount || 5;
+      return Array.from({ length: count }, (_, i) => i + 1);
+    }
+    
+    // Nuclear Package ranges
     switch (personType) {
       case 'person1': return [1, 2, 3, 4, 5];
       case 'person2': return [6, 7, 8, 9, 10];
@@ -188,8 +199,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     const MAX_ATTEMPTS = 2;
 
     try {
-      const docRange = getDocRange();
-
       if (!jobId) {
         console.log('⚠️ [PersonReadings] Missing jobId receipt; showing placeholders');
         const systemsToShow = personType === 'overlay' ? SYSTEMS : SYSTEMS.slice(0, 5);
@@ -232,9 +241,16 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       }
       if (!jobData) throw lastErr || new Error('Failed to load job');
 
+      // Detect job type and calculate document range
+      const jobType = jobData.job?.type || 'nuclear_v2';
+      const isExtendedJob = jobType === 'extended' || jobType === 'single_system';
+      const systemCount = jobData.job?.params?.systems?.length || 5;
+      const docRange = getDocRange(jobType, systemCount);
+
       const documents = jobData.job?.results?.documents || [];
       const hasAnyAudioFromApi = Array.isArray(documents) && documents.some((d: any) => !!d?.audioUrl);
 
+      console.log('📦 Job type:', jobType, '| Extended:', isExtendedJob, '| Systems:', systemCount);
       console.log('📦 Documents from API:', documents.length);
       console.log('📦 DocRange for', personType, ':', docRange);
       if (documents.length > 0) {
@@ -249,15 +265,21 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         const docNum = Number(doc.docNum);
         if (!docNum || !docRange.includes(docNum)) continue;
 
-        // Calculate system based on docNum
+        // Calculate system based on docNum and job type
         let systemIndex: number;
         let isVerdict = false;
 
-        if (personType === 'person1') {
+        if (isExtendedJob || personType === 'individual') {
+          // Extended jobs: docs 1-5 map directly to systems 0-4
+          systemIndex = docNum - 1;
+        } else if (personType === 'person1') {
+          // Nuclear person1: docs 1-5 → systems 0-4
           systemIndex = docNum - 1;
         } else if (personType === 'person2') {
+          // Nuclear person2: docs 6-10 → systems 0-4
           systemIndex = docNum - 6;
         } else {
+          // Nuclear overlay: docs 11-15 → systems 0-4, doc 16 → verdict
           if (docNum === 16) {
             isVerdict = true;
             systemIndex = 5;
@@ -277,9 +299,11 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           // Use backend proxy endpoint for audio streaming (AVPlayer-friendly Range support).
           // This avoids sending Supabase signed URLs directly to clients.
           audioPath: doc.audioUrl ? `${env.CORE_API_URL}/api/jobs/v2/${jobId}/audio/${docNum}` : undefined,
+          // Song URL (if generated)
+          songPath: doc.songUrl || undefined,
         };
 
-        console.log(`📄 Doc ${docNum} (${system.name}): pdf=${!!doc.pdfUrl} audio=${!!doc.audioUrl}`);
+        console.log(`📄 Doc ${docNum} (${system.name}): pdf=${!!doc.pdfUrl} audio=${!!doc.audioUrl} song=${!!doc.songUrl}`);
         if (doc.audioUrl) {
           console.log(`   🎵 Audio URL: ${doc.audioUrl.substring(0, 80)}...`);
         }
@@ -298,7 +322,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
             .order('created_at', { ascending: true });
           if (aErr) throw aErr;
 
-          const byDoc: Record<number, { pdfPath?: string; audioPath?: string }> = {};
+          const byDoc: Record<number, { pdfPath?: string; audioPath?: string; songPath?: string }> = {};
           for (const a of arts || []) {
             const meta = (a as any).metadata || {};
             const docNumRaw = meta?.docNum ?? meta?.chapter_index;
@@ -311,8 +335,14 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
               byDoc[docNum].pdfPath = (a as any).storage_path;
             }
             if (t === 'audio' || t.startsWith('audio_')) {
+              // Skip songs in this block (handled separately)
+              if (t === 'audio_song') continue;
               byDoc[docNum] = byDoc[docNum] || {};
               byDoc[docNum].audioPath = (a as any).storage_path;
+            }
+            if (t === 'audio_song') {
+              byDoc[docNum] = byDoc[docNum] || {};
+              byDoc[docNum].songPath = (a as any).storage_path;
             }
           }
 
@@ -320,11 +350,12 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           const signed = await Promise.all(
             docRange.map(async (docNum) => {
               const entry = byDoc[docNum] || {};
-              const [pdfUrl, audioUrl] = await Promise.all([
+              const [pdfUrl, audioUrl, songUrl] = await Promise.all([
                 entry.pdfPath ? createArtifactSignedUrl(entry.pdfPath, 60 * 60) : Promise.resolve(null),
                 entry.audioPath ? createArtifactSignedUrl(entry.audioPath, 60 * 60) : Promise.resolve(null),
+                entry.songPath ? createArtifactSignedUrl(entry.songPath, 60 * 60) : Promise.resolve(null),
               ]);
-              return { docNum, pdfUrl, audioUrl };
+              return { docNum, pdfUrl, audioUrl, songUrl };
             })
           );
 
@@ -335,6 +366,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
             // Only fill gaps so API values win when present
             if (!r.pdfPath && s.pdfUrl) r.pdfPath = s.pdfUrl;
             if (!r.audioPath && s.audioUrl) r.audioPath = s.audioUrl;
+            if (!r.songPath && s.songUrl) r.songPath = s.songUrl;
           }
         } catch (e) {
           // ignore fallback failures
@@ -741,13 +773,14 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
               const isPlaying = playingId === reading.id;
               const hasAudio = !!reading.audioPath;
               const hasPdf = !!reading.pdfPath;
+              const hasSong = !!reading.songPath;
               const progress = isPlaying && playbackDuration > 0
                 ? (playbackPosition / playbackDuration) * 100
                 : 0;
 
               return (
                 <View key={`${index}-${reading.system}`} style={styles.readingCard}>
-                  {/* Header: Name + PDF */}
+                  {/* Header: Name + Action Buttons */}
                   <View style={styles.readingHeader}>
                     <Text style={styles.readingName}>{reading.name}</Text>
                     <View style={styles.actionButtons}>
@@ -762,6 +795,19 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                         style={[styles.pdfButton, !hasPdf && styles.disabled]}
                       >
                         <Text style={[styles.pdfText, !hasPdf && styles.disabledText]}>PDF</Text>
+                      </TouchableOpacity>
+                      {/* Song Button - opens song in browser or plays */}
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (reading.songPath) {
+                            Linking.openURL(reading.songPath).catch(() => {
+                              Alert.alert('Error', 'Could not open song');
+                            });
+                          }
+                        }}
+                        style={[styles.songButton, !hasSong && styles.disabled]}
+                      >
+                        <Text style={[styles.songText, !hasSong && styles.disabledText]}>🎵</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -975,6 +1021,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#FFF',
+  },
+  songButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#8B4513', // Dark brown for song
+  },
+  songText: {
+    fontSize: 14,
   },
   disabled: {
     opacity: 0.3,

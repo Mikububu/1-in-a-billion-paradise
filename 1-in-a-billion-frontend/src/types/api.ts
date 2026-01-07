@@ -22,6 +22,14 @@ export type ProfileSnapshot = ReadingPayload & {
 
 export type ReadingResponse = {
   reading: HookReading;
+  placements?: {
+    sunSign: string;
+    sunDegree?: string;
+    moonSign: string;
+    moonDegree?: string;
+    risingSign: string;
+    risingDegree?: string;
+  };
   metadata: {
     cacheHit: boolean;
     generatedAt: string;

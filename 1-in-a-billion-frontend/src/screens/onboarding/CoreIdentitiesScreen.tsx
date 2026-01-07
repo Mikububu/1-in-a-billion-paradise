@@ -249,6 +249,14 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
   const setHookAudio = useOnboardingStore((state) => state.setHookAudio);
 
   useEffect(() => {
+    // #region agent log
+    // CI_MOUNT: Prove whether CoreIdentitiesScreen is actually being used in the reproduced flow
+    try {
+      const o = useOnboardingStore.getState();
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CoreIdentitiesScreen.tsx:mount',message:'CoreIdentities mounted',data:{hasBirthDate:!!o.birthDate,hasBirthTime:!!o.birthTime,hasBirthCity:!!o.birthCity?.name,hasHookSun:!!o.hookReadings?.sun,hookAudioLens:{sun:o.hookAudio?.sun?.length||0,moon:o.hookAudio?.moon?.length||0,rising:o.hookAudio?.rising?.length||0}},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'CI_MOUNT'})}).catch(()=>{});
+    } catch {}
+    // #endregion
+
     // Start animations
     const pulse = Animated.loop(
       Animated.sequence([
@@ -312,168 +320,216 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
       primaryLanguage: primaryLanguage?.code || 'en',
     };
 
-    // Track audio generation promise (run in background during waiting screens)
-    // Intended pipeline:
-    // - Sun audio is pre-rendered during the waiting/intro sequence
-    // - Moon audio is generated on the Sun screen
-    // - Rising audio is generated on the Moon screen
+    // ============================================================================
+    // AUDIO PRE-RENDERING PIPELINE (per ARCHITECTURE.md)
+    // ============================================================================
+    // DESIGN: Staggered audio generation with non-blocking navigation
+    //
+    // Timeline:
+    //   INTRO (10s)   → Fetch SUN reading → Start SUN audio (non-blocking)
+    //   SUN (4s)      → Fetch MOON reading (audio handled by HookSequenceScreen)
+    //   MOON (4s)     → Fetch RISING reading (audio handled by HookSequenceScreen)
+    //   RISING (3s)   → Navigate (audio completes in background)
+    //
+    // Audio Generation Strategy:
+    //   - SUN audio: Starts here in CoreIdentitiesScreen (non-blocking)
+    //   - MOON audio: Starts in HookSequenceScreen when viewing SUN page
+    //   - RISING audio: Starts in HookSequenceScreen when viewing MOON page
+    //
+    // If audio isn't ready when user taps Play, HookSequenceScreen:
+    //   1. Waits for in-flight generation to complete, OR
+    //   2. Falls back to on-demand generation
+    // ============================================================================
+    
+    // Store readings at function scope (not inside callbacks)
+    let sunReading: any = null;
+    let moonReading: any = null;
+    let risingReading: any = null;
+    
+    // SUN audio promise - only Sun is generated here; Moon/Rising use staggered preload
     let sunAudioPromise: Promise<void> | null = null;
 
+    // Helper to generate audio for a reading
+    const generateAudioForType = async (type: 'sun' | 'moon' | 'rising', reading: any): Promise<void> => {
+      if (!reading) return;
+      console.log(`🎵 Starting ${type.toUpperCase()} audio generation...`);
+      try {
+        const result = await audioApi.generateTTS(
+          `${reading.intro}\n\n${reading.main}`,
+          { exaggeration: AUDIO_CONFIG.exaggeration }
+        );
+        if (result.success && result.audioBase64) {
+          setHookAudio(type, result.audioBase64);
+          console.log(`✅ ${type.toUpperCase()} audio ready: ${Math.round(result.audioBase64.length / 1024)}KB`);
+        } else {
+          console.log(`❌ ${type.toUpperCase()} audio failed:`, result.error);
+        }
+      } catch (err) {
+        console.log(`⚠️ ${type.toUpperCase()} audio exception:`, err);
+      }
+    };
+
     try {
-      // SCREEN 1: Intro - show for 10 seconds
-      // WHILE showing intro: fetch SUN reading AND start SUN audio generation
+      // ========== SCREEN 1: INTRO (10s minimum) ==========
       setCurrentScreen('intro');
       setStatusText('Preparing your chart...');
       setProgress(5);
 
-      // Start SUN reading fetch DURING intro (in parallel with 10s wait)
-      console.log('🎵 Starting SUN reading fetch during INTRO screen...');
-      let sunReading: any = null;
+      // Fetch SUN reading (parallel with intro delay)
+      console.log('🔮 Fetching SUN reading...');
       const sunFetchPromise = fetch(`${env.CORE_API_URL}/api/reading/sun?provider=deepseek`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       }).then(async (res) => {
         if (res.ok) {
-          const sunData = await res.json();
-          sunReading = sunData.reading;
-          setHookReading(sunData.reading);
-          console.log('✅ SUN reading received during INTRO');
+          const data = await res.json();
+          sunReading = data.reading;
+          setHookReading(data.reading);
+          console.log('✅ SUN reading received');
 
-          // ✅ SAVE PLACEMENTS: Backend calculated all signs, save them now!
-          if (sunData.placements) {
-            console.log('💾 Saving placements from SUN hook:', sunData.placements);
+          // Save placements from backend
+          if (data.placements) {
             const user = useProfileStore.getState().people.find(p => p.isUser);
             if (user) {
               useProfileStore.getState().updatePerson(user.id, {
                 placements: {
-                  sunSign: sunData.placements.sunSign,
-                  sunDegree: sunData.placements.sunDegree,
-                  moonSign: sunData.placements.moonSign,
-                  moonDegree: sunData.placements.moonDegree,
-                  risingSign: sunData.placements.risingSign,
-                  risingDegree: sunData.placements.risingDegree,
+                  sunSign: data.placements.sunSign,
+                  sunDegree: data.placements.sunDegree,
+                  moonSign: data.placements.moonSign,
+                  moonDegree: data.placements.moonDegree,
+                  risingSign: data.placements.risingSign,
+                  risingDegree: data.placements.risingDegree,
                 },
               });
-              console.log('✅ Placements saved to profile store');
             }
           }
-
-          // Immediately start SUN audio generation (runs in background)
-          sunAudioPromise = (async () => {
-            console.log('🎵 Starting SUN audio generation (background)...');
-            try {
-              const result = await audioApi.generateTTS(
-                `${sunReading.intro}\n\n${sunReading.main}`,
-                { exaggeration: AUDIO_CONFIG.exaggeration }
-              );
-              if (result.success && result.audioBase64) {
-                setHookAudio('sun', result.audioBase64);
-                console.log('✅ SUN audio ready (generated during waiting screens)');
-              } else {
-                console.log('❌ SUN audio generation failed:', result.error);
-              }
-            } catch (err) {
-              console.log('⚠️ SUN audio exception:', err);
-            }
-          })();
         }
       });
 
-      // Wait for intro display time (10s) AND sun fetch to complete
+      // Wait for intro (10s) AND sun reading fetch
       await Promise.all([delay(10000), sunFetchPromise]);
       setProgress(15);
 
-      // SCREEN 2: Sun - show the sun screen (reading already fetched)
+      // START SUN AUDIO NOW (after reading is available, not inside .then())
+      if (sunReading) {
+        sunAudioPromise = generateAudioForType('sun', sunReading);
+      }
+
+      // ========== SCREEN 2: SUN (4s minimum) ==========
       setCurrentScreen('sun');
       setStatusText('Analyzing Sun sign...');
       setProgress(25);
-      await delay(4000);
-      setProgress(30);
 
-      // SCREEN 3: Moon calculation
+      // Fetch MOON reading in parallel with display delay
+      console.log('🔮 Fetching MOON reading...');
+      const moonFetchPromise = fetch(`${env.CORE_API_URL}/api/reading/moon?provider=deepseek`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }).then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          moonReading = data.reading;
+          setHookReading(data.reading);
+          console.log('✅ MOON reading received');
+
+          // Save placements fallback
+          if (data.placements) {
+            const user = useProfileStore.getState().people.find(p => p.isUser);
+            if (user && !user.placements) {
+              useProfileStore.getState().updatePerson(user.id, {
+                placements: {
+                  sunSign: data.placements.sunSign,
+                  sunDegree: data.placements.sunDegree,
+                  moonSign: data.placements.moonSign,
+                  moonDegree: data.placements.moonDegree,
+                  risingSign: data.placements.risingSign,
+                  risingDegree: data.placements.risingDegree,
+                },
+              });
+            }
+          }
+        }
+      });
+
+      await Promise.all([delay(4000), moonFetchPromise]);
+      setProgress(35);
+
+      // NOTE: Moon audio is NOT generated here - it's handled by staggered preload
+      // in HookSequenceScreen (generates Moon audio while viewing Sun page)
+
+      // ========== SCREEN 3: MOON (4s minimum) ==========
       setCurrentScreen('moon');
       setStatusText('Calculating Moon sign...');
-      setProgress(35);
-      let moonReading: any = null;
-      const moonRes = await fetch(`${env.CORE_API_URL}/api/reading/moon?provider=deepseek`, {
+      setProgress(45);
+
+      // Fetch RISING reading in parallel with display delay
+      console.log('🔮 Fetching RISING reading...');
+      const risingFetchPromise = fetch(`${env.CORE_API_URL}/api/reading/rising?provider=deepseek`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-      });
-      if (moonRes.ok) {
-        const moonData = await moonRes.json();
-        moonReading = moonData.reading;
-        setHookReading(moonData.reading);
+      }).then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          risingReading = data.reading;
+          setHookReading(data.reading);
+          console.log('✅ RISING reading received');
 
-        // Save placements if not already saved (fallback if sun failed)
-        if (moonData.placements) {
-          const user = useProfileStore.getState().people.find(p => p.isUser);
-          if (user && !user.placements) {
-            console.log('💾 Saving placements from MOON hook (sun was missing)');
-            useProfileStore.getState().updatePerson(user.id, {
-              placements: {
-                sunSign: moonData.placements.sunSign,
-                sunDegree: moonData.placements.sunDegree,
-                moonSign: moonData.placements.moonSign,
-                moonDegree: moonData.placements.moonDegree,
-                risingSign: moonData.placements.risingSign,
-                risingDegree: moonData.placements.risingDegree,
-              },
-            });
+          // Save placements fallback
+          if (data.placements) {
+            const user = useProfileStore.getState().people.find(p => p.isUser);
+            if (user && !user.placements) {
+              useProfileStore.getState().updatePerson(user.id, {
+                placements: {
+                  sunSign: data.placements.sunSign,
+                  sunDegree: data.placements.sunDegree,
+                  moonSign: data.placements.moonSign,
+                  moonDegree: data.placements.moonDegree,
+                  risingSign: data.placements.risingSign,
+                  risingDegree: data.placements.risingDegree,
+                },
+              });
+            }
           }
         }
-      }
-      setProgress(45);
-      await delay(4000);
-      setProgress(50);
+      });
 
-      // SCREEN 4: Rising calculation
+      await Promise.all([delay(4000), risingFetchPromise]);
+      setProgress(55);
+
+      // NOTE: Rising audio is NOT generated here - it's handled by staggered preload
+      // in HookSequenceScreen (generates Rising audio while viewing Moon page)
+
+      // ========== SCREEN 4: RISING (3s minimum) ==========
       setCurrentScreen('rising');
       setStatusText('Calculating Rising sign...');
-      setProgress(55);
-      let risingReading: any = null;
-      const risingRes = await fetch(`${env.CORE_API_URL}/api/reading/rising?provider=deepseek`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (risingRes.ok) {
-        const risingData = await risingRes.json();
-        risingReading = risingData.reading;
-        setHookReading(risingData.reading);
-
-        // Save placements if not already saved (fallback if sun & moon failed)
-        if (risingData.placements) {
-          const user = useProfileStore.getState().people.find(p => p.isUser);
-          if (user && !user.placements) {
-            console.log('💾 Saving placements from RISING hook (sun/moon were missing)');
-            useProfileStore.getState().updatePerson(user.id, {
-              placements: {
-                sunSign: risingData.placements.sunSign,
-                sunDegree: risingData.placements.sunDegree,
-                moonSign: risingData.placements.moonSign,
-                moonDegree: risingData.placements.moonDegree,
-                risingSign: risingData.placements.risingSign,
-                risingDegree: risingData.placements.risingDegree,
-              },
-            });
-          }
-        }
-      }
       setProgress(70);
       await delay(3000);
       setProgress(80);
 
-      // SUN audio is generating in background - it will complete eventually
-      console.log('🎵 SUN audio generating in background (non-blocking)...');
+      // ========== NON-BLOCKING NAVIGATION (ORIGINAL DESIGN) ==========
+      // Audio generates in background. HookSequenceScreen will:
+      // - Use pre-rendered audio if available
+      // - Trigger staggered preload (Moon on Sun page, Rising on Moon page)
+      // - Fall back to on-demand generation if needed
+      console.log('🎵 Audio generating in background (non-blocking)...');
 
       setProgress(100);
       setStatusText('Ready!');
       await delay(500);
 
-      console.log('✅ Navigating to HookSequence (audio will complete in background)');
-      // Navigate to results
+      // Log audio state for debugging
+      const hookAudioAtNavigation = useOnboardingStore.getState().hookAudio;
+      console.log('🎵 Audio state at navigation:', {
+        sun: hookAudioAtNavigation.sun ? `${Math.round(hookAudioAtNavigation.sun.length / 1024)}KB` : 'generating...',
+        moon: hookAudioAtNavigation.moon ? `${Math.round(hookAudioAtNavigation.moon.length / 1024)}KB` : 'pending',
+        rising: hookAudioAtNavigation.rising ? `${Math.round(hookAudioAtNavigation.rising.length / 1024)}KB` : 'pending',
+      });
+
+      // Navigate to results (audio will complete in background)
+      console.log('✅ Navigating to HookSequence (audio completes in background)');
       navigation.replace('HookSequence');
 
     } catch (error) {

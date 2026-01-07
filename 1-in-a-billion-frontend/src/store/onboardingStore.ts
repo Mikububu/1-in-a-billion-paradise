@@ -200,10 +200,46 @@ export const useOnboardingStore = create<OnboardingState>()(
         set((state) => ({
           hookReadings: { ...state.hookReadings, [reading.type]: reading },
         })),
-      setHookAudio: (type, audioBase64) =>
-        set((state) => ({
-          hookAudio: { ...state.hookAudio, [type]: audioBase64 },
-        })),
+      setHookAudio: (type, audioBase64) => {
+        // #region agent log
+        // Track WHY audio might be lost: Check store state before/after setHookAudio
+        const beforeState = get().hookAudio;
+        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboardingStore.ts:203',message:'BEFORE setHookAudio',data:{type,beforeAudio:beforeState[type]?beforeState[type].substring(0,50)+'...':null,beforeAudioLength:beforeState[type]?.length||0,newAudioLength:audioBase64?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H6'})}).catch(()=>{});
+        // #endregion
+        
+        set((state) => {
+          const newHookAudio = { ...state.hookAudio, [type]: audioBase64 };
+          
+          // #region agent log
+          // Verify audio was set in state
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboardingStore.ts:206',message:'DURING setHookAudio - new state',data:{type,newAudio:newHookAudio[type]?newHookAudio[type].substring(0,50)+'...':null,newAudioLength:newHookAudio[type]?.length||0,allAudioKeys:Object.keys(newHookAudio)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H6'})}).catch(()=>{});
+          // #endregion
+          
+          return { hookAudio: newHookAudio };
+        });
+        
+        // #region agent log
+        // H7: Check if audio persists after set (async persistence might fail)
+        // H9: Check AsyncStorage size limit (audio might be too large)
+        setTimeout(async () => {
+          const afterState = get().hookAudio;
+          const audioSize = audioBase64?.length || 0;
+          const audioSizeKB = Math.round(audioSize / 1024);
+          
+          // Check AsyncStorage directly
+          try {
+            const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+            const stored = await AsyncStorage.getItem('onboarding-storage');
+            const parsed = stored ? JSON.parse(stored) : null;
+            const storedAudio = parsed?.state?.hookAudio?.[type];
+            
+            fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboardingStore.ts:220',message:'AFTER setHookAudio - checking AsyncStorage',data:{type,afterAudio:afterState[type]?afterState[type].substring(0,50)+'...':null,afterAudioLength:afterState[type]?.length||0,audioSizeKB,storedInAsyncStorage:!!storedAudio,storedAudioLength:storedAudio?.length||0,matches:afterState[type]===audioBase64,asyncStorageMatches:storedAudio===audioBase64},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H9'})}).catch(()=>{});
+          } catch (err) {
+            fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboardingStore.ts:220',message:'AFTER setHookAudio - AsyncStorage check failed',data:{type,error:err instanceof Error?err.message:String(err)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H9'})}).catch(()=>{});
+          }
+        }, 200);
+        // #endregion
+      },
       setPartnerAudio: (type, audioBase64) =>
         set((state) => ({
           partnerAudio: {
@@ -292,8 +328,50 @@ export const useOnboardingStore = create<OnboardingState>()(
         );
       },
 
-      setHasCompletedOnboarding: (hasCompletedOnboarding) => set({ hasCompletedOnboarding }),
-      completeOnboarding: () => set({ hasCompletedOnboarding: true }),
+      setHasCompletedOnboarding: (hasCompletedOnboarding) => {
+        // #region agent log
+        // Instrument state change
+        if (__DEV__) {
+          import('@/utils/architectureDebugger').then(({ instrumentStateChange }) => {
+            const oldValue = get().hasCompletedOnboarding;
+            set({ hasCompletedOnboarding });
+            
+            instrumentStateChange('onboarding', {
+              key: 'hasCompletedOnboarding',
+              oldValue,
+              newValue: hasCompletedOnboarding,
+              reason: 'Direct setter called',
+            });
+          }).catch(() => {
+            set({ hasCompletedOnboarding });
+          });
+        } else {
+          set({ hasCompletedOnboarding });
+        }
+        // #endregion
+      },
+      completeOnboarding: () => {
+        // #region agent log
+        // Instrument state change
+        if (__DEV__) {
+          import('@/utils/architectureDebugger').then(({ instrumentStateChange }) => {
+            const oldValue = get().hasCompletedOnboarding;
+            set({ hasCompletedOnboarding: true });
+            
+            instrumentStateChange('onboarding', {
+              key: 'hasCompletedOnboarding',
+              oldValue,
+              newValue: true,
+              reason: 'User completed onboarding flow',
+            });
+          }).catch(() => {
+            set({ hasCompletedOnboarding: true });
+          });
+        } else {
+          set({ hasCompletedOnboarding: true });
+        }
+        // #endregion
+      },
       reset: () => set({ ...baseState }),
     }),
     {
@@ -339,6 +417,11 @@ export const useOnboardingStore = create<OnboardingState>()(
       } as any),
       onRehydrateStorage: () => (state) => {
         if (state) {
+          // #region agent log
+          // H8: Check if audio is lost during rehydration
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboardingStore.ts:405',message:'Store rehydrated from AsyncStorage',data:{hasSunAudio:!!state.hookAudio?.sun,sunAudioLength:state.hookAudio?.sun?.length||0,hasMoonAudio:!!state.hookAudio?.moon,hasRisingAudio:!!state.hookAudio?.rising,allAudioKeys:state.hookAudio?Object.keys(state.hookAudio):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H8'})}).catch(()=>{});
+          // #endregion
+          
           state._hasHydrated = true;
         }
       },

@@ -86,6 +86,22 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
   const moon = hookReadings.moon;
   const rising = hookReadings.rising;
 
+  // #region agent log
+  // HS_MOUNT: Prove HookSequenceScreen is actually mounted in the reproduced flow (not gated by __DEV__)
+  useEffect(() => {
+    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:mount',message:'HookSequence mounted',data:{hasSunReading:!!sun,hasMoonReading:!!moon,hasRisingReading:!!rising,hookAudioLens:{sun:hookAudio.sun?.length||0,moon:hookAudio.moon?.length||0,rising:hookAudio.rising?.length||0},initialReading:route?.params?.initialReading||null,customReadingsLen:Array.isArray(route?.params?.customReadings)?route.params.customReadings.length:0},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'HS_MOUNT'})}).catch(()=>{});
+  }, []);
+  // #endregion
+
+  // #region agent log
+  // H1-H5: Check if audio exists when HookSequenceScreen loads
+  if (__DEV__) {
+    useEffect(() => {
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:87',message:'HookSequenceScreen loaded - checking pre-rendered audio',data:{hasSunAudio:!!hookAudio.sun,sunAudioLength:hookAudio.sun?.length||0,hasMoonAudio:!!hookAudio.moon,hasRisingAudio:!!hookAudio.rising,hasSunReading:!!sun,hasMoonReading:!!moon,hasRisingReading:!!rising},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
+    }, []);
+  }
+  // #endregion
+
   // Determine initial page based on route params
   const initialReading = route?.params?.initialReading;
   const customReadingsFromRoute = route?.params?.customReadings as HookReading[] | undefined;
@@ -333,47 +349,34 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
         .generateTTS(textToSpeak, { exaggeration: AUDIO_CONFIG.exaggeration })
         .then(async (result) => {
           if (result.success && result.audioBase64) {
-            // SAVE TO FILE instead of storing Base64
+            // Store base64 directly (more reliable than file writes on some devices)
+            setHookAudio(type, result.audioBase64);
+
+            // Cloud Sync (upload base64; cloud will return a path)
             try {
-              const filename = `hook_${type}_${Date.now()}`; // saveAudioToFile adds extension
-              const uri = await saveAudioToFile(result.audioBase64, filename);
-              const filenameHub = `${filename}.mp3`;
-
-              console.log(`💾 Saved ${type} audio to file: ${filenameHub}`);
-              setHookAudio(type, filenameHub);
-
-              // Cloud Sync (legacy logic adapted)
-              // We typically upload the file, but here we upload base64 to cloud as before
-              // because the cloud service expects base64 or file upload. 
-              // The existing uploadHookAudioBase64 takes base64.
-              try {
-                const uid = user?.id;
-                const userPerson = getUserProfile();
-                if (uid && userPerson?.id && isSupabaseConfigured && env.ENABLE_SUPABASE_LIBRARY_SYNC) {
-                  uploadHookAudioBase64({
-                    userId: uid,
-                    personId: userPerson.id,
-                    type,
-                    audioBase64: result.audioBase64,
-                  }).then((res) => {
-                    if (!res.success) return;
-                    updatePerson(userPerson.id, {
-                      hookAudioPaths: {
-                        ...(userPerson.hookAudioPaths || {}),
-                        [type]: res.path, // Cloud path
-                      },
-                    } as any);
-                  });
-                }
-              } catch { /* ignore */ }
-
-              return filenameHub; // Return filename now, not base64
-            } catch (err) {
-              console.error('Failed to save audio file:', err);
-              // Fallback: store base64 if file save fails (e.g. no space)
-              setHookAudio(type, result.audioBase64);
-              return result.audioBase64;
+              const uid = user?.id;
+              const userPerson = getUserProfile();
+              if (uid && userPerson?.id && isSupabaseConfigured && env.ENABLE_SUPABASE_LIBRARY_SYNC) {
+                uploadHookAudioBase64({
+                  userId: uid,
+                  personId: userPerson.id,
+                  type,
+                  audioBase64: result.audioBase64,
+                }).then((res) => {
+                  if (!res.success) return;
+                  updatePerson(userPerson.id, {
+                    hookAudioPaths: {
+                      ...(userPerson.hookAudioPaths || {}),
+                      [type]: res.path, // Cloud path
+                    },
+                  } as any);
+                });
+              }
+            } catch {
+              // ignore cloud sync errors here
             }
+
+            return result.audioBase64; // Return base64
           }
           return null;
         })
@@ -398,6 +401,14 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
   // Handle audio playback
   const handlePlayAudio = useCallback(async (reading: HookReading) => {
     const type = reading.type;
+
+    // #region agent log
+    // HS_PLAY: Capture state at the moment user taps play (pre-render vs missing)
+    try {
+      const v = (hookAudio as any)?.[type];
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:handlePlayAudio',message:'Play audio requested',data:{type,hookAudioLen:typeof v==='string'?v.length:0,cacheLen:(audioCache as any)?.[type]?.length||0,isSignedIn:!!useAuthStore.getState().user?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'HS_PLAY'})}).catch(()=>{});
+    } catch {}
+    // #endregion
 
     // Stop logic ... (same as before)
     if (currentPlayingType.current === type && soundRef.current) {
@@ -429,16 +440,28 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     // RESOLVE AUDIO SOURCE
     let audioSource: string | null = hookAudio[type] || null;
 
+    // #region agent log
+    // H1-H5: Track audio resolution flow
+    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:430',message:'Resolving audio source',data:{type,hasPreRenderedAudio:!!audioSource,audioLength:audioSource?.length||0,hasReading:!!reading},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
+
     // Check in-flight
     if (!audioSource) {
       const inFlight = inFlightAudio.current[type];
       if (inFlight) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:436',message:'Waiting for in-flight audio',data:{type},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
+        // #endregion
         audioSource = (await inFlight) || null; // This might now return a filename
       }
     }
 
     // Generate if missing
     if (!audioSource) {
+      // #region agent log
+      // H1: Audio not pre-rendered, needs to generate on-demand
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:441',message:'Audio missing - generating on-demand',data:{type,hasReading:!!reading},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
       // ... generate ...
       const res = await startHookAudioGeneration(type, reading); // returns filename or base64
       audioSource = res;

@@ -36,7 +36,7 @@ const screenId = '25';
 
 export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
   console.log(`📱 Screen ${screenId}: GeneratingReadingScreen`);
-  const { productType, productName, personName, partnerName, systems, readingType, forPartner, jobId } = route.params || {};
+  const { productType, productName, personName, partnerName, systems, readingType, forPartner, jobId, personId, partnerId } = route.params || {};
   const [activeJobId, setActiveJobId] = useState<string | null>(jobId || null);
 
   // Get user data from store
@@ -323,11 +323,12 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
 
   const handleGoToSecretLife = () => {
     if (isThirdPerson) {
-      // Navigate to PersonProfile
-      // We need personId, but we might not have it in params if it came from legacy flow.
-      // However, if we came from SystemSelection -> startJobAndNavigate, we passed personName.
-      // Ideally we passed personId. If not, we go to PeopleList.
-      navigation.navigate('PeopleList');
+      // If we have an id, go to that person; otherwise fall back to list
+      if (partnerId || personId) {
+        navigation.navigate('PersonProfile', { personId: partnerId || personId });
+      } else {
+        navigation.navigate('PeopleList');
+      }
     } else {
       navigation.navigate('Home');
     }
@@ -337,13 +338,20 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
     if (isThirdPerson) {
       navigation.navigate('PeopleList');
     } else {
-      navigation.navigate('MyLibrary');
+      // User request: “Back to My Secret Life Dashboard” should return to Home
+      navigation.navigate('Home');
     }
   };
 
   const readingSubject = partnerName
     ? `${personName || 'You'} & ${partnerName}`
     : personName || 'Your';
+
+  // #region agent log
+  useEffect(() => {
+    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GeneratingReadingScreen.tsx:log',message:'GeneratingReading CTAs',data:{isThirdPerson,personName,links:['Notify','Label','Back'],labels:isThirdPerson?{primary:partnerId||personId?`Go to ${personName}'s Profile`:'Go to People List',secondary:'Back to People List'}:{primary:'VEDIC READING',secondary:'Back to My Secret Life Dashboard'}},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'CTA1'})}).catch(()=>{});
+  }, []);
+  // #endregion
 
   return (
     <SafeAreaView style={styles.container}>
@@ -388,14 +396,22 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
           </Text>
         </TouchableOpacity>
 
-        {/* Go to Secret Life */}
-        <TouchableOpacity style={styles.secretLifeButton} onPress={handleGoToSecretLife}>
-          <Text style={styles.secretLifeText}>{isThirdPerson ? `Go to ${personName}'s Profile` : 'Go to My Secret Life'}</Text>
-        </TouchableOpacity>
+        {/* Primary CTA / Label */}
+        {isThirdPerson ? (
+          <TouchableOpacity style={styles.secretLifeButton} onPress={handleGoToSecretLife}>
+            <Text style={styles.secretLifeText}>{partnerId || personId ? `Go to ${personName}'s Profile` : 'Go to People List'}</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.secretLifeButton}>
+            <Text style={styles.secretLifeText}>VEDIC READING</Text>
+          </View>
+        )}
 
-        {/* Go to My Souls Library */}
+        {/* Secondary CTA */}
         <TouchableOpacity style={styles.secretLifeButton} onPress={handleGoToLibrary}>
-          <Text style={styles.secretLifeText}>{isThirdPerson ? 'Back to People List' : 'Go to My Souls Library'}</Text>
+          <Text style={styles.secretLifeText}>
+            {isThirdPerson ? 'Back to People List' : 'Back to My Secret Life Dashboard'}
+          </Text>
         </TouchableOpacity>
 
         {/* Status indicator - Centered */}
