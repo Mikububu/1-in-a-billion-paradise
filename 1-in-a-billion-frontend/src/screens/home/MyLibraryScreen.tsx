@@ -657,32 +657,44 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
         console.log('🔍 [MyLibrary] Final p1Name:', p1Name, 'from params.person1?.name:', params.person1?.name);
 
-        // Add person1 - always add if processing/queued, even without name
+        // Add person1 - deduplicate by name, merge jobIds
         if (p1Name) {
-          peopleMap.set(p1Name, {
-            id: `job-${job.id}-p1`,
-            name: p1Name,
-            isUser: p1Name === userName,
-            birthData: params.person1 || {},
-            placements: {},
-            readings: [], // Readings will be populated when job completes
-            createdAt: job.created_at || job.createdAt || new Date().toISOString(),
-            jobIds: [job.id],
-          });
+          const existing = peopleMap.get(p1Name);
+          if (existing) {
+            // Merge jobIds if person already exists
+            existing.jobIds = [...new Set([...(existing.jobIds || []), job.id])];
+          } else {
+            peopleMap.set(p1Name, {
+              id: `job-${job.id}-p1`,
+              name: p1Name,
+              isUser: p1Name === userName,
+              birthData: params.person1 || {},
+              placements: {},
+              readings: [], // Readings will be populated when job completes
+              createdAt: job.created_at || job.createdAt || new Date().toISOString(),
+              jobIds: [job.id],
+            });
+          }
         }
 
-        // Add person2
+        // Add person2 - deduplicate by name, merge jobIds
         if (p2Name) {
-          peopleMap.set(p2Name, {
-            id: `job-${job.id}-p2`,
-            name: p2Name,
-            isUser: false,
-            birthData: params.person2 || {},
-            placements: {},
-            readings: [],
-            createdAt: job.created_at || job.createdAt || new Date().toISOString(),
-            jobIds: [job.id],
-          });
+          const existing = peopleMap.get(p2Name);
+          if (existing) {
+            // Merge jobIds if person already exists
+            existing.jobIds = [...new Set([...(existing.jobIds || []), job.id])];
+          } else {
+            peopleMap.set(p2Name, {
+              id: `job-${job.id}-p2`,
+              name: p2Name,
+              isUser: false,
+              birthData: params.person2 || {},
+              placements: {},
+              readings: [],
+              createdAt: job.created_at || job.createdAt || new Date().toISOString(),
+              jobIds: [job.id],
+            });
+          }
         }
       });
 
@@ -706,28 +718,47 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         const p1Name = params.person1?.name || (isProcessing ? `Reading ${job.id.slice(0, 8)}` : undefined);
 
         if (p1Name) {
-          peopleMap.set(`job-${job.id}-p1`, {
-            id: `job-${job.id}-p1`,
-            name: p1Name,
-            isUser: p1Name === userName,
-            birthData: params.person1 || {},
-            placements: {},
-            readings: [],
-            createdAt: job.created_at || job.createdAt || new Date().toISOString(),
-            jobIds: [job.id],
-          });
+          // FIXED: Use person name as key (not job ID) to deduplicate same person
+          const existing = peopleMap.get(p1Name);
+          if (existing) {
+            // Merge jobIds if person already exists
+            existing.jobIds = [...new Set([...(existing.jobIds || []), job.id])];
+          } else {
+            peopleMap.set(p1Name, {
+              id: `job-${job.id}-p1`,
+              name: p1Name,
+              isUser: p1Name === userName,
+              birthData: params.person1 || {},
+              placements: {},
+              readings: [],
+              createdAt: job.created_at || job.createdAt || new Date().toISOString(),
+              jobIds: [job.id],
+            });
+          }
         }
       });
 
     // Convert to array and sort by most recent
-    const result = Array.from(peopleMap.values()).sort((a, b) => {
+    let result = Array.from(peopleMap.values()).sort((a, b) => {
       const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return timeB - timeA; // Most recent first
     });
 
+    // CRITICAL FILTER: Only show people with complete placements (no "Calculating..." entries)
+    // This ensures "My Souls Library" only displays valid, complete profiles with sun/moon/rising signs
+    result = result.filter(person => {
+      // Check stored placements
+      if (person.placements?.sunSign) return true;
+      // Check temp calculated placements
+      if (tempPlacements[person.name]?.sunSign) return true;
+      // Otherwise, hide this person (they're still processing)
+      return false;
+    });
+
     console.log('📊 [MyLibrary] Final peopleMap size:', peopleMap.size);
     console.log('📊 [MyLibrary] People names:', Array.from(peopleMap.keys()).join(', '));
+    console.log('📊 [MyLibrary] After filter (only with placements):', result.length);
 
     return result;
   }, [queueJobs, people, userName]);
@@ -1930,39 +1961,28 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                   })()}
                   <View style={styles.personSigns}>
                     {(() => {
-                      const knownData = getKnownUserData(person.name);
-                      // Use stored placements OR temporary/calculated placements
+                      // CRITICAL: We now filter out people without placements in allPeopleWithReadings,
+                      // so we can safely assume this person has placements (either stored or temp)
                       const placements = person.placements?.sunSign
                         ? person.placements
                         : (tempPlacements[person.name] || {});
 
-                      // Check if there are any active processing jobs for this person
-                      const isProcessing = person.jobIds?.some(id =>
-                        queueJobs.some(j => j.id === id && (j.status === 'queued' || j.status === 'processing' || j.status === 'pending'))
-                      );
-
-                      // If still no placements and processing, show Calculating...
-                      if (isProcessing && !placements.sunSign) {
-                        return (
-                          <Text style={{ fontFamily: typography.sansRegular, fontSize: 13, color: colors.mutedText }}>
-                            Calculating...
-                          </Text>
-                        );
+                      // If still no placements, this should not happen due to filter, but handle gracefully
+                      if (!placements.sunSign) {
+                        console.warn(`⚠️ Person "${person.name}" shown without placements - should have been filtered out`);
+                        return null;
                       }
 
-                      if (!placements.sunSign) return null;
-
-                      // Don't fallback to hookReadings - those are the logged-in user's signs!
                       return (
                         <>
                           <Text style={styles.personSignBadge}>
-                            ☉ {placements.sunSign || '?'}
+                            ☉ {placements.sunSign}
                           </Text>
                           <Text style={styles.personSignBadge}>
-                            ☽ {placements.moonSign || '?'}
+                            ☽ {placements.moonSign}
                           </Text>
                           <Text style={styles.personSignBadge}>
-                            ↑ {placements.risingSign || '?'}
+                            ↑ {placements.risingSign}
                           </Text>
                         </>
                       );
