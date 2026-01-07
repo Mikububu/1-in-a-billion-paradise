@@ -56,7 +56,7 @@ export const VOICES: Voice[] = [
     {
         id: 'grandpa',
         displayName: 'Grandpa',
-        description: 'Legendary documentary narrator voice (David Attenborough style)',
+        description: 'Legendary documentary narrator voice',
         sampleAudioUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/grandpa_15sec.wav',
         category: 'male',
         enabled: true,
@@ -64,10 +64,10 @@ export const VOICES: Voice[] = [
     {
         id: 'default',
         displayName: 'Default',
-        description: 'Warm, clear narrator voice',
+        description: 'Deprecated - Same as Grandpa (David A voice)',
         sampleAudioUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/voice_10sec.wav',
         category: 'male',
-        enabled: true,
+        enabled: false, // Disabled - duplicate of Grandpa
     },
 ];
 
