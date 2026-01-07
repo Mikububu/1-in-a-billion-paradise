@@ -135,6 +135,21 @@ export function useSupabaseAuthBootstrap() {
             return;
           }
 
+          // Check if this is a different user (user_id changed) - clear AsyncStorage for fresh start
+          const storedUserId = await AsyncStorage.getItem('last_user_id');
+          const currentUserId = session.user.id;
+          
+          if (storedUserId && storedUserId !== currentUserId) {
+            console.log('🧹 Different user detected - clearing AsyncStorage');
+            console.log('  Previous:', storedUserId);
+            console.log('  Current:', currentUserId);
+            await AsyncStorage.clear();
+            await AsyncStorage.setItem('last_user_id', currentUserId);
+          } else if (!storedUserId) {
+            // First time - store user_id
+            await AsyncStorage.setItem('last_user_id', currentUserId);
+          }
+
           setSession(session);
           setUser(session.user);
           // #region agent log

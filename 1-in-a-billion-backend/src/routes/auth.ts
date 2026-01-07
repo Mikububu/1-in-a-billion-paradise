@@ -104,6 +104,7 @@ router.post('/signup', async (c) => {
                 user: signInData.user,
                 session: signInData.session,
                 devMode: true, // Indicate this was DEV mode
+                clearLocalStorage: true, // Signal frontend to clear AsyncStorage for fresh start
             });
         }
 
