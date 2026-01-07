@@ -322,15 +322,15 @@ export type MainStackParamList = {
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 const MainStack = createNativeStackNavigator<MainStackParamList>();
 
-// Wrapper for SignInScreen to work with navigation
+// Wrapper for SignInScreen in onboarding flow (new users - sign-up mode)
 const SignInScreenWrapper = ({ navigation }: any) => (
-  <SignInScreen />
+  <SignInScreen route={{ params: { allowSignUp: true } }} />
 );
 
-// Wrapper for SignInScreen inside Main flow
+// Wrapper for SignInScreen inside Main flow (returning users - sign-in only)
 const MainSignInScreenWrapper = ({ navigation }: any) => {
   console.log('🚨 MainSignInScreenWrapper RENDERED (ProfileSignIn) - Something navigated here!');
-  return <SignInScreen />;
+  return <SignInScreen route={{ params: { allowSignUp: false } }} />;
 };
 
 const OnboardingNavigator = ({ initialRouteName = "Intro" }: { initialRouteName?: keyof OnboardingStackParamList }) => {
@@ -633,17 +633,17 @@ export const RootNavigator = () => {
 
   // ROUTING LOGIC:
   // 1. No session → Onboarding (Intro)
-  // 2. Session + No hook readings + Onboarding incomplete → Continue onboarding (CoreIdentities)
+  // 2. Session + No hook readings + Onboarding incomplete → Continue onboarding (HookSequence - Sun/Moon/Rising)
   // 3. Session + Hook readings OR Onboarding complete → Dashboard
 
-  // CRITICAL FIX: Returning users who have hook readings should go to dashboard, not onboarding
+  // CRITICAL FIX: New users who just signed up should go to HookSequence (Sun/Moon/Rising readings)
   const shouldContinueOnboarding = hasSession && !hasCompletedOnboarding && !hasHookReadings;
 
   if (shouldContinueOnboarding) {
-    console.log('🔄 ROUTING: Session exists but onboarding incomplete AND no hook readings → Continue to CoreIdentities');
+    console.log('🔄 ROUTING: Session exists but onboarding incomplete AND no hook readings → Continue to HookSequence');
     return (
       <View style={{ flex: 1 }}>
-        <OnboardingNavigator initialRouteName="CoreIdentities" />
+        <OnboardingNavigator initialRouteName="HookSequence" />
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'box-none' }} />
       </View>
     );

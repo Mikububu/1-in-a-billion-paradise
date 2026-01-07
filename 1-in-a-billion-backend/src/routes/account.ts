@@ -50,10 +50,36 @@ router.delete('/purge', async (c) => {
             }, 401);
         }
 
-        if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+        // Use env vars directly (can't use getApiKey for Supabase keys - circular dependency)
+        const supabaseUrl = env.SUPABASE_URL;
+        const supabaseServiceKey = env.SUPABASE_SERVICE_ROLE_KEY;
+        const supabaseAnonKey = env.SUPABASE_ANON_KEY;
+
+        // Validate Supabase configuration (check for empty strings too)
+        const hasUrl = supabaseUrl && supabaseUrl.trim().length > 0;
+        const hasServiceKey = supabaseServiceKey && supabaseServiceKey.trim().length > 0;
+        const hasAnonKey = supabaseAnonKey && supabaseAnonKey.trim().length > 0;
+
+        if (!hasUrl || !hasServiceKey || !hasAnonKey) {
+            console.error('❌ Supabase configuration missing:', {
+                hasUrl,
+                hasServiceKey,
+                hasAnonKey,
+                urlLength: supabaseUrl?.length || 0,
+                serviceKeyLength: supabaseServiceKey?.length || 0,
+                anonKeyLength: supabaseAnonKey?.length || 0,
+                envUrl: !!env.SUPABASE_URL,
+                envServiceKey: !!env.SUPABASE_SERVICE_ROLE_KEY,
+                envAnonKey: !!env.SUPABASE_ANON_KEY,
+            });
+            const missingKeys = [];
+            if (!hasUrl) missingKeys.push('SUPABASE_URL');
+            if (!hasServiceKey) missingKeys.push('SUPABASE_SERVICE_ROLE_KEY');
+            if (!hasAnonKey) missingKeys.push('SUPABASE_ANON_KEY');
+            
             return c.json({
                 success: false,
-                error: 'Supabase not configured'
+                error: `Supabase not configured. Missing: ${missingKeys.join(', ')}. Please set these environment variables in your backend (Fly.io secrets or .env file).`
             }, 500);
         }
 
@@ -62,8 +88,8 @@ router.delete('/purge', async (c) => {
 
         // User client to verify auth and get user ID
         const userClient = createClient(
-            env.SUPABASE_URL,
-            env.SUPABASE_ANON_KEY!,
+            supabaseUrl,
+            supabaseAnonKey,
             {
                 global: {
                     headers: {
@@ -88,8 +114,8 @@ router.delete('/purge', async (c) => {
 
         // Service role client for deletion (bypasses RLS)
         const serviceClient = createClient(
-            env.SUPABASE_URL,
-            env.SUPABASE_SERVICE_ROLE_KEY
+            supabaseUrl,
+            supabaseServiceKey
         );
 
         // ═══════════════════════════════════════════════════════════════════════

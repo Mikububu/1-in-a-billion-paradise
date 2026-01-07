@@ -56,7 +56,6 @@ export const LanguagesScreen = ({ navigation }: Props) => {
         isMuted
         rate={0.5}
       />
-      />
 
       {/* Back Button */}
       <TouchableOpacity

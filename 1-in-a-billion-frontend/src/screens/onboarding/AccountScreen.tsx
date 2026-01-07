@@ -52,7 +52,8 @@ export const AccountScreen = ({ navigation }: Props) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [emailAuthState, setEmailAuthState] = useState<EmailAuthState>('idle');
-  const [isSigningUp, setIsSigningUp] = useState(true); // Default to sign-up mode
+  // AccountScreen is always sign-up mode (post-onboarding account creation)
+  const isSigningUp = true;
   const [showEmailInput, setShowEmailInput] = useState(false);
 
   useFocusEffect(
@@ -149,7 +150,7 @@ export const AccountScreen = ({ navigation }: Props) => {
 
   const handleEmailAuth = async () => {
     // Validate inputs
-    if (isSigningUp && !name.trim()) {
+    if (!name.trim()) {
       Alert.alert('Error', 'Please enter your name');
       return;
     }
@@ -164,23 +165,34 @@ export const AccountScreen = ({ navigation }: Props) => {
       return;
     }
 
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+    if (password.length < 8) {
+      Alert.alert('Error', 'Password must be at least 8 characters');
+      return;
+    }
+
+    // Strong password validation: uppercase, lowercase, number, special character
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordRegex.test(password)) {
+      Alert.alert(
+        'Password Requirements',
+        'Password must be at least 8 characters and include:\n• Uppercase letter\n• Lowercase letter\n• Number\n• Special character (@$!%*?&)'
+      );
       return;
     }
 
     try {
       setEmailAuthState('loading');
-      const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
+      // Use centralized env config (same as other services)
+      const backendUrl = process.env.EXPO_PUBLIC_CORE_API_URL || process.env.EXPO_PUBLIC_API_URL || env.CORE_API_URL;
       if (!backendUrl) {
-        throw new Error('Backend URL not configured');
+        throw new Error('Backend URL not configured. Please set EXPO_PUBLIC_CORE_API_URL in your .env file.');
       }
 
       const { setFlowType } = useAuthStore.getState();
       setFlowType('onboarding');
 
-      const endpoint = isSigningUp ? '/api/auth/signup' : '/api/auth/signin';
-      console.log(`📧 ${isSigningUp ? 'Signing up' : 'Signing in'}:`, email);
+      const endpoint = '/api/auth/signup';
+      console.log(`📧 Signing up:`, email);
 
       const response = await fetch(`${backendUrl}${endpoint}`, {
         method: 'POST',
@@ -194,10 +206,10 @@ export const AccountScreen = ({ navigation }: Props) => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || `Failed to ${isSigningUp ? 'sign up' : 'sign in'}`);
+        throw new Error(data.error || 'Failed to sign up');
       }
 
-      console.log(`✅ ${isSigningUp ? 'Sign up' : 'Sign in'} successful`);
+      console.log(`✅ Sign up successful`);
 
       if (data.session) {
         const { error: sessionError } = await supabase.auth.setSession({
@@ -210,7 +222,7 @@ export const AccountScreen = ({ navigation }: Props) => {
         }
 
         // Save name to onboarding store for PostHookOfferScreen to use
-        if (isSigningUp && name.trim()) {
+        if (name.trim()) {
           useOnboardingStore.getState().setName(name.trim());
         }
 
@@ -222,11 +234,11 @@ export const AccountScreen = ({ navigation }: Props) => {
         setPassword('');
       } // RootNavigator will detect session and continue to HookSequence
     } catch (error: any) {
-      console.error(`❌ ${isSigningUp ? 'SIGNUP' : 'SIGNIN'} ERROR:`, error.message);
+      console.error(`❌ SIGNUP ERROR:`, error.message);
       setEmailAuthState('error');
       Alert.alert(
-        isSigningUp ? 'Sign Up Error' : 'Sign In Error',
-        error.message || `Failed to ${isSigningUp ? 'create account' : 'sign in'}`
+        'Sign Up Error',
+        error.message || 'Failed to create account'
       );
       setTimeout(() => setEmailAuthState('idle'), 2000);
     }
@@ -304,8 +316,7 @@ export const AccountScreen = ({ navigation }: Props) => {
             </>
           ) : (
             <>
-              {isSigningUp && (
-                <TextInput
+              <TextInput
                   style={styles.emailInput}
                   placeholder="Name (how should we call you?)"
                   placeholderTextColor={colors.mutedText}
@@ -331,7 +342,7 @@ export const AccountScreen = ({ navigation }: Props) => {
 
               <TextInput
                 style={styles.emailInput}
-                placeholder="Password (min 6 characters)"
+                placeholder="Password (min 8 characters)"
                 placeholderTextColor={colors.mutedText}
                 value={password}
                 onChangeText={setPassword}
@@ -350,34 +361,8 @@ export const AccountScreen = ({ navigation }: Props) => {
                   {emailAuthState === 'loading' ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
-                    <Text style={styles.emailSubmitText}>
-                      {isSigningUp ? 'Sign Up' : 'Sign In'}
-                    </Text>
+                    <Text style={styles.emailSubmitText}>Sign Up</Text>
                   )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.switchModeButton}
-                  onPress={() => setIsSigningUp(!isSigningUp)}
-                  disabled={emailAuthState === 'loading'}
-                >
-                  <Text style={styles.switchModeText}>
-                    {isSigningUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => {
-                    setShowEmailInput(false);
-                    setName('');
-                    setEmail('');
-                    setPassword('');
-                    setEmailAuthState('idle');
-                  }}
-                  disabled={emailAuthState === 'loading'}
-                >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
               </View>
             </>

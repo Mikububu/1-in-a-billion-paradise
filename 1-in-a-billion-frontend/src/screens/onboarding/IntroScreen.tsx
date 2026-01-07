@@ -33,6 +33,9 @@ export const IntroScreen = ({ navigation }: Props) => {
   const words = "Find rare compatibility through deep matching across multiple spiritual systems.".split(' ');
 
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'IntroScreen.tsx:35',message:'useEffect - calling AmbientMusic.load()',data:{isPlaying},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     // Load music once
     AmbientMusic.load();
 
@@ -48,8 +51,18 @@ export const IntroScreen = ({ navigation }: Props) => {
   // Use focus effect to ensure music is playing when focused and restart zoom animation on focus
   useFocusEffect(
     useCallback(() => {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'IntroScreen.tsx:49',message:'useFocusEffect - checking isPlaying',data:{isPlaying},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       if (isPlaying) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'IntroScreen.tsx:51',message:'useFocusEffect - calling AmbientMusic.play()',data:{isPlaying},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         AmbientMusic.play();
+      } else {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'IntroScreen.tsx:53',message:'useFocusEffect - NOT calling play (isPlaying=false)',data:{isPlaying},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
       }
       // Start zoom animation on focus - works for both native and web
       const zoomLoop = Animated.loop(
@@ -96,7 +109,7 @@ export const IntroScreen = ({ navigation }: Props) => {
         ]
       );
     } else {
-      navigation.navigate('SignIn' as any);
+      navigation.navigate('SignIn' as any, { allowSignUp: true });
     }
   };
 

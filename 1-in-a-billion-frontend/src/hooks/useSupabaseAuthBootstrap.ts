@@ -298,7 +298,7 @@ export function useSupabaseAuthBootstrap() {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [setUser, setSession, setDisplayName, setIsLoading, setIsAuthReady]);
+  }, []); // Empty deps - Zustand setters are stable, and we only want this to run once on mount
 };
 
 

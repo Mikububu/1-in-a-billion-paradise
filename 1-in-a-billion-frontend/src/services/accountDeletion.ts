@@ -35,10 +35,11 @@ export async function deleteAccount(): Promise<void> {
     const accessToken = session.access_token;
 
     // Get backend URL from environment
-    const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
+    // Use centralized env config (same as other services)
+    const backendUrl = process.env.EXPO_PUBLIC_CORE_API_URL || process.env.EXPO_PUBLIC_API_URL || 'https://1-in-a-billion-backend.fly.dev';
 
     if (!backendUrl) {
-        throw new Error('Backend URL not configured');
+        throw new Error('Backend URL not configured. Please set EXPO_PUBLIC_CORE_API_URL in your .env file.');
     }
 
     // Construct full URL

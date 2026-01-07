@@ -12,7 +12,7 @@
  */
 
 import { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
@@ -24,74 +24,48 @@ import { deleteAccount } from '@/services/accountDeletion';
 type Props = NativeStackScreenProps<MainStackParamList, 'AccountDeletion'>;
 
 export const AccountDeletionScreen = ({ navigation }: Props) => {
-  const [confirmText, setConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
-  const [step, setStep] = useState<'info' | 'confirm'>('info');
 
   const resetOnboarding = useOnboardingStore((state) => state.reset);
   const resetProfile = useProfileStore((state) => state.reset);
 
-  const canConfirm = confirmText.toLowerCase() === 'delete';
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    try {
+      // Call backend API to permanently delete account
+      await deleteAccount();
 
-  const handleRequestDeletion = () => {
-    setStep('confirm');
-  };
+      // Clear local data
+      resetOnboarding();
+      resetProfile();
 
-  const handleConfirmDeletion = async () => {
-    if (!canConfirm) {
-      Alert.alert('Confirmation Required', 'Please type "DELETE" to confirm.');
-      return;
-    }
-
-    Alert.alert(
-      'Final Confirmation',
-      'This action cannot be undone. All your data will be permanently deleted immediately. Are you absolutely sure?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Yes, Delete My Account',
-          style: 'destructive',
-          onPress: async () => {
-            setIsDeleting(true);
-            try {
-              // Call backend API to permanently delete account
-              await deleteAccount();
-
-              // Clear local data
-              resetOnboarding();
-              resetProfile();
-
-              Alert.alert(
-                'Account Deleted',
-                'Your account and all associated data have been permanently deleted.',
-                [
-                  {
-                    text: 'OK',
-                    onPress: () => {
-                      // No need to navigate - signOut() already happened,
-                      // RootNavigator will automatically show OnboardingNavigator (Intro)
-                      // Just reset to clear the navigation stack
-                      navigation.reset({
-                        index: 0,
-                        routes: [{ name: 'Home' }],
-                      });
-                    },
-                  },
-                ]
-              );
-            } catch (error: any) {
-              console.error('Account deletion error:', error);
-              Alert.alert(
-                'Deletion Failed',
-                error.message || 'Failed to delete account. Please try again or contact support.'
-              );
-            } finally {
-              setIsDeleting(false);
-            }
+      Alert.alert(
+        'Account Deleted',
+        'Your account and all associated data have been permanently deleted.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // No need to navigate - signOut() already happened,
+              // RootNavigator will automatically show OnboardingNavigator (Intro)
+              // Just reset to clear the navigation stack
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Home' }],
+              });
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    } catch (error: any) {
+      console.error('Account deletion error:', error);
+      Alert.alert(
+        'Deletion Failed',
+        error.message || 'Failed to delete account. Please try again or contact support.'
+      );
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleContactSupport = () => {
@@ -101,53 +75,6 @@ export const AccountDeletionScreen = ({ navigation }: Props) => {
       [{ text: 'OK' }]
     );
   };
-
-  if (step === 'confirm') {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => setStep('info')} style={styles.backButton}>
-            <Text style={styles.backText}>← Back</Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.confirmContent}>
-          <Text style={styles.warningIcon}>⚠️</Text>
-          <Text style={styles.confirmTitle}>Confirm Deletion</Text>
-          <Text style={styles.confirmText}>
-            This will permanently delete your account and all associated data. This action cannot be undone.
-          </Text>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Type "DELETE" to confirm:</Text>
-            <TextInput
-              style={styles.input}
-              value={confirmText}
-              onChangeText={setConfirmText}
-              placeholder="DELETE"
-              placeholderTextColor={colors.mutedText}
-              autoCapitalize="characters"
-              autoCorrect={false}
-            />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.deleteButton, !canConfirm && styles.deleteButtonDisabled]}
-            onPress={handleConfirmDeletion}
-            disabled={!canConfirm || isDeleting}
-          >
-            <Text style={styles.deleteButtonText}>
-              {isDeleting ? 'Deleting...' : 'Delete My Account Forever'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.cancelButton} onPress={() => setStep('info')}>
-            <Text style={styles.cancelButtonText}>Cancel - Keep My Account</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -259,9 +186,12 @@ export const AccountDeletionScreen = ({ navigation }: Props) => {
         {/* Delete Button */}
         <TouchableOpacity
           style={styles.requestDeleteButton}
-          onPress={handleRequestDeletion}
+          onPress={handleDeleteAccount}
+          disabled={isDeleting}
         >
-          <Text style={styles.requestDeleteText}>Request Account Deletion</Text>
+          <Text style={styles.requestDeleteText}>
+            {isDeleting ? 'Deleting Account...' : 'Delete My Account'}
+          </Text>
         </TouchableOpacity>
 
         <Text style={styles.disclaimer}>
@@ -405,78 +335,6 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     textAlign: 'center',
     lineHeight: 18,
-  },
-
-  // Confirm screen styles
-  confirmContent: {
-    paddingHorizontal: spacing.page,
-    paddingVertical: spacing.xl * 2,
-    alignItems: 'center',
-  },
-  warningIcon: {
-    fontSize: 64,
-    marginBottom: spacing.lg,
-  },
-  confirmTitle: {
-    fontFamily: typography.headline,
-    fontSize: 28,
-    color: colors.primary,
-    textAlign: 'center',
-    marginBottom: spacing.md,
-  },
-  confirmText: {
-    fontFamily: typography.sansRegular,
-    fontSize: 16,
-    color: colors.text,
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: spacing.xl,
-  },
-  inputContainer: {
-    width: '100%',
-    marginBottom: spacing.xl,
-  },
-  inputLabel: {
-    fontFamily: typography.sansSemiBold,
-    fontSize: 14,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    borderRadius: radii.button,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    fontFamily: typography.sansSemiBold,
-    fontSize: 18,
-    color: colors.text,
-    textAlign: 'center',
-  },
-  deleteButton: {
-    width: '100%',
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.lg,
-    borderRadius: radii.button,
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  deleteButtonDisabled: {
-    backgroundColor: colors.mutedText,
-  },
-  deleteButtonText: {
-    fontFamily: typography.sansSemiBold,
-    fontSize: 16,
-    color: '#fff',
-  },
-  cancelButton: {
-    paddingVertical: spacing.md,
-  },
-  cancelButtonText: {
-    fontFamily: typography.sansSemiBold,
-    fontSize: 16,
-    color: colors.text,
   },
 });
 

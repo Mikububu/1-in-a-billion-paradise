@@ -26,7 +26,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as WebBrowser from 'expo-web-browser';
-// import { Video, ResizeMode } from 'expo-av'; // Removed - no video assets
+import { Video, ResizeMode } from 'expo-av';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { useAuthStore } from '@/store/authStore';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
@@ -49,17 +49,18 @@ interface SignInScreenProps {
 }
 
 export const SignInScreen = ({ route }: SignInScreenProps) => {
-  const allowSignUp = route?.params?.allowSignUp ?? false; // Default: sign-in only
+  const allowSignUp = route?.params?.allowSignUp ?? true; // Default: sign-up (for onboarding flow)
   const navigation = useNavigation<any>();
   const [isLoading, setIsLoading] = useState(false);
-  // Removed videoReady state - no video assets
+  const [videoReady, setVideoReady] = useState(false);
   const { isPlaying } = useMusicStore();
 
   // Email authentication state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [emailAuthState, setEmailAuthState] = useState<EmailAuthState>('idle');
-  const [isSigningUp, setIsSigningUp] = useState(false); // Only used if allowSignUp=true
+  // Mode is determined by allowSignUp param - no toggle needed
+  const isSigningUp = allowSignUp;
   const [showEmailInput, setShowEmailInput] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
@@ -305,25 +306,31 @@ export const SignInScreen = ({ route }: SignInScreenProps) => {
       return;
     }
 
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+    if (password.length < 8) {
+      Alert.alert('Error', 'Password must be at least 8 characters');
+      return;
+    }
+
+    // Strong password validation: uppercase, lowercase, number, special character
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordRegex.test(password)) {
+      Alert.alert(
+        'Password Requirements',
+        'Password must be at least 8 characters and include:\n• Uppercase letter\n• Lowercase letter\n• Number\n• Special character (@$!%*?&)'
+      );
       return;
     }
 
     try {
       setEmailAuthState('loading');
-      const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
+      // Use centralized env config (same as other services)
+      const backendUrl = process.env.EXPO_PUBLIC_CORE_API_URL || process.env.EXPO_PUBLIC_API_URL || 'https://1-in-a-billion-backend.fly.dev';
       if (!backendUrl) {
-        throw new Error('Backend URL not configured');
+        throw new Error('Backend URL not configured. Please set EXPO_PUBLIC_CORE_API_URL in your .env file.');
       }
 
-      // Enforce AUTH_FLOW_CONTRACT: only allow sign-up if allowSignUp=true
-      const isCreatingAccount = isSigningUp && allowSignUp;
-      if (isSigningUp && !allowSignUp) {
-        Alert.alert('Error', 'Sign-up is not allowed from this screen. Please complete onboarding first.');
-        setEmailAuthState('idle');
-        return;
-      }
+      // Mode is determined by allowSignUp param - no toggle needed
+      const isCreatingAccount = isSigningUp;
 
       const endpoint = isCreatingAccount ? '/api/auth/signup' : '/api/auth/signin';
       console.log(`📧 ${isCreatingAccount ? 'Signing up' : 'Signing in'}:`, email);
@@ -444,9 +451,10 @@ export const SignInScreen = ({ route }: SignInScreenProps) => {
 
     try {
       setEmailAuthState('loading');
-      const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
+      // Use centralized env config (same as other services)
+      const backendUrl = process.env.EXPO_PUBLIC_CORE_API_URL || process.env.EXPO_PUBLIC_API_URL || 'https://1-in-a-billion-backend.fly.dev';
       if (!backendUrl) {
-        throw new Error('Backend URL not configured');
+        throw new Error('Backend URL not configured. Please set EXPO_PUBLIC_CORE_API_URL in your .env file.');
       }
 
       const response = await fetch(`${backendUrl}/api/auth/forgot-password`, {
@@ -492,8 +500,24 @@ export const SignInScreen = ({ route }: SignInScreenProps) => {
         <Text style={styles.backButtonText}>← Back</Text>
       </TouchableOpacity>
 
-      {/* Background - using solid color since assets don't exist */}
-      <View style={styles.backgroundVideo} />
+      {/* Background Video + Poster */}
+      {!videoReady && (
+        <Image
+          source={require('../../../assets/images/signin-poster.jpg')}
+          style={styles.backgroundVideo}
+          resizeMode="cover"
+        />
+      )}
+
+      <Video
+        source={require('../../../assets/videos/signin-background.mp4')}
+        style={styles.backgroundVideo}
+        resizeMode={ResizeMode.COVER}
+        shouldPlay
+        isLooping
+        isMuted
+        onReadyForDisplay={() => setVideoReady(true)}
+      />
 
       <View style={styles.contentContainer}>
         <View style={{ flex: 1 }} />
@@ -530,6 +554,30 @@ export const SignInScreen = ({ route }: SignInScreenProps) => {
               >
                 <Text style={styles.emailButtonText}>Continue with Email</Text>
               </TouchableOpacity>
+
+              {/* DEV Login Button - Only in development */}
+              {__DEV__ && (
+                <TouchableOpacity
+                  style={[styles.authButton, styles.devButton]}
+                  onPress={() => {
+                    const fakeUser = {
+                      id: `dev-${Date.now()}`,
+                      email: 'dev@test.local',
+                      user_metadata: { full_name: 'Dev User' },
+                      app_metadata: {},
+                      aud: 'authenticated',
+                      created_at: new Date().toISOString(),
+                    };
+                    useAuthStore.getState().setUser(fakeUser as any);
+                    useAuthStore.getState().setDisplayName('Dev User');
+                    useAuthStore.getState().setIsAuthReady(true);
+                    navigation.navigate('Home' as any);
+                  }}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.devButtonText}>🔧 DEV Login (Skip Auth)</Text>
+                </TouchableOpacity>
+              )}
             </>
           ) : showForgotPassword ? (
             <>
@@ -592,7 +640,7 @@ export const SignInScreen = ({ route }: SignInScreenProps) => {
 
               <TextInput
                 style={styles.emailInput}
-                placeholder="Password (min 6 characters)"
+                placeholder="Password (min 8 characters)"
                 placeholderTextColor={colors.mutedText}
                 value={password}
                 onChangeText={setPassword}
@@ -626,30 +674,6 @@ export const SignInScreen = ({ route }: SignInScreenProps) => {
                     <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
                   </TouchableOpacity>
                 )}
-
-                <TouchableOpacity
-                  style={styles.switchModeButton}
-                  onPress={() => setIsSigningUp(!isSigningUp)}
-                  disabled={emailAuthState === 'loading'}
-                >
-                  <Text style={styles.switchModeText}>
-                    {isSigningUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => {
-                    setShowEmailInput(false);
-                    setShowForgotPassword(false);
-                    setEmail('');
-                    setPassword('');
-                    setEmailAuthState('idle');
-                  }}
-                  disabled={emailAuthState === 'loading'}
-                >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
               </View>
             </>
           )}
@@ -726,6 +750,21 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontFamily: typography.sansMedium,
+  },
+  devButton: {
+    backgroundColor: '#666',
+    borderRadius: radii.button,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+    minHeight: 56,
+  },
+  devButtonText: {
+    fontSize: 14,
+    fontFamily: typography.sansMedium,
+    color: '#fff',
   },
   emailInput: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
