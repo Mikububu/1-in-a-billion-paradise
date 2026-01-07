@@ -1,0 +1,669 @@
+import React, { useMemo, useEffect, useState } from 'react';
+import { View, Alert, TouchableOpacity, Text } from 'react-native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
+import { useOnboardingStore } from '@/store/onboardingStore';
+import { useProfileStore } from '@/store/profileStore';
+import { useAuthStore } from '@/store/authStore';
+import { useSupabaseAuthBootstrap } from '@/hooks/useSupabaseAuthBootstrap';
+import { useSupabaseLibraryAutoSync } from '@/hooks/useSupabaseLibraryAutoSync';
+import { SignInScreen } from '@/screens/auth/SignInScreen';
+// Onboarding screens
+import { IntroScreen } from '@/screens/onboarding/IntroScreen';
+import { RelationshipScreen } from '@/screens/onboarding/RelationshipScreen';
+import { BirthInfoScreen } from '@/screens/onboarding/BirthInfoScreen';
+import { LanguagesScreen } from '@/screens/onboarding/LanguagesScreen';
+// CurrentCityScreen removed from onboarding flow
+import { AccountScreen } from '@/screens/onboarding/AccountScreen';
+import { CoreIdentitiesScreen } from '@/screens/onboarding/CoreIdentitiesScreen';
+import { HookSequenceScreen } from '@/screens/onboarding/HookSequenceScreen';
+import { PostHookOfferScreen } from '@/screens/onboarding/PostHookOfferScreen';
+// ... imports ...
+
+export type OnboardingStackParamList = {
+  Intro: undefined;
+  SignIn: undefined;
+  Relationship: undefined;
+  BirthInfo: undefined;
+  CurrentCity: undefined;
+  Languages: undefined;
+  Account: undefined;
+  CoreIdentities: undefined;
+  CoreIdentitiesIntro: undefined;
+  HookSequence: {
+    initialReading?: 'sun' | 'moon' | 'rising';
+    customReadings?: any[]; // Hook readings to display instead of from store
+    personName?: string; // Name of person whose readings are shown
+  } | undefined;
+  OnboardingComplete: undefined;
+  PostHookOffer: undefined; // New screen
+};
+
+// ...
+
+
+
+// Main screens
+import { HomeScreen } from '@/screens/home/HomeScreen';
+import { YourChartScreen } from '@/screens/home/YourChartScreen';
+import { MatchesScreen } from '@/screens/home/MatchesScreen';
+import { MatchDetailScreen } from '@/screens/home/MatchDetailScreen';
+import { PartnerInfoScreen } from '@/screens/home/PartnerInfoScreen';
+import { PartnerCoreIdentitiesScreen } from '@/screens/home/PartnerCoreIdentitiesScreen';
+import { PartnerReadingsScreen } from '@/screens/home/PartnerReadingsScreen';
+import { SynastryPreviewScreen } from '@/screens/home/SynastryPreviewScreen';
+import { SynastryOptionsScreen } from '@/screens/home/SynastryOptionsScreen';
+import { SystemSelectionScreen } from '@/screens/home/SystemSelectionScreen';
+import { GeneratingReadingScreen } from '@/screens/home/GeneratingReadingScreen';
+import { ExtendedPromptScreen } from '@/screens/home/ExtendedPromptScreen';
+import { ExtendedReadingScreen } from '@/screens/home/ExtendedReadingScreen';
+import { FullReadingRedirectScreen } from '@/screens/home/FullReadingRedirectScreen';
+import { CompleteReadingScreen } from '@/screens/home/CompleteReadingScreen';
+import { ReadingSummaryScreen } from '@/screens/home/ReadingSummaryScreen';
+import { SavedReadingScreen } from '@/screens/home/SavedReadingScreen';
+import { SystemOverviewScreen } from '@/screens/home/SystemOverviewScreen';
+import { EditBirthDataScreen } from '@/screens/home/EditBirthDataScreen';
+import { JobDetailScreen } from '@/screens/home/JobDetailScreen';
+import { DeepReadingReaderScreen } from '@/screens/home/DeepReadingReaderScreen';
+import { OverlayReaderScreen } from '@/screens/home/OverlayReaderScreen';
+import { PeopleListScreen } from '@/screens/home/PeopleListScreen';
+import { PersonProfileScreen } from '@/screens/home/PersonProfileScreen';
+import { PersonReadingsScreen } from '@/screens/home/PersonReadingsScreen';
+import { MyLibraryScreen } from '@/screens/home/MyLibraryScreen';
+import { NextStepScreen } from '@/screens/home/NextStepScreen';
+import { ComparePeopleScreen } from '@/screens/home/ComparePeopleScreen';
+import { SystemsOverviewScreen } from '@/screens/home/SystemsOverviewScreen';
+import { AudioPlayerScreen } from '@/screens/home/AudioPlayerScreen';
+import { RelationshipContextScreen } from '@/screens/home/RelationshipContextScreen';
+import { SynastryOverlayScreen } from '@/screens/premium/SynastryOverlayScreen';
+import { PurchaseScreen } from '@/screens/premium/PurchaseScreen';
+import { HowMatchingWorksScreen } from '@/screens/home/HowMatchingWorksScreen';
+import { ChartCalculationScreen } from '@/screens/home/ChartCalculationScreen';
+// KYC screens
+import { KYCIntroScreen } from '@/screens/kyc/KYCIntroScreen';
+import { KYCPhoneScreen } from '@/screens/kyc/KYCPhoneScreen';
+import { KYCDocumentScreen } from '@/screens/kyc/KYCDocumentScreen';
+import { KYCFaceScanScreen } from '@/screens/kyc/KYCFaceScanScreen';
+import { KYCCompleteScreen } from '@/screens/kyc/KYCCompleteScreen';
+// Learn screens
+import { SystemExplainerScreen } from '@/screens/learn/SystemExplainerScreen';
+import { WhyDifferentScreen } from '@/screens/learn/WhyDifferentScreen';
+// Settings screens
+import {
+  SettingsScreen,
+  PrivacyPolicyScreen,
+  TermsOfServiceScreen,
+  AccountDeletionScreen,
+  DataPrivacyScreen,
+  ContactSupportScreen,
+  AboutScreen
+} from '@/screens/settings';
+import { BirthChart, ProductId } from '@/types/api';
+import { CityOption } from '@/types/forms';
+
+
+
+export type MainStackParamList = {
+  Home: undefined;
+  NextStep: undefined;
+  ComparePeople: undefined;
+  ProfileSignIn: undefined;
+  HowMatchingWorks: undefined;
+  HookSequence: {
+    initialReading?: 'sun' | 'moon' | 'rising';
+    customReadings?: any[]; // Hook readings to display instead of from store
+    personName?: string; // Name of person whose readings are shown
+  } | undefined;
+  HookPreview: {
+    initialReading?: 'sun' | 'moon' | 'rising';
+    customReadings: any[]; // Required for preview
+    personName: string; // Required for title
+  };
+  SystemsOverview: {
+    forPartner?: boolean;
+    partnerName?: string;
+    partnerBirthDate?: string;
+    partnerBirthTime?: string | null;
+    partnerBirthCity?: CityOption | null;
+  } | undefined;
+  MyLibrary: undefined;
+  YourChart: undefined;
+  ChartCalculation: { personId?: string } | undefined;
+  Matches: undefined;
+  MatchDetail: { matchId: string };
+  PartnerInfo: { mode?: 'add_person_only'; returnTo?: 'ComparePeople' } | undefined;
+  PartnerCoreIdentities: {
+    partnerName: string;
+    partnerBirthDate?: string | undefined;
+    partnerBirthTime?: string | null | undefined;
+    partnerBirthCity?: CityOption | null | undefined;
+  };
+  PartnerReadings: {
+    partnerName: string;
+    partnerBirthDate?: string | undefined;
+    partnerBirthTime?: string | null | undefined;
+    partnerBirthCity?: CityOption | null | undefined;
+    partnerId?: string;
+  };
+  SynastryPreview: {
+    partnerName?: string;
+    partnerBirthDate?: string;
+    partnerBirthTime?: string | null;
+    partnerBirthCity?: CityOption | null;
+  };
+  SynastryOptions: {
+    partnerName: string;
+    partnerBirthDate?: string | undefined;
+    partnerBirthTime?: string | null | undefined;
+    partnerBirthCity?: CityOption | null | undefined;
+  } | undefined;
+  RelationshipContext: {
+    partnerName: string;
+    readingType: 'individual' | 'overlay';
+    forPartner: boolean;
+    userName: string;
+    partnerBirthDate?: string;
+    partnerBirthTime?: string | null;
+    partnerBirthCity?: CityOption | null;
+    personId?: string;
+    person1Override?: {
+      name: string;
+      birthDate: string;
+      birthTime: string;
+      timezone: string;
+      latitude: number;
+      longitude: number;
+    };
+    person2Override?: {
+      name: string;
+      birthDate: string;
+      birthTime: string;
+      timezone: string;
+      latitude: number;
+      longitude: number;
+    };
+  };
+  SystemSelection: {
+    // Standard params
+    readingType: 'individual' | 'overlay';
+    forPartner: boolean;
+    userName: string;
+    partnerName?: string;
+    partnerBirthDate?: string;
+    partnerBirthTime?: string | null;
+    partnerBirthCity?: CityOption | null;
+    relationshipContext?: string; // NEW: Optional context from RelationshipContext screen
+
+    // NEW: Direct person lookup (skips providing all details manually)
+    personId?: string;
+
+    // Optional overrides for "two other people" flows (neither is the main user).
+    person1Override?: {
+      name: string;
+      birthDate: string;
+      birthTime: string;
+      timezone: string;
+      latitude: number;
+      longitude: number;
+    };
+    person2Override?: {
+      name: string;
+      birthDate: string;
+      birthTime: string;
+      timezone: string;
+      latitude: number;
+      longitude: number;
+    };
+  };
+  GeneratingReading: {
+    productType: string;
+    productName: string;
+    personName?: string;
+    partnerName?: string;
+    jobId?: string;
+    systems?: string[];
+    readingType?: 'individual' | 'overlay';
+    forPartner?: boolean;
+  };
+  ExtendedPrompt: undefined;
+  ExtendedReading: undefined;
+  FullReading: {
+    system?: string;
+    forPartner?: boolean;
+    partnerName?: string;
+    partnerBirthDate?: string;
+    partnerBirthTime?: string | null;
+    partnerBirthCity?: CityOption | null;
+  };
+  SavedReading: { personId: string; readingId: string };
+  SystemOverview: { personId: string; system: string };
+  EditBirthData: { personId?: string } | undefined;
+  JobDetail: { jobId: string };
+  DeepReadingReader: { jobId: string };
+  OverlayReader: { jobId: string };
+  CompleteReading: {
+    partnerName?: string;
+    partnerBirthDate?: string;
+    partnerBirthTime?: string | null;
+    partnerBirthCity?: CityOption | null;
+  } | undefined;
+  ReadingSummary: {
+    readingType?: string;
+    person1Name?: string;
+    person2Name?: string;
+    overallScore?: number;
+    highlights?: Array<{ icon: string; text: string }>;
+    wordCount?: number;
+    readingId?: string;
+  };
+  PeopleList: { mode?: 'view' | 'select'; returnTo?: keyof MainStackParamList } | undefined;
+  PersonProfile: { personId: string };
+  PersonReadings: { personName: string; personType: 'person1' | 'person2' | 'overlay'; jobId?: string };
+  SynastryOverlay: {
+    userId: string;
+    user1: { name: string; birthChart: BirthChart };
+    user2: { name: string; birthChart: BirthChart };
+    person1Id?: string;
+    person2Id?: string;
+  };
+  Purchase: {
+    userId?: string;
+    preselectedProduct?: ProductId;
+    onPurchaseComplete?: () => void;
+    mode?: 'user_readings' | 'partner_readings' | 'overlays' | 'nuclear' | 'all';
+    partnerName?: string;
+  };
+  // KYC Screens
+  KYCIntro: undefined;
+  KYCPhone: undefined;
+  KYCPhoto: undefined;
+  KYCDocument: undefined;
+  KYCFaceScan: undefined;
+  KYCComplete: undefined;
+  // Learn Screens
+  SystemExplainer: {
+    system: 'western' | 'vedic' | 'human_design' | 'gene_keys' | 'kabbalah';
+    forPurchase?: boolean;
+    forPartner?: boolean;
+    partnerName?: string;
+    partnerBirthDate?: string;
+    partnerBirthTime?: string | null;
+    partnerBirthCity?: CityOption | null;
+  };
+  WhyDifferent: undefined;
+  // Audio Player
+  AudioPlayer: {
+    audioUrl?: string;
+    title?: string;
+    personName?: string;
+    system?: string;
+    readingId?: string;
+    readingText?: string; // If provided, will generate audio on the player screen
+    playlist?: Array<{
+      title: string;
+      audioUrl: string;
+      system?: string;
+      headlineText?: string;
+      systemBlurbText?: string;
+    }>;
+    startIndex?: number;
+    seriesIntroText?: string;
+  };
+  // Settings Screens
+  Settings: undefined;
+  PrivacyPolicy: undefined;
+  TermsOfService: undefined;
+  AccountDeletion: undefined;
+  DataPrivacy: undefined;
+  ContactSupport: undefined;
+  About: undefined;
+};
+
+const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
+const MainStack = createNativeStackNavigator<MainStackParamList>();
+
+// Wrapper for SignInScreen to work with navigation
+const SignInScreenWrapper = ({ navigation }: any) => (
+  <SignInScreen />
+);
+
+// Wrapper for SignInScreen inside Main flow
+const MainSignInScreenWrapper = ({ navigation }: any) => {
+  console.log('🚨 MainSignInScreenWrapper RENDERED (ProfileSignIn) - Something navigated here!');
+  return <SignInScreen />;
+};
+
+const OnboardingNavigator = ({ initialRouteName = "Intro" }: { initialRouteName?: keyof OnboardingStackParamList }) => {
+  const { signOut } = useAuthStore();
+  const navigation = useNavigation();
+
+  return (
+    <OnboardingStack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRouteName}>
+      <OnboardingStack.Screen name="Intro" component={IntroScreen} />
+      <OnboardingStack.Screen name="SignIn" component={SignInScreenWrapper} />
+      <OnboardingStack.Screen name="Relationship" component={RelationshipScreen} />
+      <OnboardingStack.Screen name="BirthInfo" component={BirthInfoScreen} />
+      <OnboardingStack.Screen name="Languages" component={LanguagesScreen} />
+      <OnboardingStack.Screen name="Account" component={AccountScreen} />
+      <OnboardingStack.Screen name="CoreIdentities" component={CoreIdentitiesScreen} />
+      <OnboardingStack.Screen name="HookSequence" component={HookSequenceScreen} />
+
+      <OnboardingStack.Screen name="PostHookOffer" component={PostHookOfferScreen} />
+    </OnboardingStack.Navigator>
+  );
+};
+
+const MainNavigator = () => {
+  // Always start at Home (Control Room) after onboarding
+  console.log('🚀 MainNavigator MOUNTED - initialRouteName=Home');
+
+  // After resets, onboarding birth data can exist while profileStore user is missing birthTime.
+  // Compatibility requires birth time, so hydrate/update profileStore user from onboardingStore here.
+  const onboardingBirthDate = useOnboardingStore((s: any) => s.birthDate);
+  const onboardingBirthTime = useOnboardingStore((s: any) => s.birthTime);
+  const onboardingBirthCity = useOnboardingStore((s: any) => s.birthCity);
+  const displayName = useAuthStore((s: any) => s.displayName);
+
+  const getUser = useProfileStore((s) => s.getUser);
+  const addPerson = useProfileStore((s) => s.addPerson);
+  const updatePerson = useProfileStore((s) => s.updatePerson);
+
+  const redirectAfterOnboarding = useOnboardingStore((s: any) => s.redirectAfterOnboarding);
+  const setRedirectAfterOnboarding = useOnboardingStore((s: any) => s.setRedirectAfterOnboarding);
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    if (redirectAfterOnboarding) {
+      console.log(`🔀 Redirecting to ${redirectAfterOnboarding} after onboarding...`);
+      // Brief delay to ensure navigation is ready
+      setTimeout(() => {
+        // @ts-ignore
+        navigation.navigate(redirectAfterOnboarding);
+        setRedirectAfterOnboarding(null);
+      }, 500);
+    }
+  }, [redirectAfterOnboarding, setRedirectAfterOnboarding, navigation]);
+
+  useEffect(() => {
+    // ZOMBIE STATE PROTECTION MOVED TO HomeScreen
+    // This check was interfering with the login flow by running too early
+    // Now it only runs when user actually tries to access Home screen
+
+    /* ORIGINAL CODE - DISABLED
+    const user = useAuthStore.getState().user;
+    const profileUser = useProfileStore.getState().getUser();
+    const hasOnboardingData = !!useOnboardingStore.getState().birthDate;
+ 
+    if (user && !profileUser && !hasOnboardingData) {
+      console.log('🧟‍♂️ Zombie State Detected (Auth Yes, Profile No). Forcing Logout.');
+      Alert.alert(
+        'Account Not Found',
+        'We could not find your profile. Please tap "Get Started" to set up your account.',
+        [{ text: 'OK', onPress: () => useAuthStore.getState().signOut() }]
+      );
+      return;
+    }
+    */
+
+    if (!onboardingBirthDate || !onboardingBirthTime || !onboardingBirthCity) return;
+
+    const nextBirthData = {
+      birthDate: onboardingBirthDate,
+      birthTime: onboardingBirthTime,
+      birthCity: onboardingBirthCity.name,
+      timezone: onboardingBirthCity.timezone,
+      latitude: onboardingBirthCity.latitude,
+      longitude: onboardingBirthCity.longitude,
+    };
+
+    const currentProfile = getUser();
+    if (!currentProfile) {
+      // FIX: If no self profile exists (e.g. after fresh sign-in or data clear), create it now using the hydration data.
+      // Do not abort. This prevents the "Zombie State" where auth exists but profile doesn't.
+      console.log('⚠️ No self profile found. Creating new profile from sync data...');
+
+      addPerson({
+        name: displayName || 'You',
+        isUser: true,
+        birthData: nextBirthData,
+        // Since we are hydrating from onboarding data, we assume these are the "truth"
+        placements: undefined, // Will be calculated by system later
+      });
+      return;
+    }
+
+    const needsBirthTime = !currentProfile.birthData?.birthTime || String(currentProfile.birthData.birthTime).trim().length === 0;
+    const needsCity = !currentProfile.birthData?.birthCity || String(currentProfile.birthData.birthCity).trim().length === 0;
+    const needsTimezone = !currentProfile.birthData?.timezone || String(currentProfile.birthData.timezone).trim().length === 0;
+    const needsCoords = !Number.isFinite(currentProfile.birthData?.latitude) || !Number.isFinite(currentProfile.birthData?.longitude);
+    const shouldUpdateName = currentProfile.name === 'You' && !!displayName && displayName !== 'You';
+
+    if (needsBirthTime || needsCity || needsTimezone || needsCoords || shouldUpdateName) {
+      console.log('✅ Updating existing self profile with onboarding data');
+      updatePerson(currentProfile.id, {
+        ...(shouldUpdateName ? { name: displayName! } : {}),
+        birthData: nextBirthData,
+      } as any);
+    }
+  }, [
+    onboardingBirthDate,
+    onboardingBirthTime,
+    onboardingBirthCity?.name,
+    onboardingBirthCity?.timezone,
+    onboardingBirthCity?.latitude,
+    onboardingBirthCity?.longitude,
+    displayName,
+    getUser,
+    addPerson,
+    updatePerson,
+  ]);
+
+  // AUTOMATIC CLEANUP: Remove incorrect self profiles based on calculated placements
+  // This runs once on app mount to ensure only the correct Virgo Sun | Leo Moon | Sagittarius Rising profile exists
+  // CRITICAL: Only run after store has fully hydrated from AsyncStorage to avoid operating on incomplete data
+  const removeIncorrectUserProfile = useProfileStore((s) => s.removeIncorrectUserProfile);
+  const hasHydrated = useProfileStore((s) => s.hasHydrated);
+
+  useEffect(() => {
+    if (!hasHydrated) {
+      console.log('⏳ Cleanup: Waiting for profile store hydration...');
+      return;
+    }
+
+    console.log('✅ Cleanup: Store hydrated, running automatic cleanup...');
+    const result = removeIncorrectUserProfile();
+    if (result.success && result.removedCount > 0) {
+      console.log(`🧹 Removed ${result.removedCount} incorrect self profile(s)`);
+    }
+  }, [hasHydrated, removeIncorrectUserProfile]);
+
+  // Sync hook readings from onboarding into user profile for carousel
+  const hookReadings = useOnboardingStore((s: any) => s.hookReadings);
+  const setHookReadings = useProfileStore((s) => s.setHookReadings);
+
+  useEffect(() => {
+    const user = getUser();
+    if (!user) return;
+    if (!hookReadings.sun || !hookReadings.moon || !hookReadings.rising) return;
+
+    // Only sync if user doesn't have hook readings yet
+    const existingHookReadings = user.hookReadings;
+    if (existingHookReadings && existingHookReadings.length > 0) return;
+
+    console.log('🔄 Syncing hook readings into user profile for carousel...');
+    const { type: _sunType, ...sunRest } = hookReadings.sun as any;
+    const { type: _moonType, ...moonRest } = hookReadings.moon as any;
+    const { type: _risingType, ...risingRest } = hookReadings.rising as any;
+    setHookReadings(user.id, [
+      { ...sunRest, type: 'sun' as const, generatedAt: new Date().toISOString() },
+      { ...moonRest, type: 'moon' as const, generatedAt: new Date().toISOString() },
+      { ...risingRest, type: 'rising' as const, generatedAt: new Date().toISOString() },
+    ]);
+    console.log('✅ Hook readings synced for carousel');
+  }, [hookReadings.sun, hookReadings.moon, hookReadings.rising, getUser, setHookReadings]);
+
+  return (
+    <MainStack.Navigator
+      screenOptions={{
+        headerShown: false,
+        animation: 'slide_from_right',
+      }}
+      initialRouteName="Home"
+    >
+      <MainStack.Screen name="Home" component={HomeScreen} />
+      <MainStack.Screen name="NextStep" component={NextStepScreen} />
+      <MainStack.Screen name="ComparePeople" component={ComparePeopleScreen} />
+      <MainStack.Screen name="ProfileSignIn" component={MainSignInScreenWrapper} options={{ presentation: 'fullScreenModal' }} />
+      <MainStack.Screen name="SystemsOverview" component={SystemsOverviewScreen} />
+      <MainStack.Screen name="MyLibrary" component={MyLibraryScreen} />
+      <MainStack.Screen name="YourChart" component={YourChartScreen} />
+      <MainStack.Screen name="ChartCalculation" component={ChartCalculationScreen} />
+      <MainStack.Screen name="Matches" component={MatchesScreen} />
+      <MainStack.Screen name="MatchDetail" component={MatchDetailScreen} />
+      <MainStack.Screen name="PartnerInfo" component={PartnerInfoScreen} />
+      <MainStack.Screen name="PartnerCoreIdentities" component={PartnerCoreIdentitiesScreen} />
+      <MainStack.Screen name="PartnerReadings" component={PartnerReadingsScreen} />
+      <MainStack.Screen name="SynastryPreview" component={SynastryPreviewScreen} />
+      <MainStack.Screen name="SynastryOptions" component={SynastryOptionsScreen} />
+      <MainStack.Screen name="RelationshipContext" component={RelationshipContextScreen} />
+      <MainStack.Screen name="SystemSelection" component={SystemSelectionScreen} />
+      <MainStack.Screen name="GeneratingReading" component={GeneratingReadingScreen} />
+      <MainStack.Screen name="ExtendedPrompt" component={ExtendedPromptScreen} />
+      <MainStack.Screen name="ExtendedReading" component={ExtendedReadingScreen} />
+      <MainStack.Screen name="FullReading" component={FullReadingRedirectScreen} />
+      <MainStack.Screen name="SavedReading" component={SavedReadingScreen} />
+      <MainStack.Screen name="SystemOverview" component={SystemOverviewScreen} />
+      <MainStack.Screen name="EditBirthData" component={EditBirthDataScreen} />
+      <MainStack.Screen name="JobDetail" component={JobDetailScreen} />
+      <MainStack.Screen name="DeepReadingReader" component={DeepReadingReaderScreen} />
+      <MainStack.Screen name="OverlayReader" component={OverlayReaderScreen} />
+      <MainStack.Screen name="CompleteReading" component={CompleteReadingScreen} />
+      <MainStack.Screen name="ReadingSummary" component={ReadingSummaryScreen} />
+      <MainStack.Screen name="PeopleList" component={PeopleListScreen} />
+      <MainStack.Screen name="PersonProfile" component={PersonProfileScreen} />
+      <MainStack.Screen name="PersonReadings" component={PersonReadingsScreen} />
+      <MainStack.Screen name="SynastryOverlay" component={SynastryOverlayScreen} />
+      <MainStack.Screen name="Purchase" component={PurchaseScreen} />
+      {/* KYC Screens */}
+      <MainStack.Screen name="KYCIntro" component={KYCIntroScreen} />
+      <MainStack.Screen name="KYCPhone" component={KYCPhoneScreen} />
+      <MainStack.Screen name="KYCDocument" component={KYCDocumentScreen} />
+      <MainStack.Screen name="KYCFaceScan" component={KYCFaceScanScreen} />
+      <MainStack.Screen name="KYCComplete" component={KYCCompleteScreen} />
+      {/* Learn Screens */}
+      <MainStack.Screen name="SystemExplainer" component={SystemExplainerScreen} />
+      <MainStack.Screen name="WhyDifferent" component={WhyDifferentScreen} />
+      {/* Audio Player */}
+      <MainStack.Screen name="AudioPlayer" component={AudioPlayerScreen} options={{ presentation: 'modal' }} />
+      {/* Settings Screens */}
+      <MainStack.Screen name="Settings" component={SettingsScreen} />
+      <MainStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+      <MainStack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
+      <MainStack.Screen name="AccountDeletion" component={AccountDeletionScreen} />
+      <MainStack.Screen name="DataPrivacy" component={DataPrivacyScreen} />
+      <MainStack.Screen name="ContactSupport" component={ContactSupportScreen} />
+      <MainStack.Screen name="About" component={AboutScreen} />
+    </MainStack.Navigator>
+  );
+};
+
+// ... imports ...
+
+export const RootNavigator = () => {
+  const user = useAuthStore((state: any) => state.user);
+  const isLoading = useAuthStore((state: any) => state.isLoading);
+  const isAuthReady = useAuthStore((state: any) => state.isAuthReady);
+
+  // 1. Hydrate authStore from persisted Supabase session
+  useSupabaseAuthBootstrap();
+
+  // 2. Keep local library synced
+  useSupabaseLibraryAutoSync();
+
+  // ============================================================================
+  // ROUTING INVARIANT (DO NOT MODIFY)
+  // ============================================================================
+  // RULE: Supabase session existence is the ONLY authority for routing.
+  // 
+  // if (session exists) → MainNavigator (Dashboard)
+  // else → OnboardingNavigator (Intro)
+  //
+  // Onboarding state, profile existence, or screen context MUST NEVER affect
+  // this routing decision. Profile creation and updates run asynchronously
+  // in the background without blocking UI.
+  //
+  // This invariant prevents infinite loops and ensures predictable navigation.
+  // ============================================================================
+
+  const hasSession = !!user;
+  // Onboarding state - check if user has completed onboarding
+  const hasCompletedOnboarding = useOnboardingStore((s) => s.hasCompletedOnboarding);
+  const hookReadings = useOnboardingStore((s) => s.hookReadings);
+  const hasHookReadings = !!(hookReadings?.sun && hookReadings?.moon && hookReadings?.rising);
+  const isHydrated = useOnboardingStore((s) => s._hasHydrated);
+
+  console.log('🧭 RootNavigator State:', {
+    isLoading,
+    hasSession,
+    hasUser: !!user,
+    hasHookReadings,
+    isHydrated,
+    hasCompletedOnboarding
+  });
+
+  // Block rendering until Bootstrap determines if we have a valid session AND persist has hydrated
+  // Add a timeout fallback to prevent infinite loading
+  const [hydrationTimeout, setHydrationTimeout] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!isHydrated) {
+        console.warn('⚠️ RootNavigator: Hydration timeout - proceeding anyway');
+        setHydrationTimeout(true);
+      }
+    }, 5000); // 5 second timeout
+
+    return () => clearTimeout(timer);
+  }, [isHydrated]);
+
+  if ((!isAuthReady || !isHydrated) && !hydrationTimeout) {
+    console.log('⏳ RootNavigator: Waiting for Auth Bootstrap and Store Hydration...');
+    return null;
+  }
+
+  // ROUTING LOGIC:
+  // 1. No session → Onboarding (Intro)
+  // 2. Session + No hook readings + Onboarding incomplete → Continue onboarding (CoreIdentities)
+  // 3. Session + Hook readings OR Onboarding complete → Dashboard
+
+  // CRITICAL FIX: Returning users who have hook readings should go to dashboard, not onboarding
+  const shouldContinueOnboarding = hasSession && !hasCompletedOnboarding && !hasHookReadings;
+
+  if (shouldContinueOnboarding) {
+    console.log('🔄 ROUTING: Session exists but onboarding incomplete AND no hook readings → Continue to CoreIdentities');
+    return (
+      <View style={{ flex: 1 }}>
+        <OnboardingNavigator initialRouteName="CoreIdentities" />
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'box-none' }} />
+      </View>
+    );
+  }
+
+  // INVARIANT ASSERTION: Warn if session exists but we're about to render onboarding
+  if (hasSession) {
+    console.log('✅ INVARIANT: Session exists + Onboarding complete → Rendering MainNavigator (Dashboard)');
+  } else {
+    console.log('✅ INVARIANT: No session → Rendering OnboardingNavigator (Intro)');
+  }
+
+  return (
+    <View style={{ flex: 1 }}>
+      {hasSession ? (
+        <MainNavigator />
+      ) : (
+        <OnboardingNavigator initialRouteName="Intro" />
+      )}
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'box-none' }} />
+    </View>
+  );
+};

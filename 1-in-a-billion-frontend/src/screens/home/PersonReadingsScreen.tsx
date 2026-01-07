@@ -1,0 +1,1055 @@
+/**
+ * PERSON READINGS SCREEN
+ * 
+ * Simple list of 5 readings with inline audio players.
+ * Colors: Red, Black, Grey only.
+ */
+
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  GestureResponderEvent,
+  LayoutChangeEvent,
+  Linking,
+  PanResponder,
+  PanResponderGestureState,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
+import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system';
+import { getCacheDirectory, getDocumentDirectory } from '@/utils/fileSystem';
+import * as Sharing from 'expo-sharing';
+import { MainStackParamList } from '@/navigation/RootNavigator';
+import { env } from '@/config/env';
+import { isSupabaseConfigured, supabase } from '@/services/supabase';
+import { createArtifactSignedUrl } from '@/services/nuclearReadingsService';
+import { colors } from '@/theme/tokens';
+
+type Props = NativeStackScreenProps<MainStackParamList, 'PersonReadings'>;
+
+const SYSTEMS = [
+  { id: 'western', name: 'Western Astrology' },
+  { id: 'vedic', name: 'Vedic (Jyotish)' },
+  { id: 'human_design', name: 'Human Design' },
+  { id: 'gene_keys', name: 'Gene Keys' },
+  { id: 'kabbalah', name: 'Kabbalah' },
+  { id: 'verdict', name: 'Final Verdict' },
+];
+
+type Reading = {
+  id: string;
+  system: string;
+  name: string;
+  pdfPath?: string;
+  audioPath?: string;
+  duration?: number; // seconds
+};
+
+export const PersonReadingsScreen = ({ navigation, route }: Props) => {
+  const { personName, personType, jobId } = route.params;
+
+  const [readings, setReadings] = useState<Reading[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [zipLoading, setZipLoading] = useState(false);
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [loadingAudioId, setLoadingAudioId] = useState<string | null>(null);
+  const [audioLoadProgress, setAudioLoadProgress] = useState<Record<string, number>>({});
+  const [playbackPosition, setPlaybackPosition] = useState(0);
+  const [playbackDuration, setPlaybackDuration] = useState(0);
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [seekPosition, setSeekPosition] = useState(0);
+  const soundRef = useRef<Audio.Sound | null>(null);
+  const progressBarWidths = useRef<Record<string, number>>({});
+  const isPlayingMutex = useRef(false); // Prevent multiple plays at once
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const withTimeout = useCallback(
+    async <T,>(p: Promise<T>, ms: number, label: string): Promise<T> => {
+      let timeoutId: any;
+      const timeout = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(`${label} (timeout ${ms}ms)`)), ms);
+      });
+      try {
+        return await Promise.race([p, timeout]);
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    },
+    []
+  );
+
+  const AUDIO_CACHE_DIR = getCacheDirectory() ? `${getCacheDirectory()}audio-cache/` : '';
+
+  const ensureAudioCacheDir = useCallback(async () => {
+    if (!AUDIO_CACHE_DIR) return;
+    try {
+      const info = await FileSystem.getInfoAsync(AUDIO_CACHE_DIR);
+      if (!info.exists) {
+        await FileSystem.makeDirectoryAsync(AUDIO_CACHE_DIR, { intermediates: true });
+      }
+    } catch {
+      // ignore
+    }
+  }, [AUDIO_CACHE_DIR]);
+
+  const getCachedAudioPath = useCallback(
+    (reading: Reading) => {
+      if (!AUDIO_CACHE_DIR) return null;
+      // Stable per job+doc; keeps caching predictable and avoids re-downloading.
+      const safeId = `${jobId || 'nojob'}_${reading.id}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+      return `${AUDIO_CACHE_DIR}${safeId}.mp3`;
+    },
+    [AUDIO_CACHE_DIR, jobId]
+  );
+
+  const getPlayableAudioUri = useCallback(
+    async (reading: Reading): Promise<string> => {
+      // Always play through the backend Range-capable proxy.
+      // This avoids iOS AVPlayer flakiness with signed URLs and prevents format/extension issues in local caching.
+      const m = reading.id.match(/^reading-(\d+)$/);
+      const docNum = m ? Number(m[1]) : null;
+      if (jobId && docNum && Number.isFinite(docNum)) {
+        return `${env.CORE_API_URL}/api/jobs/v2/${jobId}/audio/${docNum}`;
+      }
+
+      const url = reading.audioPath;
+      if (!url) throw new Error('Missing audio URL');
+      return url;
+    },
+    [jobId]
+  );
+
+  const downloadAndCacheAudio = useCallback(
+    async (reading: Reading): Promise<string | null> => {
+      const url = reading.audioPath;
+      if (!url || !url.startsWith('http')) return null;
+      await ensureAudioCacheDir();
+      const cached = getCachedAudioPath(reading);
+      if (!cached) return null;
+      try {
+        // Use resumable download for better reliability on iOS (and progress reporting)
+        const dl = FileSystem.createDownloadResumable(
+          url,
+          cached,
+          {},
+          (p: { totalBytesWritten: number; totalBytesExpectedToWrite: number }) => {
+            const total = p.totalBytesExpectedToWrite || 0;
+            const pct = total > 0 ? Math.max(0, Math.min(1, p.totalBytesWritten / total)) : 0;
+            setAudioLoadProgress((prev) => ({ ...prev, [reading.id]: pct }));
+          }
+        );
+        const result = await dl.downloadAsync();
+        if (result?.uri) {
+          setAudioLoadProgress((prev) => ({ ...prev, [reading.id]: 0 }));
+          return result.uri;
+        }
+        return null;
+      } catch {
+        setAudioLoadProgress((prev) => ({ ...prev, [reading.id]: 0 }));
+        return null;
+      }
+    },
+    [ensureAudioCacheDir, getCachedAudioPath]
+  );
+
+  const getDocRange = () => {
+    switch (personType) {
+      case 'person1': return [1, 2, 3, 4, 5];
+      case 'person2': return [6, 7, 8, 9, 10];
+      case 'overlay': return [11, 12, 13, 14, 15, 16];
+      default: return [1, 2, 3, 4, 5];
+    }
+  };
+
+  const load = useCallback(async () => {
+    console.log('🚀 [PersonReadings] Starting load for', personName, personType);
+    // Only show full loading screen if we have no readings yet
+    if (readings.length === 0) {
+      setLoading(true);
+    } else {
+      setIsRefreshing(true);
+    }
+    setLoadError(null);
+
+    // Fly can take >10s to assemble job results + sign URLs (especially nuclear_v2),
+    // so use a more forgiving timeout and retry once on transient failures.
+    const REQUEST_TIMEOUT_MS = 30000;
+    const MAX_ATTEMPTS = 2;
+
+    try {
+      const docRange = getDocRange();
+
+      if (!jobId) {
+        console.log('⚠️ [PersonReadings] Missing jobId receipt; showing placeholders');
+        const systemsToShow = personType === 'overlay' ? SYSTEMS : SYSTEMS.slice(0, 5);
+        setReadings(
+          systemsToShow.map((sys, i) => ({
+            id: `placeholder-${i}`,
+            system: sys.id,
+            name: sys.name,
+          }))
+        );
+        return;
+      }
+
+      // Fetch full job with documents from backend (documents are built from artifacts server-side)
+      let jobData: any = null;
+      let lastErr: any = null;
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+        try {
+          console.log(`📦 [PersonReadings] Fetching job (attempt ${attempt}/${MAX_ATTEMPTS}):`, jobId);
+          const jobRes = await fetch(`${env.CORE_API_URL}/api/jobs/v2/${jobId}`, { signal: controller.signal });
+          clearTimeout(timeoutId);
+          if (!jobRes.ok) {
+            const errorText = await jobRes.text().catch(() => '');
+            throw new Error(`Failed to load job (${jobRes.status}) ${errorText}`);
+          }
+          jobData = await jobRes.json();
+          break;
+        } catch (e: any) {
+          clearTimeout(timeoutId);
+          lastErr = e;
+          const msg = e?.name === 'AbortError' ? 'Request timed out' : (e?.message || 'Network request failed');
+          console.warn(`⚠️ [PersonReadings] Attempt ${attempt} failed:`, msg);
+          // Small backoff before retry
+          if (attempt < MAX_ATTEMPTS) {
+            await new Promise((r) => setTimeout(r, 600));
+          }
+        }
+      }
+      if (!jobData) throw lastErr || new Error('Failed to load job');
+
+      const documents = jobData.job?.results?.documents || [];
+      const hasAnyAudioFromApi = Array.isArray(documents) && documents.some((d: any) => !!d?.audioUrl);
+
+      console.log('📦 Documents from API:', documents.length);
+      console.log('📦 DocRange for', personType, ':', docRange);
+      if (documents.length > 0) {
+        console.log('📦 First doc:', JSON.stringify(documents[0]).slice(0, 200));
+        console.log('📦 All docNums:', documents.map((d: any) => d.docNum).join(', '));
+      }
+
+      // Build readings from documents
+      const readingsMap: Record<number, Reading> = {};
+
+      for (const doc of documents) {
+        const docNum = Number(doc.docNum);
+        if (!docNum || !docRange.includes(docNum)) continue;
+
+        // Calculate system based on docNum
+        let systemIndex: number;
+        let isVerdict = false;
+
+        if (personType === 'person1') {
+          systemIndex = docNum - 1;
+        } else if (personType === 'person2') {
+          systemIndex = docNum - 6;
+        } else {
+          if (docNum === 16) {
+            isVerdict = true;
+            systemIndex = 5;
+          } else {
+            systemIndex = docNum - 11;
+          }
+        }
+
+        const system = isVerdict ? SYSTEMS[5] : SYSTEMS[systemIndex];
+        if (!system) continue;
+
+        readingsMap[docNum] = {
+          id: `reading-${docNum}`,
+          system: system.id,
+          name: system.name,
+          pdfPath: doc.pdfUrl || undefined,
+          // Use backend proxy endpoint for audio streaming (AVPlayer-friendly Range support).
+          // This avoids sending Supabase signed URLs directly to clients.
+          audioPath: doc.audioUrl ? `${env.CORE_API_URL}/api/jobs/v2/${jobId}/audio/${docNum}` : undefined,
+        };
+
+        console.log(`📄 Doc ${docNum} (${system.name}): pdf=${!!doc.pdfUrl} audio=${!!doc.audioUrl}`);
+        if (doc.audioUrl) {
+          console.log(`   🎵 Audio URL: ${doc.audioUrl.substring(0, 80)}...`);
+        }
+      }
+
+      console.log('📦 Readings built:', Object.keys(readingsMap).length);
+
+      // If API isn't returning audio URLs yet, fall back to Supabase artifacts directly.
+      // This makes the app resilient when audio artifacts are stored as audio_mp3/audio_m4a.
+      if (!hasAnyAudioFromApi && isSupabaseConfigured) {
+        try {
+          const { data: arts, error: aErr } = await supabase
+            .from('job_artifacts')
+            .select('*')
+            .eq('job_id', jobId)
+            .order('created_at', { ascending: true });
+          if (aErr) throw aErr;
+
+          const byDoc: Record<number, { pdfPath?: string; audioPath?: string }> = {};
+          for (const a of arts || []) {
+            const meta = (a as any).metadata || {};
+            const docNumRaw = meta?.docNum ?? meta?.chapter_index;
+            const docNum = typeof docNumRaw === 'number' ? docNumRaw : Number(docNumRaw);
+            if (!docNum || !docRange.includes(docNum)) continue;
+
+            const t = String((a as any).artifact_type || '');
+            if (t === 'pdf') {
+              byDoc[docNum] = byDoc[docNum] || {};
+              byDoc[docNum].pdfPath = (a as any).storage_path;
+            }
+            if (t === 'audio' || t.startsWith('audio_')) {
+              byDoc[docNum] = byDoc[docNum] || {};
+              byDoc[docNum].audioPath = (a as any).storage_path;
+            }
+          }
+
+          // Sign URLs in parallel (1h)
+          const signed = await Promise.all(
+            docRange.map(async (docNum) => {
+              const entry = byDoc[docNum] || {};
+              const [pdfUrl, audioUrl] = await Promise.all([
+                entry.pdfPath ? createArtifactSignedUrl(entry.pdfPath, 60 * 60) : Promise.resolve(null),
+                entry.audioPath ? createArtifactSignedUrl(entry.audioPath, 60 * 60) : Promise.resolve(null),
+              ]);
+              return { docNum, pdfUrl, audioUrl };
+            })
+          );
+
+          for (const s of signed) {
+            if (!s) continue;
+            const r = readingsMap[s.docNum];
+            if (!r) continue;
+            // Only fill gaps so API values win when present
+            if (!r.pdfPath && s.pdfUrl) r.pdfPath = s.pdfUrl;
+            if (!r.audioPath && s.audioUrl) r.audioPath = s.audioUrl;
+          }
+        } catch (e) {
+          // ignore fallback failures
+        }
+      }
+
+      // Fill in missing with placeholders
+      const systemsToShow = personType === 'overlay' ? SYSTEMS : SYSTEMS.slice(0, 5);
+      const finalReadings = docRange.map((docNum, i) => {
+        if (readingsMap[docNum]) return readingsMap[docNum];
+        const sys = systemsToShow[i] || SYSTEMS[0];
+        return {
+          id: `placeholder-${docNum}`,
+          system: sys.id,
+          name: sys.name,
+        };
+      });
+
+      setReadings(finalReadings);
+    } catch (e: any) {
+      const errorMsg = e.name === 'AbortError' ? 'Request timed out' : e.message;
+      console.error('❌ [PersonReadings] Error loading readings:', errorMsg);
+      setLoadError(errorMsg || 'Could not load reading');
+      // Show placeholders on error so user isn't stuck on Loading
+      const systemsToShow = personType === 'overlay' ? SYSTEMS : SYSTEMS.slice(0, 5);
+      setReadings(systemsToShow.map((sys, i) => ({
+        id: `error-${i}`,
+        system: sys.id,
+        name: `${sys.name} (offline)`,
+      })));
+    } finally {
+      console.log('✅ [PersonReadings] Load finished, setting loading=false');
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [jobId, personType, personName, readings.length]);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+      return () => {
+        // Stop polling when leaving
+        if (pollTimerRef.current) {
+          clearInterval(pollTimerRef.current);
+          pollTimerRef.current = null;
+        }
+        // Stop audio when leaving
+        if (soundRef.current) {
+          soundRef.current.stopAsync();
+          soundRef.current.unloadAsync();
+          soundRef.current = null;
+        }
+        setPlayingId(null);
+      };
+    }, [load])
+  );
+
+  useEffect(() => {
+    return () => {
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+      if (soundRef.current) {
+        soundRef.current.unloadAsync();
+      }
+    };
+  }, []);
+
+  // Auto-refresh while chapters are still arriving (PDF/audio often lands at slightly different times).
+  // This prevents the "everything greyed out / missing one chapter" experience.
+  // 
+  // ✅ OPTIMIZATION: Now that placements are saved during hooks, we don't need to poll
+  // for basic user data anymore. Only poll if there's an ACTIVE JOB generating content.
+  useEffect(() => {
+    if (!jobId) return; // No job = nothing to poll for
+    if (loading) return;
+    if (playingId) return; // don't disrupt active playback
+
+    // Only poll if we're ACTUALLY missing content from an active job
+    const hasActualReadings = readings.some((r) => r.id.startsWith('reading-'));
+    const missingAudio = readings.some((r) => r.id.startsWith('reading-') && !r.audioPath);
+    const missingPdf = readings.some((r) => r.id.startsWith('reading-') && !r.pdfPath);
+
+    // If we have NO real readings yet (all placeholders), poll more frequently
+    const shouldPollFast = !hasActualReadings;
+    // If we have SOME readings but missing audio/PDF, poll slowly
+    const shouldPollSlow = hasActualReadings && (missingAudio || missingPdf);
+
+    if (!shouldPollFast && !shouldPollSlow) {
+      // Everything is complete - stop polling
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+        console.log('✅ All content loaded - stopping poll');
+      }
+      return;
+    }
+
+    if (pollTimerRef.current) return; // already polling
+
+    const pollInterval = shouldPollFast ? 8000 : 20000; // Fast while generating, slow for stragglers
+    console.log(`🔄 Starting poll: ${shouldPollFast ? 'FAST' : 'SLOW'} (${pollInterval}ms)`);
+
+    pollTimerRef.current = setInterval(() => {
+      // Don't poll while seeking or playing; keep UI stable
+      if (isSeeking) return;
+      if (isPlayingMutex.current) return;
+      if (soundRef.current) return;
+      load();
+    }, pollInterval);
+
+    return () => {
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+    };
+  }, [jobId, loading, readings, playingId, isSeeking, load]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const togglePlay = async (reading: Reading) => {
+    if (!reading.audioPath) {
+      Alert.alert('Audio not ready', 'Still generating...');
+      return;
+    }
+
+    // Prevent race conditions - if already processing a play request, ignore
+    if (isPlayingMutex.current) {
+      console.log('⏳ Audio operation in progress, ignoring');
+      return;
+    }
+
+    isPlayingMutex.current = true;
+
+    try {
+      // If this reading is playing, pause it
+      if (playingId === reading.id && soundRef.current) {
+        const status = await soundRef.current.getStatusAsync();
+        if (status.isLoaded && status.isPlaying) {
+          setLoadingAudioId(null);
+          await soundRef.current.pauseAsync();
+          return;
+        } else if (status.isLoaded) {
+          setLoadingAudioId(null);
+          await soundRef.current.playAsync();
+          return;
+        }
+      }
+
+      // ALWAYS stop and unload current audio FIRST before loading new one
+      if (soundRef.current) {
+        console.log('🛑 Stopping previous audio');
+        try {
+          await soundRef.current.stopAsync();
+          await soundRef.current.unloadAsync();
+        } catch (stopErr) {
+          console.log('Warning: error stopping audio', stopErr);
+        }
+        soundRef.current = null;
+        setPlayingId(null);
+      }
+
+      // Small delay to ensure cleanup is complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Start new audio
+      setLoadingAudioId(reading.id);
+      let url: string = await getPlayableAudioUri(reading);
+
+      console.log('▶️ Starting audio:', reading.name);
+      console.log('▶️ Audio URL:', url.substring(0, 100) + '...');
+
+      let sound: Audio.Sound | null = null;
+      const created = await withTimeout(
+        Audio.Sound.createAsync(
+          { uri: url },
+          { shouldPlay: true },
+          (status) => {
+            if (status.isLoaded) {
+              // Stop showing spinner once we have any loaded status
+              setLoadingAudioId(null);
+              setPlaybackPosition(status.positionMillis / 1000);
+              setPlaybackDuration(status.durationMillis ? status.durationMillis / 1000 : 0);
+              if (status.didJustFinish) {
+                console.log('✅ Audio finished:', reading.name);
+                setPlayingId(null);
+                soundRef.current = null;
+                // Auto-play next
+                const currentIndex = readings.findIndex((r) => r.id === reading.id);
+                if (currentIndex < readings.length - 1) {
+                  const next = readings[currentIndex + 1];
+                  if (next.audioPath) {
+                    setTimeout(() => togglePlay(next), 500);
+                  }
+                }
+              }
+            }
+          }
+        ),
+        20000,
+        'Audio load timed out'
+      );
+      sound = created.sound;
+      // createAsync resolves only after initial load
+      setLoadingAudioId(null);
+
+      if (!sound) throw new Error('Failed to initialize audio');
+      soundRef.current = sound;
+      setPlayingId(reading.id);
+      setPlaybackPosition(0);
+      setLoadingAudioId(null);
+    } catch (e: any) {
+      console.error('❌ Audio error:', e);
+      const errorMsg = e?.message || 'Unknown error';
+      Alert.alert('Audio Error', `Could not play audio: ${errorMsg}\n\nCheck Metro console for details.`);
+      setPlayingId(null);
+      setLoadingAudioId(null);
+    } finally {
+      isPlayingMutex.current = false;
+    }
+  };
+
+  const seekTo = async (positionSeconds: number) => {
+    if (soundRef.current && playingId) {
+      try {
+        await soundRef.current.setPositionAsync(positionSeconds * 1000);
+        setPlaybackPosition(positionSeconds);
+      } catch (e) {
+        console.error('Seek error:', e);
+      }
+    }
+  };
+
+  const handleSeekStart = () => {
+    setIsSeeking(true);
+    setSeekPosition(playbackPosition);
+  };
+
+  const handleSeekMove = (readingId: string, locationX: number) => {
+    if (!isSeeking || playingId !== readingId) return;
+    const barWidth = progressBarWidths.current[readingId] || 200;
+    const clampedX = Math.max(0, Math.min(locationX, barWidth));
+    const newPosition = (clampedX / barWidth) * playbackDuration;
+    setSeekPosition(newPosition);
+  };
+
+  const handleSeekEnd = async (readingId: string, locationX: number) => {
+    if (!isSeeking || playingId !== readingId) {
+      setIsSeeking(false);
+      return;
+    }
+    const barWidth = progressBarWidths.current[readingId] || 200;
+    const clampedX = Math.max(0, Math.min(locationX, barWidth));
+    const newPosition = (clampedX / barWidth) * playbackDuration;
+    setIsSeeking(false);
+    await seekTo(newPosition);
+  };
+
+  const openPdf = async (reading: Reading) => {
+    if (!reading.pdfPath) {
+      Alert.alert('PDF not ready', 'Still generating...');
+      return;
+    }
+    // URL is already signed from API
+    Linking.openURL(reading.pdfPath);
+  };
+
+  const downloadAudio = async (reading: Reading) => {
+    if (!reading.audioPath) {
+      Alert.alert('Audio not ready', 'Still generating...');
+      return;
+    }
+
+    try {
+      // Download to local file
+      const fileName = `${reading.name.replace(/[^a-zA-Z0-9]/g, '_')}.mp3`;
+      const localUri = (getDocumentDirectory() || '') + fileName;
+
+      Alert.alert('Downloading...', 'Please wait');
+
+      const downloadResult = await FileSystem.downloadAsync(reading.audioPath, localUri);
+
+      if (downloadResult.status === 200) {
+        // Share the file (opens iOS share sheet to save to Files, etc.)
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(downloadResult.uri, {
+            mimeType: 'audio/mpeg',
+            dialogTitle: `Save ${reading.name}`,
+          });
+        } else {
+          Alert.alert('Downloaded', `Saved to: ${localUri}`);
+        }
+      } else {
+        Alert.alert('Error', 'Download failed');
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Download failed');
+    }
+  };
+
+  const downloadAllAsZip = async () => {
+    if (!jobId) {
+      Alert.alert('Error', 'No job ID available');
+      return;
+    }
+
+    setZipLoading(true);
+    try {
+      const docNums = readings
+        .filter((r) => r.id.startsWith('reading-'))
+        .map((r) => {
+          const m = r.id.match(/^reading-(\d+)$/);
+          return m ? Number(m[1]) : null;
+        })
+        .filter((n): n is number => typeof n === 'number' && Number.isFinite(n));
+
+      const docsParam = docNums.length > 0 ? `?docs=${encodeURIComponent(docNums.sort((a, b) => a - b).join(','))}` : '';
+      const url = `${env.CORE_API_URL}/api/jobs/v2/${jobId}/download-zip${docsParam}`;
+
+      const response = await fetch(url);
+      const raw = await response.text();
+      let data: any = null;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        // Non-JSON response (e.g. Not Found). Surface a helpful error.
+        throw new Error(raw?.slice(0, 120) || `ZIP request failed (${response.status})`);
+      }
+
+      if (!response.ok || !data?.success || !data?.downloadUrl) {
+        throw new Error(data?.error || `Failed to create ZIP (${response.status})`);
+      }
+
+      await Linking.openURL(data.downloadUrl);
+    } catch (error: any) {
+      console.error('ZIP download error:', error);
+      Alert.alert('Download Error', error.message || 'Could not download ZIP');
+    } finally {
+      setZipLoading(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.backText}>← Back</Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>{personName}</Text>
+        </View>
+
+        {!!loadError && !loading ? (
+          <TouchableOpacity
+            onPress={load}
+            onLongPress={() => {
+              if (!__DEV__) return;
+              const msg = [
+                '1 IN A BILLION — PersonReadings Debug',
+                `jobId: ${jobId || ''}`,
+                `personName: ${personName || ''}`,
+                `personType: ${personType || ''}`,
+                `api: ${env.CORE_API_URL}`,
+                `error: ${loadError || ''}`,
+              ]
+                .filter(Boolean)
+                .join('\n');
+              Share.share({ message: msg }).catch(() => { });
+            }}
+            activeOpacity={0.8}
+            style={{
+              borderWidth: 1,
+              borderColor: '#F0C2C8',
+              backgroundColor: '#FFF5F6',
+              padding: 12,
+              borderRadius: 10,
+              marginBottom: 16,
+            }}
+          >
+            <Text style={{ fontFamily: 'System', color: '#C41E3A', fontWeight: '600', textAlign: 'center' }}>
+              Couldn’t load this reading. Tap to retry.
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+
+        {isRefreshing && readings.length > 0 && (
+          <Text style={styles.refreshingText}>Refreshing...</Text>
+        )}
+
+        {loading && readings.length === 0 ? (
+          <Text style={styles.loadingText}>Loading...</Text>
+        ) : (
+          <View style={styles.readingsList}>
+            {readings.map((reading, index) => {
+              const isPlaying = playingId === reading.id;
+              const hasAudio = !!reading.audioPath;
+              const hasPdf = !!reading.pdfPath;
+              const progress = isPlaying && playbackDuration > 0
+                ? (playbackPosition / playbackDuration) * 100
+                : 0;
+
+              return (
+                <View key={`${index}-${reading.system}`} style={styles.readingCard}>
+                  {/* Header: Name + PDF */}
+                  <View style={styles.readingHeader}>
+                    <Text style={styles.readingName}>{reading.name}</Text>
+                    <View style={styles.actionButtons}>
+                      <TouchableOpacity
+                        onPress={() => downloadAudio(reading)}
+                        style={[styles.downloadButton, !hasAudio && styles.disabled]}
+                      >
+                        <Text style={styles.downloadIcon}>↓</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => openPdf(reading)}
+                        style={[styles.pdfButton, !hasPdf && styles.disabled]}
+                      >
+                        <Text style={[styles.pdfText, !hasPdf && styles.disabledText]}>PDF</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Audio Bar */}
+                  <View style={styles.audioBar}>
+                    <TouchableOpacity
+                      onPress={() => togglePlay(reading)}
+                      style={[styles.playButton, !hasAudio && styles.disabled]}
+                    >
+                      {loadingAudioId === reading.id ? (
+                        audioLoadProgress[reading.id] && audioLoadProgress[reading.id] > 0 ? (
+                          <Text style={styles.playIcon}>
+                            {Math.round(audioLoadProgress[reading.id] * 100)}%
+                          </Text>
+                        ) : (
+                          <ActivityIndicator size="small" color="#FFF" />
+                        )
+                      ) : (
+                        <Text style={styles.playIcon}>{isPlaying ? '❚❚' : '▶'}</Text>
+                      )}
+                    </TouchableOpacity>
+
+                    {/* Seekable Progress Bar */}
+                    <View
+                      style={styles.progressContainer}
+                      onLayout={(e: LayoutChangeEvent) => {
+                        progressBarWidths.current[reading.id] = e.nativeEvent.layout.width;
+                      }}
+                      onStartShouldSetResponder={() => isPlaying && hasAudio}
+                      onMoveShouldSetResponder={() => isPlaying && hasAudio}
+                      onResponderGrant={(e: GestureResponderEvent) => {
+                        if (isPlaying) handleSeekStart();
+                      }}
+                      onResponderMove={(e: GestureResponderEvent) => {
+                        if (isPlaying) handleSeekMove(reading.id, e.nativeEvent.locationX);
+                      }}
+                      onResponderRelease={(e: GestureResponderEvent) => {
+                        if (isPlaying) handleSeekEnd(reading.id, e.nativeEvent.locationX);
+                      }}
+                    >
+                      <View style={styles.progressTrack}>
+                        <View style={[
+                          styles.progressFill,
+                          { width: `${isSeeking && isPlaying ? (seekPosition / playbackDuration) * 100 : progress}%` }
+                        ]} />
+                        {/* Draggable thumb - only show when playing */}
+                        {isPlaying && (
+                          <View style={[
+                            styles.progressThumb,
+                            { left: `${isSeeking ? (seekPosition / playbackDuration) * 100 : progress}%` }
+                          ]} />
+                        )}
+                      </View>
+                    </View>
+
+                    <Text style={styles.timeText}>
+                      {isPlaying
+                        ? `${formatTime(isSeeking ? seekPosition : playbackPosition)} / ${formatTime(playbackDuration)}`
+                        : hasAudio ? '0:00' : (hasPdf ? '…' : '--:--')
+                      }
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Download All ZIP Button - only when everything is actually ready */}
+        {(() => {
+          const expectedCount = personType === 'overlay' ? 6 : 5;
+          const actual = readings.filter((r) => r.id.startsWith('reading-'));
+          const allReady =
+            jobId &&
+            !loading &&
+            actual.length === expectedCount &&
+            actual.every((r) => !!r.audioPath && !!r.pdfPath);
+          if (!allReady) return null;
+          return (
+            <TouchableOpacity
+              onPress={downloadAllAsZip}
+              disabled={zipLoading}
+              style={[styles.zipButton, zipLoading && styles.zipButtonLoading]}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.zipButtonText}>
+                {zipLoading ? 'Creating ZIP...' : 'Download All (ZIP)'}
+              </Text>
+            </TouchableOpacity>
+          );
+        })()}
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  backText: {
+    fontFamily: 'System',
+    fontSize: 16,
+    color: '#C41E3A', // Red
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  titleContainer: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  title: {
+    fontFamily: 'PlayfairDisplay_700Bold',
+    fontSize: 32,
+    color: '#000',
+    textAlign: 'center',
+  },
+  jobIdText: {
+    fontFamily: 'System',
+    fontSize: 12,
+    color: '#888',
+    marginTop: -18,
+    marginBottom: 18,
+    textAlign: 'center',
+  },
+  zipButton: {
+    backgroundColor: '#C41E3A',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 20,
+  },
+  zipButtonLoading: {
+    backgroundColor: '#888',
+  },
+  zipButtonText: {
+    fontFamily: 'System',
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFF',
+  },
+  loadingText: {
+    fontFamily: 'System',
+    fontSize: 16,
+    color: '#888', // Grey
+    textAlign: 'center',
+    marginTop: 40,
+  },
+  refreshingText: {
+    fontFamily: 'System',
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
+    marginBottom: 16,
+    fontStyle: 'italic',
+  },
+  readingsList: {
+    gap: 16,
+  },
+  readingCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+  },
+  readingHeader: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    position: 'relative',
+  },
+  readingName: {
+    fontFamily: 'System',
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    textAlign: 'center',
+    paddingHorizontal: 90, // Space for buttons on right
+  },
+  actionButtons: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    flexDirection: 'row',
+    gap: 6,
+  },
+  pdfButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#C41E3A',
+  },
+  pdfText: {
+    fontFamily: 'System',
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFF',
+  },
+  disabled: {
+    opacity: 0.3,
+  },
+  disabledText: {
+    color: '#FFF',
+  },
+  audioBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  playButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#C41E3A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playIcon: {
+    fontSize: 14,
+    color: '#FFF',
+  },
+  progressContainer: {
+    flex: 1,
+    height: 40,
+    justifyContent: 'center',
+    paddingVertical: 8,
+  },
+  progressTrack: {
+    width: '100%',
+    height: 3,
+    backgroundColor: '#FFE4E4',
+    borderRadius: 2,
+    position: 'relative',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#C41E3A',
+    borderRadius: 2,
+  },
+  progressThumb: {
+    position: 'absolute',
+    top: -6,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#C41E3A',
+    marginLeft: -7,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  timeText: {
+    fontFamily: 'System',
+    fontSize: 11,
+    color: '#888',
+    minWidth: 45,
+    textAlign: 'center',
+  },
+  downloadButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  downloadIcon: {
+    fontSize: 12,
+    color: '#FFF',
+    fontWeight: '600',
+  },
+});
