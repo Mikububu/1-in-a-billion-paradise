@@ -41,6 +41,7 @@ import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { fetchNuclearJobs, fetchJobArtifacts } from '@/services/nuclearReadingsService';
 import { calculatePlacements, Placements } from '@/services/placementsCalculator';
+import { StorageInspector } from '@/components/StorageInspector';
 
 // Define radii values directly to avoid import issues
 const RADIUS_CARD = 22;
@@ -2241,6 +2242,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           )}
         </View>
       </ScrollView>
+      
+      {/* DEBUG: Storage Inspector - shows what's in AsyncStorage */}
+      {__DEV__ && <StorageInspector />}
     </SafeAreaView>
   );
 };
