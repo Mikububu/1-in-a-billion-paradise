@@ -40,7 +40,7 @@ router.get('/users', requirePermission('users', 'read'), async (c) => {
   }
 
   try {
-    const params = userListSchema.parse(Object.fromEntries(c.req.query()));
+    const params = userListSchema.parse(Object.fromEntries(Object.entries(c.req.query())));
     const { page, limit, search, status, sortBy, sortOrder } = params;
     const offset = (page - 1) * limit;
 
@@ -75,7 +75,7 @@ router.get('/users', requirePermission('users', 'read'), async (c) => {
     });
   } catch (err: any) {
     if (err instanceof z.ZodError) {
-      return c.json({ error: 'Invalid query parameters', details: err.errors }, 400);
+      return c.json({ error: 'Invalid query parameters', details: err.issues }, 400);
     }
     return c.json({ error: 'Internal server error' }, 500);
   }
@@ -275,7 +275,7 @@ router.get('/jobs', requirePermission('jobs', 'read'), async (c) => {
   }
 
   try {
-    const params = jobListSchema.parse(Object.fromEntries(c.req.query()));
+    const params = jobListSchema.parse(Object.fromEntries(Object.entries(c.req.query())));
     const { page, limit, status, type, userId, dateFrom, dateTo } = params;
     const offset = (page - 1) * limit;
 
@@ -319,7 +319,7 @@ router.get('/jobs', requirePermission('jobs', 'read'), async (c) => {
     });
   } catch (err: any) {
     if (err instanceof z.ZodError) {
-      return c.json({ error: 'Invalid query parameters', details: err.errors }, 400);
+      return c.json({ error: 'Invalid query parameters', details: err.issues }, 400);
     }
     return c.json({ error: 'Internal server error' }, 500);
   }

@@ -55,7 +55,7 @@ router.post('/sun', async (c) => {
     payload: parsed,
     placements, // Pass full placements with degrees!
   });
-  const response = buildResponse(reading, placements, false, source);
+  const response = buildResponse(reading, placements as any, false, source);
   sunCache.set(cacheKey, response);
   return c.json(response);
 });
@@ -73,7 +73,7 @@ router.post('/moon', async (c) => {
     payload: parsed,
     placements, // Pass full placements with degrees!
   });
-  const response = buildResponse(reading, placements, false, source);
+  const response = buildResponse(reading, placements as any, false, source);
   moonCache.set(cacheKey, response);
   return c.json(response);
 });
@@ -91,7 +91,7 @@ router.post('/rising', async (c) => {
     payload: parsed,
     placements, // Pass full placements with degrees!
   });
-  const response = buildResponse(reading, placements, false, source);
+  const response = buildResponse(reading, placements as any, false, source);
   risingCache.set(cacheKey, response);
   return c.json(response);
 });

@@ -14,7 +14,7 @@ export type JobType = 'extended' | 'synastry' | 'nuclear' | 'nuclear_v2';
 export type JobPhase = 'queued' | 'calculating' | 'text' | 'pdf' | 'audio' | 'finalizing' | 'complete' | 'error';
 
 export type TaskStatus = 'pending' | 'claimed' | 'processing' | 'complete' | 'failed';
-export type TaskType = 'text_generation' | 'pdf_generation' | 'audio_generation' | 'synastry_calc';
+export type TaskType = 'text_generation' | 'pdf_generation' | 'audio_generation' | 'synastry_calc' | 'song_generation';
 
 export type ArtifactType = 'audio_mp3' | 'audio_m4a' | 'pdf' | 'json' | 'text';
 

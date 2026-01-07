@@ -9,7 +9,6 @@
 import { supabase } from '../services/supabaseClient';
 import { generateLyrics } from '../services/lyricsGeneration';
 import { generateSong, downloadSongAudio } from '../services/songGeneration';
-import { uploadToSupabaseStorage } from '../services/storage';
 
 export interface SongTaskInput {
   docNum: number;        // Which document this song is for (1-16)
@@ -55,7 +54,7 @@ export async function processSongTask(task: { id: string; job_id: string; input:
       if (altError) throw new Error(`Failed to fetch reading documents: ${altError.message}`);
       
       // Find the artifact matching our docNum
-      const matchingArtifact = altArtifacts?.find(a => 
+      const matchingArtifact = altArtifacts?.find((a: any) => 
         a.metadata?.docNum === docNum || 
         Number(a.metadata?.docNum) === docNum ||
         a.metadata?.chapter_index === docNum - 1
@@ -126,18 +125,24 @@ export async function processSongTask(task: { id: string; job_id: string; input:
     const storagePath = `jobs/${job_id}/${fileName}`;
 
     console.log(`📤 Uploading song to storage: ${storagePath}...`);
-    const { url: storageUrl, error: uploadError } = await uploadToSupabaseStorage({
-      bucket: 'job-artifacts',
-      path: storagePath,
-      file: Buffer.from(audioBase64, 'base64'),
-      contentType: 'audio/mpeg',
-      userId: input.userId || 'system',
-    });
+    const audioBuffer = Buffer.from(audioBase64, 'base64');
+    
+    const { data: uploadData, error: uploadError } = await supabase!.storage
+      .from('job-artifacts')
+      .upload(storagePath, audioBuffer, {
+        contentType: 'audio/mpeg',
+        upsert: true,
+      });
 
-    if (uploadError || !storageUrl) {
-      throw new Error(`Failed to upload song: ${uploadError?.message || 'Unknown error'}`);
+    if (uploadError) {
+      throw new Error(`Failed to upload song: ${uploadError.message}`);
     }
 
+    const { data: publicUrlData } = supabase!.storage
+      .from('job-artifacts')
+      .getPublicUrl(storagePath);
+    
+    const storageUrl = publicUrlData.publicUrl;
     console.log(`✅ Song uploaded: ${storageUrl}`);
 
     // Step 6: Create artifact record (with docNum for matching)

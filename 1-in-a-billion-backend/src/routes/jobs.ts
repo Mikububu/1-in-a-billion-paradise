@@ -131,17 +131,17 @@ const getJobHandler = async (c: any) => {
       if (typeof docNum !== 'number') continue;
 
       if (!artifactsByDoc[docNum]) {
-        artifactsByDoc[docNum] = {};
+        artifactsByDoc[docNum] = {} as any;
       }
 
       if (artifact.artifact_type === 'text') {
-        artifactsByDoc[docNum].text = artifact;
+        (artifactsByDoc[docNum] as any).text = artifact;
       } else if (artifact.artifact_type === 'pdf') {
-        artifactsByDoc[docNum].pdf = artifact;
+        (artifactsByDoc[docNum] as any).pdf = artifact;
       } else if (artifact.artifact_type === 'audio' || artifact.artifact_type === 'audio_mp3') {
-        artifactsByDoc[docNum].audio = artifact;
+        (artifactsByDoc[docNum] as any).audio = artifact;
       } else if (artifact.artifact_type === 'audio_song') {
-        artifactsByDoc[docNum].song = artifact;
+        (artifactsByDoc[docNum] as any).song = artifact;
       }
     }
 
@@ -162,10 +162,10 @@ const getJobHandler = async (c: any) => {
 
     for (const docNum of docNums) {
       const artifacts = artifactsByDoc[docNum];
-      const textMeta = artifacts.text?.metadata || {};
-      const audioMeta = artifacts.audio?.metadata || {};
-      const pdfMeta = artifacts.pdf?.metadata || {};
-      const songMeta = artifacts.song?.metadata || {};
+      const textMeta = (artifacts as any).text?.metadata || {};
+      const audioMeta = (artifacts as any).audio?.metadata || {};
+      const pdfMeta = (artifacts as any).pdf?.metadata || {};
+      const songMeta = (artifacts as any).song?.metadata || {};
 
       documents.push({
         id: `doc_${docNum}`,
@@ -174,9 +174,9 @@ const getJobHandler = async (c: any) => {
         docType: textMeta.docType || audioMeta.docType || pdfMeta.docType || 'unknown',
         docNum,
         // Include URLs if available (signed URLs already generated above)
-        audioUrl: artifacts.audio?.public_url,
-        pdfUrl: artifacts.pdf?.public_url,
-        songUrl: artifacts.song?.public_url, // Personalized song URL
+        audioUrl: (artifacts as any).audio?.public_url,
+        pdfUrl: (artifacts as any).pdf?.public_url,
+        songUrl: (artifacts as any).song?.public_url, // Personalized song URL
         // Don't include full text in response (too large) - can be fetched separately
       });
     }
@@ -583,7 +583,7 @@ router.post('/v2/start', async (c) => {
       // Song generation tasks - ONE song per document (16 songs total)
       // Each document's text → lyrics (LLM) → song (MiniMax)
       // Songs are created after text tasks complete (sequence 100+)
-      if (payload.includeSong !== false) {
+      if ((payload as any).includeSong !== false) {
         // Person 1 songs (5 songs, docs 1-5)
         for (let i = 0; i < 5; i++) {
           tasks.push({
@@ -670,7 +670,7 @@ router.post('/v2/start', async (c) => {
       }
 
       // Song tasks for each system (sequence 100+)
-      if (payload.includeSong !== false) {
+      if ((payload as any).includeSong !== false) {
         for (let i = 0; i < systemsToProcess.length; i++) {
           const system = systemsToProcess[i];
           tasks.push({
@@ -699,7 +699,7 @@ router.post('/v2/start', async (c) => {
         relationshipContext: payload.relationshipContext, // Pass through for overlay interpretation
         personalContext: payload.personalContext, // Pass through for individual reading personalization
       },
-      tasks,
+      tasks: tasks as any,
     });
 
     return c.json({
@@ -897,8 +897,6 @@ jobQueue.registerProcessor('extended', async (job, updateProgress) => {
         phase: 'text',
         message: `📝 Generating ${system} analysis... (${i + 1}/${totalSystems})`,
         currentStep: `${system} - Claude API call`,
-        completedTasks: i,
-        totalTasks: totalSystems,
       });
 
       const prompt = buildIndividualPrompt({
@@ -928,10 +926,13 @@ jobQueue.registerProcessor('extended', async (job, updateProgress) => {
       fullText: allTexts.join('\n\n---\n\n'),
       chapters,
       documents: chapters.map((ch, idx) => ({
-        docNum: idx + 1,
+        id: `doc_${idx + 1}`,
+        title: ch.name,
         system: ch.name,
         docType: 'individual',
         text: ch.text,
+        wordCount: ch.text.split(/\s+/).length,
+        docNum: idx + 1,
       })),
     };
 

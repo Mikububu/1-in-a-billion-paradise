@@ -73,18 +73,17 @@ Line 2...
 Generate the complete song lyrics now:`;
 
   try {
-    const response = await llm.generate({
-      prompt,
+    const response = await llm.generate(prompt, 'lyrics-generation', {
       maxTokens: 1500,
       temperature: 0.8, // Creative but focused
     });
 
-    if (!response.text) {
+    if (!response) {
       throw new Error('No lyrics generated');
     }
 
     // Extract lyrics (remove any markdown formatting)
-    let lyrics = response.text.trim();
+    let lyrics = response.trim();
     
     // Remove markdown code blocks if present
     lyrics = lyrics.replace(/```[\s\S]*?```/g, '');
