@@ -66,20 +66,28 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
   // If targetPerson exists, we are in "Partner" mode for THEM.
   const isForTarget = !!targetPerson;
 
-  // Auto-trigger voice modal if preselectedSystem is passed (skip system selection UI)
+  // Auto-trigger voice selection screen if preselectedSystem is passed (skip system selection UI)
   useEffect(() => {
-    if (preselectedSystem && !showVoiceModal && !pendingJob) {
+    if (preselectedSystem) {
       const systemName = SYSTEMS.find(s => s.id === preselectedSystem)?.name || preselectedSystem;
-      setPendingJob({
-        productType: isOverlay ? 'compatibility_overlay' : 'single_system',
-        title: systemName,
-        systems: [preselectedSystem],
-        relationshipContext,
-        personalContext,
+      
+      // Navigate to full-screen voice selection
+      navigation.navigate('VoiceSelection', {
+        preselectedVoice: selectedVoice,
+        onSelect: (voiceId: string) => {
+          // Callback when voice is selected
+          startJobAndNavigate({
+            productType: isOverlay ? 'compatibility_overlay' : 'single_system',
+            title: systemName,
+            systems: [preselectedSystem],
+            voiceIdOverride: voiceId,
+            relationshipContext,
+            personalContext,
+          });
+        },
       });
-      setShowVoiceModal(true);
     }
-  }, [preselectedSystem, showVoiceModal, pendingJob, isOverlay, relationshipContext, personalContext]);
+  }, [preselectedSystem]); // Only trigger on mount if preselectedSystem exists
 
   const isOverlay = readingType === 'overlay';
   const singlePrice = isOverlay ? PRODUCTS.compatibility_overlay.priceUSD : PRODUCTS.single_system.priceUSD;
@@ -281,14 +289,22 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
 
   const handleSelectSystem = (systemId: string) => {
     const systemName = SYSTEMS.find(s => s.id === systemId)?.name || systemId;
-    setPendingJob({
-      productType: isOverlay ? 'compatibility_overlay' : 'single_system',
-      title: systemName,
-      systems: [systemId],
-      relationshipContext, // Pass through from route params
-      personalContext, // Pass through from route params
+    
+    // Navigate to full-screen voice selection instead of modal
+    navigation.navigate('VoiceSelection', {
+      preselectedVoice: selectedVoice,
+      onSelect: (voiceId: string) => {
+        // Callback when voice is selected
+        startJobAndNavigate({
+          productType: isOverlay ? 'compatibility_overlay' : 'single_system',
+          title: systemName,
+          systems: [systemId],
+          voiceIdOverride: voiceId,
+          relationshipContext,
+          personalContext,
+        });
+      },
     });
-    setShowVoiceModal(true);
   };
 
   const handleSelectBundle = () => {

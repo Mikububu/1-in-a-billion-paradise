@@ -76,6 +76,7 @@ import { SystemsOverviewScreen } from '@/screens/home/SystemsOverviewScreen';
 import { AudioPlayerScreen } from '@/screens/home/AudioPlayerScreen';
 import { RelationshipContextScreen } from '@/screens/home/RelationshipContextScreen';
 import { PersonalContextScreen } from '@/screens/home/PersonalContextScreen';
+import { VoiceSelectionScreen } from '@/screens/home/VoiceSelectionScreen';
 import { SynastryOverlayScreen } from '@/screens/premium/SynastryOverlayScreen';
 import { PurchaseScreen } from '@/screens/premium/PurchaseScreen';
 import { HowMatchingWorksScreen } from '@/screens/home/HowMatchingWorksScreen';
@@ -237,6 +238,10 @@ export type MainStackParamList = {
       latitude: number;
       longitude: number;
     };
+  };
+  VoiceSelection: {
+    onSelect: (voiceId: string) => void;
+    preselectedVoice?: string;
   };
   GeneratingReading: {
     productType: string;
@@ -562,6 +567,7 @@ const MainNavigator = () => {
       <MainStack.Screen name="RelationshipContext" component={RelationshipContextScreen} />
       <MainStack.Screen name="PersonalContext" component={PersonalContextScreen} />
       <MainStack.Screen name="SystemSelection" component={SystemSelectionScreen} />
+      <MainStack.Screen name="VoiceSelection" component={VoiceSelectionScreen} />
       <MainStack.Screen name="GeneratingReading" component={GeneratingReadingScreen} />
       <MainStack.Screen name="ExtendedPrompt" component={ExtendedPromptScreen} />
       <MainStack.Screen name="ExtendedReading" component={ExtendedReadingScreen} />
