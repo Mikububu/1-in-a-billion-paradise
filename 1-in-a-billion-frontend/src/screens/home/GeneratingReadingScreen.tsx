@@ -321,37 +321,34 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
 
   const isThirdPerson = !!personName && personName !== 'You' && personName !== 'User';
 
-  const handleGoToSecretLife = () => {
-    if (isThirdPerson) {
-      // If we have an id, go to that person; otherwise fall back to list
-      if (partnerId || personId) {
-        navigation.navigate('PersonProfile', { personId: (partnerId || personId)! });
-      } else {
-        navigation.navigate('PeopleList');
-      }
-    } else {
-      navigation.navigate('Home');
-    }
+  const handleGoToLibrary = () => {
+    // Always navigate to MyLibrary (Soul Library)
+    navigation.navigate('MyLibrary');
   };
 
-  const handleGoToLibrary = () => {
-    if (isThirdPerson) {
-      navigation.navigate('PeopleList');
-    } else {
-      // User request: “Back to My Secret Life Dashboard” should return to Home
-      navigation.navigate('Home');
+  // Get the system name for the headline
+  const getSystemHeadline = () => {
+    if (productType === 'nuclear_package') {
+      return 'Nuclear Package Reading';
     }
+    if (systems && systems.length > 0) {
+      const systemNames: Record<string, string> = {
+        western: 'Western Astrology',
+        vedic: 'Vedic Astrology',
+        human_design: 'Human Design',
+        gene_keys: 'Gene Keys',
+        kabbalah: 'Kabbalah',
+      };
+      const systemName = systemNames[systems[0]] || systems[0];
+      return systems.length > 1 ? `Combined Reading (${systems.length} Systems)` : systemName;
+    }
+    return 'Deep Reading';
   };
 
   const readingSubject = partnerName
     ? `${personName || 'You'} & ${partnerName}`
     : personName || 'Your';
 
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GeneratingReadingScreen.tsx:log',message:'GeneratingReading CTAs',data:{isThirdPerson,personName,links:['Notify','Label','Back'],labels:isThirdPerson?{primary:partnerId||personId?`Go to ${personName}'s Profile`:'Go to People List',secondary:'Back to People List'}:{primary:'VEDIC READING',secondary:'Back to My Secret Life Dashboard'}},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'CTA1'})}).catch(()=>{});
-  }, []);
-  // #endregion
 
   return (
     <SafeAreaView style={styles.container}>
@@ -396,22 +393,14 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
           </Text>
         </TouchableOpacity>
 
-        {/* Primary CTA / Label */}
-        {isThirdPerson ? (
-          <TouchableOpacity style={styles.secretLifeButton} onPress={handleGoToSecretLife}>
-            <Text style={styles.secretLifeText}>{partnerId || personId ? `Go to ${personName}'s Profile` : 'Go to People List'}</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.secretLifeButton}>
-            <Text style={styles.secretLifeText}>VEDIC READING</Text>
-          </View>
-        )}
+        {/* Reading Type Headline (non-clickable) */}
+        <View style={styles.secretLifeButton}>
+          <Text style={styles.secretLifeText}>{getSystemHeadline()}</Text>
+        </View>
 
-        {/* Secondary CTA */}
+        {/* Navigate to Soul Library */}
         <TouchableOpacity style={styles.secretLifeButton} onPress={handleGoToLibrary}>
-          <Text style={styles.secretLifeText}>
-            {isThirdPerson ? 'Back to People List' : 'Back to My Secret Life Dashboard'}
-          </Text>
+          <Text style={styles.secretLifeText}>My Soul Library</Text>
         </TouchableOpacity>
 
         {/* Status indicator - Centered */}
