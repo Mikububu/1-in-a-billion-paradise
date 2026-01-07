@@ -377,12 +377,10 @@ const MainNavigator = () => {
   useEffect(() => {
     if (redirectAfterOnboarding) {
       console.log(`🔀 Redirecting to ${redirectAfterOnboarding} after onboarding...`);
-      // Brief delay to ensure navigation is ready
-      setTimeout(() => {
-        // @ts-ignore
-        navigation.navigate(redirectAfterOnboarding);
-        setRedirectAfterOnboarding(null);
-      }, 500);
+      // Navigate immediately to prevent dashboard flash
+      // @ts-ignore
+      navigation.navigate(redirectAfterOnboarding);
+      setRedirectAfterOnboarding(null);
     }
   }, [redirectAfterOnboarding, setRedirectAfterOnboarding, navigation]);
 
