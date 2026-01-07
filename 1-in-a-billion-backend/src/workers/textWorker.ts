@@ -407,6 +407,7 @@ export class TextWorker extends BaseWorker {
           chartData,
           spiceLevel,
           style,
+          personalContext: params.personalContext, // Pass through for individual reading personalization
         });
         label += `:p1:${system}`;
       } else if (docType === 'person2') {
@@ -417,6 +418,7 @@ export class TextWorker extends BaseWorker {
           chartData,
           spiceLevel,
           style,
+          personalContext: params.personalContext, // Pass through for individual reading personalization
         });
         label += `:p2:${system}`;
       } else if (docType === 'individual') {
@@ -428,6 +430,7 @@ export class TextWorker extends BaseWorker {
           voiceMode: 'other',
           person: p1BirthData as any, // Cast to match PersonData
           chartData: { western: chartData } as any, // Wrap string in ChartData object
+          personalContext: params.personalContext, // Pass through for individual reading personalization
         });
         // Update name in person data for prompt
         (prompt as any).personName = person1.name;

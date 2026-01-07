@@ -41,7 +41,7 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
-  const [pendingJob, setPendingJob] = useState<{ productType: string; title: string; systems: string[]; voiceId?: string } | null>(null);
+  const [pendingJob, setPendingJob] = useState<{ productType: string; title: string; systems: string[]; voiceId?: string; relationshipContext?: string; personalContext?: string } | null>(null);
 
   const {
     readingType,
@@ -54,6 +54,8 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
     person1Override,
     person2Override,
     personId, // NEW
+    relationshipContext, // From RelationshipContextScreen (for overlays)
+    personalContext, // From PersonalContextScreen (for individual readings)
   } = (route.params || {}) as any;
 
   // Hydrate person data if personId is passed
@@ -127,11 +129,11 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
     }
   };
 
-  const startJobAndNavigate = async (opts: { productType: string; title: string; systems: string[]; voiceIdOverride?: string; relationshipContext?: string }) => {
+  const startJobAndNavigate = async (opts: { productType: string; title: string; systems: string[]; voiceIdOverride?: string; relationshipContext?: string; personalContext?: string }) => {
     if (isLoading) return; // Prevent double-clicks
     setIsLoading(true);
 
-    const { productType, systems: systemsToGenerate, voiceIdOverride, relationshipContext } = opts;
+    const { productType, systems: systemsToGenerate, voiceIdOverride, relationshipContext: contextOverride, personalContext: personalContextOverride } = opts;
     const isOverlayFlow = isOverlay;
 
     // Person 1 data (supports overrides for "two other people" overlays)
@@ -207,8 +209,13 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
     };
     if (isOverlayFlow) {
       payload.person2 = person2;
-      if (relationshipContext) {
-        payload.relationshipContext = relationshipContext; // Add context for overlays
+      if (contextOverride || relationshipContext) {
+        payload.relationshipContext = contextOverride || relationshipContext; // Add context for overlays
+      }
+    } else {
+      // For individual readings, add personalContext if provided
+      if (personalContextOverride || personalContext) {
+        payload.personalContext = personalContextOverride || personalContext;
       }
     }
 
@@ -262,6 +269,8 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
       productType: isOverlay ? 'compatibility_overlay' : 'single_system',
       title: systemName,
       systems: [systemId],
+      relationshipContext, // Pass through from route params
+      personalContext, // Pass through from route params
     });
     setShowVoiceModal(true);
   };

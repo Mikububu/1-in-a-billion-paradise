@@ -58,6 +58,7 @@ export interface IndividualPromptConfig {
   voiceMode: 'self' | 'other';
   person: PersonData;
   chartData: ChartData;
+  personalContext?: string; // Optional context for individual reading personalization
 }
 
 export interface OverlayPromptConfig {
@@ -91,10 +92,19 @@ export type PromptConfig = IndividualPromptConfig | OverlayPromptConfig | Nuclea
 // ═══════════════════════════════════════════════════════════════════════════
 
 export function buildIndividualPrompt(config: IndividualPromptConfig): string {
-  const { style, spiceLevel, system, voiceMode, person, chartData } = config;
+  const { style, spiceLevel, system, voiceMode, person, chartData, personalContext } = config;
   
   const systemName = SYSTEM_DISPLAY_NAMES[system];
   const chartSection = chartData[system === 'gene_keys' ? 'geneKeys' : system === 'human_design' ? 'humanDesign' : system] || '';
+
+  const contextSection = personalContext ? `
+═══════════════════════════════════════════════════════════════════════════════
+PERSONAL CONTEXT (User's Focus):
+"${personalContext}"
+
+INSTRUCTION: Subtly weave this context into your reading. Address the themes naturally without being explicit. Let the reading illuminate these areas organically.
+═══════════════════════════════════════════════════════════════════════════════
+` : '';
 
   return `
 ═══════════════════════════════════════════════════════════════════════════════
@@ -109,7 +119,7 @@ ${buildForbiddenSection(style)}
 ${buildSpiceSection(spiceLevel, style)}
 
 ${buildOutputRulesSection('individual', voiceMode, person.name)}
-
+${contextSection}
 ${buildSystemSection(system, false, spiceLevel)}
 
 ${buildIndividualStructure(person.name)}

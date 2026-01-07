@@ -111,8 +111,9 @@ export function buildPersonPrompt(params: {
   chartData: string;
   spiceLevel: number;
   style: 'production' | 'spicy_surreal';
+  personalContext?: string; // Optional context for individual reading personalization
 }): string {
-  const { system, personName, personData, chartData, spiceLevel, style } = params;
+  const { system, personName, personData, chartData, spiceLevel, style, personalContext } = params;
   const systemName = SYSTEM_DISPLAY_NAMES[system];
 
   const styleInstructions = style === 'spicy_surreal'
@@ -133,7 +134,12 @@ PERSON DATA:
 
 CHART DATA:
 ${chartData}
+${personalContext ? `
+PERSONAL CONTEXT (User's Focus):
+"${personalContext}"
 
+INSTRUCTION: Subtly weave this context into your reading. Address the themes naturally without being explicit. Let the reading illuminate these areas organically.
+` : ''}
 STYLE: ${style === 'spicy_surreal' ? 'DARK SOUL STORYTELLING' : 'PRODUCTION (Literary Documentary)'}
 SPICE LEVEL: ${spiceLevel}/10
 

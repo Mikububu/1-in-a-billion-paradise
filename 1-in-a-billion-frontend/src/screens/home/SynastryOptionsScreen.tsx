@@ -14,22 +14,24 @@ export const SynastryOptionsScreen = ({ navigation, route }: Props) => {
   const partner = partnerName || 'Partner';
 
   const handleYourReading = () => {
-    navigation.navigate('SystemSelection', {
-      readingType: 'individual',
+    navigation.navigate('PersonalContext', {
+      personName: 'You',
+      readingType: 'self',
       forPartner: false,
       userName: 'You',
     });
   };
 
   const handlePartnerReading = () => {
-    navigation.navigate('SystemSelection', {
-      readingType: 'individual',
+    navigation.navigate('PersonalContext', {
+      personName: partner,
+      readingType: 'other',
       forPartner: true,
       userName: partner,
       partnerName: partner,
-      partnerBirthDate,
-      partnerBirthTime,
-      partnerBirthCity,
+      personBirthDate: partnerBirthDate,
+      personBirthTime: partnerBirthTime,
+      personBirthCity: partnerBirthCity,
     });
   };
 

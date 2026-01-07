@@ -75,6 +75,7 @@ import { ComparePeopleScreen } from '@/screens/home/ComparePeopleScreen';
 import { SystemsOverviewScreen } from '@/screens/home/SystemsOverviewScreen';
 import { AudioPlayerScreen } from '@/screens/home/AudioPlayerScreen';
 import { RelationshipContextScreen } from '@/screens/home/RelationshipContextScreen';
+import { PersonalContextScreen } from '@/screens/home/PersonalContextScreen';
 import { SynastryOverlayScreen } from '@/screens/premium/SynastryOverlayScreen';
 import { PurchaseScreen } from '@/screens/premium/PurchaseScreen';
 import { HowMatchingWorksScreen } from '@/screens/home/HowMatchingWorksScreen';
@@ -183,6 +184,24 @@ export type MainStackParamList = {
       longitude: number;
     };
   };
+  PersonalContext: {
+    personName: string;
+    readingType: 'self' | 'other';
+    forPartner?: boolean;
+    userName?: string;
+    personBirthDate?: string;
+    personBirthTime?: string | null;
+    personBirthCity?: CityOption | null;
+    personId?: string;
+    person1Override?: {
+      name: string;
+      birthDate: string;
+      birthTime: string;
+      timezone: string;
+      latitude: number;
+      longitude: number;
+    };
+  };
   SystemSelection: {
     // Standard params
     readingType: 'individual' | 'overlay';
@@ -192,7 +211,8 @@ export type MainStackParamList = {
     partnerBirthDate?: string;
     partnerBirthTime?: string | null;
     partnerBirthCity?: CityOption | null;
-    relationshipContext?: string; // NEW: Optional context from RelationshipContext screen
+    relationshipContext?: string; // Optional context from RelationshipContext screen (for overlays)
+    personalContext?: string; // Optional context from PersonalContext screen (for individual readings)
 
     // NEW: Direct person lookup (skips providing all details manually)
     personId?: string;
@@ -536,6 +556,7 @@ const MainNavigator = () => {
       <MainStack.Screen name="SynastryPreview" component={SynastryPreviewScreen} />
       <MainStack.Screen name="SynastryOptions" component={SynastryOptionsScreen} />
       <MainStack.Screen name="RelationshipContext" component={RelationshipContextScreen} />
+      <MainStack.Screen name="PersonalContext" component={PersonalContextScreen} />
       <MainStack.Screen name="SystemSelection" component={SystemSelectionScreen} />
       <MainStack.Screen name="GeneratingReading" component={GeneratingReadingScreen} />
       <MainStack.Screen name="ExtendedPrompt" component={ExtendedPromptScreen} />

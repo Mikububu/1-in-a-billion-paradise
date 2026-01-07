@@ -400,7 +400,8 @@ const startJobSchema = z.object({
     longitude: z.number(),
   }).optional(),
   relationshipIntensity: z.number().min(1).max(10).default(5),
-  relationshipContext: z.string().max(100).optional(), // Contextual infusion for overlay interpretation
+  relationshipContext: z.string().max(500).optional(), // Contextual infusion for overlay interpretation
+  personalContext: z.string().max(500).optional(), // Contextual infusion for individual readings
 });
 
 // LLM calls now use centralized llm.generate() from ../services/llm
@@ -696,6 +697,7 @@ router.post('/v2/start', async (c) => {
         ...payload,
         systems: payload.systems,
         relationshipContext: payload.relationshipContext, // Pass through for overlay interpretation
+        personalContext: payload.personalContext, // Pass through for individual reading personalization
       },
       tasks,
     });
