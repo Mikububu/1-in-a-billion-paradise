@@ -193,6 +193,7 @@ export type MainStackParamList = {
     personBirthTime?: string | null;
     personBirthCity?: CityOption | null;
     personId?: string;
+    preselectedSystem?: string; // Optional: pre-select a system in SystemSelection
     person1Override?: {
       name: string;
       birthDate: string;
