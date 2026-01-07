@@ -363,6 +363,9 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
         <Text style={styles.productTitle}>The Soul Journey of</Text>
         <Text style={styles.subjectNames}>{readingSubject}</Text>
 
+        {/* Reading Type Subheadline */}
+        <Text style={styles.systemSubheadline}>{getSystemHeadline()}</Text>
+
         {/* Combined Message Block */}
         <View style={styles.messageBox}>
           <Text style={styles.messageTitle}>Deep Dive Readings Take Time</Text>
@@ -392,11 +395,6 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
             {notificationsEnabled ? 'Notifications On' : 'Notify me when ready'}
           </Text>
         </TouchableOpacity>
-
-        {/* Reading Type Headline (non-clickable) */}
-        <View style={styles.headlineContainer}>
-          <Text style={styles.headlineText}>{getSystemHeadline()}</Text>
-        </View>
 
         {/* Navigate to Soul Library */}
         <TouchableOpacity style={styles.libraryButton} onPress={handleGoToLibrary}>
@@ -573,7 +571,16 @@ const styles = StyleSheet.create({
     color: colors.primary,
     textAlign: 'center',
     width: '100%',
+    marginBottom: spacing.xs,
+  },
+  systemSubheadline: {
+    fontFamily: typography.sansSemiBold,
+    fontSize: 16,
+    color: colors.mutedText,
+    textAlign: 'center',
+    width: '100%',
     marginBottom: spacing.md,
+    fontStyle: 'italic',
   },
   messageBox: {
     backgroundColor: colors.surface,
