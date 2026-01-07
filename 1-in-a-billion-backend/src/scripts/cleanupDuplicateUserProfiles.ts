@@ -35,7 +35,7 @@ async function main() {
   // Step 1: Find all library_people where is_user=true
   const { data: userProfiles, error: fetchError } = await supabase
     .from('library_people')
-    .select('id, user_id, name, is_user, created_at')
+    .select('*')
     .eq('is_user', true)
     .order('created_at', { ascending: true });
 
@@ -78,7 +78,7 @@ async function main() {
     const profiles = byUserId[userId];
     
     // Sort by created_at DESC (newest first)
-    profiles.sort((a, b) => 
+    profiles.sort((a: any, b: any) => 
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
 
