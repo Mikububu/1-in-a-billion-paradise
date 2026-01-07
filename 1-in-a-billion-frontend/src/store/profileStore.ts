@@ -921,7 +921,7 @@ export const useProfileStore = create<ProfileState>()(
     {
       name: 'profile-storage',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 5,
+      version: 6,
       onRehydrateStorage: () => {
         console.log('📦 Profile store: Starting hydration from AsyncStorage...');
         return (state, error) => {
@@ -1015,6 +1015,43 @@ export const useProfileStore = create<ProfileState>()(
             console.log(`✅ Migration v5 complete: Removed ${totalRemoved} total hook readings`);
           } catch (e) {
             console.error('❌ Migration v5 failed:', e);
+            // keep as-is on failure
+          }
+        }
+
+        // v6: Remove duplicate is_user=true entries (keep newest)
+        if (version < 6) {
+          try {
+            const people = Array.isArray(persisted?.people) ? persisted.people : [];
+            const userProfiles = people.filter((p: any) => p?.isUser === true);
+            
+            if (userProfiles.length > 1) {
+              console.log(`🧹 Migration v6: Found ${userProfiles.length} duplicate user profiles`);
+              
+              // Sort by created_at DESC (newest first)
+              userProfiles.sort((a: any, b: any) => {
+                const timeA = new Date(a.createdAt || 0).getTime();
+                const timeB = new Date(b.createdAt || 0).getTime();
+                return timeB - timeA;
+              });
+              
+              const [keep, ...toDelete] = userProfiles;
+              const deleteIds = new Set(toDelete.map((p: any) => p.id));
+              
+              console.log(`  ✅ Keeping: "${keep.name}" (id: ${keep.id})`);
+              toDelete.forEach((p: any) => {
+                console.log(`  ❌ Removing: "${p.name}" (id: ${p.id})`);
+              });
+              
+              // Filter out duplicate user profiles
+              persisted.people = people.filter((p: any) => !deleteIds.has(p.id));
+              
+              console.log(`✅ Migration v6 complete: Removed ${toDelete.length} duplicate user profile(s)`);
+            } else {
+              console.log(`✅ Migration v6: No duplicate user profiles found`);
+            }
+          } catch (e) {
+            console.error('❌ Migration v6 failed:', e);
             // keep as-is on failure
           }
         }
