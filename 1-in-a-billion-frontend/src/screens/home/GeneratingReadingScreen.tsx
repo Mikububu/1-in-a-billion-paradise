@@ -324,8 +324,9 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
   const handleGoToSecretLife = () => {
     if (isThirdPerson) {
       // If we have an id, go to that person; otherwise fall back to list
-      if (partnerId || personId) {
-        navigation.navigate('PersonProfile', { personId: partnerId || personId });
+      const targetPersonId = partnerId || personId;
+      if (targetPersonId) {
+        navigation.navigate('PersonProfile', { personId: targetPersonId });
       } else {
         navigation.navigate('PeopleList');
       }
@@ -346,12 +347,6 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
   const readingSubject = partnerName
     ? `${personName || 'You'} & ${partnerName}`
     : personName || 'Your';
-
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GeneratingReadingScreen.tsx:log',message:'GeneratingReading CTAs',data:{isThirdPerson,personName,links:['Notify','Label','Back'],labels:isThirdPerson?{primary:partnerId||personId?`Go to ${personName}'s Profile`:'Go to People List',secondary:'Back to People List'}:{primary:'VEDIC READING',secondary:'Back to My Secret Life Dashboard'}},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'CTA1'})}).catch(()=>{});
-  }, []);
-  // #endregion
 
   return (
     <SafeAreaView style={styles.container}>

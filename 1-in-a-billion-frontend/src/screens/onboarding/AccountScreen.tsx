@@ -211,18 +211,7 @@ export const AccountScreen = ({ navigation }: Props) => {
 
       console.log(`✅ Sign up successful`);
 
-      // #region agent log
-      // H10: Confirm signup completed and session payload exists (no PII)
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AccountScreen.tsx:212',message:'Email signup success',data:{hasSessionPayload:!!data.session,hasSupabaseConfigured:isSupabaseConfigured},timestamp:Date.now(),sessionId:'debug-session',runId:(__DEV__&&(globalThis as any).__DEBUG_RUN_MARKER__)||'run4',hypothesisId:'AUTH1'})}).catch(()=>{});
-      // #endregion
-
       if (data.session) {
-        // #region agent log
-        // AUTH_SESS_PRE: validate token presence without logging secrets
-        const at = typeof data.session?.access_token === 'string' ? data.session.access_token : '';
-        const rt = typeof data.session?.refresh_token === 'string' ? data.session.refresh_token : '';
-        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AccountScreen.tsx:214',message:'Preparing to set Supabase session',data:{hasAccessToken:!!at,accessTokenLen:at.length,hasRefreshToken:!!rt,refreshTokenLen:rt.length},timestamp:Date.now(),sessionId:'debug-session',runId:(__DEV__&&(globalThis as any).__DEBUG_RUN_MARKER__)||'run4',hypothesisId:'AUTH_SESS_PRE'})}).catch(()=>{});
-        // #endregion
 
         const { error: sessionError } = await supabase.auth.setSession({
           access_token: data.session.access_token,
@@ -230,16 +219,8 @@ export const AccountScreen = ({ navigation }: Props) => {
         });
 
         if (sessionError) {
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AccountScreen.tsx:220',message:'Supabase setSession error',data:{message:sessionError.message},timestamp:Date.now(),sessionId:'debug-session',runId:(__DEV__&&(globalThis as any).__DEBUG_RUN_MARKER__)||'run4',hypothesisId:'AUTH_SESS_ERR'})}).catch(()=>{});
-          // #endregion
           throw new Error(sessionError.message);
         }
-
-        // #region agent log
-        // H11: Confirm Supabase session was set
-        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AccountScreen.tsx:223',message:'Supabase session set from backend session',data:{ok:true},timestamp:Date.now(),sessionId:'debug-session',runId:(__DEV__&&(globalThis as any).__DEBUG_RUN_MARKER__)||'run4',hypothesisId:'AUTH2'})}).catch(()=>{});
-        // #endregion
 
         // Save name to onboarding store for PostHookOfferScreen to use
         if (name.trim()) {
@@ -256,9 +237,6 @@ export const AccountScreen = ({ navigation }: Props) => {
     } catch (error: any) {
       console.error(`❌ SIGNUP ERROR:`, error.message);
       setEmailAuthState('error');
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AccountScreen.tsx:catch',message:'Email signup flow failed',data:{message:error?.message||String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:(__DEV__&&(globalThis as any).__DEBUG_RUN_MARKER__)||'run4',hypothesisId:'AUTH_CATCH'})}).catch(()=>{});
-      // #endregion
       Alert.alert(
         'Sign Up Error',
         error.message || 'Failed to create account'
@@ -349,7 +327,6 @@ export const AccountScreen = ({ navigation }: Props) => {
                   autoCorrect={false}
                   editable={emailAuthState !== 'loading'}
                 />
-              )}
 
               <TextInput
                 style={styles.emailInput}
