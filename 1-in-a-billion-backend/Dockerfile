@@ -11,11 +11,11 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# Rebuild native modules for container architecture (critical for swisseph)
-RUN npm rebuild swisseph
-
 # Copy source (includes ephe directory for Swiss Ephemeris)
 COPY . .
+
+# Rebuild native modules for container architecture AFTER copying source (critical for swisseph)
+RUN npm rebuild swisseph
 
 # Build TypeScript
 RUN npm run build
