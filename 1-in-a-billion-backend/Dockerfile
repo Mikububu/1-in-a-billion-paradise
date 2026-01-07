@@ -14,11 +14,8 @@ RUN npm ci
 # Rebuild native modules for container architecture (critical for swisseph)
 RUN npm rebuild swisseph
 
-# Copy source
+# Copy source (includes ephe directory for Swiss Ephemeris)
 COPY . .
-
-# Explicitly ensure ephemeris files are present (critical for Swiss Ephemeris)
-COPY ephe /app/ephe
 
 # Build TypeScript
 RUN npm run build
