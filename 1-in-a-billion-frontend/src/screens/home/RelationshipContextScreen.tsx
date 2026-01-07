@@ -15,7 +15,7 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'RelationshipContext'>;
 
-const MAX_CHARS = 500;
+const MAX_CHARS = 700;
 
 export const RelationshipContextScreen = ({ navigation, route }: Props) => {
     const { partnerName, ...restParams } = route.params;
@@ -53,7 +53,7 @@ export const RelationshipContextScreen = ({ navigation, route }: Props) => {
                             Would you like to tell us more about {partnerName}?
                         </Text>
                         <Text style={styles.subheadline}>
-                            How are you related to {partnerName}, and how do you feel toward them?
+                            {partnerName}, please feel free to share how you're related and how you feel toward them.
                         </Text>
                     </View>
 
@@ -124,9 +124,9 @@ const styles = StyleSheet.create({
     },
     subheadline: {
         fontFamily: typography.sansRegular,
-        fontSize: 16,
+        fontSize: 14,
         color: colors.mutedText,
-        lineHeight: 24,
+        lineHeight: 20,
         textAlign: 'center',
     },
     inputContainer: {
@@ -134,7 +134,6 @@ const styles = StyleSheet.create({
         minHeight: 200,
     },
     textInput: {
-        flex: 1,
         fontFamily: typography.sansRegular,
         fontSize: 16,
         color: colors.text,
@@ -143,7 +142,7 @@ const styles = StyleSheet.create({
         borderColor: colors.primary,
         borderRadius: radii.lg,
         padding: spacing.lg,
-        minHeight: 200,
+        height: 300,
     },
     charCount: {
         fontFamily: typography.sansRegular,

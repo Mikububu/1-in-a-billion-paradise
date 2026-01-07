@@ -14,7 +14,7 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonalContext'>;
 
-const MAX_CHARS = 500;
+const MAX_CHARS = 700;
 
 export const PersonalContextScreen = ({ navigation, route }: Props) => {
     const { personName, readingType, ...restParams } = route.params;
@@ -63,7 +63,10 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                             }
                         </Text>
                         <Text style={styles.subheadline}>
-                            Share any questions, feelings, or areas of life you'd like the reading to address
+                            {isSelf
+                                ? 'Please feel free to share any questions, feelings, or areas of life you\'d like the reading to address.'
+                                : `${personName}, please feel free to share any questions, feelings, or areas of life you\'d like the reading to address.`
+                            }
                         </Text>
                     </View>
 
@@ -136,10 +139,10 @@ const styles = StyleSheet.create({
     },
     subheadline: {
         fontFamily: typography.sansRegular,
-        fontSize: 16,
+        fontSize: 14,
         color: colors.mutedText,
         textAlign: 'center',
-        lineHeight: 24,
+        lineHeight: 20,
     },
     inputContainer: {
         flex: 1,
@@ -152,8 +155,7 @@ const styles = StyleSheet.create({
         backgroundColor: colors.surface,
         borderRadius: radii.card,
         padding: spacing.md,
-        minHeight: 180,
-        maxHeight: 300,
+        height: 300,
         borderWidth: 2,
         borderColor: colors.primary,
     },
