@@ -89,5 +89,5 @@ export function getEnabledVoices(): Voice[] {
  * Get voice sample URL (generated with Henry Miller quote)
  */
 export function getVoiceSampleUrl(voiceId: string): string {
-    return `https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/voice-samples/${voiceId}/henry_miller_sample.mp3`;
+    return `https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/${voiceId}/henry_miller_sample.mp3`;
 }
