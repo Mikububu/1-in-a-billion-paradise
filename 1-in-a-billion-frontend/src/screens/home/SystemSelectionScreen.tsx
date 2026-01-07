@@ -56,6 +56,7 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
     personId, // NEW
     relationshipContext, // From RelationshipContextScreen (for overlays)
     personalContext, // From PersonalContextScreen (for individual readings)
+    preselectedSystem, // NEW: If coming from SystemExplainer → Injection, this system is already chosen
   } = (route.params || {}) as any;
 
   // Hydrate person data if personId is passed
@@ -64,6 +65,21 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
 
   // If targetPerson exists, we are in "Partner" mode for THEM.
   const isForTarget = !!targetPerson;
+
+  // Auto-trigger voice modal if preselectedSystem is passed (skip system selection UI)
+  useEffect(() => {
+    if (preselectedSystem && !showVoiceModal && !pendingJob) {
+      const systemName = SYSTEMS.find(s => s.id === preselectedSystem)?.name || preselectedSystem;
+      setPendingJob({
+        productType: isOverlay ? 'compatibility_overlay' : 'single_system',
+        title: systemName,
+        systems: [preselectedSystem],
+        relationshipContext,
+        personalContext,
+      });
+      setShowVoiceModal(true);
+    }
+  }, [preselectedSystem, showVoiceModal, pendingJob, isOverlay, relationshipContext, personalContext]);
 
   const isOverlay = readingType === 'overlay';
   const singlePrice = isOverlay ? PRODUCTS.compatibility_overlay.priceUSD : PRODUCTS.single_system.priceUSD;
