@@ -394,13 +394,13 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
         </TouchableOpacity>
 
         {/* Reading Type Headline (non-clickable) */}
-        <View style={styles.secretLifeButton}>
-          <Text style={styles.secretLifeText}>{getSystemHeadline()}</Text>
+        <View style={styles.headlineContainer}>
+          <Text style={styles.headlineText}>{getSystemHeadline()}</Text>
         </View>
 
         {/* Navigate to Soul Library */}
-        <TouchableOpacity style={styles.secretLifeButton} onPress={handleGoToLibrary}>
-          <Text style={styles.secretLifeText}>My Soul Library</Text>
+        <TouchableOpacity style={styles.libraryButton} onPress={handleGoToLibrary}>
+          <Text style={styles.libraryButtonText}>My Soul Library</Text>
         </TouchableOpacity>
 
         {/* Status indicator - Centered */}
@@ -673,6 +673,35 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
     textDecorationLine: 'underline',
+    textAlign: 'center',
+  },
+  headlineContainer: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+    width: '100%',
+    alignItems: 'center',
+  },
+  headlineText: {
+    fontFamily: typography.sansSemiBold,
+    fontSize: 16,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  libraryButton: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    width: '100%',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radii.button,
+    borderWidth: 1,
+    borderColor: colors.text,
+  },
+  libraryButtonText: {
+    fontFamily: typography.sansSemiBold,
+    fontSize: 16,
+    color: colors.text,
     textAlign: 'center',
   },
   statusRow: {
