@@ -26,7 +26,7 @@ const router = new Hono();
 router.post('/signup', async (c) => {
     try {
         const body = await c.req.json();
-        const { email, password } = body;
+        const { email, password, name } = body;
 
         if (!email || typeof email !== 'string' || !email.includes('@')) {
             return c.json({
@@ -42,7 +42,7 @@ router.post('/signup', async (c) => {
             }, 400);
         }
 
-        console.log(`📧 Creating account for: ${email}`);
+        console.log(`📧 Creating account for: ${email}${name ? ` (${name})` : ''}`);
 
         if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
             console.error('❌ Supabase not configured');
@@ -57,6 +57,11 @@ router.post('/signup', async (c) => {
             env.SUPABASE_SERVICE_ROLE_KEY
         );
 
+        // Build user metadata with name if provided
+        const userMetadata = name && typeof name === 'string' && name.trim()
+            ? { full_name: name.trim() }
+            : {};
+
         // DEV MODE: Auto-confirm email (bypasses email confirmation)
         // PRODUCTION: Require email confirmation
         if (env.DEV_AUTO_CONFIRM_EMAIL) {
@@ -67,6 +72,7 @@ router.post('/signup', async (c) => {
                 email,
                 password,
                 email_confirm: true, // Auto-confirm in DEV mode
+                user_metadata: userMetadata,
             });
 
             if (createError) {
@@ -109,6 +115,7 @@ router.post('/signup', async (c) => {
             password,
             options: {
                 emailRedirectTo: `${env.FRONTEND_URL || 'oneinabillion://auth/confirm'}`,
+                data: userMetadata, // Store name in user_metadata
             },
         });
 

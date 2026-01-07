@@ -190,6 +190,7 @@ export const AccountScreen = ({ navigation }: Props) => {
         body: JSON.stringify({
           email: email.trim(),
           password: password.trim(),
+          name: name.trim(), // Send name to backend for user_metadata.full_name
         }),
       });
 
