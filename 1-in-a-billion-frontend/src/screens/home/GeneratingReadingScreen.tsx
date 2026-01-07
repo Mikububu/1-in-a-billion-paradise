@@ -370,7 +370,7 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
         <View style={styles.messageBox}>
           <Text style={styles.messageTitle}>Deep Dive Readings Take Time</Text>
           <Text style={styles.messageText}>
-            As these are comprehensive, personalized readings across multiple systems, they require significant processing time to ensure quality and depth. Your reading will be saved to <Text style={styles.highlight}>{isThirdPerson ? `${personName}'s Profile` : 'My Secret Life'}</Text>. You can close the app and check back later!
+            As these are comprehensive, personalized readings across multiple systems, they require significant processing time to ensure quality and depth. Your reading will be saved to <Text style={styles.highlight}>{personName}'s Soul Library</Text>. You can close the app and check back later!
           </Text>
         </View>
 
