@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { upsertSelfProfileToSupabase, initializeCommercialState } from '@/services/profileUpsert';
 
 /**
  * Clears all Supabase auth-related keys from AsyncStorage.
@@ -133,21 +134,6 @@ export function useSupabaseAuthBootstrap() {
             setIsLoading(false);
             setIsAuthReady(true);
             return;
-          }
-
-          // Check if this is a different user (user_id changed) - clear AsyncStorage for fresh start
-          const storedUserId = await AsyncStorage.getItem('last_user_id');
-          const currentUserId = session.user.id;
-          
-          if (storedUserId && storedUserId !== currentUserId) {
-            console.log('🧹 Different user detected - clearing AsyncStorage');
-            console.log('  Previous:', storedUserId);
-            console.log('  Current:', currentUserId);
-            await AsyncStorage.clear();
-            await AsyncStorage.setItem('last_user_id', currentUserId);
-          } else if (!storedUserId) {
-            // First time - store user_id
-            await AsyncStorage.setItem('last_user_id', currentUserId);
           }
 
           setSession(session);
@@ -357,7 +343,6 @@ export function useSupabaseAuthBootstrap() {
       setDisplayName(name);
 
       // Upsert self profile to Supabase (non-blocking)
-      const { upsertSelfProfileToSupabase, initializeCommercialState } = await import('@/services/profileUpsert');
       upsertSelfProfileToSupabase({
         userId: session.user.id,
         email: session.user.email || '',

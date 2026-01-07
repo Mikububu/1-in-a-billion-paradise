@@ -15,7 +15,6 @@ import { useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { useOnboardingStore } from '@/store/onboardingStore';
@@ -36,9 +35,7 @@ export const AccountDeletionScreen = ({ navigation }: Props) => {
       // Call backend API to permanently delete account
       await deleteAccount();
 
-      // Clear ALL local data (AsyncStorage + Zustand stores)
-      console.log('🧹 Clearing AsyncStorage after account deletion...');
-      await AsyncStorage.clear();
+      // Clear local data
       resetOnboarding();
       resetProfile();
 
