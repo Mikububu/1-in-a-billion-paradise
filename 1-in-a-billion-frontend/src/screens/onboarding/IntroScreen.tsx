@@ -109,7 +109,7 @@ export const IntroScreen = ({ navigation }: Props) => {
         ]
       );
     } else {
-      navigation.navigate('SignIn' as any, { allowSignUp: true });
+      navigation.navigate('SignIn' as any, { allowSignUp: false });
     }
   };
 

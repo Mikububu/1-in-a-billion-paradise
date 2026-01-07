@@ -49,7 +49,7 @@ interface SignInScreenProps {
 }
 
 export const SignInScreen = ({ route }: SignInScreenProps) => {
-  const allowSignUp = route?.params?.allowSignUp ?? true; // Default: sign-up (for onboarding flow)
+  const allowSignUp = route?.params?.allowSignUp ?? false; // Default: sign-in only (returning users)
   const navigation = useNavigation<any>();
   const [isLoading, setIsLoading] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
@@ -554,30 +554,6 @@ export const SignInScreen = ({ route }: SignInScreenProps) => {
               >
                 <Text style={styles.emailButtonText}>Continue with Email</Text>
               </TouchableOpacity>
-
-              {/* DEV Login Button - Only in development */}
-              {__DEV__ && (
-                <TouchableOpacity
-                  style={[styles.authButton, styles.devButton]}
-                  onPress={() => {
-                    const fakeUser = {
-                      id: `dev-${Date.now()}`,
-                      email: 'dev@test.local',
-                      user_metadata: { full_name: 'Dev User' },
-                      app_metadata: {},
-                      aud: 'authenticated',
-                      created_at: new Date().toISOString(),
-                    };
-                    useAuthStore.getState().setUser(fakeUser as any);
-                    useAuthStore.getState().setDisplayName('Dev User');
-                    useAuthStore.getState().setIsAuthReady(true);
-                    navigation.navigate('Home' as any);
-                  }}
-                  disabled={isLoading}
-                >
-                  <Text style={styles.devButtonText}>🔧 DEV Login (Skip Auth)</Text>
-                </TouchableOpacity>
-              )}
             </>
           ) : showForgotPassword ? (
             <>
