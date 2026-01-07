@@ -636,14 +636,14 @@ export const RootNavigator = () => {
   // 2. Session + No hook readings + Onboarding incomplete → Continue onboarding (HookSequence - Sun/Moon/Rising)
   // 3. Session + Hook readings OR Onboarding complete → Dashboard
 
-  // CRITICAL FIX: New users who just signed up should go to HookSequence (Sun/Moon/Rising readings)
+  // CRITICAL FIX: New users who just signed up should go to CoreIdentities (beautiful waiting animation) first
   const shouldContinueOnboarding = hasSession && !hasCompletedOnboarding && !hasHookReadings;
 
   if (shouldContinueOnboarding) {
-    console.log('🔄 ROUTING: Session exists but onboarding incomplete AND no hook readings → Continue to HookSequence');
+    console.log('🔄 ROUTING: Session exists but onboarding incomplete AND no hook readings → Continue to CoreIdentities (waiting animation)');
     return (
       <View style={{ flex: 1 }}>
-        <OnboardingNavigator initialRouteName="HookSequence" />
+        <OnboardingNavigator initialRouteName="CoreIdentities" />
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'box-none' }} />
       </View>
     );

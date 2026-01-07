@@ -81,6 +81,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
   // Use readings from store (already loaded by CoreIdentitiesScreen)
   const hookReadings = useOnboardingStore((state) => state.hookReadings);
   const hookAudio = useOnboardingStore((state) => state.hookAudio); // Pre-loaded audio
+  const setHookReading = useOnboardingStore((state) => state.setHookReading);
   const sun = hookReadings.sun;
   const moon = hookReadings.moon;
   const rising = hookReadings.rising;
@@ -150,6 +151,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
   const risingAnim = useRef(new Animated.Value(0)).current;
 
   // Auto-regenerate readings if missing but placements exist
+  // NOTE: This should rarely trigger since CoreIdentitiesScreen generates readings before navigation
   const hasInitiatedRegen = useRef(false);
   useEffect(() => {
     const hasAnyReading = !!(sun || moon || rising);
@@ -160,12 +162,18 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
       (rising?.sign || userProfile?.placements?.risingSign)
     );
 
-    if (!hasAnyReading && hasPlacements && !hasInitiatedRegen.current && !isRegenerating) {
+    // Only auto-regenerate if:
+    // 1. No readings exist
+    // 2. Placements exist (chart was calculated)
+    // 3. Haven't already initiated regeneration
+    // 4. Not currently regenerating
+    // 5. This is not a custom readings route (which means readings are provided)
+    if (!hasAnyReading && hasPlacements && !hasInitiatedRegen.current && !isRegenerating && !customReadings) {
       console.log('🔄 No readings found but placements exist - auto-regenerating...');
       hasInitiatedRegen.current = true;
       regenerateWithProvider('deepseek');
     }
-  }, [sun, moon, rising, isRegenerating]);
+  }, [sun, moon, rising, isRegenerating, customReadings]);
 
   // Readings array - 3 hook readings + 4th gateway page (signup/login/transition)
   const readings = useMemo((): PageItem[] => {
@@ -913,6 +921,11 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
       }
 
       if (newReadings.length === 3) {
+        // CRITICAL: Save readings to store so they persist and prevent loops
+        newReadings.forEach(reading => {
+          setHookReading(reading);
+        });
+        
         setCustomReadings(newReadings);
         // IMPORTANT: Clear old audio cache since text changed!
         setHookAudio('sun', '');
@@ -921,7 +934,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
         setAudioCache({}); // Clear local cache too
         listRef.current?.scrollToIndex({ index: 0, animated: true });
         setPage(0);
-        console.log(`✓ All 3 readings regenerated with ${provider} - audio cache cleared`);
+        console.log(`✓ All 3 readings regenerated with ${provider} and saved to store - audio cache cleared`);
 
         // Start generating new SUN audio immediately
         const sunReading = newReadings[0];
