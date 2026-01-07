@@ -375,7 +375,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
 
       // Fill in missing with placeholders
       const systemsToShow = personType === 'overlay' ? SYSTEMS : SYSTEMS.slice(0, 5);
-      const finalReadings = docRange.map((docNum, i) => {
+      let finalReadings = docRange.map((docNum, i) => {
         if (readingsMap[docNum]) return readingsMap[docNum];
         const sys = systemsToShow[i] || SYSTEMS[0];
         return {
@@ -383,6 +383,41 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           system: sys.id,
           name: sys.name,
         };
+      });
+
+      // Add numbering + timestamps for duplicate system readings (newest first)
+      const systemGroups: Record<string, typeof finalReadings> = {};
+      finalReadings.forEach(r => {
+        if (!systemGroups[r.system]) systemGroups[r.system] = [];
+        systemGroups[r.system].push(r);
+      });
+
+      // Format names with numbers/dates if duplicates exist
+      finalReadings = finalReadings.map(r => {
+        const group = systemGroups[r.system];
+        if (group.length > 1) {
+          // Multiple readings of same system - add numbering + timestamp
+          // Sort by docNum DESC (newest first - assumes higher docNum = newer)
+          const sortedGroup = [...group].sort((a, b) => {
+            const aNum = Number(a.id.match(/\d+/)?.[0] || 0);
+            const bNum = Number(b.id.match(/\d+/)?.[0] || 0);
+            return bNum - aNum; // DESC = newest first
+          });
+          const index = sortedGroup.indexOf(r) + 1;
+          const timestamp = jobData?.job?.created_at || new Date().toISOString();
+          const date = new Date(timestamp).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+          });
+          
+          return {
+            ...r,
+            name: index === 1 ? `${r.name} (${date})` : `${r.name} ${index} (${date})`
+          };
+        }
+        // Single reading - no number/date needed
+        return r;
       });
 
       setReadings(finalReadings);
@@ -780,43 +815,48 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
 
               return (
                 <View key={`${index}-${reading.system}`} style={styles.readingCard}>
-                  {/* Header: Name + Action Buttons */}
-                  <View style={styles.readingHeader}>
-                    <Text style={styles.readingName}>{reading.name}</Text>
-                    <View style={styles.actionButtons}>
-                      <TouchableOpacity
-                        onPress={() => downloadAudio(reading)}
-                        style={[styles.downloadButton, !hasAudio && styles.disabled]}
-                      >
-                        <Text style={styles.downloadIcon}>↓</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => openPdf(reading)}
-                        style={[styles.pdfButton, !hasPdf && styles.disabled]}
-                      >
-                        <Text style={[styles.pdfText, !hasPdf && styles.disabledText]}>PDF</Text>
-                      </TouchableOpacity>
-                      {/* Song Button - opens song in browser or plays */}
-                      <TouchableOpacity
-                        onPress={() => {
-                          if (reading.songPath) {
-                            Linking.openURL(reading.songPath).catch(() => {
-                              Alert.alert('Error', 'Could not open song');
-                            });
-                          }
-                        }}
-                        style={[styles.songButton, !hasSong && styles.disabled]}
-                      >
-                        <Text style={[styles.songText, !hasSong && styles.disabledText]}>🎵</Text>
-                      </TouchableOpacity>
-                    </View>
+                  {/* System Name - LEFT ALIGNED ABOVE BUTTONS */}
+                  <Text style={styles.systemName}>{reading.name}</Text>
+                  
+                  {/* Action Buttons Row */}
+                  <View style={styles.actionButtons}>
+                    <TouchableOpacity
+                      onPress={() => openPdf(reading)}
+                      style={[styles.pdfButton, !hasPdf && styles.disabledButton]}
+                      disabled={!hasPdf}
+                    >
+                      <Text style={[styles.pdfText, !hasPdf && styles.disabledText]}>PDF</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      onPress={() => downloadAudio(reading)}
+                      style={[styles.downloadButton, !hasAudio && styles.disabledButton]}
+                      disabled={!hasAudio}
+                    >
+                      <Text style={[styles.downloadIcon, !hasAudio && styles.disabledText]}>↓</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (reading.songPath) {
+                          Linking.openURL(reading.songPath).catch(() => {
+                            Alert.alert('Error', 'Could not open song');
+                          });
+                        }
+                      }}
+                      style={[styles.songButton, !hasSong && styles.disabledButton]}
+                      disabled={!hasSong}
+                    >
+                      <Text style={[styles.songIcon, !hasSong && styles.disabledText]}>🎵</Text>
+                    </TouchableOpacity>
                   </View>
 
                   {/* Audio Bar */}
                   <View style={styles.audioBar}>
                     <TouchableOpacity
                       onPress={() => togglePlay(reading)}
-                      style={[styles.playButton, !hasAudio && styles.disabled]}
+                      style={[styles.playButton, !hasAudio && styles.disabledButton]}
+                      disabled={!hasAudio}
                     >
                       {loadingAudioId === reading.id ? (
                         audioLoadProgress[reading.id] && audioLoadProgress[reading.id] > 0 ? (
@@ -988,54 +1028,60 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E5E5',
   },
-  readingHeader: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    position: 'relative',
-  },
-  readingName: {
+  // System name - LEFT ALIGNED ABOVE buttons
+  systemName: {
     fontFamily: 'System',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#000',
-    textAlign: 'center',
-    paddingHorizontal: 90, // Space for buttons on right
+    marginBottom: 12,
+    textAlign: 'left', // LEFT ALIGNED
   },
+  // Action buttons row - LEFT ALIGNED
   actionButtons: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
     flexDirection: 'row',
-    gap: 6,
+    gap: 8,
+    marginBottom: 16,
+    justifyContent: 'flex-start', // LEFT ALIGN
   },
   pdfButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    backgroundColor: '#C41E3A',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#C41E3A', // Red
   },
   pdfText: {
     fontFamily: 'System',
-    fontSize: 12,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFF',
+  },
+  downloadButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#666', // Grey
+  },
+  downloadIcon: {
+    fontFamily: 'System',
+    fontSize: 16,
     fontWeight: '600',
     color: '#FFF',
   },
   songButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 6,
-    backgroundColor: '#8B4513', // Dark brown for song
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#8B4513', // Brown
   },
-  songText: {
-    fontSize: 14,
+  songIcon: {
+    fontSize: 16,
   },
-  disabled: {
-    opacity: 0.3,
+  disabledButton: {
+    opacity: 0.4,
   },
   disabledText: {
-    color: '#FFF',
+    color: '#AAA', // Lighter grey for disabled text
   },
   audioBar: {
     flexDirection: 'row',
@@ -1093,18 +1139,5 @@ const styles = StyleSheet.create({
     color: '#888',
     minWidth: 45,
     textAlign: 'center',
-  },
-  downloadButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    backgroundColor: '#000',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  downloadIcon: {
-    fontSize: 12,
-    color: '#FFF',
-    fontWeight: '600',
   },
 });
