@@ -165,18 +165,8 @@ export const AccountScreen = ({ navigation }: Props) => {
       return;
     }
 
-    if (password.length < 8) {
-      Alert.alert('Error', 'Password must be at least 8 characters');
-      return;
-    }
-
-    // Strong password validation: uppercase, lowercase, number, special character
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-    if (!passwordRegex.test(password)) {
-      Alert.alert(
-        'Password Requirements',
-        'Password must be at least 8 characters and include:\n• Uppercase letter\n• Lowercase letter\n• Number\n• Special character (@$!%*?&)'
-      );
+    if (!password || password.length === 0) {
+      Alert.alert('Error', 'Please enter a password');
       return;
     }
 
@@ -364,7 +354,7 @@ export const AccountScreen = ({ navigation }: Props) => {
 
               <TextInput
                 style={styles.emailInput}
-                placeholder="Password (min 8 characters)"
+                placeholder="Password"
                 placeholderTextColor={colors.mutedText}
                 value={password}
                 onChangeText={setPassword}

@@ -35,19 +35,10 @@ router.post('/signup', async (c) => {
             }, 400);
         }
 
-        if (!password || typeof password !== 'string' || password.length < 8) {
+        if (!password || typeof password !== 'string' || password.length === 0) {
             return c.json({
                 success: false,
-                error: 'Password must be at least 8 characters'
-            }, 400);
-        }
-
-        // Strong password validation: uppercase, lowercase, number, special character
-        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-        if (!passwordRegex.test(password)) {
-            return c.json({
-                success: false,
-                error: 'Password must be at least 8 characters and include uppercase, lowercase, number, and special character (@$!%*?&)'
+                error: 'Password is required'
             }, 400);
         }
 
@@ -357,19 +348,10 @@ router.post('/reset-password', async (c) => {
         const body = await c.req.json();
         const { password, token_hash } = body;
 
-        if (!password || typeof password !== 'string' || password.length < 8) {
+        if (!password || typeof password !== 'string' || password.length === 0) {
             return c.json({
                 success: false,
-                error: 'Password must be at least 8 characters'
-            }, 400);
-        }
-
-        // Strong password validation: uppercase, lowercase, number, special character
-        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-        if (!passwordRegex.test(password)) {
-            return c.json({
-                success: false,
-                error: 'Password must be at least 8 characters and include uppercase, lowercase, number, and special character (@$!%*?&)'
+                error: 'Password is required'
             }, 400);
         }
 
