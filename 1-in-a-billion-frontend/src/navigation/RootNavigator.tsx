@@ -324,9 +324,9 @@ export type MainStackParamList = {
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 const MainStack = createNativeStackNavigator<MainStackParamList>();
 
-// Wrapper for SignInScreen in onboarding flow (new users - sign-up mode)
-const SignInScreenWrapper = ({ navigation }: any) => (
-  <SignInScreen route={{ params: { allowSignUp: true } }} />
+// Wrapper for SignInScreen in onboarding flow (respects route params)
+const SignInScreenWrapper = ({ route }: any) => (
+  <SignInScreen route={route} />
 );
 
 // Wrapper for SignInScreen inside Main flow (returning users - sign-in only)
