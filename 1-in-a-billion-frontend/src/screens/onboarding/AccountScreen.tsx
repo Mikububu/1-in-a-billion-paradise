@@ -349,7 +349,6 @@ export const AccountScreen = ({ navigation }: Props) => {
                   autoCorrect={false}
                   editable={emailAuthState !== 'loading'}
                 />
-              )}
 
               <TextInput
                 style={styles.emailInput}

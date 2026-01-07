@@ -325,7 +325,7 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
     if (isThirdPerson) {
       // If we have an id, go to that person; otherwise fall back to list
       if (partnerId || personId) {
-        navigation.navigate('PersonProfile', { personId: partnerId || personId });
+        navigation.navigate('PersonProfile', { personId: (partnerId || personId)! });
       } else {
         navigation.navigate('PeopleList');
       }
