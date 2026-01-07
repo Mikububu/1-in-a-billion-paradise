@@ -25,16 +25,20 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
     const handleSkip = () => {
         navigation.navigate('SystemSelection', {
             ...restParams,
+            userName: isSelf ? 'You' : personName,
             personalContext: undefined,
             readingType: 'individual',
+            forPartner: !isSelf,
         });
     };
 
     const handleContinue = () => {
         navigation.navigate('SystemSelection', {
             ...restParams,
+            userName: isSelf ? 'You' : personName,
             personalContext: context.trim() || undefined,
             readingType: 'individual',
+            forPartner: !isSelf,
         });
     };
 
@@ -124,11 +128,11 @@ const styles = StyleSheet.create({
     },
     headline: {
         fontFamily: typography.headline,
-        fontSize: 28,
+        fontSize: 18,
         color: colors.text,
         fontStyle: 'italic',
         textAlign: 'center',
-        marginBottom: spacing.md,
+        marginBottom: spacing.sm,
     },
     subheadline: {
         fontFamily: typography.sansRegular,
@@ -150,8 +154,8 @@ const styles = StyleSheet.create({
         padding: spacing.md,
         minHeight: 180,
         maxHeight: 300,
-        borderWidth: 1,
-        borderColor: colors.border,
+        borderWidth: 2,
+        borderColor: colors.primary,
     },
     charCount: {
         fontFamily: typography.sansRegular,
@@ -178,13 +182,18 @@ const styles = StyleSheet.create({
         letterSpacing: 0.5,
     },
     skipButton: {
-        paddingVertical: spacing.sm,
+        backgroundColor: 'transparent',
+        borderRadius: radii.button,
+        paddingVertical: spacing.md,
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: colors.border,
     },
     skipButtonText: {
-        fontFamily: typography.sansRegular,
-        fontSize: 14,
-        color: colors.mutedText,
+        fontFamily: typography.sansSemiBold,
+        fontSize: 16,
+        color: colors.text,
+        letterSpacing: 0.5,
     },
 });
 
