@@ -614,6 +614,122 @@ export const RootNavigator = () => {
   const hasHookReadings = !!(hookReadings?.sun && hookReadings?.moon && hookReadings?.rising);
   const isHydrated = useOnboardingStore((s) => s._hasHydrated);
 
+  // #region agent log
+  // Run2: Always-on state snapshot (helps debug “missing birth data”, duplicates, and hook audio presence)
+  useEffect(() => {
+    try {
+      const onboarding = useOnboardingStore.getState();
+      const profile = useProfileStore.getState();
+      const people = Array.isArray((profile as any)?.people) ? (profile as any).people : [];
+      const sig = (p: any) =>
+        `${String(p?.name || '').trim().toLowerCase()}|${String(p?.birthData?.birthDate || '').trim()}|${String(p?.birthData?.birthTime || '').trim()}`;
+      const counts: Record<string, number> = {};
+      for (const p of people) counts[sig(p)] = (counts[sig(p)] || 0) + 1;
+      const dupes = Object.entries(counts)
+        .filter(([, n]) => n > 1)
+        .map(([k, n]) => ({ sig: k, n }));
+
+      const summary = people.slice(0, 10).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        isUser: Boolean(p.isUser),
+        birthDate: typeof p?.birthData?.birthDate === 'string' ? p.birthData.birthDate : '',
+        birthTime: typeof p?.birthData?.birthTime === 'string' ? p.birthData.birthTime : '',
+        birthCity: typeof p?.birthData?.birthCity === 'string' ? p.birthData.birthCity : '',
+        hasPlacements: Boolean(p?.placements?.sunSign),
+      }));
+
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'RootNavigator.tsx:stateSnapshot',
+          message: 'State snapshot',
+          data: {
+            hasSession: Boolean(useAuthStore.getState().user),
+            userId: useAuthStore.getState().user?.id,
+            hasCompletedOnboarding: onboarding.hasCompletedOnboarding,
+            hasHookReadings: Boolean(onboarding.hookReadings?.sun && onboarding.hookReadings?.moon && onboarding.hookReadings?.rising),
+            hookAudioLens: {
+              sun: onboarding.hookAudio?.sun?.length || 0,
+              moon: onboarding.hookAudio?.moon?.length || 0,
+              rising: onboarding.hookAudio?.rising?.length || 0,
+            },
+            peopleCount: people.length,
+            dupeCount: dupes.length,
+            dupes,
+            peopleSample: summary,
+          },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'run2',
+          hypothesisId: 'SNAP1',
+        }),
+      }).catch(() => {});
+    } catch {
+      // ignore
+    }
+  }, []);
+  // #endregion
+
+  // #region agent log
+  // Run3: snapshot on important state transitions (this is the one we need for the reported issues)
+  useEffect(() => {
+    try {
+      const onboarding = useOnboardingStore.getState();
+      const profile = useProfileStore.getState() as any;
+      const people = Array.isArray(profile?.people) ? profile.people : [];
+      const sig = (p: any) =>
+        `${String(p?.name || '').trim().toLowerCase()}|${String(p?.birthData?.birthDate || '').trim()}|${String(p?.birthData?.birthTime || '').trim()}`;
+      const counts: Record<string, number> = {};
+      for (const p of people) counts[sig(p)] = (counts[sig(p)] || 0) + 1;
+      const dupes = Object.entries(counts)
+        .filter(([, n]) => n > 1)
+        .map(([k, n]) => ({ sig: k, n }));
+
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'RootNavigator.tsx:stateSnapshot3',
+          message: 'State snapshot (transition)',
+          data: {
+            hasSession,
+            userId: user?.id,
+            isHydrated,
+            isAuthReady,
+            hasCompletedOnboarding,
+            hasHookReadings,
+            hookAudioLens: {
+              sun: onboarding.hookAudio?.sun?.length || 0,
+              moon: onboarding.hookAudio?.moon?.length || 0,
+              rising: onboarding.hookAudio?.rising?.length || 0,
+            },
+            peopleCount: people.length,
+            dupeCount: dupes.length,
+            dupes,
+          },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'run3',
+          hypothesisId: 'SNAP2',
+        }),
+      }).catch(() => {});
+    } catch {
+      // ignore
+    }
+  }, [hasSession, isHydrated, isAuthReady, hasCompletedOnboarding, hasHookReadings, user?.id]);
+  // #endregion
+
+  console.log('🧭 RootNavigator State:', {
+    isLoading,
+    hasSession,
+    hasUser: !!user,
+    hasHookReadings,
+    isHydrated,
+    hasCompletedOnboarding
+  });
+
   // Block rendering until Bootstrap determines if we have a valid session AND persist has hydrated
   // Add a timeout fallback to prevent infinite loading
   const [hydrationTimeout, setHydrationTimeout] = useState(false);
@@ -649,6 +765,21 @@ export const RootNavigator = () => {
     const initialRoute = hasHookReadings ? 'HookSequence' : 'CoreIdentities';
     console.log(`🔄 ROUTING: Session exists but onboarding incomplete → Continue to ${initialRoute}`);
     
+    // #region agent log
+    // Auto-instrument navigation decision
+    if (__DEV__) {
+      import('@/utils/architectureDebugger').then(({ instrumentNavigationDecision }) => {
+        instrumentNavigationDecision({
+          hasSession,
+          hasCompletedOnboarding,
+          hasHookReadings,
+          route: initialRoute,
+          reason: 'Onboarding incomplete - continuing onboarding flow',
+        });
+      }).catch(() => {});
+    }
+    // #endregion
+    
     return (
       <View style={{ flex: 1 }}>
         <OnboardingNavigator initialRouteName={initialRoute} />
@@ -660,8 +791,38 @@ export const RootNavigator = () => {
   // INVARIANT ASSERTION: Warn if session exists but we're about to render onboarding
   if (hasSession) {
     console.log('✅ INVARIANT: Session exists + Onboarding complete → Rendering MainNavigator (Dashboard)');
+    
+    // #region agent log
+    // Auto-instrument navigation decision
+    if (__DEV__) {
+      import('@/utils/architectureDebugger').then(({ instrumentNavigationDecision }) => {
+        instrumentNavigationDecision({
+          hasSession,
+          hasCompletedOnboarding,
+          hasHookReadings,
+          route: 'Dashboard',
+          reason: 'Onboarding complete - routing to dashboard',
+        });
+      }).catch(() => {});
+    }
+    // #endregion
   } else {
     console.log('✅ INVARIANT: No session → Rendering OnboardingNavigator (Intro)');
+    
+    // #region agent log
+    // Auto-instrument navigation decision
+    if (__DEV__) {
+      import('@/utils/architectureDebugger').then(({ instrumentNavigationDecision }) => {
+        instrumentNavigationDecision({
+          hasSession: false,
+          hasCompletedOnboarding: false,
+          hasHookReadings: false,
+          route: 'Intro',
+          reason: 'No session - starting onboarding',
+        });
+      }).catch(() => {});
+    }
+    // #endregion
   }
 
   return (

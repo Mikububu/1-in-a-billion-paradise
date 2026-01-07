@@ -22,6 +22,31 @@ export const PeopleListScreen = ({ navigation, route }: Props) => {
   const reset = useProfileStore((s) => s.reset);
   const userPerson = people.find(p => p.isUser); // Find the user for combine option
 
+  // #region agent log
+  useEffect(() => {
+    const summary = people.map(p => ({
+      id: p.id,
+      isUser: p.isUser,
+      hasBirthDate: Boolean(p.birthData?.birthDate),
+      hasPlacements: Boolean(p.placements?.sunSign),
+    }));
+    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PeopleListScreen.tsx:log',message:'PeopleList loaded',data:{count:people.length,summary},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'P1'})}).catch(()=>{});
+  }, [people.length]);
+  // #endregion
+
+  // #region agent log
+  // P2: Diagnose "No birth data" display (it is currently driven by placements, not birthData)
+  useEffect(() => {
+    const counts = {
+      total: people.length,
+      missingPlacements: people.filter(p => !p.placements?.sunSign).length,
+      hasBirthDateButMissingPlacements: people.filter(p => !!p.birthData?.birthDate && !p.placements?.sunSign).length,
+      hasPlacementsButMissingBirthDate: people.filter(p => !p.birthData?.birthDate && !!p.placements?.sunSign).length,
+    };
+    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PeopleListScreen.tsx:birthDataDiag',message:'PeopleList birthData vs placements',data:counts,timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'P2'})}).catch(()=>{});
+  }, [people.length]);
+  // #endregion
+
   const handlePersonPress = (person: Person) => {
     if (mode === 'select' && returnTo) {
       if (person.isUser) {

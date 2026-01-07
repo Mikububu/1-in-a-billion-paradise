@@ -127,6 +127,28 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   // Track nuclear_v2 job artifacts for reading badges
   const [nuclearJobArtifacts, setNuclearJobArtifacts] = useState<Record<string, Array<{ system?: string; docType?: string }>>>({});
 
+  // #region agent log
+  // LIB1: Diagnose duplicates + missing birth data vs placements in the library
+  useEffect(() => {
+    try {
+      const profile = useProfileStore.getState() as any;
+      const people: any[] = Array.isArray(profile?.people) ? profile.people : [];
+      const sig = (p: any) =>
+        `${String(p?.name || '').trim().toLowerCase()}|${String(p?.birthData?.birthDate || '').trim()}|${String(p?.birthData?.birthTime || '').trim()}`;
+      const counts: Record<string, number> = {};
+      for (const p of people) counts[sig(p)] = (counts[sig(p)] || 0) + 1;
+      const dupes = Object.entries(counts).filter(([, n]) => n > 1).length;
+      const diag = {
+        peopleCount: people.length,
+        dupeSigCount: dupes,
+        missingPlacements: people.filter(p => !p?.placements?.sunSign).length,
+        hasBirthDateButMissingPlacements: people.filter(p => !!p?.birthData?.birthDate && !p?.placements?.sunSign).length,
+      };
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:diag',message:'MyLibrary diagnostics',data:diag,timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'LIB1'})}).catch(()=>{});
+    } catch {}
+  }, []);
+  // #endregion
+
   // CRITICAL: Stop audio when screen loses focus (useFocusEffect runs cleanup BEFORE blur)
   useFocusEffect(
     useCallback(() => {
@@ -176,6 +198,16 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   const deletePerson = useProfileStore((state) => state.deletePerson);
   const repairPeople = useProfileStore((state) => state.repairPeople);
   const repairReadings = useProfileStore((state) => state.repairReadings);
+
+  // #region agent log
+  useEffect(() => {
+    const sig = (p: any) => `${String(p?.name || '').trim().toLowerCase()}|${String(p?.birthData?.birthDate || '').trim()}|${String(p?.birthData?.birthTime || '').trim()}`;
+    const counts: Record<string, number> = {};
+    for (const p of people || []) counts[sig(p)] = (counts[sig(p)] || 0) + 1;
+    const dupes = Object.entries(counts).filter(([, n]) => n > 1).map(([k, n]) => ({ sig: k, n }));
+    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:log',message:'MyLibrary loaded - people signatures',data:{peopleCount:people?.length||0,dupeCount:dupes.length,dupes},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'DUP1'})}).catch(()=>{});
+  }, [people?.length]);
+  // #endregion
 
   // Onboarding store for hook readings
   const authUser = useAuthStore((s) => s.user);

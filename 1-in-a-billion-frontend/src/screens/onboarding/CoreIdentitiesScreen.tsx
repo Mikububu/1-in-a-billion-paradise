@@ -249,6 +249,13 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
   const setHookAudio = useOnboardingStore((state) => state.setHookAudio);
 
   useEffect(() => {
+    // #region agent log
+    // CI_MOUNT: Prove whether CoreIdentitiesScreen is actually being used in the reproduced flow
+    try {
+      const o = useOnboardingStore.getState();
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CoreIdentitiesScreen.tsx:mount',message:'CoreIdentities mounted',data:{hasBirthDate:!!o.birthDate,hasBirthTime:!!o.birthTime,hasBirthCity:!!o.birthCity?.name,hasHookSun:!!o.hookReadings?.sun,hookAudioLens:{sun:o.hookAudio?.sun?.length||0,moon:o.hookAudio?.moon?.length||0,rising:o.hookAudio?.rising?.length||0}},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'CI_MOUNT'})}).catch(()=>{});
+    } catch {}
+    // #endregion
 
     // Start animations
     const pulse = Animated.loop(
