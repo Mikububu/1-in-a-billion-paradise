@@ -241,7 +241,7 @@ export const HomeScreen = ({ navigation }: Props) => {
   const modalReadings = useMemo(() => {
     console.log('🔍 DEBUG: resolving modalReadings', {
       personExists: !!currentPerson,
-      personName: currentPerson?.name,
+      personName: currentPerson?.person?.name,
       isUser: currentPerson?.person?.isUser,
       personHookReadingsKeys: currentPerson?.hookReadings ? Object.keys(currentPerson.hookReadings) : [],
       globalHookReadingsKeys: hookReadings ? Object.keys(hookReadings) : [],

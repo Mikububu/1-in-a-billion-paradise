@@ -8,9 +8,9 @@ import { useAuthStore } from '@/store/authStore';
 import { useProfileStore } from '@/store/profileStore';
 
 export const DevResetScreen = () => {
-    const clearOnboarding = useOnboardingStore((state) => state.resetOnboarding);
-    const clearAuth = useAuthStore((state) => state.clearAuth);
-    const clearProfile = useProfileStore((state) => state.clearProfile);
+    const resetOnboarding = useOnboardingStore((state) => state.reset);
+    const signOut = useAuthStore((state) => state.signOut);
+    // Note: ProfileStore doesn't have clearProfile - using reset instead
 
     const handleReset = async () => {
         Alert.alert(
@@ -25,9 +25,9 @@ export const DevResetScreen = () => {
                         console.log('🗑️  Wiping all data...');
 
                         // Clear all stores
-                        clearOnboarding?.();
-                        clearAuth?.();
-                        clearProfile?.();
+                        resetOnboarding();
+                        await signOut();
+                        // ProfileStore doesn't have a reset method - AsyncStorage clear handles it
 
                         // Clear AsyncStorage
                         const keys = await AsyncStorage.getAllKeys();
@@ -64,7 +64,7 @@ export const DevResetScreen = () => {
                     <Text style={styles.infoItem}>• Onboarding state</Text>
                     <Text style={styles.infoItem}>• Auth session</Text>
                     <Text style={styles.infoItem}>• User profile data</Text>
-                    <Text style={styles.infoText} style={{ marginTop: 16 }}>
+                    <Text style={[styles.infoText, { marginTop: 16 }]}>
                         After reset, close and restart the app.
                     </Text>
                 </View>

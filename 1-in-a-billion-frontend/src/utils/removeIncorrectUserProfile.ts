@@ -18,7 +18,7 @@ export async function removeIncorrectUserProfile() {
       return { success: false, message: 'Invalid structure' };
     }
 
-    const users = state.people.filter((p) => p.isUser === true);
+    const users = state.people.filter((p: any) => p.isUser === true);
     
     console.log(`📊 Found ${users.length} user profile(s)`);
     
@@ -28,7 +28,7 @@ export async function removeIncorrectUserProfile() {
     }
 
     // Find the correct profile: Virgo Sun | Leo Moon | Sagittarius Rising
-    const correctProfile = users.find((user) => {
+    const correctProfile = users.find((user: any) => {
       const placements = user.placements;
       if (!placements) return false;
       
@@ -44,7 +44,7 @@ export async function removeIncorrectUserProfile() {
     if (!correctProfile) {
       console.log('❌ Could not find the correct Virgo profile');
       console.log('Available profiles:');
-      users.forEach((u, i) => {
+      users.forEach((u: any, i: number) => {
         console.log(`  ${i + 1}. ${u.placements?.sunSign || 'Unknown'} Sun | ${u.placements?.moonSign || 'Unknown'} Moon | ${u.placements?.risingSign || 'Unknown'} Rising`);
       });
       return { success: false, message: 'Correct profile not found' };
@@ -56,17 +56,17 @@ export async function removeIncorrectUserProfile() {
     console.log(`   ⬆️  Rising: ${correctProfile.placements.risingSign}`);
 
     // Remove all other user profiles
-    const incorrectProfiles = users.filter((u) => u.id !== correctProfile.id);
+    const incorrectProfiles = users.filter((u: any) => u.id !== correctProfile.id);
     
     console.log(`
 🗑️  Removing ${incorrectProfiles.length} incorrect profile(s):`);
-    incorrectProfiles.forEach((u) => {
+    incorrectProfiles.forEach((u: any) => {
       console.log(`   - ${u.name} (ID: ${u.id})`);
       console.log(`     ${u.placements?.sunSign || 'Unknown'} Sun | ${u.placements?.moonSign || 'Unknown'} Moon | ${u.placements?.risingSign || 'Unknown'} Rising`);
     });
 
     // Filter out incorrect user profiles
-    const cleanedPeople = state.people.filter((p) => {
+    const cleanedPeople = state.people.filter((p: any) => {
       if (!p.isUser) return true; // Keep all non-user profiles
       return p.id === correctProfile.id; // Keep only the correct user profile
     });
@@ -98,8 +98,8 @@ export async function removeIncorrectUserProfile() {
       removedCount: incorrectProfiles.length
     };
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error during cleanup:', error);
-    return { success: false, message: error.message };
+    return { success: false, message: error?.message || 'Unknown error' };
   }
 }

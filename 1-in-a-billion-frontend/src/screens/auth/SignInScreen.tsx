@@ -26,7 +26,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as WebBrowser from 'expo-web-browser';
-import { Video, ResizeMode } from 'expo-av';
+// import { Video, ResizeMode } from 'expo-av'; // Removed - no video assets
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { useAuthStore } from '@/store/authStore';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
@@ -52,7 +52,7 @@ export const SignInScreen = ({ route }: SignInScreenProps) => {
   const allowSignUp = route?.params?.allowSignUp ?? false; // Default: sign-in only
   const navigation = useNavigation<any>();
   const [isLoading, setIsLoading] = useState(false);
-  const [videoReady, setVideoReady] = useState(false);
+  // Removed videoReady state - no video assets
   const { isPlaying } = useMusicStore();
 
   // Email authentication state
@@ -492,23 +492,8 @@ export const SignInScreen = ({ route }: SignInScreenProps) => {
         <Text style={styles.backButtonText}>← Back</Text>
       </TouchableOpacity>
 
-      {!videoReady && (
-        <Image
-          source={require('../../../assets/images/signin-poster.jpg')}
-          style={styles.backgroundVideo}
-          resizeMode="cover"
-        />
-      )}
-
-      <Video
-        source={require('../../../assets/videos/signin-background.mp4')}
-        style={styles.backgroundVideo}
-        resizeMode={ResizeMode.COVER}
-        shouldPlay
-        isLooping
-        isMuted
-        onReadyForDisplay={() => setVideoReady(true)}
-      />
+      {/* Background - using solid color since assets don't exist */}
+      <View style={styles.backgroundVideo} />
 
       <View style={styles.contentContainer}>
         <View style={{ flex: 1 }} />
@@ -689,6 +674,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: '100%',
     height: '100%',
+    backgroundColor: colors.background, // Solid background since assets don't exist
   },
   backButton: {
     position: 'absolute',

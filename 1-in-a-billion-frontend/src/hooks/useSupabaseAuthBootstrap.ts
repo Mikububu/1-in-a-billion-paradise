@@ -150,16 +150,15 @@ export function useSupabaseAuthBootstrap() {
 
             if (!profileError && profiles && profiles.length > 0) {
               console.log('✅ Bootstrap: User has profile in Supabase - marking onboarding complete');
-              const { setHasCompletedOnboarding } = await import('@/store/onboardingStore');
-              setHasCompletedOnboarding(true);
+              const { useOnboardingStore } = await import('@/store/onboardingStore');
+              useOnboardingStore.getState().setHasCompletedOnboarding(true);
 
               // Optionally hydrate hook readings if they exist
               const profile = profiles[0];
               if (profile.hook_readings && Array.isArray(profile.hook_readings)) {
-                const { setHookReading } = await import('@/store/onboardingStore');
                 profile.hook_readings.forEach((reading: any) => {
                   if (reading && reading.type) {
-                    setHookReading(reading);
+                    useOnboardingStore.getState().setHookReading(reading);
                   }
                 });
               }

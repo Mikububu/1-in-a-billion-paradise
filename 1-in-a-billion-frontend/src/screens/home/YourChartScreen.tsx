@@ -161,7 +161,6 @@ export const YourChartScreen = ({ navigation }: Props) => {
             </View>
 
             <SimpleSlider
-              style={styles.slider}
               minimumValue={0}
               maximumValue={10}
               value={relationshipIntensity}

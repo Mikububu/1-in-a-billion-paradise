@@ -3,8 +3,8 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 
-// Human Design PNG with animation
-const HumanDesignImage = require('../../../assets/systems/human-design.png');
+// Human Design PNG with animation - commented out since asset doesn't exist
+// const HumanDesignImage = require('../../../assets/systems/human-design.png');
 import { AnimatedSystemLoader } from '@/components/AnimatedSystemLoader';
 
 // Western Zodiac Signs - Unicode symbols with text variation selector (︎) to force BLACK text, not emoji

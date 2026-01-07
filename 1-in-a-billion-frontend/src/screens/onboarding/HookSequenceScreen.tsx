@@ -1129,6 +1129,7 @@ ${rising.main}`;
                           // Sign up options
                           <>
                             {/* 5 Systems Image */}
+                            {/* 5 Systems Image */}
                             <Image
                               source={require('@/../assets/images/5_systems.png')}
                               style={styles.systemsImage}

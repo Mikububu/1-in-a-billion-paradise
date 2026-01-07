@@ -279,7 +279,7 @@ export const PersonProfileScreen = ({ navigation, route }: Props) => {
               <TouchableOpacity
                 onPress={() => {
                   // Filter to remove hook readings (western, <500 words)
-                  const hookReadings = person.readings.filter(r =>
+                  const hookReadings = person.readings.filter((r: any) =>
                     r.system === 'western' && (r.wordCount || 0) < 500
                   );
                   const hasHookReadings = hookReadings.length > 0;
@@ -296,7 +296,7 @@ export const PersonProfileScreen = ({ navigation, route }: Props) => {
                         style: 'destructive',
                         onPress: () => {
                           console.log(`🗑️ Clearing ${person.readings.length} readings for ${person.name}`);
-                          person.readings.forEach(r => deleteReading(personId, r.id));
+                          person.readings.forEach((r: any) => deleteReading(personId, r.id));
                           console.log(`✅ Cleared all readings for ${person.name}`);
                         }
                       },

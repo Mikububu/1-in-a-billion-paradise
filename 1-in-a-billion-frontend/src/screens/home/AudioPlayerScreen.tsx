@@ -351,7 +351,7 @@ export const AudioPlayerScreen = ({ navigation, route }: Props) => {
       await loadAndPlay({ uri: item.audioUrl }, { preDelayMs: 400, postDelayMs: 300 });
 
       // 5) Transition interlude (Tibetan singing bowl between chapters)
-      if (i < queue.length - 1) {
+      if (i < queue.length - 1 && SINGING_BOWL) {
         await loadAndPlay(SINGING_BOWL, { preDelayMs: 300, postDelayMs: 1200 });
       }
     }
@@ -529,7 +529,6 @@ export const AudioPlayerScreen = ({ navigation, route }: Props) => {
         {/* Progress Bar */}
         <View style={styles.progressContainer}>
           <SimpleSlider
-            style={styles.progressBar}
             minimumValue={0}
             maximumValue={duration}
             value={position}
