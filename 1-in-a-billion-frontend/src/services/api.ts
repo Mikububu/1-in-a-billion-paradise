@@ -205,7 +205,7 @@ export const audioApi = {
         exaggeration: options?.exaggeration ?? 0.5,
         audioUrl: options?.audioUrl && options.audioUrl.length > 0 ? options.audioUrl : undefined, // For custom voice cloning
       }, {
-        timeout: 120000, // 2 minute timeout for longer texts
+        timeout: 240000, // 4 minute timeout (RunPod cold start ~30s + chunked generation + network)
       });
       return response.data;
     } catch (error: any) {
