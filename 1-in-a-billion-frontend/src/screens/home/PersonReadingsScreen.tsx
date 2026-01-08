@@ -780,21 +780,26 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         </View>
 
         {/* NEW: Job Status Banner */}
-        {jobStatus !== 'completed' && jobProgress && (
+        {jobStatus !== 'complete' && jobStatus !== 'error' && (
           <View style={styles.statusBanner}>
             <Text style={styles.statusText}>
               {jobStatus === 'processing' ? '⏳ Generating...' : '📦 Queued'}
             </Text>
-            {jobProgress.tasksTotal > 0 && (
+            {jobProgress && jobProgress.tasksTotal > 0 && (
               <Text style={styles.statusProgress}>
                 {jobProgress.tasksComplete} / {jobProgress.tasksTotal} tasks ({Math.round(jobProgress.percent || 0)}%)
               </Text>
             )}
           </View>
         )}
-        {jobStatus === 'completed' && (
+        {jobStatus === 'complete' && (
           <View style={[styles.statusBanner, styles.statusBannerComplete]}>
             <Text style={styles.statusTextComplete}>✅ Ready</Text>
+          </View>
+        )}
+        {jobStatus === 'error' && (
+          <View style={[styles.statusBanner, styles.statusBannerError]}>
+            <Text style={styles.statusTextError}>❌ Error</Text>
           </View>
         )}
 
@@ -1189,6 +1194,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F5E9',
     borderColor: '#4CAF50',
   },
+  statusBannerError: {
+    backgroundColor: '#FFEBEE',
+    borderColor: '#F44336',
+  },
   statusText: {
     fontFamily: 'System',
     fontSize: 14,
@@ -1200,6 +1209,12 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
     fontSize: 14,
     color: '#2E7D32',
+    fontWeight: '600',
+  },
+  statusTextError: {
+    fontFamily: 'System',
+    fontSize: 14,
+    color: '#C62828',
     fontWeight: '600',
   },
   statusProgress: {
