@@ -486,11 +486,15 @@
 
 **Screen 22: Partner Readings** (`PartnerReadingsScreen`)
 - **Handler:** `S22_PARTNER_READINGS`
-- **Purpose:** View partner's hook readings (Sun/Moon/Rising)
+- **Purpose:** View partner's hook readings (Sun/Moon/Rising) in interactive carousel
 - **Navigation From:** `S14_PARTNER_CORE_IDENTITIES` (auto-navigate)
 - **Navigation To:** 
-  - `S36_SYNASTRY_PREVIEW` (View Compatibility button)
-  - `S10_HOME` (Back button)
+  - `S10_HOME` (Back button in header)
+- **UX Flow:**
+  - Shows 3-page carousel: Sun → Moon → Rising (no gateway page)
+  - Each page has audio playback button (pre-rendered during waiting screen)
+  - User can swipe through or use pagination dots
+  - Natural back button navigation to dashboard (no forced "Back to Dashboard" prompt)
 - **Backend:** None (reads from `profileStore`)
 - **Data Stored:** None
 - **Fly.io Impact:** None

@@ -397,8 +397,8 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
         };
       });
 
-      // Add 4th "gateway" page for navigation (same as HookSequenceScreen)
-      setReadings([...loadedReadings, { type: 'gateway', sign: '', intro: '', main: '' }]);
+      // No gateway page - just the 3 hook readings (Sun/Moon/Rising)
+      setReadings(loadedReadings);
       console.log(`✅ Loaded ${partnerName}'s existing readings from store`);
     } else {
       // Readings don't exist - generate them
@@ -444,8 +444,8 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
       }
 
       if (newReadings.length === 3) {
-        // Add 4th "gateway" page for navigation (same as HookSequenceScreen)
-        setReadings([...newReadings, { type: 'gateway', sign: '', intro: '', main: '' }]);
+        // No gateway page - just the 3 hook readings (Sun/Moon/Rising)
+        setReadings(newReadings);
         listRef.current?.scrollToIndex({ index: 0, animated: true });
         setPage(0);
 
