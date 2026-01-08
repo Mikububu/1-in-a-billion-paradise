@@ -1,8 +1,9 @@
 /**
  * PERSONAL CONTEXT SCREEN
  * 
- * Allows users to optionally ask a question or share feelings about an individual reading
- * before generation. This infuses the reading with personalized context.
+ * Allows users to optionally share personal context or questions
+ * before generating their reading. This infuses the reading with
+ * specific focus areas without affecting astrological calculations.
  */
 
 import { useState } from 'react';
@@ -14,31 +15,23 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonalContext'>;
 
-const MAX_CHARS = 500; // Reduced from 700
+const MAX_CHARS = 500;
 
 export const PersonalContextScreen = ({ navigation, route }: Props) => {
-    const { personName, readingType, ...restParams } = route.params;
+    const { personName, isSelf, ...restParams } = route.params;
     const [context, setContext] = useState('');
-
-    const isSelf = readingType === 'self';
 
     const handleSkip = () => {
         navigation.navigate('SystemSelection', {
             ...restParams,
-            userName: isSelf ? 'You' : personName,
             personalContext: undefined,
-            readingType: 'individual',
-            forPartner: !isSelf,
         });
     };
 
     const handleContinue = () => {
         navigation.navigate('SystemSelection', {
             ...restParams,
-            userName: isSelf ? 'You' : personName,
             personalContext: context.trim() || undefined,
-            readingType: 'individual',
-            forPartner: !isSelf,
         });
     };
 
@@ -48,15 +41,8 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={{ flex: 1 }}
+                style={styles.keyboardView}
             >
-                {/* Back Button */}
-                <View style={styles.backButtonContainer}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <Text style={styles.backText}>← Back</Text>
-                    </TouchableOpacity>
-                </View>
-
                 <ScrollView
                     contentContainerStyle={styles.scrollContent}
                     keyboardShouldPersistTaps="handled"
@@ -65,15 +51,12 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                     <View style={styles.header}>
                         <Text style={styles.headline}>
                             {isSelf 
-                                ? <>Would you like{'\n'}to focus on something{'\n'}<Text style={styles.specificWord}>specific</Text> in your reading?</>
-                                : <>{personName}, would you like{'\n'}to focus on something{'\n'}<Text style={styles.specificWord}>specific</Text> in your reading?</>
+                                ? <>Would you like{'\n'}to focus on something{'\n'}specific in your reading?</>
+                                : <>{personName}, would you like{'\n'}to focus on something{'\n'}specific in your reading?</>
                             }
                         </Text>
                         <Text style={styles.subheadline}>
-                            {isSelf
-                                ? 'Please feel free to share any questions, feelings, or areas of life you\'d like the reading to address.'
-                                : `${personName}, please feel free to share any questions, feelings, or areas of life you\'d like the reading to address.`
-                            }
+                            Please feel free to share any questions, feelings, or areas of life you'd like the reading to address.
                         </Text>
                     </View>
 
@@ -82,7 +65,6 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                         <TextInput
                             style={styles.textInput}
                             multiline
-                            scrollEnabled={false}
                             placeholder="Share your questions or focus areas here..."
                             placeholderTextColor={colors.mutedText}
                             value={context}
@@ -100,24 +82,18 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                 {/* Bottom Buttons */}
                 <View style={styles.buttonContainer}>
                     <TouchableOpacity
-                        style={styles.continueButton}
-                        onPress={handleContinue}
-                        activeOpacity={0.8}
+                        style={[styles.button, styles.skipButton]}
+                        onPress={handleSkip}
                     >
-                        <Text style={styles.continueButtonText}>
-                            {context.trim() ? 'CONTINUE WITH CONTEXT' : 'SKIP'}
-                        </Text>
+                        <Text style={styles.skipButtonText}>Skip</Text>
                     </TouchableOpacity>
 
-                    {context.trim() && (
-                        <TouchableOpacity
-                            style={styles.skipButton}
-                            onPress={handleSkip}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={styles.skipButtonText}>Skip and Continue</Text>
-                        </TouchableOpacity>
-                    )}
+                    <TouchableOpacity
+                        style={[styles.button, styles.continueButton]}
+                        onPress={handleContinue}
+                    >
+                        <Text style={styles.continueButtonText}>Continue</Text>
+                    </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -127,105 +103,88 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.primary, // RED background
+        backgroundColor: colors.background,
     },
-    backButtonContainer: {
-        paddingHorizontal: spacing.page,
-        paddingTop: spacing.md,
-        paddingBottom: spacing.sm,
-    },
-    backButton: {
-        paddingVertical: spacing.xs,
-    },
-    backText: {
-        fontFamily: typography.sansMedium,
-        fontSize: 16,
-        color: colors.background, // White text on red
+    keyboardView: {
+        flex: 1,
     },
     scrollContent: {
         flexGrow: 1,
-        paddingHorizontal: spacing.page,
-        paddingTop: spacing.md,
+        padding: spacing.page,
     },
     header: {
         marginBottom: spacing.xl,
+        marginTop: spacing.lg,
     },
     headline: {
         fontFamily: typography.headline,
-        fontSize: 22, // 30% smaller (was 32)
-        color: colors.background, // White text on red background
-        fontStyle: 'normal',
-        textAlign: 'center', // CENTERED
+        fontSize: 18,
+        color: colors.text,
         marginBottom: spacing.md,
-        lineHeight: 30,
-    },
-    specificWord: {
-        fontFamily: typography.sansRegular, // Different font for "specific"
+        lineHeight: 24,
+        fontStyle: 'italic',
+        textAlign: 'center',
     },
     subheadline: {
         fontFamily: typography.sansRegular,
-        fontSize: 14, // Smaller font (was 16)
-        color: 'rgba(255, 255, 255, 0.85)', // Light text on red
-        textAlign: 'left', // LEFT aligned (only subheadline)
+        fontSize: 14,
+        color: colors.mutedText,
         lineHeight: 20,
+        textAlign: 'center',
     },
     inputContainer: {
         flex: 1,
-        marginTop: spacing.md, // Move box up
-        marginBottom: spacing.lg,
-        alignItems: 'center',
+        minHeight: 200,
     },
     textInput: {
         fontFamily: typography.sansRegular,
         fontSize: 16,
         color: colors.text,
         backgroundColor: colors.surface,
-        borderRadius: radii.card,
-        padding: spacing.lg,
-        height: 290,
-        width: '100%', // Full width like button
         borderWidth: 2,
         borderColor: colors.primary,
+        borderRadius: radii.lg,
+        padding: spacing.lg,
+        height: 300,
     },
     charCount: {
         fontFamily: typography.sansRegular,
         fontSize: 12,
-        color: 'rgba(255, 255, 255, 0.7)', // Light text on red
-        textAlign: 'center', // CENTERED
+        color: colors.mutedText,
         marginTop: spacing.sm,
-        width: '100%', // Match input width
+        textAlign: 'right',
     },
     buttonContainer: {
-        paddingHorizontal: spacing.page,
-        paddingBottom: spacing.xl, // More bottom padding
-        gap: spacing.md, // More gap
+        flexDirection: 'row',
+        gap: spacing.md,
+        padding: spacing.page,
+        paddingTop: spacing.md,
+        borderTopWidth: 1,
+        borderTopColor: colors.divider,
     },
-    continueButton: {
-        backgroundColor: colors.background, // WHITE button (was red)
+    button: {
+        flex: 1,
+        paddingVertical: spacing.md,
         borderRadius: radii.button,
-        paddingVertical: spacing.lg, // More padding
-        alignItems: 'center', // CENTERED
-    },
-    continueButtonText: {
-        fontFamily: typography.sansSemiBold,
-        fontSize: 16,
-        color: colors.primary, // RED text on white button
-        letterSpacing: 1, // More letter spacing
-        textAlign: 'center',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     skipButton: {
         backgroundColor: 'transparent',
-        borderRadius: radii.button,
-        paddingVertical: spacing.md,
-        alignItems: 'center',
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.3)', // Light border on red
+        borderColor: colors.border,
     },
     skipButtonText: {
         fontFamily: typography.sansSemiBold,
         fontSize: 16,
-        color: colors.background, // White text
-        letterSpacing: 0.5,
+        color: colors.text,
+    },
+    continueButton: {
+        backgroundColor: colors.primary,
+    },
+    continueButtonText: {
+        fontFamily: typography.sansSemiBold,
+        fontSize: 16,
+        color: colors.background,
     },
 });
-

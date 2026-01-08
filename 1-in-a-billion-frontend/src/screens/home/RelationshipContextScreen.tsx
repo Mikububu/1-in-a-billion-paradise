@@ -15,7 +15,7 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'RelationshipContext'>;
 
-const MAX_CHARS = 700;
+const MAX_CHARS = 500;
 
 export const RelationshipContextScreen = ({ navigation, route }: Props) => {
     const { partnerName, ...restParams } = route.params;
