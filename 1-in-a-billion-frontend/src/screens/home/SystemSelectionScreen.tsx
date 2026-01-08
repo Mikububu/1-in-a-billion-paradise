@@ -20,6 +20,7 @@ import { useState, useEffect } from 'react';
 import { VOICES } from '@/config/readingConfig'; // Added for voice options
 import { VoiceSelectionModal } from '@/components/VoiceSelectionModal';
 import { useProfileStore } from '@/store/profileStore';
+import { useAuthStore } from '@/store/authStore';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SystemSelection'>;
 
@@ -97,7 +98,8 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
   const singleProduct = isOverlay ? PRODUCTS.compatibility_overlay : PRODUCTS.single_system;
   const bundleProduct = isOverlay ? PRODUCTS.nuclear_package : PRODUCTS.complete_reading;
 
-  const meName = useOnboardingStore((s) => s.getMainUser()?.name) || (userName || 'User');
+  const authDisplayName = useAuthStore((s) => s.displayName);
+  const meName = useOnboardingStore((s) => s.getMainUser()?.name) || userName || authDisplayName || 'You';
   const meBirthDate = useOnboardingStore((s) => s.birthDate);
   const meBirthTime = useOnboardingStore((s) => s.birthTime);
   const meCity = useOnboardingStore((s) => s.birthCity);

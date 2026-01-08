@@ -30,6 +30,7 @@ import { COMPLETE_READING, PRODUCT_STRINGS, formatAudioDuration } from '@/config
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useProfileStore } from '@/store/profileStore';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
+import { useAuthStore } from '@/store/authStore';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'CompleteReading'>;
 
@@ -187,6 +188,7 @@ export const CompleteReadingScreen = ({ navigation, route }: Props) => {
     relationshipIntensity, relationshipMode
   } = useOnboardingStore();
   const user = useProfileStore(state => state.people.find(p => p.isUser));
+  const authDisplayName = useAuthStore((s) => s.displayName);
 
   // Params from navigation (if buying for a partner)
   const { partnerName, partnerBirthDate, partnerBirthTime, partnerBirthCity } = route.params || {};
@@ -217,7 +219,7 @@ export const CompleteReadingScreen = ({ navigation, route }: Props) => {
         longitude: partnerBirthCity?.longitude,
         timezone: partnerBirthCity?.timezone,
       } : {
-        name: name || user?.name || 'You',
+        name: name || user?.name || authDisplayName || 'You',
         birthDate: birthDate || user?.birthData?.birthDate,
         birthTime: birthTime || user?.birthData?.birthTime,
         birthPlace: birthCity?.name || user?.birthData?.birthCity,

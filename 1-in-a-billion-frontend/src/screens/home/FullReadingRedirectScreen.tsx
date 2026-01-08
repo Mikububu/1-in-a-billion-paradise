@@ -5,6 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { colors, spacing, typography } from '@/theme/tokens';
 import { useOnboardingStore } from '@/store/onboardingStore';
+import { useAuthStore } from '@/store/authStore';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'FullReading'>;
 
@@ -19,7 +20,8 @@ export const FullReadingRedirectScreen = ({ navigation, route }: Props) => {
   const { system = 'western', forPartner, partnerName, partnerBirthDate, partnerBirthTime, partnerBirthCity } =
     route.params || {};
 
-  const meName = useOnboardingStore((s) => s.name) || 'User';
+  const authDisplayName = useAuthStore((s) => s.displayName);
+  const meName = useOnboardingStore((s) => s.name) || authDisplayName || 'You';
   const meBirthDate = useOnboardingStore((s) => s.birthDate);
   const meBirthTime = useOnboardingStore((s) => s.birthTime);
   const meCity = useOnboardingStore((s) => s.birthCity);
