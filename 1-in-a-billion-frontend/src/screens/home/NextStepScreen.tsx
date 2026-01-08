@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
   buttonsContainer: {
     flex: 1,
     justifyContent: 'flex-start', // Align to top
-    paddingTop: 240, // Sweet spot between headline and video
+    paddingTop: 200, // Moved higher to accommodate 5 buttons
     paddingBottom: 0,
     alignItems: 'center',
     paddingHorizontal: 32,
