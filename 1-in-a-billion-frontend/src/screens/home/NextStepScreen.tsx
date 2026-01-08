@@ -14,6 +14,10 @@ export const NextStepScreen = ({ navigation }: Props) => {
 
   const buttons = [
     {
+      label: 'MY SOULS LIBRARY',
+      onPress: () => navigation.navigate('MyLibrary'),
+    },
+    {
       label: 'ADD A PERSON',
       onPress: () => navigation.navigate('PeopleList', { mode: 'select', returnTo: 'SystemSelection' }),
     },
@@ -110,13 +114,13 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
     alignItems: 'center',
     paddingHorizontal: 32,
-    gap: 24,
+    gap: 16, // Reduced from 24 to fit 5 buttons
     zIndex: 2,
   },
   button: {
     width: '100%',
     backgroundColor: '#FFFFFF',
-    paddingVertical: 18,
+    paddingVertical: 16, // Reduced from 18 to save space
     borderRadius: 999,
     alignItems: 'center',
     borderWidth: 1,
