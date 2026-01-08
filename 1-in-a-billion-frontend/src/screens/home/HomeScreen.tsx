@@ -850,10 +850,10 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
 
-  // Status Section (moved down significantly)
+  // Status Section
   statusSection: {
     alignItems: 'center',
-    paddingTop: 120,
+    paddingTop: 40,
     paddingBottom: spacing.xl,
   },
   buttonContainer: {
