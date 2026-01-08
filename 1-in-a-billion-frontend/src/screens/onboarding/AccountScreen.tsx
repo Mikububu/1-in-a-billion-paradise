@@ -277,6 +277,7 @@ export const AccountScreen = ({ navigation }: Props) => {
       )}
 
       <Video
+        key="signin-video-v2" // Cache-busting key - update this when video file changes
         source={require('../../../assets/videos/signin-background.mp4')}
         style={styles.backgroundVideo}
         resizeMode={ResizeMode.COVER}
@@ -296,7 +297,8 @@ export const AccountScreen = ({ navigation }: Props) => {
       </TouchableOpacity>
 
       <View style={styles.contentContainer}>
-        {/* Auth Section - Same order as SignInScreen: Google, Apple, Email */}
+        <View style={{ flex: 1 }} />
+
         <View style={styles.authSection}>
           {!showEmailInput ? (
             <>
@@ -420,7 +422,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing.page,
     paddingBottom: spacing.xl,
-    justifyContent: 'space-between',
   },
   topSection: {
     paddingTop: 120,

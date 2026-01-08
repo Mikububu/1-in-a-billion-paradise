@@ -500,6 +500,7 @@ export const SignInScreen = ({ route }: SignInScreenProps) => {
       )}
 
       <Video
+        key="signin-video-v2" // Cache-busting key - update this when video file changes
         source={require('../../../assets/videos/signin-background.mp4')}
         style={styles.backgroundVideo}
         resizeMode={ResizeMode.COVER}
