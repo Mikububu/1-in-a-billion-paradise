@@ -388,8 +388,6 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
           {isOverlay ? 'Compatibility analysis' : 'Choose a system for deep insights'}
         </Text>
 
-        <Text style={styles.orText}>— Select Package —</Text>
-
         {SYSTEMS.map((system) => (
           <TouchableOpacity
             key={system.id}
@@ -407,8 +405,6 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
             <Text style={styles.systemPrice}>${singlePrice}</Text>
           </TouchableOpacity>
         ))}
-
-        <Text style={styles.orText}>— or get all 5 systems —</Text>
 
         {/* Best Choice - Bundle (at bottom) */}
         <Pressable
