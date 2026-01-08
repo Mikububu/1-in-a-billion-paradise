@@ -257,10 +257,10 @@ export class TextWorker extends BaseWorker {
 
     const params: any = job.params || {};
     const person1 = params.person1;
-    const person2 = params.person2;
+    const person2 = params.person2; // Optional for single-person readings
 
-    if (!person1 || !person2) {
-      return { success: false, error: 'Missing person1/person2 in job.params' };
+    if (!person1) {
+      return { success: false, error: 'Missing person1 in job.params' };
     }
 
     const style: 'production' | 'spicy_surreal' = params.style || 'spicy_surreal';
@@ -305,21 +305,26 @@ export class TextWorker extends BaseWorker {
       return { success: false, error: errorMsg };
     }
 
-    try {
-      p2Placements = await ephemerisIsolation.computePlacements({
-        birthDate: person2.birthDate,
-        birthTime: person2.birthTime,
-        timezone: person2.timezone,
-        latitude: person2.latitude,
-        longitude: person2.longitude,
-        relationshipIntensity: spiceLevel,
-        relationshipMode: 'sensual',
-        primaryLanguage: 'en',
-      });
-    } catch (p2Error: any) {
-      const errorMsg = `Person 2 ephemeris calculation failed: ${p2Error.message}`;
-      console.error('❌', errorMsg);
-      return { success: false, error: errorMsg };
+    // Only compute person2 placements if person2 exists (for overlay readings)
+    if (person2) {
+      try {
+        p2Placements = await ephemerisIsolation.computePlacements({
+          birthDate: person2.birthDate,
+          birthTime: person2.birthTime,
+          timezone: person2.timezone,
+          latitude: person2.latitude,
+          longitude: person2.longitude,
+          relationshipIntensity: spiceLevel,
+          relationshipMode: 'sensual',
+          primaryLanguage: 'en',
+        });
+      } catch (p2Error: any) {
+        const errorMsg = `Person 2 ephemeris calculation failed: ${p2Error.message}`;
+        console.error('❌', errorMsg);
+        return { success: false, error: errorMsg };
+      }
+    } else {
+      p2Placements = null; // No person2 for single-person readings
     }
 
     const p1BirthData = {

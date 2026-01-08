@@ -382,11 +382,18 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         }
       }
 
-      // Fill in missing with placeholders
-      const systemsToShow = personType === 'overlay' ? SYSTEMS : SYSTEMS.slice(0, 5);
+      // Fill in missing with placeholders - ONLY show systems that were actually ordered
+      const orderedSystems = jobData.job?.params?.systems || [];
+      const systemsToShow = personType === 'overlay' 
+        ? SYSTEMS 
+        : SYSTEMS.filter(s => orderedSystems.includes(s.id));
+      
+      // If no systems specified, fall back to showing first N systems (legacy behavior)
+      const finalSystemsToShow = systemsToShow.length > 0 ? systemsToShow : SYSTEMS.slice(0, systemCount);
+      
       let finalReadings = docRange.map((docNum, i) => {
         if (readingsMap[docNum]) return readingsMap[docNum];
-        const sys = systemsToShow[i] || SYSTEMS[0];
+        const sys = finalSystemsToShow[i] || SYSTEMS[0];
         return {
           id: `placeholder-${docNum}`,
           system: sys.id,
