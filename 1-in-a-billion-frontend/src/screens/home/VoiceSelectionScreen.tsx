@@ -13,6 +13,7 @@ import { Audio } from 'expo-av';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { env } from '@/config/env';
+import { AmbientMusic } from '@/services/ambientMusic';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'VoiceSelection'>;
 
@@ -32,6 +33,12 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
     const [selectedVoice, setSelectedVoice] = useState<string>(preselectedVoice || 'grandpa');
     const [playingVoice, setPlayingVoice] = useState<string | null>(null);
     const [sound, setSound] = useState<Audio.Sound | null>(null);
+
+    // Fade out ambient music on mount
+    useEffect(() => {
+        console.log('🎵 VoiceSelectionScreen: Fading out ambient music...');
+        AmbientMusic.fadeAndPause();
+    }, []);
 
     // Fetch voices from API
     useEffect(() => {
@@ -296,19 +303,19 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         paddingHorizontal: spacing.page,
-        paddingVertical: spacing.lg,
-        gap: spacing.md,
+        paddingVertical: spacing.md, // Reduced from lg
+        gap: 0, // Removed gap (using marginBottom on cards instead)
     },
     voiceCard: {
         backgroundColor: colors.surface,
         borderRadius: radii.card,
-        padding: spacing.lg,
+        padding: spacing.md, // Reduced from lg
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        borderWidth: 2,
+        borderWidth: 1, // Thinner border (was 2)
         borderColor: colors.border,
-        marginBottom: spacing.md,
+        marginBottom: spacing.sm, // Reduced from md
     },
     voiceCardActive: {
         borderColor: colors.primary,
@@ -316,17 +323,17 @@ const styles = StyleSheet.create({
     },
     voiceInfo: {
         flex: 1,
-        marginRight: spacing.md,
+        marginRight: spacing.sm, // Reduced from md
     },
     voiceHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: spacing.xs,
-        gap: spacing.sm,
+        marginBottom: 4, // Tighter spacing (was spacing.xs)
+        gap: spacing.xs, // Reduced from sm
     },
     voiceName: {
         fontFamily: typography.sansBold,
-        fontSize: 18,
+        fontSize: 16, // Smaller (was 18)
         color: colors.text,
     },
     voiceNameActive: {
@@ -334,30 +341,29 @@ const styles = StyleSheet.create({
     },
     selectedBadge: {
         backgroundColor: colors.primary,
-        paddingHorizontal: spacing.sm,
+        paddingHorizontal: spacing.xs, // Reduced from sm
         paddingVertical: 2,
         borderRadius: 999,
     },
     selectedBadgeText: {
         fontFamily: typography.sansBold,
-        fontSize: 10,
+        fontSize: 9, // Smaller (was 10)
         color: colors.background,
         letterSpacing: 0.5,
     },
     voiceCategory: {
         fontFamily: typography.sansSemiBold,
-        fontSize: 12,
+        fontSize: 11, // Smaller (was 12)
         color: colors.mutedText,
         textTransform: 'uppercase',
-        letterSpacing: 1,
-        marginBottom: spacing.xs,
+        letterSpacing: 0.5, // Tighter (was 1)
     },
     playButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
         backgroundColor: colors.surface,
-        borderWidth: 2,
+        borderWidth: 1.5, // Thinner (was 2)
         borderColor: colors.border,
         alignItems: 'center',
         justifyContent: 'center',

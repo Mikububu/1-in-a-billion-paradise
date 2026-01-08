@@ -110,6 +110,57 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
     ? `${displayP1Name} & ${displayP2Name}`
     : `${displayP1Name}'s Reading`;
 
+  // Preload voice samples in background on mount
+  useEffect(() => {
+    const preloadVoiceSamples = async () => {
+      try {
+        console.log('🎵 SystemSelection: Preloading voice samples in background...');
+        const baseCandidates = [
+          env.CORE_API_URL,
+          'http://172.20.10.2:8787',
+          'http://localhost:8787',
+          'http://127.0.0.1:8787',
+          'https://1-in-a-billion-backend.fly.dev',
+        ];
+        const bases = Array.from(new Set(baseCandidates.filter(Boolean)));
+
+        for (const base of bases) {
+          try {
+            const url = `${base}/api/voices/samples`;
+            const response = await fetch(url, { 
+              method: 'GET',
+              headers: { 'Accept': 'application/json' }
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              if (data.success && data.voices) {
+                console.log(`✅ Preloaded ${data.voices.length} voice samples`);
+                
+                // Preload each voice sample audio (fire and forget)
+                data.voices.forEach((voice: any) => {
+                  if (voice.sampleUrl) {
+                    Audio.Sound.createAsync({ uri: voice.sampleUrl }, { shouldPlay: false })
+                      .then(() => console.log(`✅ Cached audio for ${voice.displayName}`))
+                      .catch(() => {/* silent fail */});
+                  }
+                });
+              }
+              break; // Success, stop trying other bases
+            }
+          } catch (e) {
+            // Try next base
+            continue;
+          }
+        }
+      } catch (err) {
+        console.log('⚠️ Voice sample preload failed (non-blocking):', err);
+      }
+    };
+
+    preloadVoiceSamples(); // Fire and forget
+  }, []);
+
   // Cleanup sound on unmount
   useEffect(() => {
     return () => {
