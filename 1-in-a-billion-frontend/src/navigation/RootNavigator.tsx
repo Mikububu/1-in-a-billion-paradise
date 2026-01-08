@@ -68,6 +68,7 @@ import { DeepReadingReaderScreen } from '@/screens/home/DeepReadingReaderScreen'
 import { OverlayReaderScreen } from '@/screens/home/OverlayReaderScreen';
 import { PeopleListScreen } from '@/screens/home/PeopleListScreen';
 import { PersonProfileScreen } from '@/screens/home/PersonProfileScreen';
+import { PersonJobsListScreen } from '@/screens/home/PersonJobsListScreen'; // NEW
 import { PersonReadingsScreen } from '@/screens/home/PersonReadingsScreen';
 import { MyLibraryScreen } from '@/screens/home/MyLibraryScreen';
 import { NextStepScreen } from '@/screens/home/NextStepScreen';
@@ -288,6 +289,7 @@ export type MainStackParamList = {
   };
   PeopleList: { mode?: 'view' | 'select'; returnTo?: keyof MainStackParamList } | undefined;
   PersonProfile: { personId: string };
+  PersonJobsList: { personName: string; personId: string }; // NEW: List all jobs for a person
   PersonReadings: { personName: string; personType: 'person1' | 'person2' | 'overlay' | 'individual'; jobId?: string };
   SynastryOverlay: {
     userId: string;
@@ -596,6 +598,7 @@ const MainNavigator = () => {
       <MainStack.Screen name="ReadingSummary" component={ReadingSummaryScreen} />
       <MainStack.Screen name="PeopleList" component={PeopleListScreen} />
       <MainStack.Screen name="PersonProfile" component={PersonProfileScreen} />
+      <MainStack.Screen name="PersonJobsList" component={PersonJobsListScreen} /> {/* NEW */}
       <MainStack.Screen name="PersonReadings" component={PersonReadingsScreen} />
       <MainStack.Screen name="SynastryOverlay" component={SynastryOverlayScreen} />
       <MainStack.Screen name="Purchase" component={PurchaseScreen} />
