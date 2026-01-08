@@ -34,6 +34,7 @@ import { useAuthStore } from '@/store/authStore';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
 import { AmbientMusic } from '@/services/ambientMusic';
 import { env } from '@/config/env';
+import { logAuthIssue } from '@/utils/authDebug';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -76,9 +77,16 @@ export const AccountScreen = ({ navigation }: Props) => {
 
       if (error) throw error;
       setIsLoading(false);
-      // Bootstrap will detect session and handle onboarding continuation
+      // Navigate directly to CoreIdentities (no white page flash)
+      navigation.replace('CoreIdentities');
     } catch (error: any) {
       console.error(`❌ ${provider.toUpperCase()} EXCHANGE ERROR:`, error.message);
+      logAuthIssue({
+        provider,
+        outcome: 'error',
+        detail: error?.message,
+        context: 'AccountScreen:handleSupabaseExchange',
+      });
       setIsLoading(false);
       Alert.alert('Sign In Error', error.message);
     }
@@ -112,16 +120,31 @@ export const AccountScreen = ({ navigation }: Props) => {
 
         if (result.type === 'success' && result.url) {
           console.log('✅ GOOGLE AUTH: Success!');
-          // Deep link handler will process the session
+          // Deep link handler will process the session and navigate
+          // Navigation handled by deep link callback
         } else {
           setIsLoading(false);
-          if (result.type !== 'cancel') {
+          if (result.type === 'cancel') {
+            logAuthIssue({ provider: 'google', outcome: 'cancel', context: 'AccountScreen:handleGoogleSignIn' });
+          } else {
+            logAuthIssue({
+              provider: 'google',
+              outcome: 'error',
+              detail: `result.type=${result.type}`,
+              context: 'AccountScreen:handleGoogleSignIn',
+            });
             Alert.alert('Sign In Error', 'Authentication was interrupted. Please try again.');
           }
         }
       }
     } catch (error: any) {
       console.error('❌ GOOGLE AUTH: Error:', error.message);
+      logAuthIssue({
+        provider: 'google',
+        outcome: 'error',
+        detail: error?.message,
+        context: 'AccountScreen:handleGoogleSignIn:catch',
+      });
       setIsLoading(false);
       Alert.alert('Sign In Error', error.message || 'Failed to open Google Sign-In');
     }
@@ -141,7 +164,10 @@ export const AccountScreen = ({ navigation }: Props) => {
         handleSupabaseExchange(credential.identityToken, 'apple');
       }
     } catch (e: any) {
-      if (e.code !== 'ERR_REQUEST_CANCELED') {
+      if (e?.code === 'ERR_REQUEST_CANCELED') {
+        logAuthIssue({ provider: 'apple', outcome: 'cancel', context: 'AccountScreen:handleAppleSignIn' });
+      } else {
+        logAuthIssue({ provider: 'apple', outcome: 'error', detail: e?.message, context: 'AccountScreen:handleAppleSignIn' });
         Alert.alert('Sign In Error', e.message);
       }
       setIsLoading(false);
@@ -223,9 +249,13 @@ export const AccountScreen = ({ navigation }: Props) => {
         setName('');
         setEmail('');
         setPassword('');
-      } // RootNavigator will detect session and continue to HookSequence
+
+        // Navigate directly to CoreIdentities (no white page flash)
+        navigation.replace('CoreIdentities');
+      }
     } catch (error: any) {
       console.error(`❌ SIGNUP ERROR:`, error.message);
+      logAuthIssue({ provider: 'email', outcome: 'error', detail: error?.message, context: 'AccountScreen:handleEmailAuth' });
       setEmailAuthState('error');
       Alert.alert(
         'Sign Up Error',

@@ -108,10 +108,13 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     };
 
     const handleYes = () => {
+        // Save user data, set redirect to PartnerInfo, then complete onboarding
+        // RootNavigator will route to MainStack and navigate to PartnerInfo
         safeSaveAndComplete('PartnerInfo');
     };
 
     const handleNo = () => {
+        // User says "No" → save everything and complete onboarding → Dashboard
         safeSaveAndComplete();
     };
 

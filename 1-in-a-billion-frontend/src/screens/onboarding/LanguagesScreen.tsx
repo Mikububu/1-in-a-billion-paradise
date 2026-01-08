@@ -115,7 +115,7 @@ export const LanguagesScreen = ({ navigation }: Props) => {
         <View style={styles.footer}>
           <Button
             label="Continue"
-            onPress={() => navigation.navigate('CoreIdentities')}
+            onPress={() => navigation.navigate('Account')}
             disabled={!primaryLanguage}
           />
         </View>

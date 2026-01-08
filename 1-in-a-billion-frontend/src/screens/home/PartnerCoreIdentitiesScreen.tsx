@@ -290,7 +290,9 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
       setStatusText(`Calculating ${name}'s Sun sign...`);
       setProgress(15);
       
-      const sunData = await sunAudioPromise; // Wait for Sun audio to complete and get data
+      // Wait for Sun audio to complete before proceeding
+      const sunData = await sunAudioPromise;
+      console.log(`✅ ${name}'s Sun audio ready!`);
       setProgress(30);
       await delay(3000);
 
@@ -426,13 +428,29 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         console.log(`✅ Saved ${partnerName}'s hook readings for Home carousel rotation`);
       }
 
-      // Navigate to results with partnerId
-      navigation.replace('PartnerReadings', {
-        partnerName,
-        partnerBirthDate,
-        partnerBirthTime,
-        partnerBirthCity,
-        partnerId,
+      // Save partner + readings to Supabase
+      const user = useProfileStore.getState().people.find(p => p.isUser);
+      const userId = user?.id;
+      if (userId) {
+        try {
+          const { syncPeopleToSupabase } = await import('@/services/peopleCloud');
+          const allPeople = useProfileStore.getState().people;
+          const result = await syncPeopleToSupabase(userId, allPeople);
+          if (result.success) {
+            console.log(`✅ Saved ${partnerName} and readings to Supabase`);
+          } else {
+            console.warn(`⚠️ Failed to save partner to Supabase:`, result.error);
+          }
+        } catch (error) {
+          console.error('❌ Error saving partner to Supabase:', error);
+        }
+      }
+
+      // Navigate directly to Dashboard (all readings generated and saved)
+      console.log('✅ Partner readings complete - navigating to Dashboard');
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Home' }],
       });
 
     } catch (error) {

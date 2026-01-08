@@ -385,8 +385,10 @@ const OnboardingNavigator = ({ initialRouteName = "Intro" }: { initialRouteName?
 };
 
 const MainNavigator = () => {
-  // Always start at Home (Control Room) after onboarding
-  console.log('🚀 MainNavigator MOUNTED - initialRouteName=Home');
+  // Check if we need to redirect to a specific screen after onboarding
+  const redirectAfterOnboarding = useOnboardingStore((s: any) => s.redirectAfterOnboarding);
+  const initialRoute = redirectAfterOnboarding || 'Home';
+  console.log(`🚀 MainNavigator MOUNTED - initialRouteName=${initialRoute}`);
 
   // After resets, onboarding birth data can exist while profileStore user is missing birthTime.
   // Compatibility requires birth time, so hydrate/update profileStore user from onboardingStore here.
@@ -547,9 +549,13 @@ const MainNavigator = () => {
         headerShown: false,
         animation: 'slide_from_right',
       }}
-      initialRouteName="Home"
+      initialRouteName={initialRoute as keyof MainStackParamList}
     >
-      <MainStack.Screen name="Home" component={HomeScreen} />
+      <MainStack.Screen 
+        name="Home" 
+        component={HomeScreen}
+        options={{ headerShown: false }}
+      />
       <MainStack.Screen name="NextStep" component={NextStepScreen} />
       <MainStack.Screen name="ComparePeople" component={ComparePeopleScreen} />
       <MainStack.Screen name="ProfileSignIn" component={MainSignInScreenWrapper} options={{ presentation: 'fullScreenModal' }} />

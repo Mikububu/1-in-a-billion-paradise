@@ -249,14 +249,6 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
   const setHookAudio = useOnboardingStore((state) => state.setHookAudio);
 
   useEffect(() => {
-    // #region agent log
-    // CI_MOUNT: Prove whether CoreIdentitiesScreen is actually being used in the reproduced flow
-    try {
-      const o = useOnboardingStore.getState();
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CoreIdentitiesScreen.tsx:mount',message:'CoreIdentities mounted',data:{hasBirthDate:!!o.birthDate,hasBirthTime:!!o.birthTime,hasBirthCity:!!o.birthCity?.name,hasHookSun:!!o.hookReadings?.sun,hookAudioLens:{sun:o.hookAudio?.sun?.length||0,moon:o.hookAudio?.moon?.length||0,rising:o.hookAudio?.rising?.length||0}},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'CI_MOUNT'})}).catch(()=>{});
-    } catch {}
-    // #endregion
-
     // Start animations
     const pulse = Animated.loop(
       Animated.sequence([
@@ -321,24 +313,20 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
     };
 
     // ============================================================================
-    // AUDIO PRE-RENDERING PIPELINE (per ARCHITECTURE.md)
+    // AUDIO GENERATION PIPELINE
     // ============================================================================
-    // DESIGN: Staggered audio generation with non-blocking navigation
+    // DESIGN: Generate Sun audio here, wait for it to complete before navigating
     //
     // Timeline:
-    //   INTRO (10s)   → Fetch SUN reading → Start SUN audio (non-blocking)
-    //   SUN (4s)      → Fetch MOON reading (audio handled by HookSequenceScreen)
-    //   MOON (4s)     → Fetch RISING reading (audio handled by HookSequenceScreen)
-    //   RISING (3s)   → Navigate (audio completes in background)
+    //   INTRO (10s)   → Fetch SUN reading → Start SUN audio generation
+    //   SUN (4s)      → Fetch MOON reading
+    //   MOON (4s)     → Fetch RISING reading
+    //   RISING (3s)   → Wait for SUN audio → Navigate to HookSequence
     //
     // Audio Generation Strategy:
-    //   - SUN audio: Starts here in CoreIdentitiesScreen (non-blocking)
-    //   - MOON audio: Starts in HookSequenceScreen when viewing SUN page
-    //   - RISING audio: Starts in HookSequenceScreen when viewing MOON page
-    //
-    // If audio isn't ready when user taps Play, HookSequenceScreen:
-    //   1. Waits for in-flight generation to complete, OR
-    //   2. Falls back to on-demand generation
+    //   - SUN audio: Generated here, MUST complete before navigation
+    //   - MOON audio: Pre-rendered in HookSequenceScreen when viewing SUN page
+    //   - RISING audio: Pre-rendered in HookSequenceScreen when viewing MOON page
     // ============================================================================
     
     // Store readings at function scope (not inside callbacks)
@@ -349,18 +337,26 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
     // SUN audio promise - only Sun is generated here; Moon/Rising use staggered preload
     let sunAudioPromise: Promise<void> | null = null;
 
-    // Helper to generate audio for a reading
+    // Helper to generate audio for a reading (uses new backend endpoint that stores in Supabase Storage)
     const generateAudioForType = async (type: 'sun' | 'moon' | 'rising', reading: any): Promise<void> => {
       if (!reading) return;
       console.log(`🎵 Starting ${type.toUpperCase()} audio generation...`);
       try {
-        const result = await audioApi.generateTTS(
-          `${reading.intro}\n\n${reading.main}`,
-          { exaggeration: AUDIO_CONFIG.exaggeration }
-        );
-        if (result.success && result.audioBase64) {
-          setHookAudio(type, result.audioBase64);
-          console.log(`✅ ${type.toUpperCase()} audio ready: ${Math.round(result.audioBase64.length / 1024)}KB`);
+        // Get user ID if available (optional - backend handles temp storage if not signed up)
+        const user = useProfileStore.getState().people.find(p => p.isUser);
+        const userId = user?.id;
+
+        const result = await audioApi.generateHookAudio({
+          text: `${reading.intro}\n\n${reading.main}`,
+          userId: userId, // Optional - backend handles temp storage if not provided
+          type,
+          exaggeration: AUDIO_CONFIG.exaggeration,
+        });
+
+        if (result.success && result.audioUrl) {
+          // Backend stores in Supabase Storage and returns URL
+          setHookAudio(type, result.audioUrl);
+          console.log(`✅ ${type.toUpperCase()} audio ready: ${result.audioUrl}`);
         } else {
           console.log(`❌ ${type.toUpperCase()} audio failed:`, result.error);
         }
@@ -509,12 +505,22 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
       await delay(3000);
       setProgress(80);
 
-      // ========== NON-BLOCKING NAVIGATION (ORIGINAL DESIGN) ==========
-      // Audio generates in background. HookSequenceScreen will:
-      // - Use pre-rendered audio if available
-      // - Trigger staggered preload (Moon on Sun page, Rising on Moon page)
-      // - Fall back to on-demand generation if needed
-      console.log('🎵 Audio generating in background (non-blocking)...');
+      // ========== WAIT FOR SUN AUDIO BEFORE NAVIGATING ==========
+      // Sun audio must be ready before user sees HookSequence screen
+      // Moon/Rising audio will be pre-rendered in HookSequenceScreen (staggered preload)
+      setProgress(90);
+      setStatusText('Generating audio...');
+
+      // Wait for Sun audio to complete
+      if (sunAudioPromise) {
+        console.log('⏳ Waiting for Sun audio to complete...');
+        try {
+          await sunAudioPromise;
+          console.log('✅ Sun audio ready!');
+        } catch (error) {
+          console.warn('⚠️ Sun audio generation failed, proceeding anyway:', error);
+        }
+      }
 
       setProgress(100);
       setStatusText('Ready!');
@@ -523,13 +529,13 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
       // Log audio state for debugging
       const hookAudioAtNavigation = useOnboardingStore.getState().hookAudio;
       console.log('🎵 Audio state at navigation:', {
-        sun: hookAudioAtNavigation.sun ? `${Math.round(hookAudioAtNavigation.sun.length / 1024)}KB` : 'generating...',
-        moon: hookAudioAtNavigation.moon ? `${Math.round(hookAudioAtNavigation.moon.length / 1024)}KB` : 'pending',
-        rising: hookAudioAtNavigation.rising ? `${Math.round(hookAudioAtNavigation.rising.length / 1024)}KB` : 'pending',
+        sun: hookAudioAtNavigation.sun ? 'ready (URL)' : 'missing',
+        moon: hookAudioAtNavigation.moon ? 'ready (URL)' : 'pending',
+        rising: hookAudioAtNavigation.rising ? 'ready (URL)' : 'pending',
       });
 
-      // Navigate to results (audio will complete in background)
-      console.log('✅ Navigating to HookSequence (audio completes in background)');
+      // Navigate to HookSequence (Sun audio is ready, Moon/Rising will pre-render)
+      console.log('✅ Navigating to HookSequence (Sun audio ready)');
       navigation.replace('HookSequence');
 
     } catch (error) {
@@ -541,24 +547,6 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
   };
 
   const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-  // Pre-generate audio for a reading (runs in background)
-  const generateAudioForReading = async (type: 'sun' | 'moon' | 'rising', reading: any) => {
-    try {
-      const text = `${reading.intro}\n\n${reading.main}`;
-      console.log(`🎵 Pre-generating ${type} audio... Text length: ${text.length} chars`);
-      // Lower exaggeration = calmer, more measured pace
-      const result = await audioApi.generateTTS(text, { exaggeration: AUDIO_CONFIG.exaggeration });
-      if (result.success && result.audioBase64) {
-        console.log(`✅ ${type} audio pre-loaded: ${Math.round(result.audioBase64.length / 1024)}KB base64`);
-        setHookAudio(type, result.audioBase64);
-      } else {
-        console.log(`❌ ${type} audio failed:`, result.error);
-      }
-    } catch (error) {
-      console.log(`⚠️ Failed to pre-generate ${type} audio:`, error);
-    }
-  };
 
   const screen = SCREENS[currentScreen];
 

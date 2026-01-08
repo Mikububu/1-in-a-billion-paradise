@@ -37,9 +37,9 @@ import { generateCoreIdentitiesPdfFilename } from '@/utils/fileNames';
 import { audioApi } from '@/services/api';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
 import { AUDIO_CONFIG, SIGN_LABELS } from '@/config/readingConfig';
-import { uploadHookAudioBase64 } from '@/services/hookAudioCloud';
 import { saveHookReadings } from '@/services/userReadings';
 import { saveAudioToFile, getAudioDirectory, ensureAudioDirectory } from '@/services/audioDownload';
+import { logAuthIssue } from '@/utils/authDebug';
 
 // Required for OAuth redirect handling
 WebBrowser.maybeCompleteAuthSession();
@@ -142,7 +142,6 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
   // Profile store user (to persist hook audio storage paths for cloud reuse)
   const getUserProfile = useProfileStore((s) => s.getUser);
   const updatePerson = useProfileStore((s) => s.updatePerson);
-  const inFlightUpload = useRef<Partial<Record<HookReading['type'], Promise<void>>>>({});
 
   // Blink animation ref
   const blinkAnim = useRef(new Animated.Value(1)).current;
@@ -328,54 +327,46 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
       const existing = inFlightAudio.current[type];
       if (existing) return existing;
 
+      // User ID is optional - backend will use temp storage if not signed up yet
+      const uid = user?.id;
+
       const textToSpeak = `${reading.intro}\n\n${reading.main}`;
       const p = audioApi
-        .generateTTS(textToSpeak, { exaggeration: AUDIO_CONFIG.exaggeration })
+        .generateHookAudio({
+          text: textToSpeak,
+          userId: uid, // Optional - backend handles temp storage if not provided
+          type,
+          exaggeration: AUDIO_CONFIG.exaggeration,
+        })
         .then(async (result) => {
-          if (result.success && result.audioBase64) {
-            // SAVE TO FILE instead of storing Base64 (restore last-known-good behavior)
+          if (result.success && result.audioUrl) {
+            // Backend stores in Supabase Storage and returns URL
+            console.log(`✅ ${type} audio generated and stored: ${result.audioUrl}`);
+            setHookAudio(type, result.audioUrl);
+
+            // Update profile with storage path (for reference)
             try {
-              const filename = `hook_${type}_${Date.now()}`; // saveAudioToFile adds extension
-              await saveAudioToFile(result.audioBase64, filename);
-              const filenameHub = `${filename}.mp3`;
+              const userPerson = getUserProfile();
+              if (userPerson?.id && result.storagePath) {
+                updatePerson(userPerson.id, {
+                  hookAudioPaths: {
+                    ...(userPerson.hookAudioPaths || {}),
+                    [type]: result.storagePath,
+                  },
+                } as any);
+              }
+            } catch { /* ignore */ }
 
-              console.log(`💾 Saved ${type} audio to file: ${filenameHub}`);
-              setHookAudio(type, filenameHub);
-
-              // Cloud Sync (legacy): upload base64 (cloud service expects base64)
-              try {
-                const uid = user?.id;
-                const userPerson = getUserProfile();
-                if (uid && userPerson?.id && isSupabaseConfigured && env.ENABLE_SUPABASE_LIBRARY_SYNC) {
-                  uploadHookAudioBase64({
-                    userId: uid,
-                    personId: userPerson.id,
-                    type,
-                    audioBase64: result.audioBase64,
-                  }).then((res) => {
-                    if (!res.success) return;
-                    updatePerson(userPerson.id, {
-                      hookAudioPaths: {
-                        ...(userPerson.hookAudioPaths || {}),
-                        [type]: res.path, // Cloud path
-                      },
-                    } as any);
-                  });
-                }
-              } catch { /* ignore */ }
-
-              return filenameHub; // Return filename now, not base64
-            } catch (err) {
-              console.error('Failed to save audio file:', err);
-              // Fallback: store base64 if file save fails (e.g. no space)
-              // This keeps playback working rather than failing silently.
-              setHookAudio(type, result.audioBase64);
-              return result.audioBase64;
-            }
+            return result.audioUrl;
+          } else {
+            console.error(`❌ ${type} audio generation failed:`, result.error);
+            return null;
           }
+        })
+        .catch((error) => {
+          console.error(`❌ ${type} audio generation error:`, error);
           return null;
         })
-        .catch(() => null)
         .finally(() => {
           inFlightAudio.current[type] = undefined;
           if (type === 'moon') isGeneratingMoonAudio.current = false;
@@ -456,43 +447,34 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
       });
 
       let soundObj;
+      let uri: string;
 
-      // Check if it's a file path (ends in .mp3)
-      const isFile = audioSource.endsWith('.mp3');
-
-      if (isFile) {
-        // Reconstruct full path
+      // Check if it's a URL (starts with http/https) - new pipeline: backend stores in Supabase Storage
+      if (audioSource.startsWith('http://') || audioSource.startsWith('https://')) {
+        uri = audioSource;
+        console.log(`🎵 Playing from URL: ${uri}`);
+      } else if (audioSource.endsWith('.mp3')) {
+        // Legacy: local file path
         const dir = getAudioDirectory();
-        const uri = dir + audioSource;
+        uri = dir + audioSource;
         console.log(`🎵 Playing file: ${uri}`);
-
-        // Verify existence? Audio.Sound.createAsync handles failures gracefully usually
-        const { sound } = await Audio.Sound.createAsync(
-          { uri },
-          { shouldPlay: true, isLooping: false, progressUpdateIntervalMillis: 500 },
-          (status) => {
-            if (status.isLoaded && status.didJustFinish) {
-              setAudioPlaying(prev => ({ ...prev, [type]: false }));
-              currentPlayingType.current = null;
-            }
-          }
-        );
-        soundObj = sound;
       } else {
-        // Base64 legacy
+        // Legacy: Base64
+        uri = `data:audio/mpeg;base64,${audioSource}`;
         console.log('🎵 Playing legacy Base64');
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: `data:audio/mpeg;base64,${audioSource}` },
-          { shouldPlay: true, isLooping: false, progressUpdateIntervalMillis: 500 },
-          (status) => {
-            if (status.isLoaded && status.didJustFinish) {
-              setAudioPlaying(prev => ({ ...prev, [type]: false }));
-              currentPlayingType.current = null;
-            }
-          }
-        );
-        soundObj = sound;
       }
+
+      const { sound } = await Audio.Sound.createAsync(
+        { uri },
+        { shouldPlay: true, isLooping: false, progressUpdateIntervalMillis: 500 },
+        (status) => {
+          if (status.isLoaded && status.didJustFinish) {
+            setAudioPlaying(prev => ({ ...prev, [type]: false }));
+            currentPlayingType.current = null;
+          }
+        }
+      );
+      soundObj = sound;
 
       soundRef.current = soundObj;
       currentPlayingType.current = type;
@@ -504,45 +486,8 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     }
 
   }, [hookAudio, startHookAudioGeneration]);
-  // If audio already exists (e.g., SUN was pre-rendered earlier), upload it once to Supabase Storage.
-  useEffect(() => {
-    const uid = user?.id;
-    if (!uid) return;
-    if (!env.ENABLE_SUPABASE_LIBRARY_SYNC || !isSupabaseConfigured) return;
-
-    const userPerson = getUserProfile();
-    if (!userPerson?.id) return;
-
-    const types: HookReading['type'][] = ['sun', 'moon', 'rising'];
-    for (const type of types) {
-      const b64 = hookAudio?.[type];
-      if (!b64) continue;
-      const latestUser = useProfileStore.getState().getUser();
-      if (latestUser?.hookAudioPaths?.[type]) continue;
-      if (inFlightUpload.current[type]) continue;
-
-      inFlightUpload.current[type] = uploadHookAudioBase64({
-        userId: uid,
-        personId: userPerson.id,
-        type,
-        audioBase64: b64,
-      })
-        .then((res) => {
-          if (!res.success) return;
-          const latest = useProfileStore.getState().getUser();
-          if (!latest?.id) return;
-          updatePerson(latest.id, {
-            hookAudioPaths: {
-              ...(latest.hookAudioPaths || {}),
-              [type]: res.path,
-            },
-          } as any);
-        })
-        .finally(() => {
-          inFlightUpload.current[type] = undefined;
-        });
-    }
-  }, [user?.id, hookAudio.sun, hookAudio.moon, hookAudio.rising, getUserProfile, updatePerson]);
+  // Note: Hook audio is now stored in Supabase Storage by the backend during generation,
+  // so we don't need a separate upload effect. The URL is stored in hookAudio[type].
 
   // STAGGERED AUDIO PRELOADING: Generate NEXT audio while viewing current page
   // SUN page → generate MOON audio | MOON page → generate RISING audio
@@ -685,6 +630,12 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
 
               if (sessionError) {
                 console.error('❌ ONBOARDING GOOGLE AUTH: Error setting session:', sessionError.message);
+                logAuthIssue({
+                  provider: 'google',
+                  outcome: 'error',
+                  detail: sessionError.message,
+                  context: 'HookSequenceScreen:handleGoogleSignIn:setSession',
+                });
                 Alert.alert('Auth Error', sessionError.message);
                 setIsSigningIn(false);
               } else {
@@ -697,21 +648,41 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
             }
           } catch (e: any) {
             console.error('❌ ONBOARDING GOOGLE AUTH: Error processing redirect:', e.message);
+            logAuthIssue({
+              provider: 'google',
+              outcome: 'error',
+              detail: e?.message,
+              context: 'HookSequenceScreen:handleGoogleSignIn:processRedirect',
+            });
             setIsSigningIn(false);
           }
         } else if (result.type === 'cancel') {
           console.log('❌ ONBOARDING GOOGLE AUTH: User cancelled');
+          logAuthIssue({ provider: 'google', outcome: 'cancel', context: 'HookSequenceScreen:handleGoogleSignIn' });
           setIsSigningIn(false);
         } else {
           console.log('⚠️ ONBOARDING GOOGLE AUTH: Unexpected result type:', result.type);
+          logAuthIssue({
+            provider: 'google',
+            outcome: 'error',
+            detail: `result.type=${result.type}`,
+            context: 'HookSequenceScreen:handleGoogleSignIn',
+          });
           setIsSigningIn(false);
         }
       } else {
         console.log('⚠️ ONBOARDING GOOGLE AUTH: No URL returned');
+        logAuthIssue({ provider: 'google', outcome: 'error', detail: 'no_url', context: 'HookSequenceScreen:handleGoogleSignIn' });
         setIsSigningIn(false);
       }
     } catch (error: any) {
       console.error('❌ ONBOARDING GOOGLE AUTH: Error:', error.message);
+      logAuthIssue({
+        provider: 'google',
+        outcome: 'error',
+        detail: error?.message,
+        context: 'HookSequenceScreen:handleGoogleSignIn:catch',
+      });
       Alert.alert('Sign In Error', error.message || 'Failed to open Google Sign-In');
       setIsSigningIn(false);
     }
@@ -719,6 +690,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
 
   const handleAppleSignIn = async () => {
     if (!isSupabaseConfigured) {
+      logAuthIssue({ provider: 'apple', outcome: 'error', detail: 'supabase_not_configured', context: 'HookSequenceScreen:handleAppleSignIn' });
       Alert.alert(
         'Not Configured',
         'Apple Sign-In requires Supabase configuration.\n\nUse Dev Mode for simulator testing.',
@@ -751,7 +723,10 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
         console.log('✅ Apple Sign-In successful');
       }
     } catch (e: any) {
-      if (e.code !== 'ERR_REQUEST_CANCELED') {
+      if (e?.code === 'ERR_REQUEST_CANCELED') {
+        logAuthIssue({ provider: 'apple', outcome: 'cancel', context: 'HookSequenceScreen:handleAppleSignIn' });
+      } else {
+        logAuthIssue({ provider: 'apple', outcome: 'error', detail: e?.message, context: 'HookSequenceScreen:handleAppleSignIn' });
         Alert.alert('Sign In Error', e.message || 'Failed to sign in with Apple');
       }
       setIsSigningIn(false);

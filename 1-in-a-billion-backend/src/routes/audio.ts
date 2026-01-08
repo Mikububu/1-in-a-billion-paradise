@@ -700,5 +700,146 @@ router.post('/generate-tts-stream', async (c) => {
   });
 });
 
+// Hook audio generation endpoint - stores in Supabase Storage and returns URL
+const hookAudioSchema = z.object({
+  text: z.string().min(1).max(50000),
+  userId: z.string().uuid().optional(), // Optional: if not provided, use temp storage
+  type: z.enum(['sun', 'moon', 'rising']),
+  exaggeration: z.number().min(0).max(1).optional().default(0.3),
+  audioUrl: z.string().optional(), // Voice sample URL
+});
+
+router.post('/hook-audio/generate', async (c) => {
+  try {
+    const parsed = hookAudioSchema.parse(await c.req.json());
+    const { env } = await import('../config/env');
+    const { supabase } = await import('../services/supabaseClient');
+
+    if (!supabase) {
+      return c.json({ success: false, error: 'Supabase not configured' }, 500);
+    }
+
+    // Use userId if provided, otherwise use temp storage (for pre-signup hook audio)
+    const userId = parsed.userId || 'temp';
+    console.log(`🎤 Hook audio generation: ${parsed.type} for user ${userId} (${parsed.text.length} chars)`);
+
+    // Get RunPod keys
+    const runpodApiKey = env.RUNPOD_API_KEY || (await getApiKey('runpod')) || '';
+    const runpodEndpointId = env.RUNPOD_ENDPOINT_ID || (await getApiKey('runpod_endpoint')) || '';
+
+    if (!runpodApiKey || !runpodEndpointId) {
+      return c.json({
+        success: false,
+        error: 'RunPod not configured (RUNPOD_API_KEY and RUNPOD_ENDPOINT_ID required)',
+      }, 500);
+    }
+
+    // Generate audio using same logic as /generate-tts
+    const textLength = parsed.text.length;
+    const chunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || '300', 10);
+    const chunks = splitIntoChunks(parsed.text, chunkSize);
+    console.log(`📦 Chunking ${textLength} chars into ${chunks.length} pieces`);
+
+    const voiceSampleUrl = parsed.audioUrl || 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/voice_10sec.wav';
+
+    // Generate chunks sequentially
+    const audioBuffers: Buffer[] = [];
+    for (let i = 0; i < chunks.length; i++) {
+      const maxRetries = 3;
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const response = await axios.post(
+            `https://api.runpod.ai/v2/${runpodEndpointId}/runsync`,
+            {
+              input: {
+                text: chunks[i]!,
+                audio_url: voiceSampleUrl,
+                exaggeration: parsed.exaggeration,
+                cfg_weight: 0.5,
+              }
+            },
+            {
+              headers: {
+                'Authorization': `Bearer ${runpodApiKey}`,
+                'Content-Type': 'application/json',
+              },
+              timeout: 180000,
+            }
+          );
+
+          const output = response.data?.output;
+          if (!output?.audio_base64) {
+            throw new Error(`No audio_base64 in response for chunk ${i + 1}`);
+          }
+
+          audioBuffers.push(Buffer.from(output.audio_base64, 'base64'));
+          break; // Success, move to next chunk
+        } catch (error: any) {
+          if (attempt < maxRetries) {
+            const waitTime = attempt * 5000;
+            console.log(`⚠️ Chunk ${i + 1} failed, retrying in ${waitTime / 1000}s...`);
+            await new Promise(r => setTimeout(r, waitTime));
+          } else {
+            throw error;
+          }
+        }
+      }
+    }
+
+    // Concatenate and compress
+    const wavAudio = concatenateWavBuffers(audioBuffers);
+    const { buffer: compressedAudio, format, mime } = wavToCompressed(wavAudio);
+    const estimatedDuration = Math.ceil((wavAudio.length - 44) / 48000);
+
+    // Store in Supabase Storage (library bucket, same as hookAudioCloud.ts)
+    // Use temp/ prefix if no userId provided (will be moved to user folder after signup)
+    const storagePath = parsed.userId 
+      ? `hook-audio/${parsed.userId}/${parsed.type}.${format}`
+      : `hook-audio/temp/${parsed.type}_${Date.now()}.${format}`;
+    const contentType = format === 'mp3' ? 'audio/mpeg' : 'audio/mp4';
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('library')
+      .upload(storagePath, compressedAudio, {
+        contentType,
+        upsert: true,
+        cacheControl: '3600',
+      });
+
+    if (uploadError) {
+      console.error('Failed to upload hook audio:', uploadError);
+      return c.json({
+        success: false,
+        error: `Storage upload failed: ${uploadError.message}`,
+      }, 500);
+    }
+
+    // Get public URL (or signed URL if bucket is private)
+    const { data: urlData } = supabase.storage
+      .from('library')
+      .getPublicUrl(storagePath);
+
+    const audioUrl = urlData.publicUrl;
+
+    console.log(`✅ Hook audio stored: ${storagePath} (${Math.round(compressedAudio.length / 1024)}KB)`);
+
+    return c.json({
+      success: true,
+      audioUrl,
+      storagePath,
+      durationSeconds: estimatedDuration,
+      format,
+      sizeBytes: compressedAudio.length,
+    });
+
+  } catch (error: any) {
+    console.error('Hook audio generation error:', error);
+    return c.json({
+      success: false,
+      error: error.message || 'Hook audio generation failed',
+    }, 500);
+  }
+});
+
 export const audioRouter = router;
 

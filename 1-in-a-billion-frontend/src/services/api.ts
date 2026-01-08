@@ -216,6 +216,42 @@ export const audioApi = {
       };
     }
   },
+
+  // Generate hook audio - backend stores in Supabase Storage, returns URL
+  generateHookAudio: async (params: {
+    text: string;
+    userId?: string; // Optional: if not provided, uses temp storage
+    type: 'sun' | 'moon' | 'rising';
+    exaggeration?: number;
+    audioUrl?: string;
+  }): Promise<{
+    success: boolean;
+    audioUrl?: string;
+    storagePath?: string;
+    durationSeconds?: number;
+    format?: string;
+    sizeBytes?: number;
+    error?: string;
+  }> => {
+    try {
+      const response = await coreClient.post('/api/audio/hook-audio/generate', {
+        text: params.text,
+        userId: params.userId, // Optional - backend will use temp storage if not provided
+        type: params.type,
+        exaggeration: params.exaggeration ?? 0.3,
+        audioUrl: params.audioUrl,
+      }, {
+        timeout: 240000, // 4 minute timeout
+      });
+      return response.data;
+    } catch (error: any) {
+      console.warn('Hook audio generation failed:', error.message);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  },
 };
 
 // ============================================
