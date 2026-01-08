@@ -514,111 +514,15 @@ router.post('/v2/start', async (c) => {
 
     console.log('👤 Creating job for user:', userId);
 
-    // Generate tasks for nuclear_v2 (16 chapters)
-    const tasks = [];
-    if (payload.type === 'nuclear_v2') {
-      const systemOrder = ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'];
-      const systemNames: Record<string, string> = {
-        western: 'Western Astrology',
-        vedic: 'Vedic (Jyotish)',
-        human_design: 'Human Design',
-        gene_keys: 'Gene Keys',
-        kabbalah: 'Kabbalah',
-      };
+    // NOTE: Task creation is handled automatically by the database trigger auto_create_job_tasks()
+    // (see migration 008_auto_create_job_tasks.sql). The trigger creates tasks based on job.type:
+    // - nuclear_v2: 16 text tasks (5 systems × 3 docs each + verdict)
+    // - extended: tasks based on params.systems array
+    // - synastry: overlay tasks based on params.systems
+    // Song generation happens via post-processing (songWorker) after text completes.
 
-      // Person 1 profiles (5 tasks, docs 1-5)
-      for (let i = 0; i < 5; i++) {
-        tasks.push({
-          taskType: 'text_generation' as const,
-          sequence: i,
-          input: {
-            system: systemOrder[i],
-            docType: 'person1',
-            docNum: i + 1,
-            title: `${systemNames[systemOrder[i]]} - ${payload.person1.name}`,
-          },
-        });
-      }
-
-      // Person 2 profiles (5 tasks, docs 6-10)
-      for (let i = 0; i < 5; i++) {
-        tasks.push({
-          taskType: 'text_generation' as const,
-          sequence: i + 5,
-          input: {
-            system: systemOrder[i],
-            docType: 'person2',
-            docNum: i + 6,
-            title: `${systemNames[systemOrder[i]]} - ${payload.person2?.name || 'Person 2'}`,
-          },
-        });
-      }
-
-      // Overlays (5 tasks, docs 11-15)
-      for (let i = 0; i < 5; i++) {
-        tasks.push({
-          taskType: 'text_generation' as const,
-          sequence: i + 10,
-          input: {
-            system: systemOrder[i],
-            docType: 'overlay',
-            docNum: i + 11,
-            title: `${systemNames[systemOrder[i]]} - Synastry`,
-          },
-        });
-      }
-
-      // Final verdict (1 task, doc 16)
-      tasks.push({
-        taskType: 'text_generation' as const,
-        sequence: 15,
-        input: {
-          system: null,
-          docType: 'verdict',
-          docNum: 16,
-          title: 'Final Verdict',
-        },
-      });
-
-      // NOTE: Song generation is NOT created as upfront tasks.
-      // Songs are generated AFTER text completes, via post-processing in the songWorker.
-      // The songWorker monitors for completed text artifacts and generates songs from that text.
-      // See: SONG_GENERATION_IMPLEMENTATION.md
-
-      console.log(`📋 Generated ${tasks.length} tasks for nuclear_v2`);
-    } else if (payload.type === 'extended') {
-      // Extended job: 1-5 systems for 1 person
-      // Each system = 1 text task (PDF/audio/song are post-processed after text completes)
-      const systemsToProcess = payload.systems?.length > 0 ? payload.systems : ['western'];
-      const systemNames: Record<string, string> = {
-        western: 'Western Astrology',
-        vedic: 'Vedic (Jyotish)',
-        human_design: 'Human Design',
-        gene_keys: 'Gene Keys',
-        kabbalah: 'Kabbalah',
-      };
-
-      // Text tasks for each system (sequence 0-4)
-      for (let i = 0; i < systemsToProcess.length; i++) {
-        const system = systemsToProcess[i];
-        tasks.push({
-          taskType: 'text_generation' as const,
-          sequence: i,
-          input: {
-            system,
-            docType: 'individual',
-            docNum: i + 1,
-            title: `${systemNames[system] || system} - ${payload.person1.name}`,
-          },
-        });
-      }
-
-      // NOTE: Song generation is NOT created as upfront tasks for extended jobs either.
-      // Songs are post-processed after text completes. See: SONG_GENERATION_IMPLEMENTATION.md
-
-      console.log(`📋 Generated ${tasks.length} tasks for extended (${systemsToProcess.length} systems)`);
-    }
-
+    // NOTE: Do NOT pass tasks array - the database trigger auto_create_job_tasks() 
+    // automatically creates tasks when a job is inserted (see migration 008)
     const jobId = await jobQueueV2.createJob({
       userId,
       type: payload.type,
@@ -628,7 +532,7 @@ router.post('/v2/start', async (c) => {
         relationshipContext: payload.relationshipContext, // Pass through for overlay interpretation
         personalContext: payload.personalContext, // Pass through for individual reading personalization
       },
-      tasks: tasks as any,
+      // tasks: tasks as any, // REMOVED - handled by DB trigger
     });
 
     return c.json({
