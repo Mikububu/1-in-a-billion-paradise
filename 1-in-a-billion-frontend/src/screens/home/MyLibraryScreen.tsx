@@ -177,6 +177,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   const deletePerson = useProfileStore((state) => state.deletePerson);
   const repairPeople = useProfileStore((state) => state.repairPeople);
   const repairReadings = useProfileStore((state) => state.repairReadings);
+  const fixDuplicateIds = useProfileStore((state) => state.fixDuplicateIds);
 
   // Onboarding store for hook readings
   const authUser = useAuthStore((s) => s.user);
@@ -185,12 +186,13 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   // One-time library repair (merges duplicate people like "Born Unknown" into the real profile)
   useEffect(() => {
     try {
-      repairPeople();
-      repairReadings();
+      fixDuplicateIds(); // FIX duplicate IDs first
+      repairPeople(); // Then merge duplicate people
+      repairReadings(); // Then dedupe readings
     } catch {
       // ignore
     }
-  }, [repairPeople, repairReadings]);
+  }, [fixDuplicateIds, repairPeople, repairReadings]);
 
   // Activity feed: show background queue status (RunPod/Supabase jobs)
   useFocusEffect(

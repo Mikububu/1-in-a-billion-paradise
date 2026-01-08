@@ -132,6 +132,7 @@ type ProfileState = {
   repairReadings: () => { removedCount: number };
   cleanupDuplicateUsers: () => { mergedCount: number }; // NEW: Merge duplicate "You" profiles
   removeIncorrectUserProfile: () => { success: boolean; message: string; removedCount: number }; // NEW: Remove incorrect user profile based on placements
+  fixDuplicateIds: () => { fixedCount: number }; // NEW: Regenerate IDs for people with duplicate IDs
   setHookReadings: (personId: string, readings: HookReading[]) => void;
   getHookReadings: (personId: string) => HookReading[] | undefined;
   getAllPeopleWithHookReadings: () => Person[];
@@ -724,6 +725,59 @@ export const useProfileStore = create<ProfileState>()(
           message: `Removed ${incorrectProfiles.length} incorrect profile(s)`,
           removedCount: incorrectProfiles.length
         };
+      },
+
+      fixDuplicateIds: () => {
+        const people = get().people;
+        const idCounts = new Map<string, number>();
+        
+        // Count occurrences of each ID
+        people.forEach((p) => {
+          idCounts.set(p.id, (idCounts.get(p.id) || 0) + 1);
+        });
+        
+        // Find duplicate IDs
+        const duplicateIds = Array.from(idCounts.entries())
+          .filter(([_, count]) => count > 1)
+          .map(([id]) => id);
+        
+        if (duplicateIds.length === 0) {
+          console.log('✅ No duplicate IDs found');
+          return { fixedCount: 0 };
+        }
+        
+        console.log(`🔧 Found ${duplicateIds.length} duplicate ID(s), regenerating...`);
+        let fixedCount = 0;
+        
+        set((state) => {
+          const newPeople = [...state.people];
+          const seenIds = new Set<string>();
+          
+          for (let i = 0; i < newPeople.length; i++) {
+            const person = newPeople[i];
+            
+            if (seenIds.has(person.id)) {
+              // This is a duplicate - regenerate its ID
+              const oldId = person.id;
+              const newId = generateId();
+              console.log(`   Regenerating ID for "${person.name}": ${oldId} → ${newId}`);
+              
+              newPeople[i] = {
+                ...person,
+                id: newId,
+                updatedAt: new Date().toISOString(),
+              };
+              fixedCount++;
+            } else {
+              seenIds.add(person.id);
+            }
+          }
+          
+          return { ...state, people: newPeople };
+        });
+        
+        console.log(`✅ Fixed ${fixedCount} duplicate ID(s)`);
+        return { fixedCount };
       },
 
       setHookReadings: (personId, readings) => {

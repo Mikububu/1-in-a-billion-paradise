@@ -501,6 +501,7 @@ const MainNavigator = () => {
   // AUTOMATIC CLEANUP: Remove incorrect self profiles based on calculated placements
   // This runs once on app mount to ensure only the correct Virgo Sun | Leo Moon | Sagittarius Rising profile exists
   // CRITICAL: Only run after store has fully hydrated from AsyncStorage to avoid operating on incomplete data
+  const fixDuplicateIds = useProfileStore((s) => s.fixDuplicateIds);
   const removeIncorrectUserProfile = useProfileStore((s) => s.removeIncorrectUserProfile);
   const hasHydrated = useProfileStore((s) => s.hasHydrated);
 
@@ -511,11 +512,19 @@ const MainNavigator = () => {
     }
 
     console.log('✅ Cleanup: Store hydrated, running automatic cleanup...');
+    
+    // Fix duplicate IDs first (before any other cleanup)
+    const idFixes = fixDuplicateIds();
+    if (idFixes.fixedCount > 0) {
+      console.log(`🔧 Fixed ${idFixes.fixedCount} duplicate ID(s)`);
+    }
+    
+    // Then remove incorrect user profiles
     const result = removeIncorrectUserProfile();
     if (result.success && result.removedCount > 0) {
       console.log(`🧹 Removed ${result.removedCount} incorrect self profile(s)`);
     }
-  }, [hasHydrated, removeIncorrectUserProfile]);
+  }, [hasHydrated, fixDuplicateIds, removeIncorrectUserProfile]);
 
   // Sync hook readings from onboarding into user profile for carousel
   const hookReadings = useOnboardingStore((s: any) => s.hookReadings);
