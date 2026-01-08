@@ -669,9 +669,9 @@ export const HomeScreen = ({ navigation }: Props) => {
               <Text style={styles.modalClose}>✕</Text>
             </Pressable>
             <Text style={[styles.modalTitle, { flex: 1, textAlign: 'center' }]}>
-              {selectedReading === 'sun' && 'YOUR SUN SIGN'}
-              {selectedReading === 'moon' && 'YOUR MOON SIGN'}
-              {selectedReading === 'rising' && 'YOUR RISING SIGN'}
+              {selectedReading === 'sun' && (currentPerson?.person?.isUser ? 'YOUR SUN SIGN' : `${currentPerson?.person?.name?.toUpperCase()}'S SUN SIGN`)}
+              {selectedReading === 'moon' && (currentPerson?.person?.isUser ? 'YOUR MOON SIGN' : `${currentPerson?.person?.name?.toUpperCase()}'S MOON SIGN`)}
+              {selectedReading === 'rising' && (currentPerson?.person?.isUser ? 'YOUR RISING SIGN' : `${currentPerson?.person?.name?.toUpperCase()}'S RISING SIGN`)}
             </Text>
 
             <View style={{ width: 44 }} />
