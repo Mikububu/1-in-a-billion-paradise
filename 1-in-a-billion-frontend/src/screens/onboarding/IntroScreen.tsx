@@ -227,9 +227,13 @@ export const IntroScreen = ({ navigation }: Props) => {
               label={isLoggedIn ? "My Secret Life" : "Get Started"}
               onPress={() => {
                 if (isLoggedIn) {
+                  // Fade out music when going to Dashboard
+                  AmbientMusic.fadeOut();
                   // Set flag to show Dashboard (MainNavigator)
                   setShowDashboard(true);
                 } else {
+                  // Fade out music when starting sign up flow
+                  AmbientMusic.fadeOut();
                   // Reset onboarding completion flag when starting fresh
                   useOnboardingStore.getState().setHasCompletedOnboarding(false);
                   navigation.navigate('Relationship');

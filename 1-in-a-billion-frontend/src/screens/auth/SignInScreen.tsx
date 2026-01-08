@@ -408,7 +408,11 @@ export const SignInScreen = ({ route }: SignInScreenProps) => {
         // Navigate to BirthInfo for new signups to collect birth data
         if (isCreatingAccount) {
           console.log('📍 Navigating to BirthInfo to collect birth data...');
+          AmbientMusic.fadeOut(); // Fade out music after successful login
           navigation.navigate('BirthInfo');
+        } else {
+          // Also fade out for existing user login (going to Dashboard)
+          AmbientMusic.fadeOut();
         }
 
         setEmailAuthState('idle');

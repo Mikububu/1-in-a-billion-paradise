@@ -50,6 +50,13 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1 }}
             >
+                {/* Back Button */}
+                <View style={styles.backButtonContainer}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                        <Text style={styles.backText}>← Back</Text>
+                    </TouchableOpacity>
+                </View>
+
                 <ScrollView
                     contentContainerStyle={styles.scrollContent}
                     keyboardShouldPersistTaps="handled"
@@ -58,8 +65,8 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                     <View style={styles.header}>
                         <Text style={styles.headline}>
                             {isSelf 
-                                ? 'Would you like to focus on something specific in your reading?'
-                                : `Would you like to focus on something specific in ${personName}'s reading?`
+                                ? 'Would you like\nto focus on something\nspecific in your reading?'
+                                : `Would you like\nto focus on something\nspecific in ${personName}'s reading?`
                             }
                         </Text>
                         <Text style={styles.subheadline}>
@@ -119,34 +126,49 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: colors.primary, // RED background
+    },
+    backButtonContainer: {
+        paddingHorizontal: spacing.page,
+        paddingTop: spacing.md,
+        paddingBottom: spacing.sm,
+    },
+    backButton: {
+        paddingVertical: spacing.xs,
+    },
+    backText: {
+        fontFamily: typography.sansMedium,
+        fontSize: 16,
+        color: colors.background, // White text on red
     },
     scrollContent: {
         flexGrow: 1,
         paddingHorizontal: spacing.page,
-        paddingTop: spacing.xl,
+        paddingTop: spacing.md,
     },
     header: {
         marginBottom: spacing.xl,
     },
     headline: {
         fontFamily: typography.headline,
-        fontSize: 18,
-        color: colors.text,
-        fontStyle: 'italic',
-        textAlign: 'center',
-        marginBottom: spacing.sm,
+        fontSize: 32, // Even bigger headline
+        color: colors.background, // White text on red background
+        fontStyle: 'normal',
+        textAlign: 'left', // LEFT aligned
+        marginBottom: spacing.md,
+        lineHeight: 40,
     },
     subheadline: {
         fontFamily: typography.sansRegular,
-        fontSize: 14,
-        color: colors.mutedText,
-        textAlign: 'center',
-        lineHeight: 20,
+        fontSize: 16,
+        color: 'rgba(255, 255, 255, 0.85)', // Light text on red
+        textAlign: 'left', // LEFT aligned
+        lineHeight: 24,
     },
     inputContainer: {
         flex: 1,
         marginBottom: spacing.lg,
+        alignItems: 'center',
     },
     textInput: {
         fontFamily: typography.sansRegular,
@@ -154,34 +176,36 @@ const styles = StyleSheet.create({
         color: colors.text,
         backgroundColor: colors.surface,
         borderRadius: radii.card,
-        padding: spacing.md,
-        height: 300,
+        padding: spacing.lg,
+        height: 290, // 30% shorter (was 420)
+        width: '90%', // Slightly wider (was 85%)
         borderWidth: 2,
         borderColor: colors.primary,
     },
     charCount: {
         fontFamily: typography.sansRegular,
         fontSize: 12,
-        color: colors.mutedText,
+        color: 'rgba(255, 255, 255, 0.7)', // Light text on red
         textAlign: 'right',
-        marginTop: spacing.xs,
+        marginTop: spacing.sm,
+        width: '85%', // Match input width
     },
     buttonContainer: {
         paddingHorizontal: spacing.page,
-        paddingBottom: spacing.lg,
-        gap: spacing.sm,
+        paddingBottom: spacing.xl, // More bottom padding
+        gap: spacing.md, // More gap
     },
     continueButton: {
-        backgroundColor: colors.primary,
+        backgroundColor: colors.background, // WHITE button (was red)
         borderRadius: radii.button,
-        paddingVertical: spacing.md,
+        paddingVertical: spacing.lg, // More padding
         alignItems: 'center',
     },
     continueButtonText: {
         fontFamily: typography.sansSemiBold,
         fontSize: 16,
-        color: colors.background,
-        letterSpacing: 0.5,
+        color: colors.primary, // RED text on white button
+        letterSpacing: 1, // More letter spacing
     },
     skipButton: {
         backgroundColor: 'transparent',
@@ -189,12 +213,12 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.md,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: 'rgba(255, 255, 255, 0.3)', // Light border on red
     },
     skipButtonText: {
         fontFamily: typography.sansSemiBold,
         fontSize: 16,
-        color: colors.text,
+        color: colors.background, // White text
         letterSpacing: 0.5,
     },
 });
