@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
         fontSize: 32, // Even bigger headline
         color: colors.background, // White text on red background
         fontStyle: 'normal',
-        textAlign: 'left', // LEFT aligned
+        textAlign: 'center', // CENTERED
         marginBottom: spacing.md,
         lineHeight: 40,
     },
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
         fontFamily: typography.sansRegular,
         fontSize: 16,
         color: 'rgba(255, 255, 255, 0.85)', // Light text on red
-        textAlign: 'left', // LEFT aligned
+        textAlign: 'left', // LEFT aligned (only subheadline)
         lineHeight: 24,
     },
     inputContainer: {
