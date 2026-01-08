@@ -461,16 +461,17 @@ export const HomeScreen = ({ navigation }: Props) => {
     // IMPORTANT: only use user's `hookAudio` (partners are per-person cached on disk).
     const rawFromStore = currentPerson?.person?.isUser ? hookAudio[selectedReading] : null;
 
-    // NEW LOGIC: Check if it's a persistent file path (ends with .mp3)
-    let persistentUri: string | null = null;
-    if (rawFromStore && typeof rawFromStore === 'string' && rawFromStore.endsWith('.mp3')) {
-      persistentUri = `${getAudioDirectory()}${rawFromStore}`;
-    }
-
     let uriToPlay: string | null = null;
 
-    // SCENARIO 1: Persistent File Exists
-    if (persistentUri) {
+    // SCENARIO 1: URL from Supabase Storage (new pipeline)
+    if (rawFromStore && typeof rawFromStore === 'string' && (rawFromStore.startsWith('http://') || rawFromStore.startsWith('https://'))) {
+      uriToPlay = rawFromStore;
+      console.log(`🎵 Playing hook audio from URL: ${uriToPlay}`);
+    }
+
+    // SCENARIO 2: Legacy local file path (ends with .mp3)
+    if (!uriToPlay && rawFromStore && typeof rawFromStore === 'string' && rawFromStore.endsWith('.mp3')) {
+      const persistentUri = `${getAudioDirectory()}${rawFromStore}`;
       try {
         const info = await FileSystem.getInfoAsync(persistentUri);
         if (info.exists) {
@@ -480,7 +481,7 @@ export const HomeScreen = ({ navigation }: Props) => {
       } catch { /* ignore */ }
     }
 
-    // SCENARIO 2: Legacy Base64 or Missing File -> Use legacy cache logic
+    // SCENARIO 3: Legacy Base64 or Missing File -> Use legacy cache logic
     if (!uriToPlay) {
       const storeBase64 = normalizeBase64(rawFromStore); // This handles if rawFromStore is base64
       const cachedFilePath = getCachedAudioPath(selectedReading);

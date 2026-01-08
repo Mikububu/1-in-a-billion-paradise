@@ -523,7 +523,7 @@ export const SignInScreen = ({ route }: SignInScreenProps) => {
                 {isLoading ? (
                   <ActivityIndicator color="#000" />
                 ) : (
-                  <Text style={styles.googleText}>Continue with Google</Text>
+                  <Text style={styles.googleText}>Login with Google</Text>
                 )}
               </TouchableOpacity>
 
@@ -533,7 +533,7 @@ export const SignInScreen = ({ route }: SignInScreenProps) => {
                   onPress={handleAppleSignIn}
                   disabled={isLoading}
                 >
-                  <Text style={styles.appleText}>Continue with Apple</Text>
+                  <Text style={styles.appleText}>Login with Apple</Text>
                 </TouchableOpacity>
               )}
 
@@ -542,7 +542,7 @@ export const SignInScreen = ({ route }: SignInScreenProps) => {
                 onPress={() => setShowEmailInput(true)}
                 disabled={isLoading}
               >
-                <Text style={styles.emailButtonText}>Continue with Email</Text>
+                <Text style={styles.emailButtonText}>Login with Email</Text>
               </TouchableOpacity>
             </>
           ) : showForgotPassword ? (

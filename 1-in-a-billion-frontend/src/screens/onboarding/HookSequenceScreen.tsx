@@ -38,7 +38,7 @@ import { audioApi } from '@/services/api';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
 import { AUDIO_CONFIG, SIGN_LABELS } from '@/config/readingConfig';
 import { saveHookReadings } from '@/services/userReadings';
-import { saveAudioToFile, getAudioDirectory, ensureAudioDirectory } from '@/services/audioDownload';
+import { getAudioDirectory } from '@/services/audioDownload'; // Legacy fallback for local file playback
 import { logAuthIssue } from '@/utils/authDebug';
 
 // Required for OAuth redirect handling
@@ -122,7 +122,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
   // Audio state
   const [audioLoading, setAudioLoading] = useState<Record<string, boolean>>({});
   const [audioPlaying, setAudioPlaying] = useState<Record<string, boolean>>({});
-  const [audioCache, setAudioCache] = useState<Record<string, string>>({}); // base64 audio cache
+  // audioCache removed - we now use URLs from Supabase Storage (stored in hookAudio)
   const soundRef = useRef<Audio.Sound | null>(null);
   const currentPlayingType = useRef<string | null>(null);
 
@@ -495,25 +495,90 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     const currentReading = readings[page];
     console.log(`🎯 Preload check: page=${page}, type=${currentReading?.type}, moon=${!!moon}, moonAudio=${!!hookAudio.moon}`);
 
+    // #region agent log
+    // H2, H3: Preload check triggered
+    if (__DEV__) {
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:preloadCheck',message:'Preload check triggered',data:{page,currentType:currentReading?.type,hasMoon:!!moon,hasMoonAudio:!!hookAudio.moon,hasRising:!!rising,hasRisingAudio:!!hookAudio.rising,isGeneratingMoon:isGeneratingMoonAudio.current,isGeneratingRising:isGeneratingRisingAudio.current},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H2'})}).catch(()=>{});
+    }
+    // #endregion
+
     // On SUN page → background generate MOON audio
     if (currentReading?.type === 'sun' && moon && !hookAudio.moon && !isGeneratingMoonAudio.current) {
       isGeneratingMoonAudio.current = true;
+      const startTime = Date.now();
       console.log('🎵 SUN page: Starting MOON audio generation...');
 
-      startHookAudioGeneration('moon', moon).then((b64) => {
-        if (b64) console.log('✅ MOON audio ready!');
+      // #region agent log
+      // H2: Moon audio pre-rendering started
+      if (__DEV__) {
+        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:preloadMoon:start',message:'Moon audio pre-rendering started',data:{page,triggeredFrom:'sun-page'},timestamp:startTime,sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H2'})}).catch(()=>{});
+      }
+      // #endregion
+
+      startHookAudioGeneration('moon', moon).then((url) => {
+        const duration = Date.now() - startTime;
+        
+        // #region agent log
+        // H2, H5: Moon audio pre-rendering result
+        if (__DEV__) {
+          const stored = useOnboardingStore.getState().hookAudio.moon;
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:preloadMoon:complete',message:'Moon audio pre-rendering complete',data:{success:!!url,audioUrl:url,storedUrl:stored,matches:stored===url,durationMs:duration},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H2'})}).catch(()=>{});
+        }
+        // #endregion
+        
+        if (url) console.log('✅ MOON audio ready!');
         else console.log('❌ MOON audio failed');
+      }).catch((err: any) => {
+        const duration = Date.now() - startTime;
+        
+        // #region agent log
+        // H2, H4: Moon audio pre-rendering error
+        if (__DEV__) {
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:preloadMoon:error',message:'Moon audio pre-rendering error',data:{error:err.message,durationMs:duration},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H2'})}).catch(()=>{});
+        }
+        // #endregion
+        
+        console.log('❌ MOON audio failed:', err);
       });
     }
 
     // On MOON page → background generate RISING audio
     if (currentReading?.type === 'moon' && rising && !hookAudio.rising && !isGeneratingRisingAudio.current) {
       isGeneratingRisingAudio.current = true;
+      const startTime = Date.now();
       console.log('🎵 MOON page: Starting RISING audio generation...');
 
-      startHookAudioGeneration('rising', rising).then((b64) => {
-        if (b64) console.log('✅ RISING audio ready!');
+      // #region agent log
+      // H3: Rising audio pre-rendering started
+      if (__DEV__) {
+        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:preloadRising:start',message:'Rising audio pre-rendering started',data:{page,triggeredFrom:'moon-page'},timestamp:startTime,sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H3'})}).catch(()=>{});
+      }
+      // #endregion
+
+      startHookAudioGeneration('rising', rising).then((url) => {
+        const duration = Date.now() - startTime;
+        
+        // #region agent log
+        // H3, H5: Rising audio pre-rendering result
+        if (__DEV__) {
+          const stored = useOnboardingStore.getState().hookAudio.rising;
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:preloadRising:complete',message:'Rising audio pre-rendering complete',data:{success:!!url,audioUrl:url,storedUrl:stored,matches:stored===url,durationMs:duration},timestamp:Date.now(),sessionId:'audio-debug',runId:'audio-debug',hypothesisId:'H3'})}).catch(()=>{});
+        }
+        // #endregion
+        
+        if (url) console.log('✅ RISING audio ready!');
         else console.log('❌ RISING audio failed');
+      }).catch((err: any) => {
+        const duration = Date.now() - startTime;
+        
+        // #region agent log
+        // H3, H4: Rising audio pre-rendering error
+        if (__DEV__) {
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:preloadRising:error',message:'Rising audio pre-rendering error',data:{error:err.message,durationMs:duration},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H3'})}).catch(()=>{});
+        }
+        // #endregion
+        
+        console.log('❌ RISING audio failed:', err);
       });
     }
   }, [page, readings, moon, rising, hookAudio.moon, hookAudio.rising, startHookAudioGeneration]);
@@ -762,12 +827,9 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
         ...(moon ? { moon } : {}),
         ...(rising ? { rising } : {}),
       };
-      const audioDataToSave = {
-        ...(audioCache.sun ? { sun: audioCache.sun } : {}),
-        ...(audioCache.moon ? { moon: audioCache.moon } : {}),
-        ...(audioCache.rising ? { rising: audioCache.rising } : {}),
-      };
-      const result = await saveHookReadings(fakeUser.id, hookReadingsToSave, audioDataToSave);
+      // Audio is now stored in Supabase Storage (URLs in hookAudio), not Base64
+      // saveHookReadings no longer needs audioData - audio URLs are stored separately
+      const result = await saveHookReadings(fakeUser.id, hookReadingsToSave);
       if (result.success) {
         console.log('✅ Hook readings saved to Supabase');
       } else {
@@ -814,12 +876,9 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
               ...(moon ? { moon } : {}),
               ...(rising ? { rising } : {}),
             };
-            const audioDataToSave = {
-              ...(audioCache.sun ? { sun: audioCache.sun } : {}),
-              ...(audioCache.moon ? { moon: audioCache.moon } : {}),
-              ...(audioCache.rising ? { rising: audioCache.rising } : {}),
-            };
-            const result = await saveHookReadings(session.user.id, hookReadingsToSave, audioDataToSave);
+            // Audio is now stored in Supabase Storage (URLs in hookAudio), not Base64
+            // saveHookReadings no longer needs audioData - audio URLs are stored separately
+            const result = await saveHookReadings(session.user.id, hookReadingsToSave);
             if (result.success) {
               console.log('✅ Hook readings saved to Supabase');
             } else {
@@ -847,7 +906,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [completeOnboarding, sun, moon, rising, audioCache]);
+  }, [completeOnboarding, sun, moon, rising]);
 
   const regenerateWithProvider = async (provider: LLMProvider) => {
     console.log(`🔄 Starting ${provider} regeneration...`);
@@ -903,20 +962,31 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
         setHookAudio('sun', '');
         setHookAudio('moon', '');
         setHookAudio('rising', '');
-        setAudioCache({}); // Clear local cache too
         listRef.current?.scrollToIndex({ index: 0, animated: true });
         setPage(0);
-        console.log(`✓ All 3 readings regenerated with ${provider} and saved to store - audio cache cleared`);
+        console.log(`✓ All 3 readings regenerated with ${provider} and saved to store - audio cleared`);
 
-        // Start generating new SUN audio immediately
+        // Start generating new SUN audio immediately (using new URL-based pipeline)
         const sunReading = newReadings[0];
-        audioApi.generateTTS(`${sunReading.intro}\n\n${sunReading.main}`, { exaggeration: AUDIO_CONFIG.exaggeration })
-          .then(result => {
-            if (result.success && result.audioBase64) {
-              setHookAudio('sun', result.audioBase64);
-              console.log('✅ New SUN audio ready');
+        const user = useProfileStore.getState().people.find(p => p.isUser);
+        const userId = user?.id;
+        if (sunReading && userId) {
+          audioApi.generateHookAudio({
+            text: `${sunReading.intro}\n\n${sunReading.main}`,
+            userId,
+            type: 'sun',
+            exaggeration: AUDIO_CONFIG.exaggeration,
+          }).then(result => {
+            if (result.success && result.audioUrl) {
+              setHookAudio('sun', result.audioUrl);
+              console.log('✅ New SUN audio ready:', result.audioUrl);
+            } else {
+              console.log('❌ New SUN audio generation failed:', result.error);
             }
+          }).catch(err => {
+            console.log('❌ New SUN audio generation error:', err);
           });
+        }
       }
     } catch (error) {
       console.log(`✗ Error with ${provider}:`, error);
@@ -934,7 +1004,16 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, layoutMeasurement } = event.nativeEvent;
     const index = Math.round(contentOffset.x / layoutMeasurement.width);
+    const oldPage = page;
     setPage(index);
+    
+    // #region agent log
+    // H2, H3: Page change tracked
+    if (__DEV__ && index !== oldPage) {
+      const currentReading = readings[index];
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:handleScroll',message:'Page changed',data:{oldPage,newPage:index,currentType:currentReading?.type,hasMoon:!!moon,hasMoonAudio:!!hookAudio.moon,hasRising:!!rising,hasRisingAudio:!!hookAudio.rising},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H2'})}).catch(()=>{});
+    }
+    // #endregion
   };
 
   // No longer need swipe detection - we have a real 4th page now

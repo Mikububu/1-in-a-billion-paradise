@@ -401,7 +401,6 @@ const MainNavigator = () => {
   const addPerson = useProfileStore((s) => s.addPerson);
   const updatePerson = useProfileStore((s) => s.updatePerson);
 
-  const redirectAfterOnboarding = useOnboardingStore((s: any) => s.redirectAfterOnboarding);
   const setRedirectAfterOnboarding = useOnboardingStore((s: any) => s.setRedirectAfterOnboarding);
   const navigation = useNavigation();
 
@@ -645,6 +644,7 @@ export const RootNavigator = () => {
   const hasSession = !!user;
   // Onboarding state - check if user has completed onboarding
   const hasCompletedOnboarding = useOnboardingStore((s) => s.hasCompletedOnboarding);
+  const showDashboard = useOnboardingStore((s) => s.showDashboard); // Flag to switch navigators
   const hookReadings = useOnboardingStore((s) => s.hookReadings);
   const hasHookReadings = !!(hookReadings?.sun && hookReadings?.moon && hookReadings?.rising);
   const onboardingBirthDate = useOnboardingStore((s: any) => s.birthDate);
@@ -659,7 +659,8 @@ export const RootNavigator = () => {
     hasUser: !!user,
     hasHookReadings,
     isHydrated,
-    hasCompletedOnboarding
+    hasCompletedOnboarding,
+    showDashboard
   });
 
   // Block rendering until Bootstrap determines if we have a valid session AND persist has hydrated
@@ -766,9 +767,18 @@ export const RootNavigator = () => {
 
   return (
     <View style={{ flex: 1 }}>
-      {hasSession ? (
-        <MainNavigator />
+      {hasSession && hasCompletedOnboarding ? (
+        // Logged-in users with completed onboarding: Check showDashboard flag
+        showDashboard ? (
+          <MainNavigator />
+        ) : (
+          <OnboardingNavigator initialRouteName="Intro" />
+        )
+      ) : hasSession ? (
+        // Session exists but onboarding incomplete → Continue onboarding
+        <OnboardingNavigator initialRouteName={initialRoute} />
       ) : (
+        // No session → Intro (Screen 1)
         <OnboardingNavigator initialRouteName="Intro" />
       )}
       <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'box-none' }} />

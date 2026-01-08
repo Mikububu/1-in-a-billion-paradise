@@ -99,7 +99,7 @@ type OnboardingState = {
   languageImportance: number;
   name?: string;
   hookReadings: Partial<Record<HookReading['type'], HookReading>>;
-  hookAudio: Partial<Record<HookReading['type'], string>>; // Pre-loaded audio base64
+  hookAudio: Partial<Record<HookReading['type'], string>>; // Pre-loaded audio URLs (from Supabase Storage) or legacy Base64/file paths
   // Partner audio (for 3rd person readings - legacy, kept for backwards compat)
   partnerAudio: Partial<Record<HookReading['type'], string>>;
   voiceId: string; // 'Grandpa' | 'Anabella' | 'Dorothy' | 'Ludwig'
@@ -132,6 +132,8 @@ type OnboardingState = {
   setVoiceId: (voiceId: string) => void;
   redirectAfterOnboarding: string | null;
   setRedirectAfterOnboarding: (screen: string | null) => void;
+  showDashboard: boolean; // Flag to switch from OnboardingNavigator to MainNavigator
+  setShowDashboard: (show: boolean) => void;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // People Management
@@ -178,6 +180,7 @@ const baseState = {
   readings: [] as ReadingRecord[],
   hasCompletedOnboarding: false,
   redirectAfterOnboarding: null,
+  showDashboard: false, // Default: show Intro (OnboardingNavigator)
   _hasHydrated: false,
 };
 
@@ -216,6 +219,7 @@ export const useOnboardingStore = create<OnboardingState>()(
       clearPartnerAudio: () => set({ partnerAudio: {} }),
       setVoiceId: (voiceId) => set({ voiceId }),
       setRedirectAfterOnboarding: (redirectAfterOnboarding) => set({ redirectAfterOnboarding }),
+      setShowDashboard: (showDashboard) => set({ showDashboard }),
 
       // ═══════════════════════════════════════════════════════════════════════════
       // People Management Actions
@@ -322,7 +326,7 @@ export const useOnboardingStore = create<OnboardingState>()(
         if (__DEV__) {
           import('@/utils/architectureDebugger').then(({ instrumentStateChange }) => {
             const oldValue = get().hasCompletedOnboarding;
-            set({ hasCompletedOnboarding: true });
+            set({ hasCompletedOnboarding: true, showDashboard: true }); // Set showDashboard to go to Dashboard immediately
             
             instrumentStateChange('onboarding', {
               key: 'hasCompletedOnboarding',
@@ -331,10 +335,10 @@ export const useOnboardingStore = create<OnboardingState>()(
               reason: 'User completed onboarding flow',
             });
           }).catch(() => {
-            set({ hasCompletedOnboarding: true });
+            set({ hasCompletedOnboarding: true, showDashboard: true });
           });
         } else {
-          set({ hasCompletedOnboarding: true });
+          set({ hasCompletedOnboarding: true, showDashboard: true }); // Set showDashboard to go to Dashboard immediately
         }
         // #endregion
       },
@@ -343,7 +347,7 @@ export const useOnboardingStore = create<OnboardingState>()(
     {
       name: 'onboarding-storage', // Storage key
       storage: createJSONStorage(() => AsyncStorage),
-      version: 4,
+      version: 5, // Bumped for showDashboard flag
       migrate: (persistedState: any, version) => {
         if (version < 2) {
           // Migrate genderPreference from string to number
@@ -364,6 +368,12 @@ export const useOnboardingStore = create<OnboardingState>()(
             if (!pl || isImplicitEnglish) {
               return { ...persistedState, primaryLanguage: undefined } as any;
             }
+          }
+        }
+        if (version < 5) {
+          // Add showDashboard flag (defaults to false - show Intro)
+          if (persistedState && typeof persistedState === 'object') {
+            persistedState.showDashboard = false;
           }
         }
         return persistedState;
@@ -390,6 +400,7 @@ export const useOnboardingStore = create<OnboardingState>()(
         readings: state.readings, // All generated readings with audio/PDF paths
         hasCompletedOnboarding: state.hasCompletedOnboarding,
         redirectAfterOnboarding: state.redirectAfterOnboarding,
+        // showDashboard is NOT persisted - always starts as false on app launch
         _hasHydrated: state._hasHydrated,
       } as any),
       onRehydrateStorage: () => (state) => {

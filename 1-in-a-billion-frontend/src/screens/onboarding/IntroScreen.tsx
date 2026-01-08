@@ -10,6 +10,8 @@ import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { AmbientMusic } from '@/services/ambientMusic';
 import { useMusicStore } from '@/store/musicStore';
+import { supabase, isSupabaseConfigured } from '@/services/supabase';
+import { env } from '@/config/env';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Intro'>;
 
@@ -18,6 +20,7 @@ const womanHappyImage = require('../../../assets/images/woman-happy.png');
 
 export const IntroScreen = ({ navigation }: Props) => {
   const reset = useOnboardingStore((state: any) => state.reset);
+  const setShowDashboard = useOnboardingStore((state: any) => state.setShowDashboard);
   const user = useAuthStore((state: any) => state.user);
   const displayName = useAuthStore((state: any) => state.displayName);
   const signOut = useAuthStore((state: any) => state.signOut);
@@ -85,14 +88,55 @@ export const IntroScreen = ({ navigation }: Props) => {
     }
   };
 
-  const handleAuthButton = () => {
+  const handleAuthButton = async () => {
     if (isLoggedIn) {
       Alert.alert(
-        'Log Out',
-        `Are you sure you want to log out${displayName ? `, ${displayName}` : ''}?`,
+        'Sign Out',
+        'By signing out you would delete all your user data and history. Are you sure?',
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Log Out', style: 'destructive', onPress: async () => await signOut() },
+          { 
+            text: 'Sign Out', 
+            style: 'destructive', 
+            onPress: async () => {
+              try {
+                // Delete ALL user data before signing out
+                const backendUrl = env.CORE_API_URL || 'https://1-in-a-billion-backend.fly.dev';
+                
+                if (isSupabaseConfigured) {
+                  const { data: { session } } = await supabase.auth.getSession();
+                  
+                  if (session?.user?.id) {
+                    // Call backend to delete all data
+                    const response = await fetch(`${backendUrl}/api/account/purge`, {
+                      method: 'DELETE',
+                      headers: {
+                        'Authorization': `Bearer ${session.access_token}`,
+                        'Content-Type': 'application/json',
+                      },
+                    });
+                    
+                    if (!response.ok) {
+                      const errorData = await response.json().catch(() => ({}));
+                      throw new Error(errorData.error || 'Failed to delete account');
+                    }
+                  }
+                }
+                
+                // Clear all local data
+                reset(); // Clears onboarding store
+                
+                // Reset showDashboard flag
+                setShowDashboard(false);
+                
+                // Sign out (clears auth session)
+                await signOut();
+              } catch (error: any) {
+                console.error('Error deleting account:', error);
+                Alert.alert('Error', error.message || 'Failed to delete account. Please try again.');
+              }
+            }
+          },
         ]
       );
     } else {
@@ -160,7 +204,7 @@ export const IntroScreen = ({ navigation }: Props) => {
           {/* MIDDLE: Primary Actions */}
           <View style={styles.middleButtons}>
             <Button
-              label={isLoggedIn ? "Log Out" : "Log In"}
+              label={isLoggedIn ? "Sign Out" : "Log In"}
               variant="secondary"
               onPress={handleAuthButton}
             />
@@ -168,7 +212,8 @@ export const IntroScreen = ({ navigation }: Props) => {
               label={isLoggedIn ? "My Secret Life" : "Get Started"}
               onPress={() => {
                 if (isLoggedIn) {
-                  // Handled by global session store
+                  // Set flag to show Dashboard (MainNavigator)
+                  setShowDashboard(true);
                 } else {
                   // Reset onboarding completion flag when starting fresh
                   useOnboardingStore.getState().setHasCompletedOnboarding(false);

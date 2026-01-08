@@ -340,7 +340,18 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
     // Helper to generate audio for a reading (uses new backend endpoint that stores in Supabase Storage)
     const generateAudioForType = async (type: 'sun' | 'moon' | 'rising', reading: any): Promise<void> => {
       if (!reading) return;
+      const startTime = Date.now();
       console.log(`🎵 Starting ${type.toUpperCase()} audio generation...`);
+      
+      // #region agent log
+      // H1: Sun audio generation timing and completion
+      if (__DEV__) {
+        const user = useProfileStore.getState().people.find(p => p.isUser);
+        const userId = user?.id;
+        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CoreIdentitiesScreen.tsx:generateAudioForType:start',message:`${type.toUpperCase()} audio generation started`,data:{type,hasReading:!!reading,hasUserId:!!userId,userId,textLength:`${reading.intro}\n\n${reading.main}`.length},timestamp:startTime,sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H1'})}).catch(()=>{});
+      }
+      // #endregion
+      
       try {
         // Get user ID if available (optional - backend handles temp storage if not signed up)
         const user = useProfileStore.getState().people.find(p => p.isUser);
@@ -353,14 +364,39 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
           exaggeration: AUDIO_CONFIG.exaggeration,
         });
 
+        const duration = Date.now() - startTime;
+        
+        // #region agent log
+        // H1, H4, H6: Audio generation result
+        if (__DEV__) {
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CoreIdentitiesScreen.tsx:generateAudioForType:result',message:`${type.toUpperCase()} audio generation result`,data:{type,success:result.success,hasAudioUrl:!!result.audioUrl,audioUrl:result.audioUrl,error:result.error,durationMs:duration,storagePath:result.storagePath},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H1'})}).catch(()=>{});
+        }
+        // #endregion
+
         if (result.success && result.audioUrl) {
           // Backend stores in Supabase Storage and returns URL
           setHookAudio(type, result.audioUrl);
+          
+          // #region agent log
+          // H5: Verify audio stored in store
+          if (__DEV__) {
+            const stored = useOnboardingStore.getState().hookAudio[type];
+            fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CoreIdentitiesScreen.tsx:generateAudioForType:stored',message:`${type.toUpperCase()} audio stored in store`,data:{type,storedUrl:stored,matches:stored===result.audioUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H5'})}).catch(()=>{});
+          }
+          // #endregion
+          
           console.log(`✅ ${type.toUpperCase()} audio ready: ${result.audioUrl}`);
         } else {
           console.log(`❌ ${type.toUpperCase()} audio failed:`, result.error);
         }
-      } catch (err) {
+      } catch (err: any) {
+        const duration = Date.now() - startTime;
+        // #region agent log
+        // H4, H6: Audio generation exception
+        if (__DEV__) {
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CoreIdentitiesScreen.tsx:generateAudioForType:exception',message:`${type.toUpperCase()} audio generation exception`,data:{type,error:err.message,stack:err.stack,durationMs:duration},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H4'})}).catch(()=>{});
+        }
+        // #endregion
         console.log(`⚠️ ${type.toUpperCase()} audio exception:`, err);
       }
     };
@@ -513,11 +549,39 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
 
       // Wait for Sun audio to complete
       if (sunAudioPromise) {
+        const waitStartTime = Date.now();
         console.log('⏳ Waiting for Sun audio to complete...');
+        
+        // #region agent log
+        // H1: Sun audio wait started
+        if (__DEV__) {
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CoreIdentitiesScreen.tsx:waitSunAudio',message:'Waiting for Sun audio to complete',data:{hasPromise:!!sunAudioPromise},timestamp:waitStartTime,sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H1'})}).catch(()=>{});
+        }
+        // #endregion
+        
         try {
           await sunAudioPromise;
+          const waitDuration = Date.now() - waitStartTime;
+          
+          // #region agent log
+          // H1: Sun audio wait completed
+          if (__DEV__) {
+            const stored = useOnboardingStore.getState().hookAudio.sun;
+            fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CoreIdentitiesScreen.tsx:waitSunAudio:complete',message:'Sun audio wait completed',data:{waitDurationMs:waitDuration,hasStoredAudio:!!stored,storedUrl:stored},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H1'})}).catch(()=>{});
+          }
+          // #endregion
+          
           console.log('✅ Sun audio ready!');
-        } catch (error) {
+        } catch (error: any) {
+          const waitDuration = Date.now() - waitStartTime;
+          
+          // #region agent log
+          // H1: Sun audio wait failed
+          if (__DEV__) {
+            fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CoreIdentitiesScreen.tsx:waitSunAudio:error',message:'Sun audio wait failed',data:{waitDurationMs:waitDuration,error:error.message},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H1'})}).catch(()=>{});
+          }
+          // #endregion
+          
           console.warn('⚠️ Sun audio generation failed, proceeding anyway:', error);
         }
       }
