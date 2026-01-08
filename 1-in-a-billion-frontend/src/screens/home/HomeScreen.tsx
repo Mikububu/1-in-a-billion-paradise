@@ -608,6 +608,15 @@ export const HomeScreen = ({ navigation }: Props) => {
           </View>
         </TouchableOpacity>
 
+        {/* Add Another Person Button */}
+        <TouchableOpacity
+          style={styles.addPersonButton}
+          onPress={() => navigation.navigate('PartnerInfo')}
+        >
+          <Text style={styles.addPersonIcon}>+</Text>
+          <Text style={styles.addPersonText}>Add Another Person</Text>
+        </TouchableOpacity>
+
         {/* Match Status */}
         <View style={styles.statusSection}>
           {hasMatch ? (
@@ -785,13 +794,14 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
 
-  // Library Card
+  // Library Card (with dashed border like Soul Lab button)
   libraryCard: {
     backgroundColor: colors.surface,
     borderRadius: radii.card,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
   },
   libraryHeader: {
     alignItems: 'center',
@@ -848,10 +858,34 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
 
-  // Status Section
+  // Add Person Button
+  addPersonButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 999,
+    borderStyle: 'dashed',
+  },
+  addPersonIcon: {
+    fontFamily: typography.sansBold,
+    fontSize: 20,
+    color: colors.primary,
+    marginRight: spacing.xs,
+  },
+  addPersonText: {
+    fontFamily: typography.sansSemiBold,
+    fontSize: 15,
+    color: colors.primary,
+  },
+
+  // Status Section (moved down significantly)
   statusSection: {
     alignItems: 'center',
-    paddingTop: spacing.sm,
+    paddingTop: 120,
     paddingBottom: spacing.xl,
   },
   buttonContainer: {

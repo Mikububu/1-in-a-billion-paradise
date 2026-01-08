@@ -189,6 +189,15 @@ export const PeopleListScreen = ({ navigation, route }: Props) => {
                 </View>
               </TouchableOpacity>
             ))}
+
+            {/* Add Another Person Button */}
+            <TouchableOpacity
+              style={styles.addPersonButton}
+              onPress={() => navigation.navigate('PartnerInfo')}
+            >
+              <Text style={styles.addPersonIcon}>+</Text>
+              <Text style={styles.addPersonText}>Add Another Person</Text>
+            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
@@ -322,6 +331,28 @@ const styles = StyleSheet.create({
     fontFamily: typography.sansSemiBold,
     fontSize: 18,
     color: colors.mutedText,
+  },
+  addPersonButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    marginTop: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 999,
+    borderStyle: 'dashed',
+  },
+  addPersonIcon: {
+    fontFamily: typography.sansBold,
+    fontSize: 20,
+    color: colors.primary,
+    marginRight: spacing.xs,
+  },
+  addPersonText: {
+    fontFamily: typography.sansSemiBold,
+    fontSize: 15,
+    color: colors.primary,
   },
 });
 
