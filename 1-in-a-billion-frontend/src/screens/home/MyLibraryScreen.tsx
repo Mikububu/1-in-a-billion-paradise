@@ -1358,14 +1358,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             </TouchableOpacity>
           ))}
 
-          <TouchableOpacity
-            style={styles.addPersonButton}
-            onPress={() => navigation.navigate('PartnerInfo')}
-          >
-            <Text style={styles.addPersonIcon}>+</Text>
-            <Text style={styles.addPersonText}>Add Another Person</Text>
-          </TouchableOpacity>
-
         </>
       )}
     </View>
@@ -2194,15 +2186,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
               )}
             </View>
           )}
-
-          {/* Add Person Button */}
-          <TouchableOpacity
-            style={styles.addPersonButton}
-            onPress={() => navigation.navigate('PartnerInfo')}
-          >
-            <Text style={styles.addPersonIcon}>+</Text>
-            <Text style={styles.addPersonText}>Add Another Person</Text>
-          </TouchableOpacity>
 
           {/* Loading indicator */}
           {loadingQueueJobs && (
