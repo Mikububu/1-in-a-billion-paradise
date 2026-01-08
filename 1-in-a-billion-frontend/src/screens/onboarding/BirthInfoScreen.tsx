@@ -163,7 +163,8 @@ export const BirthInfoScreen = ({ navigation }: Props) => {
     setBirthDate(toIsoDate(dateValue));
     setBirthTime(toTimeString(timeValue));
     if (selectedCity) setBirthCity(selectedCity);
-    navigation.navigate('Account');
+    // Flow: BirthInfo → Languages → Account
+    navigation.navigate('Languages');
   };
 
   return (

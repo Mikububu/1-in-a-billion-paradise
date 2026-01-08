@@ -641,6 +641,10 @@ export const RootNavigator = () => {
   const hasCompletedOnboarding = useOnboardingStore((s) => s.hasCompletedOnboarding);
   const hookReadings = useOnboardingStore((s) => s.hookReadings);
   const hasHookReadings = !!(hookReadings?.sun && hookReadings?.moon && hookReadings?.rising);
+  const onboardingBirthDate = useOnboardingStore((s: any) => s.birthDate);
+  const onboardingBirthTime = useOnboardingStore((s: any) => s.birthTime);
+  const onboardingBirthCity = useOnboardingStore((s: any) => s.birthCity);
+  const primaryLanguage = useOnboardingStore((s: any) => s.primaryLanguage);
   const isHydrated = useOnboardingStore((s) => s._hasHydrated);
 
   console.log('🧭 RootNavigator State:', {
@@ -682,9 +686,16 @@ export const RootNavigator = () => {
   const shouldContinueOnboarding = hasSession && !hasCompletedOnboarding;
 
   if (shouldContinueOnboarding) {
-    // If readings don't exist yet, start at CoreIdentities (waiting animation)
-    // If readings exist, CoreIdentities will quickly navigate to HookSequence
-    const initialRoute = hasHookReadings ? 'HookSequence' : 'CoreIdentities';
+    // Resume onboarding at the earliest missing step (never skip required screens).
+    // Order: BirthInfo → Languages → CoreIdentities → HookSequence
+    const initialRoute =
+      !onboardingBirthDate || !onboardingBirthTime || !onboardingBirthCity
+        ? 'BirthInfo'
+        : !primaryLanguage
+          ? 'Languages'
+          : hasHookReadings
+            ? 'HookSequence'
+            : 'CoreIdentities';
     console.log(`🔄 ROUTING: Session exists but onboarding incomplete → Continue to ${initialRoute}`);
     
     // #region agent log

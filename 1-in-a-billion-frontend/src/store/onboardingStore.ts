@@ -157,7 +157,7 @@ type OnboardingState = {
   reset: () => void;
 };
 
-// Clean initial state - English as default language
+// Clean initial state - language must be explicitly chosen in Languages screen
 const baseState = {
   relationshipIntensity: 5,
   genderPreference: 50 as GenderPreference, // 0=men, 50=both, 100=women
@@ -166,7 +166,7 @@ const baseState = {
   birthTime: undefined as string | undefined,
   birthCity: undefined as CityOption | undefined,
   currentCity: undefined as CityOption | undefined,
-  primaryLanguage: { code: 'en', label: 'English' } as LanguageOption, // Default to English
+  primaryLanguage: undefined as LanguageOption | undefined,
   secondaryLanguage: undefined as LanguageOption | undefined,
   languageImportance: 5,
   hookReadings: {} as Partial<Record<HookReading['type'], HookReading>>,
@@ -343,7 +343,7 @@ export const useOnboardingStore = create<OnboardingState>()(
     {
       name: 'onboarding-storage', // Storage key
       storage: createJSONStorage(() => AsyncStorage),
-      version: 3, // Bump version to reset all data
+      version: 4,
       migrate: (persistedState: any, version) => {
         if (version < 2) {
           // Migrate genderPreference from string to number
@@ -354,6 +354,17 @@ export const useOnboardingStore = create<OnboardingState>()(
         if (version < 3) {
           // Reset all data to clean state
           return { ...baseState } as any;
+        }
+        if (version < 4) {
+          // Ensure primary language must be explicitly selected (do not silently default to English).
+          if (persistedState && typeof persistedState === 'object') {
+            const pl = persistedState.primaryLanguage;
+            const isImplicitEnglish =
+              pl && typeof pl === 'object' && pl.code === 'en' && (pl.label === 'English' || !pl.label);
+            if (!pl || isImplicitEnglish) {
+              return { ...persistedState, primaryLanguage: undefined } as any;
+            }
+          }
         }
         return persistedState;
       },
