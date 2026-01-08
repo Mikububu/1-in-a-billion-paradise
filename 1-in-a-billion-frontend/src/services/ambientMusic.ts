@@ -131,6 +131,11 @@ class AmbientMusicService {
         }
     }
 
+    async fadeAndPause(duration = 4000) {
+        // Convenience method: fade out and pause
+        await this.fadeOut(duration);
+    }
+
     async stop() {
         if (!this.sound) return;
         try {
