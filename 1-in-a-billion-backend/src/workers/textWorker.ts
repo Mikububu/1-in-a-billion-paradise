@@ -38,12 +38,13 @@ function buildChartDataForSystem(
   system: string,
   person1Name: string,
   p1Placements: any,
-  person2Name: string,
-  p2Placements: any,
+  person2Name: string | null,
+  p2Placements: any | null,
   p1BirthData: { birthDate: string; birthTime: string },
-  p2BirthData: { birthDate: string; birthTime: string }
+  p2BirthData: { birthDate: string; birthTime: string } | null
 ): string {
   const formatDegree = (d: any) => (d ? `${d.degree}° ${d.minute}'` : '');
+  const hasP2 = Boolean(person2Name && p2Placements && p2BirthData);
 
   // Calculate approximate sidereal positions (Lahiri ayanamsa ~23°50')
   const AYANAMSA = 23.85; // Lahiri ayanamsa for current era
@@ -94,33 +95,49 @@ function buildChartDataForSystem(
 
   const p1SunDeg = p1Placements.sunDegree?.degree || signToDegree[p1Placements.sunSign] || 0;
   const p1MoonDeg = p1Placements.moonDegree?.degree || signToDegree[p1Placements.moonSign] || 0;
-  const p2SunDeg = p2Placements.sunDegree?.degree || signToDegree[p2Placements.sunSign] || 0;
-  const p2MoonDeg = p2Placements.moonDegree?.degree || signToDegree[p2Placements.moonSign] || 0;
+  const p2SunDeg = hasP2 ? (p2Placements!.sunDegree?.degree || signToDegree[p2Placements!.sunSign] || 0) : 0;
+  const p2MoonDeg = hasP2 ? (p2Placements!.moonDegree?.degree || signToDegree[p2Placements!.moonSign] || 0) : 0;
 
   switch (system) {
     case 'western':
+      if (!hasP2) {
+        return `${person1Name.toUpperCase()} WESTERN (TROPICAL) CHART:
+- Sun: ${p1Placements.sunSign} ${formatDegree(p1Placements.sunDegree)}
+- Moon: ${p1Placements.moonSign} ${formatDegree(p1Placements.moonDegree)}
+- Rising: ${p1Placements.risingSign} ${formatDegree(p1Placements.ascendantDegree)}`;
+      }
+
       return `${person1Name.toUpperCase()} WESTERN (TROPICAL) CHART:
 - Sun: ${p1Placements.sunSign} ${formatDegree(p1Placements.sunDegree)}
 - Moon: ${p1Placements.moonSign} ${formatDegree(p1Placements.moonDegree)}
 - Rising: ${p1Placements.risingSign} ${formatDegree(p1Placements.ascendantDegree)}
 
-${person2Name.toUpperCase()} WESTERN (TROPICAL) CHART:
-- Sun: ${p2Placements.sunSign} ${formatDegree(p2Placements.sunDegree)}
-- Moon: ${p2Placements.moonSign} ${formatDegree(p2Placements.moonDegree)}
-- Rising: ${p2Placements.risingSign} ${formatDegree(p2Placements.ascendantDegree)}`;
+${person2Name!.toUpperCase()} WESTERN (TROPICAL) CHART:
+- Sun: ${p2Placements!.sunSign} ${formatDegree(p2Placements!.sunDegree)}
+- Moon: ${p2Placements!.moonSign} ${formatDegree(p2Placements!.moonDegree)}
+- Rising: ${p2Placements!.risingSign} ${formatDegree(p2Placements!.ascendantDegree)}`;
 
     case 'vedic':
       const p1SunSidereal = toSidereal(p1SunDeg);
       const p1MoonSidereal = toSidereal(p1MoonDeg);
-      const p2SunSidereal = toSidereal(p2SunDeg);
-      const p2MoonSidereal = toSidereal(p2MoonDeg);
+      const p2SunSidereal = hasP2 ? toSidereal(p2SunDeg) : 0;
+      const p2MoonSidereal = hasP2 ? toSidereal(p2MoonDeg) : 0;
+
+      if (!hasP2) {
+        return `${person1Name.toUpperCase()} VEDIC (SIDEREAL/JYOTISH) CHART:
+- Sun (Surya): ${getZodiacSign(p1SunSidereal)} ${Math.floor(p1SunSidereal % 30)}° - Nakshatra: ${getNakshatra(p1SunSidereal)}
+- Moon (Chandra): ${getZodiacSign(p1MoonSidereal)} ${Math.floor(p1MoonSidereal % 30)}° - Nakshatra: ${getNakshatra(p1MoonSidereal)}
+- Moon Nakshatra Lord: ${['Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'][Math.floor(p1MoonSidereal / 13.333) % 9]}
+
+NOTE: Vedic astrology uses the sidereal zodiac (~24° offset from tropical). Focus on Nakshatras, planetary periods (Dashas), and Vedic house system.`;
+      }
 
       return `${person1Name.toUpperCase()} VEDIC (SIDEREAL/JYOTISH) CHART:
 - Sun (Surya): ${getZodiacSign(p1SunSidereal)} ${Math.floor(p1SunSidereal % 30)}° - Nakshatra: ${getNakshatra(p1SunSidereal)}
 - Moon (Chandra): ${getZodiacSign(p1MoonSidereal)} ${Math.floor(p1MoonSidereal % 30)}° - Nakshatra: ${getNakshatra(p1MoonSidereal)}
 - Moon Nakshatra Lord: ${['Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'][Math.floor(p1MoonSidereal / 13.333) % 9]}
 
-${person2Name.toUpperCase()} VEDIC (SIDEREAL/JYOTISH) CHART:
+${person2Name!.toUpperCase()} VEDIC (SIDEREAL/JYOTISH) CHART:
 - Sun (Surya): ${getZodiacSign(p2SunSidereal)} ${Math.floor(p2SunSidereal % 30)}° - Nakshatra: ${getNakshatra(p2SunSidereal)}
 - Moon (Chandra): ${getZodiacSign(p2MoonSidereal)} ${Math.floor(p2MoonSidereal % 30)}° - Nakshatra: ${getNakshatra(p2MoonSidereal)}
 - Moon Nakshatra Lord: ${['Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'][Math.floor(p2MoonSidereal / 13.333) % 9]}
@@ -130,8 +147,18 @@ NOTE: Vedic astrology uses the sidereal zodiac (~24° offset from tropical). Foc
     case 'human_design':
       const p1SunGate = getHDGate(p1SunDeg);
       const p1EarthGate = getHDGate((p1SunDeg + 180) % 360);
-      const p2SunGate = getHDGate(p2SunDeg);
-      const p2EarthGate = getHDGate((p2SunDeg + 180) % 360);
+      const p2SunGate = hasP2 ? getHDGate(p2SunDeg) : 0;
+      const p2EarthGate = hasP2 ? getHDGate((p2SunDeg + 180) % 360) : 0;
+
+      if (!hasP2) {
+        return `${person1Name.toUpperCase()} HUMAN DESIGN:
+- Conscious Sun Gate: ${p1SunGate}
+- Conscious Earth Gate: ${p1EarthGate}
+- Design Sun Gate (88° before birth): ${getHDGate((p1SunDeg - 88 + 360) % 360)}
+- Born: ${p1BirthData.birthDate} at ${p1BirthData.birthTime}
+
+NOTE: Human Design combines I Ching, Kabbalah, Hindu-Brahmin chakras, and astrology. Focus on Type, Strategy, Authority, and Gate activations.`;
+      }
 
       return `${person1Name.toUpperCase()} HUMAN DESIGN:
 - Conscious Sun Gate: ${p1SunGate}
@@ -139,17 +166,27 @@ NOTE: Vedic astrology uses the sidereal zodiac (~24° offset from tropical). Foc
 - Design Sun Gate (88° before birth): ${getHDGate((p1SunDeg - 88 + 360) % 360)}
 - Born: ${p1BirthData.birthDate} at ${p1BirthData.birthTime}
 
-${person2Name.toUpperCase()} HUMAN DESIGN:
+${person2Name!.toUpperCase()} HUMAN DESIGN:
 - Conscious Sun Gate: ${p2SunGate}
 - Conscious Earth Gate: ${p2EarthGate}
 - Design Sun Gate (88° before birth): ${getHDGate((p2SunDeg - 88 + 360) % 360)}
-- Born: ${p2BirthData.birthDate} at ${p2BirthData.birthTime}
+- Born: ${p2BirthData!.birthDate} at ${p2BirthData!.birthTime}
 
 NOTE: Human Design combines I Ching, Kabbalah, Hindu-Brahmin chakras, and astrology. Focus on Type, Strategy, Authority, and Gate activations.`;
 
     case 'gene_keys':
       const p1GK = getHDGate(p1SunDeg);
-      const p2GK = getHDGate(p2SunDeg);
+      const p2GK = hasP2 ? getHDGate(p2SunDeg) : 0;
+
+      if (!hasP2) {
+        return `${person1Name.toUpperCase()} GENE KEYS:
+- Life's Work (Conscious Sun): Gene Key ${p1GK}
+- Evolution (Conscious Earth): Gene Key ${getHDGate((p1SunDeg + 180) % 360)}
+- Radiance (Conscious South Node): Gene Key ${getHDGate((p1SunDeg + 90) % 360)}
+- Purpose (Conscious North Node): Gene Key ${getHDGate((p1SunDeg + 270) % 360)}
+
+NOTE: Gene Keys explores the Shadow, Gift, and Siddhi of each key. Focus on the journey from Shadow to Gift to Siddhi.`;
+      }
 
       return `${person1Name.toUpperCase()} GENE KEYS:
 - Life's Work (Conscious Sun): Gene Key ${p1GK}
@@ -157,7 +194,7 @@ NOTE: Human Design combines I Ching, Kabbalah, Hindu-Brahmin chakras, and astrol
 - Radiance (Conscious South Node): Gene Key ${getHDGate((p1SunDeg + 90) % 360)}
 - Purpose (Conscious North Node): Gene Key ${getHDGate((p1SunDeg + 270) % 360)}
 
-${person2Name.toUpperCase()} GENE KEYS:
+${person2Name!.toUpperCase()} GENE KEYS:
 - Life's Work (Conscious Sun): Gene Key ${p2GK}
 - Evolution (Conscious Earth): Gene Key ${getHDGate((p2SunDeg + 180) % 360)}
 - Radiance (Conscious South Node): Gene Key ${getHDGate((p2SunDeg + 90) % 360)}
@@ -167,27 +204,39 @@ NOTE: Gene Keys explores the Shadow, Gift, and Siddhi of each key. Focus on the 
 
     case 'kabbalah':
       const p1LP = getLifePath(p1BirthData.birthDate);
-      const p2LP = getLifePath(p2BirthData.birthDate);
+      const p2LP = hasP2 ? getLifePath(p2BirthData!.birthDate) : 0;
       const sephirot = ['', 'Kether (Crown)', 'Chokmah (Wisdom)', 'Binah (Understanding)',
         'Chesed (Mercy)', 'Geburah (Severity)', 'Tiphareth (Beauty)',
         'Netzach (Victory)', 'Hod (Glory)', 'Yesod (Foundation)',
         'Malkuth (Kingdom)', 'Kether-Chokmah', 'Binah-Chesed'];
+
+      if (!hasP2) {
+        return `${person1Name.toUpperCase()} KABBALAH:
+- Life Path Number: ${p1LP} - ${sephirot[p1LP] || 'Master Number'}
+- Birth Day Number: ${parseInt(p1BirthData.birthDate.split('-')[2] || '1')}
+- Soul Urge: Derived from vowels in name
+
+NOTE: Kabbalah focuses on the Tree of Life (Sephirot), paths between spheres, and the soul's journey.`;
+      }
 
       return `${person1Name.toUpperCase()} KABBALAH:
 - Life Path Number: ${p1LP} - ${sephirot[p1LP] || 'Master Number'}
 - Birth Day Number: ${parseInt(p1BirthData.birthDate.split('-')[2] || '1')}
 - Soul Urge: Derived from vowels in name
 
-${person2Name.toUpperCase()} KABBALAH:
+${person2Name!.toUpperCase()} KABBALAH:
 - Life Path Number: ${p2LP} - ${sephirot[p2LP] || 'Master Number'}
-- Birth Day Number: ${parseInt(p2BirthData.birthDate.split('-')[2] || '1')}
+- Birth Day Number: ${parseInt(p2BirthData!.birthDate.split('-')[2] || '1')}
 - Soul Urge: Derived from vowels in name
 
 NOTE: Kabbalah focuses on the Tree of Life (Sephirot), paths between spheres, and the soul's journey. Focus on how their Life Paths interact on the Tree.`;
 
     default:
+      if (!hasP2) {
+        return `Birth Data for ${person1Name}: ${p1BirthData.birthDate} at ${p1BirthData.birthTime}`;
+      }
       return `Birth Data for ${person1Name}: ${p1BirthData.birthDate} at ${p1BirthData.birthTime}
-Birth Data for ${person2Name}: ${p2BirthData.birthDate} at ${p2BirthData.birthTime}`;
+Birth Data for ${person2Name}: ${p2BirthData!.birthDate} at ${p2BirthData!.birthTime}`;
   }
 }
 
@@ -333,11 +382,11 @@ export class TextWorker extends BaseWorker {
       birthPlace: `${Number(person1.latitude).toFixed(2)}°N, ${Number(person1.longitude).toFixed(2)}°E`,
     };
 
-    const p2BirthData = {
+    const p2BirthData = person2 ? {
       birthDate: person2.birthDate,
       birthTime: person2.birthTime,
       birthPlace: `${Number(person2.latitude).toFixed(2)}°N, ${Number(person2.longitude).toFixed(2)}°E`,
-    };
+    } : null;
 
     // ═══════════════════════════════════════════════════════════════════════════
     // CRITICAL FIX: Use SYSTEM-SPECIFIC chart data, not generic Western data!
@@ -347,7 +396,7 @@ export class TextWorker extends BaseWorker {
       system || 'western',  // Use the actual system from task input
       person1.name,
       p1Placements,
-      person2.name,
+      person2?.name || null,
       p2Placements,
       p1BirthData,
       p2BirthData
@@ -394,6 +443,9 @@ export class TextWorker extends BaseWorker {
       }
 
       if (docType === 'overlay') {
+        if (!person2 || !p2BirthData || !p2Placements) {
+          throw new Error(`Overlay doc requires person2, but person2 is missing for job ${jobId}`);
+        }
         prompt = buildNuclearV2OverlayPrompt({
           system: system as any,
           person1Name: person1.name,
@@ -416,6 +468,9 @@ export class TextWorker extends BaseWorker {
         });
         label += `:p1:${system}`;
       } else if (docType === 'person2') {
+        if (!person2 || !p2BirthData) {
+          throw new Error(`person2 doc requires person2, but person2 is missing for job ${jobId}`);
+        }
         prompt = buildPersonPrompt({
           system: system as any,
           personName: person2.name,

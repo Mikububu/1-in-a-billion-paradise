@@ -25,6 +25,35 @@ interface Response {
     error?: string;
 }
 
+/**
+ * CRITICAL: This worker uses stdout as a JSONL transport channel.
+ * Any console.log/console.info output from imported modules (e.g. swissEphemeris)
+ * would corrupt the protocol and break the parent parser.
+ *
+ * Route non-error logging to stderr to keep stdout clean.
+ */
+const writeStderr = (...args: any[]) => {
+    try {
+        const msg = args
+            .map((a) => {
+                if (typeof a === 'string') return a;
+                try { return JSON.stringify(a); } catch { return String(a); }
+            })
+            .join(' ');
+        process.stderr.write(msg + '\n');
+    } catch {
+        // ignore
+    }
+};
+
+// Redirect standard logs to stderr (stdout reserved for JSON responses)
+// eslint-disable-next-line no-console
+console.log = writeStderr as any;
+// eslint-disable-next-line no-console
+console.info = writeStderr as any;
+// eslint-disable-next-line no-console
+console.warn = writeStderr as any;
+
 // Process one request
 async function handleRequest(req: Request): Promise<Response> {
     try {

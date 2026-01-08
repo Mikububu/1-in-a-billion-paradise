@@ -23,10 +23,11 @@ async function markJobCrashed(reason: string) {
         await supabase
             .from('jobs')
             .update({
-                status: 'failed', // Changed from 'error' to 'failed' to match likely enum, checking DB schema would be best but 'failed' is standard in this codebase based on previous k6 logs
+                // job_status enum: queued | processing | complete | error | cancelled
+                status: 'error',
                 error: `Worker crashed: ${reason}`,
                 progress: {
-                    phase: 'failed',
+                    phase: 'error',
                     message: 'Worker crashed during processing',
                     percent: 0
                 }
