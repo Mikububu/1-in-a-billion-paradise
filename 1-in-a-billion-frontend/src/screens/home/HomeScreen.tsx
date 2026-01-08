@@ -608,15 +608,6 @@ export const HomeScreen = ({ navigation }: Props) => {
           </View>
         </TouchableOpacity>
 
-        {/* Add Another Person Button */}
-        <TouchableOpacity
-          style={styles.addPersonButton}
-          onPress={() => navigation.navigate('PartnerInfo')}
-        >
-          <Text style={styles.addPersonIcon}>+</Text>
-          <Text style={styles.addPersonText}>Add Another Person</Text>
-        </TouchableOpacity>
-
         {/* Match Status */}
         <View style={styles.statusSection}>
           {hasMatch ? (
@@ -856,30 +847,6 @@ const styles = StyleSheet.create({
     width: 1,
     backgroundColor: colors.divider,
     marginVertical: 4,
-  },
-
-  // Add Person Button
-  addPersonButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    marginTop: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: 999,
-    borderStyle: 'dashed',
-  },
-  addPersonIcon: {
-    fontFamily: typography.sansBold,
-    fontSize: 20,
-    color: colors.primary,
-    marginRight: spacing.xs,
-  },
-  addPersonText: {
-    fontFamily: typography.sansSemiBold,
-    fontSize: 15,
-    color: colors.primary,
   },
 
   // Status Section (moved down significantly)
