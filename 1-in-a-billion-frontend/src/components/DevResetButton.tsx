@@ -9,10 +9,12 @@ import {
   Pressable,
   Alert
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useProfileStore } from '@/store/profileStore';
 import { resetToOnboardingStart, navigateToScreen } from '@/navigation/navigationRef';
 import { colors, typography, spacing, radii } from '@/theme/tokens';
+import { supabase } from '@/services/supabase';
 
 
 

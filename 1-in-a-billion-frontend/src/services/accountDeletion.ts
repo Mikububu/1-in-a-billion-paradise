@@ -6,6 +6,18 @@
  */
 
 import { supabase } from './supabase';
+import { env } from '@/config/env';
+
+async function fetchWithTimeout(input: RequestInfo, init: RequestInit & { timeoutMs?: number } = {}) {
+  const { timeoutMs = 15000, ...rest } = init;
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...rest, signal: controller.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
 
 /**
  * Delete user account and all associated data
@@ -34,50 +46,64 @@ export async function deleteAccount(): Promise<void> {
 
     const accessToken = session.access_token;
 
-    // Get backend URL from environment
-    // Use centralized env config (same as other services)
-    const backendUrl = process.env.EXPO_PUBLIC_CORE_API_URL || process.env.EXPO_PUBLIC_API_URL || 'https://1-in-a-billion-backend.fly.dev';
+    const baseCandidates = [
+        env.CORE_API_URL,
+        // Fallbacks (helpful when env points at Fly but dev backend is running locally)
+        'http://172.20.10.2:8787',
+        'http://localhost:8787',
+        'http://127.0.0.1:8787',
+        'https://1-in-a-billion-backend.fly.dev',
+    ];
+    const bases = Array.from(new Set(baseCandidates.filter(Boolean)));
 
-    if (!backendUrl) {
-        throw new Error('Backend URL not configured. Please set EXPO_PUBLIC_CORE_API_URL in your .env file.');
+    let lastErr: any = null;
+    for (const base of bases) {
+        const fullUrl = `${base}/api/account/purge`;
+        try {
+            console.log('🗑️ DELETE Account - Trying:', fullUrl);
+            const response = await fetchWithTimeout(fullUrl, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json',
+                },
+                timeoutMs: 15000,
+            });
+
+            console.log('🗑️ DELETE Account - Response status:', response.status, 'base:', base);
+
+            if (response.status === 404) {
+                const text = await response.text().catch(() => '');
+                console.error('❌ 404 Not Found:', { fullUrl, base, text });
+                lastErr = new Error(`Endpoint not found: ${fullUrl}`);
+                continue; // try next base
+            }
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({} as any));
+                lastErr = new Error(errorData.error || `Failed to delete account: ${response.status}`);
+                continue; // try next base
+            }
+
+            const result = await response.json();
+            if (!result.success) {
+                lastErr = new Error(result.error || 'Account deletion failed');
+                continue;
+            }
+
+            // Success
+            lastErr = null;
+            break;
+        } catch (e: any) {
+            console.error('❌ Account deletion network error for base:', base, e?.message || e);
+            lastErr = e;
+            continue;
+        }
     }
 
-    // Construct full URL
-    const fullUrl = `${backendUrl}/api/account/purge`;
-    console.log('🗑️ DELETE Account - Full URL:', fullUrl);
-    console.log('🗑️ DELETE Account - Has token:', !!accessToken);
-
-    // Call backend hard-delete endpoint
-    const response = await fetch(fullUrl, {
-        method: 'DELETE',
-        headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-        },
-    });
-
-    console.log('🗑️ DELETE Account - Response status:', response.status);
-
-    // Log 404 details for debugging
-    if (response.status === 404) {
-        console.error('❌ 404 Not Found - Request details:');
-        console.error('   URL:', fullUrl);
-        console.error('   Method: DELETE');
-        console.error('   Backend URL:', backendUrl);
-        const text = await response.text();
-        console.error('   Response body:', text);
-        throw new Error(`Endpoint not found: ${fullUrl}`);
-    }
-
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to delete account: ${response.status}`);
-    }
-
-    const result = await response.json();
-
-    if (!result.success) {
-        throw new Error(result.error || 'Account deletion failed');
+    if (lastErr) {
+        // Surface a user-friendly error
+        throw new Error(lastErr?.message || 'Network error deleting account');
     }
 
     // Sign out locally (session is already invalid on backend)

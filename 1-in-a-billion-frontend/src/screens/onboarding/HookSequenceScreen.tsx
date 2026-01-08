@@ -333,34 +333,45 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
         .generateTTS(textToSpeak, { exaggeration: AUDIO_CONFIG.exaggeration })
         .then(async (result) => {
           if (result.success && result.audioBase64) {
-            // Store base64 directly (more reliable than file writes on some devices)
-            setHookAudio(type, result.audioBase64);
-
-            // Cloud Sync (upload base64; cloud will return a path)
+            // SAVE TO FILE instead of storing Base64 (restore last-known-good behavior)
             try {
-              const uid = user?.id;
-              const userPerson = getUserProfile();
-              if (uid && userPerson?.id && isSupabaseConfigured && env.ENABLE_SUPABASE_LIBRARY_SYNC) {
-                uploadHookAudioBase64({
-                  userId: uid,
-                  personId: userPerson.id,
-                  type,
-                  audioBase64: result.audioBase64,
-                }).then((res) => {
-                  if (!res.success) return;
-                  updatePerson(userPerson.id, {
-                    hookAudioPaths: {
-                      ...(userPerson.hookAudioPaths || {}),
-                      [type]: res.path, // Cloud path
-                    },
-                  } as any);
-                });
-              }
-            } catch {
-              // ignore cloud sync errors here
-            }
+              const filename = `hook_${type}_${Date.now()}`; // saveAudioToFile adds extension
+              await saveAudioToFile(result.audioBase64, filename);
+              const filenameHub = `${filename}.mp3`;
 
-            return result.audioBase64; // Return base64
+              console.log(`💾 Saved ${type} audio to file: ${filenameHub}`);
+              setHookAudio(type, filenameHub);
+
+              // Cloud Sync (legacy): upload base64 (cloud service expects base64)
+              try {
+                const uid = user?.id;
+                const userPerson = getUserProfile();
+                if (uid && userPerson?.id && isSupabaseConfigured && env.ENABLE_SUPABASE_LIBRARY_SYNC) {
+                  uploadHookAudioBase64({
+                    userId: uid,
+                    personId: userPerson.id,
+                    type,
+                    audioBase64: result.audioBase64,
+                  }).then((res) => {
+                    if (!res.success) return;
+                    updatePerson(userPerson.id, {
+                      hookAudioPaths: {
+                        ...(userPerson.hookAudioPaths || {}),
+                        [type]: res.path, // Cloud path
+                      },
+                    } as any);
+                  });
+                }
+              } catch { /* ignore */ }
+
+              return filenameHub; // Return filename now, not base64
+            } catch (err) {
+              console.error('Failed to save audio file:', err);
+              // Fallback: store base64 if file save fails (e.g. no space)
+              // This keeps playback working rather than failing silently.
+              setHookAudio(type, result.audioBase64);
+              return result.audioBase64;
+            }
           }
           return null;
         })

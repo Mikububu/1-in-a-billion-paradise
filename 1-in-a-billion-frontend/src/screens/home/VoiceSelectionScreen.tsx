@@ -38,16 +38,57 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
         fetchVoices();
     }, []);
 
+    const fetchWithTimeout = async (url: string, options: RequestInit & { timeoutMs?: number } = {}) => {
+        const { timeoutMs = 12000, ...rest } = options;
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            return await fetch(url, { ...rest, signal: controller.signal });
+        } finally {
+            clearTimeout(t);
+        }
+    };
+
     const fetchVoices = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`${env.CORE_API_URL}/api/voices/samples`);
-            const data = await response.json();
-            if (data.success && data.voices) {
-                setVoices(data.voices);
-                if (!preselectedVoice && data.voices.length > 0) {
-                    setSelectedVoice(data.voices[0].id);
+            const baseCandidates = [
+                env.CORE_API_URL,
+                // Helpful dev fallbacks if local backend is up but env points elsewhere (or vice versa)
+                'http://172.20.10.2:8787',
+                'http://localhost:8787',
+                'http://127.0.0.1:8787',
+                'https://1-in-a-billion-backend.fly.dev',
+            ];
+            const bases = Array.from(new Set(baseCandidates.filter(Boolean)));
+
+            let lastErr: any = null;
+            for (const base of bases) {
+                const url = `${base}/api/voices/samples`;
+                try {
+                    const response = await fetchWithTimeout(url, { timeoutMs: 12000 });
+                    if (!response.ok) {
+                        lastErr = new Error(`HTTP ${response.status}`);
+                        continue;
+                    }
+                    const data = await response.json();
+                    if (data.success && data.voices) {
+                        setVoices(data.voices);
+                        if (!preselectedVoice && data.voices.length > 0) {
+                            setSelectedVoice(data.voices[0].id);
+                        }
+                        lastErr = null;
+                        break;
+                    }
+                    lastErr = new Error('Bad response payload');
+                } catch (e: any) {
+                    lastErr = e;
+                    continue;
                 }
+            }
+
+            if (lastErr) {
+                throw lastErr;
             }
         } catch (err) {
             console.error('Failed to fetch voices:', err);
@@ -108,6 +149,9 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
     const handleConfirm = () => {
         if (onSelect) {
             onSelect(selectedVoice);
+            // IMPORTANT: Don't navigate back here.
+            // The caller (SystemSelection) will continue the flow (start job + navigate).
+            return;
         }
         navigation.goBack();
     };

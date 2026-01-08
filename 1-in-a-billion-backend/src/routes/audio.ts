@@ -6,6 +6,7 @@ import * as crypto from 'crypto';
 import axios from 'axios';
 import { execSync } from 'child_process';
 import { audioService } from '../services/audioService';
+import { getApiKey } from '../services/apiKeys';
 
 const router = new Hono();
 
@@ -362,7 +363,12 @@ router.post('/generate-tts', async (c) => {
 
   // CHATTERBOX via RunPod (self-hosted, voice cloning)
   if (parsed.provider === 'chatterbox') {
-    if (!env.RUNPOD_API_KEY || !env.RUNPOD_ENDPOINT_ID) {
+    // Keys are stored in Supabase assistant_config/api_keys and cached via getApiKey().
+    // Local dev often doesn't have RUNPOD_* in .env, so fall back to Supabase key store.
+    const runpodApiKey = env.RUNPOD_API_KEY || (await getApiKey('runpod')) || '';
+    const runpodEndpointId = env.RUNPOD_ENDPOINT_ID || (await getApiKey('runpod_endpoint')) || '';
+
+    if (!runpodApiKey || !runpodEndpointId) {
       return c.json({
         success: false,
         message: 'RunPod not configured (RUNPOD_API_KEY and RUNPOD_ENDPOINT_ID required)',
@@ -397,7 +403,7 @@ router.post('/generate-tts', async (c) => {
             }
 
             const response = await axios.post(
-              `https://api.runpod.ai/v2/${env.RUNPOD_ENDPOINT_ID}/runsync`,
+              `https://api.runpod.ai/v2/${runpodEndpointId}/runsync`,
               {
                 input: {
                   text: chunk,
@@ -408,7 +414,7 @@ router.post('/generate-tts', async (c) => {
               },
               {
                 headers: {
-                  'Authorization': `Bearer ${env.RUNPOD_API_KEY}`,
+                  'Authorization': `Bearer ${runpodApiKey}`,
                   'Content-Type': 'application/json',
                 },
                 timeout: 180000, // 3 min timeout (cold start can take ~30s)
