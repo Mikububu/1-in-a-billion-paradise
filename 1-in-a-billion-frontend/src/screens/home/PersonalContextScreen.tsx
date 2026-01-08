@@ -66,7 +66,7 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                         <Text style={styles.headline}>
                             {isSelf 
                                 ? <>Would you like{'\n'}to focus on something{'\n'}<Text style={styles.specificWord}>specific</Text> in your reading?</>
-                                : <>Would you like{'\n'}to focus on something{'\n'}<Text style={styles.specificWord}>specific</Text> in {personName}'s reading?</>
+                                : <>{personName}, would you like{'\n'}to focus on something{'\n'}<Text style={styles.specificWord}>specific</Text> in your reading?</>
                             }
                         </Text>
                         <Text style={styles.subheadline}>
@@ -152,12 +152,12 @@ const styles = StyleSheet.create({
     },
     headline: {
         fontFamily: typography.headline,
-        fontSize: 32, // Even bigger headline
+        fontSize: 22, // 30% smaller (was 32)
         color: colors.background, // White text on red background
         fontStyle: 'normal',
         textAlign: 'center', // CENTERED
         marginBottom: spacing.md,
-        lineHeight: 40,
+        lineHeight: 30,
     },
     specificWord: {
         fontFamily: typography.sansRegular, // Different font for "specific"
