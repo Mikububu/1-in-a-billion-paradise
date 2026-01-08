@@ -242,18 +242,37 @@ router.delete('/v2/:jobId', async (c) => {
 router.get('/v2/user/:userId/jobs', async (c) => {
   const userId = c.req.param('userId');
   const jobs = await jobQueueV2.getUserJobs(userId, 10);
+  
+  // Fetch tasks for each job to show detailed status
+  const jobsWithDetails = await Promise.all(
+    jobs.map(async (j) => {
+      const tasks = await jobQueueV2.getJobTasks(j.id);
+      const tasksByStatus = {
+        pending: tasks.filter(t => t.status === 'pending').length,
+        processing: tasks.filter(t => t.status === 'processing').length,
+        complete: tasks.filter(t => t.status === 'complete').length,
+        failed: tasks.filter(t => t.status === 'failed').length,
+      };
+      
+      return {
+        id: j.id,
+        status: j.status,
+        type: j.type,
+        createdAt: j.created_at,
+        completedAt: j.completed_at,
+        percent: (j.progress as any)?.percent,
+        tasksComplete: (j.progress as any)?.tasksComplete,
+        tasksTotal: (j.progress as any)?.tasksTotal,
+        taskBreakdown: tasksByStatus,
+        systems: (j.params as any)?.systems || [],
+      };
+    })
+  );
+  
   return c.json({
     success: true,
     totalJobs: jobs.length,
-    jobs: jobs.map(j => ({
-      id: j.id,
-      status: j.status,
-      type: j.type,
-      createdAt: j.created_at,
-      percent: (j.progress as any)?.percent,
-      tasksComplete: (j.progress as any)?.tasksComplete,
-      tasksTotal: (j.progress as any)?.tasksTotal,
-    })),
+    jobs: jobsWithDetails,
   });
 });
 
