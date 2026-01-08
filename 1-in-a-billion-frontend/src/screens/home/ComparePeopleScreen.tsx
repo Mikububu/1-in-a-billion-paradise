@@ -17,7 +17,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
   const candidates = useMemo(() => {
     return (people || [])
       .slice()
-      .sort((a, b) => (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0));
+      .sort((a, b) => a.name.localeCompare(b.name)); // Stable alphabetical sort for selection
   }, [people]);
 
   const [personAId, setPersonAId] = useState<string | null>(null);
