@@ -106,9 +106,15 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
   // NEVER use "You/Your" - always use actual NAME (3rd person per docs)
   const displayP1Name = person1Override?.name || (targetPerson?.name) || (forPartner ? (partnerName || userName || 'Partner') : meName);
   const displayP2Name = person2Override?.name || partnerName || 'Partner';
+  
+  // If name is 'You' (fallback), use 'Your Reading' instead of "You's Reading"
+  const cleanP1Name = displayP1Name === 'You' ? 'Your' : displayP1Name;
+  
   const title = isOverlay
     ? `${displayP1Name} & ${displayP2Name}`
-    : `${displayP1Name}'s Reading`;
+    : displayP1Name === 'You' 
+      ? 'Your Reading'
+      : `${displayP1Name}'s Reading`;
 
   // Preload voice samples in background on mount
   useEffect(() => {

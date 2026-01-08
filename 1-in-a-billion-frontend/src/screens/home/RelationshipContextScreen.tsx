@@ -50,7 +50,7 @@ export const RelationshipContextScreen = ({ navigation, route }: Props) => {
                     {/* Header */}
                     <View style={styles.header}>
                         <Text style={styles.headline}>
-                            Would you like to tell us more about {partnerName}?
+                            Would you like to tell us more about this soul connection?
                         </Text>
                         <Text style={styles.subheadline}>
                             {partnerName}, please feel free to share how you're related and how you feel toward them.
