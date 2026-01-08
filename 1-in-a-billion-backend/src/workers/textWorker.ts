@@ -482,17 +482,23 @@ export class TextWorker extends BaseWorker {
         });
         label += `:p2:${system}`;
       } else if (docType === 'individual') {
+        // Single-person deep dive (single system). Ensure name + correct chartData key are provided.
+        const safeSystem = system || 'western';
         prompt = buildIndividualPrompt({
           type: 'individual',
           style,
           spiceLevel: spiceLevel as SpiceLevel, // Cast number to SpiceLevel union type
-          system: system as any,
+          system: safeSystem as any,
           voiceMode: 'other',
-          person: p1BirthData as any, // Cast to match PersonData
-          chartData: { western: chartData } as any, // Wrap string in ChartData object
+          person: {
+            name: person1.name,
+            ...p1BirthData,
+          } as any, // Cast to match PersonData
+          // Provide chart data under the correct system key (not always western)
+          chartData: { [safeSystem]: chartData } as any,
           personalContext: params.personalContext, // Pass through for individual reading personalization
         });
-        // Update name in person data for prompt
+        // Some prompt templates also look for personName explicitly
         (prompt as any).personName = person1.name;
         label += `:individual:${system}`;
       } else {
