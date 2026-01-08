@@ -14,7 +14,7 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonalContext'>;
 
-const MAX_CHARS = 700;
+const MAX_CHARS = 500; // Reduced from 700
 
 export const PersonalContextScreen = ({ navigation, route }: Props) => {
     const { personName, readingType, ...restParams } = route.params;
@@ -65,8 +65,8 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                     <View style={styles.header}>
                         <Text style={styles.headline}>
                             {isSelf 
-                                ? 'Would you like\nto focus on something\nspecific in your reading?'
-                                : `Would you like\nto focus on something\nspecific in ${personName}'s reading?`
+                                ? <>Would you like{'\n'}to focus on something{'\n'}<Text style={styles.specificWord}>specific</Text> in your reading?</>
+                                : <>Would you like{'\n'}to focus on something{'\n'}<Text style={styles.specificWord}>specific</Text> in {personName}'s reading?</>
                             }
                         </Text>
                         <Text style={styles.subheadline}>
@@ -82,6 +82,7 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                         <TextInput
                             style={styles.textInput}
                             multiline
+                            scrollEnabled={false}
                             placeholder="Share your questions or focus areas here..."
                             placeholderTextColor={colors.mutedText}
                             value={context}
@@ -158,6 +159,9 @@ const styles = StyleSheet.create({
         marginBottom: spacing.md,
         lineHeight: 40,
     },
+    specificWord: {
+        fontFamily: typography.sansRegular, // Different font for "specific"
+    },
     subheadline: {
         fontFamily: typography.sansRegular,
         fontSize: 14, // Smaller font (was 16)
@@ -187,7 +191,7 @@ const styles = StyleSheet.create({
         fontFamily: typography.sansRegular,
         fontSize: 12,
         color: 'rgba(255, 255, 255, 0.7)', // Light text on red
-        textAlign: 'right',
+        textAlign: 'center', // CENTERED
         marginTop: spacing.sm,
         width: '100%', // Match input width
     },
@@ -200,15 +204,14 @@ const styles = StyleSheet.create({
         backgroundColor: colors.background, // WHITE button (was red)
         borderRadius: radii.button,
         paddingVertical: spacing.lg, // More padding
-        paddingHorizontal: spacing.lg,
-        alignItems: 'flex-start', // Left align
+        alignItems: 'center', // CENTERED
     },
     continueButtonText: {
         fontFamily: typography.sansSemiBold,
         fontSize: 16,
         color: colors.primary, // RED text on white button
         letterSpacing: 1, // More letter spacing
-        textAlign: 'left',
+        textAlign: 'center',
     },
     skipButton: {
         backgroundColor: 'transparent',
