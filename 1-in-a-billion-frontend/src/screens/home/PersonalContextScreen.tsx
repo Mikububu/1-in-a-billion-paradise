@@ -160,13 +160,14 @@ const styles = StyleSheet.create({
     },
     subheadline: {
         fontFamily: typography.sansRegular,
-        fontSize: 16,
+        fontSize: 14, // Smaller font (was 16)
         color: 'rgba(255, 255, 255, 0.85)', // Light text on red
         textAlign: 'left', // LEFT aligned (only subheadline)
-        lineHeight: 24,
+        lineHeight: 20,
     },
     inputContainer: {
         flex: 1,
+        marginTop: spacing.md, // Move box up
         marginBottom: spacing.lg,
         alignItems: 'center',
     },
@@ -177,8 +178,8 @@ const styles = StyleSheet.create({
         backgroundColor: colors.surface,
         borderRadius: radii.card,
         padding: spacing.lg,
-        height: 290, // 30% shorter (was 420)
-        width: '90%', // Slightly wider (was 85%)
+        height: 290,
+        width: '100%', // Full width like button
         borderWidth: 2,
         borderColor: colors.primary,
     },
@@ -188,7 +189,7 @@ const styles = StyleSheet.create({
         color: 'rgba(255, 255, 255, 0.7)', // Light text on red
         textAlign: 'right',
         marginTop: spacing.sm,
-        width: '85%', // Match input width
+        width: '100%', // Match input width
     },
     buttonContainer: {
         paddingHorizontal: spacing.page,
