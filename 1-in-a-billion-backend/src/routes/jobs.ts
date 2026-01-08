@@ -580,71 +580,15 @@ router.post('/v2/start', async (c) => {
         },
       });
 
-      // Song generation tasks - ONE song per document (16 songs total)
-      // Each document's text → lyrics (LLM) → song (MiniMax)
-      // Songs are created after text tasks complete (sequence 100+)
-      if ((payload as any).includeSong !== false) {
-        // Person 1 songs (5 songs, docs 1-5)
-        for (let i = 0; i < 5; i++) {
-          tasks.push({
-            taskType: 'song_generation' as const,
-            sequence: 100 + i, // After all text tasks
-            input: {
-              docNum: i + 1,
-              docType: 'person1',
-              system: systemOrder[i],
-              personName: payload.person1.name,
-            },
-          });
-        }
-
-        // Person 2 songs (5 songs, docs 6-10)
-        for (let i = 0; i < 5; i++) {
-          tasks.push({
-            taskType: 'song_generation' as const,
-            sequence: 105 + i,
-            input: {
-              docNum: i + 6,
-              docType: 'person2',
-              system: systemOrder[i],
-              personName: payload.person2?.name || 'Person 2',
-            },
-          });
-        }
-
-        // Overlay songs (5 songs, docs 11-15)
-        for (let i = 0; i < 5; i++) {
-          tasks.push({
-            taskType: 'song_generation' as const,
-            sequence: 110 + i,
-            input: {
-              docNum: i + 11,
-              docType: 'overlay',
-              system: systemOrder[i],
-              personName: `${payload.person1.name} & ${payload.person2?.name}`,
-            },
-          });
-        }
-
-        // Verdict song (1 song, doc 16)
-        tasks.push({
-          taskType: 'song_generation' as const,
-          sequence: 115,
-          input: {
-            docNum: 16,
-            docType: 'verdict',
-            system: null,
-            personName: `${payload.person1.name} & ${payload.person2?.name}`,
-          },
-        });
-
-        console.log(`🎵 Added 16 song generation tasks`);
-      }
+      // NOTE: Song generation is NOT created as upfront tasks.
+      // Songs are generated AFTER text completes, via post-processing in the songWorker.
+      // The songWorker monitors for completed text artifacts and generates songs from that text.
+      // See: SONG_GENERATION_IMPLEMENTATION.md
 
       console.log(`📋 Generated ${tasks.length} tasks for nuclear_v2`);
     } else if (payload.type === 'extended') {
       // Extended job: 1-5 systems for 1 person
-      // Each system = 1 text + 1 PDF + 1 audio + 1 song
+      // Each system = 1 text task (PDF/audio/song are post-processed after text completes)
       const systemsToProcess = payload.systems?.length > 0 ? payload.systems : ['western'];
       const systemNames: Record<string, string> = {
         western: 'Western Astrology',
@@ -669,23 +613,8 @@ router.post('/v2/start', async (c) => {
         });
       }
 
-      // Song tasks for each system (sequence 100+)
-      if ((payload as any).includeSong !== false) {
-        for (let i = 0; i < systemsToProcess.length; i++) {
-          const system = systemsToProcess[i];
-          tasks.push({
-            taskType: 'song_generation' as const,
-            sequence: 100 + i,
-            input: {
-              docNum: i + 1,
-              docType: 'individual',
-              system,
-              personName: payload.person1.name,
-            },
-          });
-        }
-        console.log(`🎵 Added ${systemsToProcess.length} song generation tasks`);
-      }
+      // NOTE: Song generation is NOT created as upfront tasks for extended jobs either.
+      // Songs are post-processed after text completes. See: SONG_GENERATION_IMPLEMENTATION.md
 
       console.log(`📋 Generated ${tasks.length} tasks for extended (${systemsToProcess.length} systems)`);
     }
