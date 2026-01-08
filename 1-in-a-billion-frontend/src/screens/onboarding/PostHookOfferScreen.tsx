@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, Text, View, Image, Alert, Animated } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, Image, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
@@ -30,29 +30,6 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
 
     // Loading state for dashboard transition
     const [isTransitioning, setIsTransitioning] = useState(false);
-    const blinkAnim = useRef(new Animated.Value(1)).current;
-
-    // Blinking animation for "TRANSFERRING YOU..."
-    useEffect(() => {
-        if (isTransitioning) {
-            const blink = Animated.loop(
-                Animated.sequence([
-                    Animated.timing(blinkAnim, {
-                        toValue: 0.2,
-                        duration: 600,
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(blinkAnim, {
-                        toValue: 1,
-                        duration: 600,
-                        useNativeDriver: true,
-                    }),
-                ])
-            );
-            blink.start();
-            return () => blink.stop();
-        }
-    }, [isTransitioning, blinkAnim]);
 
 
 
@@ -158,7 +135,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     Would you like to do a reading for another person?
                 </Text>
                 <Text style={styles.subtitle} selectable>
-                    Add a second person to your dashboard to reveal deeper compatibility insights between you.
+                    Add a third person to unlock a free reading and a two person compatibility analysis.
                 </Text>
 
                 <View style={styles.spacer} />
@@ -173,9 +150,10 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
 
                 {isTransitioning ? (
                     <View style={[styles.button, styles.transitioningButton]}>
-                        <Animated.Text style={[styles.transitioningText, { opacity: blinkAnim }]}>
+                        <ActivityIndicator size="small" color={colors.text} style={{ marginRight: 12 }} />
+                        <Text style={styles.transitioningText}>
                             TRANSFERRING YOU...
-                        </Animated.Text>
+                        </Text>
                     </View>
                 ) : (
                     <Button
@@ -229,6 +207,7 @@ const styles = StyleSheet.create({
         backgroundColor: colors.mutedBackground,
         borderWidth: 1,
         borderColor: colors.border,
+        flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
     },
