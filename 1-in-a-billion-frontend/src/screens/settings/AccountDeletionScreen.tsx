@@ -12,7 +12,7 @@
  */
 
 import { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
@@ -198,6 +198,17 @@ export const AccountDeletionScreen = ({ navigation }: Props) => {
           By requesting deletion, you confirm that you understand this action is permanent and cannot be undone.
         </Text>
       </ScrollView>
+
+      {/* Full-screen blocking overlay during deletion */}
+      {isDeleting && (
+        <View style={styles.deletingOverlay}>
+          <View style={styles.deletingBox}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.deletingText}>Deleting your account...</Text>
+            <Text style={styles.deletingSubtext}>This may take a few seconds</Text>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -335,6 +346,40 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     textAlign: 'center',
     lineHeight: 18,
+  },
+  deletingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+  },
+  deletingBox: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.card,
+    padding: spacing.xl,
+    alignItems: 'center',
+    minWidth: 250,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  deletingText: {
+    fontFamily: typography.sansSemiBold,
+    fontSize: 18,
+    color: colors.text,
+    marginTop: spacing.md,
+    textAlign: 'center',
+  },
+  deletingSubtext: {
+    fontFamily: typography.sansRegular,
+    fontSize: 14,
+    color: colors.mutedText,
+    marginTop: spacing.xs,
+    textAlign: 'center',
   },
 });
 
