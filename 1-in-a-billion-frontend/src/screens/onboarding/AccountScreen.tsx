@@ -45,6 +45,7 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'Account'>;
 
 export const AccountScreen = ({ navigation }: Props) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false); // Full-screen loading overlay
   const [videoReady, setVideoReady] = useState(false);
   const { isPlaying } = useMusicStore();
 
@@ -67,6 +68,7 @@ export const AccountScreen = ({ navigation }: Props) => {
 
   const handleSupabaseExchange = async (idToken: string, provider: 'apple' | 'google') => {
     try {
+      setIsCreatingAccount(true); // Show loading overlay
       const { setFlowType } = useAuthStore.getState();
       setFlowType('onboarding'); // FLAG: Allow local data validation
 
@@ -77,6 +79,7 @@ export const AccountScreen = ({ navigation }: Props) => {
 
       if (error) throw error;
       setIsLoading(false);
+      // Keep loading overlay visible during navigation
       // Navigate directly to CoreIdentities (no white page flash)
       navigation.replace('CoreIdentities');
     } catch (error: any) {
@@ -88,6 +91,7 @@ export const AccountScreen = ({ navigation }: Props) => {
         context: 'AccountScreen:handleSupabaseExchange',
       });
       setIsLoading(false);
+      setIsCreatingAccount(false);
       Alert.alert('Sign In Error', error.message);
     }
   };
@@ -120,6 +124,7 @@ export const AccountScreen = ({ navigation }: Props) => {
 
         if (result.type === 'success' && result.url) {
           console.log('✅ GOOGLE AUTH: Success!');
+          setIsCreatingAccount(true); // Show loading overlay
           // Deep link handler will process the session and navigate
           // Navigation handled by deep link callback
         } else {
@@ -146,6 +151,7 @@ export const AccountScreen = ({ navigation }: Props) => {
         context: 'AccountScreen:handleGoogleSignIn:catch',
       });
       setIsLoading(false);
+      setIsCreatingAccount(false);
       Alert.alert('Sign In Error', error.message || 'Failed to open Google Sign-In');
     }
   };
@@ -229,6 +235,8 @@ export const AccountScreen = ({ navigation }: Props) => {
       console.log(`✅ Sign up successful`);
 
       if (data.session) {
+        setIsCreatingAccount(true); // Show loading overlay
+        
         const { error: sessionError } = await supabase.auth.setSession({
           access_token: data.session.access_token,
           refresh_token: data.session.refresh_token,
@@ -250,6 +258,7 @@ export const AccountScreen = ({ navigation }: Props) => {
         setEmail('');
         setPassword('');
 
+        // Keep loading overlay visible during navigation
         // Navigate directly to CoreIdentities (no white page flash)
         navigation.replace('CoreIdentities');
       }
@@ -257,6 +266,7 @@ export const AccountScreen = ({ navigation }: Props) => {
       console.error(`❌ SIGNUP ERROR:`, error.message);
       logAuthIssue({ provider: 'email', outcome: 'error', detail: error?.message, context: 'AccountScreen:handleEmailAuth' });
       setEmailAuthState('error');
+      setIsCreatingAccount(false);
       Alert.alert(
         'Sign Up Error',
         error.message || 'Failed to create account'
@@ -386,6 +396,18 @@ export const AccountScreen = ({ navigation }: Props) => {
           )}
         </View>
       </View>
+
+      {/* Full-Screen Loading Overlay */}
+      {isCreatingAccount && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingCard}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>
+              We create your account{'\n'}this may take a few seconds
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -515,5 +537,32 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.8)',
     fontSize: 14,
     fontFamily: typography.sansRegular,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingCard: {
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xxl,
+    borderRadius: radii.card,
+    alignItems: 'center',
+    gap: spacing.lg,
+    maxWidth: '80%',
+  },
+  loadingText: {
+    fontFamily: typography.sansRegular,
+    fontSize: 16,
+    color: colors.text,
+    textAlign: 'center',
+    lineHeight: 24,
   },
 });

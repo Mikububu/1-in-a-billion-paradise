@@ -38,8 +38,9 @@ import { audioApi } from '@/services/api';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
 import { AUDIO_CONFIG, SIGN_LABELS } from '@/config/readingConfig';
 import { saveHookReadings } from '@/services/userReadings';
-import { getAudioDirectory } from '@/services/audioDownload'; // Legacy fallback for local file playback
 import { logAuthIssue } from '@/utils/authDebug';
+import { downloadHookAudioBase64 } from '@/services/hookAudioCloud';
+// Audio stored in memory (base64) - no file system needed
 
 // Required for OAuth redirect handling
 WebBrowser.maybeCompleteAuthSession();
@@ -173,6 +174,36 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
       regenerateWithProvider('deepseek');
     }
   }, [sun, moon, rising, isRegenerating, customReadings]);
+
+  // Download missing audio from Supabase (for reinstall/new device sync)
+  useEffect(() => {
+    const downloadMissingAudio = async () => {
+      const userId = useAuthStore.getState().user?.id;
+      const userProfile = useProfileStore.getState().getUser();
+      const personId = userProfile?.id;
+      
+      if (!userId || !personId) return;
+
+      const types: Array<'sun' | 'moon' | 'rising'> = ['sun', 'moon', 'rising'];
+      
+      for (const type of types) {
+        const localAudio = hookAudio[type];
+        if (!localAudio) {
+          console.log(`📥 Checking Supabase for ${type} audio...`);
+          const result = await downloadHookAudioBase64({ userId, personId, type });
+          
+          if (result.success) {
+            useOnboardingStore.getState().setHookAudio(type, result.audioBase64);
+            console.log(`✅ Downloaded ${type} audio from Supabase`);
+          } else {
+            console.log(`⚠️ ${type} audio not found in Supabase (will generate on-demand)`);
+          }
+        }
+      }
+    };
+
+    downloadMissingAudio();
+  }, []); // Run once on mount
 
   // Readings array - 3 hook readings + 4th gateway page (signup/login/transition)
   const readings = useMemo((): PageItem[] => {
@@ -327,46 +358,19 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
       const existing = inFlightAudio.current[type];
       if (existing) return existing;
 
-      // User ID is optional - backend will use temp storage if not signed up yet
-      const uid = user?.id;
-
       const textToSpeak = `${reading.intro}\n\n${reading.main}`;
       const p = audioApi
-        .generateHookAudio({
-          text: textToSpeak,
-          userId: uid, // Optional - backend handles temp storage if not provided
-          type,
-          exaggeration: AUDIO_CONFIG.exaggeration,
-        })
+        .generateTTS(textToSpeak, { exaggeration: AUDIO_CONFIG.exaggeration })
         .then(async (result) => {
-          if (result.success && result.audioUrl) {
-            // Backend stores in Supabase Storage and returns URL
-            console.log(`✅ ${type} audio generated and stored: ${result.audioUrl}`);
-            setHookAudio(type, result.audioUrl);
-
-            // Update profile with storage path (for reference)
-            try {
-              const userPerson = getUserProfile();
-              if (userPerson?.id && result.storagePath) {
-                updatePerson(userPerson.id, {
-                  hookAudioPaths: {
-                    ...(userPerson.hookAudioPaths || {}),
-                    [type]: result.storagePath,
-                  },
-                } as any);
-              }
-            } catch { /* ignore */ }
-
-            return result.audioUrl;
-          } else {
-            console.error(`❌ ${type} audio generation failed:`, result.error);
-            return null;
+          if (result.success && result.audioBase64) {
+            // Store base64 directly in memory - NO FILE SYSTEM
+            console.log(`💾 ${type} audio ready (in memory)`);
+            setHookAudio(type, result.audioBase64);
+            return result.audioBase64;
           }
-        })
-        .catch((error) => {
-          console.error(`❌ ${type} audio generation error:`, error);
           return null;
         })
+        .catch(() => null)
         .finally(() => {
           inFlightAudio.current[type] = undefined;
           if (type === 'moon') isGeneratingMoonAudio.current = false;
@@ -376,7 +380,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
       inFlightAudio.current[type] = p;
       return p;
     },
-    [hookAudio, setHookAudio, user?.id, getUserProfile, updatePerson]
+    [hookAudio, setHookAudio]
   );
 
   // ... (Upload existing hook audio effect can stay mostly same, but needs to read file if it's a filename) ...
@@ -387,6 +391,11 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
   // Handle audio playback
   const handlePlayAudio = useCallback(async (reading: HookReading) => {
     const type = reading.type;
+
+    // #region agent log
+    // H5: Button click handler fired
+    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:handlePlayAudio:entry',message:'handlePlayAudio called',data:{type,hasReading:!!reading,hookAudioValue:hookAudio[type],hookAudioType:typeof hookAudio[type],isEmptyString:hookAudio[type]==='',isNull:hookAudio[type]===null,isUndefined:hookAudio[type]===undefined,fullHookAudio:hookAudio},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H5'})}).catch(()=>{});
+    // #endregion
 
     // Stop logic ... (same as before)
     if (currentPlayingType.current === type && soundRef.current) {
@@ -418,6 +427,11 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     // RESOLVE AUDIO SOURCE
     let audioSource: string | null = hookAudio[type] || null;
 
+    // #region agent log
+    // H2, H4: Audio source resolution
+    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:handlePlayAudio:resolveSource',message:'Audio source resolved',data:{type,audioSource,hasAudioSource:!!audioSource,isUrl:audioSource?.startsWith('http'),isFile:audioSource?.endsWith('.mp3'),isBase64:!audioSource?.startsWith('http')&&!audioSource?.endsWith('.mp3')&&!!audioSource},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
+
     // Check in-flight
     if (!audioSource) {
       const inFlight = inFlightAudio.current[type];
@@ -446,27 +460,13 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
         shouldDuckAndroid: false,
       });
 
-      let soundObj;
-      let uri: string;
-
-      // Check if it's a URL (starts with http/https) - new pipeline: backend stores in Supabase Storage
-      if (audioSource.startsWith('http://') || audioSource.startsWith('https://')) {
-        uri = audioSource;
-        console.log(`🎵 Playing from URL: ${uri}`);
-      } else if (audioSource.endsWith('.mp3')) {
-        // Legacy: local file path
-        const dir = getAudioDirectory();
-        uri = dir + audioSource;
-        console.log(`🎵 Playing file: ${uri}`);
-      } else {
-        // Legacy: Base64
-        uri = `data:audio/mpeg;base64,${audioSource}`;
-        console.log('🎵 Playing legacy Base64');
-      }
+      // SIMPLE: Play base64 directly - no file system
+      const uri = `data:audio/mpeg;base64,${audioSource}`;
+      console.log(`🎵 Playing base64 audio for ${type}`);
 
       const { sound } = await Audio.Sound.createAsync(
         { uri },
-        { shouldPlay: true, isLooping: false, progressUpdateIntervalMillis: 500 },
+        { shouldPlay: true, isLooping: false },
         (status) => {
           if (status.isLoaded && status.didJustFinish) {
             setAudioPlaying(prev => ({ ...prev, [type]: false }));
@@ -474,15 +474,14 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
           }
         }
       );
-      soundObj = sound;
 
-      soundRef.current = soundObj;
+      soundRef.current = sound;
       currentPlayingType.current = type;
       setAudioPlaying(prev => ({ ...prev, [type]: true }));
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Audio playback error:', error);
-      setAudioLoading(prev => ({ ...prev, [type]: false })); // Ensure loading state is cleared on error
+      setAudioLoading(prev => ({ ...prev, [type]: false }));
     }
 
   }, [hookAudio, startHookAudioGeneration]);
@@ -1258,6 +1257,10 @@ ${rising.main}`;
                         ]}
                         onPress={() => {
                           console.log('🔊 Audio button pressed for:', item.type);
+                          // #region agent log
+                          // H5: Button onPress fired
+                          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:audioButton:onPress',message:'Audio button onPress fired',data:{type:item.type,audioLoading:audioLoading[item.type],audioPlaying:audioPlaying[item.type],hasHookAudio:!!hookAudio[item.type],hookAudioValue:hookAudio[item.type]},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H5'})}).catch(()=>{});
+                          // #endregion
                           handlePlayAudio(item as HookReading);
                         }}
                         disabled={audioLoading[item.type]}

@@ -61,6 +61,66 @@ export async function getHookAudioPublicUrl(path: string) {
   return data?.publicUrl || null;
 }
 
+export async function getHookAudioSignedUrl(path: string, expiresIn = 3600) {
+  if (!isSupabaseConfigured) return null;
+  if (!path) return null;
+  try {
+    const { data, error } = await supabase.storage
+      .from(HOOK_AUDIO_BUCKET)
+      .createSignedUrl(path, expiresIn);
+    if (error) return null;
+    return data?.signedUrl || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Download hook audio from Supabase Storage and return base64
+ * Used for syncing audio across devices (reinstalls, new logins)
+ */
+export async function downloadHookAudioBase64(params: {
+  userId: string;
+  personId: string;
+  type: HookAudioType;
+}): Promise<{ success: true; audioBase64: string } | { success: false; error: string }> {
+  const { userId, personId, type } = params;
+
+  if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
+  if (!userId) return { success: false, error: 'Missing userId' };
+  if (!personId) return { success: false, error: 'Missing personId' };
+
+  const path = `hook-audio/${userId}/${personId}/${type}.mp3`;
+
+  try {
+    const { data, error } = await supabase.storage
+      .from(HOOK_AUDIO_BUCKET)
+      .download(path);
+
+    if (error) return { success: false, error: error.message };
+    if (!data) return { success: false, error: 'No data returned' };
+
+    // Convert Blob to base64
+    const reader = new FileReader();
+    const base64Promise = new Promise<string>((resolve, reject) => {
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        // Strip data URI prefix to get pure base64
+        const base64 = result.split(',')[1] || result;
+        resolve(base64);
+      };
+      reader.onerror = reject;
+    });
+
+    reader.readAsDataURL(data);
+    const audioBase64 = await base64Promise;
+
+    return { success: true, audioBase64 };
+  } catch (e: any) {
+    return { success: false, error: e?.message || 'Download failed' };
+  }
+}
+
 
 
 

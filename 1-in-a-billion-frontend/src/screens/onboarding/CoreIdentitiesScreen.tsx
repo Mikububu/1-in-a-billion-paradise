@@ -122,17 +122,20 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, Animated, Easing } from 'react-native';
+import { StyleSheet, Text, View, Animated, Easing, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useProfileStore } from '@/store/profileStore';
+import { useAuthStore } from '@/store/authStore';
 import { env } from '@/config/env';
 import { audioApi } from '@/services/api';
 import { AUDIO_CONFIG } from '@/config/readingConfig';
 import { AmbientMusic } from '@/services/ambientMusic';
+import { uploadHookAudioBase64 } from '@/services/hookAudioCloud';
+// Audio stored in memory (base64) - no file system needed
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'CoreIdentities'>;
 
@@ -229,8 +232,9 @@ const SCREENS: Record<string, ScreenConfig> = {
 
 export const CoreIdentitiesScreen = ({ navigation }: Props) => {
   const [currentScreen, setCurrentScreen] = useState<'intro' | 'sun' | 'moon' | 'rising'>('intro');
-  const [statusText, setStatusText] = useState('');
+  const [statusText, setStatusText] = useState('Initializing...');
   const [progress, setProgress] = useState(0); // 0 to 100
+  const [isInitializing, setIsInitializing] = useState(true); // Show overlay immediately on mount
 
   // Animation refs
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -247,6 +251,7 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
   const primaryLanguage = useOnboardingStore((state) => state.primaryLanguage);
   const setHookReading = useOnboardingStore((state) => state.setHookReading);
   const setHookAudio = useOnboardingStore((state) => state.setHookAudio);
+  const authUser = useAuthStore((s) => s.user);
 
   useEffect(() => {
     // Start animations
@@ -337,72 +342,55 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
     // SUN audio promise - only Sun is generated here; Moon/Rising use staggered preload
     let sunAudioPromise: Promise<void> | null = null;
 
-    // Helper to generate audio for a reading (uses new backend endpoint that stores in Supabase Storage)
+    // Helper to generate audio for a reading - SIMPLE: store base64 in memory, no file system
     const generateAudioForType = async (type: 'sun' | 'moon' | 'rising', reading: any): Promise<void> => {
       if (!reading) return;
-      const startTime = Date.now();
       console.log(`🎵 Starting ${type.toUpperCase()} audio generation...`);
       
-      // #region agent log
-      // H1: Sun audio generation timing and completion
-      if (__DEV__) {
-        const user = useProfileStore.getState().people.find(p => p.isUser);
-        const userId = user?.id;
-        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CoreIdentitiesScreen.tsx:generateAudioForType:start',message:`${type.toUpperCase()} audio generation started`,data:{type,hasReading:!!reading,hasUserId:!!userId,userId,textLength:`${reading.intro}\n\n${reading.main}`.length},timestamp:startTime,sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H1'})}).catch(()=>{});
-      }
-      // #endregion
-      
       try {
-        // Get user ID if available (optional - backend handles temp storage if not signed up)
-        const user = useProfileStore.getState().people.find(p => p.isUser);
-        const userId = user?.id;
-
-        const result = await audioApi.generateHookAudio({
-          text: `${reading.intro}\n\n${reading.main}`,
-          userId: userId, // Optional - backend handles temp storage if not provided
-          type,
+        const tts = await audioApi.generateTTS(`${reading.intro}\n\n${reading.main}`, {
           exaggeration: AUDIO_CONFIG.exaggeration,
         });
 
-        const duration = Date.now() - startTime;
-        
-        // #region agent log
-        // H1, H4, H6: Audio generation result
-        if (__DEV__) {
-          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CoreIdentitiesScreen.tsx:generateAudioForType:result',message:`${type.toUpperCase()} audio generation result`,data:{type,success:result.success,hasAudioUrl:!!result.audioUrl,audioUrl:result.audioUrl,error:result.error,durationMs:duration,storagePath:result.storagePath},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H1'})}).catch(()=>{});
-        }
-        // #endregion
-
-        if (result.success && result.audioUrl) {
-          // Backend stores in Supabase Storage and returns URL
-          setHookAudio(type, result.audioUrl);
+        if (tts.success && tts.audioBase64) {
+          // Store base64 directly in memory for immediate playback
+          setHookAudio(type, tts.audioBase64);
+          console.log(`✅ ${type.toUpperCase()} audio ready (in memory)`);
           
-          // #region agent log
-          // H5: Verify audio stored in store
-          if (__DEV__) {
-            const stored = useOnboardingStore.getState().hookAudio[type];
-            fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CoreIdentitiesScreen.tsx:generateAudioForType:stored',message:`${type.toUpperCase()} audio stored in store`,data:{type,storedUrl:stored,matches:stored===result.audioUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H5'})}).catch(()=>{});
+          // Upload to Supabase in background (non-blocking, for cross-device sync)
+          const userId = useAuthStore.getState().user?.id;
+          const user = useProfileStore.getState().people.find(p => p.isUser);
+          const personId = user?.id;
+          
+          if (userId && personId && tts.audioBase64) {
+            uploadHookAudioBase64({
+              userId,
+              personId,
+              type,
+              audioBase64: tts.audioBase64,
+            })
+              .then(result => {
+                if (result.success) {
+                  console.log(`☁️ ${type.toUpperCase()} synced to Supabase: ${result.path}`);
+                } else {
+                  console.log(`⚠️ ${type.toUpperCase()} sync failed: ${result.error} (non-critical)`);
+                }
+              })
+              .catch(err => console.log(`⚠️ ${type.toUpperCase()} sync error:`, err.message));
           }
-          // #endregion
-          
-          console.log(`✅ ${type.toUpperCase()} audio ready: ${result.audioUrl}`);
         } else {
-          console.log(`❌ ${type.toUpperCase()} audio failed:`, result.error);
+          console.log(`❌ ${type.toUpperCase()} audio failed:`, tts.error);
         }
       } catch (err: any) {
-        const duration = Date.now() - startTime;
-        // #region agent log
-        // H4, H6: Audio generation exception
-        if (__DEV__) {
-          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CoreIdentitiesScreen.tsx:generateAudioForType:exception',message:`${type.toUpperCase()} audio generation exception`,data:{type,error:err.message,stack:err.stack,durationMs:duration},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H4'})}).catch(()=>{});
-        }
-        // #endregion
         console.log(`⚠️ ${type.toUpperCase()} audio exception:`, err);
       }
     };
 
     try {
-      // ========== SCREEN 1: INTRO (10s minimum) ==========
+      // Hide initialization overlay after a brief delay (smooth transition from AccountScreen)
+      setTimeout(() => setIsInitializing(false), 300);
+      
+      // ========== SCREEN 1: INTRO (15s minimum) ==========
       setCurrentScreen('intro');
       setStatusText('Preparing your chart...');
       setProgress(5);
@@ -439,8 +427,8 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
         }
       });
 
-      // Wait for intro (10s) AND sun reading fetch
-      await Promise.all([delay(10000), sunFetchPromise]);
+      // Wait for intro (15s) AND sun reading fetch - allows RunPod warmup
+      await Promise.all([delay(15000), sunFetchPromise]);
       setProgress(15);
 
       // START SUN AUDIO NOW (after reading is available, not inside .then())
@@ -468,21 +456,21 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
 
           // Save placements fallback
           if (data.placements) {
-            const user = useProfileStore.getState().people.find(p => p.isUser);
-            if (user && !user.placements) {
-              useProfileStore.getState().updatePerson(user.id, {
-                placements: {
+          const user = useProfileStore.getState().people.find(p => p.isUser);
+          if (user && !user.placements) {
+            useProfileStore.getState().updatePerson(user.id, {
+              placements: {
                   sunSign: data.placements.sunSign,
                   sunDegree: data.placements.sunDegree,
                   moonSign: data.placements.moonSign,
                   moonDegree: data.placements.moonDegree,
                   risingSign: data.placements.risingSign,
                   risingDegree: data.placements.risingDegree,
-                },
-              });
-            }
+              },
+            });
           }
         }
+      }
       });
 
       await Promise.all([delay(4000), moonFetchPromise]);
@@ -511,21 +499,21 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
 
           // Save placements fallback
           if (data.placements) {
-            const user = useProfileStore.getState().people.find(p => p.isUser);
-            if (user && !user.placements) {
-              useProfileStore.getState().updatePerson(user.id, {
-                placements: {
+          const user = useProfileStore.getState().people.find(p => p.isUser);
+          if (user && !user.placements) {
+            useProfileStore.getState().updatePerson(user.id, {
+              placements: {
                   sunSign: data.placements.sunSign,
                   sunDegree: data.placements.sunDegree,
                   moonSign: data.placements.moonSign,
                   moonDegree: data.placements.moonDegree,
                   risingSign: data.placements.risingSign,
                   risingDegree: data.placements.risingDegree,
-                },
-              });
-            }
+              },
+            });
           }
         }
+      }
       });
 
       await Promise.all([delay(4000), risingFetchPromise]);
@@ -543,46 +531,51 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
 
       // ========== WAIT FOR SUN AUDIO BEFORE NAVIGATING ==========
       // Sun audio must be ready before user sees HookSequence screen
-      // Moon/Rising audio will be pre-rendered in HookSequenceScreen (staggered preload)
+      // Retry up to 3 times if generation fails
       setProgress(90);
-      setStatusText('Generating audio...');
+      
+      const MAX_RETRIES = 3;
+      let audioReady = false;
+      let attempt = 0;
 
-      // Wait for Sun audio to complete
-      if (sunAudioPromise) {
-        const waitStartTime = Date.now();
-        console.log('⏳ Waiting for Sun audio to complete...');
+      while (!audioReady && attempt < MAX_RETRIES) {
+        attempt++;
+        setStatusText(attempt === 1 ? 'Generating audio...' : `Retrying audio (${attempt}/${MAX_RETRIES})...`);
         
-        // #region agent log
-        // H1: Sun audio wait started
-        if (__DEV__) {
-          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CoreIdentitiesScreen.tsx:waitSunAudio',message:'Waiting for Sun audio to complete',data:{hasPromise:!!sunAudioPromise},timestamp:waitStartTime,sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H1'})}).catch(()=>{});
-        }
-        // #endregion
+        console.log(`🎵 Audio generation attempt ${attempt}/${MAX_RETRIES}`);
         
         try {
-          await sunAudioPromise;
-          const waitDuration = Date.now() - waitStartTime;
-          
-          // #region agent log
-          // H1: Sun audio wait completed
-          if (__DEV__) {
-            const stored = useOnboardingStore.getState().hookAudio.sun;
-            fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CoreIdentitiesScreen.tsx:waitSunAudio:complete',message:'Sun audio wait completed',data:{waitDurationMs:waitDuration,hasStoredAudio:!!stored,storedUrl:stored},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H1'})}).catch(()=>{});
+          // If first attempt, wait for existing promise
+          if (attempt === 1 && sunAudioPromise) {
+            await sunAudioPromise;
+          } else {
+            // Retry: generate fresh
+            if (sunReading) {
+              await generateAudioForType('sun', sunReading);
+            }
           }
-          // #endregion
           
-          console.log('✅ Sun audio ready!');
+          // Check if audio was actually stored
+          const stored = useOnboardingStore.getState().hookAudio.sun;
+          if (stored) {
+            audioReady = true;
+            console.log(`✅ Sun audio ready after ${attempt} attempt(s)!`);
+          } else {
+            throw new Error('Audio not stored in state');
+          }
         } catch (error: any) {
-          const waitDuration = Date.now() - waitStartTime;
+          console.warn(`⚠️ Audio attempt ${attempt} failed:`, error.message);
           
-          // #region agent log
-          // H1: Sun audio wait failed
-          if (__DEV__) {
-            fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CoreIdentitiesScreen.tsx:waitSunAudio:error',message:'Sun audio wait failed',data:{waitDurationMs:waitDuration,error:error.message},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H1'})}).catch(()=>{});
+          if (attempt < MAX_RETRIES) {
+            // Wait 2 seconds before retry
+            setStatusText('Audio generation failed, retrying...');
+            await delay(2000);
+          } else {
+            // Final attempt failed - proceed anyway
+            console.error('❌ All audio attempts failed, proceeding without audio');
+            setStatusText('Proceeding without audio...');
+            await delay(1000);
           }
-          // #endregion
-          
-          console.warn('⚠️ Sun audio generation failed, proceeding anyway:', error);
         }
       }
 
@@ -701,6 +694,14 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
           {statusText}
         </Text>
       </View>
+
+      {/* Initialization Overlay - Prevents white flash during navigation */}
+      {isInitializing && (
+        <View style={styles.initOverlay}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.initText}>Loading your experience...</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -777,5 +778,23 @@ const styles = StyleSheet.create({
     fontFamily: typography.sansRegular,
     fontSize: 12,
     color: colors.text,
+  },
+  initOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+    gap: spacing.lg,
+  },
+  initText: {
+    fontFamily: typography.sansRegular,
+    fontSize: 16,
+    color: colors.mutedText,
+    marginTop: spacing.md,
   },
 });

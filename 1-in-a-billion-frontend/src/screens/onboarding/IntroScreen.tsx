@@ -12,6 +12,7 @@ import { AmbientMusic } from '@/services/ambientMusic';
 import { useMusicStore } from '@/store/musicStore';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
 import { env } from '@/config/env';
+import { audioApi } from '@/services/api';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Intro'>;
 
@@ -38,6 +39,20 @@ export const IntroScreen = ({ navigation }: Props) => {
   useEffect(() => {
     // Load music once
     AmbientMusic.load();
+
+    // Wake up RunPod TTS service in background (prevents cold start later)
+    // By the time user reaches waiting screen (2-3 min), RunPod will be warm
+    const wakeRunPod = async () => {
+      try {
+        console.log('🔥 Warming up TTS service...');
+        await audioApi.generateTTS('Hello', { exaggeration: 0.3 });
+        console.log('✅ TTS service ready');
+      } catch (err) {
+        // Non-blocking - don't care if it fails
+        console.log('⚠️ TTS warmup failed (non-critical)');
+      }
+    };
+    wakeRunPod(); // Fire and forget
 
     // Word highlight animation - Random word selection instead of sequential
     const wordInterval = setInterval(() => {

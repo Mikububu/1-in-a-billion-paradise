@@ -23,9 +23,14 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { env } from '@/config/env';
 import { useProfileStore } from '@/store/profileStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
+import { useAuthStore } from '@/store/authStore';
 import { audioApi } from '@/services/api';
+// Audio stored in memory (base64) - upload to Supabase for cross-device sync
+import { uploadHookAudioBase64 } from '@/services/hookAudioCloud';
+import { isSupabaseConfigured } from '@/services/supabase';
 import { AUDIO_CONFIG } from '@/config/readingConfig';
 import { CityOption } from '@/types/forms';
+// Audio stored in memory (base64) - no file system needed
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PartnerCoreIdentities'>;
 
@@ -121,6 +126,8 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
   const addPerson = useProfileStore((state) => state.addPerson);
   const setHookReadings = useProfileStore((state) => state.setHookReadings);
   const people = useProfileStore((state) => state.people);
+
+  const authUser = useAuthStore((s) => s.user);
   
   // Audio store for partner audio pre-rendering
   const setPartnerAudio = useOnboardingStore((state: any) => state.setPartnerAudio);
@@ -228,6 +235,11 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
     let sunSign: string | undefined;
     let moonSign: string | undefined;
     let risingSign: string | undefined;
+
+    // Keep base64 in memory so we can upload to Supabase after we create the partner row (partnerId).
+    let sunAudioBase64: string | null = null;
+    let moonAudioBase64: string | null = null;
+    let risingAudioBase64: string | null = null;
     
     const payload = {
       birthDate: partnerBirthDate || '1992-03-15',
@@ -275,8 +287,26 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
             { exaggeration: AUDIO_CONFIG.exaggeration }
           );
           if (result.success && result.audioBase64) {
+            // Store base64 directly in memory for immediate playback
             setPartnerAudio('sun', result.audioBase64);
-            console.log(`✅ ${name}'s SUN audio pre-rendered and SAVED to store`);
+            console.log(`✅ ${name}'s SUN audio ready (in memory)`);
+            
+            // Upload to Supabase in background (non-blocking)
+            const userId = useAuthStore.getState().user?.id;
+            if (userId && partnerId && result.audioBase64) {
+              uploadHookAudioBase64({
+                userId,
+                personId: partnerId,
+                type: 'sun',
+                audioBase64: result.audioBase64,
+              })
+                .then(uploadResult => {
+                  if (uploadResult.success) {
+                    console.log(`☁️ ${name}'s SUN synced to Supabase`);
+                  }
+                })
+                .catch(() => {});
+            }
           }
         }
         return sunData;
@@ -323,12 +353,32 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         audioApi.generateTTS(
           `${moonData.reading.intro}\n\n${moonData.reading.main}`,
           { exaggeration: AUDIO_CONFIG.exaggeration }
-        ).then(result => {
-          if (result.success && result.audioBase64) {
-            setPartnerAudio('moon', result.audioBase64);
-            console.log(`✅ ${name}'s MOON audio pre-rendered and SAVED to store`);
-          }
-        }).catch(() => console.log('Moon audio generation failed'));
+        )
+          .then((result) => {
+            if (result.success && result.audioBase64) {
+              // Store base64 directly in memory for immediate playback
+              setPartnerAudio('moon', result.audioBase64);
+              console.log(`✅ ${name}'s MOON audio ready (in memory)`);
+              
+              // Upload to Supabase in background (non-blocking)
+              const userId = useAuthStore.getState().user?.id;
+              if (userId && partnerId && result.audioBase64) {
+                uploadHookAudioBase64({
+                  userId,
+                  personId: partnerId,
+                  type: 'moon',
+                  audioBase64: result.audioBase64,
+                })
+                  .then(uploadResult => {
+                    if (uploadResult.success) {
+                      console.log(`☁️ ${name}'s MOON synced to Supabase`);
+                    }
+                  })
+                  .catch(() => {});
+              }
+            }
+          })
+          .catch(() => console.log('Moon audio generation failed'));
       }
       setProgress(60);
       await delay(3000);
@@ -359,12 +409,32 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         audioApi.generateTTS(
           `${risingData.reading.intro}\n\n${risingData.reading.main}`,
           { exaggeration: AUDIO_CONFIG.exaggeration }
-        ).then(result => {
-          if (result.success && result.audioBase64) {
-            setPartnerAudio('rising', result.audioBase64);
-            console.log(`✅ ${name}'s RISING audio pre-rendered and SAVED to store`);
-          }
-        }).catch(() => console.log('Rising audio generation failed'));
+        )
+          .then((result) => {
+            if (result.success && result.audioBase64) {
+              // Store base64 directly in memory for immediate playback
+              setPartnerAudio('rising', result.audioBase64);
+              console.log(`✅ ${name}'s RISING audio ready (in memory)`);
+              
+              // Upload to Supabase in background (non-blocking)
+              const userId = useAuthStore.getState().user?.id;
+              if (userId && partnerId && result.audioBase64) {
+                uploadHookAudioBase64({
+                  userId,
+                  personId: partnerId,
+                  type: 'rising',
+                  audioBase64: result.audioBase64,
+                })
+                  .then(uploadResult => {
+                    if (uploadResult.success) {
+                      console.log(`☁️ ${name}'s RISING synced to Supabase`);
+                    }
+                  })
+                  .catch(() => {});
+              }
+            }
+          })
+          .catch(() => console.log('Rising audio generation failed'));
       }
       setProgress(90);
       await delay(3000);
@@ -391,6 +461,37 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
       });
       console.log(`✅ Saved partner ${partnerName} with ID: ${partnerId}`);
       setSavedPartnerId(partnerId);
+
+      // Cross-device sync: upload audio base64 to Supabase and persist storage paths on the partner person.
+      // (Local file remains the primary playback source.)
+      try {
+        const uid = authUser?.id;
+        if (uid && env.ENABLE_SUPABASE_LIBRARY_SYNC && isSupabaseConfigured) {
+          const uploads: Array<Promise<void>> = [];
+          const maybeUpload = (type: 'sun' | 'moon' | 'rising', b64: string | null) => {
+            if (!b64) return;
+            uploads.push(
+              uploadHookAudioBase64({ userId: uid, personId: partnerId, type, audioBase64: b64 })
+                .then((res) => {
+                  if (!res.success) return;
+                  useProfileStore.getState().updatePerson(partnerId, {
+                    hookAudioPaths: {
+                      ...(useProfileStore.getState().getPerson(partnerId)?.hookAudioPaths || {}),
+                      [type]: res.path,
+                    },
+                  } as any);
+                })
+                .catch(() => {})
+            );
+          };
+          maybeUpload('sun', sunAudioBase64);
+          maybeUpload('moon', moonAudioBase64);
+          maybeUpload('rising', risingAudioBase64);
+          void Promise.all(uploads);
+        }
+      } catch {
+        // ignore
+      }
       
       // Save the 3 hook readings to profileStore (for Home carousel rotation).
       // IMPORTANT: store them in `person.hookReadings`, not as normal readings.

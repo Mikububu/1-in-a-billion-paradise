@@ -1,5 +1,5 @@
 import { SimpleSlider } from '@/components/SimpleSlider';
-import { useMemo } from 'react';
+import { useMemo, useEffect, useCallback } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,7 +12,6 @@ import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { LanguageOption } from '@/types/forms';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback } from 'react';
 import { AmbientMusic } from '@/services/ambientMusic';
 import { useMusicStore } from '@/store/musicStore';
 
@@ -35,6 +34,17 @@ export const LanguagesScreen = ({ navigation }: Props) => {
       }
     }, [isPlaying])
   );
+
+  // Set English as default primary language if none selected
+  useEffect(() => {
+    if (!primaryLanguage) {
+      const english = languages.find((lang) => lang.code === 'en');
+      if (english) {
+        setPrimaryLanguage(english);
+        console.log('✅ Default language set to English');
+      }
+    }
+  }, []); // Run once on mount
 
   const options = useMemo<AutocompleteOption<LanguageOption>[]>(() => {
     return languages.map((lang) => ({

@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, Text, View, Image, Alert } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { StyleSheet, Text, View, Image, Alert, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
@@ -27,6 +27,32 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     } = useOnboardingStore();
     const sessionId = useAuthStore(s => s.session?.user?.id);
     const email = useAuthStore(s => s.session?.user?.email);
+
+    // Loading state for dashboard transition
+    const [isTransitioning, setIsTransitioning] = useState(false);
+    const blinkAnim = useRef(new Animated.Value(1)).current;
+
+    // Blinking animation for "TRANSFERRING YOU..."
+    useEffect(() => {
+        if (isTransitioning) {
+            const blink = Animated.loop(
+                Animated.sequence([
+                    Animated.timing(blinkAnim, {
+                        toValue: 0.2,
+                        duration: 600,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(blinkAnim, {
+                        toValue: 1,
+                        duration: 600,
+                        useNativeDriver: true,
+                    }),
+                ])
+            );
+            blink.start();
+            return () => blink.stop();
+        }
+    }, [isTransitioning, blinkAnim]);
 
 
 
@@ -113,9 +139,16 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         safeSaveAndComplete('PartnerInfo');
     };
 
-    const handleNo = () => {
+    const handleNo = async () => {
         // User says "No" → save everything and complete onboarding → Dashboard
-        safeSaveAndComplete();
+        setIsTransitioning(true);
+        console.log('🔄 Starting dashboard transition...');
+        try {
+            await safeSaveAndComplete();
+        } catch (error) {
+            console.error('❌ Transition failed:', error);
+            setIsTransitioning(false);
+        }
     };
 
     return (
@@ -125,7 +158,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     Would you like to do a reading for another person?
                 </Text>
                 <Text style={styles.subtitle} selectable>
-                    Unlock the powerful Compatibility Slider by adding a second person to your dashboard.
+                    Add a second person to your dashboard to reveal deeper compatibility insights between you.
                 </Text>
 
                 <View style={styles.spacer} />
@@ -135,14 +168,23 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     onPress={handleYes}
                     variant="primary"
                     style={styles.button}
+                    disabled={isTransitioning}
                 />
 
-                <Button
-                    label="NO, CONTINUE TO DASHBOARD"
-                    onPress={handleNo}
-                    variant="secondary"
-                    style={styles.button}
-                />
+                {isTransitioning ? (
+                    <View style={[styles.button, styles.transitioningButton]}>
+                        <Animated.Text style={[styles.transitioningText, { opacity: blinkAnim }]}>
+                            TRANSFERRING YOU...
+                        </Animated.Text>
+                    </View>
+                ) : (
+                    <Button
+                        label="NO, CONTINUE TO DASHBOARD"
+                        onPress={handleNo}
+                        variant="secondary"
+                        style={styles.button}
+                    />
+                )}
             </View>
         </SafeAreaView>
     );
@@ -180,5 +222,20 @@ const styles = StyleSheet.create({
     button: {
         width: '100%',
         marginBottom: spacing.md,
+    },
+    transitioningButton: {
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: colors.mutedBackground,
+        borderWidth: 1,
+        borderColor: colors.border,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    transitioningText: {
+        fontFamily: typography.headline,
+        fontSize: 16,
+        color: colors.text,
+        letterSpacing: 1,
     },
 });

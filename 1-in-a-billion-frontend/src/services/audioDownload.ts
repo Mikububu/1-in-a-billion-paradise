@@ -8,11 +8,12 @@
 import { Alert, Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { getDocumentDirectory } from '@/utils/fileSystem';
 
 export const getAudioDirectory = () => {
-  const docDir = (FileSystem as any).documentDirectory;
-  return docDir ? `${docDir}readings/` : '';
+  // Prefer documentDirectory, but fall back to cacheDirectory.
+  // In some dev-client/runtime edge cases, documentDirectory can be null/empty (seen in logs).
+  const baseDir = (FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory;
+  return baseDir ? `${baseDir}readings/` : '';
 };
 
 /**
@@ -50,14 +51,11 @@ export const saveAudioToFile = async (
   base64Audio: string,
   fileName: string
 ): Promise<string> => {
-  const docDir = getDocumentDirectory();
-  if (!docDir) {
-    throw new Error('Document directory not available');
-  }
-
   await ensureAudioDirectory();
 
-  const filePath = `${getAudioDirectory()}${fileName}.mp3`;
+  const dir = getAudioDirectory();
+  if (!dir) throw new Error('No writable directory available (documentDirectory/cacheDirectory missing)');
+  const filePath = `${dir}${fileName}.mp3`;
 
   // Remove data URL prefix if present
   const cleanBase64 = base64Audio.replace(/^data:audio\/\w+;base64,/, '');
@@ -86,14 +84,11 @@ export const downloadAudioFromUrl = async (
   fileName: string,
   onProgress?: (progress: number) => void
 ): Promise<string> => {
-  const docDir = getDocumentDirectory();
-  if (!docDir) {
-    throw new Error('Document directory not available');
-  }
-
   await ensureAudioDirectory();
 
-  const filePath = `${getAudioDirectory()}${fileName}.mp3`;
+  const dir = getAudioDirectory();
+  if (!dir) throw new Error('No writable directory available (documentDirectory/cacheDirectory missing)');
+  const filePath = `${dir}${fileName}.mp3`;
 
   const downloadResumable = FileSystem.createDownloadResumable(
     audioUrl,

@@ -17,17 +17,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { Audio } from 'expo-av';
+// FileSystem not needed - audio stored in memory
 import { colors, spacing, typography } from '@/theme/tokens';
 import { HookReading } from '@/types/forms';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { env } from '@/config/env';
 import { audioApi } from '@/services/api';
-import { uploadHookAudioBase64 } from '@/services/hookAudioCloud';
+import { uploadHookAudioBase64, downloadHookAudioBase64 } from '@/services/hookAudioCloud';
 import { isSupabaseConfigured } from '@/services/supabase';
 import { useProfileStore, Reading } from '@/store/profileStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useAuthStore } from '@/store/authStore';
 import { AUDIO_CONFIG, getPartnerSignLabel } from '@/config/readingConfig';
+// Audio stored in memory (base64) - no file system needed
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PartnerReadings'>;
 
@@ -96,29 +98,27 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
         .generateTTS(textToSpeak, { exaggeration: AUDIO_CONFIG.exaggeration })
         .then((result) => {
           if (result.success && result.audioBase64) {
+            // Store base64 directly in memory for immediate playback
+            console.log(`💾 ${partnerName}'s ${type} audio ready (in memory)`);
             setPartnerAudio(type, result.audioBase64);
-            // If signed in + cloud sync enabled, upload hook audio to Supabase Storage and save path on the partner person.
-            try {
-              const uid = authUser?.id;
-              if (uid && partnerId && isSupabaseConfigured && env.ENABLE_SUPABASE_LIBRARY_SYNC) {
-                uploadHookAudioBase64({
-                  userId: uid,
-                  personId: partnerId,
-                  type,
-                  audioBase64: result.audioBase64,
-                }).then((res) => {
-                  if (!res.success) return;
-                  useProfileStore.getState().updatePerson(partnerId, {
-                    hookAudioPaths: {
-                      ...(useProfileStore.getState().getPerson(partnerId)?.hookAudioPaths || {}),
-                      [type]: res.path,
-                    },
-                  } as any);
-                });
-              }
-            } catch {
-              // ignore
+            
+            // Upload to Supabase in background (non-blocking)
+            const userId = authUser?.id;
+            if (userId && partnerId && result.audioBase64) {
+              uploadHookAudioBase64({
+                userId,
+                personId: partnerId,
+                type,
+                audioBase64: result.audioBase64,
+              })
+                .then(uploadResult => {
+                  if (uploadResult.success) {
+                    console.log(`☁️ ${partnerName}'s ${type} synced to Supabase`);
+                  }
+                })
+                .catch(() => {});
             }
+            
             return result.audioBase64;
           }
           return null;
@@ -131,8 +131,33 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
       inFlightAudio.current[type] = p;
       return p;
     },
-    [partnerAudio, setPartnerAudio, authUser?.id, partnerId]
+    [partnerAudio, setPartnerAudio, partnerName]
   );
+
+  // Download missing partner audio from Supabase (for reinstall/new device sync)
+  useEffect(() => {
+    const downloadMissingAudio = async () => {
+      const userId = authUser?.id;
+      if (!userId || !partnerId) return;
+
+      const types: HookReading['type'][] = ['sun', 'moon', 'rising'];
+      
+      for (const type of types) {
+        const localAudio = partnerAudio[type];
+        if (!localAudio) {
+          console.log(`📥 Checking Supabase for ${partnerName}'s ${type} audio...`);
+          const result = await downloadHookAudioBase64({ userId, personId: partnerId, type });
+          
+          if (result.success) {
+            setPartnerAudio(type, result.audioBase64);
+            console.log(`✅ Downloaded ${partnerName}'s ${type} audio from Supabase`);
+          }
+        }
+      }
+    };
+
+    downloadMissingAudio();
+  }, []); // Run once on mount
 
   // If audio already exists (e.g., SUN was pre-rendered earlier), upload it once to Supabase Storage.
   useEffect(() => {
@@ -142,7 +167,11 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
 
     const types: HookReading['type'][] = ['sun', 'moon', 'rising'];
     for (const type of types) {
-      const b64 = partnerAudio?.[type];
+      const v = partnerAudio?.[type];
+      // Only auto-upload if we still have legacy Base64 stored in state.
+      // New pipeline stores a local filename (e.g. "partner_hook_sun_123.mp3").
+      const b64 =
+        v && !v.endsWith('.mp3') && !v.startsWith('http://') && !v.startsWith('https://') ? v : null;
       if (!b64) continue;
       const partner = useProfileStore.getState().getPerson(partnerId);
       if (partner?.hookAudioPaths?.[type]) continue;
@@ -296,30 +325,27 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
       currentPlayingType.current = null;
     }
 
-    // Use pre-rendered audio from store (same pattern as 1st person readings)
-    // CRITICAL FIX: Always generate audio from CURRENT reading text to ensure it matches what's displayed
-    // This prevents audio/text mismatch when readings are regenerated or changed
     setAudioLoading(prev => ({ ...prev, [type]: true }));
     console.log(`⏳ Preparing ${partnerName}'s ${type} audio... cached=${!!partnerAudio[type]}`);
 
-    let audioBase64: string | null = partnerAudio[type] || null;
+    let audioSource: string | null = partnerAudio[type] || null;
     // If background generation is in-flight, wait for it
-    if (!audioBase64 && inFlightAudio.current[type]) {
+    if (!audioSource && inFlightAudio.current[type]) {
       console.log(`⏳ Waiting for in-flight ${partnerName}'s ${type} audio...`);
-      audioBase64 = (await inFlightAudio.current[type]!) || null;
+      audioSource = (await inFlightAudio.current[type]!) || null;
     }
     // If still missing, start generation now (shared)
-    if (!audioBase64) {
-      audioBase64 = await startPartnerAudioGeneration(type, reading);
+    if (!audioSource) {
+      audioSource = await startPartnerAudioGeneration(type, reading);
     }
-    if (!audioBase64) {
+    if (!audioSource) {
       setAudioLoading(prev => ({ ...prev, [type]: false }));
       return;
     }
 
     setAudioLoading(prev => ({ ...prev, [type]: false }));
 
-    // Play the audio
+    // Play the audio - SIMPLE: base64 directly, no file system
     try {
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: true,
@@ -327,8 +353,11 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
         shouldDuckAndroid: false,
       });
 
+      const uri = `data:audio/mpeg;base64,${audioSource}`;
+      console.log(`🎵 Playing ${partnerName}'s ${type} audio (base64)`);
+
       const { sound } = await Audio.Sound.createAsync(
-        { uri: `data:audio/mpeg;base64,${audioBase64}` },
+        { uri },
         { shouldPlay: true, isLooping: false },
         (status) => {
           if (status.isLoaded && status.didJustFinish) {
@@ -344,7 +373,7 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
     } catch (error) {
       console.log('Audio playback error:', error);
     }
-  }, [partnerAudio, partnerName]);
+  }, [partnerAudio, partnerName, startPartnerAudioGeneration]);
 
   // Fetch initial readings
   // On mount, load existing readings or fetch new ones if missing

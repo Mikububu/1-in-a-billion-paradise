@@ -8,6 +8,7 @@
  */
 
 import { Hono } from 'hono';
+import axios from 'axios';
 import { getApiKey } from '../services/apiKeys';
 
 const router = new Hono();
@@ -47,8 +48,8 @@ router.get('/search', async (c) => {
         // Use Google Places Autocomplete API (types=geocode to prefer cities)
         const autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=(cities)&key=${googlePlacesKey}`;
         
-        const autocompleteResponse = await fetch(autocompleteUrl);
-        const autocompleteData = await autocompleteResponse.json();
+        const autocompleteResponse = await axios.get(autocompleteUrl);
+        const autocompleteData = autocompleteResponse.data;
 
         if (autocompleteData.status !== 'OK' || !autocompleteData.predictions) {
             console.warn('Google Places Autocomplete returned no results:', autocompleteData.status);
@@ -63,8 +64,8 @@ router.get('/search', async (c) => {
                 const placeId = prediction.place_id;
                 const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,geometry,address_components&key=${googlePlacesKey}`;
                 
-                const detailsResponse = await fetch(detailsUrl);
-                const detailsData = await detailsResponse.json();
+                const detailsResponse = await axios.get(detailsUrl);
+                const detailsData = detailsResponse.data;
 
                 if (detailsData.status !== 'OK' || !detailsData.result) {
                     continue;
@@ -97,8 +98,8 @@ router.get('/search', async (c) => {
                 const timestamp = Math.floor(Date.now() / 1000);
                 const timezoneUrl = `https://maps.googleapis.com/maps/api/timezone/json?location=${location.lat},${location.lng}&timestamp=${timestamp}&key=${googlePlacesKey}`;
                 
-                const timezoneResponse = await fetch(timezoneUrl);
-                const timezoneData = await timezoneResponse.json();
+                const timezoneResponse = await axios.get(timezoneUrl);
+                const timezoneData = timezoneResponse.data;
 
                 const timezone = timezoneData.status === 'OK' 
                     ? timezoneData.timeZoneId 
