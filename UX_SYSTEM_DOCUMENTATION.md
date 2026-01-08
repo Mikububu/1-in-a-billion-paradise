@@ -1,18 +1,78 @@
 # 1-in-a-Billion: Complete UX System Documentation
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Date:** January 2025  
+**Last Updated:** January 8, 2025  
 **Purpose:** Complete mapping of all screens, navigation flows, and backend interactions
+
+**Recent Changes (v1.1):**
+- Screen 1 (Intro) is now ALWAYS the landing page on app launch (both signed-in and not signed-in users)
+- Added `showDashboard` flag to control navigator switching
+- Sign Out button now deletes all user data with warning
+- Button labels updated: "Login with..." and "Sign up with..."
+- AccountScreen buttons reordered to match SignInScreen layout
 
 ---
 
 ## Table of Contents
 
-1. [Screen Numbering System](#screen-numbering-system)
-2. [Navigation Flow Maps](#navigation-flow-maps)
-3. [Backend Interactions](#backend-interactions)
-4. [Fly.io / Supabase / PDF Pipeline](#flyio--supabase--pdf-pipeline)
-5. [Screen Handlers Reference](#screen-handlers-reference)
+1. [App Launch Flow (CRITICAL)](#app-launch-flow-critical)
+2. [Screen Numbering System](#screen-numbering-system)
+3. [Navigation Flow Maps](#navigation-flow-maps)
+4. [Backend Interactions](#backend-interactions)
+5. [Fly.io / Supabase / PDF Pipeline](#flyio--supabase--pdf-pipeline)
+6. [Screen Handlers Reference](#screen-handlers-reference)
+
+---
+
+## App Launch Flow (CRITICAL)
+
+### How App Routing Works
+
+**When app launches (cold start or reopen):**
+
+1. **No session exists:**
+   - → Always goes to `S1_INTRO` (Screen 1)
+   - Shows: "Log In" + "Get Started" buttons
+
+2. **Session exists + Onboarding incomplete:**
+   - → Resumes onboarding at first missing step
+   - Checks: BirthInfo → Languages → CoreIdentities → HookSequence
+   - Goes to earliest missing screen
+
+3. **Session exists + Onboarding complete:**
+   - → Always goes to `S1_INTRO` (Screen 1) first
+   - Shows: "Sign Out" + "My Secret Life" buttons
+   - User must tap "My Secret Life" to go to Dashboard
+
+### The showDashboard Flag
+
+- **Purpose:** Controls which navigator is shown (OnboardingNavigator vs MainNavigator)
+- **Default:** Always `false` on app launch (not persisted)
+- **When set to `true`:**
+  - User taps "My Secret Life" on Intro
+  - Onboarding completes (so user goes to Dashboard immediately)
+- **When reset to `false`:**
+  - User signs out
+  - App launches (always starts as `false`)
+
+### Sign Out Behavior
+
+- **Location:** Only available on `S1_INTRO` when signed in
+- **Warning:** "By signing out you would delete all your user data and history. Are you sure?"
+- **Action:** 
+  - Deletes ALL data via `DELETE /api/account/purge`
+  - Clears all local stores
+  - Signs out from Supabase
+  - Resets `showDashboard = false`
+- **Purpose:** Prevents account switching confusion - if user wants different account, must delete everything first
+
+### Why This Design?
+
+- **Consistency:** Every app launch starts at the same place (Screen 1)
+- **Data Safety:** Sign Out = Delete All prevents accidental account mixing
+- **User Control:** User explicitly chooses to go to Dashboard via "My Secret Life"
+- **Clean State:** App always returns to Intro on reopen, giving user fresh start
 
 ---
 
@@ -22,13 +82,29 @@
 
 **Screen 1: Intro** (`IntroScreen`)
 - **Handler:** `S1_INTRO`
-- **Purpose:** Welcome screen, app introduction
-- **Navigation From:** App launch (if no session)
+- **Purpose:** Welcome screen, app introduction - **ALWAYS the landing page on app launch**
+- **Navigation From:** 
+  - App launch (always - both signed-in and not signed-in users)
+  - App reopen (always returns to Screen 1)
 - **Navigation To:** 
-  - `S2_RELATIONSHIP` (Continue button)
-  - `S2_SIGNIN` (if user taps sign in)
-- **Backend:** None
-- **Data Stored:** None
+  - If **not signed in:**
+    - `S2_RELATIONSHIP` ("Get Started" button)
+    - `S2_SIGNIN` ("Log In" button)
+  - If **signed in:**
+    - `S10_HOME` ("My Secret Life" button - sets `showDashboard=true` flag)
+    - Sign Out flow ("Sign Out" button - deletes all data)
+- **Backend:** 
+  - `DELETE /api/account/purge` - When user confirms Sign Out (deletes all user data)
+- **Data Stored:** 
+  - `onboardingStore.showDashboard` - Flag to switch from OnboardingNavigator to MainNavigator
+  - When "My Secret Life" pressed: `showDashboard = true`
+  - When "Sign Out" pressed: Deletes all Supabase data + clears local stores + `showDashboard = false`
+- **Special Behavior:**
+  - **CRITICAL:** This screen is ALWAYS shown on app launch, regardless of sign-in status
+  - Signed-in users see: "Sign Out" + "My Secret Life" buttons
+  - Not signed-in users see: "Log In" + "Get Started" buttons
+  - Sign Out shows warning: "By signing out you would delete all your user data and history. Are you sure?"
+  - Sign Out is destructive - deletes ALL data to prevent account switching confusion
 
 **Screen 2: Relationship** (`RelationshipScreen`)
 - **Handler:** `S2_RELATIONSHIP`
@@ -57,7 +133,7 @@
 
 **Screen 5: Account** (`AccountScreen`)
 - **Handler:** `S5_ACCOUNT`
-- **Purpose:** User signup/login (Email, Google, Apple)
+- **Purpose:** User signup (Email, Google, Apple) - **Sign-up only screen (post-onboarding)**
 - **Navigation From:** `S4_LANGUAGES`
 - **Navigation To:** 
   - `S6_CORE_IDENTITIES` (after successful signup)
@@ -70,6 +146,10 @@
   - Supabase auth session
   - `authStore.user`, `authStore.session`
   - On signup success, saves onboarding data to Supabase `profiles` table
+- **Button Layout:**
+  - **Same order as SignInScreen:** Google → Apple → Email (all in same section)
+  - Button labels: "Sign up with Google", "Sign up with Apple", "Sign up with Email"
+  - Matches SignInScreen layout exactly for consistency
 
 **Screen 6: Core Identities** (`CoreIdentitiesScreen`)
 - **Handler:** `S6_CORE_IDENTITIES`
@@ -824,17 +904,26 @@ Use these handlers when discussing navigation:
 
 ## Key Takeaways
 
-1. **S28_GENERATING_READING is the critical screen** - This is where all PDF and audio generation happens via the Fly.io/Supabase queue system.
+1. **S1_INTRO is ALWAYS the landing screen** - Both signed-in and not signed-in users always land on Screen 1 when app launches or reopens. This is intentional UX design.
 
-2. **Hook audio (S6, S7, S14) uses a simpler pipeline** - Direct RunPod call, stores in Supabase Storage, returns URL immediately.
+2. **showDashboard flag controls navigator switching** - When user taps "My Secret Life" on Intro, `showDashboard=true` switches from OnboardingNavigator to MainNavigator (Dashboard). Flag is NOT persisted - always resets to `false` on app launch.
 
-3. **PDFs are always generated as part of paid readings** - Never for hook readings (Sun/Moon/Rising).
+3. **Sign Out is destructive** - "Sign Out" button on Intro deletes ALL user data (Supabase + local) to prevent account switching confusion. Shows clear warning before deletion.
 
-4. **Supabase Storage structure:**
+4. **S28_GENERATING_READING is the critical screen** - This is where all PDF and audio generation happens via the Fly.io/Supabase queue system.
+
+5. **Hook audio (S6, S7, S14) uses a simpler pipeline** - Direct RunPod call, stores in Supabase Storage, returns URL immediately.
+
+6. **PDFs are always generated as part of paid readings** - Never for hook readings (Sun/Moon/Rising).
+
+7. **Supabase Storage structure:**
    - `library/{jobId}/` - Paid reading artifacts
    - `hook-audio/{userId}/` - Free hook audio
 
-5. **Navigation is session-based** - If no Supabase session exists, user sees onboarding (S1). If session exists, user sees dashboard (S10).
+8. **Button consistency:**
+   - SignInScreen: "Login with Google/Apple/Email" (all in same section)
+   - AccountScreen: "Sign up with Google/Apple/Email" (same order, same section)
+   - Both screens have identical button layout for consistency
 
 ---
 
