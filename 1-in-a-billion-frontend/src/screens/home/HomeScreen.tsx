@@ -21,7 +21,6 @@ import { AUDIO_CONFIG, SIGN_LABELS } from '@/config/readingConfig';
 import { getAudioDirectory, ensureAudioDirectory } from '@/services/audioDownload';
 import { AntChase } from '@/components/AntChase';
 import { AntChaseV2 } from '@/components/AntChaseV2';
-import { env } from '@/config/env';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Home'>;
 
@@ -611,11 +610,6 @@ export const HomeScreen = ({ navigation }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {__DEV__ ? (
-        <View style={styles.buildTag} pointerEvents="none">
-          <Text style={styles.buildTagText}>DEV 9bb6107</Text>
-        </View>
-      ) : null}
       {/* Screen ID */}
       <Text style={styles.screenId}>10</Text>
       {/* Two minimalist humans roam the entire screen in the background (never interacts with UI). */}
@@ -861,22 +855,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  buildTag: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    zIndex: 9999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-  },
-  buildTagText: {
-    fontFamily: typography.sansBold,
-    fontSize: 12,
-    color: '#fff',
-    letterSpacing: 0.5,
   },
   walkersOverlay: {
     ...StyleSheet.absoluteFillObject,

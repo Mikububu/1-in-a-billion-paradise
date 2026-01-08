@@ -277,6 +277,7 @@ export const SettingsScreen = ({ navigation }: Props) => {
         <View style={styles.footer}>
           <Text style={styles.footerText}>1 In A Billion</Text>
           <Text style={styles.footerVersion}>Version 1.0.0 (Build 1)</Text>
+          {__DEV__ ? <Text style={styles.footerDev}>DEV 9bb6107</Text> : null}
           <Text style={styles.footerCopy}>© 2024 One In A Billion Ltd.</Text>
         </View>
       </ScrollView>
@@ -396,6 +397,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.mutedText,
     marginTop: spacing.xs,
+  },
+  footerDev: {
+    fontFamily: typography.sansBold,
+    fontSize: 12,
+    color: colors.mutedText,
+    marginTop: spacing.xs,
+    letterSpacing: 0.5,
   },
 });
 
