@@ -200,13 +200,15 @@ const styles = StyleSheet.create({
         backgroundColor: colors.background, // WHITE button (was red)
         borderRadius: radii.button,
         paddingVertical: spacing.lg, // More padding
-        alignItems: 'center',
+        paddingHorizontal: spacing.lg,
+        alignItems: 'flex-start', // Left align
     },
     continueButtonText: {
         fontFamily: typography.sansSemiBold,
         fontSize: 16,
         color: colors.primary, // RED text on white button
         letterSpacing: 1, // More letter spacing
+        textAlign: 'left',
     },
     skipButton: {
         backgroundColor: 'transparent',
