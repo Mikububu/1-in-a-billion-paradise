@@ -96,8 +96,9 @@ FORBIDDEN:
 REQUIRED:
 - Psychological vocabulary (attachment, projection, compulsion, fixation, obsession)
 - Reference their EXACT degree position AND use it to differentiate from generic sign descriptions
-- Interpret the SPECIFIC degree: early/mid/late sign, decan (1st/2nd/3rd), house position
-- A Sagittarius Rising at 4.82° (early, 1st decan) is VERY different from one at 25.85° (late, 3rd decan)
+- Interpret the SPECIFIC degree range using POETIC language (e.g., "where the sign is still forming itself" instead of "1st decan")
+- NEVER use the word "decan" in your output - use natural descriptions of the degree range instead
+- A Sagittarius Rising at 4.82° (early degrees, point of origin) is VERY different from one at 25.85° (late degrees, completion phase)
 - Use the exact degree to create a UNIQUE interpretation, not generic sign traits
 - For Vedic/Rahu: Focus on what they're HUNGRY for, what they overcompensate for, obsessive patterns
 - One "how did you know?" line that feels uncanny and specific to THIS exact placement
@@ -123,15 +124,19 @@ function formatDegree(pos?: { sign: string; degree: number; minute: number; deca
   return `${pos.degree} degrees ${pos.minute} minutes ${pos.sign}`;
 }
 
-// Get decan description
+// Get poetic degree range description (avoiding the word "decan")
 function getDecanDescription(degree: number, decan?: 1 | 2 | 3): string {
   if (!decan) {
-    if (degree < 10) return 'early (1st decan)';
-    if (degree < 20) return 'mid (2nd decan)';
-    return 'late (3rd decan)';
+    if (degree < 10) return 'where the sign is still forming itself, at its very point of origin';
+    if (degree < 20) return 'where the sign reaches its fullest expression';
+    return 'where the sign prepares to transition, at its completion';
   }
-  const decanNames = { 1: 'early (1st decan)', 2: 'mid (2nd decan)', 3: 'late (3rd decan)' };
-  return decanNames[decan];
+  const decanPoetic = {
+    1: 'where the sign is still forming itself, at its very point of origin',
+    2: 'where the sign reaches its fullest expression',
+    3: 'where the sign prepares to transition, at its completion'
+  };
+  return decanPoetic[decan];
 }
 
 // Format house position
@@ -407,6 +412,7 @@ STRUCTURE:
 "analysis": (80-90 words):
 - Focus on LOVE, DESIRE, INTIMACY for ${ctx.type.toUpperCase()}
 - Use the EXACT degree (${ctx.type === 'sun' ? sunDeg?.degree : ctx.type === 'moon' ? moonDeg?.degree : risingDeg?.degree || '?'}°) to create a UNIQUE interpretation
+- Reference the degree position naturally (e.g., "Your ${sign} energy emerges at its very point of origin" instead of saying "1st decan")
 - A ${sign} at ${ctx.type === 'sun' ? sunDeg?.degree : ctx.type === 'moon' ? moonDeg?.degree : risingDeg?.degree || '?'} degrees (${ctx.type === 'sun' ? sunDecan : ctx.type === 'moon' ? moonDecan : risingDecan}) expresses differently than other ${sign} placements
 - ${currentHouse ? `Consider how being ${currentHouse} affects this placement. ` : ''}Name their wound gently but specifically
 - End with a hook

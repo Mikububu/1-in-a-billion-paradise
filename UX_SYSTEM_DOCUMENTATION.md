@@ -1,11 +1,18 @@
 # 1-in-a-Billion: Complete UX System Documentation
 
-**Version:** 1.1  
+**Version:** 1.2  
 **Date:** January 2025  
-**Last Updated:** January 8, 2025  
+**Last Updated:** January 8, 2026  
 **Purpose:** Complete mapping of all screens, navigation flows, and backend interactions
 
-**Recent Changes (v1.1):**
+**Recent Changes (v1.2):**
+- PostHookOffer subtitle updated: "Add a third person to unlock a free reading and a two person compatibility analysis"
+- TRANSFERRING YOU loading state now uses spinner (removed blinking animation)
+- Partner audio pre-rendering fully documented (all 3 types generated during waiting screen)
+- Audio persistence clarified: both user and partner audio stay in RAM (~3 MB total) via AsyncStorage
+- Supabase audio sync: automatic background upload to `library/hook-audio/` bucket
+
+**Previous Changes (v1.1):**
 - Screen 1 (Intro) is now ALWAYS the landing page on app launch (both signed-in and not signed-in users)
 - Added `showDashboard` flag to control navigator switching
 - Sign Out button now deletes all user data with warning
@@ -163,16 +170,20 @@
   - `POST /api/audio/hook-audio/generate` - Generate Sun audio (stored in Supabase Storage)
 - **Data Stored:** 
   - `onboardingStore.hookReadings.sun/moon/rising` (reading text)
-  - `onboardingStore.hookAudio.sun` (URL from Supabase Storage)
+  - `onboardingStore.hookAudio.sun` (base64 audio, persisted to AsyncStorage)
   - User placements (sunSign, moonSign, risingSign) saved to `profileStore`
+- **Reading Style:**
+  - Uses poetic language for degree positions (e.g., "where the sign is still forming itself" instead of "1st decan")
+  - Avoids technical jargon like "decan" in favor of natural descriptions
+  - Example: "Your Virgo energy emerges at its very point of origin" for 0-10 degrees
 - **Fly.io Impact:** 
   - Backend calculates astro placements using Swiss Ephemeris
-  - Calls DeepSeek API for LLM text generation
+  - Calls DeepSeek API for LLM text generation with poetic degree descriptions
   - Calls RunPod (Chatterbox TTS) for audio generation
-  - Uploads audio to Supabase Storage bucket `library`
+  - Uploads audio to Supabase Storage bucket `library` (background, non-blocking)
 - **Supabase Impact:** 
-  - Stores audio file at `hook-audio/{userId}/sun.mp3`
-  - Returns public URL for playback
+  - Uploads audio to `library/hook-audio/{userId}/{personId}/sun.mp3`
+  - Background upload (fire-and-forget, non-blocking)
 - **PDF Impact:** None (hook readings don't generate PDFs)
 
 **Screen 7: Hook Sequence** (`HookSequenceScreen`)
@@ -199,18 +210,27 @@
 **Screen 8: Post Hook Offer** (`PostHookOfferScreen`)
 - **Handler:** `S8_POST_HOOK_OFFER`
 - **Purpose:** Ask user if they want to add a partner (3rd person) for compatibility readings
+- **Message:** "Add a third person to unlock a free reading and a two person compatibility analysis."
 - **Navigation From:** `S7_HOOK_SEQUENCE` (after all 3 readings viewed)
 - **Navigation To:** 
-  - `S10_HOME` (if "No" - completes onboarding)
+  - `S10_HOME` (if "No" - completes onboarding, shows "TRANSFERRING YOU..." with spinner)
   - `S9_PARTNER_INFO` (if "Yes" - via `redirectAfterOnboarding` flag)
 - **Backend:** 
   - `POST /api/user-readings` - Saves hook readings to Supabase `user_readings` table
+  - Saves user profile to Supabase `library_people` table
+  - Uploads hook audio (Sun/Moon/Rising) to Supabase Storage
 - **Data Stored:** 
   - `onboardingStore.hasCompletedOnboarding = true`
   - `onboardingStore.redirectAfterOnboarding = 'PartnerInfo'` (if Yes)
+  - `onboardingStore.hookAudio` - Persisted to AsyncStorage (survives app restarts)
+- **UX Features:**
+  - "TRANSFERRING YOU..." loading state with spinner (non-blinking) during dashboard transition
+  - Loading state prevents user interaction during data persistence
 - **Fly.io Impact:** None
 - **Supabase Impact:** 
   - Inserts rows into `user_readings` table (sun, moon, rising)
+  - Uploads audio to `library/hook-audio/{userId}/{personId}/{type}.mp3`
+  - Creates/updates user profile in `library_people` table
   - Audio URLs already stored in Storage from S6/S7
 - **PDF Impact:** None
 
@@ -310,24 +330,33 @@
 
 **Screen 14: Partner Core Identities** (`PartnerCoreIdentitiesScreen`)
 - **Handler:** `S14_PARTNER_CORE_IDENTITIES`
-- **Purpose:** Waiting screen - generates partner's Sun/Moon/Rising readings and audio
+- **Purpose:** Waiting screen - generates partner's Sun/Moon/Rising readings and all 3 audio files (pre-rendered)
 - **Navigation From:** 
   - `S9_PARTNER_INFO` (after entering partner data)
   - `S10_HOME` (if partner added later)
-- **Navigation To:** `S22_PARTNER_READINGS` (auto-navigate when complete)
+- **Navigation To:** `S22_PARTNER_READINGS` (auto-navigate when all audio ready)
 - **Backend:** 
   - `POST /api/reading/sun?provider=deepseek` - Partner Sun reading
   - `POST /api/reading/moon?provider=deepseek` - Partner Moon reading
   - `POST /api/reading/rising?provider=deepseek` - Partner Rising reading
-  - `POST /api/audio/hook-audio/generate` - Partner Sun audio
+  - `POST /api/tts/generate` - Partner Sun/Moon/Rising audio (all 3 pre-rendered during waiting screen)
 - **Data Stored:** 
-  - `profileStore.people[partnerId].hookReadings`
-  - `profileStore.people[partnerId].hookAudioPaths` (Storage paths)
-- **Fly.io Impact:** Same as S6 (Swiss Ephemeris + DeepSeek + RunPod)
+  - `profileStore.people[partnerId].hookReadings` - Text readings
+  - `onboardingStore.partnerAudio` - Base64 audio strings (~1.5 MB total, persisted to AsyncStorage)
+  - Audio stays in memory when navigating to dashboard (not cleared)
+- **Audio Pre-Rendering:**
+  - Sun audio generated during Sun screen (waits for completion)
+  - Moon audio generated during Moon screen (background)
+  - Rising audio generated during Rising screen (background)
+  - All audio stored as base64 in `onboardingStore.partnerAudio` for instant playback
+  - Audio uploaded to Supabase Storage in background (non-blocking)
+- **Fly.io Impact:** Same as S6 (Swiss Ephemeris + DeepSeek + RunPod TTS)
 - **Supabase Impact:** 
-  - Stores partner audio at `hook-audio/{userId}/partner_{partnerId}_sun.mp3`
-  - Saves partner data to `profiles` table
+  - Uploads partner audio to `library/hook-audio/{userId}/{partnerPersonId}/{type}.mp3`
+  - Saves partner data to `library_people` table
+  - Background upload (fire-and-forget, non-blocking)
 - **PDF Impact:** None
+- **Memory:** Partner audio persists in RAM (~1.5 MB) + AsyncStorage for reinstall recovery
 
 **Screen 15: Person Profile** (`PersonProfileScreen`)
 - **Handler:** `S15_PERSON_PROFILE`

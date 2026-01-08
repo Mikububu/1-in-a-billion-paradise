@@ -50,10 +50,25 @@ Instead of repeating the birthday on Moon and Rising pages, explain what these p
 **Rising Sign** (what to explain):
 > "Your Rising sign is the mask you wear before trust is earned, the first impression you make, and the armor you built to protect the softer self within."
 
-### 4. Exact Degree Position
+### 4. Exact Degree Position & Poetic Descriptions
 - Always mention the exact degree from Swiss Ephemeris
 - Example: "at 15 degrees Virgo" NOT "15° Virgo"
 - Write out numbers for TTS compatibility
+
+**Degree Range Descriptions (NEVER use the word "decan"):**
+- **0-10 degrees (Early)**: "where the sign is still forming itself, at its very point of origin"
+- **10-20 degrees (Middle)**: "where the sign reaches its fullest expression"
+- **20-30 degrees (Late)**: "where the sign prepares to transition, at its completion"
+
+**Example output:**
+> "Your core identity, the Sun at 0 degrees 26 minutes Virgo, born on 23 August 1968. Your Virgo energy emerges at its very point of origin, where the sign is still forming itself. You are not just..."
+
+**What NOT to say:**
+> ❌ "This is the earliest degree, the 1st decan."
+> ❌ "You are in the first decan of Virgo."
+> ❌ "The decan suggests..."
+
+Use natural, poetic language that flows seamlessly into the reading.
 
 ### 5. Word Limits (STRICT)
 - **Preamble**: 30-40 words MAX
