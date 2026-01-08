@@ -4,8 +4,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Animated, Alert, Modal, ActivityIndicator, Pressable, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
-import { getCacheDirectory, EncodingType } from '@/utils/fileSystem';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { backfillMissingPlacements } from '@/services/placementsCalculator';
 import { supabase } from '@/services/supabase';
@@ -16,9 +14,8 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { Button } from '@/components/Button';
 import { UpsellModal } from '@/components/UpsellModal';
 import { type UpsellTrigger } from '@/config/subscriptions';
-import { audioApi, readingsApi } from '@/services/api';
-import { AUDIO_CONFIG, SIGN_LABELS } from '@/config/readingConfig';
-import { getAudioDirectory, ensureAudioDirectory } from '@/services/audioDownload';
+import { readingsApi } from '@/services/api';
+import { SIGN_LABELS } from '@/config/readingConfig';
 import { AntChase } from '@/components/AntChase';
 import { AntChaseV2 } from '@/components/AntChaseV2';
 
@@ -277,29 +274,11 @@ export const HomeScreen = ({ navigation }: Props) => {
     return null;
   }, [currentPerson, hookReadings]);
 
-  // Audio state
+  // Audio state (simple - no file system, just play from memory)
   const [audioLoading, setAudioLoading] = useState(false);
   const [audioPlaying, setAudioPlaying] = useState(false);
   const soundRef = useRef<Audio.Sound | null>(null);
-  const audioCacheDir = `${getCacheDirectory() || ''}hook_audio/`;
   const playRequestTokenRef = useRef(0); // cancels in-flight async play when modal closes/switches
-
-  const normalizeBase64 = (value?: string | null) => {
-    if (!value) return null;
-    const trimmed = String(value).trim();
-    if (!trimmed) return null;
-    // audioApi may return `data:audio/mpeg;base64,...`
-    const idx = trimmed.indexOf('base64,');
-    if (idx >= 0) return trimmed.slice(idx + 'base64,'.length);
-    return trimmed;
-  };
-
-  const personKeyForCache = useMemo(() => {
-    const raw = currentPerson?.person?.id || currentPerson?.person?.name || userName || 'user';
-    return String(raw).replace(/[^a-zA-Z0-9_-]/g, '_');
-  }, [currentPerson?.person?.id, currentPerson?.person?.name, userName]);
-
-  const getCachedAudioPath = (type: ReadingType) => `${audioCacheDir}${personKeyForCache}_${type}.mp3`;
 
   const stopAndUnloadAudio = useCallback(async () => {
     if (!soundRef.current) return;
@@ -457,108 +436,28 @@ export const HomeScreen = ({ navigation }: Props) => {
       return;
     }
 
-    // Prefer already-generated audio from store.
-    // IMPORTANT: only use user's `hookAudio` (partners are per-person cached on disk).
-    const rawFromStore = currentPerson?.person?.isUser ? hookAudio[selectedReading] : null;
+    // Get cached audio from store (base64 in memory, no file system).
+    // User audio: hookAudio[type]
+    // Partner audio: partnerAudio[type]
+    const audioBase64 = currentPerson?.person?.isUser 
+      ? hookAudio[selectedReading] 
+      : partnerAudio[selectedReading];
 
-    let uriToPlay: string | null = null;
-
-    // SCENARIO 1: URL from Supabase Storage (new pipeline)
-    if (rawFromStore && typeof rawFromStore === 'string' && (rawFromStore.startsWith('http://') || rawFromStore.startsWith('https://'))) {
-      uriToPlay = rawFromStore;
-      console.log(`🎵 Playing hook audio from URL: ${uriToPlay}`);
-    }
-
-    // SCENARIO 2: Legacy local file path (ends with .mp3)
-    if (!uriToPlay && rawFromStore && typeof rawFromStore === 'string' && rawFromStore.endsWith('.mp3')) {
-      const persistentUri = `${getAudioDirectory()}${rawFromStore}`;
-      try {
-        const info = await FileSystem.getInfoAsync(persistentUri);
-        if (info.exists) {
-          uriToPlay = info.uri;
-          console.log(`Persistent hook audio found: ${uriToPlay}`);
-        }
-      } catch { /* ignore */ }
-    }
-
-    // SCENARIO 3: Legacy Base64 or Missing File -> Use legacy cache logic
-    if (!uriToPlay) {
-      const storeBase64 = normalizeBase64(rawFromStore); // This handles if rawFromStore is base64
-      const cachedFilePath = getCachedAudioPath(selectedReading);
-
-      // Ensure cache directory
-      await FileSystem.makeDirectoryAsync(audioCacheDir, { intermediates: true }).catch(() => { });
-      if (isCancelled()) return;
-
-      // If file exists in cache, use it. Otherwise, if we have base64, write it.
-      try {
-        const info = await FileSystem.getInfoAsync(cachedFilePath);
-        if (!info.exists) {
-          if (storeBase64) {
-            await FileSystem.writeAsStringAsync(cachedFilePath, storeBase64, {
-              encoding: EncodingType.Base64,
-            });
-            console.log(`💾 Cached hook audio: ${cachedFilePath}`);
-          }
-        }
-      } catch {
-        // ignore cache IO errors, fall back below
-      }
-      if (isCancelled()) return;
-
-      // Check if cache file is ready
-      try {
-        const info = await FileSystem.getInfoAsync(cachedFilePath);
-        if (info.exists) uriToPlay = info.uri;
-      } catch { }
-    }
-
-    if (isCancelled()) return;
-
-    // SCENARIO 3: Both Failed -> Generate from scratch (Costly!)
-    if (!uriToPlay) {
+    if (!audioBase64) {
       const reading = modalReadings?.[selectedReading];
       if (!reading) {
         Alert.alert('Preview not available', 'This person does not have preview text/audio saved yet.');
         return;
       }
-
-      setAudioLoading(true);
-      try {
-        const result = await audioApi.generateTTS(
-          `${reading.intro}\n\n${reading.main}`,
-          { exaggeration: AUDIO_CONFIG.exaggeration }
-        );
-        if (isCancelled()) return;
-        const b64 = normalizeBase64(result.success ? result.audioBase64 : null);
-        if (!b64) {
-          Alert.alert('Audio Error', 'Could not generate audio');
-          return;
-        }
-
-        // Cache it for next time (in temp cache)
-        // Note: we don't save to persistent store here to avoid complex state updates in playback
-        const cachedFilePath = getCachedAudioPath(selectedReading);
-        await FileSystem.writeAsStringAsync(cachedFilePath, b64, {
-          encoding: EncodingType.Base64,
-        });
-        if (isCancelled()) return;
-        const info = await FileSystem.getInfoAsync(cachedFilePath);
-        uriToPlay = info.exists ? info.uri : null;
-      } catch (error) {
-        console.error('Audio generation error:', error);
-        Alert.alert('Audio Error', 'Could not generate audio');
-        return;
-      } finally {
-        setAudioLoading(false);
-      }
+      console.log('⚠️ Audio not pre-rendered - this should not happen if onboarding completed correctly');
+      Alert.alert('Audio not available', 'Please re-generate this reading to enable audio playback.');
+      return;
     }
 
     if (isCancelled()) return;
-    if (!uriToPlay) {
-      Alert.alert('Playback Error', 'Audio file not available');
-      return;
-    }
+    
+    console.log(`🎵 Playing ${currentPerson?.person?.isUser ? 'user' : 'partner'} ${selectedReading} audio from memory (base64)`);
+    const uriToPlay = `data:audio/mpeg;base64,${audioBase64}`;
 
     // Play the audio
     try {
@@ -598,13 +497,9 @@ export const HomeScreen = ({ navigation }: Props) => {
     selectedReading,
     audioPlaying,
     hookAudio,
-    hookReadings,
+    partnerAudio,
     modalReadings,
-    audioCacheDir,
     currentPerson?.person?.isUser,
-    currentPerson?.hookReadings,
-    getCachedAudioPath,
-    normalizeBase64,
     stopAndUnloadAudio,
   ]);
 
