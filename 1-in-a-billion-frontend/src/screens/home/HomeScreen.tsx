@@ -592,15 +592,15 @@ export const HomeScreen = ({ navigation }: Props) => {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* MY LIBRARY CARD - Simple */}
+        {/* MY SOULS LABORATORY CARD - Simple */}
         <TouchableOpacity
           style={styles.libraryCard}
-          onPress={() => navigation.navigate('MyLibrary')}
+          onPress={() => navigation.navigate('NextStep')}
           activeOpacity={0.8}
         >
           <View style={styles.libraryHeader}>
             <View style={styles.libraryInfo}>
-              <Text style={styles.libraryTitle}>My Souls Library</Text>
+              <Text style={styles.libraryTitle}>My Souls Laboratory</Text>
               <Text style={styles.librarySubtitle}>
                 Readings, audio & people
               </Text>
@@ -649,16 +649,6 @@ export const HomeScreen = ({ navigation }: Props) => {
               </Animated.Text>
             </>
           )}
-        </View>
-
-
-        {/* Let's Dive Deeper - red button */}
-        <View style={styles.buttonContainer}>
-          <Button
-            label="LET'S DIVE DEEPER!"
-            variant="primary"
-            onPress={() => navigation.navigate('NextStep')}
-          />
         </View>
 
       </ScrollView>
