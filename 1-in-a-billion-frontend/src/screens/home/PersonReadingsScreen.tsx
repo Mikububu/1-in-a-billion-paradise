@@ -59,6 +59,8 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   const { personName, personType, jobId } = route.params;
 
   const [readings, setReadings] = useState<Reading[]>([]);
+  const [jobStatus, setJobStatus] = useState<string>('pending'); // NEW: Track job status
+  const [jobProgress, setJobProgress] = useState<{percent: number; tasksComplete: number; tasksTotal: number} | null>(null); // NEW
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -240,6 +242,13 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         }
       }
       if (!jobData) throw lastErr || new Error('Failed to load job');
+
+      // NEW: Extract and set job status and progress
+      const status = jobData.job?.status || 'pending';
+      const progress = jobData.job?.progress || null;
+      setJobStatus(status);
+      setJobProgress(progress);
+      console.log(`📊 Job status: ${status}, progress:`, progress);
 
       // Detect job type and calculate document range
       const jobType = jobData.job?.type || 'nuclear_v2';
@@ -763,6 +772,25 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           <Text style={styles.title}>{personName}</Text>
         </View>
 
+        {/* NEW: Job Status Banner */}
+        {jobStatus !== 'completed' && jobProgress && (
+          <View style={styles.statusBanner}>
+            <Text style={styles.statusText}>
+              {jobStatus === 'processing' ? '⏳ Generating...' : '📦 Queued'}
+            </Text>
+            {jobProgress.tasksTotal > 0 && (
+              <Text style={styles.statusProgress}>
+                {jobProgress.tasksComplete} / {jobProgress.tasksTotal} tasks ({Math.round(jobProgress.percent || 0)}%)
+              </Text>
+            )}
+          </View>
+        )}
+        {jobStatus === 'completed' && (
+          <View style={[styles.statusBanner, styles.statusBannerComplete]}>
+            <Text style={styles.statusTextComplete}>✅ Ready</Text>
+          </View>
+        )}
+
         {!!loadError && !loading ? (
           <TouchableOpacity
             onPress={load}
@@ -1139,5 +1167,37 @@ const styles = StyleSheet.create({
     color: '#888',
     minWidth: 45,
     textAlign: 'center',
+  },
+  // NEW: Status banner styles
+  statusBanner: {
+    backgroundColor: '#FFF5E1',
+    borderWidth: 1,
+    borderColor: '#FFD700',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  statusBannerComplete: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#4CAF50',
+  },
+  statusText: {
+    fontFamily: 'System',
+    fontSize: 14,
+    color: '#856404',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  statusTextComplete: {
+    fontFamily: 'System',
+    fontSize: 14,
+    color: '#2E7D32',
+    fontWeight: '600',
+  },
+  statusProgress: {
+    fontFamily: 'System',
+    fontSize: 12,
+    color: '#856404',
   },
 });
