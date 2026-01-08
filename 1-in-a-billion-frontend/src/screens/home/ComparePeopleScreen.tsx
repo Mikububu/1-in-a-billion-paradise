@@ -336,14 +336,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.primary,
     borderRadius: radii.card,
     padding: spacing.md,
     marginTop: spacing.md,
     borderStyle: 'dashed',
   },
   addPersonAvatar: {
-    backgroundColor: colors.mutedText,
+    backgroundColor: colors.primary,
   },
   addPersonIcon: {
     fontFamily: typography.sansBold,
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
   addPersonText: {
     fontFamily: typography.sansMedium,
     fontSize: 16,
-    color: colors.text,
+    color: colors.primary,
   },
   emptyState: { alignItems: 'center', paddingVertical: spacing.xl * 2 },
   emptyTitle: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },
