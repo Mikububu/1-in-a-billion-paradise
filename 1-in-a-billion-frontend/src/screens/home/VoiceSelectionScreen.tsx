@@ -216,7 +216,6 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
                                     )}
                                 </View>
                                 <Text style={styles.voiceCategory}>{voice.category}</Text>
-                                <Text style={styles.voiceDescription}>{voice.description}</Text>
                             </View>
 
                             <TouchableOpacity
@@ -353,16 +352,10 @@ const styles = StyleSheet.create({
         letterSpacing: 1,
         marginBottom: spacing.xs,
     },
-    voiceDescription: {
-        fontFamily: typography.sansRegular,
-        fontSize: 14,
-        color: colors.mutedText,
-        lineHeight: 20,
-    },
     playButton: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         backgroundColor: colors.surface,
         borderWidth: 2,
         borderColor: colors.border,
@@ -375,8 +368,8 @@ const styles = StyleSheet.create({
     },
     playIcon: {
         color: colors.text,
-        fontSize: 20,
-        marginLeft: 2,
+        fontSize: 18,
+        marginLeft: 0, // Centered properly
     },
     playIconActive: {
         color: colors.background,
