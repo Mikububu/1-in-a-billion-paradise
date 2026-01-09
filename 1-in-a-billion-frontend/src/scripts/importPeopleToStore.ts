@@ -24,6 +24,14 @@ const GEOCODED_PEOPLE = [
       "timezone": "Asia/Hong_Kong",
       "latitude": 22.3193,
       "longitude": 114.1694
+    },
+    "placements": {
+      "sunSign": "Sagittarius",
+      "sunDegree": "0°2'",
+      "moonSign": "Cancer",
+      "moonDegree": "0°43'",
+      "risingSign": "Scorpio",
+      "risingDegree": "25°51'"
     }
   },
   {
@@ -37,6 +45,14 @@ const GEOCODED_PEOPLE = [
       "timezone": "Asia/Manila",
       "latitude": 7.4474,
       "longitude": 125.8078
+    },
+    "placements": {
+      "sunSign": "Aries",
+      "sunDegree": "3°15'",
+      "moonSign": "Aquarius",
+      "moonDegree": "7°55'",
+      "risingSign": "Gemini",
+      "risingDegree": "22°19'"
     }
   },
   {
@@ -50,6 +66,14 @@ const GEOCODED_PEOPLE = [
       "timezone": "Europe/London",
       "latitude": 51.5074,
       "longitude": -0.1278
+    },
+    "placements": {
+      "sunSign": "Scorpio",
+      "sunDegree": "15°29'",
+      "moonSign": "Gemini",
+      "moonDegree": "18°21'",
+      "risingSign": "Sagittarius",
+      "risingDegree": "25°27'"
     }
   },
   {
@@ -63,6 +87,14 @@ const GEOCODED_PEOPLE = [
       "timezone": "Asia/Jerusalem",
       "latitude": 32.0543,
       "longitude": 34.7516
+    },
+    "placements": {
+      "sunSign": "Cancer",
+      "sunDegree": "16°28'",
+      "moonSign": "Pisces",
+      "moonDegree": "5°52'",
+      "risingSign": "Gemini",
+      "risingDegree": "26°9'"
     }
   },
   {
@@ -76,6 +108,14 @@ const GEOCODED_PEOPLE = [
       "timezone": "Europe/Paris",
       "latitude": 43.5297,
       "longitude": 5.4474
+    },
+    "placements": {
+      "sunSign": "Taurus",
+      "sunDegree": "6°8'",
+      "moonSign": "Libra",
+      "moonDegree": "11°41'",
+      "risingSign": "Gemini",
+      "risingDegree": "19°33'"
     }
   },
   {
@@ -89,6 +129,14 @@ const GEOCODED_PEOPLE = [
       "timezone": "Europe/Rome",
       "latitude": 44.4949,
       "longitude": 11.3426
+    },
+    "placements": {
+      "sunSign": "Cancer",
+      "sunDegree": "18°34'",
+      "moonSign": "Taurus",
+      "moonDegree": "14°36'",
+      "risingSign": "Virgo",
+      "risingDegree": "24°22'"
     }
   },
   {
@@ -102,6 +150,14 @@ const GEOCODED_PEOPLE = [
       "timezone": "Europe/Stockholm",
       "latitude": 60.6066,
       "longitude": 15.6263
+    },
+    "placements": {
+      "sunSign": "Taurus",
+      "sunDegree": "15°8'",
+      "moonSign": "Scorpio",
+      "moonDegree": "10°0'",
+      "risingSign": "Virgo",
+      "risingDegree": "1°55'"
     }
   },
   {
@@ -115,6 +171,14 @@ const GEOCODED_PEOPLE = [
       "timezone": "Asia/Kolkata",
       "latitude": 30.3165,
       "longitude": 78.0322
+    },
+    "placements": {
+      "sunSign": "Pisces",
+      "sunDegree": "20°53'",
+      "moonSign": "Gemini",
+      "moonDegree": "1°4'",
+      "risingSign": "Virgo",
+      "risingDegree": "29°41'"
     }
   },
   {
@@ -128,6 +192,14 @@ const GEOCODED_PEOPLE = [
       "timezone": "Europe/Berlin",
       "latitude": 48.2599,
       "longitude": 11.4342
+    },
+    "placements": {
+      "sunSign": "Libra",
+      "sunDegree": "22°30'",
+      "moonSign": "Libra",
+      "moonDegree": "12°49'",
+      "risingSign": "Libra",
+      "risingDegree": "17°5'"
     }
   }
 ];
