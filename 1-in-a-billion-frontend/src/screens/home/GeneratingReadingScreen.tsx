@@ -321,9 +321,9 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
 
   const isThirdPerson = !!personName && personName !== 'You' && personName !== 'User';
 
-  const handleGoToLibrary = () => {
-    // Always navigate to MyLibrary (Secret Life Dashboard)
-    navigation.navigate('MyLibrary');
+  const handleGoToSoulLaboratory = () => {
+    // Main hub is Souls Laboratory (Screen 11)
+    navigation.navigate('NextStep');
   };
 
   // Get the system name for the headline
@@ -370,7 +370,7 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
         <View style={styles.messageBox}>
           <Text style={styles.messageTitle}>Deep Dive Readings Take Time</Text>
           <Text style={styles.messageText}>
-            As these are comprehensive, personalized readings across one or multiple systems, they require significant processing time to ensure quality and depth. Your reading will be saved to <Text style={styles.highlight}>{personName}'s Secret Life Dashboard</Text>. You can close the app and check back later!
+            As these are comprehensive, personalized readings across one or multiple systems, they require significant processing time to ensure quality and depth. You can close the app and check back later!
           </Text>
         </View>
 
@@ -396,9 +396,9 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
           </Text>
         </TouchableOpacity>
 
-        {/* Navigate to Secret Life Dashboard */}
-        <TouchableOpacity style={styles.libraryButton} onPress={handleGoToLibrary}>
-          <Text style={styles.libraryButtonText}>Secret Life Dashboard</Text>
+        {/* Navigate to Souls Laboratory */}
+        <TouchableOpacity style={styles.libraryButton} onPress={handleGoToSoulLaboratory}>
+          <Text style={styles.libraryButtonText}>Souls Laboratory</Text>
         </TouchableOpacity>
 
         {/* Status indicator - Centered */}

@@ -1,11 +1,17 @@
 # 1-in-a-Billion: Complete UX System Documentation
 
-**Version:** 1.2  
+**Version:** 1.3  
 **Date:** January 2025  
-**Last Updated:** January 8, 2026  
+**Last Updated:** January 9, 2026  
 **Purpose:** Complete mapping of all screens, navigation flows, and backend interactions
 
-**Recent Changes (v1.2):**
+**Recent Changes (v1.3):**
+- PersonReadingsScreen (S19): Only shows readings with actual artifacts (PDF, audio, or song) - placeholders without data are now hidden
+- MyLibraryScreen (S12): Removed debug Alert.alert popup that was showing job data on every load
+- Fixed React "unique key" warning in PersonReadingsScreen (using `reading.id` instead of index-based key)
+- Renamed "Secret Life Dashboard" to "Souls Laboratory" in GeneratingReadingScreen and HookSequenceScreen
+
+**Previous Changes (v1.2):**
 - PostHookOffer subtitle updated: "Add a third person to unlock a free reading and a two person compatibility analysis"
 - TRANSFERRING YOU loading state now uses spinner (removed blinking animation)
 - Partner audio pre-rendering fully documented (all 3 types generated during waiting screen)
@@ -451,6 +457,10 @@
   - Queries `jobs` and `job_tasks` tables
   - Reads artifacts from Storage
 - **PDF Impact:** Displays PDF download links
+- **Display Rules:**
+  - Only shows readings that have at least one artifact (PDF, audio, or song)
+  - Placeholder entries without actual data are hidden
+  - If ALL readings are placeholders (job has no artifacts yet), shows placeholders as fallback
 
 **Screen 20: Overlay Reader** (`OverlayReaderScreen`)
 - **Handler:** `S20_OVERLAY_READER`

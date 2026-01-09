@@ -307,9 +307,18 @@ export class AudioWorker extends BaseWorker {
 
       // ─────────────────────────────────────────────────────────────────────
       // FETCH RUNPOD KEYS FROM SUPABASE (with env fallback)
+      // Always try Supabase first - env fallback only if Supabase returns null
       // ─────────────────────────────────────────────────────────────────────
-      const runpodKey = await apiKeys.runpod().catch(() => this.runpodApiKey);
-      const runpodEndpoint = await apiKeys.runpodEndpoint().catch(() => this.runpodEndpointId);
+      let runpodKey = await apiKeys.runpod().catch(() => null);
+      if (!runpodKey) {
+        console.warn('⚠️ [AudioWorker] Supabase api_keys lookup failed, using env fallback');
+        runpodKey = this.runpodApiKey;
+      }
+      let runpodEndpoint = await apiKeys.runpodEndpoint().catch(() => null);
+      if (!runpodEndpoint) {
+        console.warn('⚠️ [AudioWorker] Supabase api_keys lookup failed for endpoint, using env fallback');
+        runpodEndpoint = this.runpodEndpointId;
+      }
       
       if (!runpodKey || !runpodEndpoint) {
         throw new Error('RunPod API key or endpoint ID not found (check Supabase api_keys table or .env)');

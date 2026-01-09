@@ -436,7 +436,17 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         return r;
       });
 
-      setReadings(finalReadings);
+      // Filter out placeholder entries that have no actual content
+      // Only show readings that have at least one artifact (text, PDF, or audio)
+      const realReadings = finalReadings.filter(r => {
+        // Keep if it has any actual artifact path
+        if (r.pdfPath || r.audioPath || r.songPath) return true;
+        // Keep if it's not a placeholder (has real data)
+        if (!r.id.startsWith('placeholder-') && !r.id.startsWith('error-')) return true;
+        return false;
+      });
+
+      setReadings(realReadings.length > 0 ? realReadings : finalReadings);
     } catch (e: any) {
       const errorMsg = e.name === 'AbortError' ? 'Request timed out' : e.message;
       console.error('❌ [PersonReadings] Error loading readings:', errorMsg);
@@ -842,7 +852,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                 : 0;
 
               return (
-                <View key={`${index}-${reading.system}`} style={styles.readingCard}>
+                <View key={reading.id || `reading-${index}`} style={styles.readingCard}>
                   {/* System Name - LEFT ALIGNED ABOVE BUTTONS */}
                   <Text style={styles.systemName}>{reading.name}</Text>
                   

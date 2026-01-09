@@ -576,7 +576,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
     });
 
     // 2. Add people from nuclear_v2 jobs (person1 and person2) - include processing jobs
-    let jobCounter = 0;
     queueJobsNewestFirst
       .filter((j: any) =>
         j.type === 'nuclear_v2' &&
@@ -607,18 +606,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           person1Name: params.person1?.name,
           person1Keys: params.person1 ? Object.keys(params.person1) : [],
         });
-
-        // DEBUG: Show first job data
-        if (jobCounter === 0) {
-          Alert.alert('Job Data Debug',
-            `Keys: ${Object.keys(job).join(', ')}\n\n` +
-            `Params keys: ${Object.keys(params).join(', ')}\n\n` +
-            `Person1 name: ${params.person1?.name || params.name || 'MISSING'}\n\n` +
-            `Raw: ${JSON.stringify(params).slice(0, 200)}`
-          );
-        }
-        jobCounter++;
-
 
         // For processing/pending/queued jobs, use a fallback name if person name is missing
         const isProcessing = job.status === 'processing' || job.status === 'pending' || job.status === 'queued';

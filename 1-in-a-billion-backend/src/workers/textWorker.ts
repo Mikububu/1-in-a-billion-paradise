@@ -498,8 +498,7 @@ export class TextWorker extends BaseWorker {
           chartData: { [safeSystem]: chartData } as any,
           personalContext: params.personalContext, // Pass through for individual reading personalization
         });
-        // Some prompt templates also look for personName explicitly
-        (prompt as any).personName = person1.name;
+        // personName is already embedded in the prompt via buildIndividualPrompt() config
         label += `:individual:${system}`;
       } else {
         throw new Error(`Unknown docType: ${docType}`);

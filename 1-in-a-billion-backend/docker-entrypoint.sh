@@ -2,58 +2,60 @@
 set -euo pipefail
 
 # Detect process type from Fly.io's FLY_PROCESS_GROUP env var
-# or fallback to RUN_MODE env var
-if [[ "${FLY_PROCESS_GROUP:-}" == "worker" ]] || [[ "${FLY_PROCESS_GROUP:-}" == "audiobook-worker" ]]; then
-  RUN_MODE="worker"
-  # Set WORKER_KIND based on process group
-  if [[ "${FLY_PROCESS_GROUP:-}" == "audiobook-worker" ]]; then
-    WORKER_KIND="audiobook"
-  else
-    WORKER_KIND="${WORKER_KIND:-combined}" # combined | text | audio | pdf
-  fi
-else
-  RUN_MODE="${RUN_MODE:-server}"
-  WORKER_KIND="${WORKER_KIND:-combined}"
-fi
+PROCESS_GROUP="${FLY_PROCESS_GROUP:-app}"
+echo "[entrypoint] FLY_PROCESS_GROUP=${PROCESS_GROUP}"
 
-if [[ "$RUN_MODE" == "worker" ]]; then
-  echo "[entrypoint] RUN_MODE=worker WORKER_KIND=${WORKER_KIND}"
+case "$PROCESS_GROUP" in
+  # ═══════════════════════════════════════════════════════════════════════════
+  # DEDICATED WORKER PROCESSES (run single worker type)
+  # ═══════════════════════════════════════════════════════════════════════════
+  watchdog)
+    echo "[entrypoint] Starting watchdog worker..."
+    exec node dist/workers/watchdogWorker.js
+    ;;
+  song-worker)
+    echo "[entrypoint] Starting song worker..."
+    exec node dist/workers/songWorker.js
+    ;;
+  audio-worker)
+    echo "[entrypoint] Starting audio worker..."
+    exec node dist/workers/audioWorker.js
+    ;;
+  pdf-worker)
+    echo "[entrypoint] Starting PDF worker..."
+    exec node dist/workers/pdfWorker.js
+    ;;
+  audiobook-worker)
+    echo "[entrypoint] Starting audiobook worker..."
+    exec node dist/workers/audiobookQueueWorker.js
+    ;;
+  
+  # ═══════════════════════════════════════════════════════════════════════════
+  # COMBINED WORKER (runs text + PDF + audio in one container)
+  # ═══════════════════════════════════════════════════════════════════════════
+  worker)
+    echo "[entrypoint] Starting combined worker (text + PDF + audio)..."
+    
+    node dist/workers/textWorker.js &
+    TEXT_PID=$!
+    node dist/workers/pdfWorker.js &
+    PDF_PID=$!
+    node dist/workers/audioWorker.js &
+    AUDIO_PID=$!
 
-  case "$WORKER_KIND" in
-    text)
-      exec node dist/workers/textWorker.js
-      ;;
-    audio)
-      exec node dist/workers/audioWorker.js
-      ;;
-    audiobook)
-      exec node dist/workers/audiobookQueueWorker.js
-      ;;
-    pdf)
-      exec node dist/workers/pdfWorker.js
-      ;;
-    combined)
-      # Run all workers in the same container (text → PDF → audio workflow)
-      node dist/workers/textWorker.js &
-      TEXT_PID=$!
-      node dist/workers/pdfWorker.js &
-      PDF_PID=$!
-      node dist/workers/audioWorker.js &
-      AUDIO_PID=$!
+    echo "[entrypoint] Started text worker pid=${TEXT_PID}, PDF worker pid=${PDF_PID}, audio worker pid=${AUDIO_PID}"
 
-      echo "[entrypoint] Started text worker pid=${TEXT_PID}, PDF worker pid=${PDF_PID}, audio worker pid=${AUDIO_PID}"
+    # Forward signals
+    trap 'echo "[entrypoint] Caught signal, stopping..."; kill -TERM ${TEXT_PID} ${PDF_PID} ${AUDIO_PID} 2>/dev/null || true; wait ${TEXT_PID} ${PDF_PID} ${AUDIO_PID} 2>/dev/null || true; exit 0' TERM INT
 
-      # Forward signals
-      trap 'echo "[entrypoint] Caught signal, stopping..."; kill -TERM ${TEXT_PID} ${PDF_PID} ${AUDIO_PID} 2>/dev/null || true; wait ${TEXT_PID} ${PDF_PID} ${AUDIO_PID} 2>/dev/null || true; exit 0' TERM INT
-
-      wait ${TEXT_PID} ${PDF_PID} ${AUDIO_PID}
-      ;;
-    *)
-      echo "[entrypoint] Unknown WORKER_KIND=${WORKER_KIND}" >&2
-      exit 1
-      ;;
-  esac
-else
-  echo "[entrypoint] RUN_MODE=server"
-  exec node dist/server.js
-fi
+    wait ${TEXT_PID} ${PDF_PID} ${AUDIO_PID}
+    ;;
+  
+  # ═══════════════════════════════════════════════════════════════════════════
+  # API SERVER (default)
+  # ═══════════════════════════════════════════════════════════════════════════
+  app|*)
+    echo "[entrypoint] Starting API server..."
+    exec node dist/server.js
+    ;;
+esac

@@ -1164,7 +1164,7 @@ ${rising.main}`;
                           <>
                             <Text style={styles.gatewayIcon}>✧</Text>
                             <Text style={styles.gatewayTitle}>
-                              Entering your{'\n'}Secret Life Dashboard
+                              Entering your{'\n'}Souls Laboratory
                             </Text>
                             <ActivityIndicator
                               size="large"
