@@ -762,13 +762,21 @@ router.post('/v2/start', async (c) => {
     // Resolve voice and set audioUrl (WAV for RunPod training) if voiceId provided
     let audioUrl = payload.audioUrl;
     if (payload.voiceId && !audioUrl) {
-      const { getVoiceById } = await import('../config/voices');
+      const { getVoiceById, getEnabledVoices } = await import('../config/voices');
       const voice = getVoiceById(payload.voiceId);
       if (voice) {
         audioUrl = voice.sampleAudioUrl; // Use WAV URL for RunPod training
         console.log(`🎤 Resolved voice: ${voice.displayName} → ${audioUrl.substring(0, 80)}...`);
       } else {
-        console.warn(`⚠️  Voice not found: ${payload.voiceId}, using default`);
+        // Fallback to first available voice if requested voice not found
+        const availableVoices = getEnabledVoices();
+        if (availableVoices.length > 0) {
+          const fallbackVoice = availableVoices[0];
+          audioUrl = fallbackVoice.sampleAudioUrl;
+          console.warn(`⚠️  Voice '${payload.voiceId}' not found, using fallback: ${fallbackVoice.displayName}`);
+        } else {
+          console.error(`❌ No voices available! Voice '${payload.voiceId}' not found and no fallback available.`);
+        }
       }
     }
 

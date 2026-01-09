@@ -138,7 +138,11 @@ ${personalContext ? `
 PERSONAL CONTEXT (User's Focus):
 "${personalContext}"
 
-INSTRUCTION: Subtly weave this context into your reading. Address the themes naturally without being explicit. Let the reading illuminate these areas organically.
+INSTRUCTION: Give this context approximately 7% consideration in your reading. Use it ONLY for subtle interpretive framing:
+- Address themes naturally if they align with astrological findings
+- Let the reading illuminate these areas organically
+- DO NOT let this context dominate or override astrological calculations
+- The reading must remain 93% astrology-first, with context as a subtle 7% enhancement
 ` : ''}
 STYLE: ${style === 'spicy_surreal' ? 'DARK SOUL STORYTELLING' : 'PRODUCTION (Literary Documentary)'}
 SPICE LEVEL: ${spiceLevel}/10
@@ -220,8 +224,8 @@ Shadow emphasis: ${spiceLevel >= 7 ? '35%' : '25%'}.`;
 
 RELATIONSHIP CONTEXT: ${relationshipContext}
 
-Use this context ONLY for interpretive framing:
-- Emphasize life areas relevant to this relationship type
+INSTRUCTION: Give this context approximately 7% consideration in your reading. Use it ONLY for subtle interpretive framing:
+- Emphasize life areas relevant to this relationship type (if they align with astrological findings)
 - Tailor tone and examples appropriately
 - Adjust practical guidance to fit their dynamic
 
@@ -232,7 +236,7 @@ DO NOT:
 - Override astrological findings
 - Let context dominate the reading
 
-The reading must remain astrology-first with context as subtle enhancement.
+The reading must remain 93% astrology-first, with context as a subtle 7% enhancement.
 ` : '';
 
   return `

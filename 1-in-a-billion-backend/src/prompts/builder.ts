@@ -102,7 +102,11 @@ export function buildIndividualPrompt(config: IndividualPromptConfig): string {
 PERSONAL CONTEXT (User's Focus):
 "${personalContext}"
 
-INSTRUCTION: Subtly weave this context into your reading. Address the themes naturally without being explicit. Let the reading illuminate these areas organically.
+INSTRUCTION: Give this context approximately 7% consideration in your reading. Use it ONLY for subtle interpretive framing:
+- Address themes naturally if they align with astrological findings
+- Let the reading illuminate these areas organically
+- DO NOT let this context dominate or override astrological calculations
+- The reading must remain 93% astrology-first, with context as a subtle 7% enhancement
 ═══════════════════════════════════════════════════════════════════════════════
 ` : '';
 
