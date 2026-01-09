@@ -180,7 +180,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                   activeOpacity={0.85}
                 >
                   <View style={[styles.avatar, p.gender === 'male' ? { backgroundColor: '#E8F4E4' } : p.gender === 'female' ? { backgroundColor: '#FFE4E4' } : {}]}>
-                    <Text style={[styles.avatarText, p.gender === 'male' ? { color: colors.success } : p.gender === 'female' ? { color: colors.primary } : {}]}>{p.name.charAt(0).toUpperCase()}</Text>
+                    <Text style={styles.avatarText}>{p.name.charAt(0).toUpperCase()}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.rowName, p.gender === 'male' ? { color: colors.success } : p.gender === 'female' ? { color: colors.primary } : {}]}>{p.name}</Text>
