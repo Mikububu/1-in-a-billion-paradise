@@ -271,9 +271,8 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
             if (!data.jobId) throw new Error('No jobId returned');
             
             // CRITICAL: Store jobId in person's profile so PersonReadingsScreen can find it
-            const { useProfileStore } = await import('@/store/profileStore');
             const personId = person1.id || userId;
-            const updatePerson = useProfileStore.getState().updatePerson;
+            const updatePerson = profileStore.getState().updatePerson;
             const existingPerson = profileStore.people.find(p => p.id === personId);
             
             if (existingPerson) {
