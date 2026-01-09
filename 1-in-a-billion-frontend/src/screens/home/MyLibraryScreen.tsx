@@ -584,24 +584,8 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
     fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:557',message:'All queueJobs analysis',data:{totalJobs:queueJobs.length,jobs:queueJobs.map((j:any,i:number)=>({idx:i,id:j.id?.slice(0,8),type:j.type,status:j.status,hasParams:!!j.params,hasInput:!!j.input,paramsType:typeof j.params,inputType:typeof j.input}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
     // #endregion
 
-    people.forEach(person => {
-      // Show people who have birth data OR readings
-      const hasBirthData = person.birthData?.birthDate && person.birthData?.birthTime;
-      const hasReadings = person.readings && person.readings.length > 0;
-
-      if (hasBirthData || hasReadings) {
-        peopleMap.set(person.name, {
-          id: person.id,
-          name: person.name,
-          isUser: person.isUser || false,
-          birthData: person.birthData,
-          placements: person.placements || {},
-          readings: person.readings,
-          createdAt: person.createdAt,
-          jobIds: person.jobIds || [], // PRESERVE existing jobIds from store
-        });
-      }
-    });
+    // REMOVED: Don't add people from local store - ONLY show people from jobs
+    // This prevents test/imported people from appearing without purchases
 
     // 2. Add people from nuclear_v2 and extended jobs (person1 and person2) - include processing jobs
     queueJobsNewestFirst
