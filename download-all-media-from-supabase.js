@@ -20,12 +20,12 @@ const path = require('path');
 const https = require('https');
 const http = require('http');
 
-// Add backend node_modules to require path
+// Set NODE_PATH to include backend node_modules
 const backendPath = path.join(__dirname, '1-in-a-billion-backend');
-const backendNodeModules = path.join(backendPath, 'node_modules');
-if (fs.existsSync(backendNodeModules)) {
-  require('module')._nodeModulePaths.push(backendNodeModules);
-}
+process.env.NODE_PATH = (process.env.NODE_PATH || '') + 
+  (process.env.NODE_PATH ? path.delimiter : '') + 
+  path.join(backendPath, 'node_modules');
+require('module')._initPaths();
 
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config({ path: path.join(backendPath, '.env') });
