@@ -270,6 +270,18 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
             const data = await res.json();
             if (!data.jobId) throw new Error('No jobId returned');
             
+            // CRITICAL: Store jobId in person's profile so PersonReadingsScreen can find it
+            const { useProfileStore } = await import('@/store/profileStore');
+            const personId = person1.id || userId;
+            const updatePerson = useProfileStore.getState().updatePerson;
+            const existingPerson = profileStore.people.find(p => p.id === personId);
+            
+            if (existingPerson) {
+                const updatedJobIds = [...(existingPerson.jobIds || []), data.jobId];
+                updatePerson(personId, { jobIds: updatedJobIds });
+                console.log(`✅ Added jobId ${data.jobId} to person ${person1.name}`);
+            }
+            
             // Navigate to GeneratingReading (NO animation screen)
             navigation.replace('GeneratingReading', {
                 jobId: data.jobId,
