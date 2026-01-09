@@ -47,7 +47,7 @@ export const VOICES: Voice[] = [
         displayName: 'David',
         description: 'Warm and engaging male narrator with a natural, conversational tone',
         sampleAudioUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/david.wav',
-        previewSampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/david/henry_miller_sample.mp3',
+        previewSampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/david/preview.mp3',
         category: 'male',
         enabled: true,
     },
@@ -56,7 +56,7 @@ export const VOICES: Voice[] = [
         displayName: 'Elisabeth',
         description: 'Elegant female narrator with a clear, sophisticated voice',
         sampleAudioUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/elisabeth.wav',
-        previewSampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/elisabeth/henry_miller_sample.mp3',
+        previewSampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/elisabeth/preview.mp3',
         category: 'female',
         enabled: true,
     },
@@ -65,7 +65,7 @@ export const VOICES: Voice[] = [
         displayName: 'Michael',
         description: 'Confident male narrator with a strong, authoritative presence',
         sampleAudioUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/michael.wav',
-        previewSampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/michael/henry_miller_sample.mp3',
+        previewSampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/michael/preview.mp3',
         category: 'male',
         enabled: true,
     },
@@ -74,7 +74,7 @@ export const VOICES: Voice[] = [
         displayName: 'Peter',
         description: 'Friendly male narrator with a warm, approachable tone',
         sampleAudioUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/peter.wav',
-        previewSampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/peter/henry_miller_sample.mp3',
+        previewSampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/peter/preview.mp3',
         category: 'male',
         enabled: true,
     },
@@ -83,7 +83,7 @@ export const VOICES: Voice[] = [
         displayName: 'Victor',
         description: 'Deep male narrator with a rich, resonant voice',
         sampleAudioUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/victor.wav',
-        previewSampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/victor/henry_miller_sample.mp3',
+        previewSampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/victor/preview.mp3',
         category: 'male',
         enabled: true,
     },
@@ -113,5 +113,5 @@ export function getVoiceSampleUrl(voiceId: string): string {
         return voice.previewSampleUrl;
     }
     // Fallback to MP3 in voice-samples bucket
-    return `https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/${voiceId}/henry_miller_sample.mp3`;
+    return `https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/${voiceId}/preview.mp3`;
 }
