@@ -18,6 +18,7 @@ import { useOnboardingStore } from '@/store/onboardingStore';
 import { useProfileStore } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
+import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Settings'>;
 
@@ -257,7 +258,7 @@ export const SettingsScreen = ({ navigation }: Props) => {
                   onPress={item.onPress}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.itemIcon}>{item.icon}</Text>
+                  <AnimatedSystemIcon icon={item.icon} size={20} />
                   <View style={styles.itemContent}>
                     <Text style={[styles.itemTitle, item.danger && styles.itemTitleDanger]}>
                       {item.title}
