@@ -381,6 +381,21 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             '📥 [MyLibrary] Complete jobs:',
             mergedJobs.filter((j: any) => j.status === 'complete' || j.status === 'completed').length
           );
+          
+          // CRITICAL: If mergedJobs is empty, log why and try one more fallback
+          if (mergedJobs.length === 0) {
+            console.warn('⚠️ [MyLibrary] mergedJobs is EMPTY! userId:', userId, 'resolvedUserId:', resolvedUserId);
+            console.warn('⚠️ [MyLibrary] API URL:', env.CORE_API_URL);
+            console.warn('⚠️ [MyLibrary] This means no jobs were found - either API failed or user has no jobs');
+            // Don't set queueJobs to empty - keep previous state if we had any
+            if (mountedRef.current && queueJobs.length > 0) {
+              console.log('📚 [MyLibrary] Keeping previous', queueJobs.length, 'jobs instead of clearing');
+              setQueueJobsError(`No jobs found for userId: ${userId}. Keeping previous state.`);
+              setLoadingQueueJobs(false);
+              return;
+            }
+          }
+          
           const fetchJobDetail = async (jobIdToFetch: string) => {
             const url = `${env.CORE_API_URL}/api/jobs/v2/${jobIdToFetch}`;
             // Try with auth header first (if we have it), then fall back without.
