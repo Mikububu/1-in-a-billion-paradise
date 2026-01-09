@@ -334,21 +334,38 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             for (const r of results) {
               if (r.status === 'fulfilled') {
                 const res = r.value.result;
-                console.log('📥 [MyLibrary] Got jobs:', res.totalJobs, 'jobs from', r.value.url);
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:308',message:'API response received',data:{url:r.value.url,totalJobs:res.totalJobs,jobsCount:res.jobs?.length||0,jobTypes:res.jobs?.map((j:any)=>j.type)||[],jobStatuses:res.jobs?.map((j:any)=>j.status)||[]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
-                // #endregion
-                if (res.jobs && res.jobs.length > 0) {
-                  console.log('📥 [MyLibrary] Job types:', res.jobs.map((j: any) => `${j.type}:${j.status}`));
+                console.log('📥 [MyLibrary] Got response from', r.value.url);
+                console.log('📥 [MyLibrary] Response structure:', Object.keys(res || {}));
+                console.log('📥 [MyLibrary] totalJobs:', res?.totalJobs, 'jobs array length:', res?.jobs?.length);
+                console.log('📥 [MyLibrary] jobs type:', typeof res?.jobs, 'isArray:', Array.isArray(res?.jobs));
+                
+                // Handle different response formats
+                let jobsArray = res?.jobs;
+                if (!jobsArray && Array.isArray(res)) {
+                  // Sometimes API returns array directly
+                  jobsArray = res;
+                  console.log('📥 [MyLibrary] Response is array directly, length:', jobsArray.length);
                 }
-                allJobs.push(...(res.jobs || []));
+                
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:308',message:'API response received',data:{url:r.value.url,responseKeys:Object.keys(res||{}),totalJobs:res?.totalJobs,jobsCount:jobsArray?.length||0,jobsIsArray:Array.isArray(jobsArray),jobTypes:jobsArray?.map((j:any)=>j.type)||[],jobStatuses:jobsArray?.map((j:any)=>j.status)||[]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
+                // #endregion
+                if (jobsArray && jobsArray.length > 0) {
+                  console.log('📥 [MyLibrary] Adding', jobsArray.length, 'jobs - types:', jobsArray.map((j: any) => `${j.type}:${j.status}`));
+                  allJobs.push(...jobsArray);
+                } else {
+                  console.warn('⚠️ [MyLibrary] No jobs in response or jobs array is empty');
+                }
               } else {
                 console.error('❌ [MyLibrary] Backend API failed for one userId:', r.reason?.message || String(r.reason));
+                console.error('❌ [MyLibrary] Full error:', r.reason);
                 // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:314',message:'API fetch failed',data:{error:r.reason?.message||String(r.reason)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
+                fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:314',message:'API fetch failed',data:{error:r.reason?.message||String(r.reason),stack:r.reason?.stack},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
                 // #endregion
               }
             }
+            
+            console.log('📊 [MyLibrary] Total allJobs collected:', allJobs.length);
 
             // Deduplicate by job id
             const byId = new Map<string, any>();
