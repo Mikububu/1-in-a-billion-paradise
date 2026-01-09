@@ -17,7 +17,6 @@ import { useOnboardingStore } from '@/store/onboardingStore';
 import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { useState, useEffect } from 'react';
-import { TexturedBackground } from '@/components/TexturedBackground';
 // Voices are now fetched from backend API - no need for hardcoded VOICES object
 import { VoiceSelectionModal } from '@/components/VoiceSelectionModal';
 import { useProfileStore } from '@/store/profileStore';
@@ -431,9 +430,8 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
   };
 
   return (
-    <TexturedBackground style={styles.container}>
-      <SafeAreaView style={{ flex: 1 }}>
-        <Text style={styles.screenId}>{screenId}</Text>
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.screenId}>{screenId}</Text>
 
       <View style={styles.navRow}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
@@ -514,14 +512,14 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
           }
         }}
       />
-      </SafeAreaView>
-    </TexturedBackground>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: 'transparent',
   },
   screenId: {
     position: 'absolute',

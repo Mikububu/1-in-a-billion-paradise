@@ -7,6 +7,7 @@ import { useProfileStore } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
 import { useSupabaseAuthBootstrap } from '@/hooks/useSupabaseAuthBootstrap';
 import { useSupabaseLibraryAutoSync } from '@/hooks/useSupabaseLibraryAutoSync';
+import { TexturedBackground } from '@/components/TexturedBackground';
 import { SignInScreen } from '@/screens/auth/SignInScreen';
 // Onboarding screens
 import { IntroScreen } from '@/screens/onboarding/IntroScreen';
@@ -795,7 +796,7 @@ export const RootNavigator = () => {
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    <TexturedBackground style={{ flex: 1 }}>
       {hasSession && hasCompletedOnboarding ? (
         // Logged-in users with completed onboarding: Check showDashboard flag
         showDashboard ? (
@@ -811,6 +812,6 @@ export const RootNavigator = () => {
         <OnboardingNavigator initialRouteName="Intro" />
       )}
       <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'box-none' }} />
-    </View>
+    </TexturedBackground>
   );
 };
