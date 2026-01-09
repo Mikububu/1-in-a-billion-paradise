@@ -459,65 +459,115 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
 
       console.log('📦 Readings built:', Object.keys(readingsMap).length);
 
-      // If API isn't returning audio URLs yet, fall back to Supabase artifacts directly.
-      // This makes the app resilient when audio artifacts are stored as audio_mp3/audio_m4a.
-      if (!hasAnyAudioFromApi && isSupabaseConfigured) {
+      // ALWAYS sync from Supabase artifacts - this ensures we get ALL artifacts even if API is incomplete
+      // This makes the app resilient and ensures complete sync from Supabase
+      if (isSupabaseConfigured) {
         try {
-          const { data: arts, error: aErr } = await supabase
-            .from('job_artifacts')
-            .select('*')
-            .eq('job_id', jobId)
-            .order('created_at', { ascending: true });
-          if (aErr) throw aErr;
+          // Fetch artifacts from ALL jobs if aggregating, otherwise just current job
+          const jobIdsToCheck = shouldAggregateJobs ? allJobIds : [jobId];
+          const allArtifacts: any[] = [];
+          
+          for (const checkJobId of jobIdsToCheck) {
+            const { data: arts, error: aErr } = await supabase
+              .from('job_artifacts')
+              .select('*')
+              .eq('job_id', checkJobId)
+              .order('created_at', { ascending: true });
+            
+            if (!aErr && arts) {
+              // Attach jobId to each artifact for aggregation
+              allArtifacts.push(...arts.map((a: any) => ({ ...a, sourceJobId: checkJobId })));
+            }
+          }
 
-          const byDoc: Record<number, { pdfPath?: string; audioPath?: string; songPath?: string }> = {};
-          for (const a of arts || []) {
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:supabaseSync',message:'Syncing artifacts from Supabase',data:{jobIdsChecked:jobIdsToCheck.length,totalArtifacts:allArtifacts.length,artifactTypes:allArtifacts.map((a:any)=>a.artifact_type)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SYNC'})}).catch(()=>{});
+          // #endregion
+
+          const byDoc: Record<string, { pdfPath?: string; audioPath?: string; songPath?: string; jobId?: string }> = {};
+          
+          for (const a of allArtifacts) {
             const meta = (a as any).metadata || {};
             const docNumRaw = meta?.docNum ?? meta?.chapter_index;
             const docNum = typeof docNumRaw === 'number' ? docNumRaw : Number(docNumRaw);
-            if (!docNum || !docRange.includes(docNum)) continue;
+            
+            // For aggregated jobs, use system as key; otherwise use docNum
+            const key = shouldAggregateJobs && meta?.system 
+              ? meta.system 
+              : (docNum ? String(docNum) : null);
+            
+            if (!key) continue;
+            
+            // For aggregated jobs, check if docNum is in range OR if we're showing all systems
+            if (!shouldAggregateJobs && docNum && !docRange.includes(docNum)) continue;
 
             const t = String((a as any).artifact_type || '');
+            const sourceJobId = (a as any).sourceJobId || jobId;
+            
             if (t === 'pdf') {
-              byDoc[docNum] = byDoc[docNum] || {};
-              byDoc[docNum].pdfPath = (a as any).storage_path;
+              byDoc[key] = byDoc[key] || { jobId: sourceJobId };
+              byDoc[key].pdfPath = (a as any).storage_path;
             }
             if (t === 'audio' || t.startsWith('audio_')) {
               // Skip songs in this block (handled separately)
               if (t === 'audio_song') continue;
-              byDoc[docNum] = byDoc[docNum] || {};
-              byDoc[docNum].audioPath = (a as any).storage_path;
+              byDoc[key] = byDoc[key] || { jobId: sourceJobId };
+              byDoc[key].audioPath = (a as any).storage_path;
             }
             if (t === 'audio_song') {
-              byDoc[docNum] = byDoc[docNum] || {};
-              byDoc[docNum].songPath = (a as any).storage_path;
+              byDoc[key] = byDoc[key] || { jobId: sourceJobId };
+              byDoc[key].songPath = (a as any).storage_path;
             }
           }
 
-          // Sign URLs in parallel (1h)
+          // Sign URLs in parallel (1h) for all found artifacts
+          const keysToProcess = Object.keys(byDoc);
           const signed = await Promise.all(
-            docRange.map(async (docNum) => {
-              const entry = byDoc[docNum] || {};
+            keysToProcess.map(async (key) => {
+              const entry = byDoc[key];
               const [pdfUrl, audioUrl, songUrl] = await Promise.all([
                 entry.pdfPath ? createArtifactSignedUrl(entry.pdfPath, 60 * 60) : Promise.resolve(null),
                 entry.audioPath ? createArtifactSignedUrl(entry.audioPath, 60 * 60) : Promise.resolve(null),
                 entry.songPath ? createArtifactSignedUrl(entry.songPath, 60 * 60) : Promise.resolve(null),
               ]);
-              return { docNum, pdfUrl, audioUrl, songUrl };
+              return { key, pdfUrl, audioUrl, songUrl, jobId: entry.jobId };
             })
           );
 
+          // Update readingsMap with Supabase artifacts (fill gaps, Supabase wins for missing API data)
           for (const s of signed) {
             if (!s) continue;
-            const r = readingsMap[s.docNum];
-            if (!r) continue;
-            // Only fill gaps so API values win when present
-            if (!r.pdfPath && s.pdfUrl) r.pdfPath = s.pdfUrl;
-            if (!r.audioPath && s.audioUrl) r.audioPath = s.audioUrl;
-            if (!r.songPath && s.songUrl) r.songPath = s.songUrl;
+            const r = readingsMap[s.key];
+            if (r) {
+              // Update existing reading - fill gaps, prefer Supabase if API didn't provide
+              if (!r.pdfPath && s.pdfUrl) r.pdfPath = s.pdfUrl;
+              if (!r.audioPath && s.audioUrl) r.audioPath = s.audioUrl;
+              if (!r.songPath && s.songUrl) r.songPath = s.songUrl;
+            } else if (shouldAggregateJobs) {
+              // For aggregated jobs, create reading from Supabase artifact if not in API response
+              const system = SYSTEMS.find(sys => sys.id === s.key);
+              if (system) {
+                readingsMap[s.key] = {
+                  id: `reading-${s.key}-${s.jobId}`,
+                  system: system.id,
+                  name: system.name,
+                  pdfPath: s.pdfUrl || undefined,
+                  audioPath: s.audioUrl || undefined,
+                  songPath: s.songUrl || undefined,
+                  timestamp: jobData?.job?.created_at || new Date().toISOString(),
+                };
+              }
+            }
           }
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:supabaseSyncComplete',message:'Supabase sync complete',data:{artifactsProcessed:allArtifacts.length,readingsUpdated:Object.keys(readingsMap).length,keysProcessed:keysToProcess.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SYNC'})}).catch(()=>{});
+          // #endregion
         } catch (e) {
-          // ignore fallback failures
+          console.error('⚠️ Error syncing from Supabase:', e);
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:supabaseSyncError',message:'Supabase sync failed',data:{error:String(e)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SYNC'})}).catch(()=>{});
+          // #endregion
         }
       }
 
