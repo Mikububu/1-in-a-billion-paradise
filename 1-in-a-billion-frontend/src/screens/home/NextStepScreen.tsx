@@ -74,9 +74,10 @@ export const NextStepScreen = ({ navigation }: Props) => {
         source={require('../../../assets/videos/hello_i_love_you.mp4')}
         style={styles.bottomVideo}
         resizeMode={ResizeMode.COVER}
-        shouldPlay
+        shouldPlay={false}
         isLooping
         isMuted
+        volume={0}
       />
     </View>
   );

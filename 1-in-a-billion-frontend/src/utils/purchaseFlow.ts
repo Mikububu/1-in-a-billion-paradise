@@ -42,50 +42,41 @@ interface PurchaseFlowParams {
 /**
  * Initiate the standard purchase flow
  * ALL purchase buttons should call this function
+ * 
+ * FLOW: SystemExplainer → Purchase → Context Injection → VoiceSelection → GeneratingReading
  */
 export function initiatePurchaseFlow(params: PurchaseFlowParams) {
   const { navigation, productType, readingType, systems, personName, userName, partnerName, partnerBirthDate, partnerBirthTime, partnerBirthCity, person1Override, person2Override, personId, partnerId, forPartner } = params;
   
   const isOverlay = readingType === 'overlay';
   
-  // STEP 1: Navigate to Circle Injection
-  if (isOverlay && partnerName) {
-    // Overlay reading → RelationshipContext
-    navigation.navigate('RelationshipContext', {
-      readingType: 'overlay',
-      forPartner: false,
-      userName: userName || 'You',
+  // STEP 1: Navigate to Purchase (Payment) screen
+  // Purchase screen will navigate to Context Injection after payment completes
+  navigation.navigate('Purchase', {
+    // Mode determines what products to show
+    mode: isOverlay ? 'overlays' : 'user_readings',
+    partnerName,
+    // Pass all params needed for next steps after purchase
+    afterPurchaseParams: {
+      readingType,
+      productType,
+      systems,
+      personName,
+      userName,
       partnerName,
       partnerBirthDate,
       partnerBirthTime,
       partnerBirthCity,
-      preselectedSystem: systems.length === 1 ? systems[0] : undefined, // If single system, pass it
       person1Override,
       person2Override,
       personId,
       partnerId,
-      productType, // Pass product type so voice selection knows what to do
-      systems, // Pass systems for job creation
-    } as any);
-  } else {
-    // Individual reading → PersonalContext
-    navigation.navigate('PersonalContext', {
-      personName: personName || 'You',
-      readingType: forPartner ? 'other' : 'self',
-      personBirthDate: forPartner ? partnerBirthDate : undefined,
-      personBirthTime: forPartner ? partnerBirthTime : undefined,
-      personBirthCity: forPartner ? partnerBirthCity : undefined,
-      preselectedSystem: systems.length === 1 ? systems[0] : undefined,
-      person1Override,
-      personId,
-      productType, // Pass product type
-      systems, // Pass systems for job creation
       forPartner,
-    } as any);
-  }
+    },
+  } as any);
   
-  // STEP 2: PersonalContext/RelationshipContext will navigate to SystemSelection (if no preselectedSystem) or VoiceSelection
-  // STEP 3: SystemSelection will navigate to VoiceSelection
+  // STEP 2: Purchase screen will navigate to RelationshipContext (overlay) or PersonalContext (individual)
+  // STEP 3: Context screens will navigate to VoiceSelection
   // STEP 4: VoiceSelection will start the job and navigate to GeneratingReading
 }
 

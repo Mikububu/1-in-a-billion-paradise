@@ -38,7 +38,7 @@ type Product = {
 const SYSTEMS = ['Western', 'Vedic', 'Human Design', 'Gene Keys', 'Kabbalah'] as const;
 
 export const PurchaseScreen = ({ navigation, route }: Props) => {
-  const { preselectedProduct, onPurchaseComplete, mode = 'all', partnerName: routePartnerName } = route.params || {};
+  const { preselectedProduct, onPurchaseComplete, mode = 'all', partnerName: routePartnerName, afterPurchaseParams } = route.params || {} as any;
   const [selectedProduct, setSelectedProduct] = useState<string | null>(preselectedProduct || null);
   const [isPurchasing, setIsPurchasing] = useState(false);
 
@@ -191,9 +191,54 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
     if (!selectedProduct || !selectedProductInfo) return;
     setIsPurchasing(true);
 
-    // DEV MODE: Simulate
+    // DEV MODE: Simulate payment
     setTimeout(() => {
       setIsPurchasing(false);
+      
+      // If we have afterPurchaseParams, navigate to context injection screens
+      if (afterPurchaseParams) {
+        const { readingType, productType, systems, personName, userName, partnerName: pName, partnerBirthDate, partnerBirthTime, partnerBirthCity, person1Override, person2Override, personId, partnerId, forPartner } = afterPurchaseParams;
+        
+        const isOverlay = readingType === 'overlay';
+        
+        if (isOverlay && pName) {
+          // Overlay reading → RelationshipContext
+          navigation.replace('RelationshipContext', {
+            readingType: 'overlay',
+            forPartner: false,
+            userName: userName || 'You',
+            partnerName: pName,
+            partnerBirthDate,
+            partnerBirthTime,
+            partnerBirthCity,
+            preselectedSystem: systems?.length === 1 ? systems[0] : undefined,
+            person1Override,
+            person2Override,
+            personId,
+            partnerId,
+            productType,
+            systems,
+          } as any);
+        } else {
+          // Individual reading → PersonalContext
+          navigation.replace('PersonalContext', {
+            personName: personName || 'You',
+            readingType: forPartner ? 'other' : 'self',
+            personBirthDate: forPartner ? partnerBirthDate : undefined,
+            personBirthTime: forPartner ? partnerBirthTime : undefined,
+            personBirthCity: forPartner ? partnerBirthCity : undefined,
+            preselectedSystem: systems?.length === 1 ? systems[0] : undefined,
+            person1Override,
+            personId,
+            productType,
+            systems,
+            forPartner,
+          } as any);
+        }
+        return;
+      }
+      
+      // Legacy behavior: show alert and go back
       Alert.alert('Purchase Successful', `You now have access to ${selectedProductInfo.name}!`, [
         { text: 'Continue', onPress: () => { onPurchaseComplete?.(); navigation.goBack(); } },
       ]);
