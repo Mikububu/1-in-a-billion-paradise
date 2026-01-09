@@ -340,7 +340,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
               const res = await fetch(`${env.CORE_API_URL}/api/jobs/v2/${otherJobId}`, { signal: AbortSignal.timeout(10000) });
               if (!res.ok) return null;
               const data = await res.json();
-              return data;
+              return { jobId: otherJobId, data };
             } catch {
               return null;
             }
@@ -348,7 +348,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         );
         const otherDocuments = otherJobsData
           .filter(Boolean)
-          .flatMap((jd: any) => jd.job?.results?.documents || []);
+          .flatMap((jd: any) => (jd.data.job?.results?.documents || []).map((doc: any) => ({ ...doc, jobId: jd.jobId })));
         allDocuments = [...documents, ...otherDocuments];
         // #region agent log
         fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:aggregateResult',message:'Job aggregation complete',data:{originalDocumentsCount:documents.length,otherDocumentsCount:otherDocuments.length,totalDocumentsCount:allDocuments.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'AGGREGATE'})}).catch(()=>{});
