@@ -120,20 +120,20 @@ const SYSTEM_CONTENT: Record<SystemType, {
   },
   
   all: {
-    name: 'All 5 Systems',
-    tagline: 'The complete picture of your soul',
-    origin: 'Five ancient wisdom traditions united',
+    name: 'Nuclear Package',
+    tagline: 'The ultimate relationship analysis',
+    origin: 'Two souls · Five systems · Complete truth',
     icon: '★',
-    intro: `What if you could see yourself through five different lenses, each revealing something the others miss? Western astrology shows your psychology. Vedic reveals your karma. Human Design maps your energy. Gene Keys unlocks your gifts. Kabbalah shows your soul's purpose.`,
-    howItHelpsYou: `Each system sees a different facet of you. Together, they create something extraordinary - a complete portrait of who you are, why you're here, and what you're becoming. This isn't five separate readings. It's one unified understanding.`,
+    intro: `This is everything. Both of your complete readings across all 5 systems. Every compatibility overlay. And the final verdict - what your connection truly means and where it's headed.`,
+    howItHelpsYou: `16 documents. 100 pages. 3+ hours of audio. We analyze both of you individually, then layer your charts together in every system. Nothing is left unexplored. No question unanswered.`,
     whatYouDiscover: [
-      'Your complete psychological and spiritual blueprint',
-      'How your karma shapes your current challenges',
-      'Your unique energy signature and decision-making style',
-      'The shadows hiding your greatest gifts',
-      'Your soul\'s purpose and the repair only you can make',
+      'Both complete individual readings (5 systems each)',
+      'All 5 compatibility overlays combined',
+      'Where you harmonize and where you clash',
+      'The karmic purpose of your connection',
+      'The final verdict on your relationship',
     ],
-    personalNote: `"Beautiful soul, when we look at you through all five systems, patterns emerge that none could show alone. The struggle you've been facing? It appears in every system - which means it's central to why you're here. And so is the breakthrough waiting for you."`,
+    personalNote: `"This is for couples who want the complete truth. Not just surface compatibility - the deep patterns, the shadow dynamics, the soul contracts. Everything that makes your connection what it is."`,
   },
 };
 
