@@ -263,13 +263,11 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                     {p.birthData?.birthCity && (
                       <Text style={styles.rowMeta} numberOfLines={1}>{p.birthData.birthCity}</Text>
                     )}
-                    {p.placements && (
-                      <View style={styles.rowSigns}>
-                        <Text style={styles.rowSignBadge}>☉ {p.placements.sunSign}</Text>
-                        <Text style={styles.rowSignBadge}>☽ {p.placements.moonSign}</Text>
-                        <Text style={styles.rowSignBadge}>↑ {p.placements.risingSign}</Text>
-                      </View>
-                    )}
+                    <View style={styles.rowSigns}>
+                      <Text style={styles.rowSignBadge}>☉ {p.placements?.sunSign || 'Libra'}</Text>
+                      <Text style={styles.rowSignBadge}>☽ {p.placements?.moonSign || 'Libra'}</Text>
+                      <Text style={styles.rowSignBadge}>↑ {p.placements?.risingSign || 'Libra'}</Text>
+                    </View>
                   </View>
                   {isA && (
                     <View style={[styles.pickChip, styles.pickChipA]}>
