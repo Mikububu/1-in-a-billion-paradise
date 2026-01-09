@@ -134,7 +134,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
 
     // Case 1: Only ONE person selected -> Single person reading
     if (!personB) {
-      navigation.navigate('Overview', {
+      navigation.navigate('Purchase', {
         readingType: 'individual',
         forPartner: false,
         userName: personA.name,
