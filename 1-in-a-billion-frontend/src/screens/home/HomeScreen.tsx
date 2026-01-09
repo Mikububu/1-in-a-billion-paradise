@@ -771,7 +771,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: spacing.page,
-    paddingTop: spacing.xl, // Increased from spacing.sm to push content down
+    paddingTop: spacing.sm, // Reduced to move all content up
     paddingBottom: spacing.xl * 2,
     gap: spacing.lg,
   },
@@ -1074,8 +1074,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   forbiddenYogaLogo: {
-    width: 100,
-    height: 30,
+    width: 200,
+    height: 60,
   },
 });
 
