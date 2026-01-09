@@ -155,6 +155,8 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
         <Text style={styles.subtitle}>Deep analyses of one or two souls</Text>
         <Animated.Text style={[styles.boldSubheadline, { opacity: blinkAnim }]}>CHOOSE ONE OR TWO PEOPLE FOR DEEP READINGS</Animated.Text>
 
+        <View style={{ height: spacing.lg }} />
+
         {candidates.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>Not enough people yet</Text>
@@ -341,7 +343,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontFamily: typography.headline,
     fontSize: 18,
-    color: colors.text,
+    color: '#FFFFFF',
     fontStyle: 'italic',
   },
   rowName: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },
