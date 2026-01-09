@@ -1074,8 +1074,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   forbiddenYogaLogo: {
-    width: 150,
-    height: 50,
+    width: 200,
+    height: 80,
   },
 });
 
