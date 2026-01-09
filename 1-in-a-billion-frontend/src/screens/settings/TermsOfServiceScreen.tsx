@@ -62,10 +62,10 @@ We reserve the right to suspend or terminate accounts that violate these Terms.`
 • Purchases are final and non-refundable except as required by law
 
 **Available Products**:
-• Individual readings: $29 per system (5 pages, 13 min audio)
-• Complete Reading (all 5 systems): $79 (17 pages, 1h 7m audio)
-• Compatibility overlay: $59 per system (10 pages, 40 min audio)
-• Nuclear Package: $108 (100 pages, 3h 30m audio)
+• Individual readings: $14 per system (5 pages, 13 min audio)
+• Complete Reading (all 5 systems): $34 (25 pages, 1h 5m audio) - 50% off
+• Compatibility overlay: $41 per system (15 pages, 39 min audio)
+• Nuclear Package: $108 (100 pages, 3h 28m audio) - 50% off
 
 **Refund Policy**:
 • Refund requests must be made through Apple
