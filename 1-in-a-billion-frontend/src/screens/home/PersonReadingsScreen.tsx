@@ -323,10 +323,13 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       const shouldAggregateJobs = initialOrderedSystems.length === 1 && allJobIds.length > 1 && jobType === 'extended';
       
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:aggregateCheck',message:'Checking if should aggregate jobs',data:{currentJobId:jobId,currentJobSystemsCount:orderedSystems.length,allJobIdsCount:allJobIds.length,allJobIds,shouldAggregateJobs},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'AGGREGATE'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:aggregateCheck',message:'Checking if should aggregate jobs',data:{currentJobId:jobId,currentJobSystemsCount:initialOrderedSystems.length,allJobIdsCount:allJobIds.length,allJobIds,shouldAggregateJobs},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'AGGREGATE'})}).catch(()=>{});
       // #endregion
       
       const docRange = getDocRange(jobType, systemCount);
+      
+      // Get documents from current job first
+      const documents = jobData.job?.results?.documents || [];
       
       // AGGREGATE: If current job only has 1 system, fetch from all other jobs too
       let allDocuments = documents;
@@ -355,8 +358,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:aggregateResult',message:'Job aggregation complete',data:{originalDocumentsCount:documents.length,otherDocumentsCount:otherDocuments.length,totalDocumentsCount:allDocuments.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'AGGREGATE'})}).catch(()=>{});
         // #endregion
       }
-
-      const documents = jobData.job?.results?.documents || [];
       const hasAnyAudioFromApi = Array.isArray(documents) && documents.some((d: any) => !!d?.audioUrl);
 
       console.log('📦 Job type:', jobType, '| Extended:', isExtendedJob, '| Systems:', systemCount);
