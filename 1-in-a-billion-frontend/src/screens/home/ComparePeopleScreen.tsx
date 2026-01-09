@@ -183,7 +183,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                     <Text style={[styles.avatarText, p.gender === 'male' ? { color: '#2E7D32' } : p.gender === 'female' ? { color: colors.primary } : {}]}>{p.name.charAt(0).toUpperCase()}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.rowName, p.gender === 'male' ? { color: colors.success } : p.gender === 'female' ? { color: colors.primary } : {}]}>{p.name}</Text>
+                    <Text style={[styles.rowName, p.gender === 'male' ? { color: '#2E7D32' } : p.gender === 'female' ? { color: colors.primary } : {}]}>{p.name}</Text>
                     <Text style={styles.rowMeta} numberOfLines={1}>
                       {p.birthData?.birthDate || '—'} · {p.birthData?.birthTime || '—'} · {p.birthData?.birthCity || '—'}
                     </Text>
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontFamily: typography.headline,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: colors.text,
     fontStyle: 'italic',
   },
   rowName: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },
