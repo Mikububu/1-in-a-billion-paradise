@@ -646,13 +646,34 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             // Merge jobIds if person already exists
             existing.jobIds = [...new Set([...(existing.jobIds || []), job.id])];
           } else {
+            // Create placeholder readings based on job type
+            const isOverlay = job.type === 'overlay' || job.type === 'compatibility';
+            const systems = isOverlay 
+              ? ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah', 'verdict']
+              : ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'];
+            
+            const placeholderReadings = systems.map((system, index) => ({
+              id: `reading-${index + 1}`,
+              system: system,
+              name: system === 'western' ? 'Western Astrology'
+                  : system === 'vedic' ? 'Vedic (Jyotish)'
+                  : system === 'human_design' ? 'Human Design'
+                  : system === 'gene_keys' ? 'Gene Keys'
+                  : system === 'kabbalah' ? 'Kabbalah'
+                  : 'Final Verdict',
+              // No paths yet - readings are inactive until artifacts are generated
+              pdfPath: undefined,
+              audioPath: undefined,
+              songPath: undefined,
+            }));
+
             peopleMap.set(p1Name, {
               id: `job-${job.id}-p1`,
               name: p1Name,
               isUser: p1Name === userName,
               birthData: params.person1 || {},
               placements: {},
-              readings: [], // Readings will be populated when job completes
+              readings: placeholderReadings,
               createdAt: job.created_at || job.createdAt || new Date().toISOString(),
               jobIds: [job.id],
             });
@@ -666,13 +687,34 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             // Merge jobIds if person already exists
             existing.jobIds = [...new Set([...(existing.jobIds || []), job.id])];
           } else {
+            // Create placeholder readings based on job type
+            const isOverlay = job.type === 'overlay' || job.type === 'compatibility';
+            const systems = isOverlay 
+              ? ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah', 'verdict']
+              : ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'];
+            
+            const placeholderReadings = systems.map((system, index) => ({
+              id: `reading-${index + 1}`,
+              system: system,
+              name: system === 'western' ? 'Western Astrology'
+                  : system === 'vedic' ? 'Vedic (Jyotish)'
+                  : system === 'human_design' ? 'Human Design'
+                  : system === 'gene_keys' ? 'Gene Keys'
+                  : system === 'kabbalah' ? 'Kabbalah'
+                  : 'Final Verdict',
+              // No paths yet - readings are inactive until artifacts are generated
+              pdfPath: undefined,
+              audioPath: undefined,
+              songPath: undefined,
+            }));
+
             peopleMap.set(p2Name, {
               id: `job-${job.id}-p2`,
               name: p2Name,
               isUser: false,
               birthData: params.person2 || {},
               placements: {},
-              readings: [],
+              readings: placeholderReadings,
               createdAt: job.created_at || job.createdAt || new Date().toISOString(),
               jobIds: [job.id],
             });
@@ -715,13 +757,34 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:682',message:'Merged jobId into existing person',data:{personName:p1Name,jobId:job.id?.slice(0,8),newJobIdsCount:existing.jobIds.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
             // #endregion
           } else {
+            // Create placeholder readings based on job type
+            const isOverlay = job.type === 'overlay' || job.type === 'compatibility';
+            const systems = isOverlay 
+              ? ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah', 'verdict']
+              : ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'];
+            
+            const placeholderReadings = systems.map((system, index) => ({
+              id: `reading-${index + 1}`,
+              system: system,
+              name: system === 'western' ? 'Western Astrology'
+                  : system === 'vedic' ? 'Vedic (Jyotish)'
+                  : system === 'human_design' ? 'Human Design'
+                  : system === 'gene_keys' ? 'Gene Keys'
+                  : system === 'kabbalah' ? 'Kabbalah'
+                  : 'Final Verdict',
+              // No paths yet - readings are inactive until artifacts are generated
+              pdfPath: undefined,
+              audioPath: undefined,
+              songPath: undefined,
+            }));
+
             peopleMap.set(p1Name, {
               id: `job-${job.id}-p1`,
               name: p1Name,
               isUser: p1Name === userName,
               birthData: params.person1 || {},
               placements: {},
-              readings: [],
+              readings: placeholderReadings,
               createdAt: job.created_at || job.createdAt || new Date().toISOString(),
               jobIds: [job.id],
             });
@@ -1874,6 +1937,10 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                 console.warn(`   Available job IDs in map:`, Array.from(jobIdToParams.keys()).slice(0, 5));
               }
               
+              // #region agent log
+              fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:personType',message:'Determining personType',data:{personName:person.name,personId:person.id,jobId:primaryJobId,person1Id:p?.person1?.id,person1Name:p?.person1?.name,person2Id:p?.person2?.id,person2Name:p?.person2?.name},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+              // #endregion
+              
               // CRITICAL: Match by ID first (unique), fallback to name only if no IDs
               const fromJob =
                 (p?.person1?.id && p.person1.id === person.id)
@@ -1885,6 +1952,10 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                       : (p?.person2?.name === person.name)
                         ? 'person2'
                         : null;
+              
+              // #region agent log
+              fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:personTypeResult',message:'PersonType determined',data:{personName:person.name,personId:person.id,jobId:primaryJobId,determinedType:fromJob||'person1'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+              // #endregion
               
               if (!fromJob && primaryJobId) {
                 console.warn(`⚠️ [MyLibrary] Could not determine personType from job params for ${person.name}`);

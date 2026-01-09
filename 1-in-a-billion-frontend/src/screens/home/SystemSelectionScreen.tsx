@@ -325,6 +325,10 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
       voiceId: voiceIdOverride || selectedVoice, // Use override if passed
       audioUrl: VOICES[(voiceIdOverride || selectedVoice) as keyof typeof VOICES],
     };
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SystemSelectionScreen.tsx:320',message:'Job payload created',data:{person1Id:person1?.id,person1Name:person1?.name,person2Id:person2?.id,person2Name:person2?.name,jobType,hasVoiceId:!!payload.voiceId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
     if (isOverlayFlow) {
       payload.person2 = person2;
       if (contextOverride || relationshipContext) {

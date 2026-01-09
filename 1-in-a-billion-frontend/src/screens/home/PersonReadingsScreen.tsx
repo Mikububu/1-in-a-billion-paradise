@@ -53,6 +53,7 @@ type Reading = {
   audioPath?: string;
   songPath?: string; // Personalized song for this document
   duration?: number; // seconds
+  timestamp?: string; // Job creation timestamp
 };
 
 export const PersonReadingsScreen = ({ navigation, route }: Props) => {
@@ -889,8 +890,22 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
 
               return (
                 <View key={`${jobId}-${reading.id}-${reading.system}-${index}`} style={styles.readingCard}>
-                  {/* System Name - LEFT ALIGNED ABOVE BUTTONS */}
-                  <Text style={styles.systemName}>{reading.name}</Text>
+                  {/* System Name with Timestamp - LEFT ALIGNED ABOVE BUTTONS */}
+                  <View style={styles.systemNameContainer}>
+                    <Text style={styles.systemName}>{reading.name}</Text>
+                    {reading.timestamp && (
+                      <Text style={styles.timestampText}>
+                        {' '}
+                        {new Date(reading.timestamp).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })}
+                      </Text>
+                    )}
+                  </View>
                   
                   {/* Action Buttons Row */}
                   <View style={styles.actionButtons}>
@@ -999,7 +1014,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
             jobId &&
             !loading &&
             actual.length === expectedCount &&
-            actual.every((r) => !!r.audioPath && !!r.pdfPath);
+            actual.every((r) => !!r.audioPath && !!r.pdfPath && !!r.songPath);
           if (!allReady) return null;
           return (
             <TouchableOpacity
@@ -1122,14 +1137,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E5E5',
   },
-  // System name - LEFT ALIGNED ABOVE buttons
+  // System name container - LEFT ALIGNED ABOVE buttons
+  systemNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 12,
+  },
   systemName: {
     fontFamily: 'System',
     fontSize: 18,
     fontWeight: '600',
     color: '#000',
-    marginBottom: 12,
     textAlign: 'left', // LEFT ALIGNED
+  },
+  timestampText: {
+    fontFamily: 'System',
+    fontSize: 12,
+    color: '#888',
+    marginLeft: 8,
   },
   // Action buttons row - LEFT ALIGNED
   actionButtons: {

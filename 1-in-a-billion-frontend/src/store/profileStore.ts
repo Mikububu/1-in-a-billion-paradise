@@ -440,6 +440,10 @@ export const useProfileStore = create<ProfileState>()(
 
       // People Actions
       addPerson: (personData) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:addPerson:entry',message:'addPerson called',data:{personName:personData?.name,isUser:personData?.isUser,existingPeopleCount:get().people.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+        // #endregion
+        
         // CRITICAL FIX: If this is a "self" profile (isUser: true), always upsert into existing user
         // This prevents duplicate "You" entries on every login/recalculation
         if (personData?.isUser === true) {
@@ -453,6 +457,9 @@ export const useProfileStore = create<ProfileState>()(
                 people: state.people.map((p) => (p.id === existingUser.id ? merged : p)),
               };
             });
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:addPerson:existingUser',message:'Updated existing user',data:{personId:existingUser.id,personName:personData?.name},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+            // #endregion
             return existingUser.id;
           }
           // No existing user, create first one
@@ -470,6 +477,9 @@ export const useProfileStore = create<ProfileState>()(
           set((state) => ({
             people: [...state.people, person],
           }));
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:addPerson:newUser',message:'Created new user',data:{personId:id,personName:personData?.name},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+          // #endregion
           return id;
         }
 
@@ -498,6 +508,9 @@ export const useProfileStore = create<ProfileState>()(
               people: state.people.map((p) => (p.id === existingPerson.id ? merged : p)),
             };
           });
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:addPerson:deduplicated',message:'Person already exists, returned existing ID',data:{personId:existingPerson.id,personName:personData?.name},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+          // #endregion
           return existingPerson.id;
         }
 
@@ -514,6 +527,9 @@ export const useProfileStore = create<ProfileState>()(
         set((state) => ({
           people: [...state.people, person],
         }));
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:addPerson:newPerson',message:'Created new person',data:{personId:id,personName:personData?.name},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+        // #endregion
         return id;
       },
 
@@ -577,7 +593,11 @@ export const useProfileStore = create<ProfileState>()(
       },
 
       getPerson: (id) => {
-        return get().people.find((p) => p.id === id);
+        const found = get().people.find((p) => p.id === id);
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:getPerson',message:'Person lookup',data:{searchId:id,found:!!found,foundName:found?.name,totalPeople:get().people.length,allPeople:get().people.map(p=>({id:p.id,name:p.name}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+        // #endregion
+        return found;
       },
 
       getUser: () => {
@@ -803,7 +823,17 @@ export const useProfileStore = create<ProfileState>()(
 
       // Reading Actions
       addReading: (personId, readingData) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:addReading:entry',message:'addReading called',data:{personId,readingSystem:readingData.system,hasContent:!!readingData.content,contentLength:readingData.content?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+        // #endregion
+        
         const person = get().people.find((p) => p.id === personId);
+        
+        if (!person) {
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:addReading:personNotFound',message:'Person not found for reading',data:{personId,availablePeople:get().people.map(p=>({id:p.id,name:p.name}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+          // #endregion
+        }
         
         // CRITICAL: Keep ALL readings - never delete on second generation
         // All systems: Always allow multiple readings, mark with version number and date
@@ -838,6 +868,10 @@ export const useProfileStore = create<ProfileState>()(
                 : p
             ),
           }));
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:addReading:success',message:'Reading added successfully',data:{personId,personName:person.name,readingId:id,readingNumber,totalReadingsForPerson:person.readings.length+1},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+          // #endregion
           return id;
         }
 
