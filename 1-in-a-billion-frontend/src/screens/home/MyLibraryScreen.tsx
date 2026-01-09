@@ -235,7 +235,10 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         }
       };
 
+      // Use the latest authUser from closure - this function is recreated when authUser?.id changes
+      const currentAuthUserId = authUser?.id;
       const loadQueue = async () => {
+        console.log('🔄 [MyLibrary] loadQueue called - currentAuthUserId:', currentAuthUserId || 'null');
         const TEST_USER_ID = '00000000-0000-0000-0000-000000000001';
         const isUuid = (v: string | null): v is string =>
           !!v &&
@@ -243,7 +246,8 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
         // Prefer a real authenticated user id (either from auth store or Supabase session).
         // Falling back to the test UUID will hide "real" jobs created under your actual user.
-        let resolvedUserId: string | null = authUser?.id || null;
+        let resolvedUserId: string | null = currentAuthUserId || null;
+        console.log('🔄 [MyLibrary] Initial resolvedUserId:', resolvedUserId || 'null');
         if (!resolvedUserId && isSupabaseConfigured) {
           try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -254,9 +258,11 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         }
         // Only treat a resolved userId as valid if it is a real UUID. (Supabase user ids are UUIDs.)
         if (!isUuid(resolvedUserId)) {
+          console.log('⚠️ [MyLibrary] resolvedUserId is not UUID, using TEST_USER_ID');
           resolvedUserId = null;
         }
         const userId = resolvedUserId ?? TEST_USER_ID;
+        console.log('🔄 [MyLibrary] Final userId to use:', userId);
 
         const fetchJobsForUser = async (uid: string) => {
           const url = `${env.CORE_API_URL}/api/jobs/v2/user/${uid}/jobs`;
