@@ -22,6 +22,8 @@ import { CityOption } from '@/types/forms';
 import { searchCities } from '@/services/geonames';
 import { useProfileStore } from '@/store/profileStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
+import { useAuthStore } from '@/store/authStore';
+import { recalculateAndUpdatePlacements } from '@/services/peopleService';
 import { Button } from '@/components/Button';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'EditBirthData'>;
@@ -66,6 +68,8 @@ export const EditBirthDataScreen = ({ navigation, route }: Props) => {
   const setBirthDate = useOnboardingStore((s) => s.setBirthDate);
   const setBirthTime = useOnboardingStore((s) => s.setBirthTime);
   const setBirthCity = useOnboardingStore((s) => s.setBirthCity);
+
+  const userId = useAuthStore((s) => s.userId);
 
   const person = useMemo(() => {
     if (personId) return getPerson(personId);
