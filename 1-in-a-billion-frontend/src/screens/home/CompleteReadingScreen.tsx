@@ -95,6 +95,8 @@ export const CompleteReadingScreen = ({ navigation, route }: Props) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentSystemIndex, setCurrentSystemIndex] = useState(0);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
+  const [currentPage, setCurrentPage] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
 
   // Animation refs for all 5 symbols
   const westernSpin = useRef(new Animated.Value(0)).current;
@@ -417,9 +419,6 @@ export const CompleteReadingScreen = ({ navigation, route }: Props) => {
   }
 
   // EXPLAINER STATE - Now with carousel
-  const [currentPage, setCurrentPage] = useState(0);
-  const scrollRef = useRef<ScrollView>(null);
-
   const onScroll = (event: any) => {
     const slide = Math.round(event.nativeEvent.contentOffset.x / width);
     if (slide !== currentPage) {
