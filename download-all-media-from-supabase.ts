@@ -1,10 +1,11 @@
 #!/usr/bin/env ts-node
 
 /**
- * DOWNLOAD ALL MEDIA FROM SUPABASE TO DESKTOP
+ * DOWNLOAD EVERYTHING FROM SUPABASE TO DESKTOP
  * 
- * This script connects to Supabase, fetches all job artifacts (PDFs, audio, songs),
- * and downloads them to your desktop in organized folders.
+ * This script downloads EVERYTHING from Supabase:
+ * - All database tables (jobs, job_tasks, job_artifacts, etc.) as JSON
+ * - All files from all storage buckets
  * 
  * Usage:
  *   ts-node download-all-media-from-supabase.ts
@@ -19,7 +20,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as https from 'https';
 import * as http from 'http';
-import { promisify } from 'util';
 
 // Load environment variables
 require('dotenv').config({ path: path.join(__dirname, '1-in-a-billion-backend', '.env') });
@@ -67,7 +67,9 @@ const downloadFile = async (url: string, filePath: string): Promise<void> => {
       
       if (response.statusCode !== 200) {
         file.close();
-        fs.unlinkSync(filePath);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
         reject(new Error(`Failed to download: ${response.statusCode} ${response.statusMessage}`));
         return;
       }
@@ -88,10 +90,10 @@ const downloadFile = async (url: string, filePath: string): Promise<void> => {
 };
 
 // Get signed URL from Supabase storage
-const getSignedUrl = async (bucket: string, path: string, expiresIn: number = 3600): Promise<string> => {
+const getSignedUrl = async (bucket: string, filePath: string, expiresIn: number = 3600): Promise<string> => {
   const { data, error } = await supabase.storage
     .from(bucket)
-    .createSignedUrl(path, expiresIn);
+    .createSignedUrl(filePath, expiresIn);
   
   if (error) {
     throw new Error(`Failed to create signed URL: ${error.message}`);
@@ -100,20 +102,67 @@ const getSignedUrl = async (bucket: string, path: string, expiresIn: number = 36
   return data.signedUrl;
 };
 
+// List all files in a bucket
+const listBucketFiles = async (bucket: string, folder: string = ''): Promise<string[]> => {
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .list(folder, {
+      limit: 1000,
+      offset: 0,
+      sortBy: { column: 'name', order: 'asc' },
+    });
+
+  if (error) {
+    console.warn(`⚠️  Error listing bucket ${bucket}/${folder}:`, error.message);
+    return [];
+  }
+
+  const files: string[] = [];
+  
+  for (const item of data || []) {
+    const itemPath = folder ? `${folder}/${item.name}` : item.name;
+    
+    if (item.id === null) {
+      // It's a folder, recurse
+      const subFiles = await listBucketFiles(bucket, itemPath);
+      files.push(...subFiles);
+    } else {
+      // It's a file
+      files.push(itemPath);
+    }
+  }
+  
+  return files;
+};
+
+// Export database table to JSON
+const exportTable = async (tableName: string): Promise<any[]> => {
+  console.log(`  📊 Exporting table: ${tableName}...`);
+  const { data, error } = await supabase
+    .from(tableName)
+    .select('*');
+  
+  if (error) {
+    console.warn(`  ⚠️  Error exporting ${tableName}:`, error.message);
+    return [];
+  }
+  
+  return data || [];
+};
+
 // Main function
 const main = async () => {
-  console.log('🚀 Starting download of all media files from Supabase...\n');
+  console.log('🚀 Starting complete download of EVERYTHING from Supabase...\n');
 
   // Create output folder on desktop
   const desktopPath = getDesktopPath();
-  const outputFolder = path.join(desktopPath, `Supabase_Media_${new Date().toISOString().split('T')[0]}`);
+  const outputFolder = path.join(desktopPath, `Supabase_Complete_${new Date().toISOString().split('T')[0]}`);
   
-  // Create subfolders
-  const pdfFolder = path.join(outputFolder, 'PDFs');
-  const audioFolder = path.join(outputFolder, 'Audio');
-  const songsFolder = path.join(outputFolder, 'Songs');
+  // Create folder structure
+  const dbFolder = path.join(outputFolder, 'Database');
+  const storageFolder = path.join(outputFolder, 'Storage');
   
-  [outputFolder, pdfFolder, audioFolder, songsFolder].forEach(folder => {
+  [outputFolder, dbFolder, storageFolder].forEach(folder => {
     if (!fs.existsSync(folder)) {
       fs.mkdirSync(folder, { recursive: true });
     }
@@ -121,123 +170,149 @@ const main = async () => {
 
   console.log(`📁 Output folder: ${outputFolder}\n`);
 
-  // Fetch all job artifacts
-  console.log('📥 Fetching all artifacts from Supabase...');
-  const { data: artifacts, error: fetchError } = await supabase
-    .from('job_artifacts')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (fetchError) {
-    console.error('❌ Error fetching artifacts:', fetchError);
-    process.exit(1);
-  }
-
-  console.log(`✅ Found ${artifacts.length} artifacts\n`);
-
-  // Group by type
-  const pdfs = artifacts.filter(a => a.artifact_type === 'pdf');
-  const audios = artifacts.filter(a => a.artifact_type.startsWith('audio'));
-  const songs = artifacts.filter(a => a.artifact_type === 'audio_song' || (a.metadata && a.metadata.isSong));
-
-  console.log(`📄 PDFs: ${pdfs.length}`);
-  console.log(`🎵 Audio: ${audios.length}`);
-  console.log(`🎶 Songs: ${songs.length}\n`);
-
-  let downloadedCount = 0;
-  let failedCount = 0;
-  const errors: string[] = [];
-
-  // Download PDFs
-  console.log('📥 Downloading PDFs...');
-  for (const artifact of pdfs) {
-    try {
-      const signedUrl = await getSignedUrl(artifact.bucket_name, artifact.storage_path);
-      const fileName = path.basename(artifact.storage_path) || `pdf_${artifact.id}.pdf`;
-      const filePath = path.join(pdfFolder, `${artifact.job_id}_${fileName}`);
-      
-      await downloadFile(signedUrl, filePath);
-      downloadedCount++;
-      process.stdout.write('.');
-    } catch (error: any) {
-      failedCount++;
-      errors.push(`PDF ${artifact.id}: ${error.message}`);
-      process.stdout.write('F');
-    }
-  }
-  console.log(`\n✅ PDFs: ${downloadedCount} downloaded, ${failedCount} failed\n`);
-
-  // Download Audio (excluding songs)
-  const audioOnly = audios.filter(a => !songs.includes(a));
-  downloadedCount = 0;
-  failedCount = 0;
+  // ============================================================================
+  // PART 1: EXPORT ALL DATABASE TABLES
+  // ============================================================================
+  console.log('📊 PART 1: Exporting all database tables...\n');
   
-  console.log('📥 Downloading Audio files...');
-  for (const artifact of audioOnly) {
-    try {
-      const signedUrl = await getSignedUrl(artifact.bucket_name, artifact.storage_path);
-      const ext = artifact.artifact_type === 'audio_m4a' ? '.m4a' : '.mp3';
-      const fileName = path.basename(artifact.storage_path) || `audio_${artifact.id}${ext}`;
-      const filePath = path.join(audioFolder, `${artifact.job_id}_${fileName}`);
-      
-      await downloadFile(signedUrl, filePath);
-      downloadedCount++;
-      process.stdout.write('.');
-    } catch (error: any) {
-      failedCount++;
-      errors.push(`Audio ${artifact.id}: ${error.message}`);
-      process.stdout.write('F');
-    }
-  }
-  console.log(`\n✅ Audio: ${downloadedCount} downloaded, ${failedCount} failed\n`);
-
-  // Download Songs
-  downloadedCount = 0;
-  failedCount = 0;
+  const tables = ['jobs', 'job_tasks', 'job_artifacts'];
+  const dbExports: Record<string, any[]> = {};
   
-  console.log('📥 Downloading Songs...');
-  for (const artifact of songs) {
+  for (const table of tables) {
     try {
-      const signedUrl = await getSignedUrl(artifact.bucket_name, artifact.storage_path);
-      const ext = artifact.artifact_type === 'audio_m4a' ? '.m4a' : '.mp3';
-      const fileName = path.basename(artifact.storage_path) || `song_${artifact.id}${ext}`;
-      const filePath = path.join(songsFolder, `${artifact.job_id}_${fileName}`);
+      const data = await exportTable(table);
+      dbExports[table] = data;
+      console.log(`  ✅ ${table}: ${data.length} rows`);
       
-      await downloadFile(signedUrl, filePath);
-      downloadedCount++;
-      process.stdout.write('.');
+      // Save to JSON file
+      const jsonPath = path.join(dbFolder, `${table}.json`);
+      fs.writeFileSync(jsonPath, JSON.stringify(data, null, 2));
     } catch (error: any) {
-      failedCount++;
-      errors.push(`Song ${artifact.id}: ${error.message}`);
-      process.stdout.write('F');
+      console.error(`  ❌ Error exporting ${table}:`, error.message);
     }
   }
-  console.log(`\n✅ Songs: ${downloadedCount} downloaded, ${failedCount} failed\n`);
-
-  // Create summary file
-  const summary = `Supabase Media Download Summary
+  
+  // Create database summary
+  const dbSummary = `Database Export Summary
 
 Date: ${new Date().toLocaleString()}
-Total Artifacts: ${artifacts.length}
 
-PDFs: ${pdfs.length} (downloaded: ${pdfs.length - errors.filter(e => e.startsWith('PDF')).length})
-Audio: ${audioOnly.length} (downloaded: ${audioOnly.length - errors.filter(e => e.startsWith('Audio')).length})
-Songs: ${songs.length} (downloaded: ${songs.length - errors.filter(e => e.startsWith('Song')).length})
+Tables exported:
+${tables.map(t => `  - ${t}: ${dbExports[t]?.length || 0} rows`).join('\n')}
 
-Failed Downloads: ${errors.length}
-${errors.length > 0 ? '\nErrors:\n' + errors.join('\n') : 'All files downloaded successfully!'}
+All tables exported as JSON files in this folder.
+`;
+  fs.writeFileSync(path.join(dbFolder, 'README.txt'), dbSummary);
+  
+  console.log(`\n✅ Database export complete!\n`);
 
-Files saved to: ${outputFolder}
+  // ============================================================================
+  // PART 2: DOWNLOAD ALL FILES FROM ALL STORAGE BUCKETS
+  // ============================================================================
+  console.log('📦 PART 2: Downloading all files from storage buckets...\n');
+  
+  // List all buckets
+  const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+  
+  if (bucketsError) {
+    console.error('❌ Error listing buckets:', bucketsError);
+  } else {
+    console.log(`✅ Found ${buckets.length} storage buckets\n`);
+    
+    let totalFilesDownloaded = 0;
+    let totalFilesFailed = 0;
+    const allErrors: string[] = [];
+    
+    for (const bucket of buckets || []) {
+      console.log(`📁 Processing bucket: ${bucket.name}`);
+      
+      const bucketFolder = path.join(storageFolder, bucket.name);
+      if (!fs.existsSync(bucketFolder)) {
+        fs.mkdirSync(bucketFolder, { recursive: true });
+      }
+      
+      // List all files in bucket
+      const files = await listBucketFiles(bucket.name);
+      console.log(`  Found ${files.length} files`);
+      
+      let bucketDownloaded = 0;
+      let bucketFailed = 0;
+      
+      // Download each file
+      for (const filePath of files) {
+        try {
+          const signedUrl = await getSignedUrl(bucket.name, filePath);
+          
+          // Create directory structure
+          const fileDir = path.dirname(filePath);
+          const fullDir = fileDir !== '.' ? path.join(bucketFolder, fileDir) : bucketFolder;
+          if (!fs.existsSync(fullDir)) {
+            fs.mkdirSync(fullDir, { recursive: true });
+          }
+          
+          const fileName = path.basename(filePath) || `file_${Date.now()}`;
+          const localPath = path.join(fullDir, fileName);
+          
+          await downloadFile(signedUrl, localPath);
+          bucketDownloaded++;
+          totalFilesDownloaded++;
+          process.stdout.write('.');
+        } catch (error: any) {
+          bucketFailed++;
+          totalFilesFailed++;
+          allErrors.push(`${bucket.name}/${filePath}: ${error.message}`);
+          process.stdout.write('F');
+        }
+      }
+      
+      console.log(`\n  ✅ ${bucket.name}: ${bucketDownloaded} downloaded, ${bucketFailed} failed\n`);
+    }
+    
+    // Create storage summary
+    const storageSummary = `Storage Download Summary
+
+Date: ${new Date().toLocaleString()}
+
+Buckets processed: ${buckets.length}
+Total files downloaded: ${totalFilesDownloaded}
+Total files failed: ${totalFilesFailed}
+
+${allErrors.length > 0 ? `\nErrors:\n${allErrors.slice(0, 50).join('\n')}${allErrors.length > 50 ? `\n... and ${allErrors.length - 50} more errors` : ''}` : 'All files downloaded successfully!'}
+`;
+    fs.writeFileSync(path.join(storageFolder, 'README.txt'), storageSummary);
+    
+    console.log(`✅ Storage download complete!`);
+    console.log(`   Downloaded: ${totalFilesDownloaded} files`);
+    console.log(`   Failed: ${totalFilesFailed} files\n`);
+  }
+
+  // ============================================================================
+  // FINAL SUMMARY
+  // ============================================================================
+  const finalSummary = `COMPLETE SUPABASE DOWNLOAD SUMMARY
+
+Date: ${new Date().toLocaleString()}
+
+DATABASE EXPORTS:
+${tables.map(t => `  - ${t}: ${dbExports[t]?.length || 0} rows`).join('\n')}
+
+STORAGE:
+  Buckets: ${buckets?.length || 0}
+  Files downloaded: ${totalFilesDownloaded || 0}
+  Files failed: ${totalFilesFailed || 0}
+
+All data saved to: ${outputFolder}
+
+Database exports: ${dbFolder}
+Storage files: ${storageFolder}
 `;
 
-  fs.writeFileSync(path.join(outputFolder, 'Download_Summary.txt'), summary);
+  fs.writeFileSync(path.join(outputFolder, 'COMPLETE_SUMMARY.txt'), finalSummary);
 
-  console.log('✅ Download complete!');
-  console.log(`📁 Files saved to: ${outputFolder}`);
-  console.log(`📊 Summary: ${artifacts.length} artifacts processed`);
-  if (errors.length > 0) {
-    console.log(`⚠️  ${errors.length} files failed to download. Check Download_Summary.txt for details.`);
-  }
+  console.log('✅✅✅ COMPLETE DOWNLOAD FINISHED! ✅✅✅');
+  console.log(`📁 Everything saved to: ${outputFolder}`);
+  console.log(`\n📊 Database: ${tables.length} tables exported`);
+  console.log(`📦 Storage: ${buckets?.length || 0} buckets processed`);
 };
 
 // Run
