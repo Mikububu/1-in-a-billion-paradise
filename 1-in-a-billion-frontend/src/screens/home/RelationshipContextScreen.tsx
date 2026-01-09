@@ -22,7 +22,7 @@ const CIRCLE_SIZE_2 = CIRCLE_SIZE * 1.1; // Second circle - 10% larger
 const CIRCLE_SIZE_3 = CIRCLE_SIZE * 1.25; // Third circle - 25% larger
 
 export const RelationshipContextScreen = ({ navigation, route }: Props) => {
-    const { partnerName, ...restParams } = route.params;
+    const { partnerName, completeReading, productType, systems, ...restParams } = route.params as any;
     const [context, setContext] = useState('');
     const pulseAnim1 = useRef(new Animated.Value(1)).current;
     const pulseAnim2 = useRef(new Animated.Value(1)).current;
@@ -89,19 +89,45 @@ export const RelationshipContextScreen = ({ navigation, route }: Props) => {
     }, [pulseAnim1, pulseAnim2, pulseAnim3, opacityAnim1, opacityAnim2, opacityAnim3]);
 
     const handleSkip = () => {
-        navigation.navigate('SystemSelection', {
-            ...restParams,
-            preselectedSystem: route.params.preselectedSystem,
-            relationshipContext: undefined,
-        });
+        const relationshipContext = undefined;
+        
+        // If productType and systems are passed, go directly to VoiceSelection
+        if (productType && systems && systems.length > 0) {
+            navigation.navigate('VoiceSelection', {
+                ...restParams,
+                relationshipContext,
+                productType,
+                systems,
+                readingType: 'overlay',
+            } as any);
+        } else {
+            navigation.navigate('SystemSelection', {
+                ...restParams,
+                preselectedSystem: route.params.preselectedSystem,
+                relationshipContext,
+            });
+        }
     };
 
     const handleContinue = () => {
-        navigation.navigate('SystemSelection', {
-            ...restParams,
-            preselectedSystem: route.params.preselectedSystem,
-            relationshipContext: context.trim() || undefined,
-        });
+        const relationshipContext = context.trim() || undefined;
+        
+        // If productType and systems are passed, go directly to VoiceSelection
+        if (productType && systems && systems.length > 0) {
+            navigation.navigate('VoiceSelection', {
+                ...restParams,
+                relationshipContext,
+                productType,
+                systems,
+                readingType: 'overlay',
+            } as any);
+        } else {
+            navigation.navigate('SystemSelection', {
+                ...restParams,
+                preselectedSystem: route.params.preselectedSystem,
+                relationshipContext,
+            });
+        }
     };
 
     return (

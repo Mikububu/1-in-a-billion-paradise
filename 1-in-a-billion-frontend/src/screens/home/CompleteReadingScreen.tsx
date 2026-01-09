@@ -17,9 +17,8 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  Animated,
-  Easing,
-  Dimensions
+  Dimensions,
+  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -31,6 +30,7 @@ import { useOnboardingStore } from '@/store/onboardingStore';
 import { useProfileStore } from '@/store/profileStore';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { initiatePurchaseFlow } from '@/utils/purchaseFlow';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'CompleteReading'>;
 
@@ -92,103 +92,8 @@ export const CompleteReadingScreen = ({ navigation, route }: Props) => {
   }, []);
   // #endregion
   
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [currentSystemIndex, setCurrentSystemIndex] = useState(0);
-  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
-
-  // Animation refs for all 5 symbols
-  const westernSpin = useRef(new Animated.Value(0)).current;
-  const vedicPulse = useRef(new Animated.Value(0.5)).current;
-  const hdScale = useRef(new Animated.Value(1)).current;
-  const geneBloom = useRef(new Animated.Value(0.7)).current;
-  const kabbDescend = useRef(new Animated.Value(-15)).current;
-  const fadeIn = useRef(new Animated.Value(0)).current;
-  const statusPulse = useRef(new Animated.Value(1)).current;
-
-  // Start epic multi-system animation
-  useEffect(() => {
-    if (isGenerating) {
-      // Fade in
-      Animated.timing(fadeIn, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true
-      }).start();
-
-      // Status text pulse
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(statusPulse, { toValue: 1.1, duration: 600, useNativeDriver: true }),
-          Animated.timing(statusPulse, { toValue: 1, duration: 600, useNativeDriver: true }),
-        ])
-      ).start();
-
-      // ☉ WESTERN: Slow majestic spin (Sun through zodiac)
-      Animated.loop(
-        Animated.timing(westernSpin, {
-          toValue: 1,
-          duration: 10000,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        })
-      ).start();
-
-      // ॐ VEDIC: Pulse like a mantra breath
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(vedicPulse, { toValue: 1, duration: 1500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-          Animated.timing(vedicPulse, { toValue: 0.5, duration: 1500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        ])
-      ).start();
-
-      // ◬ HUMAN DESIGN: Heartbeat pulse (Sacral response)
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(hdScale, { toValue: 1.2, duration: 150, useNativeDriver: true }),
-          Animated.timing(hdScale, { toValue: 1, duration: 150, useNativeDriver: true }),
-          Animated.timing(hdScale, { toValue: 1.1, duration: 120, useNativeDriver: true }),
-          Animated.timing(hdScale, { toValue: 1, duration: 120, useNativeDriver: true }),
-          Animated.delay(700),
-        ])
-      ).start();
-
-      // ❋ GENE KEYS: Bloom like a flower opening
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(geneBloom, { toValue: 1.3, duration: 2000, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-          Animated.delay(500),
-          Animated.timing(geneBloom, { toValue: 0.7, duration: 1500, easing: Easing.in(Easing.ease), useNativeDriver: true }),
-        ])
-      ).start();
-
-      // ✧ KABBALAH: Light descending/ascending the Tree
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(kabbDescend, { toValue: 15, duration: 2500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-          Animated.delay(300),
-          Animated.timing(kabbDescend, { toValue: -15, duration: 2500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-          Animated.delay(300),
-        ])
-      ).start();
-
-      // Cycle through systems every 3 seconds for the status text
-      const systemInterval = setInterval(() => {
-        setCurrentSystemIndex(prev => (prev + 1) % SYSTEMS.length);
-      }, 3000);
-
-      // Cycle through loading messages every 2.5 seconds
-      const messageInterval = setInterval(() => {
-        setLoadingMessageIndex(prev => (prev + 1) % LOADING_MESSAGES.length);
-      }, 2500);
-
-      return () => {
-        clearInterval(systemInterval);
-        clearInterval(messageInterval);
-      };
-    }
-  }, [isGenerating]);
 
   // Data Stores
   const {
@@ -204,7 +109,6 @@ export const CompleteReadingScreen = ({ navigation, route }: Props) => {
 
   const handleBuy = async () => {
     try {
-      setIsGenerating(true);
 
       // 1. Get User ID
       let userId = user?.id || '00000000-0000-0000-0000-000000000001';
@@ -220,24 +124,32 @@ export const CompleteReadingScreen = ({ navigation, route }: Props) => {
       // If for partner, use params. If for self, use OnboardingStore/ProfileStore.
       // CRITICAL: Always include unique person ID
       const personData = isForPartner ? {
-        id: user?.id, // CRITICAL: Include person ID
-        name: partnerName,
+        id: user?.id || userId, // CRITICAL: Include person ID
+        name: partnerName || 'Partner',
         birthDate: partnerBirthDate,
         birthTime: partnerBirthTime,
-        birthPlace: partnerBirthCity?.name,
-        latitude: partnerBirthCity?.latitude,
-        longitude: partnerBirthCity?.longitude,
-        timezone: partnerBirthCity?.timezone,
+        birthPlace: (partnerBirthCity as any)?.name || partnerBirthCity,
+        latitude: (partnerBirthCity as any)?.latitude,
+        longitude: (partnerBirthCity as any)?.longitude,
+        timezone: (partnerBirthCity as any)?.timezone,
       } : {
-        id: user?.id, // CRITICAL: Include person ID
+        id: user?.id || userId, // CRITICAL: Include person ID
         name: name || user?.name || authDisplayName || 'You',
         birthDate: birthDate || user?.birthData?.birthDate,
         birthTime: birthTime || user?.birthData?.birthTime,
-        birthPlace: birthCity?.name || user?.birthData?.birthCity,
-        latitude: birthCity?.latitude || user?.birthData?.latitude,
-        longitude: birthCity?.longitude || user?.birthData?.longitude,
-        timezone: birthCity?.timezone || user?.birthData?.timezone,
+        birthPlace: (birthCity as any)?.name || birthCity || user?.birthData?.birthCity,
+        latitude: (birthCity as any)?.latitude || user?.birthData?.latitude,
+        longitude: (birthCity as any)?.longitude || user?.birthData?.longitude,
+        timezone: (birthCity as any)?.timezone || user?.birthData?.timezone,
       };
+
+      // Validate required fields
+      if (!personData.name) {
+        throw new Error('Person name is required');
+      }
+      if (!personData.birthDate) {
+        throw new Error('Birth date is required');
+      }
 
       // 3. Construct Payload for "Complete Reading" (5 systems, extended job)
       const payload = {
@@ -270,153 +182,24 @@ export const CompleteReadingScreen = ({ navigation, route }: Props) => {
       const data = await res.json();
       if (!data.jobId) throw new Error('No jobId returned');
 
-      // 5. Navigate to Progress Screen
-      setIsGenerating(false); // Stop local spinner before navigating
+      // Navigate directly to GeneratingReading (no animation screen)
       navigation.replace('GeneratingReading', {
         jobId: data.jobId,
         productType: 'complete_reading',
         productName: 'Complete Reading',
         personName: personData.name,
         readingType: 'individual',
-        systems: payload.systems,
+        systems: ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'],
         forPartner: isForPartner,
       });
 
     } catch (e: any) {
       console.error('Failed to start complete reading:', e);
-      setIsGenerating(false);
-      // Show error alert?
-      // Alert.alert('Error', 'Could not start generation. Please try again.');
+      // Show error to user
+      const errorMessage = e?.message || 'Could not start generation. Please try again.';
+      Alert.alert('Error', errorMessage);
     }
   };
-
-  // LOADING STATE - Epic multi-symbol animation
-  if (isGenerating) {
-    const currentSystem = SYSTEMS[currentSystemIndex];
-
-    return (
-      <SafeAreaView style={styles.container}>
-        <Animated.View style={[styles.loadingContainer, { opacity: fadeIn }]}>
-          {/* Header */}
-          <Text style={styles.loadingTitle}>Weaving Your Truth</Text>
-          <Text style={styles.loadingSubtitle}>Five ancient lenses, one complete picture</Text>
-
-          {/* The Epic 5-Symbol Circle */}
-          <View style={styles.symbolCircle}>
-            {/* Western - Top */}
-            <Animated.Text
-              style={[
-                styles.circleSymbol,
-                styles.symbolWestern,
-                {
-                  color: SYSTEMS[0].color,
-                  transform: [{
-                    rotate: westernSpin.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ['0deg', '360deg'],
-                    })
-                  }]
-                }
-              ]}
-            >
-              ☉
-            </Animated.Text>
-
-            {/* Vedic - Top Right */}
-            <Animated.Text
-              style={[
-                styles.circleSymbol,
-                styles.symbolVedic,
-                {
-                  color: SYSTEMS[1].color,
-                  opacity: vedicPulse,
-                }
-              ]}
-            >
-              ॐ
-            </Animated.Text>
-
-            {/* Human Design - Bottom Right */}
-            <Animated.Text
-              style={[
-                styles.circleSymbol,
-                styles.symbolHD,
-                {
-                  color: SYSTEMS[2].color,
-                  transform: [{ scale: hdScale }]
-                }
-              ]}
-            >
-              ◬
-            </Animated.Text>
-
-            {/* Gene Keys - Bottom Left */}
-            <Animated.Text
-              style={[
-                styles.circleSymbol,
-                styles.symbolGene,
-                {
-                  color: SYSTEMS[3].color,
-                  transform: [{ scale: geneBloom }]
-                }
-              ]}
-            >
-              ❋
-            </Animated.Text>
-
-            {/* Kabbalah - Top Left */}
-            <Animated.Text
-              style={[
-                styles.circleSymbol,
-                styles.symbolKabb,
-                {
-                  color: SYSTEMS[4].color,
-                  transform: [{ translateY: kabbDescend }]
-                }
-              ]}
-            >
-              ✧
-            </Animated.Text>
-
-            {/* Center - Current System Being Analyzed */}
-            <View style={styles.centerCircle}>
-              <Text style={[styles.centerSymbol, { color: currentSystem.color }]}>
-                {currentSystem.symbol}
-              </Text>
-            </View>
-          </View>
-
-          {/* Status - Current System */}
-          <Animated.View style={{ transform: [{ scale: statusPulse }] }}>
-            <Text style={[styles.statusSystem, { color: currentSystem.color }]}>
-              {currentSystem.name}
-            </Text>
-            <Text style={styles.statusInsight}>
-              Analyzing {currentSystem.insight}...
-            </Text>
-          </Animated.View>
-
-          {/* Cycling Loading Message */}
-          <Animated.Text style={[styles.loadingMessage, { transform: [{ scale: statusPulse }] }]}>
-            {LOADING_MESSAGES[loadingMessageIndex]}
-          </Animated.Text>
-
-          {/* Progress Dots */}
-          <View style={styles.progressDots}>
-            {SYSTEMS.map((sys, i) => (
-              <View
-                key={sys.name}
-                style={[
-                  styles.progressDot,
-                  { backgroundColor: i <= currentSystemIndex ? sys.color : colors.divider }
-                ]}
-              />
-            ))}
-          </View>
-        </Animated.View>
-      </SafeAreaView>
-    );
-  }
 
   // EXPLAINER STATE - Now with carousel
   const onScroll = (event: any) => {

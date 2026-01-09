@@ -22,7 +22,7 @@ const CIRCLE_SIZE_2 = CIRCLE_SIZE * 1.1; // Second circle - 10% larger
 const CIRCLE_SIZE_3 = CIRCLE_SIZE * 1.25; // Third circle - 25% larger
 
 export const PersonalContextScreen = ({ navigation, route }: Props) => {
-    const { personName, isSelf, ...restParams } = route.params;
+    const { personName, isSelf, completeReading, productType, systems, ...restParams } = route.params as any;
     const [context, setContext] = useState('');
     const pulseAnim1 = useRef(new Animated.Value(1)).current;
     const pulseAnim2 = useRef(new Animated.Value(1)).current;
@@ -89,17 +89,53 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
     }, [pulseAnim1, pulseAnim2, pulseAnim3, opacityAnim1, opacityAnim2, opacityAnim3]);
 
     const handleSkip = () => {
-        navigation.navigate('SystemSelection', {
-            ...restParams,
-            personalContext: undefined,
-        });
+        // If productType and systems are passed, go directly to VoiceSelection
+        if (productType && systems && systems.length > 0) {
+            navigation.navigate('VoiceSelection', {
+                ...restParams,
+                personalContext: undefined,
+                productType,
+                systems,
+                readingType: 'individual',
+            } as any);
+        } else if (completeReading) {
+            navigation.navigate('CompleteReading', {
+                ...restParams,
+                personalContext: undefined,
+            });
+        } else {
+            navigation.navigate('SystemSelection', {
+                ...restParams,
+                personalContext: undefined,
+            });
+        }
     };
 
     const handleContinue = () => {
-        navigation.navigate('SystemSelection', {
-            ...restParams,
-            personalContext: context.trim() || undefined,
-        });
+        const personalContext = context.trim() || undefined;
+        
+        // If productType and systems are passed, go directly to VoiceSelection (skip SystemSelection)
+        if (productType && systems && systems.length > 0) {
+            navigation.navigate('VoiceSelection', {
+                ...restParams,
+                personalContext,
+                productType,
+                systems,
+                readingType: 'individual',
+            } as any);
+        } else if (completeReading) {
+            // Legacy: Navigate to CompleteReading
+            navigation.navigate('CompleteReading', {
+                ...restParams,
+                personalContext,
+            });
+        } else {
+            // Normal flow → SystemSelection
+            navigation.navigate('SystemSelection', {
+                ...restParams,
+                personalContext,
+            });
+        }
     };
 
     return (

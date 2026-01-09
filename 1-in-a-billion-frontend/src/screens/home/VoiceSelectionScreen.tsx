@@ -26,7 +26,7 @@ interface Voice {
 }
 
 export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
-    const { onSelect, preselectedVoice } = route.params || {};
+    const { onSelect, preselectedVoice, productType, systems, readingType, personalContext, relationshipContext, ...restParams } = route.params as any;
 
     const [voices, setVoices] = useState<Voice[]>([]);
     const [loading, setLoading] = useState(true);
@@ -160,14 +160,131 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
         }
     };
 
-    const handleConfirm = () => {
+    const handleConfirm = async () => {
+        // If productType and systems are passed, start the job directly (new modular flow)
+        if (productType && systems && systems.length > 0) {
+            await startJobWithVoice(selectedVoice);
+            return;
+        }
+        
+        // Legacy callback pattern (for SystemSelection)
         if (onSelect) {
             onSelect(selectedVoice);
             // IMPORTANT: Don't navigate back here.
             // The caller (SystemSelection) will continue the flow (start job + navigate).
             return;
         }
+        
         navigation.goBack();
+    };
+
+    // Start job with selected voice (new modular approach)
+    const startJobWithVoice = async (voiceId: string) => {
+        try {
+            // Import job creation utilities
+            const { env } = await import('@/config/env');
+            const { isSupabaseConfigured, supabase } = await import('@/services/supabase');
+            const { useOnboardingStore } = await import('@/store/onboardingStore');
+            const { useProfileStore } = await import('@/store/profileStore');
+            const { useAuthStore } = await import('@/store/authStore');
+            
+            // Get user ID
+            let userId = '00000000-0000-0000-0000-000000000001';
+            let accessToken: string | undefined;
+            if (isSupabaseConfigured) {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user?.id) userId = session.user.id;
+                accessToken = session?.access_token;
+            }
+            
+            // Get person data from stores
+            const onboardingStore = useOnboardingStore.getState();
+            const profileStore = useProfileStore.getState();
+            const authStore = useAuthStore.getState();
+            const user = profileStore.people.find(p => p.isUser);
+            
+            // Build person1 data (from restParams or stores)
+            const person1 = (restParams as any).person1Override || {
+                id: user?.id || userId,
+                name: (restParams as any).userName || (restParams as any).personName || user?.name || authStore.displayName || 'You',
+                birthDate: (restParams as any).personBirthDate || onboardingStore.birthDate || user?.birthData?.birthDate,
+                birthTime: (restParams as any).personBirthTime || onboardingStore.birthTime || user?.birthData?.birthTime,
+                timezone: (restParams as any).personBirthCity?.timezone || onboardingStore.birthCity?.timezone || user?.birthData?.timezone,
+                latitude: (restParams as any).personBirthCity?.latitude || onboardingStore.birthCity?.latitude || user?.birthData?.latitude,
+                longitude: (restParams as any).personBirthCity?.longitude || onboardingStore.birthCity?.longitude || user?.birthData?.longitude,
+            };
+            
+            // Build person2 data (overlay only)
+            const person2 = readingType === 'overlay' ? ((restParams as any).person2Override || {
+                id: (restParams as any).partnerId || (restParams as any).personId,
+                name: (restParams as any).partnerName || 'Partner',
+                birthDate: (restParams as any).partnerBirthDate,
+                birthTime: (restParams as any).partnerBirthTime,
+                timezone: (restParams as any).partnerBirthCity?.timezone,
+                latitude: (restParams as any).partnerBirthCity?.latitude,
+                longitude: (restParams as any).partnerBirthCity?.longitude,
+            }) : undefined;
+            
+            // Determine job type
+            let jobType: 'extended' | 'synastry' | 'nuclear_v2' = 'extended';
+            if (productType === 'nuclear_package') jobType = 'nuclear_v2';
+            else if (readingType === 'overlay') jobType = 'synastry';
+            
+            // Build payload
+            const payload: any = {
+                type: jobType,
+                systems,
+                style: 'production',
+                person1,
+                relationshipIntensity: onboardingStore.relationshipIntensity || 5,
+                voiceId,
+            };
+            
+            if (person2) {
+                payload.person2 = person2;
+            }
+            if (relationshipContext) {
+                payload.relationshipContext = relationshipContext;
+            }
+            if (personalContext) {
+                payload.personalContext = personalContext;
+            }
+            
+            // Start job
+            const res = await fetch(`${env.CORE_API_URL}/api/jobs/v2/start`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-User-Id': userId,
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+                body: JSON.stringify(payload),
+            });
+            
+            if (!res.ok) {
+                const t = await res.text();
+                throw new Error(t || `Failed to start job (${res.status})`);
+            }
+            
+            const data = await res.json();
+            if (!data.jobId) throw new Error('No jobId returned');
+            
+            // Navigate to GeneratingReading (NO animation screen)
+            navigation.replace('GeneratingReading', {
+                jobId: data.jobId,
+                productType,
+                productName: productType === 'complete_reading' ? 'Complete Reading' : systems.join(', '),
+                personName: person1.name,
+                partnerName: person2?.name,
+                readingType,
+                systems,
+                forPartner: (restParams as any).forPartner,
+            });
+            
+        } catch (e: any) {
+            console.error('Failed to start job:', e);
+            Alert.alert('Error', e?.message || 'Could not start generation. Please try again.');
+        }
     };
 
     if (loading) {

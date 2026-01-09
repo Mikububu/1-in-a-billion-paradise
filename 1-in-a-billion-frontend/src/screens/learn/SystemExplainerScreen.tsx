@@ -20,6 +20,7 @@ import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { Button } from '@/components/Button';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { SINGLE_SYSTEM, SYSTEM_PRICES, PRODUCT_STRINGS } from '@/config/products';
+import { initiatePurchaseFlow } from '@/utils/purchaseFlow';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SystemExplainer'>;
 
@@ -142,32 +143,22 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
   const listRef = useRef<FlatList>(null);
 
   const handleGetReading = () => {
-    // Route through injection screens (PersonalContext or RelationshipContext)
-    if (readingType === 'overlay' && partnerName) {
-      // Overlay reading → RelationshipContext
-      navigation.navigate('RelationshipContext', {
-        readingType: 'overlay',
-        forPartner: false,
-        userName: userName || 'You',
-        partnerName,
-        partnerBirthDate,
-        partnerBirthTime,
-        partnerBirthCity,
-        preselectedSystem: system,
-        person1Override,
-        person2Override,
-      } as any);
-    } else {
-      // Individual reading → PersonalContext
-      navigation.navigate('PersonalContext', {
-        personName: (forPartner && partnerName) ? partnerName : 'You',
-        readingType: forPartner ? 'other' : 'self',
-        personBirthDate: forPartner ? partnerBirthDate : undefined,
-        personBirthTime: forPartner ? partnerBirthTime : undefined,
-        personBirthCity: forPartner ? partnerBirthCity : undefined,
-        preselectedSystem: system,
-      });
-    }
+    // Use centralized purchase flow (modular approach)
+    initiatePurchaseFlow({
+      navigation,
+      productType: 'single_system',
+      readingType: readingType === 'overlay' ? 'overlay' : 'individual',
+      systems: [system], // Single system
+      personName: (forPartner && partnerName) ? partnerName : 'You',
+      userName: userName || 'You',
+      partnerName,
+      partnerBirthDate,
+      partnerBirthTime,
+      partnerBirthCity,
+      person1Override,
+      person2Override,
+      forPartner,
+    });
   };
 
   const pages = [
