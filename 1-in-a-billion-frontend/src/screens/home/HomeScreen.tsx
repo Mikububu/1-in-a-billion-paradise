@@ -1064,7 +1064,7 @@ const styles = StyleSheet.create({
   // Produced By Section
   producedBySection: {
     alignItems: 'center',
-    marginTop: spacing.xl * 2,
+    marginTop: spacing.lg,
     marginBottom: spacing.xl,
   },
   producedByText: {
@@ -1074,8 +1074,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   forbiddenYogaLogo: {
-    width: 200,
-    height: 80,
+    width: 100,
+    height: 30,
   },
 });
 
