@@ -214,18 +214,26 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
                 timezone: (restParams as any).personBirthCity?.timezone || onboardingStore.birthCity?.timezone || user?.birthData?.timezone,
                 latitude: (restParams as any).personBirthCity?.latitude || onboardingStore.birthCity?.latitude || user?.birthData?.latitude,
                 longitude: (restParams as any).personBirthCity?.longitude || onboardingStore.birthCity?.longitude || user?.birthData?.longitude,
+                placements: user?.placements, // Include Swiss Eph placements
             };
             
             // Build person2 data (overlay only)
-            const person2 = readingType === 'overlay' ? ((restParams as any).person2Override || {
-                id: (restParams as any).partnerId || (restParams as any).personId,
-                name: (restParams as any).partnerName || 'Partner',
-                birthDate: (restParams as any).partnerBirthDate,
-                birthTime: (restParams as any).partnerBirthTime,
-                timezone: (restParams as any).partnerBirthCity?.timezone,
-                latitude: (restParams as any).partnerBirthCity?.latitude,
-                longitude: (restParams as any).partnerBirthCity?.longitude,
-            }) : undefined;
+            let person2;
+            if (readingType === 'overlay') {
+                const partnerId = (restParams as any).partnerId || (restParams as any).personId;
+                const partner = profileStore.people.find(p => p.id === partnerId);
+                
+                person2 = (restParams as any).person2Override || {
+                    id: partnerId,
+                    name: (restParams as any).partnerName || partner?.name || 'Partner',
+                    birthDate: (restParams as any).partnerBirthDate || partner?.birthData?.birthDate,
+                    birthTime: (restParams as any).partnerBirthTime || partner?.birthData?.birthTime,
+                    timezone: (restParams as any).partnerBirthCity?.timezone || partner?.birthData?.timezone,
+                    latitude: (restParams as any).partnerBirthCity?.latitude || partner?.birthData?.latitude,
+                    longitude: (restParams as any).partnerBirthCity?.longitude || partner?.birthData?.longitude,
+                    placements: partner?.placements, // Include Swiss Eph placements
+                };
+            }
             
             // Determine job type
             let jobType: 'extended' | 'synastry' | 'nuclear_v2' = 'extended';
