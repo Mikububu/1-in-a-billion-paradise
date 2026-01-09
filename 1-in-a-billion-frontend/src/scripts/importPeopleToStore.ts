@@ -205,7 +205,7 @@ const GEOCODED_PEOPLE = [
 ];
 
 export function importPeople() {
-  const { addPerson } = useProfileStore.getState();
+  const { addPerson, updatePerson, people } = useProfileStore.getState();
   
   console.log(`📋 Importing ${GEOCODED_PEOPLE.length} people into profileStore...`);
   
@@ -214,8 +214,18 @@ export function importPeople() {
   
   for (const person of GEOCODED_PEOPLE) {
     try {
-      const personId = addPerson(person);
-      console.log(`✅ Imported: ${person.name} (ID: ${personId})`);
+      // Check if person already exists by name
+      const existing = people.find(p => p.name === person.name);
+      
+      if (existing) {
+        // Update existing person with new data (including gender!)
+        updatePerson(existing.id, person);
+        console.log(`🔄 Updated: ${person.name} (ID: ${existing.id})`);
+      } else {
+        // Add new person
+        const personId = addPerson(person);
+        console.log(`✅ Imported: ${person.name} (ID: ${personId})`);
+      }
       successCount++;
     } catch (error: any) {
       console.error(`❌ Failed to import ${person.name}:`, error.message);

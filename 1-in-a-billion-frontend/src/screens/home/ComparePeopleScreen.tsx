@@ -1,5 +1,5 @@
-import { useMemo, useState, useCallback, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
@@ -15,13 +15,24 @@ const screenId = '11b';
 export const ComparePeopleScreen = ({ navigation }: Props) => {
   const people = useProfileStore((s) => s.people);
   
-  // Auto-import 9 people on first load
+  // Blinking animation for "CHOOSE ONE OR TWO PEOPLE" text
+  const blinkAnim = useRef(new Animated.Value(1)).current;
+  
   useEffect(() => {
-    if (people.length < 2) {
-      console.log('🚀 Auto-importing 9 test people...');
-      const result = importPeople();
-      console.log(`✅ Imported ${result.successCount} people`);
-    }
+    // Blinking loop
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(blinkAnim, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+        Animated.timing(blinkAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  
+  // Auto-import 9 people (will update existing people with new data like gender)
+  useEffect(() => {
+    console.log('🚀 Auto-importing/updating 9 test people...');
+    const result = importPeople();
+    console.log(`✅ Imported/Updated ${result.successCount} people`);
   }, []);
 
   const candidates = useMemo(() => {
@@ -36,7 +47,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
   const personA = useMemo(() => candidates.find((p) => p.id === personAId), [candidates, personAId]);
   const personB = useMemo(() => candidates.find((p) => p.id === personBId), [candidates, personBId]);
 
-  const canContinue = Boolean(personA && personB && personA.id !== personB.id);
+  const canContinue = Boolean(personA); // Enable after selecting just 1 person (can analyze 1 or 2 people)
 
   const clearSelection = useCallback(() => {
     setPersonAId(null);
@@ -142,7 +153,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
       <View style={styles.content}>
         <Text style={styles.title}>My Zoo Experiments</Text>
         <Text style={styles.subtitle}>Deep analyses of one or two souls</Text>
-        <Text style={styles.boldSubheadline}>CHOOSE ONE OR TWO PEOPLE FOR DEEP READINGS</Text>
+        <Animated.Text style={[styles.boldSubheadline, { opacity: blinkAnim }]}>CHOOSE ONE OR TWO PEOPLE FOR DEEP READINGS</Animated.Text>
 
         {candidates.length === 0 ? (
           <View style={styles.emptyState}>
@@ -168,11 +179,11 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                   onPress={() => handlePick(p.id)}
                   activeOpacity={0.85}
                 >
-                  <View style={[styles.avatar, p.gender === 'male' ? { backgroundColor: '#10B981' } : p.gender === 'female' ? { backgroundColor: colors.primary } : {}]}>
+                  <View style={[styles.avatar, p.gender === 'male' ? { backgroundColor: colors.success } : p.gender === 'female' ? { backgroundColor: colors.primary } : {}]}>
                     <Text style={styles.avatarText}>{p.name.charAt(0).toUpperCase()}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.rowName, p.gender === 'male' ? { color: '#10B981' } : p.gender === 'female' ? { color: colors.primary } : {}]}>{p.name}</Text>
+                    <Text style={[styles.rowName, p.gender === 'male' ? { color: colors.success } : p.gender === 'female' ? { color: colors.primary } : {}]}>{p.name}</Text>
                     <Text style={styles.rowMeta} numberOfLines={1}>
                       {p.birthData?.birthDate || '—'} · {p.birthData?.birthTime || '—'} · {p.birthData?.birthCity || '—'}
                     </Text>
@@ -249,7 +260,7 @@ const styles = StyleSheet.create({
   boldSubheadline: {
     fontFamily: typography.sansBold,
     fontSize: 14,
-    color: colors.text,
+    color: colors.primary,
     textAlign: 'center',
     marginTop: spacing.sm,
     marginBottom: spacing.xs,
@@ -315,7 +326,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radii.card,
     padding: spacing.md,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.lg,
   },
   rowSelected: { borderColor: colors.primary },
   avatar: {
