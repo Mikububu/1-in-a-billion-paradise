@@ -314,12 +314,12 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       // Detect job type and calculate document range
       const jobType = jobData.job?.type || 'nuclear_v2';
       const isExtendedJob = jobType === 'extended' || jobType === 'single_system';
-      const orderedSystems = jobData.job?.params?.systems || [];
-      const systemCount = orderedSystems.length || 5;
+      const initialOrderedSystems = jobData.job?.params?.systems || [];
+      const systemCount = initialOrderedSystems.length || 5;
       
       // FIX: If current job only has 1 system but person has multiple jobs, fetch from ALL jobs
       const allJobIds = person?.jobIds || [];
-      const shouldAggregateJobs = orderedSystems.length === 1 && allJobIds.length > 1 && jobType === 'extended';
+      const shouldAggregateJobs = initialOrderedSystems.length === 1 && allJobIds.length > 1 && jobType === 'extended';
       
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:aggregateCheck',message:'Checking if should aggregate jobs',data:{currentJobId:jobId,currentJobSystemsCount:orderedSystems.length,allJobIdsCount:allJobIds.length,allJobIds,shouldAggregateJobs},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'AGGREGATE'})}).catch(()=>{});
