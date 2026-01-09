@@ -779,19 +779,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           <Text style={styles.title}>{personName}</Text>
         </View>
 
-        {/* NEW: Job Status Banner */}
-        {jobStatus !== 'complete' && jobStatus !== 'error' && (
-          <View style={styles.statusBanner}>
-            <Text style={styles.statusText}>
-              {jobStatus === 'processing' ? '⏳ Generating...' : '📦 Queued'}
-            </Text>
-            {jobProgress && jobProgress.tasksTotal > 0 && (
-              <Text style={styles.statusProgress}>
-                {jobProgress.tasksComplete} / {jobProgress.tasksTotal} tasks ({Math.round(jobProgress.percent || 0)}%)
-              </Text>
-            )}
-          </View>
-        )}
+        {/* Job Status Banner: Complete or Error only */}
         {jobStatus === 'complete' && (
           <View style={[styles.statusBanner, styles.statusBannerComplete]}>
             <Text style={styles.statusTextComplete}>✅ Ready</Text>
