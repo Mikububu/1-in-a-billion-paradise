@@ -151,6 +151,7 @@ export default function ReadingOverviewScreen() {
         type: jobType,
         systems,
         person1: {
+          id: userData.id, // CRITICAL: Include unique person ID
           name: userData.name,
           birthDate: userData.birthDate,
           birthTime: userData.birthTime,
@@ -165,6 +166,7 @@ export default function ReadingOverviewScreen() {
 
       if (isOverlay) {
         payload.person2 = {
+          id: partnerData.id, // CRITICAL: Include unique person ID
           name: partnerData.name,
           birthDate: partnerData.birthDate,
           birthTime: partnerData.birthTime,

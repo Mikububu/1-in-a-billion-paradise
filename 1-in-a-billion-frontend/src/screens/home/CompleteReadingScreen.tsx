@@ -210,7 +210,9 @@ export const CompleteReadingScreen = ({ navigation, route }: Props) => {
 
       // 2. Construct Person Data
       // If for partner, use params. If for self, use OnboardingStore/ProfileStore.
+      // CRITICAL: Always include unique person ID
       const personData = isForPartner ? {
+        id: user?.id, // CRITICAL: Include person ID
         name: partnerName,
         birthDate: partnerBirthDate,
         birthTime: partnerBirthTime,
@@ -219,6 +221,7 @@ export const CompleteReadingScreen = ({ navigation, route }: Props) => {
         longitude: partnerBirthCity?.longitude,
         timezone: partnerBirthCity?.timezone,
       } : {
+        id: user?.id, // CRITICAL: Include person ID
         name: name || user?.name || authDisplayName || 'You',
         birthDate: birthDate || user?.birthData?.birthDate,
         birthTime: birthTime || user?.birthData?.birthTime,
