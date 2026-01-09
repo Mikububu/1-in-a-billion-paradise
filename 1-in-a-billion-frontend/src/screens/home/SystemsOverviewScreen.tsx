@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, TouchableOpacity, ScrollView } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
+import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SystemsOverview'>;
 
@@ -121,7 +122,7 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
             onPress={() => handleSystemPress(system)}
             activeOpacity={0.7}
           >
-            <Text style={styles.systemIcon}>{system.icon}</Text>
+            <AnimatedSystemIcon icon={system.icon} size={28} />
             <View style={styles.systemInfo}>
               <Text style={styles.systemName}>{system.name}</Text>
               <Text style={styles.systemTagline}>{system.tagline}</Text>

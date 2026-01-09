@@ -15,6 +15,7 @@ import { colors, spacing, typography } from '@/theme/tokens';
 import { Button } from '@/components/Button';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { OUTPUT_POLICY } from '@/config/products';
+import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ReadingSummary'>;
 
@@ -123,7 +124,7 @@ export const ReadingSummaryScreen = ({ navigation, route }: Props) => {
                 { opacity: highlightAnims[idx] || fadeIn }
               ]}
             >
-              <Text style={styles.highlightIcon}>{highlight.icon}</Text>
+              <AnimatedSystemIcon icon={highlight.icon} size={20} />
               <Text style={styles.highlightText} selectable>{highlight.text}</Text>
             </Animated.View>
           ))}

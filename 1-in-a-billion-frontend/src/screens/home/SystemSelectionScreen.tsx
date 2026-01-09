@@ -21,6 +21,7 @@ import { useState, useEffect } from 'react';
 import { VoiceSelectionModal } from '@/components/VoiceSelectionModal';
 import { useProfileStore } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
+import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SystemSelection'>;
 
@@ -455,7 +456,7 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
             onPress={() => handleSelectSystem(system.id)}
             disabled={isLoading}
           >
-            <Text style={styles.systemIcon}>{system.icon}</Text>
+            <AnimatedSystemIcon icon={system.icon} size={28} />
             <View style={styles.systemTextContainer}>
               <Text style={styles.systemName}>{system.name}</Text>
               <Text style={styles.systemMeta}>
