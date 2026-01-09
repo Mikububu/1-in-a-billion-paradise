@@ -49,7 +49,12 @@ export const ReadingSummaryScreen = ({ navigation, route }: Props) => {
   }, []);
 
   const handleReadFull = () => {
-    navigation.navigate('CompleteReading', {
+    // Navigate to SystemExplainer with 'all' systems - proper flow
+    navigation.navigate('SystemExplainer', {
+      system: 'all',
+      forPurchase: true,
+      readingType: person2Name ? 'overlay' : 'individual',
+      forPartner: false,
       partnerName: person2Name,
     });
   };

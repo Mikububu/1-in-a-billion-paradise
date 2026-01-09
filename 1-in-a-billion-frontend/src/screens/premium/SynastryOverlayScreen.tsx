@@ -385,7 +385,7 @@ export const SynastryOverlayScreen = ({ navigation, route }: Props) => {
       <View style={styles.footer}>
         <Button
           label="Get Complete Package"
-          onPress={() => navigation.navigate('CompleteReading')}
+          onPress={() => navigation.navigate('SystemExplainer', { system: 'all', forPurchase: true, readingType: 'overlay' })}
         />
       </View>
     </SafeAreaView>

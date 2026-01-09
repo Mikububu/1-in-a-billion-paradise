@@ -23,7 +23,7 @@ const CIRCLE_SIZE_2 = CIRCLE_SIZE * 1.1; // Second circle - 10% larger
 const CIRCLE_SIZE_3 = CIRCLE_SIZE * 1.25; // Third circle - 25% larger
 
 export const PersonalContextScreen = ({ navigation, route }: Props) => {
-    const { personName, isSelf, completeReading, productType, systems, ...restParams } = route.params as any;
+    const { personName, isSelf, productType, systems, ...restParams } = route.params as any;
     const [context, setContext] = useState('');
     const pulseAnim1 = useRef(new Animated.Value(1)).current;
     const pulseAnim2 = useRef(new Animated.Value(1)).current;
@@ -122,12 +122,8 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                 systems,
                 readingType: 'individual',
             } as any);
-        } else if (completeReading) {
-            navigation.navigate('CompleteReading', {
-                ...restParams,
-                personalContext: undefined,
-            });
         } else {
+            // Normal flow → SystemSelection (where user picks system or bundle)
             navigation.navigate('SystemSelection', {
                 ...restParams,
                 personalContext: undefined,
@@ -147,14 +143,8 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                 systems,
                 readingType: 'individual',
             } as any);
-        } else if (completeReading) {
-            // Legacy: Navigate to CompleteReading
-            navigation.navigate('CompleteReading', {
-                ...restParams,
-                personalContext,
-            });
         } else {
-            // Normal flow → SystemSelection
+            // Normal flow → SystemSelection (where user picks system or bundle)
             navigation.navigate('SystemSelection', {
                 ...restParams,
                 personalContext,

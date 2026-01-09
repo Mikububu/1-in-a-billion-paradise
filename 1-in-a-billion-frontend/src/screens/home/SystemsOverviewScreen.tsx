@@ -81,33 +81,18 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
   };
 
   const handleCompleteReading = () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SystemsOverviewScreen.tsx:82',message:'Complete Reading button clicked',data:{forPartner,partnerName,hasPersonId:!!(route.params as any)?.personId,routeParams:route.params},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'BTN'})}).catch(()=>{});
-    // #endregion
-    
-    // Navigate to PersonalContext (circle injection) first, then CompleteReading
-    if (forPartner && partnerName) {
-      // For partner → RelationshipContext
-      navigation.navigate('RelationshipContext', {
-        readingType: 'overlay',
-        forPartner: false,
-        userName: 'You',
-        partnerName,
-        partnerBirthDate,
-        partnerBirthTime,
-        partnerBirthCity,
-        preselectedSystem: undefined, // Complete reading = all systems
-        completeReading: true, // Flag to navigate to CompleteReading after
-      } as any);
-    } else {
-      // For self → PersonalContext
-      navigation.navigate('PersonalContext', {
-        personName: 'You',
-        readingType: 'self',
-        preselectedSystem: undefined, // Complete reading = all systems
-        completeReading: true, // Flag to navigate to CompleteReading after
-      });
-    }
+    // Navigate to SystemExplainer with system='all' - same flow as single systems
+    // This ensures proper explainer → payment → context → voice → generating flow
+    navigation.navigate('SystemExplainer', {
+      system: 'all',
+      forPurchase: true,
+      readingType: forPartner ? 'overlay' : 'individual',
+      forPartner,
+      partnerName,
+      partnerBirthDate,
+      partnerBirthTime,
+      partnerBirthCity,
+    });
   };
 
   return (
