@@ -537,6 +537,9 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       // If no real readings exist, show nothing (empty state)
       // Don't show placeholders for incomplete/failed jobs
       setReadings(realReadings);
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:setReadings',message:'State updated with readings',data:{newReadingsCount:realReadings.length,systems:realReadings.map(r=>r.system)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STATE'})}).catch(()=>{});
+      // #endregion
 
       // AUDIBLE-STYLE PERSISTENCE: Sync to store for persistent library
       if (personId && jobId && realReadings.length > 0) {

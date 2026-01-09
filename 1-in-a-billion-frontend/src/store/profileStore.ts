@@ -939,6 +939,9 @@ export const useProfileStore = create<ProfileState>()(
       },
 
       syncReadingArtifacts: (personId, readingId, artifacts) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:syncReadingArtifacts',message:'Syncing artifacts',data:{personId,readingId,hasPdf:!!artifacts.pdfPath,hasAudio:!!artifacts.audioPath,hasSong:!!artifacts.songPath},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STORE'})}).catch(()=>{});
+        // #endregion
         set((state) => ({
           people: state.people.map((p) =>
             p.id === personId
@@ -957,12 +960,23 @@ export const useProfileStore = create<ProfileState>()(
       },
 
       createPlaceholderReadings: (personId, jobId, systems, createdAt) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:createPlaceholderReadings:entry',message:'Creating placeholders',data:{personId,jobId,systemsCount:systems.length,systems},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STORE'})}).catch(()=>{});
+        // #endregion
         const person = get().people.find((p) => p.id === personId);
-        if (!person) return;
+        if (!person) {
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:createPlaceholderReadings:noPerson',message:'Person not found',data:{personId,allPeopleIds:get().people.map(p=>p.id)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STORE'})}).catch(()=>{});
+          // #endregion
+          return;
+        }
 
         // Check if readings for this job already exist
         const existingJobReadings = person.readings.filter((r) => r.jobId === jobId);
         if (existingJobReadings.length > 0) {
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:createPlaceholderReadings:alreadyExists',message:'Placeholders already exist',data:{personId,jobId,existingCount:existingJobReadings.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STORE'})}).catch(()=>{});
+          // #endregion
           console.log(`⚠️ Placeholder readings for job ${jobId} already exist, skipping creation`);
           return;
         }
@@ -999,8 +1013,17 @@ export const useProfileStore = create<ProfileState>()(
 
       getReadingsByJobId: (personId, jobId) => {
         const person = get().people.find((p) => p.id === personId);
-        if (!person) return [];
-        return person.readings.filter((r) => r.jobId === jobId);
+        if (!person) {
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:getReadingsByJobId:noPerson',message:'Person not found',data:{personId,jobId,allPeopleIds:get().people.map(p=>p.id)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STORE'})}).catch(()=>{});
+          // #endregion
+          return [];
+        }
+        const readings = person.readings.filter((r) => r.jobId === jobId);
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:getReadingsByJobId:result',message:'Readings found',data:{personId,jobId,readingsCount:readings.length,personTotalReadings:person.readings.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STORE'})}).catch(()=>{});
+        // #endregion
+        return readings;
       },
 
       // Compatibility Actions
