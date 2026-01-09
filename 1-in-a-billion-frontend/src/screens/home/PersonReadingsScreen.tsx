@@ -462,6 +462,9 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       // Fill in missing with placeholders - ONLY show systems that were actually ordered
       const orderedSystems = jobData.job?.params?.systems || [];
       console.log(`📋 Ordered systems from job params:`, orderedSystems);
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:orderedSystems',message:'Ordered systems analysis',data:{orderedSystemsCount:orderedSystems.length,orderedSystems,personType,systemCount,docRange},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SYSTEMS'})}).catch(()=>{});
+      // #endregion
       const systemsToShow = personType === 'overlay' 
         ? SYSTEMS 
         : SYSTEMS.filter(s => orderedSystems.includes(s.id));
@@ -469,6 +472,9 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       // If no systems specified, fall back to showing first N systems (legacy behavior)
       const finalSystemsToShow = systemsToShow.length > 0 ? systemsToShow : SYSTEMS.slice(0, systemCount);
       console.log(`📋 Final systems to show (${finalSystemsToShow.length}):`, finalSystemsToShow.map(s => s.name));
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:finalSystemsToShow',message:'Final systems to show',data:{finalSystemsToShowCount:finalSystemsToShow.length,finalSystemsToShow:finalSystemsToShow.map(s=>s.id),readingsMapKeys:Object.keys(readingsMap),readingsMapCount:Object.keys(readingsMap).length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SYSTEMS'})}).catch(()=>{});
+      // #endregion
       
       let finalReadings = docRange.map((docNum, i) => {
         if (readingsMap[docNum]) {
@@ -484,6 +490,9 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           timestamp: jobData?.job?.created_at || new Date().toISOString(),
         };
       });
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:finalReadingsBeforeFilter',message:'Final readings before filter',data:{finalReadingsCount:finalReadings.length,finalReadings:finalReadings.map(r=>({id:r.id,system:r.system,name:r.name,hasPdf:!!r.pdfPath,hasAudio:!!r.audioPath,hasSong:!!r.songPath,isPlaceholder:r.id.startsWith('placeholder')}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FILTER'})}).catch(()=>{});
+      // #endregion
 
       // Add numbering + timestamps for duplicate system readings (newest first)
       const systemGroups: Record<string, typeof finalReadings> = {};
