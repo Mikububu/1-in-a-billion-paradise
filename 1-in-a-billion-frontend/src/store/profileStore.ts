@@ -1099,7 +1099,7 @@ export const useProfileStore = create<ProfileState>()(
       linkJobToPersonByName: (personName, jobId) => {
         const person = get().people.find((p) => p.name === personName);
         if (!person) return;
-        linkJobToPerson(person.id, jobId);
+        get().linkJobToPerson(person.id, jobId);
       },
 
       // Compatibility Actions
