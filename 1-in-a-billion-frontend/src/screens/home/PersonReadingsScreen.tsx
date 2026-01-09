@@ -448,6 +448,12 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         if (doc.audioUrl) {
           console.log(`   🎵 Audio URL: ${doc.audioUrl.substring(0, 80)}...`);
         }
+        if (doc.songUrl) {
+          console.log(`   🎶 Song URL: ${doc.songUrl.substring(0, 80)}...`);
+        }
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:songCheck',message:'Song artifact check',data:{docNum,system:system.id,hasSongUrl:!!doc.songUrl,hasSongPath:!!readingsMap[mapKey]?.songPath,docJobId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SONG'})}).catch(()=>{});
+        // #endregion
       }
 
       console.log('📦 Readings built:', Object.keys(readingsMap).length);
@@ -954,13 +960,23 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
 
     setZipLoading(true);
     try {
+      // Extract docNums from reading IDs (handle both 'reading-1' and 'reading-1-{jobId}' formats)
       const docNums = readings
         .filter((r) => r.id.startsWith('reading-'))
         .map((r) => {
-          const m = r.id.match(/^reading-(\d+)$/);
-          return m ? Number(m[1]) : null;
+          // Try standard format: reading-1
+          let m = r.id.match(/^reading-(\d+)$/);
+          if (m) return Number(m[1]);
+          // Try aggregated format: reading-1-{jobId}
+          m = r.id.match(/^reading-(\d+)-/);
+          if (m) return Number(m[1]);
+          return null;
         })
         .filter((n): n is number => typeof n === 'number' && Number.isFinite(n));
+
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:zipDownload',message:'ZIP download initiated',data:{jobId,readingsCount:readings.length,docNums,readingsWithSongs:readings.filter(r=>!!r.songPath).length,readingsWithPdf:readings.filter(r=>!!r.pdfPath).length,readingsWithAudio:readings.filter(r=>!!r.audioPath).length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'ZIP'})}).catch(()=>{});
+      // #endregion
 
       const docsParam = docNums.length > 0 ? `?docs=${encodeURIComponent(docNums.sort((a, b) => a - b).join(','))}` : '';
       const url = `${env.CORE_API_URL}/api/jobs/v2/${jobId}/download-zip${docsParam}`;
