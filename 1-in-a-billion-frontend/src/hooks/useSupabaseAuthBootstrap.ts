@@ -151,12 +151,22 @@ export function useSupabaseAuthBootstrap() {
           // CRITICAL FIX: Check Supabase for existing profile to determine if onboarding is complete
           // This establishes Supabase as the single source of truth
           try {
+            console.log('🔍 Bootstrap: Checking for profile in library_people for user:', session.user.id);
             const { data: profiles, error: profileError } = await supabase
               .from('library_people')
-              .select('id, name, birth_data, hook_readings')
+              .select('user_id, name, birth_data, hook_readings')
               .eq('user_id', session.user.id)
               .eq('is_user', true)
               .limit(1);
+
+            if (profileError) {
+              console.error('❌ Bootstrap: Profile query error:', profileError);
+            } else {
+              console.log('📊 Bootstrap: Profile query result:', profiles?.length || 0, 'profiles found');
+              if (profiles && profiles.length > 0) {
+                console.log('📊 Bootstrap: Profile data:', JSON.stringify(profiles[0], null, 2));
+              }
+            }
 
             if (!profileError && profiles && profiles.length > 0) {
               const { useOnboardingStore } = await import('@/store/onboardingStore');
@@ -164,7 +174,12 @@ export function useSupabaseAuthBootstrap() {
               
               // Only mark onboarding complete if user has hook readings
               // Having a profile doesn't mean onboarding is complete - user might have just created account
-              if (profile.hook_readings && Array.isArray(profile.hook_readings) && profile.hook_readings.length > 0) {
+              // hook_readings can be either an object {sun, moon, rising} or an array
+              const hasHookReadings = profile.hook_readings && (
+                (typeof profile.hook_readings === 'object' && Object.keys(profile.hook_readings).length > 0) ||
+                (Array.isArray(profile.hook_readings) && profile.hook_readings.length > 0)
+              );
+              if (hasHookReadings) {
                 console.log('✅ Bootstrap: User has profile AND hook readings - marking onboarding complete');
                 
                 // #region agent log

@@ -169,13 +169,7 @@ export const BirthInfoScreen = ({ navigation }: Props) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Back Button */}
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => navigation.goBack()}
-      >
-        <Text style={styles.backButtonText}>← Back</Text>
-      </TouchableOpacity>
+      {/* Back Button - hidden on first onboarding screen */}
 
       <KeyboardAvoidingView
         style={styles.container}

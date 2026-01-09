@@ -411,7 +411,25 @@ export const SignInScreen = ({ route }: SignInScreenProps) => {
           AmbientMusic.fadeOut(); // Fade out music after successful login
           navigation.navigate('BirthInfo');
         } else {
-          // Also fade out for existing user login (going to Dashboard)
+          // For existing users, verify profile exists before allowing sign-in
+          console.log('🔍 Verifying profile exists for existing user...');
+          const { checkProfileExists } = await import('@/services/profileUpsert');
+          const profileExists = await checkProfileExists(data.user.id);
+          
+          if (!profileExists) {
+            // Profile was deleted - sign out and show error
+            console.error('❌ No profile found - account deleted');
+            await supabase.auth.signOut();
+            setEmailAuthState('error');
+            Alert.alert(
+              'No Account Found',
+              'Your account data has been deleted. Please sign up to create a new account.',
+              [{ text: 'OK', onPress: () => navigation.navigate('Intro') }]
+            );
+            return;
+          }
+          
+          // Profile exists - continue to dashboard
           AmbientMusic.fadeOut();
         }
 

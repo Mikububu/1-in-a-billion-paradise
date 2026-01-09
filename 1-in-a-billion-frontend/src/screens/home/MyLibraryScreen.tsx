@@ -194,13 +194,14 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   }, [fixDuplicateIds, repairPeople, repairReadings]);
 
   // Activity feed: show background queue status (RunPod/Supabase jobs)
+  const mountedRef = useRef(true);
   useFocusEffect(
     useCallback(() => {
-      let mounted = true;
+      mountedRef.current = true;
       let interval: any;
 
       const setPolling = (enabled: boolean) => {
-        if (!mounted) return;
+        if (!mountedRef.current) return;
         if (enabled) {
           if (!interval) {
             interval = setInterval(loadQueue, 15000);
@@ -299,6 +300,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             // To prevent "missing" readings, always merge jobs from both ids when they differ.
             const userIdsToTry = resolvedUserId ? [resolvedUserId, TEST_USER_ID] : [TEST_USER_ID];
             console.log('📡 [MyLibrary] Trying userIds:', userIdsToTry);
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:300',message:'Before fetching jobs',data:{resolvedUserId,userIdsToTry,testUserId:TEST_USER_ID},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
+            // #endregion
             const results = await Promise.allSettled(userIdsToTry.map((uid) => fetchJobsForUser(uid)));
 
             const allJobs: any[] = [];
@@ -306,12 +310,18 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
               if (r.status === 'fulfilled') {
                 const res = r.value.result;
                 console.log('📥 [MyLibrary] Got jobs:', res.totalJobs, 'jobs from', r.value.url);
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:308',message:'API response received',data:{url:r.value.url,totalJobs:res.totalJobs,jobsCount:res.jobs?.length||0,jobTypes:res.jobs?.map((j:any)=>j.type)||[],jobStatuses:res.jobs?.map((j:any)=>j.status)||[]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
+                // #endregion
                 if (res.jobs && res.jobs.length > 0) {
                   console.log('📥 [MyLibrary] Job types:', res.jobs.map((j: any) => `${j.type}:${j.status}`));
                 }
                 allJobs.push(...(res.jobs || []));
               } else {
                 console.error('❌ [MyLibrary] Backend API failed for one userId:', r.reason?.message || String(r.reason));
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:314',message:'API fetch failed',data:{error:r.reason?.message||String(r.reason)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
+                // #endregion
               }
             }
 
@@ -321,6 +331,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
               if (j?.id) byId.set(j.id, j);
             }
             mergedJobs = Array.from(byId.values());
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:332',message:'After deduplication',data:{allJobsCount:allJobs.length,mergedJobsCount:mergedJobs.length,mergedJobIds:mergedJobs.map((j:any)=>j.id?.slice(0,8))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
+            // #endregion
           }
 
           console.log('📥 [MyLibrary] Merged jobs:', mergedJobs.length);
@@ -329,9 +342,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             '📥 [MyLibrary] Complete jobs:',
             mergedJobs.filter((j: any) => j.status === 'complete' || j.status === 'completed').length
           );
-
-          if (!mounted) return;
-
           const fetchJobDetail = async (jobIdToFetch: string) => {
             const url = `${env.CORE_API_URL}/api/jobs/v2/${jobIdToFetch}`;
             // Try with auth header first (if we have it), then fall back without.
@@ -349,6 +359,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           };
 
           // Fetch full details for completed jobs to get person names
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:352',message:'Before fetching job details',data:{mergedJobsCount:mergedJobs.length,mergedJobTypes:mergedJobs.map((j:any)=>j.type),mergedJobStatuses:mergedJobs.map((j:any)=>j.status)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
+          // #endregion
           const jobsWithDetails = await Promise.all(
             mergedJobs.map(async (j: any) => {
               // For relationship jobs AND extended/single_system jobs, we want person names even while processing so the Library can explain what's happening.
@@ -359,6 +372,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                 try {
                   const detailData = await fetchJobDetail(j.id);
                   const params = detailData.job?.params || {};
+                  // #region agent log
+                  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:361',message:'Job detail fetched',data:{jobId:j.id?.slice(0,8),hasParams:!!params,person1Name:params.person1?.name},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
+                  // #endregion
                   return {
                     id: j.id,
                     type: j.type,
@@ -368,7 +384,10 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                     updated_at: j.createdAt,
                     params, // Include full params with person names
                   };
-                } catch {
+                } catch (e: any) {
+                  // #region agent log
+                  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:372',message:'Job detail fetch failed',data:{jobId:j.id?.slice(0,8),error:e?.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
+                  // #endregion
                   return {
                     id: j.id,
                     type: j.type,
@@ -394,6 +413,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
           console.log('✅ Setting queueJobs:', jobsWithDetails.length, 'jobs');
           console.log('✅ Jobs with person names:', jobsWithDetails.filter((j: any) => j.params?.person1 || j.params?.person2).length);
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:415',message:'About to setQueueJobs - REMOVED MOUNTED CHECK',data:{jobsWithDetailsCount:jobsWithDetails.length,jobsWithParams:jobsWithDetails.filter((j:any)=>j.params).length,jobIds:jobsWithDetails.map((j:any)=>j.id?.slice(0,8))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
+          // #endregion
           setQueueJobs(jobsWithDetails);
           setQueueJobsUpdatedAt(new Date().toISOString());
           setLoadingQueueJobs(false);
@@ -406,14 +428,14 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         } catch (apiError: any) {
           console.error('❌ Backend API failed:', apiError);
           console.error('❌ Error details:', apiError.message, apiError.stack);
-          if (mounted) {
+          if (mountedRef.current) {
             setLoadingQueueJobs(false);
           }
         }
 
         // Fallback to Supabase direct query (needs auth)
         if (!isSupabaseConfigured) {
-          if (mounted) {
+          if (mountedRef.current) {
             setQueueJobs([]);
             setQueueJobsUpdatedAt(null);
             setLoadingQueueJobs(false);
@@ -432,7 +454,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             .limit(12);
 
           if (error) throw error;
-          if (!mounted) return;
+          if (!mountedRef.current) return;
           setQueueJobs(data || []);
           setQueueJobsUpdatedAt(new Date().toISOString());
 
@@ -442,18 +464,18 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           setPolling(hasActiveJobs);
         } catch (e: any) {
           // Don't block the library if this fails
-          if (mounted) {
+          if (mountedRef.current) {
             setQueueJobsUpdatedAt(new Date().toISOString());
           }
         } finally {
-          if (mounted) setLoadingQueueJobs(false);
+          if (mountedRef.current) setLoadingQueueJobs(false);
         }
       };
 
       loadQueue();
 
       return () => {
-        mounted = false;
+        mountedRef.current = false;
         if (interval) clearInterval(interval);
       };
     }, [authUser?.id])
@@ -555,6 +577,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
     // 1. Add people from profile store who have readings
     console.log('📊 [MyLibrary] Total queueJobs:', queueJobs.length);
     console.log('📊 [MyLibrary] Job types:', queueJobs.map((j: any) => `${j.type}(${j.status})`).join(', '));
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:557',message:'All queueJobs analysis',data:{totalJobs:queueJobs.length,jobs:queueJobs.map((j:any,i:number)=>({idx:i,id:j.id?.slice(0,8),type:j.type,status:j.status,hasParams:!!j.params,hasInput:!!j.input,paramsType:typeof j.params,inputType:typeof j.input}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
+    // #endregion
 
     people.forEach(person => {
       // Show people who have birth data OR readings (not just readings)
@@ -662,6 +687,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         (j.status === 'complete' || j.status === 'completed' || j.status === 'processing' || j.status === 'pending' || j.status === 'queued')
       )
       .forEach((job: any) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:664',message:'Processing extended/single_system job',data:{jobId:job.id?.slice(0,8),type:job.type,status:job.status,hasParams:!!job.params,hasInput:!!job.input},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
+        // #endregion
         let params = job.params || job.input || {};
         if (typeof params === 'string') {
           try {
@@ -673,6 +701,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
         const isProcessing = job.status === 'processing' || job.status === 'pending' || job.status === 'queued';
         const p1Name = params.person1?.name || (isProcessing ? `Reading ${job.id.slice(0, 8)}` : undefined);
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:677',message:'Extracted person name from job',data:{jobId:job.id?.slice(0,8),p1Name,paramsPerson1Name:params.person1?.name,isProcessing,willMerge:!!peopleMap.get(p1Name)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
+        // #endregion
 
         if (p1Name) {
           // FIXED: Use person name as key (not job ID) to deduplicate same person
@@ -680,6 +711,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           if (existing) {
             // Merge jobIds if person already exists
             existing.jobIds = [...new Set([...(existing.jobIds || []), job.id])];
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:682',message:'Merged jobId into existing person',data:{personName:p1Name,jobId:job.id?.slice(0,8),newJobIdsCount:existing.jobIds.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
+            // #endregion
           } else {
             peopleMap.set(p1Name, {
               id: `job-${job.id}-p1`,
@@ -694,6 +728,10 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           }
         }
       });
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:697',message:'After processing all jobs - peopleMap state',data:{peopleMapSize:peopleMap.size,peopleNames:Array.from(peopleMap.keys()),peopleWithJobIds:Array.from(peopleMap.values()).filter(p=>p.jobIds&&p.jobIds.length>0).map(p=>({name:p.name,jobIdsCount:p.jobIds.length}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
+    // #endregion
 
     // Convert to array and sort by most recent
     let result = Array.from(peopleMap.values()).sort((a, b) => {
@@ -1806,7 +1844,14 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         <View style={styles.tabContent}>
 
           {/* Person Cards - show ALL people who have readings (grouped by name) */}
-          {allPeopleWithReadings.map((person) => {
+          {/* #region agent log */}
+          {(() => { const keys = allPeopleWithReadings.map((p,i) => ({ idx: i, name: p.name, id: p.id, computedKey: `person-${p.name}-${p.id || 'no-id'}` })); const duplicateKeys = keys.filter((k,i,arr) => arr.findIndex(x => x.computedKey === k.computedKey) !== i); fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:1809',message:'allPeopleWithReadings keys analysis',data:{totalPeople:keys.length,allKeys:keys,duplicateKeys,hasUndefinedIds:keys.filter(k=>!k.id||k.id==='no-id').length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,C,E'})}).catch(()=>{}); return null; })()}
+          {/* #endregion */}
+          {allPeopleWithReadings.map((person, mapIndex) => {
+            // #region agent log
+            const computedKey = `person-${person.name}-${person.id || 'no-id'}`;
+            fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:1812',message:'Rendering person card',data:{mapIndex,name:person.name,id:person.id,computedKey},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,C'})}).catch(()=>{});
+            // #endregion
             // Determine personType based on the actual job params for the job we're linking to.
             // - Extended/Combined jobs: personType = 'individual' (1 person, 1-5 systems)
             // - Nuclear jobs: personType = 'person1' | 'person2' | 'overlay'

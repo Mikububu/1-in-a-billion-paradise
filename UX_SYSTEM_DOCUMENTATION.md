@@ -1,11 +1,15 @@
 # 1-in-a-Billion: Complete UX System Documentation
 
-**Version:** 1.3  
+**Version:** 1.4  
 **Date:** January 2025  
 **Last Updated:** January 9, 2026  
 **Purpose:** Complete mapping of all screens, navigation flows, and backend interactions
 
-**Recent Changes (v1.3):**
+**Recent Changes (v1.4):**
+- PersonReadingsScreen (S19): Added **Button Enabling Rules** - PDF, audio, and song buttons enable progressively as each artifact completes (do NOT wait for all artifacts)
+- Deleted all old test jobs to clean up library
+
+**Previous Changes (v1.3):**
 - PersonReadingsScreen (S19): Only shows readings with actual artifacts (PDF, audio, or song) - placeholders without data are now hidden
 - MyLibraryScreen (S12): Removed debug Alert.alert popup that was showing job data on every load
 - Fixed React "unique key" warning in PersonReadingsScreen (using `reading.id` instead of index-based key)
@@ -461,6 +465,11 @@
   - Only shows readings that have at least one artifact (PDF, audio, or song)
   - Placeholder entries without actual data are hidden
   - If ALL readings are placeholders (job has no artifacts yet), shows placeholders as fallback
+- **Button Enabling Rules (CRITICAL):**
+  - **PDF Button:** Enabled as soon as PDF artifact is generated (do NOT wait for audio/song)
+  - **Audio Button:** Enabled as soon as audio artifact is generated (independent of PDF/song status)
+  - **Song Button:** Enabled as soon as song artifact is generated (independent of PDF/audio status)
+  - **Progressive Loading:** Each button enables individually when its artifact completes - buttons MUST NOT be greyed out waiting for other artifacts to finish
 
 **Screen 20: Overlay Reader** (`OverlayReaderScreen`)
 - **Handler:** `S20_OVERLAY_READER`

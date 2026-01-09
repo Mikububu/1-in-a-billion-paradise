@@ -195,6 +195,9 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     }
     setLoadError(null);
 
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:loadStart',message:'loadReadings start',data:{jobId,personType,personName,hasJobId:!!jobId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'LOAD'})}).catch(()=>{});
+    // #endregion
     // Fly can take >10s to assemble job results + sign URLs (especially nuclear_v2),
     // so use a more forgiving timeout and retry once on transient failures.
     const REQUEST_TIMEOUT_MS = 30000;
@@ -202,15 +205,10 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
 
     try {
       if (!jobId) {
-        console.log('⚠️ [PersonReadings] Missing jobId receipt; showing placeholders');
-        const systemsToShow = personType === 'overlay' ? SYSTEMS : SYSTEMS.slice(0, 5);
-        setReadings(
-          systemsToShow.map((sys, i) => ({
-            id: `placeholder-${i}`,
-            system: sys.id,
-            name: sys.name,
-          }))
-        );
+        console.log('⚠️ [PersonReadings] Missing jobId receipt - showing empty state (no readings yet)');
+        // Don't show placeholder cards for non-existent jobs.
+        // An empty readings array will trigger the "No readings yet" empty state.
+        setReadings([]);
         return;
       }
 
@@ -243,6 +241,9 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       }
       if (!jobData) throw lastErr || new Error('Failed to load job');
 
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:jobData',message:'Job data loaded',data:{jobId,status:jobData.job?.status,type:jobData.job?.type,documentsCount:jobData.job?.results?.documents?.length||0,documents:(jobData.job?.results?.documents||[]).map((d:any)=>({docNum:d.docNum,hasPdf:!!d.pdfUrl,hasAudio:!!d.audioUrl,hasSong:!!d.songUrl}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOBDATA'})}).catch(()=>{});
+      // #endregion
       // NEW: Extract and set job status and progress
       const status = jobData.job?.status || 'pending';
       const progress = jobData.job?.progress || null;
@@ -438,26 +439,30 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
 
       // Filter out entries that have no actual content
       // ONLY show readings that have at least one real artifact
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:beforeFilter',message:'Pre-filter readings',data:{finalReadingsCount:finalReadings.length,finalReadings:finalReadings.map(r=>({id:r.id,system:r.system,hasPdf:!!r.pdfPath,hasAudio:!!r.audioPath,hasSong:!!r.songPath}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FILTER'})}).catch(()=>{});
+      // #endregion
       const realReadings = finalReadings.filter(r => {
         // Must have at least one actual artifact to be shown
         const hasRealContent = !!(r.pdfPath || r.audioPath || r.songPath);
         return hasRealContent;
       });
 
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:afterFilter',message:'Post-filter readings',data:{realReadingsCount:realReadings.length,realReadings:realReadings.map(r=>({id:r.id,system:r.system}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FILTER'})}).catch(()=>{});
+      // #endregion
       // If no real readings exist, show nothing (empty state)
       // Don't show placeholders for incomplete/failed jobs
       setReadings(realReadings);
     } catch (e: any) {
       const errorMsg = e.name === 'AbortError' ? 'Request timed out' : e.message;
       console.error('❌ [PersonReadings] Error loading readings:', errorMsg);
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:catch',message:'Error in loadReadings',data:{error:errorMsg,jobId,personType},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'ERROR'})}).catch(()=>{});
+      // #endregion
       setLoadError(errorMsg || 'Could not load reading');
-      // Show placeholders on error so user isn't stuck on Loading
-      const systemsToShow = personType === 'overlay' ? SYSTEMS : SYSTEMS.slice(0, 5);
-      setReadings(systemsToShow.map((sys, i) => ({
-        id: `error-${i}`,
-        system: sys.id,
-        name: `${sys.name} (offline)`,
-      })));
+      // Show empty state on error - the loadError banner provides retry option
+      setReadings([]);
     } finally {
       console.log('✅ [PersonReadings] Load finished, setting loading=false');
       setLoading(false);
@@ -840,6 +845,13 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
 
         {loading && readings.length === 0 ? (
           <Text style={styles.loadingText}>Loading...</Text>
+        ) : readings.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateTitle}>No Readings Yet</Text>
+            <Text style={styles.emptyStateText}>
+              {personName}'s readings will appear here once generated.
+            </Text>
+          </View>
         ) : (
           <View style={styles.readingsList}>
             {readings.map((reading, index) => {
@@ -1058,6 +1070,26 @@ const styles = StyleSheet.create({
   },
   readingsList: {
     gap: 16,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 24,
+  },
+  emptyStateTitle: {
+    fontFamily: 'PlayfairDisplay_700Bold',
+    fontSize: 24,
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    fontFamily: 'System',
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
   },
   readingCard: {
     backgroundColor: colors.surface,

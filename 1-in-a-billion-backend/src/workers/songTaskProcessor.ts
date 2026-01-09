@@ -70,7 +70,20 @@ export async function processSongTask(task: { id: string; job_id: string; input:
     // Get text from the document
     const artifact = artifacts[0];
     let readingText = '';
-    if (artifact.content && typeof artifact.content === 'string') {
+    
+    // Try storage_path first (text is stored in Supabase Storage)
+    if (artifact.storage_path) {
+      const { data: downloadData, error: downloadError } = await supabase!
+        .storage
+        .from('job-artifacts')
+        .download(artifact.storage_path);
+      
+      if (downloadError) {
+        throw new Error(`Failed to download text from storage: ${downloadError.message}`);
+      }
+      
+      readingText = await downloadData.text();
+    } else if (artifact.content && typeof artifact.content === 'string') {
       readingText = artifact.content;
     } else if (artifact.metadata?.text) {
       readingText = artifact.metadata.text;
