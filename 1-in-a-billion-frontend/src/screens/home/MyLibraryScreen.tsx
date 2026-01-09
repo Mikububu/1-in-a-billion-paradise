@@ -177,6 +177,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   const repairPeople = useProfileStore((state) => state.repairPeople);
   const repairReadings = useProfileStore((state) => state.repairReadings);
   const fixDuplicateIds = useProfileStore((state) => state.fixDuplicateIds);
+  const linkJobToPerson = useProfileStore((state) => state.linkJobToPerson);
 
   // Onboarding store for hook readings
   const authUser = useAuthStore((s) => s.user);
@@ -595,7 +596,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           placements: person.placements || {},
           readings: person.readings,
           createdAt: person.createdAt,
-          jobIds: [],
+          jobIds: person.jobIds || [], // PRESERVE existing jobIds from store
         });
       }
     });
@@ -645,6 +646,8 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           if (existing) {
             // Merge jobIds if person already exists
             existing.jobIds = [...new Set([...(existing.jobIds || []), job.id])];
+            // Persist to store (Audible-style)
+            linkJobToPerson(existing.id, job.id);
           } else {
             // Create placeholder readings based on job type
             const isOverlay = job.type === 'overlay' || job.type === 'compatibility';
