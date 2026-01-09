@@ -12,6 +12,7 @@ import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { Button } from '@/components/Button';
+import { TexturedBackground } from '@/components/TexturedBackground';
 import { UpsellModal } from '@/components/UpsellModal';
 import { type UpsellTrigger } from '@/config/subscriptions';
 import { readingsApi } from '@/services/api';
@@ -505,9 +506,10 @@ export const HomeScreen = ({ navigation }: Props) => {
 
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Screen ID */}
-      <Text style={styles.screenId}>10</Text>
+    <TexturedBackground style={styles.container}>
+      <SafeAreaView style={{ flex: 1 }}>
+        {/* Screen ID */}
+        <Text style={styles.screenId}>10</Text>
       {/* Two minimalist humans roam the entire screen in the background (never interacts with UI). */}
       {/* Sprite animation temporarily disabled */}
       {/* <View style={styles.walkersOverlay} pointerEvents="none">
@@ -733,7 +735,8 @@ export const HomeScreen = ({ navigation }: Props) => {
           </ScrollView>
         </SafeAreaView>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </TexturedBackground>
   );
 };
 

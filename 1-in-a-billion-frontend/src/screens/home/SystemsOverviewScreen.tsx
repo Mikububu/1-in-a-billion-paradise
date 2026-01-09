@@ -1,6 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TexturedBackground } from '@/components/TexturedBackground';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 
@@ -95,8 +96,9 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.screenId}>12</Text>
+    <TexturedBackground style={styles.container}>
+      <SafeAreaView style={{ flex: 1, paddingHorizontal: spacing.page }}>
+        <Text style={styles.screenId}>12</Text>
       {/* Back button */}
       <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
         <Text style={styles.backText}>← Back</Text>
@@ -145,15 +147,14 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
           </View>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </TexturedBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-    paddingHorizontal: spacing.page,
   },
   screenId: {
     position: 'absolute',

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { Button } from '@/components/Button';
+import { TexturedBackground } from '@/components/TexturedBackground';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useAuthStore } from '@/store/authStore';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
@@ -160,7 +161,7 @@ export const IntroScreen = ({ navigation }: Props) => {
   };
 
   return (
-    <View style={styles.container}>
+    <TexturedBackground style={styles.container}>
       {/* Background Image - bottom area */}
       <Image
         source={womanHappyImage}
@@ -270,7 +271,7 @@ export const IntroScreen = ({ navigation }: Props) => {
           <Text style={styles.screenId}>1</Text>
         </View>
       </SafeAreaView>
-    </View>
+    </TexturedBackground>
   );
 };
 

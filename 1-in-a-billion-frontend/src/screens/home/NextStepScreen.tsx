@@ -3,6 +3,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StyleSheet, Text, View, TouchableOpacity, Dimensions } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { MainStackParamList } from '@/navigation/RootNavigator';
+import { TexturedBackground } from '@/components/TexturedBackground';
 import { typography, colors } from '@/theme/tokens';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'NextStep'>;
@@ -32,7 +33,7 @@ export const NextStepScreen = ({ navigation }: Props) => {
   ];
 
   return (
-    <View style={styles.container}>
+    <TexturedBackground style={styles.container}>
       {/* Screen ID */}
       <Text style={styles.screenId}>11</Text>
 
@@ -66,7 +67,7 @@ export const NextStepScreen = ({ navigation }: Props) => {
         posterSource={require('../../../assets/images/hello_i_love_you_poster.png')}
         posterStyle={{ resizeMode: 'cover' }}
       />
-    </View>
+    </TexturedBackground>
   );
 };
 

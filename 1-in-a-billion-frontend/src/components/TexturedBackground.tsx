@@ -1,11 +1,11 @@
 /**
  * TEXTURED BACKGROUND
  * 
- * Adds a subtle leather-like grain texture to backgrounds.
- * Creates a premium tactile feel without external dependencies.
+ * Adds a white leather texture to all backgrounds.
+ * Uses the white-leather-texture.jpg image as the app-wide background.
  */
 
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, ImageBackground } from 'react-native';
 import { colors } from '@/theme/tokens';
 
 type Props = {
@@ -15,19 +15,19 @@ type Props = {
 
 /**
  * Main textured background component
- * Uses layered views to create leather grain effect
+ * Uses actual leather texture image
  */
 export const TexturedBackground = ({ children, style }: Props) => {
   return (
-    <View style={[styles.container, style]}>
-      {/* Multiple subtle layers to create leather grain effect */}
-      <View style={styles.grainBase} />
-      <View style={styles.grainHighlight} />
-      <View style={styles.grainShadow} />
+    <ImageBackground
+      source={require('../../assets/images/white-leather-texture.jpg')}
+      style={[styles.container, style]}
+      resizeMode="cover"
+    >
       <View style={styles.content}>
         {children}
       </View>
-    </View>
+    </ImageBackground>
   );
 };
 
@@ -41,22 +41,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    position: 'relative',
-  },
-  grainBase: {
-    ...StyleSheet.absoluteFillObject,
-    // Subtle warm grain
-    backgroundColor: 'rgba(245, 240, 235, 0.3)',
-  },
-  grainHighlight: {
-    ...StyleSheet.absoluteFillObject,
-    // Light spots like leather highlights
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
-  },
-  grainShadow: {
-    ...StyleSheet.absoluteFillObject,
-    // Dark spots like leather pores
-    backgroundColor: 'rgba(0, 0, 0, 0.008)',
   },
   content: {
     flex: 1,
