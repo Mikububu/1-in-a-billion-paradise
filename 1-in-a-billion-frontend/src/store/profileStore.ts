@@ -805,20 +805,26 @@ export const useProfileStore = create<ProfileState>()(
       addReading: (personId, readingData) => {
         const person = get().people.find((p) => p.id === personId);
         
-        // For Vedic readings: Always allow multiple readings, mark if it's a second reading
-        if (readingData.system === 'vedic' && person) {
-          const existingVedicReadings = person.readings.filter((r) => r.system === 'vedic');
-          const isSecondReading = existingVedicReadings.length > 0;
+        // CRITICAL: Keep ALL readings - never delete on second generation
+        // All systems: Always allow multiple readings, mark with version number and date
+        if (person) {
+          const existingReadingsForSystem = person.readings.filter((r) => r.system === readingData.system);
+          const readingNumber = existingReadingsForSystem.length + 1;
+          const date = new Date(readingData.generatedAt || new Date().toISOString()).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+          });
           
           const id = generateId();
           const reading: Reading = { 
             ...readingData, 
             id,
-            // Add note if this is a second reading
-            ...(isSecondReading && { 
-              note: 'This is the second reading for this system.',
-              readingNumber: existingVedicReadings.length + 1 
-            })
+            // Add version number and date for all readings (not just Vedic)
+            readingNumber,
+            note: readingNumber === 1 
+              ? `Generated on ${date}`
+              : `This is reading ${readingNumber} for this system. Generated on ${date}.`
           };
           
           set((state) => ({
@@ -834,30 +840,15 @@ export const useProfileStore = create<ProfileState>()(
           }));
           return id;
         }
-        
-        // For other systems: De-dupe accidental duplicates (same system + same content signature saved multiple times)
-        if (person) {
-          const sig = `${readingData.system}|${readingData.wordCount}|${(readingData.content || '').slice(0, 180)}`;
-          const newAt = Date.parse(readingData.generatedAt || '');
-          const existing = person.readings.find((r) => {
-            if (r.system !== readingData.system) return false;
-            if (r.wordCount !== readingData.wordCount) return false;
-            const rSig = `${r.system}|${r.wordCount}|${(r.content || '').slice(0, 180)}`;
-            if (rSig !== sig) return false;
-            const oldAt = Date.parse(r.generatedAt || '');
-            // Only de-dupe within a reasonable window (prevents collapsing legitimate re-reads across days)
-            if (Number.isFinite(newAt) && Number.isFinite(oldAt)) {
-              return Math.abs(oldAt - newAt) <= 2 * 60 * 1000; // 2 minutes
-            }
-            return true;
-          });
-          if (existing) {
-            return existing.id;
-          }
-        }
 
+        // Fallback if person not found (shouldn't happen)
         const id = generateId();
-        const reading: Reading = { ...readingData, id };
+        const reading: Reading = { 
+          ...readingData, 
+          id,
+          readingNumber: 1,
+          note: `Generated on ${new Date(readingData.generatedAt || new Date().toISOString()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+        };
         set((state) => ({
           people: state.people.map((p) =>
             p.id === personId

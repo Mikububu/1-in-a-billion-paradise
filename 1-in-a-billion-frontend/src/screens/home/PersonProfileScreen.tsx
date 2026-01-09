@@ -410,7 +410,7 @@ export const PersonProfileScreen = ({ navigation, route }: Props) => {
                           <View style={styles.readingHeader}>
                             <Text style={styles.readingSystem}>
                               {SYSTEM_NAMES[reading.system] || reading.system}
-                              {reading.readingNumber && reading.readingNumber > 1 && ` - ${reading.readingNumber}${reading.readingNumber === 2 ? 'nd' : reading.readingNumber === 3 ? 'rd' : 'th'} Reading`}
+                              {reading.readingNumber && reading.readingNumber > 1 && ` - Version ${reading.readingNumber}`}
                               {isOverview && ' Overview'}
                               {isDeepDive && ' Deep Dive'}
                             </Text>
