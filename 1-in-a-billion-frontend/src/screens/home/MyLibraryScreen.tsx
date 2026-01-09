@@ -448,18 +448,23 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         } catch (apiError: any) {
           console.error('❌ Backend API failed:', apiError);
           console.error('❌ Error details:', apiError.message, apiError.stack);
+          console.error('❌ API URL was:', env.CORE_API_URL);
+          console.error('❌ UserId was:', userId);
           if (mountedRef.current) {
-            setQueueJobsError(`API Error: ${apiError.message}`);
+            setQueueJobsError(`API Error: ${apiError.message || 'Unknown error'}. URL: ${env.CORE_API_URL}, UserId: ${userId}`);
             setLoadingQueueJobs(false);
+            // Don't clear queueJobs - keep previous state on error
           }
         }
 
         // Fallback to Supabase direct query (needs auth)
+        // Only try Supabase if configured; otherwise keep previous state
         if (!isSupabaseConfigured) {
           if (mountedRef.current) {
-            setQueueJobs([]);
-            setQueueJobsUpdatedAt(null);
+            console.warn('⚠️ [MyLibrary] Backend API failed and Supabase not configured - keeping previous jobs');
+            setQueueJobsError('Backend API failed and Supabase not configured');
             setLoadingQueueJobs(false);
+            // Don't clear queueJobs - keep previous state
           }
           return;
         }
