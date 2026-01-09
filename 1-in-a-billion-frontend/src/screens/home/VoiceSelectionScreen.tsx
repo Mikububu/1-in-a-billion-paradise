@@ -290,6 +290,17 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
                 console.log(`✅ Added jobId ${data.jobId} to person ${person1.name}`);
             }
             
+            // Mark people as having paid readings in Supabase
+            const { markPersonAsPaidReading } = await import('@/services/peopleService');
+            markPersonAsPaidReading(userId, person1.name).catch(err => 
+                console.warn('⚠️ Failed to mark person1 as paid:', err)
+            );
+            if (person2?.name) {
+                markPersonAsPaidReading(userId, person2.name).catch(err => 
+                    console.warn('⚠️ Failed to mark person2 as paid:', err)
+                );
+            }
+            
             // Navigate to GeneratingReading (NO animation screen)
             navigation.replace('GeneratingReading', {
                 jobId: data.jobId,

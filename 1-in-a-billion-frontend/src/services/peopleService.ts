@@ -19,6 +19,7 @@ export type LibraryPerson = {
   birth_data: BirthData;
   placements?: Placements;
   relationship_intensity?: number;
+  has_paid_reading?: boolean; // True if involved in at least one paid job
   created_at?: string;
   updated_at?: string;
 };
@@ -191,6 +192,96 @@ export async function deletePersonFromSupabase(
   } catch (err: any) {
     console.error('❌ deletePersonFromSupabase error:', err.message);
     return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Mark a person as having a paid reading
+ * Called when a job is created with this person
+ */
+export async function markPersonAsPaidReading(
+  userId: string,
+  personName: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured()) {
+    console.warn('⚠️ Supabase not configured - skipping markPersonAsPaidReading');
+    return { success: false, error: 'Supabase not configured' };
+  }
+
+  try {
+    console.log(`💰 Marking "${personName}" as having paid reading...`);
+
+    const { error } = await supabase
+      .from('library_people')
+      .update({ has_paid_reading: true, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .eq('name', personName);
+
+    if (error) {
+      console.error('❌ Supabase markPersonAsPaidReading error:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log(`✅ "${personName}" marked as having paid reading`);
+    return { success: true };
+  } catch (err: any) {
+    console.error('❌ markPersonAsPaidReading error:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Fetch only people with paid readings from Supabase
+ * Used for My Souls Library (Screen 14)
+ */
+export async function fetchPeopleWithPaidReadings(userId: string): Promise<Person[]> {
+  if (!isSupabaseConfigured()) {
+    console.warn('⚠️ Supabase not configured - skipping fetch');
+    return [];
+  }
+
+  try {
+    console.log(`📥 Fetching people with paid readings for user ${userId}...`);
+    
+    const { data, error } = await supabase
+      .from('library_people')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('has_paid_reading', true)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ Supabase fetch error:', error);
+      return [];
+    }
+
+    if (!data || data.length === 0) {
+      console.log('📭 No people with paid readings found');
+      return [];
+    }
+
+    console.log(`✅ Fetched ${data.length} people with paid readings`);
+
+    // Convert Supabase format to frontend Person format
+    const people: Person[] = data.map((row: any) => ({
+      id: row.client_person_id,
+      name: row.name,
+      isUser: row.is_user || false,
+      isVerified: row.is_user || false,
+      gender: row.gender,
+      birthData: row.birth_data,
+      placements: row.placements,
+      hasPaidReading: row.has_paid_reading,
+      readings: [],
+      jobIds: [],
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    return people;
+  } catch (err: any) {
+    console.error('❌ fetchPeopleWithPaidReadings error:', err.message);
+    return [];
   }
 }
 

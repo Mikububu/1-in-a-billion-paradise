@@ -37,7 +37,7 @@ import { useProfileStore, Reading, Person, CompatibilityReading, ReadingSystem, 
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { shareAudioFile, downloadAudioFromUrl, generateAudioFileName } from '@/services/audioDownload';
 import { useAuthStore } from '@/store/authStore';
-import { deletePersonFromSupabase } from '@/services/peopleService';
+import { deletePersonFromSupabase, fetchPeopleWithPaidReadings } from '@/services/peopleService';
 import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { fetchNuclearJobs, fetchJobArtifacts } from '@/services/nuclearReadingsService';
@@ -125,6 +125,8 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   >([]);
   const [loadingQueueJobs, setLoadingQueueJobs] = useState(false);
   const [queueJobsUpdatedAt, setQueueJobsUpdatedAt] = useState<string | null>(null);
+  // People with paid readings from Supabase (source of truth)
+  const [paidPeopleNames, setPaidPeopleNames] = useState<Set<string>>(new Set());
   // Track nuclear_v2 job artifacts for reading badges
   const [nuclearJobArtifacts, setNuclearJobArtifacts] = useState<Record<string, Array<{ system?: string; docType?: string }>>>({});
 
@@ -195,6 +197,19 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
       // ignore
     }
   }, [fixDuplicateIds, repairPeople, repairReadings]);
+
+  // Fetch people with paid readings from Supabase (source of truth for who shows in library)
+  useEffect(() => {
+    if (!authUser?.id) return;
+    
+    fetchPeopleWithPaidReadings(authUser.id).then(paidPeople => {
+      const names = new Set(paidPeople.map(p => p.name));
+      setPaidPeopleNames(names);
+      console.log(`📚 [MyLibrary] Paid people: ${Array.from(names).join(', ') || 'none'}`);
+    }).catch(err => {
+      console.warn('⚠️ Failed to fetch paid people:', err);
+    });
+  }, [authUser?.id]);
 
   // Activity feed: show background queue status (RunPod/Supabase jobs)
   const mountedRef = useRef(true);
@@ -794,7 +809,14 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
       return timeB - timeA; // Most recent first
     });
 
-    // CRITICAL FILTER: Only show people with complete placements (no "Calculating..." entries)
+    // CRITICAL FILTER 1: Only show people with has_paid_reading = true in Supabase
+    // This is the source of truth - prevents showing "added" people without paid readings
+    if (paidPeopleNames.size > 0) {
+      result = result.filter(person => paidPeopleNames.has(person.name));
+      console.log('📊 [MyLibrary] After paid filter:', result.length);
+    }
+
+    // CRITICAL FILTER 2: Only show people with complete placements (no "Calculating..." entries)
     // This ensures "My Souls Library" only displays valid, complete profiles with sun/moon/rising signs
     result = result.filter(person => {
       // Check stored placements
@@ -807,10 +829,10 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
     console.log('📊 [MyLibrary] Final peopleMap size:', peopleMap.size);
     console.log('📊 [MyLibrary] People names:', Array.from(peopleMap.keys()).join(', '));
-    console.log('📊 [MyLibrary] After filter (only with placements):', result.length);
+    console.log('📊 [MyLibrary] After placements filter:', result.length);
 
     return result;
-  }, [queueJobs, people, userName]);
+  }, [queueJobs, people, userName, paidPeopleNames, tempPlacements]);
 
   // Effect: Calculate placements for any person (from queue or store) who has birth data but no signs
   useEffect(() => {
