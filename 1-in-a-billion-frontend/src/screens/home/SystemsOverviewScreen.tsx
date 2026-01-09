@@ -130,24 +130,18 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
           </TouchableOpacity>
         ))}
 
-        {/* Divider */}
-        <View style={styles.divider} />
-
-        {/* All 5 Systems option with Best Value badge - NO PRICE */}
+        {/* All 5 Systems option with Best Choice badge - matching Screen 22 design */}
         <TouchableOpacity
-          style={styles.completeRow}
+          style={styles.bestChoiceCard}
           onPress={handleCompleteReading}
           activeOpacity={0.7}
         >
-          <Text style={styles.completeIcon}>✦</Text>
-          <View style={styles.systemInfo}>
-            <View style={styles.completeNameRow}>
-              <Text style={styles.completeName}>Complete Reading</Text>
+          <View style={styles.bestChoiceLeft}>
+            <View style={styles.bestChoiceBadge}>
+              <Text style={styles.bestChoiceBadgeText}>★ BEST CHOICE</Text>
             </View>
-            <Text style={styles.completeTagline}>All 5 systems combined</Text>
-          </View>
-          <View style={styles.bestValueBadge}>
-            <Text style={styles.bestValueText}>BEST VALUE</Text>
+            <Text style={styles.bestChoiceTitle}>All 5 Systems</Text>
+            <Text style={styles.bestChoiceDescription}>Complete reading with all systems</Text>
           </View>
         </TouchableOpacity>
       </View>
@@ -236,53 +230,43 @@ const styles = StyleSheet.create({
     color: colors.primary,
     marginLeft: spacing.sm,
   },
-  divider: {
-    height: 1,
-    backgroundColor: colors.divider,
-    marginVertical: spacing.sm,
-  },
-  completeRow: {
+  
+  // Best Choice Card (matching Screen 22)
+  bestChoiceCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primarySoft,
-    borderRadius: radii.card,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.primary + '40',
-  },
-  completeIcon: {
-    fontSize: 28,
-    width: 40,
-    textAlign: 'center',
-    color: colors.primary,
-  },
-  completeNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  completeName: {
-    fontFamily: typography.sansBold,
-    fontSize: 16,
-    color: colors.text,
-  },
-  bestValueBadge: {
+    justifyContent: 'space-between',
     backgroundColor: colors.primary,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.button,
-    marginLeft: spacing.sm,
+    borderRadius: radii.card,
+    padding: spacing.md,
+    marginTop: spacing.lg,
   },
-  bestValueText: {
+  bestChoiceLeft: {
+    flex: 1,
+  },
+  bestChoiceBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.background,
+    borderRadius: 999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    marginBottom: spacing.xs,
+  },
+  bestChoiceBadgeText: {
     fontFamily: typography.sansBold,
     fontSize: 10,
-    color: colors.background,
+    color: colors.primary,
     letterSpacing: 1,
   },
-  completeTagline: {
+  bestChoiceTitle: {
+    fontFamily: typography.sansBold,
+    fontSize: 18,
+    color: colors.background,
+  },
+  bestChoiceDescription: {
     fontFamily: typography.sansRegular,
-    fontSize: 12,
-    color: colors.primary,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
     marginTop: 2,
   },
 });

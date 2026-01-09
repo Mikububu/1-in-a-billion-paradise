@@ -657,6 +657,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: radii.card,
     padding: spacing.md,
+    marginTop: spacing.lg,
     marginBottom: spacing.md,
   },
   bestChoiceLeft: {

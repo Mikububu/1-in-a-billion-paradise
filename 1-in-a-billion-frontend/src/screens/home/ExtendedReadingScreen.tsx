@@ -2,7 +2,7 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useOnboardingStore } from '@/store/onboardingStore';
-import { colors, spacing, typography } from '@/theme/tokens';
+import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ExtendedReading'>;
@@ -70,15 +70,23 @@ export const ExtendedReadingScreen = ({ navigation }: Props) => {
           </TouchableOpacity>
         ))}
 
-        <Text style={styles.sectionTitle} selectable>All Systems Together</Text>
-        
+        {/* All 5 Systems option with Best Choice badge - matching Screen 22 design */}
         <TouchableOpacity
-          style={styles.bundleButton}
+          style={styles.bestChoiceCard}
           onPress={handleSelectBundle}
+          activeOpacity={0.7}
         >
-          <Text style={styles.bundleText}>
-            All 5 Systems - ${BUNDLE_PRICE}
-          </Text>
+          <View style={styles.bestChoiceLeft}>
+            <View style={styles.bestChoiceBadge}>
+              <Text style={styles.bestChoiceBadgeText}>★ BEST CHOICE</Text>
+            </View>
+            <Text style={styles.bestChoiceTitle}>All 5 Systems</Text>
+            <Text style={styles.bestChoiceDescription}>Complete reading with all systems</Text>
+          </View>
+          <View style={styles.bestChoiceRight}>
+            <Text style={styles.bestChoicePrice}>${BUNDLE_PRICE}</Text>
+            <Text style={styles.savingsText}>Save ${(READING_SYSTEMS.length * 30) - BUNDLE_PRICE}</Text>
+          </View>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -143,17 +151,63 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
   },
-  bundleButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 999,
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.lg,
+  
+  // Best Choice Card (matching Screen 22)
+  bestChoiceCard: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.primary,
+    borderRadius: radii.card,
+    padding: spacing.md,
+    marginTop: spacing.lg,
   },
-  bundleText: {
+  bestChoiceLeft: {
+    flex: 1,
+  },
+  bestChoiceBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.background,
+    borderRadius: 999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    marginBottom: spacing.xs,
+  },
+  bestChoiceBadgeText: {
+    fontFamily: typography.sansBold,
+    fontSize: 10,
+    color: colors.primary,
+    letterSpacing: 1,
+  },
+  bestChoiceTitle: {
+    fontFamily: typography.sansBold,
+    fontSize: 18,
+    color: colors.background,
+  },
+  bestChoiceDescription: {
+    fontFamily: typography.sansRegular,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
+  },
+  bestChoiceRight: {
+    alignItems: 'flex-end',
+    marginLeft: spacing.md,
+  },
+  bestChoicePrice: {
+    fontFamily: typography.sansBold,
+    fontSize: 24,
+    color: colors.background,
+  },
+  savingsText: {
     fontFamily: typography.sansSemiBold,
-    fontSize: 15,
-    color: '#FFFFFF',
+    fontSize: 12,
+    color: colors.background,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: 999,
+    marginTop: 4,
   },
 });
 
