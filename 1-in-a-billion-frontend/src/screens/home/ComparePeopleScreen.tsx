@@ -153,9 +153,9 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
       <View style={styles.content}>
         <Text style={styles.title}>My Zoo Experiments</Text>
         <Text style={styles.subtitle}>Deep analyses of one or two souls</Text>
-        <Animated.Text style={[styles.boldSubheadline, { opacity: blinkAnim }]}>CHOOSE ONE OR TWO PEOPLE FOR DEEP READINGS</Animated.Text>
-
-        <View style={{ height: spacing.lg }} />
+        <Animated.Text style={[styles.boldSubheadline, { opacity: blinkAnim }]}>
+          CHOOSE ONE OR TWO PEOPLE{'\n'}FOR DEEP READINGS
+        </Animated.Text>
 
         {candidates.length === 0 ? (
           <View style={styles.emptyState}>
@@ -269,8 +269,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.primary,
     textAlign: 'center',
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
+    marginTop: spacing.lg,
+    marginBottom: spacing.lg,
+    lineHeight: 20,
   },
   list: { flex: 1 },
   sectionLabel: {
