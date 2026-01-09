@@ -189,6 +189,11 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                     <Text style={styles.rowMeta} numberOfLines={1}>
                       {p.birthData?.birthDate || '—'} · {p.birthData?.birthTime || '—'} · {p.birthData?.birthCity || '—'}
                     </Text>
+                    {p.placements && (
+                      <Text style={styles.rowSigns} numberOfLines={1}>
+                        ☉ {p.placements.sunSign} · ☽ {p.placements.moonSign} · ↑ {p.placements.risingSign}
+                      </Text>
+                    )}
                   </View>
                   {isA && (
                     <View style={[styles.pickChip, styles.pickChipA]}>
@@ -348,6 +353,7 @@ const styles = StyleSheet.create({
   },
   rowName: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },
   rowMeta: { fontFamily: typography.sansRegular, fontSize: 12, color: colors.mutedText, marginTop: 2 },
+  rowSigns: { fontFamily: typography.sansRegular, fontSize: 11, color: colors.mutedText, marginTop: 4 },
   chevron: { fontFamily: typography.sansSemiBold, fontSize: 18, color: colors.mutedText, marginLeft: spacing.md },
   pickChip: {
     minWidth: 34,
