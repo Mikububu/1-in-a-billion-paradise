@@ -130,9 +130,6 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
     <SafeAreaView style={styles.container}>
       <Text style={styles.screenId}>{screenId}</Text>
 
-      {/* Headline */}
-      <Text style={styles.headline}>Soul Laboratory</Text>
-
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backText}>← Back</Text>
@@ -225,18 +222,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     zIndex: 100,
   },
-  headline: {
-    position: 'absolute',
-    top: 90,
-    left: 0,
-    right: 0,
-    fontFamily: typography.headline,
-    fontSize: 28,
-    fontStyle: 'italic',
-    color: colors.text,
-    textAlign: 'center',
-    zIndex: 10,
-  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -246,7 +231,7 @@ const styles = StyleSheet.create({
   },
   backText: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },
   controlRoomText: { fontFamily: typography.sansSemiBold, fontSize: 14, color: colors.primary },
-  content: { flex: 1, paddingHorizontal: spacing.page, paddingTop: 70 },
+  content: { flex: 1, paddingHorizontal: spacing.page, paddingTop: spacing.lg },
   title: {
     fontFamily: typography.headline,
     fontSize: 26,
