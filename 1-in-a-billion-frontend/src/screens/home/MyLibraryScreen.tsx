@@ -585,11 +585,10 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
     // #endregion
 
     people.forEach(person => {
-      // Show people who have birth data OR readings (not just readings)
-      const hasBirthData = person.birthData?.birthDate && person.birthData?.birthTime;
-      const hasReadings = person.readings && person.readings.length > 0;
+      // ONLY show people who have paid readings (jobIds)
+      const hasJobIds = person.jobIds && person.jobIds.length > 0;
 
-      if (hasBirthData || hasReadings) {
+      if (hasJobIds) {
         peopleMap.set(person.name, {
           id: person.id,
           name: person.name,
