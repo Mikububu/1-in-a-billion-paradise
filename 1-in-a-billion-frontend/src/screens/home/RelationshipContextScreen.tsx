@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
+import { TexturedBackground } from '@/components/TexturedBackground';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'RelationshipContext'>;
 
@@ -154,11 +155,12 @@ export const RelationshipContextScreen = ({ navigation, route }: Props) => {
     };
 
     return (
-        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.keyboardView}
-            >
+        <TexturedBackground>
+            <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={styles.keyboardView}
+                >
                 <View style={styles.content}>
                     {/* Header */}
                     <View style={styles.header}>
@@ -240,6 +242,7 @@ export const RelationshipContextScreen = ({ navigation, route }: Props) => {
                 </View>
             </KeyboardAvoidingView>
         </SafeAreaView>
+        </TexturedBackground>
     );
 };
 
@@ -318,7 +321,7 @@ const styles = StyleSheet.create({
         fontFamily: typography.sansRegular,
         fontSize: 14,
         color: colors.text,
-        backgroundColor: colors.surface,
+        backgroundColor: colors.buttonBg,
         borderWidth: 2,
         borderColor: colors.primary,
         paddingHorizontal: spacing.lg,
@@ -342,7 +345,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     skipButton: {
-        backgroundColor: 'transparent',
+        backgroundColor: colors.buttonBg,
         borderWidth: 1,
         borderColor: colors.border,
     },

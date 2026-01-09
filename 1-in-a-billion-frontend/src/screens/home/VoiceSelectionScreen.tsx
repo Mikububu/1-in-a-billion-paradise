@@ -14,6 +14,7 @@ import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { env } from '@/config/env';
 import { AmbientMusic } from '@/services/ambientMusic';
+import { TexturedBackground } from '@/components/TexturedBackground';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'VoiceSelection'>;
 
@@ -289,18 +290,21 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
 
     if (loading) {
         return (
-            <SafeAreaView style={styles.container}>
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={colors.primary} />
-                    <Text style={styles.loadingText}>Loading voices...</Text>
-                </View>
-            </SafeAreaView>
+            <TexturedBackground>
+                <SafeAreaView style={styles.container}>
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color={colors.primary} />
+                        <Text style={styles.loadingText}>Loading voices...</Text>
+                    </View>
+                </SafeAreaView>
+            </TexturedBackground>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-            {/* Header */}
+        <TexturedBackground>
+            <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+                {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <Text style={styles.backText}>← Back</Text>
@@ -373,6 +377,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
                 </TouchableOpacity>
             </View>
         </SafeAreaView>
+        </TexturedBackground>
     );
 };
 
@@ -486,7 +491,7 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: colors.surface,
+        backgroundColor: colors.buttonBg,
         borderWidth: 1.5, // Thinner (was 2)
         borderColor: colors.border,
         alignItems: 'center',

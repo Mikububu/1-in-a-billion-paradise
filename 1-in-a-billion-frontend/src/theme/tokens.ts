@@ -15,6 +15,7 @@ export const colors = {
   success: '#10B981',
   warning: '#F97316',
   error: '#EF4444',
+  buttonBg: UNIFIED_BG, // Standard button background (cream/beige color)
 };
 
 export const typography = {
