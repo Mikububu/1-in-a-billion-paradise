@@ -27,64 +27,87 @@ export const RelationshipContextScreen = ({ navigation, route }: Props) => {
     const pulseAnim1 = useRef(new Animated.Value(1)).current;
     const pulseAnim2 = useRef(new Animated.Value(1)).current;
     const pulseAnim3 = useRef(new Animated.Value(1)).current;
-    const opacityAnim1 = useRef(new Animated.Value(0.8)).current;
-    const opacityAnim2 = useRef(new Animated.Value(0.6)).current;
-    const opacityAnim3 = useRef(new Animated.Value(0.4)).current;
+    const opacityAnim1 = useRef(new Animated.Value(0)).current; // Start at 0 for fade-in
+    const opacityAnim2 = useRef(new Animated.Value(0)).current; // Start at 0 for fade-in
+    const opacityAnim3 = useRef(new Animated.Value(0)).current; // Start at 0 for fade-in
 
     useEffect(() => {
-        // Create a harmonious wave effect - circles pulse outward in sequence
-        // Each circle starts slightly after the previous one, creating a ripple effect
-        const createPulseAnimation = (scaleAnim: Animated.Value, opacityAnim: Animated.Value, delay: number) => {
-            return Animated.loop(
-                Animated.sequence([
-                    Animated.delay(delay),
-                    Animated.parallel([
-                        Animated.timing(scaleAnim, {
-                            toValue: 1.12,
-                            duration: 3000,
-                            easing: Easing.out(Easing.ease),
-                            useNativeDriver: true,
-                        }),
-                        Animated.timing(opacityAnim, {
-                            toValue: 0.3,
-                            duration: 3000,
-                            easing: Easing.out(Easing.ease),
-                            useNativeDriver: true,
-                        }),
-                    ]),
-                    Animated.parallel([
-                        Animated.timing(scaleAnim, {
-                            toValue: 1,
-                            duration: 3000,
-                            easing: Easing.in(Easing.ease),
-                            useNativeDriver: true,
-                        }),
-                        Animated.timing(opacityAnim, {
-                            toValue: opacityAnim === opacityAnim1 ? 0.8 : opacityAnim === opacityAnim2 ? 0.6 : 0.4,
-                            duration: 3000,
-                            easing: Easing.in(Easing.ease),
-                            useNativeDriver: true,
-                        }),
-                    ]),
-                ])
-            );
-        };
-        
-        // Stagger the animations to create a wave effect
-        // Inner circle starts first, then middle, then outer
-        // Inner circle: darker red, middle: medium pink-red, outer: lighter pink
-        const pulseAnimation1 = createPulseAnimation(pulseAnim1, opacityAnim1, 0);
-        const pulseAnimation2 = createPulseAnimation(pulseAnim2, opacityAnim2, 600);
-        const pulseAnimation3 = createPulseAnimation(pulseAnim3, opacityAnim3, 1200);
-        
-        pulseAnimation1.start();
-        pulseAnimation2.start();
-        pulseAnimation3.start();
+        // FADE IN: First, fade in all circles gracefully
+        Animated.parallel([
+            Animated.timing(opacityAnim1, {
+                toValue: 0.8,
+                duration: 1000,
+                easing: Easing.out(Easing.ease),
+                useNativeDriver: true,
+            }),
+            Animated.timing(opacityAnim2, {
+                toValue: 0.6,
+                duration: 1200,
+                easing: Easing.out(Easing.ease),
+                useNativeDriver: true,
+            }),
+            Animated.timing(opacityAnim3, {
+                toValue: 0.4,
+                duration: 1400,
+                easing: Easing.out(Easing.ease),
+                useNativeDriver: true,
+            }),
+        ]).start(() => {
+            // After fade-in completes, start the pulse animations
+            const createPulseAnimation = (scaleAnim: Animated.Value, opacityAnim: Animated.Value, baseOpacity: number, delay: number) => {
+                return Animated.loop(
+                    Animated.sequence([
+                        Animated.delay(delay),
+                        Animated.parallel([
+                            Animated.timing(scaleAnim, {
+                                toValue: 1.12,
+                                duration: 3000,
+                                easing: Easing.out(Easing.ease),
+                                useNativeDriver: true,
+                            }),
+                            Animated.timing(opacityAnim, {
+                                toValue: 0.3,
+                                duration: 3000,
+                                easing: Easing.out(Easing.ease),
+                                useNativeDriver: true,
+                            }),
+                        ]),
+                        Animated.parallel([
+                            Animated.timing(scaleAnim, {
+                                toValue: 1,
+                                duration: 3000,
+                                easing: Easing.in(Easing.ease),
+                                useNativeDriver: true,
+                            }),
+                            Animated.timing(opacityAnim, {
+                                toValue: baseOpacity,
+                                duration: 3000,
+                                easing: Easing.in(Easing.ease),
+                                useNativeDriver: true,
+                            }),
+                        ]),
+                    ])
+                );
+            };
+            
+            // Stagger the pulse animations to create a wave effect
+            const pulseAnimation1 = createPulseAnimation(pulseAnim1, opacityAnim1, 0.8, 0);
+            const pulseAnimation2 = createPulseAnimation(pulseAnim2, opacityAnim2, 0.6, 600);
+            const pulseAnimation3 = createPulseAnimation(pulseAnim3, opacityAnim3, 0.4, 1200);
+            
+            pulseAnimation1.start();
+            pulseAnimation2.start();
+            pulseAnimation3.start();
+        });
         
         return () => {
-            pulseAnimation1.stop();
-            pulseAnimation2.stop();
-            pulseAnimation3.stop();
+            // Cleanup: stop all animations
+            opacityAnim1.stopAnimation();
+            opacityAnim2.stopAnimation();
+            opacityAnim3.stopAnimation();
+            pulseAnim1.stopAnimation();
+            pulseAnim2.stopAnimation();
+            pulseAnim3.stopAnimation();
         };
     }, [pulseAnim1, pulseAnim2, pulseAnim3, opacityAnim1, opacityAnim2, opacityAnim3]);
 
