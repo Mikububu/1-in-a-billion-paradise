@@ -80,8 +80,13 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
   };
 
   const handleCompleteReading = () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SystemsOverviewScreen.tsx:82',message:'Complete Reading button clicked',data:{forPartner,partnerName,hasPersonId:!!(route.params as any)?.personId,routeParams:route.params},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'BTN'})}).catch(()=>{});
+    // #endregion
+    
     // Navigate to the Complete Reading explainer & purchase screen
     navigation.navigate('CompleteReading', {
+      ...(route.params || {}), // Pass through all params including personId
       partnerName,
       partnerBirthDate,
       partnerBirthTime,

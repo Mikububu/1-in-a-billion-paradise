@@ -327,7 +327,7 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
     };
     
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SystemSelectionScreen.tsx:320',message:'Job payload created',data:{person1Id:person1?.id,person1Name:person1?.name,person2Id:person2?.id,person2Name:person2?.name,jobType,hasVoiceId:!!payload.voiceId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SystemSelectionScreen.tsx:320',message:'Job payload created',data:{person1Id:person1?.id,person1Name:person1?.name,person2Id:person2?.id,person2Name:person2?.name,jobType,systems:systemsToGenerate,systemsCount:systemsToGenerate.length,voiceId:payload.voiceId,audioUrl:payload.audioUrl?.substring(0,80)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOBCREATE'})}).catch(()=>{});
     // #endregion
     if (isOverlayFlow) {
       payload.person2 = person2;
@@ -406,14 +406,22 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
   };
 
   const handleSelectBundle = () => {
-    // Navigate to the "All 5 Systems" overview page (SystemsOverviewScreen)
-    navigation.navigate('SystemsOverview', {
-      forPartner,
-      partnerName,
-      partnerBirthDate,
-      partnerBirthTime,
-      partnerBirthCity,
-    });
+    // For OVERLAY/COMPATIBILITY → ReadingOverview (nuclear package)
+    // For INDIVIDUAL → SystemsOverview
+    if (isOverlay) {
+      navigation.navigate('ReadingOverview', {
+        personId,
+        personName: partnerName,
+        forPartner: true,
+        readingType: 'overlay',
+      });
+    } else {
+      navigation.navigate('SystemsOverview', {
+        personId,
+        forPartner,
+        targetPersonName: partnerName,
+      });
+    }
   };
 
   return (

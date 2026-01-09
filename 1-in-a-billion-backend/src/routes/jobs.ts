@@ -737,6 +737,14 @@ router.post('/v2/start', async (c) => {
   try {
     const payload = startJobSchema.parse(await c.req.json());
     console.log(`📥 Starting ${payload.type} job (V2) for ${payload.person1.name}`);
+    
+    // #region agent log
+    const fs = require('fs');
+    const logPath = '/Users/michaelperinwogenburg/Desktop/big challenge/.cursor/debug.log';
+    try {
+      fs.appendFileSync(logPath, JSON.stringify({location:'jobs.ts:740',message:'Backend received job',data:{type:payload.type,person1Name:payload.person1.name,person1Id:payload.person1.id,systems:payload.systems,systemsCount:payload.systems?.length,voiceId:payload.voiceId,hasAudioUrl:!!payload.audioUrl},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'BACKEND'}) + '\n');
+    } catch {}
+    // #endregion
 
     // Check if Supabase is configured
     if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {

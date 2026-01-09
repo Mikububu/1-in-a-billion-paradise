@@ -61,11 +61,19 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   const { personName, personType, jobId } = route.params;
   const routePersonId = (route.params as any).personId; // May not exist in older nav calls
 
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:mount',message:'Screen mounted',data:{personName,personType,jobId,routePersonId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+  // #endregion
+
   // Store access
   const people = useProfileStore((s) => s.people);
   const getReadingsByJobId = useProfileStore((s) => s.getReadingsByJobId);
   const createPlaceholderReadings = useProfileStore((s) => s.createPlaceholderReadings);
   const syncReadingArtifacts = useProfileStore((s) => s.syncReadingArtifacts);
+
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:people',message:'People from store',data:{peopleCount:people.length,peopleNames:people.map(p=>p.name),peopleIds:people.map(p=>p.id)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+  // #endregion
 
   // Find person - try ID first, then fallback to name lookup
   const person = routePersonId 
@@ -74,8 +82,16 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   
   const personId = person?.id;
 
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:personLookup',message:'Person lookup result',data:{found:!!person,personId,personName:person?.name,routePersonId,searchName:personName},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+  // #endregion
+
   // Get readings from store (SINGLE SOURCE OF TRUTH - Audible style)
   const storedReadings = personId && jobId ? getReadingsByJobId(personId, jobId) : [];
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:storedReadings',message:'Readings from store',data:{personId,jobId,storedReadingsCount:storedReadings.length,storedReadings:storedReadings.map(r=>({id:r.id,system:r.system,jobId:r.jobId,hasPdf:!!r.pdfPath,hasAudio:!!r.audioPath}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3,H4'})}).catch(()=>{});
+  // #endregion
   
   // Initialize with store readings for instant display (like Audible)
   // Convert store readings to screen format
@@ -89,6 +105,10 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     duration: r.duration,
     timestamp: r.createdAt || r.generatedAt,
   }));
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:initialReadings',message:'Initial readings mapped',data:{initialReadingsCount:initialReadings.length,systemsAvailable:!!SYSTEMS,systemsCount:SYSTEMS?.length,initialReadings:initialReadings.map(r=>({id:r.id,system:r.system,name:r.name}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5,H6'})}).catch(()=>{});
+  // #endregion
   
   const [readings, setReadings] = useState<Reading[]>(initialReadings);
   const [jobStatus, setJobStatus] = useState<string>('pending'); // NEW: Track job status

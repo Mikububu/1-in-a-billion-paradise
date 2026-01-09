@@ -1978,14 +1978,19 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
               <TouchableOpacity
                 key={`person-${person.name}-${person.id || 'no-id'}`}
                 style={styles.personCard}
-                onPress={() => navigation.navigate('PersonReadings', {
-                  personName: person.name,
-                  personId: person.id,
-                  personType: personType,
-                  // If this person is coming from a queued job, include a verifiable receipt.
-                  // PersonReadings can then render the correct job instead of guessing (or falling back to test UUID).
-                  jobId: person.jobIds?.[0],
-                })}
+                onPress={() => {
+                  // #region agent log
+                  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:navigation',message:'Navigating to PersonReadings',data:{personName:person.name,personId:person.id,personType,jobId:person.jobIds?.[0],jobIdsCount:person.jobIds?.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'NAV'})}).catch(()=>{});
+                  // #endregion
+                  navigation.navigate('PersonReadings', {
+                    personName: person.name,
+                    personId: person.id,
+                    personType: personType,
+                    // If this person is coming from a queued job, include a verifiable receipt.
+                    // PersonReadings can then render the correct job instead of guessing (or falling back to test UUID).
+                    jobId: person.jobIds?.[0],
+                  });
+                }}
                 onLongPress={() => {
                   Alert.alert(
                     person.name,

@@ -86,6 +86,12 @@ const LOADING_MESSAGES = [
 ];
 
 export const CompleteReadingScreen = ({ navigation, route }: Props) => {
+  // #region agent log
+  useEffect(() => {
+    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CompleteReadingScreen.tsx:mount',message:'Screen mounted',data:{routeParams:route.params},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'MOUNT'})}).catch(()=>{});
+  }, []);
+  // #endregion
+  
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentSystemIndex, setCurrentSystemIndex] = useState(0);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);

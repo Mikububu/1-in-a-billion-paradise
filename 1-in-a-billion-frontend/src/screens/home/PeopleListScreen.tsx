@@ -34,39 +34,17 @@ export const PeopleListScreen = ({ navigation, route }: Props) => {
       // If selecting another person, offer choice
       Alert.alert(
         `Reading for ${person.name}`,
-        'Do you want to calculate a chart just for them, or check your compatibility?',
+        'Select the type of reading you want:',
         [
           {
-            text: 'Individual Chart',
+            text: 'Extended Reading (All 5 Systems)',
             onPress: () => {
+              // Navigate to SystemsOverview which handles extended reading with all 5 systems
               // @ts-ignore
-              navigation.navigate(returnTo, { personId: person.id });
-            }
-          },
-          {
-            text: 'Check Compatibility',
-            onPress: () => {
-              if (!userPerson) {
-                Alert.alert('Error', 'Your profile not found. Please update your birth data.');
-                return;
-              }
-              // Navigate to SystemSelection with Overlay params
-              // personId = Target (becomes Person 1 due to our logic in SystemSelection)
-              // person2Override = User (becomes Person 2)
-              // readingType = 'overlay'
-              // @ts-ignore
-              navigation.navigate('SystemSelection', {
+              navigation.navigate('SystemsOverview', {
                 personId: person.id,
-                readingType: 'overlay',
-                forPartner: true,
-                person2Override: {
-                  name: userPerson.name,
-                  birthDate: userPerson.birthData.birthDate,
-                  birthTime: userPerson.birthData.birthTime,
-                  timezone: userPerson.birthData.timezone,
-                  latitude: userPerson.birthData.latitude,
-                  longitude: userPerson.birthData.longitude,
-                }
+                targetPersonName: person.name,
+                forPartner: false,
               });
             }
           },
@@ -141,7 +119,7 @@ export const PeopleListScreen = ({ navigation, route }: Props) => {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        <Text style={[styles.title, { textAlign: 'center' }]} selectable>Your People</Text>
+        <Text style={[styles.title, { textAlign: 'center' }]} selectable>My Karmic Zoo</Text>
         <Text style={[styles.subtitle, { textAlign: 'center' }]} selectable>
           {people.length === 0
             ? 'No people saved yet. Generate a reading to save profiles.'
