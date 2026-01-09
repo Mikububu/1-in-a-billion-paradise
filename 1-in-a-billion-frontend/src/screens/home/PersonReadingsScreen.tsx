@@ -484,38 +484,87 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:supabaseSync',message:'Syncing artifacts from Supabase',data:{jobIdsChecked:jobIdsToCheck.length,totalArtifacts:allArtifacts.length,artifactTypes:allArtifacts.map((a:any)=>a.artifact_type)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SYNC'})}).catch(()=>{});
           // #endregion
 
-          const byDoc: Record<string, { pdfPath?: string; audioPath?: string; songPath?: string; jobId?: string }> = {};
+          // Fetch tasks to derive docNum from sequence (like backend does)
+          const taskIdToSequence: Record<string, number> = {};
+          for (const checkJobId of jobIdsToCheck) {
+            try {
+              const { data: tasks } = await supabase
+                .from('job_tasks')
+                .select('id, sequence')
+                .eq('job_id', checkJobId);
+              
+              if (tasks) {
+                tasks.forEach((t: any) => {
+                  taskIdToSequence[t.id] = t.sequence;
+                });
+              }
+            } catch (e) {
+              // Ignore task fetch errors
+            }
+          }
+
+          const byDoc: Record<string, { pdfPath?: string; audioPath?: string; songPath?: string; jobId?: string; system?: string }> = {};
           
           for (const a of allArtifacts) {
             const meta = (a as any).metadata || {};
-            const docNumRaw = meta?.docNum ?? meta?.chapter_index;
-            const docNum = typeof docNumRaw === 'number' ? docNumRaw : Number(docNumRaw);
+            let docNumRaw = meta?.docNum ?? meta?.chapter_index;
             
-            // For aggregated jobs, use system as key; otherwise use docNum
-            const key = shouldAggregateJobs && meta?.system 
-              ? meta.system 
-              : (docNum ? String(docNum) : null);
+            // Derive docNum from task sequence if missing (like backend does)
+            if ((typeof docNumRaw !== 'number' || isNaN(docNumRaw)) && (a as any).task_id) {
+              const seq = taskIdToSequence[(a as any).task_id];
+              if (typeof seq === 'number') {
+                if (seq >= 200) {
+                  docNumRaw = seq - 199; // Audio: 200→1, 201→2, etc.
+                } else if (seq >= 100) {
+                  docNumRaw = seq - 99; // PDF: 100→1, 101→2, etc.
+                } else {
+                  docNumRaw = seq + 1; // Text: 0→1, 1→2, etc.
+                }
+              }
+            }
             
-            if (!key) continue;
+            const docNum = typeof docNumRaw === 'number' && !isNaN(docNumRaw) ? docNumRaw : null;
+            const system = meta?.system || null;
             
-            // For aggregated jobs, check if docNum is in range OR if we're showing all systems
+            // Determine key: for aggregated jobs prefer system, otherwise docNum
+            let key: string | null = null;
+            if (shouldAggregateJobs && system) {
+              key = system;
+            } else if (docNum) {
+              key = String(docNum);
+            } else if (shouldAggregateJobs && docNum) {
+              // Fallback: try to map docNum to system for aggregated jobs
+              const systemIndex = docNum - 1;
+              if (systemIndex >= 0 && systemIndex < SYSTEMS.length) {
+                key = SYSTEMS[systemIndex].id;
+              }
+            }
+            
+            if (!key) {
+              // #region agent log
+              fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:artifactSkipped',message:'Artifact skipped - no key',data:{artifactId:a.id,artifactType:a.artifact_type,hasDocNum:!!docNum,hasSystem:!!system,hasTaskId:!!a.task_id,taskSequence:taskIdToSequence[a.task_id]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SYNC'})}).catch(()=>{});
+              // #endregion
+              continue;
+            }
+            
+            // For non-aggregated jobs, check docRange
             if (!shouldAggregateJobs && docNum && !docRange.includes(docNum)) continue;
 
             const t = String((a as any).artifact_type || '');
             const sourceJobId = (a as any).sourceJobId || jobId;
             
             if (t === 'pdf') {
-              byDoc[key] = byDoc[key] || { jobId: sourceJobId };
+              byDoc[key] = byDoc[key] || { jobId: sourceJobId, system: system || undefined };
               byDoc[key].pdfPath = (a as any).storage_path;
             }
             if (t === 'audio' || t.startsWith('audio_')) {
               // Skip songs in this block (handled separately)
               if (t === 'audio_song') continue;
-              byDoc[key] = byDoc[key] || { jobId: sourceJobId };
+              byDoc[key] = byDoc[key] || { jobId: sourceJobId, system: system || undefined };
               byDoc[key].audioPath = (a as any).storage_path;
             }
             if (t === 'audio_song') {
-              byDoc[key] = byDoc[key] || { jobId: sourceJobId };
+              byDoc[key] = byDoc[key] || { jobId: sourceJobId, system: system || undefined };
               byDoc[key].songPath = (a as any).storage_path;
             }
           }
