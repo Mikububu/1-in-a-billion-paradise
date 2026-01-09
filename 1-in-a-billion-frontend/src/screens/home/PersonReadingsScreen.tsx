@@ -33,6 +33,7 @@ import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { createArtifactSignedUrl } from '@/services/nuclearReadingsService';
 import { colors } from '@/theme/tokens';
+import { useProfileStore } from '@/store/profileStore';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonReadings'>;
 

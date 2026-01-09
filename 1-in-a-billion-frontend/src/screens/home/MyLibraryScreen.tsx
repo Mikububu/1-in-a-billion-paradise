@@ -1980,6 +1980,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                 style={styles.personCard}
                 onPress={() => navigation.navigate('PersonReadings', {
                   personName: person.name,
+                  personId: person.id,
                   personType: personType,
                   // If this person is coming from a queued job, include a verifiable receipt.
                   // PersonReadings can then render the correct job instead of guessing (or falling back to test UUID).

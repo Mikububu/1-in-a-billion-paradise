@@ -42,6 +42,19 @@ export type Reading = {
   wordCount: number;
   note?: string; // For Vedic: "This is the second reading" etc.
   readingNumber?: number; // For Vedic: 1, 2, 3, etc.
+  
+  // Artifact paths (for Audible-style library)
+  pdfPath?: string; // Signed URL or storage path
+  audioPath?: string; // Signed URL or storage path
+  songPath?: string; // Signed URL or storage path
+  
+  // Job tracking
+  jobId?: string; // Source job that generated this reading
+  docNum?: number; // Document number in the job (1-16)
+  
+  // Metadata
+  duration?: number; // Audio duration in seconds
+  createdAt?: string; // Job creation timestamp
 };
 
 // NEW: Saved Audio type
@@ -143,6 +156,9 @@ type ProfileState = {
   addReading: (personId: string, reading: Omit<Reading, 'id'>) => string;
   deleteReading: (personId: string, readingId: string) => void;
   getReadings: (personId: string, system?: ReadingSystem) => Reading[];
+  syncReadingArtifacts: (personId: string, readingId: string, artifacts: { pdfPath?: string; audioPath?: string; songPath?: string; duration?: number }) => void;
+  createPlaceholderReadings: (personId: string, jobId: string, systems: ReadingSystem[], createdAt: string) => void;
+  getReadingsByJobId: (personId: string, jobId: string) => Reading[];
 
   // Actions - Compatibility
   addCompatibilityReading: (reading: Omit<CompatibilityReading, 'id'>) => string;
@@ -918,6 +934,71 @@ export const useProfileStore = create<ProfileState>()(
           return person.readings.filter((r) => r.system === system);
         }
         return person.readings;
+      },
+
+      syncReadingArtifacts: (personId, readingId, artifacts) => {
+        set((state) => ({
+          people: state.people.map((p) =>
+            p.id === personId
+              ? {
+                  ...p,
+                  readings: p.readings.map((r) =>
+                    r.id === readingId
+                      ? { ...r, ...artifacts }
+                      : r
+                  ),
+                  updatedAt: new Date().toISOString(),
+                }
+              : p
+          ),
+        }));
+      },
+
+      createPlaceholderReadings: (personId, jobId, systems, createdAt) => {
+        const person = get().people.find((p) => p.id === personId);
+        if (!person) return;
+
+        // Check if readings for this job already exist
+        const existingJobReadings = person.readings.filter((r) => r.jobId === jobId);
+        if (existingJobReadings.length > 0) {
+          console.log(`⚠️ Placeholder readings for job ${jobId} already exist, skipping creation`);
+          return;
+        }
+
+        // Create placeholder readings for each system
+        const placeholderReadings: Reading[] = systems.map((system, index) => ({
+          id: generateId(),
+          system,
+          content: '', // Empty until text is generated
+          generatedAt: createdAt,
+          source: 'claude',
+          wordCount: 0,
+          jobId,
+          docNum: index + 1,
+          createdAt,
+          note: 'Processing...',
+          // No artifact paths yet - they'll be synced when ready
+        }));
+
+        set((state) => ({
+          people: state.people.map((p) =>
+            p.id === personId
+              ? {
+                  ...p,
+                  readings: [...p.readings, ...placeholderReadings],
+                  updatedAt: new Date().toISOString(),
+                }
+              : p
+          ),
+        }));
+
+        console.log(`✅ Created ${placeholderReadings.length} placeholder readings for job ${jobId}`);
+      },
+
+      getReadingsByJobId: (personId, jobId) => {
+        const person = get().people.find((p) => p.id === personId);
+        if (!person) return [];
+        return person.readings.filter((r) => r.jobId === jobId);
       },
 
       // Compatibility Actions

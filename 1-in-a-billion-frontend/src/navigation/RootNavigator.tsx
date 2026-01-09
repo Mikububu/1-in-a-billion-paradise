@@ -290,7 +290,7 @@ export type MainStackParamList = {
   PeopleList: { mode?: 'view' | 'select'; returnTo?: keyof MainStackParamList } | undefined;
   PersonProfile: { personId: string };
   PersonJobsList: { personName: string; personId: string };
-  PersonReadings: { personName: string; personType: 'person1' | 'person2' | 'overlay' | 'individual'; jobId?: string };
+  PersonReadings: { personName: string; personId: string; personType: 'person1' | 'person2' | 'overlay' | 'individual'; jobId?: string };
   SynastryOverlay: {
     userId: string;
     user1: { name: string; birthChart: BirthChart };
