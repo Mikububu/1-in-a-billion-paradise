@@ -305,7 +305,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
             navigation.replace('GeneratingReading', {
                 jobId: data.jobId,
                 productType,
-                productName: productType === 'complete_reading' ? 'Complete Reading' : systems.join(', '),
+                productName: productType === 'complete_reading' ? 'Complete Reading' : productType === 'nuclear_package' ? 'Nuclear Package' : systems.join(', '),
                 personName: person1.name,
                 partnerName: person2?.name,
                 readingType,
