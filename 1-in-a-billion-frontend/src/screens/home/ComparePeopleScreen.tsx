@@ -87,21 +87,44 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
   );
 
   const handleContinue = useCallback(() => {
-    if (!personA || !personB) return;
-    if (personA.id === personB.id) {
-      Alert.alert('Choose two people', 'Please select two different people.');
-      return;
-    }
+    if (!personA) return;
+
+    // Validate personA birth data
     if (!personA.birthData?.birthDate || !personA.birthData?.birthTime || !personA.birthData?.timezone) {
       Alert.alert('Missing birth data', `Please complete ${personA.name}'s birth data first.`);
       return;
     }
+
+    // Case 1: Only ONE person selected -> Single person reading
+    if (!personB) {
+      navigation.navigate('SystemSelection', {
+        readingType: 'individual',
+        forPartner: false,
+        userName: personA.name,
+        person1Override: {
+          name: personA.name,
+          birthDate: personA.birthData.birthDate,
+          birthTime: personA.birthData.birthTime,
+          timezone: personA.birthData.timezone,
+          latitude: personA.birthData.latitude,
+          longitude: personA.birthData.longitude,
+          placements: personA.placements,
+        },
+      } as any);
+      return;
+    }
+
+    // Case 2: TWO people selected -> Overlay/comparison reading
+    if (personA.id === personB.id) {
+      Alert.alert('Choose two people', 'Please select two different people.');
+      return;
+    }
+    
     if (!personB.birthData?.birthDate || !personB.birthData?.birthTime || !personB.birthData?.timezone) {
       Alert.alert('Missing birth data', `Please complete ${personB.name}'s birth data first.`);
       return;
     }
 
-    // Route to overview menu (SystemSelection) with explicit person overrides.
     navigation.navigate('SystemSelection', {
       readingType: 'overlay',
       forPartner: false,
@@ -115,7 +138,6 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
         latitude: personB.birthData.latitude,
         longitude: personB.birthData.longitude,
       } as any,
-      // Custom overrides consumed by SystemSelection
       person1Override: {
         name: personA.name,
         birthDate: personA.birthData.birthDate,
@@ -123,7 +145,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
         timezone: personA.birthData.timezone,
         latitude: personA.birthData.latitude,
         longitude: personA.birthData.longitude,
-        placements: personA.placements, // Include cached placements (skip Swiss Eph!)
+        placements: personA.placements,
       },
       person2Override: {
         name: personB.name,
@@ -132,7 +154,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
         timezone: personB.birthData.timezone,
         latitude: personB.birthData.latitude,
         longitude: personB.birthData.longitude,
-        placements: personB.placements, // Include cached placements
+        placements: personB.placements,
       },
     } as any);
   }, [navigation, personA, personB]);
