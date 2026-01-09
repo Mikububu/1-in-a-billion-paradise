@@ -204,7 +204,7 @@ export async function processSongTask(task: { id: string; job_id: string; input:
         task_id: task.id,
         artifact_type: 'audio_song',
         storage_path: storagePath,
-        storage_url: storageUrl,
+        public_url: storageUrl,
         metadata: {
           docNum,
           docType,
