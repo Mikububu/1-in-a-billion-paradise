@@ -90,9 +90,8 @@ const styles = StyleSheet.create({
     width: '100%',
     textAlign: 'center',
     fontFamily: typography.headline,
-    fontSize: 36,
+    fontSize: 32,
     color: colors.text,
-    fontStyle: 'italic',
     zIndex: 100,
   },
   bottomVideo: {

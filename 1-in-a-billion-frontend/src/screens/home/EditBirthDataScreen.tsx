@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
   backText: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },
   headerTitle: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },
   scrollContent: { padding: spacing.page, paddingBottom: spacing.xl * 2 },
-  title: { fontFamily: typography.headline, fontSize: 28, color: colors.text, fontStyle: 'italic' },
+  title: { fontFamily: typography.headline, fontSize: 32, color: colors.text },
   subtitle: { fontFamily: typography.sansRegular, fontSize: 14, color: colors.mutedText, marginTop: spacing.xs, marginBottom: spacing.lg },
   inputRow: {
     flexDirection: 'row',

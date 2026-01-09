@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: typography.headline,
-    fontSize: 28,
+    fontSize: 32,
     color: colors.text,
     textAlign: 'center',
   },
