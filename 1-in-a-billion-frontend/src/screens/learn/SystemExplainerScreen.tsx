@@ -19,7 +19,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { Button } from '@/components/Button';
 import { MainStackParamList } from '@/navigation/RootNavigator';
-import { SINGLE_SYSTEM, SYSTEM_PRICES, PRODUCT_STRINGS } from '@/config/products';
+import { SINGLE_SYSTEM, SYSTEM_PRICES, PRODUCT_STRINGS, PRODUCTS } from '@/config/products';
 import { initiatePurchaseFlow } from '@/utils/purchaseFlow';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SystemExplainer'>;
@@ -268,7 +268,11 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
   const content = isOverlay 
     ? (OVERLAY_CONTENT[system] || OVERLAY_CONTENT.western)
     : (SYSTEM_CONTENT[system] || SYSTEM_CONTENT.western);
-  const price = SYSTEM_PRICES[system] || SINGLE_SYSTEM.price;
+  
+  // Price: For 'all' bundle, use correct price based on individual vs overlay
+  const price = system === 'all'
+    ? (isOverlay ? PRODUCTS.nuclear_package.priceUSD : PRODUCTS.complete_reading.priceUSD)
+    : (SYSTEM_PRICES[system] || SINGLE_SYSTEM.price);
   
   const [currentPage, setCurrentPage] = useState(0);
   const listRef = useRef<FlatList>(null);
