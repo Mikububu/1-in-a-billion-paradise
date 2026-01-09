@@ -637,15 +637,38 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
       return tb - ta;
     });
 
-    // 1. Add people from profile store who have readings
+    // 1. FALLBACK: Add people from profile store who have readings if queueJobs is empty
+    // This ensures something shows even if API fails
     console.log('📊 [MyLibrary] Total queueJobs:', queueJobs.length);
     console.log('📊 [MyLibrary] Job types:', queueJobs.map((j: any) => `${j.type}(${j.status})`).join(', '));
     // #region agent log
     fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:557',message:'All queueJobs analysis',data:{totalJobs:queueJobs.length,jobs:queueJobs.map((j:any,i:number)=>({idx:i,id:j.id?.slice(0,8),type:j.type,status:j.status,hasParams:!!j.params,hasInput:!!j.input,paramsType:typeof j.params,inputType:typeof j.input}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
     // #endregion
 
-    // REMOVED: Don't add people from local store - ONLY show people from jobs
-    // This prevents test/imported people from appearing without purchases
+    // FALLBACK: If queueJobs is empty, try to show people from profileStore as backup
+    if (queueJobs.length === 0 && people.length > 0) {
+      console.log('⚠️ [MyLibrary] queueJobs empty, using profileStore fallback - people:', people.length);
+      for (const p of people) {
+        if (p.readings && p.readings.length > 0) {
+          // Only add if person has readings
+          const existing = peopleMap.get(p.name);
+          if (existing) {
+            existing.readings = [...new Set([...existing.readings, ...p.readings])];
+          } else {
+            peopleMap.set(p.name, {
+              id: p.id || `store-${p.name}`,
+              name: p.name,
+              isUser: p.isUser || false,
+              birthData: p.birthData || {},
+              placements: p.placements || {},
+              readings: [...p.readings],
+              createdAt: p.createdAt || new Date().toISOString(),
+              jobIds: p.jobIds || [],
+            });
+          }
+        }
+      }
+    }
 
     // 2. Add people from nuclear_v2 and extended jobs (person1 and person2) - include processing jobs
     queueJobsNewestFirst
