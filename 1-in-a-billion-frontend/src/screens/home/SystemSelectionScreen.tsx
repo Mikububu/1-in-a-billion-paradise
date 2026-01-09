@@ -1,9 +1,11 @@
 /**
  * SYSTEM SELECTION SCREEN (Screen 22)
  * 
- * Shows 6 options with prices:
- * - 5 individual systems ($29 each for individual, $59 each for overlay)
- * - 1 "Best Choice" bundle (All 5 systems - $79 individual, $108 overlay)
+ * Shows 6 options with prices (from products.ts):
+ * - 5 individual systems (single_system or compatibility_overlay price)
+ * - 1 "Best Choice" bundle (complete_reading or nuclear_package price)
+ * 
+ * All prices auto-update when NUCLEAR_PRICE changes in products.ts
  */
 
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert, Pressable, ActivityIndicator } from 'react-native';
