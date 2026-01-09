@@ -19,7 +19,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { Button } from '@/components/Button';
 import { MainStackParamList } from '@/navigation/RootNavigator';
-import { SINGLE_SYSTEM, SYSTEM_PRICES, PRODUCT_STRINGS, PRODUCTS } from '@/config/products';
+import { SINGLE_SYSTEM, SYSTEM_PRICES, PRODUCT_STRINGS, PRODUCTS, formatAudioDuration } from '@/config/products';
 import { initiatePurchaseFlow } from '@/utils/purchaseFlow';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SystemExplainer'>;
@@ -343,7 +343,15 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
       {/* CTA - Big button with details */}
       <TouchableOpacity style={styles.bigCta} onPress={handleGetReading} activeOpacity={0.8}>
         <Text style={styles.bigCtaTitle}>Get {content.name}</Text>
-        <Text style={styles.bigCtaDetails}>{PRODUCT_STRINGS.singleSystem.summary}</Text>
+        <Text style={styles.bigCtaDetails}>
+          {system === 'all'
+            ? (isOverlay 
+                ? `${PRODUCTS.nuclear_package.pagesMax} pages · ${formatAudioDuration(PRODUCTS.nuclear_package.audioMinutes)} audio`
+                : `${PRODUCTS.complete_reading.pagesMax} pages · ${formatAudioDuration(PRODUCTS.complete_reading.audioMinutes)} audio`)
+            : (isOverlay
+                ? `${PRODUCTS.compatibility_overlay.pagesMax} pages · ${formatAudioDuration(PRODUCTS.compatibility_overlay.audioMinutes)} audio`
+                : PRODUCT_STRINGS.singleSystem.summary)}
+        </Text>
         <Text style={styles.bigCtaPrice}>${price}</Text>
       </TouchableOpacity>
       <Text style={styles.devNote}>DEV: Skips payment</Text>
