@@ -1038,7 +1038,7 @@ jobQueue.registerProcessor('extended', async (job, updateProgress) => {
       })),
     };
 
-    jobQueue.completeJob(job.id, results);
+    await jobQueueV2.completeJob(job.id);
     console.log(`🎉 Extended job ${job.id} complete! Generated ${totalSystems} document(s)`);
 
   } catch (error: any) {
