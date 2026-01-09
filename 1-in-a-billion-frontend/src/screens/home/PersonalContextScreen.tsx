@@ -161,7 +161,7 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                             <TextInput
                                 style={styles.circleInput}
                                 multiline
-                                placeholder="Share your questions..."
+                                placeholder="I will speak the truth"
                                 placeholderTextColor={colors.mutedText}
                                 value={context}
                                 onChangeText={setContext}

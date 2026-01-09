@@ -160,7 +160,7 @@ export const RelationshipContextScreen = ({ navigation, route }: Props) => {
                             <TextInput
                                 style={styles.circleInput}
                                 multiline
-                                placeholder="Share your feelings..."
+                                placeholder="I will speak the truth"
                                 placeholderTextColor={colors.mutedText}
                                 value={context}
                                 onChangeText={setContext}
