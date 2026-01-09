@@ -1919,6 +1919,16 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         {/* ALL CARDS - Only show when data exists */}
         <View style={styles.tabContent}>
 
+          {/* DEBUG: Force visible test */}
+          <View style={{ backgroundColor: 'red', padding: 20, margin: 10 }}>
+            <Text style={{ color: 'white', fontWeight: 'bold' }}>
+              DEBUG: allPeopleWithReadings.length = {allPeopleWithReadings.length}
+            </Text>
+            <Text style={{ color: 'white' }}>
+              Names: {allPeopleWithReadings.map(p => p.name).join(', ') || 'NONE'}
+            </Text>
+          </View>
+
           {/* Person Cards - show ALL people who have readings (grouped by name) */}
           {/* #region agent log */}
           {(() => { const keys = allPeopleWithReadings.map((p,i) => ({ idx: i, name: p.name, id: p.id, computedKey: `person-${p.name}-${p.id || 'no-id'}` })); const duplicateKeys = keys.filter((k,i,arr) => arr.findIndex(x => x.computedKey === k.computedKey) !== i); fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:1809',message:'allPeopleWithReadings keys analysis',data:{totalPeople:keys.length,allKeys:keys,duplicateKeys,hasUndefinedIds:keys.filter(k=>!k.id||k.id==='no-id').length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,C,E'})}).catch(()=>{}); return null; })()}
