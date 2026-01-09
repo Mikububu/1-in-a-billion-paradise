@@ -23,7 +23,7 @@ export const TexturedBackground = ({ children, style }: Props) => {
       {/* Texture layer at 30% opacity */}
       <Image
         source={require('../../assets/images/white-leather-texture.jpg')}
-        style={[StyleSheet.absoluteFill, { opacity: 0.3 }]}
+        style={[StyleSheet.absoluteFill, { opacity: 1 }]}
         resizeMode="cover"
       />
       {/* Content on top */}
