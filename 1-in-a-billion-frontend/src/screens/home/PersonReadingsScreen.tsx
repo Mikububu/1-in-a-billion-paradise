@@ -436,17 +436,17 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         return r;
       });
 
-      // Filter out placeholder entries that have no actual content
-      // Only show readings that have at least one artifact (text, PDF, or audio)
+      // Filter out entries that have no actual content
+      // ONLY show readings that have at least one real artifact
       const realReadings = finalReadings.filter(r => {
-        // Keep if it has any actual artifact path
-        if (r.pdfPath || r.audioPath || r.songPath) return true;
-        // Keep if it's not a placeholder (has real data)
-        if (!r.id.startsWith('placeholder-') && !r.id.startsWith('error-')) return true;
-        return false;
+        // Must have at least one actual artifact to be shown
+        const hasRealContent = !!(r.pdfPath || r.audioPath || r.songPath);
+        return hasRealContent;
       });
 
-      setReadings(realReadings.length > 0 ? realReadings : finalReadings);
+      // If no real readings exist, show nothing (empty state)
+      // Don't show placeholders for incomplete/failed jobs
+      setReadings(realReadings);
     } catch (e: any) {
       const errorMsg = e.name === 'AbortError' ? 'Request timed out' : e.message;
       console.error('❌ [PersonReadings] Error loading readings:', errorMsg);
@@ -852,7 +852,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                 : 0;
 
               return (
-                <View key={reading.id || `reading-${index}`} style={styles.readingCard}>
+                <View key={`${jobId}-${reading.id}-${reading.system}-${index}`} style={styles.readingCard}>
                   {/* System Name - LEFT ALIGNED ABOVE BUTTONS */}
                   <Text style={styles.systemName}>{reading.name}</Text>
                   
