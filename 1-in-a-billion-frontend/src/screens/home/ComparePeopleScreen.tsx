@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontFamily: typography.headline,
     fontSize: 18,
-    color: colors.text,
+    color: '#FFFFFF',
     fontStyle: 'italic',
   },
   rowName: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },
