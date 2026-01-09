@@ -24,7 +24,7 @@ import { initiatePurchaseFlow } from '@/utils/purchaseFlow';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SystemExplainer'>;
 
-export type SystemType = 'western' | 'vedic' | 'human_design' | 'gene_keys' | 'kabbalah';
+export type SystemType = 'western' | 'vedic' | 'human_design' | 'gene_keys' | 'kabbalah' | 'all';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -118,6 +118,23 @@ const SYSTEM_CONTENT: Record<SystemType, {
     ],
     personalNote: `"Dear heart, your Tikkun is in Hod - the sphere of the mind. You overthink because you're trying to feel safe through understanding. Your correction isn't to think less - it's to let your brilliant mind serve your heart."`,
   },
+  
+  all: {
+    name: 'All 5 Systems',
+    tagline: 'The complete picture of your soul',
+    origin: 'Five ancient wisdom traditions united',
+    icon: '★',
+    intro: `What if you could see yourself through five different lenses, each revealing something the others miss? Western astrology shows your psychology. Vedic reveals your karma. Human Design maps your energy. Gene Keys unlocks your gifts. Kabbalah shows your soul's purpose.`,
+    howItHelpsYou: `Each system sees a different facet of you. Together, they create something extraordinary - a complete portrait of who you are, why you're here, and what you're becoming. This isn't five separate readings. It's one unified understanding.`,
+    whatYouDiscover: [
+      'Your complete psychological and spiritual blueprint',
+      'How your karma shapes your current challenges',
+      'Your unique energy signature and decision-making style',
+      'The shadows hiding your greatest gifts',
+      'Your soul\'s purpose and the repair only you can make',
+    ],
+    personalNote: `"Beautiful soul, when we look at you through all five systems, patterns emerge that none could show alone. The struggle you've been facing? It appears in every system - which means it's central to why you're here. And so is the breakthrough waiting for you."`,
+  },
 };
 
 // Prices imported from @/config/products - SYSTEM_PRICES
@@ -143,12 +160,18 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
   const listRef = useRef<FlatList>(null);
 
   const handleGetReading = () => {
+    // Determine product type and systems based on whether this is bundle or single
+    const isBundle = system === 'all';
+    const allSystems = ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'];
+    
     // Use centralized purchase flow (modular approach)
     initiatePurchaseFlow({
       navigation,
-      productType: 'single_system',
+      productType: isBundle 
+        ? (readingType === 'overlay' ? 'nuclear_package' : 'complete_reading')
+        : 'single_system',
       readingType: readingType === 'overlay' ? 'overlay' : 'individual',
-      systems: [system], // Single system
+      systems: isBundle ? allSystems : [system], // All 5 for bundle, single otherwise
       personName: (forPartner && partnerName) ? partnerName : 'You',
       userName: userName || 'You',
       partnerName,

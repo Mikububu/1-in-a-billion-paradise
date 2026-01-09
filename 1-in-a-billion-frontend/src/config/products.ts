@@ -287,7 +287,7 @@ export const PRODUCT_STRINGS = {
   },
 } as const;
 
-export type SystemType = 'western' | 'vedic' | 'human_design' | 'gene_keys' | 'kabbalah';
+export type SystemType = 'western' | 'vedic' | 'human_design' | 'gene_keys' | 'kabbalah' | 'all';
 
 export const SYSTEM_PRICES: Record<SystemType, number> = {
   western: SINGLE_SYSTEM.price,
@@ -295,4 +295,5 @@ export const SYSTEM_PRICES: Record<SystemType, number> = {
   human_design: SINGLE_SYSTEM.price,
   gene_keys: SINGLE_SYSTEM.price,
   kabbalah: SINGLE_SYSTEM.price,
+  all: PRODUCTS.complete_reading.priceUSD, // Bundle price
 };

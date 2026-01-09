@@ -412,45 +412,20 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
   };
 
   const handleSelectBundle = () => {
-    // For OVERLAY/COMPATIBILITY → ReadingOverview (nuclear package info screen)
-    // For INDIVIDUAL → SystemsOverview (complete reading info screen)
-    if (isOverlay) {
-      navigation.navigate('ReadingOverview', {
-        title: `${displayP1Name} & ${displayP2Name}`,
-        person1Name: displayP1Name,
-        person2Name: displayP2Name,
-        person1: person1Override || {
-          name: displayP1Name,
-          birthDate: meBirthDate,
-          birthTime: meBirthTime,
-          timezone: meCity?.timezone,
-          latitude: meCity?.latitude,
-          longitude: meCity?.longitude,
-        },
-        person2: person2Override || {
-          name: displayP2Name,
-          birthDate: partnerBirthDate,
-          birthTime: partnerBirthTime,
-          timezone: (partnerBirthCity as any)?.timezone,
-          latitude: (partnerBirthCity as any)?.latitude,
-          longitude: (partnerBirthCity as any)?.longitude,
-        },
-        productType: 'nuclear_package',
-        systems: ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'],
-        readingType: 'overlay',
-      } as any);
-    } else {
-      navigation.navigate('SystemsOverview', {
-        personId,
-        forPartner,
-        partnerName: displayP1Name,
-        partnerBirthDate: meBirthDate,
-        partnerBirthTime: meBirthTime,
-        partnerBirthCity: meCity,
-        person1Override,
-        productType: 'complete_reading',
-      } as any);
-    }
+    // Navigate to SystemExplainer with system='all' - same flow as single systems
+    navigation.navigate('SystemExplainer', {
+      system: 'all',
+      forPurchase: true,
+      readingType: isOverlay ? 'overlay' : 'individual',
+      forPartner: false,
+      partnerName: displayP2Name,
+      partnerBirthDate: partnerBirthDate,
+      partnerBirthTime: partnerBirthTime,
+      partnerBirthCity: partnerBirthCity,
+      person1Override,
+      person2Override,
+      userName: displayP1Name,
+    });
   };
 
   return (

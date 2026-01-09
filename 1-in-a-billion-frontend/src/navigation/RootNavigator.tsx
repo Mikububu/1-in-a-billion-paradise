@@ -340,7 +340,7 @@ export type MainStackParamList = {
   KYCComplete: undefined;
   // Learn Screens
   SystemExplainer: {
-    system: 'western' | 'vedic' | 'human_design' | 'gene_keys' | 'kabbalah';
+    system: 'western' | 'vedic' | 'human_design' | 'gene_keys' | 'kabbalah' | 'all';
     forPurchase?: boolean;
     readingType?: 'individual' | 'overlay';
     forPartner?: boolean;
