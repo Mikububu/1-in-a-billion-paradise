@@ -332,6 +332,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           // Song URL (if generated)
           // Use backend proxy endpoint for song downloads (consistent with audio)
           songPath: doc.songUrl ? `${env.CORE_API_URL}/api/jobs/v2/${jobId}/song/${docNum}` : undefined,
+          timestamp: jobData?.job?.created_at || new Date().toISOString(),
         };
 
         console.log(`📄 Doc ${docNum} (${system.name}): pdf=${!!doc.pdfUrl} audio=${!!doc.audioUrl} song=${!!doc.songUrl}`);
@@ -406,12 +407,14 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
 
       // Fill in missing with placeholders - ONLY show systems that were actually ordered
       const orderedSystems = jobData.job?.params?.systems || [];
+      console.log(`📋 Ordered systems from job params:`, orderedSystems);
       const systemsToShow = personType === 'overlay' 
         ? SYSTEMS 
         : SYSTEMS.filter(s => orderedSystems.includes(s.id));
       
       // If no systems specified, fall back to showing first N systems (legacy behavior)
       const finalSystemsToShow = systemsToShow.length > 0 ? systemsToShow : SYSTEMS.slice(0, systemCount);
+      console.log(`📋 Final systems to show (${finalSystemsToShow.length}):`, finalSystemsToShow.map(s => s.name));
       
       let finalReadings = docRange.map((docNum, i) => {
         if (readingsMap[docNum]) {
@@ -424,6 +427,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           id: `placeholder-${docNum}`,
           system: sys.id,
           name: sys.name,
+          timestamp: jobData?.job?.created_at || new Date().toISOString(),
         };
       });
 
@@ -462,16 +466,19 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         return r;
       });
 
-      // Filter out entries that have no actual content
-      // ONLY show readings that have at least one real artifact
+      // Show all readings if job is processing, otherwise filter out truly empty ones
+      // This allows inactive placeholder readings to be visible while job processes
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:beforeFilter',message:'Pre-filter readings',data:{finalReadingsCount:finalReadings.length,finalReadings:finalReadings.map(r=>({id:r.id,system:r.system,hasPdf:!!r.pdfPath,hasAudio:!!r.audioPath,hasSong:!!r.songPath}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FILTER'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:beforeFilter',message:'Pre-filter readings',data:{finalReadingsCount:finalReadings.length,jobStatus:status,finalReadings:finalReadings.map(r=>({id:r.id,system:r.system,hasPdf:!!r.pdfPath,hasAudio:!!r.audioPath,hasSong:!!r.songPath}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FILTER'})}).catch(()=>{});
       // #endregion
-      const realReadings = finalReadings.filter(r => {
-        // Must have at least one actual artifact to be shown
-        const hasRealContent = !!(r.pdfPath || r.audioPath || r.songPath);
-        return hasRealContent;
-      });
+      const isJobProcessing = status === 'processing' || status === 'pending' || status === 'queued';
+      const realReadings = isJobProcessing 
+        ? finalReadings // Show all placeholders while processing
+        : finalReadings.filter(r => {
+            // After job completes, only show readings with at least one artifact
+            const hasRealContent = !!(r.pdfPath || r.audioPath || r.songPath);
+            return hasRealContent;
+          });
 
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:afterFilter',message:'Post-filter readings',data:{realReadingsCount:realReadings.length,realReadings:realReadings.map(r=>({id:r.id,system:r.system}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FILTER'})}).catch(()=>{});
