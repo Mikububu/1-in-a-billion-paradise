@@ -16,6 +16,7 @@ const GEOCODED_PEOPLE = [
   {
     "name": "Charmaine",
     "isUser": false,
+    "gender": "female" as const,
     "birthData": {
       "birthDate": "1983-11-23",
       "birthTime": "06:25",
@@ -28,6 +29,7 @@ const GEOCODED_PEOPLE = [
   {
     "name": "Iya",
     "isUser": false,
+    "gender": "female" as const,
     "birthData": {
       "birthDate": "1998-03-24",
       "birthTime": "10:45",
@@ -40,6 +42,7 @@ const GEOCODED_PEOPLE = [
   {
     "name": "Jonathan",
     "isUser": false,
+    "gender": "male" as const,
     "birthData": {
       "birthDate": "1987-11-08",
       "birthTime": "10:44",
@@ -52,6 +55,7 @@ const GEOCODED_PEOPLE = [
   {
     "name": "Eva",
     "isUser": false,
+    "gender": "female" as const,
     "birthData": {
       "birthDate": "1974-07-09",
       "birthTime": "04:15",
@@ -64,6 +68,7 @@ const GEOCODED_PEOPLE = [
   {
     "name": "Fabrice Renaudin",
     "isUser": false,
+    "gender": "male" as const,
     "birthData": {
       "birthDate": "1972-04-26",
       "birthTime": "08:00",
@@ -76,6 +81,7 @@ const GEOCODED_PEOPLE = [
   {
     "name": "Luca",
     "isUser": false,
+    "gender": "male" as const,
     "birthData": {
       "birthDate": "1958-07-11",
       "birthTime": "10:30",
@@ -88,6 +94,7 @@ const GEOCODED_PEOPLE = [
   {
     "name": "Martina",
     "isUser": false,
+    "gender": "female" as const,
     "birthData": {
       "birthDate": "1955-05-06",
       "birthTime": "12:00",
@@ -100,6 +107,7 @@ const GEOCODED_PEOPLE = [
   {
     "name": "Anand",
     "isUser": false,
+    "gender": "male" as const,
     "birthData": {
       "birthDate": "1981-03-11",
       "birthTime": "19:00",
@@ -112,6 +120,7 @@ const GEOCODED_PEOPLE = [
   {
     "name": "Akasha Akasha",
     "isUser": false,
+    "gender": "female" as const,
     "birthData": {
       "birthDate": "1982-10-16",
       "birthTime": "06:10",

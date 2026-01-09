@@ -105,6 +105,7 @@ export type Person = {
   name: string;
   isUser: boolean; // true for the main user
   isVerified?: boolean; // KYC completed
+  gender?: 'male' | 'female'; // For UI color coding
   birthData: BirthData;
   placements?: Placements;
   hookReadings?: HookReading[]; // Sun/Moon/Rising free preview readings

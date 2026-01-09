@@ -167,11 +167,11 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                   onPress={() => handlePick(p.id)}
                   activeOpacity={0.85}
                 >
-                  <View style={styles.avatar}>
+                  <View style={[styles.avatar, p.gender === 'male' ? { backgroundColor: colors.primary } : p.gender === 'female' ? { backgroundColor: '#10B981' } : {}]}>
                     <Text style={styles.avatarText}>{p.name.charAt(0).toUpperCase()}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.rowName}>{p.name}</Text>
+                    <Text style={[styles.rowName, p.gender === 'male' ? { color: colors.primary } : p.gender === 'female' ? { color: '#10B981' } : {}]}>{p.name}</Text>
                     <Text style={styles.rowMeta} numberOfLines={1}>
                       {p.birthData?.birthDate || '—'} · {p.birthData?.birthTime || '—'} · {p.birthData?.birthCity || '—'}
                     </Text>
