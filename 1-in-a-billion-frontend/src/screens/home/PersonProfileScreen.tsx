@@ -16,6 +16,7 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { useProfileStore, Person, Reading, CompatibilityReading } from '@/store/profileStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useAuthStore } from '@/store/authStore';
+import { deletePersonFromSupabase } from '@/services/peopleService';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonProfile'>;
 
@@ -90,8 +91,20 @@ export const PersonProfileScreen = ({ navigation, route }: Props) => {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
+            // Delete locally
             deletePerson(personId);
+            
+            // Delete from Supabase if user is authenticated
+            if (authUser?.id) {
+              const result = await deletePersonFromSupabase(authUser.id, personId);
+              if (result.success) {
+                console.log(`✅ Deleted person from Supabase`);
+              } else {
+                console.warn(`⚠️ Failed to delete from Supabase: ${result.error}`);
+              }
+            }
+            
             navigation.goBack();
           },
         },

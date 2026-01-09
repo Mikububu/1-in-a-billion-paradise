@@ -37,6 +37,7 @@ import { useProfileStore, Reading, Person, CompatibilityReading, ReadingSystem, 
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { shareAudioFile, downloadAudioFromUrl, generateAudioFileName } from '@/services/audioDownload';
 import { useAuthStore } from '@/store/authStore';
+import { deletePersonFromSupabase } from '@/services/peopleService';
 import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { fetchNuclearJobs, fetchJobArtifacts } from '@/services/nuclearReadingsService';
@@ -2015,8 +2016,20 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                               {
                                 text: 'Delete',
                                 style: 'destructive',
-                                onPress: () => {
+                                onPress: async () => {
+                                  // Delete locally
                                   deletePerson(person.id);
+                                  
+                                  // Delete from Supabase if user is authenticated
+                                  if (authUser?.id) {
+                                    const result = await deletePersonFromSupabase(authUser.id, person.id);
+                                    if (result.success) {
+                                      console.log(`✅ Deleted "${person.name}" from Supabase`);
+                                    } else {
+                                      console.warn(`⚠️ Failed to delete from Supabase: ${result.error}`);
+                                    }
+                                  }
+                                  
                                   Alert.alert('Deleted', person.name + ' has been removed');
                                 }
                               }

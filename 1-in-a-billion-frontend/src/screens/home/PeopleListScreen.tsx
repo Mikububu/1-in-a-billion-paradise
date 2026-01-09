@@ -11,6 +11,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { useProfileStore, Person, selectAllPeople } from '@/store/profileStore';
+import { useAuthStore } from '@/store/authStore';
+import { deletePersonFromSupabase } from '@/services/peopleService';
 import { useEffect } from 'react';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PeopleList'>;
@@ -20,6 +22,7 @@ export const PeopleListScreen = ({ navigation, route }: Props) => {
   const people = useProfileStore(selectAllPeople);
   const deletePerson = useProfileStore((s) => s.deletePerson);
   const reset = useProfileStore((s) => s.reset);
+  const authUser = useAuthStore((s) => s.user);
   const userPerson = people.find(p => p.isUser); // Find the user for combine option
 
   const handlePersonPress = (person: Person) => {
@@ -65,7 +68,20 @@ export const PeopleListScreen = ({ navigation, route }: Props) => {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => deletePerson(person.id),
+          onPress: async () => {
+            // Delete locally
+            deletePerson(person.id);
+            
+            // Delete from Supabase if user is authenticated
+            if (authUser?.id) {
+              const result = await deletePersonFromSupabase(authUser.id, person.id);
+              if (result.success) {
+                console.log(`✅ Deleted "${person.name}" from Supabase`);
+              } else {
+                console.warn(`⚠️ Failed to delete from Supabase: ${result.error}`);
+              }
+            }
+          },
         },
       ]
     );
