@@ -34,12 +34,14 @@ export type Placements = {
 export type Reading = {
   id: string;
   system: ReadingSystem;
-  content: string;
+  
+  // Text content (optional - may not be loaded for artifact-only readings)
+  content?: string;
   compatibilityScore?: number; // 1-10
   conclusion?: string;
-  generatedAt: string;
-  source: 'claude' | 'deepseek' | 'gpt';
-  wordCount: number;
+  generatedAt?: string;
+  source?: 'claude' | 'deepseek' | 'gpt';
+  wordCount?: number;
   note?: string; // For Vedic: "This is the second reading" etc.
   readingNumber?: number; // For Vedic: 1, 2, 3, etc.
   

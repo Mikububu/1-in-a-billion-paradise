@@ -59,8 +59,38 @@ type Reading = {
 
 export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   const { personName, personType, jobId } = route.params;
+  const routePersonId = (route.params as any).personId; // May not exist in older nav calls
 
-  const [readings, setReadings] = useState<Reading[]>([]);
+  // Store access
+  const people = useProfileStore((s) => s.people);
+  const getReadingsByJobId = useProfileStore((s) => s.getReadingsByJobId);
+  const createPlaceholderReadings = useProfileStore((s) => s.createPlaceholderReadings);
+  const syncReadingArtifacts = useProfileStore((s) => s.syncReadingArtifacts);
+
+  // Find person - try ID first, then fallback to name lookup
+  const person = routePersonId 
+    ? people.find(p => p.id === routePersonId)
+    : people.find(p => p.name === personName);
+  
+  const personId = person?.id;
+
+  // Get readings from store (SINGLE SOURCE OF TRUTH - Audible style)
+  const storedReadings = personId && jobId ? getReadingsByJobId(personId, jobId) : [];
+  
+  // Initialize with store readings for instant display (like Audible)
+  // Convert store readings to screen format
+  const initialReadings = storedReadings.map(r => ({
+    id: r.id,
+    system: r.system,
+    name: SYSTEMS.find(s => s.id === r.system)?.name || r.system,
+    pdfPath: r.pdfPath,
+    audioPath: r.audioPath,
+    songPath: r.songPath,
+    duration: r.duration,
+    timestamp: r.createdAt || r.generatedAt,
+  }));
+  
+  const [readings, setReadings] = useState<Reading[]>(initialReadings);
   const [jobStatus, setJobStatus] = useState<string>('pending'); // NEW: Track job status
   const [jobProgress, setJobProgress] = useState<{percent: number; tasksComplete: number; tasksTotal: number} | null>(null); // NEW
   const [loading, setLoading] = useState(true);
@@ -487,6 +517,35 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       // If no real readings exist, show nothing (empty state)
       // Don't show placeholders for incomplete/failed jobs
       setReadings(realReadings);
+
+      // AUDIBLE-STYLE PERSISTENCE: Sync to store for persistent library
+      if (personId && jobId && realReadings.length > 0) {
+        // Check if readings already exist in store for this job
+        const existingReadings = getReadingsByJobId(personId, jobId);
+        
+        if (existingReadings.length === 0) {
+          // First time loading - create placeholders in store
+          const systems = realReadings.map(r => r.system as any);
+          const createdAt = jobData?.job?.created_at || new Date().toISOString();
+          createPlaceholderReadings(personId, jobId, systems, createdAt);
+          console.log(`✅ Created ${systems.length} placeholder readings in store for job ${jobId}`);
+        }
+        
+        // Sync artifact paths to store (updates existing placeholders)
+        for (const reading of realReadings) {
+          // Find corresponding store reading by system + jobId
+          const storeReading = getReadingsByJobId(personId, jobId).find(r => r.system === reading.system);
+          if (storeReading) {
+            syncReadingArtifacts(personId, storeReading.id, {
+              pdfPath: reading.pdfPath,
+              audioPath: reading.audioPath,
+              songPath: reading.songPath,
+              duration: reading.duration,
+            });
+          }
+        }
+        console.log(`✅ Synced ${realReadings.length} readings to store (Audible-style persistence)`);
+      }
     } catch (e: any) {
       const errorMsg = e.name === 'AbortError' ? 'Request timed out' : e.message;
       console.error('❌ [PersonReadings] Error loading readings:', errorMsg);
