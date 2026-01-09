@@ -140,8 +140,9 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.title}>My Zoo experiments</Text>
-        <Text style={styles.subtitle}>We’ll take you straight to the paid overlay packages.</Text>
+        <Text style={styles.title}>My Zoo Experiments</Text>
+        <Text style={styles.subtitle}>Deep analyses of one or two souls</Text>
+        <Text style={styles.boldSubheadline}>CHOOSE ONE OR TWO PEOPLE FOR DEEP READINGS</Text>
 
         {candidates.length === 0 ? (
           <View style={styles.emptyState}>
@@ -238,7 +239,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     textAlign: 'center',
   },
-  subheadline: {
+  subtitle: {
     fontFamily: typography.sansRegular,
     fontSize: 16,
     color: colors.text,
@@ -252,14 +253,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.sm,
     marginBottom: spacing.xs,
-  },
-  subtitle: {
-    fontFamily: typography.sansRegular,
-    fontSize: 14,
-    color: colors.mutedText,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-    marginBottom: spacing.lg,
   },
   list: { flex: 1 },
   sectionLabel: {
