@@ -34,6 +34,7 @@ primary_region = "sin"
   worker = "node dist/workers/textWorker.js"
   pdf-worker = "node dist/workers/pdfWorker.js"
   audio-worker = "node dist/workers/audioWorker.js"
+  watchdog = "node dist/workers/watchdogWorker.js"
 
 [[vm]]
   memory = "512mb"
