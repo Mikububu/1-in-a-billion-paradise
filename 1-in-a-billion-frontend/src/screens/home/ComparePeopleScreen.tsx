@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -15,11 +15,14 @@ const screenId = '11b';
 export const ComparePeopleScreen = ({ navigation }: Props) => {
   const people = useProfileStore((s) => s.people);
   
-  // Import the 9 people on first load
-  const handleImportPeople = () => {
-    const result = importPeople();
-    Alert.alert('Import Complete', `Successfully imported ${result.successCount} people!`);
-  };
+  // Auto-import 9 people on first load
+  useEffect(() => {
+    if (people.length < 2) {
+      console.log('🚀 Auto-importing 9 test people...');
+      const result = importPeople();
+      console.log(`✅ Imported ${result.successCount} people`);
+    }
+  }, []);
 
   const candidates = useMemo(() => {
     return (people || [])
