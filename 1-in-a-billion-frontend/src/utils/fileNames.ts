@@ -77,5 +77,35 @@ export const generateSynastryPdfFilename = (
   return `${cleanPerson1}_${cleanPerson2}_Synastry_${ver}.pdf`;
 };
 
+/**
+ * Generate song filename
+ * Format: PersonName_SystemName_song.mp3
+ */
+export const generateSongFilename = (
+  personName: string,
+  systemName: string
+): string => {
+  const cleanPerson = cleanForFilename(personName) || 'Reading';
+  const cleanSystem = cleanForFilename(systemName) || 'Astrology';
+  
+  return `${cleanPerson}_${cleanSystem}_song.mp3`;
+};
+
+/**
+ * Generate synastry song filename
+ * Format: Person1_Person2_System_song.mp3
+ */
+export const generateSynastrySongFilename = (
+  person1Name: string,
+  person2Name: string,
+  systemName: string
+): string => {
+  const cleanPerson1 = cleanForFilename(person1Name) || 'Person1';
+  const cleanPerson2 = cleanForFilename(person2Name) || 'Person2';
+  const cleanSystem = cleanForFilename(systemName) || 'Astrology';
+  
+  return `${cleanPerson1}_${cleanPerson2}_${cleanSystem}_song.mp3`;
+};
+
 
 

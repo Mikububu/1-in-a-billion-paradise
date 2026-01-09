@@ -759,6 +759,19 @@ router.post('/v2/start', async (c) => {
 
     console.log('👤 Creating job for user:', userId);
 
+    // Resolve voice and set audioUrl (WAV for RunPod training) if voiceId provided
+    let audioUrl = payload.audioUrl;
+    if (payload.voiceId && !audioUrl) {
+      const { getVoiceById } = await import('../config/voices');
+      const voice = getVoiceById(payload.voiceId);
+      if (voice) {
+        audioUrl = voice.sampleAudioUrl; // Use WAV URL for RunPod training
+        console.log(`🎤 Resolved voice: ${voice.displayName} → ${audioUrl.substring(0, 80)}...`);
+      } else {
+        console.warn(`⚠️  Voice not found: ${payload.voiceId}, using default`);
+      }
+    }
+
     // NOTE: Task creation is handled automatically by the database trigger auto_create_job_tasks()
     // (see migration 008_auto_create_job_tasks.sql). The trigger creates tasks based on job.type:
     // - nuclear_v2: 16 text tasks (5 systems × 3 docs each + verdict)
@@ -774,6 +787,7 @@ router.post('/v2/start', async (c) => {
       params: {
         ...payload,
         systems: payload.systems,
+        audioUrl, // WAV URL for RunPod training (resolved from voiceId if needed)
         relationshipContext: payload.relationshipContext, // Pass through for overlay interpretation
         personalContext: payload.personalContext, // Pass through for individual reading personalization
       },

@@ -225,6 +225,85 @@ export abstract class BaseWorker {
   }
 
   /**
+   * Generate user-friendly filename matching frontend format
+   * 
+   * Formats (matching frontend fileNames.ts):
+   * - PDF: PersonName_SystemName_v1.0.pdf
+   * - Audio: PersonName_SystemName_audio.mp3
+   * - Synastry PDF: Person1_Person2_Synastry_v1.0.pdf
+   * - Overlay Audio: Person1_Person2_System_audio.mp3
+   */
+  private generateFriendlyFileName(
+    params: any,
+    task: JobTask,
+    artifactType: string,
+    extension: string
+  ): string {
+    // Clean function matching frontend cleanForFilename()
+    const cleanForFilename = (str: string): string => {
+      if (!str || typeof str !== 'string') return 'Unknown';
+      return str
+        .trim()
+        .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special chars
+        .replace(/\s+/g, '_')           // Spaces to underscores
+        .replace(/_+/g, '_')            // Collapse multiple underscores
+        .replace(/^_|_$/g, '');         // Trim leading/trailing underscores
+    };
+    
+    // Extract person names from params
+    const person1Name = cleanForFilename(params?.person1?.name || params?.person1Name || 'Person1');
+    const person2Name = params?.person2?.name ? cleanForFilename(params.person2.name) : null;
+    
+    // Extract system and doc info from task input
+    const systemRaw = task.input?.system || 'western';
+    const system = cleanForFilename(systemRaw.charAt(0).toUpperCase() + systemRaw.slice(1)); // Capitalize first letter
+    const docType = task.input?.docType || 'individual';
+    const docNum = task.input?.docNum;
+    const title = task.input?.title;
+    
+    // Build filename based on artifact type and context
+    let fileName: string;
+    const PDF_VERSION = 'v1.0'; // Match frontend FEATURES.PDF_VERSION
+    
+    if (artifactType === 'audio_mp3' || artifactType === 'audio_m4a') {
+      // Audio format: PersonName_SystemName_audio.mp3
+      // For overlay/synastry: Person1_Person2_System_audio.mp3
+      if (person2Name && (docType === 'overlay' || docType === 'synastry' || docType === 'person2')) {
+        fileName = `${person1Name}_${person2Name}_${system}_audio`;
+      } else {
+        fileName = `${person1Name}_${system}_audio`;
+      }
+    } else if (artifactType === 'pdf') {
+      // PDF format: PersonName_SystemName_v1.0.pdf
+      // For synastry: Person1_Person2_Synastry_v1.0.pdf
+      // For overlay: Person1_Person2_System_v1.0.pdf
+      if (person2Name && (docType === 'overlay' || docType === 'synastry')) {
+        if (docType === 'synastry') {
+          fileName = `${person1Name}_${person2Name}_Synastry_${PDF_VERSION}`;
+        } else {
+          fileName = `${person1Name}_${person2Name}_${system}_${PDF_VERSION}`;
+        }
+      } else if (title && title !== 'Untitled' && title !== 'Reading') {
+        // Use title if available (for special documents)
+        const cleanTitle = cleanForFilename(title);
+        fileName = `${cleanTitle}_${person1Name}_${PDF_VERSION}`;
+      } else {
+        // Standard format: PersonName_SystemName_v1.0.pdf
+        fileName = `${person1Name}_${system}_${PDF_VERSION}`;
+      }
+    } else {
+      // Text/JSON files: PersonName_SystemName_text.txt
+      if (person2Name && (docType === 'overlay' || docType === 'synastry')) {
+        fileName = `${person1Name}_${person2Name}_${system}_${artifactType}`;
+      } else {
+        fileName = `${person1Name}_${system}_${artifactType}`;
+      }
+    }
+    
+    return `${fileName}.${extension}`;
+  }
+
+  /**
    * Upload artifact to Storage and create DB record
    */
   private async uploadTaskArtifact(
@@ -238,10 +317,10 @@ export abstract class BaseWorker {
   ): Promise<void> {
     if (!supabase) return;
 
-    // Get job to determine user_id
+    // Get job to determine user_id and params for friendly naming
     const { data: job, error: jobError } = await supabase
       .from('jobs')
-      .select('user_id')
+      .select('user_id, params')
       .eq('id', task.job_id)
       .single();
 
@@ -249,7 +328,7 @@ export abstract class BaseWorker {
       throw new Error('Failed to get job for artifact upload');
     }
 
-    // Generate storage path
+    // Generate storage path with user-friendly filename
     // NOTE: artifact.type is not always in the form "foo_bar" (e.g. "text").
     const extension =
       artifact.type === 'audio_mp3' ? 'mp3' :
@@ -258,7 +337,12 @@ export abstract class BaseWorker {
             artifact.type === 'json' ? 'json' :
               artifact.type === 'text' ? 'txt' :
                 'bin';
-    const storagePath = `${job.user_id}/${task.job_id}/${artifact.type}/${task.id}.${extension}`;
+    
+    // Generate user-friendly filename
+    const friendlyFileName = this.generateFriendlyFileName(job.params, task, artifact.type, extension);
+    
+    // Storage path: user_id/job_id/artifact_type/friendly_filename
+    const storagePath = `${job.user_id}/${task.job_id}/${artifact.type}/${friendlyFileName}`;
 
     // Upload to Storage
     const uploadedPath = await uploadArtifact(storagePath, artifact.buffer, artifact.contentType);

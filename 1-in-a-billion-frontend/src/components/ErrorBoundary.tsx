@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import * as Updates from 'expo-updates';
+import * as FileSystem from 'expo-file-system';
 
 interface Props {
     children: ReactNode;
@@ -27,6 +28,33 @@ export class ErrorBoundary extends Component<Props, State> {
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error('Uncaught error:', error, errorInfo);
         this.setState({ errorInfo });
+        
+        // Log crash to file for debugging
+        this.logCrashToFile(error, errorInfo);
+    }
+
+    private async logCrashToFile(error: Error, errorInfo: ErrorInfo) {
+        try {
+            const crashLog = {
+                timestamp: new Date().toISOString(),
+                error: {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack,
+                },
+                errorInfo: {
+                    componentStack: errorInfo.componentStack,
+                },
+            };
+
+            const logContent = JSON.stringify(crashLog, null, 2);
+            const logPath = `${FileSystem.documentDirectory}crash-${Date.now()}.log`;
+            
+            await FileSystem.writeAsStringAsync(logPath, logContent);
+            console.log(`Crash log saved to: ${logPath}`);
+        } catch (logError) {
+            console.error('Failed to save crash log:', logError);
+        }
     }
 
     private handleRestart = async () => {

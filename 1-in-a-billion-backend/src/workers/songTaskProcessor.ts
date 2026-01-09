@@ -133,9 +133,47 @@ export async function processSongTask(task: { id: string; job_id: string; input:
       throw new Error('No audio data available from MiniMax');
     }
 
-    // Step 5: Upload to Supabase Storage (with docNum in filename)
-    const fileName = `song_doc${docNum}_${Date.now()}.mp3`;
-    const storagePath = `jobs/${job_id}/${fileName}`;
+    // Step 5: Upload to Supabase Storage (matching frontend format)
+    // Get job params to extract both person names (for synastry songs)
+    const { data: job, error: jobError } = await supabase!
+      .from('jobs')
+      .select('params, user_id')
+      .eq('id', job_id)
+      .single();
+
+    if (jobError || !job) {
+      throw new Error(`Failed to get job: ${jobError?.message}`);
+    }
+
+    const params: any = job.params || {};
+    
+    // Clean function matching frontend cleanForFilename()
+    const cleanForFilename = (str: string): string => {
+      if (!str || typeof str !== 'string') return 'Unknown';
+      return str
+        .trim()
+        .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special chars
+        .replace(/\s+/g, '_')           // Spaces to underscores
+        .replace(/_+/g, '_')            // Collapse multiple underscores
+        .replace(/^_|_$/g, '');         // Trim leading/trailing underscores
+    };
+
+    const person1Name = cleanForFilename(params?.person1?.name || params?.person1Name || 'Person1');
+    const person2Name = params?.person2?.name ? cleanForFilename(params.person2.name) : null;
+    const systemName = system ? cleanForFilename(system.charAt(0).toUpperCase() + system.slice(1)) : 'Verdict';
+    
+    // Generate filename matching frontend format:
+    // Individual: PersonName_SystemName_song.mp3
+    // Synastry/Overlay: Person1_Person2_System_song.mp3
+    let fileName: string;
+    if (person2Name && (docType === 'overlay' || docType === 'synastry' || docType === 'person2')) {
+      fileName = `${person1Name}_${person2Name}_${systemName}_song.mp3`;
+    } else {
+      fileName = `${person1Name}_${systemName}_song.mp3`;
+    }
+    
+    // Storage path matching baseWorker structure
+    const storagePath = `${job.user_id}/${job_id}/song/${fileName}`;
 
     console.log(`📤 Uploading song to storage: ${storagePath}...`);
     const audioBuffer = Buffer.from(audioBase64, 'base64');

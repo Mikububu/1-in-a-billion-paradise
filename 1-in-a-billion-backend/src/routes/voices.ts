@@ -15,7 +15,7 @@ router.get('/samples', async (c) => {
         displayName: voice.displayName,
         description: voice.description,
         category: voice.category,
-        sampleUrl: getVoiceSampleUrl(voice.id),
+        sampleUrl: voice.previewSampleUrl || getVoiceSampleUrl(voice.id),
     }));
 
     return c.json({
@@ -49,8 +49,8 @@ router.get('/:id', async (c) => {
             displayName: voice.displayName,
             description: voice.description,
             category: voice.category,
-            sampleUrl: getVoiceSampleUrl(voice.id),
-            cloningSampleUrl: voice.sampleAudioUrl,
+            sampleUrl: voice.previewSampleUrl || getVoiceSampleUrl(voice.id),
+            cloningSampleUrl: voice.sampleAudioUrl, // WAV for RunPod training
         },
     });
 });
