@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
   selectedName: { flex: 1, fontFamily: typography.sansSemiBold, fontSize: 14, color: colors.text },
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -421,6 +421,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
+    marginTop: 2,
   },
   avatarText: {
     fontFamily: typography.headline,
