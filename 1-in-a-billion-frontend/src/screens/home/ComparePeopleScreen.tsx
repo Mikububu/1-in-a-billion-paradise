@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   },
   backText: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },
   controlRoomText: { fontFamily: typography.sansSemiBold, fontSize: 14, color: colors.primary },
-  content: { flex: 1, paddingHorizontal: spacing.md, paddingTop: spacing.lg },
+  content: { flex: 1, paddingHorizontal: spacing.page, paddingTop: spacing.lg },
   title: {
     fontFamily: typography.headline,
     fontSize: 32,
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 22,
     paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.md,
     marginBottom: spacing.sm,
   },
   rowSelected: { borderColor: colors.primary },
