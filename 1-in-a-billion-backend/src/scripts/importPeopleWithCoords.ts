@@ -98,7 +98,7 @@ const PEOPLE_WITH_COORDS: PersonData[] = [
   },
 ];
 
-async function main() {
+async function importPeopleWithCoords() {
   console.log('🚀 Generating import data with pre-geocoded coordinates...\n');
   console.log(`📋 Processing ${PEOPLE_WITH_COORDS.length} people\n`);
 
@@ -133,7 +133,7 @@ async function main() {
   console.log(`💾 Also saved to: ${tsPath}`);
 }
 
-main().catch(err => {
+importPeopleWithCoords().catch(err => {
   console.error('❌ Fatal error:', err);
   process.exit(1);
 });

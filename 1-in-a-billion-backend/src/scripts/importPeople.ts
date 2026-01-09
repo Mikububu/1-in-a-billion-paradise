@@ -41,7 +41,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function main() {
+async function importPeople() {
   console.log('🚀 Starting people import...\n');
   console.log(`📋 Processing ${PEOPLE_TO_IMPORT.length} people\n`);
 
@@ -83,7 +83,7 @@ async function main() {
   console.log(`\n💾 Saved to: ${outputPath}`);
 }
 
-main().catch(err => {
+importPeople().catch(err => {
   console.error('❌ Fatal error:', err);
   process.exit(1);
 });

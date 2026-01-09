@@ -44,19 +44,19 @@ async function calculateAndStorePlacements() {
         longitude: person.longitude,
       } as any);
 
-      console.log(`   ☀️ Sun: ${chart.sunSign} ${chart.sunDegree.degree}°`);
-      console.log(`   🌙 Moon: ${chart.moonSign} ${chart.moonDegree.degree}°`);
-      console.log(`   ⬆️ Rising: ${chart.risingSign} ${chart.ascendantDegree.degree}°`);
+      console.log(`   ☀️ Sun: ${chart.sunSign} ${chart.sunDegree?.degree || 0}°`);
+      console.log(`   🌙 Moon: ${chart.moonSign} ${chart.moonDegree?.degree || 0}°`);
+      console.log(`   ⬆️ Rising: ${chart.risingSign} ${chart.ascendantDegree?.degree || 0}°`);
 
       const personWithPlacements = {
         ...person,
         placements: {
           sunSign: chart.sunSign,
-          sunDegree: `${chart.sunDegree.degree}°${chart.sunDegree.minute}'`,
+          sunDegree: `${chart.sunDegree?.degree || 0}°${chart.sunDegree?.minute || 0}'`,
           moonSign: chart.moonSign,
-          moonDegree: `${chart.moonDegree.degree}°${chart.moonDegree.minute}'`,
+          moonDegree: `${chart.moonDegree?.degree || 0}°${chart.moonDegree?.minute || 0}'`,
           risingSign: chart.risingSign,
-          risingDegree: `${chart.ascendantDegree.degree}°${chart.ascendantDegree.minute}'`,
+          risingDegree: `${chart.ascendantDegree?.degree || 0}°${chart.ascendantDegree?.minute || 0}'`,
         },
       };
 

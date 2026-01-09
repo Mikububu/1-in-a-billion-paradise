@@ -1138,7 +1138,7 @@ jobQueue.registerProcessor('synastry', async (job, updateProgress) => {
       }],
     };
 
-    jobQueue.completeJob(job.id, results);
+    await jobQueueV2.completeJob(job.id);
     console.log(`🎉 Synastry job ${job.id} complete!`);
 
   } catch (error: any) {
@@ -1364,7 +1364,7 @@ jobQueue.registerProcessor('nuclear_v2', async (job, updateProgress) => {
       })),
     };
 
-    jobQueue.completeJob(job.id, results);
+    await jobQueueV2.completeJob(job.id);
     console.log(`🎉 Nuclear V2 job ${job.id} complete! (16 documents, audio queued for background generation)`);
 
     // Trigger async audio generation via job queue
