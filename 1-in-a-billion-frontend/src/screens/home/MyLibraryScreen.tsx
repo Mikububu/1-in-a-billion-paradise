@@ -336,16 +336,23 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                 const res = r.value.result;
                 console.log('📥 [MyLibrary] Got response from', r.value.url);
                 console.log('📥 [MyLibrary] Response structure:', Object.keys(res || {}));
-                console.log('📥 [MyLibrary] totalJobs:', res?.totalJobs, 'jobs array length:', res?.jobs?.length);
-                console.log('📥 [MyLibrary] jobs type:', typeof res?.jobs, 'isArray:', Array.isArray(res?.jobs));
+                console.log('📥 [MyLibrary] success:', res?.success, 'totalJobs:', res?.totalJobs);
+                
+                // Check if API returned error
+                if (res?.success === false) {
+                  console.error('❌ [MyLibrary] API returned success:false, error:', res?.error);
+                  continue; // Skip this userId
+                }
                 
                 // Handle different response formats
                 let jobsArray = res?.jobs;
                 if (!jobsArray && Array.isArray(res)) {
-                  // Sometimes API returns array directly
+                  // Sometimes API returns array directly (dev dashboard)
                   jobsArray = res;
                   console.log('📥 [MyLibrary] Response is array directly, length:', jobsArray.length);
                 }
+                
+                console.log('📥 [MyLibrary] jobs array length:', jobsArray?.length, 'type:', typeof jobsArray, 'isArray:', Array.isArray(jobsArray));
                 
                 // #region agent log
                 fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:308',message:'API response received',data:{url:r.value.url,responseKeys:Object.keys(res||{}),totalJobs:res?.totalJobs,jobsCount:jobsArray?.length||0,jobsIsArray:Array.isArray(jobsArray),jobTypes:jobsArray?.map((j:any)=>j.type)||[],jobStatuses:jobsArray?.map((j:any)=>j.status)||[]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
