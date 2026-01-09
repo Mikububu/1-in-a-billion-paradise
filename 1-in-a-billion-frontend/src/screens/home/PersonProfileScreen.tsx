@@ -367,11 +367,13 @@ export const PersonProfileScreen = ({ navigation, route }: Props) => {
             <>
               {/* Show all readings for all systems */}
               {Array.from(grouped.entries()).map(([system, readings]) => {
-                if (readings.length === 0) return null;
+                // Filter out readings with empty content
+                const validReadings = readings.filter((r: any) => r?.content && r.content.trim().length > 0);
+                if (validReadings.length === 0) return null;
 
                 return (
                   <View key={system}>
-                    {readings.map((reading) => {
+                    {validReadings.map((reading) => {
                       // Detect reading type:
                       // Overview = FREE hook readings (short, has audio but NO PDF)
                       // Deep Dive = PAID extended readings (has audio AND PDF)
