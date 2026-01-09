@@ -602,10 +602,10 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
       }
     });
 
-    // 2. Add people from nuclear_v2 jobs (person1 and person2) - include processing jobs
+    // 2. Add people from nuclear_v2 and extended jobs (person1 and person2) - include processing jobs
     queueJobsNewestFirst
       .filter((j: any) =>
-        j.type === 'nuclear_v2' &&
+        (j.type === 'nuclear_v2' || j.type === 'extended') &&
         (j.status === 'complete' || j.status === 'completed' || j.status === 'processing' || j.status === 'pending' || j.status === 'queued')
       )
       .forEach((job: any) => {
