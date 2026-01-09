@@ -240,18 +240,35 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                   onPress={() => handlePick(p.id)}
                   activeOpacity={0.85}
                 >
-                  <View style={[styles.avatar, p.gender === 'male' ? { backgroundColor: '#2E7D32' } : p.gender === 'female' ? { backgroundColor: colors.primary } : {}]}>
-                    <Text style={styles.avatarText}>{p.name.charAt(0).toUpperCase()}</Text>
+                  <View style={[styles.avatar, {
+                    backgroundColor: p.gender === 'male' ? '#E8F4E4' : p.gender === 'female' ? '#FFE4E4' : colors.primary + '20'
+                  }]}>
+                    <Text style={[styles.avatarText, {
+                      color: p.gender === 'male' ? '#2E7D32' : p.gender === 'female' ? colors.primary : colors.primary
+                    }]}>{p.name.charAt(0).toUpperCase()}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.rowName, p.gender === 'male' ? { color: '#2E7D32' } : p.gender === 'female' ? { color: colors.primary } : {}]}>{p.name}</Text>
-                    <Text style={styles.rowMeta} numberOfLines={1}>
-                      {p.birthData?.birthDate || '—'} · {p.birthData?.birthTime || '—'} · {p.birthData?.birthCity || '—'}
+                    <Text style={styles.rowName}>{p.name}</Text>
+                    <Text style={styles.rowMeta}>
+                      {p.birthData?.birthDate ? `Born ${(() => {
+                        try {
+                          const date = new Date(p.birthData.birthDate);
+                          return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                        } catch {
+                          return p.birthData.birthDate;
+                        }
+                      })()}` : ''}
+                      {p.birthData?.birthTime ? ` at ${p.birthData.birthTime}` : ''}
                     </Text>
+                    {p.birthData?.birthCity && (
+                      <Text style={styles.rowMeta}>{p.birthData.birthCity}</Text>
+                    )}
                     {p.placements && (
-                      <Text style={styles.rowSigns} numberOfLines={1}>
-                        ☉ {p.placements.sunSign} · ☽ {p.placements.moonSign} · ↑ {p.placements.risingSign}
-                      </Text>
+                      <View style={styles.rowSigns}>
+                        <Text style={styles.rowSignBadge}>☉ {p.placements.sunSign}</Text>
+                        <Text style={styles.rowSignBadge}>☽ {p.placements.moonSign}</Text>
+                        <Text style={styles.rowSignBadge}>↑ {p.placements.risingSign}</Text>
+                      </View>
                     )}
                   </View>
                   {isA && (
@@ -369,7 +386,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radii.card,
+    borderRadius: 22,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
   },
@@ -411,8 +428,21 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   rowName: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },
-  rowMeta: { fontFamily: typography.sansRegular, fontSize: 13, color: colors.mutedText, marginTop: 2 },
-  rowSigns: { fontFamily: typography.sansRegular, fontSize: 11, color: colors.mutedText, marginTop: 4 },
+  rowMeta: { fontFamily: typography.sansRegular, fontSize: 13, color: colors.mutedText },
+  rowSigns: { 
+    flexDirection: 'row',
+    marginTop: spacing.xs,
+    gap: spacing.xs,
+  },
+  rowSignBadge: {
+    fontFamily: typography.sansRegular,
+    fontSize: 11,
+    color: colors.mutedText,
+    backgroundColor: colors.background,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 8,
+  },
   chevron: { fontFamily: typography.sansSemiBold, fontSize: 18, color: colors.mutedText, marginLeft: spacing.md },
   pickChip: {
     minWidth: 34,
@@ -432,17 +462,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.primary,
-    borderRadius: radii.card,
+    borderRadius: 22,
     padding: spacing.md,
     marginTop: spacing.md,
     borderStyle: 'dashed',
   },
   addPersonAvatar: {
     backgroundColor: colors.primary,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
   addPersonIcon: {
     fontFamily: typography.sansBold,
-    fontSize: 24,
+    fontSize: 28,
     color: '#FFFFFF',
   },
   addPersonText: {
