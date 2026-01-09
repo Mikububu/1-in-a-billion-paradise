@@ -412,21 +412,30 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
   };
 
   const handleSelectBundle = () => {
-    // For OVERLAY/COMPATIBILITY → ReadingOverview (nuclear package)
-    // For INDIVIDUAL → SystemsOverview
+    // For OVERLAY/COMPATIBILITY → RelationshipContext → VoiceSelection (nuclear package)
+    // For INDIVIDUAL → PersonalContext → VoiceSelection (complete reading)
     if (isOverlay) {
-      navigation.navigate('ReadingOverview', {
-        personId,
-        personName: partnerName,
-        forPartner: true,
+      navigation.navigate('RelationshipContext', {
         readingType: 'overlay',
-      });
+        forPartner: false,
+        userName: displayP1Name,
+        partnerName: displayP2Name,
+        partnerBirthDate,
+        partnerBirthTime,
+        partnerBirthCity,
+        person1Override,
+        person2Override,
+        productType: 'nuclear_package',
+        systems: ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'],
+      } as any);
     } else {
-      navigation.navigate('SystemsOverview', {
-        personId,
-        forPartner,
-        targetPersonName: partnerName,
-      });
+      navigation.navigate('PersonalContext', {
+        personName: displayP1Name,
+        readingType: 'individual',
+        person1Override,
+        productType: 'complete_reading',
+        systems: ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'],
+      } as any);
     }
   };
 
