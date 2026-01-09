@@ -2063,6 +2063,35 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                       </>
                     );
                   })()}
+                  <View style={styles.personSigns}>
+                    {(() => {
+                      // CRITICAL: We now filter out people without placements in allPeopleWithReadings,
+                      // so we can safely assume this person has placements (either stored or temp)
+                      const placements = person.placements?.sunSign
+                        ? person.placements
+                        : (tempPlacements[person.name] || {});
+
+                      // If still no placements, this should not happen due to filter, but handle gracefully
+                      if (!placements.sunSign) {
+                        console.warn(`⚠️ Person "${person.name}" shown without placements - should have been filtered out`);
+                        return null;
+                      }
+
+                      return (
+                        <>
+                          <Text style={styles.personSignBadge}>
+                            ☉ {placements.sunSign}
+                          </Text>
+                          <Text style={styles.personSignBadge}>
+                            ☽ {placements.moonSign}
+                          </Text>
+                          <Text style={styles.personSignBadge}>
+                            ↑ {placements.risingSign}
+                          </Text>
+                        </>
+                      );
+                    })()}
+                  </View>
                   {/* Audio player */}
                   {(() => {
                     const personAudio = getPersonAudio(person.id);
