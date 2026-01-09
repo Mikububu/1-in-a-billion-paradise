@@ -167,11 +167,11 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                   onPress={() => handlePick(p.id)}
                   activeOpacity={0.85}
                 >
-                  <View style={[styles.avatar, p.gender === 'male' ? { backgroundColor: colors.primary } : p.gender === 'female' ? { backgroundColor: '#10B981' } : {}]}>
+                  <View style={[styles.avatar, p.gender === 'male' ? { backgroundColor: '#10B981' } : p.gender === 'female' ? { backgroundColor: colors.primary } : {}]}>
                     <Text style={styles.avatarText}>{p.name.charAt(0).toUpperCase()}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.rowName, p.gender === 'male' ? { color: colors.primary } : p.gender === 'female' ? { color: '#10B981' } : {}]}>{p.name}</Text>
+                    <Text style={[styles.rowName, p.gender === 'male' ? { color: '#10B981' } : p.gender === 'female' ? { color: colors.primary } : {}]}>{p.name}</Text>
                     <Text style={styles.rowMeta} numberOfLines={1}>
                       {p.birthData?.birthDate || '—'} · {p.birthData?.birthTime || '—'} · {p.birthData?.birthCity || '—'}
                     </Text>
@@ -234,10 +234,9 @@ const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: spacing.page, paddingTop: spacing.lg },
   title: {
     fontFamily: typography.headline,
-    fontSize: 26,
+    fontSize: 32,
     color: colors.text,
     textAlign: 'center',
-    fontStyle: 'italic',
   },
   subheadline: {
     fontFamily: typography.sansRegular,
@@ -245,6 +244,14 @@ const styles = StyleSheet.create({
     color: colors.text,
     textAlign: 'center',
     marginTop: spacing.xs,
+  },
+  boldSubheadline: {
+    fontFamily: typography.sansBold,
+    fontSize: 14,
+    color: colors.text,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
   },
   subtitle: {
     fontFamily: typography.sansRegular,
