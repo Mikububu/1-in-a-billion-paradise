@@ -2090,10 +2090,16 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                         ? person.placements
                         : (tempPlacements[person.name] || {});
 
-                      // If still no placements, this should not happen due to filter, but handle gracefully
+                      // If still no placements, show placeholder (filter is disabled for debugging)
                       if (!placements.sunSign) {
-                        console.warn(`⚠️ Person "${person.name}" shown without placements - should have been filtered out`);
-                        return null;
+                        console.warn(`⚠️ Person "${person.name}" shown without placements - filter disabled`);
+                        return (
+                          <>
+                            <Text style={styles.personSignBadge}>☉ Calculating...</Text>
+                            <Text style={styles.personSignBadge}>☽ Calculating...</Text>
+                            <Text style={styles.personSignBadge}>↑ Calculating...</Text>
+                          </>
+                        );
                       }
 
                       return (
@@ -2277,7 +2283,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           ))}
 
           {/* Empty state when no cards */}
-          {!hasUserReadings && partners.length === 0 && cloudPeopleCards.length === 0 && !loadingQueueJobs && (
+          {allPeopleWithReadings.length === 0 && !hasUserReadings && partners.length === 0 && cloudPeopleCards.length === 0 && !loadingQueueJobs && (
             <View style={styles.emptyState}>
               <Text style={styles.emptyIcon}>✧</Text>
               <Text style={styles.emptyTitle}>Your library is empty</Text>
