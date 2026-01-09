@@ -140,7 +140,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.title}>Choose two people</Text>
+        <Text style={styles.title}>My Zoo experiments</Text>
         <Text style={styles.subtitle}>We’ll take you straight to the paid overlay packages.</Text>
 
         {candidates.length === 0 ? (
