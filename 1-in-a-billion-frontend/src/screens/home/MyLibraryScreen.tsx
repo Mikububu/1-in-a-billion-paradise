@@ -1874,12 +1874,17 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                 console.warn(`   Available job IDs in map:`, Array.from(jobIdToParams.keys()).slice(0, 5));
               }
               
+              // CRITICAL: Match by ID first (unique), fallback to name only if no IDs
               const fromJob =
-                p?.person1?.name === person.name
+                (p?.person1?.id && p.person1.id === person.id)
                   ? 'person1'
-                  : p?.person2?.name === person.name
+                  : (p?.person2?.id && p.person2.id === person.id)
                     ? 'person2'
-                    : null;
+                    : (p?.person1?.name === person.name)
+                      ? 'person1'
+                      : (p?.person2?.name === person.name)
+                        ? 'person2'
+                        : null;
               
               if (!fromJob && primaryJobId) {
                 console.warn(`⚠️ [MyLibrary] Could not determine personType from job params for ${person.name}`);

@@ -250,10 +250,12 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
 
     // Person 1 data (supports overrides for "two other people" overlays)
     // Updated Logic: Priority 1: Override, Priority 2: targetPerson (from personId), Priority 3: Partner params, Priority 4: User
+    // CRITICAL: Always include unique person ID for matching (not just name!)
     const person1 = person1Override
-      ? person1Override
+      ? { ...person1Override, id: person1Override.id || targetPerson?.id || profileStoreUser?.id }
       : targetPerson
         ? {
+          id: targetPerson.id, // CRITICAL: Include person ID
           name: targetPerson.name,
           birthDate: targetPerson.birthData?.birthDate,
           birthTime: targetPerson.birthData?.birthTime,
@@ -264,6 +266,7 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
         }
         : forPartner
           ? {
+            id: partnerId || personId, // CRITICAL: Include person ID
             name: partnerName || userName || 'Partner',
             birthDate: partnerBirthDate,
             birthTime: partnerBirthTime,
@@ -272,6 +275,7 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
             longitude: (partnerBirthCity as any)?.longitude,
           }
           : {
+            id: profileStoreUser?.id, // CRITICAL: Include person ID
             name: meName,
             birthDate: meBirthDate,
             birthTime: meBirthTime,
@@ -284,8 +288,9 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
     // Person 2 data (overlay only)
     const person2 = isOverlayFlow
       ? (person2Override
-        ? person2Override
+        ? { ...person2Override, id: person2Override.id || partnerId || personId }
         : {
+          id: partnerId || personId, // CRITICAL: Include person ID
           name: partnerName || 'Partner',
           birthDate: partnerBirthDate,
           birthTime: partnerBirthTime,

@@ -265,10 +265,16 @@ router.get('/v2/user/:userId/jobs', async (c) => {
         tasksTotal: (j.progress as any)?.tasksTotal,
         taskBreakdown: tasksByStatus,
         systems: (j.params as any)?.systems || [],
-        // CRITICAL: Include person names so frontend can link jobs to people cards
+        // CRITICAL: Include person IDs AND names so frontend can link jobs to people cards
         params: {
-          person1: (j.params as any)?.person1 ? { name: (j.params as any).person1.name } : undefined,
-          person2: (j.params as any)?.person2 ? { name: (j.params as any).person2.name } : undefined,
+          person1: (j.params as any)?.person1 ? { 
+            id: (j.params as any).person1.id,
+            name: (j.params as any).person1.name 
+          } : undefined,
+          person2: (j.params as any)?.person2 ? { 
+            id: (j.params as any).person2.id,
+            name: (j.params as any).person2.name 
+          } : undefined,
           systems: (j.params as any)?.systems || [],
         },
       };
@@ -613,6 +619,7 @@ const startJobSchema = z.object({
   systems: z.array(z.string()).default(['western']),
   style: z.enum(['production', 'spicy_surreal']).default('spicy_surreal'),
   person1: z.object({
+    id: z.string().optional(), // CRITICAL: Unique person ID for matching (not just name!)
     name: z.string(),
     birthDate: z.string(),
     birthTime: z.string(),
@@ -621,6 +628,7 @@ const startJobSchema = z.object({
     longitude: z.number(),
   }),
   person2: z.object({
+    id: z.string().optional(), // CRITICAL: Unique person ID for matching (not just name!)
     name: z.string(),
     birthDate: z.string(),
     birthTime: z.string(),
