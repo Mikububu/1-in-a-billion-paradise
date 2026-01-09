@@ -1,9 +1,11 @@
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StyleSheet, Text, View, TouchableOpacity, Dimensions } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { typography, colors } from '@/theme/tokens';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'NextStep'>;
 
@@ -11,6 +13,19 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export const NextStepScreen = ({ navigation }: Props) => {
   const videoRef = useRef<Video>(null);
+
+  // Stop video when leaving screen
+  useFocusEffect(
+    useCallback(() => {
+      // Play when focused
+      videoRef.current?.playAsync();
+      
+      return () => {
+        // Stop when unfocused
+        videoRef.current?.stopAsync();
+      };
+    }, [])
+  );
 
   const buttons = [
     {

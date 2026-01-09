@@ -162,7 +162,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
       return;
     }
 
-    navigation.navigate('Overview', {
+    navigation.navigate('Purchase', {
       readingType: 'overlay',
       forPartner: false,
       userName: personA.name,
