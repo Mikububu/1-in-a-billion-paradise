@@ -809,12 +809,13 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
       return timeB - timeA; // Most recent first
     });
 
-    // CRITICAL FILTER 1: Only show people with has_paid_reading = true in Supabase
-    // This is the source of truth - prevents showing "added" people without paid readings
-    if (paidPeopleNames.size > 0) {
-      result = result.filter(person => paidPeopleNames.has(person.name));
-      console.log('📊 [MyLibrary] After paid filter:', result.length);
-    }
+    // NOTE: Paid reading filter disabled for now
+    // The has_paid_reading flag in Supabase wasn't being set correctly for existing jobs
+    // TODO: Re-enable when backfill is complete
+    // if (paidPeopleNames.size > 0) {
+    //   result = result.filter(person => paidPeopleNames.has(person.name));
+    // }
+    console.log('📊 [MyLibrary] Showing all people with jobs (paid filter disabled)');
 
     // CRITICAL FILTER 2: Only show people with complete placements (no "Calculating..." entries)
     // This ensures "My Souls Library" only displays valid, complete profiles with sun/moon/rising signs
