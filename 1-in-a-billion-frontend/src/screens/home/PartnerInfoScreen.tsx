@@ -9,7 +9,9 @@ import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { CityOption } from '@/types/forms';
 import { useProfileStore } from '@/store/profileStore';
+import { useAuthStore } from '@/store/authStore';
 import { calculatePlacements } from '@/services/placementsCalculator';
+import { insertPersonToSupabase } from '@/services/peopleService';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PartnerInfo'>;
 
@@ -54,6 +56,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
 
   const people = useProfileStore((state) => state.people);
   const addPerson = useProfileStore((state) => state.addPerson);
+  const userId = useAuthStore((state) => state.userId);
 
   // City search state
   const [cityQuery, setCityQuery] = useState('');
@@ -203,6 +206,32 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
       },
       placements: placements || undefined, // Save placements immediately
     });
+
+    // Sync to Supabase in background
+    if (userId) {
+      const person = {
+        id: personId,
+        name: name.trim(),
+        isUser: false,
+        birthData: {
+          birthDate: birthDataForCalculation.birthDate,
+          birthTime: birthDataForCalculation.birthTime,
+          birthCity: cityToUse.name,
+          timezone: cityToUse.timezone,
+          latitude: cityToUse.latitude,
+          longitude: cityToUse.longitude,
+        },
+        placements: placements || undefined,
+      } as any;
+
+      insertPersonToSupabase(userId, person).then(result => {
+        if (result.success) {
+          console.log(`✅ Person "${name.trim()}" synced to Supabase`);
+        } else {
+          console.warn(`⚠️ Failed to sync to Supabase: ${result.error}`);
+        }
+      });
+    }
 
     if (isAddPersonOnly) {
       if (returnTo === 'ComparePeople') navigation.navigate('ComparePeople');
