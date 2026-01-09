@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT * 0.35, // Smaller height, flush to bottom
+    height: SCREEN_HEIGHT * 0.50, // Fill bottom half
     zIndex: 1,
   },
   buttonsContainer: {
