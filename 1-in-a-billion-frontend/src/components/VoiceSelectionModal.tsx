@@ -90,8 +90,15 @@ export const VoiceSelectionModal = ({ visible, onConfirm, onCancel }: Props) => 
             const voice = voices.find(v => v.id === voiceId);
             if (!voice || !voice.sampleUrl) return;
 
-            console.log(`🔊 Playing sample for ${voice.displayName}`);
+            console.log(`🔊 Playing sample for ${voice.displayName}: ${voice.sampleUrl}`);
             setPlayingVoice(voiceId);
+
+            // Set audio mode for playback
+            await Audio.setAudioModeAsync({
+                playsInSilentModeIOS: true,
+                staysActiveInBackground: false,
+                shouldDuckAndroid: true,
+            });
 
             const { sound: newSound } = await Audio.Sound.createAsync(
                 { uri: voice.sampleUrl },
@@ -239,11 +246,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         borderWidth: 2,
-        borderColor: 'transparent',
+        borderColor: colors.border,
     },
     voiceCardActive: {
         borderColor: colors.primary,
-        backgroundColor: 'transparent',
+        borderWidth: 3,
     },
     voiceInfoContainer: {
         flex: 1,

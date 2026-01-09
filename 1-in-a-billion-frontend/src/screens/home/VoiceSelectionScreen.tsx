@@ -135,6 +135,13 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
             console.log(`🔊 Playing sample for ${voice.displayName}: ${voice.sampleUrl}`);
             setPlayingVoice(voiceId);
 
+            // Set audio mode for playback
+            await Audio.setAudioModeAsync({
+                playsInSilentModeIOS: true,
+                staysActiveInBackground: false,
+                shouldDuckAndroid: true,
+            });
+
             const { sound: newSound } = await Audio.Sound.createAsync(
                 { uri: voice.sampleUrl },
                 { shouldPlay: true }
@@ -313,13 +320,13 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        borderWidth: 1, // Thinner border (was 2)
+        borderWidth: 2,
         borderColor: colors.border,
         marginBottom: spacing.sm, // Reduced from md
     },
     voiceCardActive: {
         borderColor: colors.primary,
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        borderWidth: 3,
     },
     voiceInfo: {
         flex: 1,
