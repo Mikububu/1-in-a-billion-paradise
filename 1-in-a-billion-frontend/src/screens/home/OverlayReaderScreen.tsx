@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   refreshText: { fontFamily: typography.sansSemiBold, fontSize: 18, color: colors.primary },
   scrollView: { flex: 1 },
   content: { padding: spacing.page, paddingBottom: spacing.xl * 2 },
-  title: { fontFamily: typography.headline, fontSize: 22, color: colors.text, fontStyle: 'italic' },
+  title: { fontFamily: typography.headline, fontSize: 32, color: colors.text },
   status: { fontFamily: typography.sansRegular, fontSize: 13, color: colors.mutedText, marginTop: spacing.xs },
   actionsRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
   actionBtn: { flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingVertical: spacing.sm, alignItems: 'center' },
