@@ -5,8 +5,10 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { useProfileStore } from '@/store/profileStore';
+import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/Button';
 import { importPeople } from '@/scripts/importPeopleToStore';
+import { fetchPeopleFromSupabase } from '@/services/peopleService';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ComparePeople'>;
 
@@ -14,6 +16,9 @@ const screenId = '11b';
 
 export const ComparePeopleScreen = ({ navigation }: Props) => {
   const people = useProfileStore((s) => s.people);
+  const updatePerson = useProfileStore((s) => s.updatePerson);
+  const addPerson = useProfileStore((s) => s.addPerson);
+  const userId = useAuthStore((s) => s.userId);
   
   // Blinking animation for "CHOOSE ONE OR TWO PEOPLE" text
   const blinkAnim = useRef(new Animated.Value(1)).current;
@@ -34,6 +39,38 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
     const result = importPeople();
     console.log(`✅ Imported/Updated ${result.successCount} people`);
   }, []);
+
+  // Fetch people from Supabase and sync to local store
+  useEffect(() => {
+    if (!userId) {
+      console.log('⚠️ No userId - skipping Supabase fetch');
+      return;
+    }
+
+    console.log('📥 Fetching people from Supabase...');
+    fetchPeopleFromSupabase(userId).then(supabasePeople => {
+      if (supabasePeople.length === 0) {
+        console.log('📭 No people in Supabase');
+        return;
+      }
+
+      console.log(`✅ Fetched ${supabasePeople.length} people from Supabase`);
+      
+      // Merge with local store (update if exists, add if new)
+      supabasePeople.forEach(person => {
+        const existing = people.find(p => p.id === person.id);
+        if (existing) {
+          // Update existing with Supabase data
+          updatePerson(person.id, person);
+          console.log(`🔄 Updated "${person.name}" from Supabase`);
+        } else {
+          // Add new person from Supabase
+          addPerson(person);
+          console.log(`➕ Added "${person.name}" from Supabase`);
+        }
+      });
+    });
+  }, [userId]);
 
   const candidates = useMemo(() => {
     return (people || [])
