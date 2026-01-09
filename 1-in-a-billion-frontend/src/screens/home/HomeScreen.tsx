@@ -592,22 +592,6 @@ export const HomeScreen = ({ navigation }: Props) => {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* MY SOULS LABORATORY CARD - Simple */}
-        <TouchableOpacity
-          style={styles.libraryCard}
-          onPress={() => navigation.navigate('NextStep')}
-          activeOpacity={0.8}
-        >
-          <View style={styles.libraryHeader}>
-            <View style={styles.libraryInfo}>
-              <Text style={styles.libraryTitle}>My Souls Laboratory</Text>
-              <Text style={styles.librarySubtitle}>
-                Readings, audio & people
-              </Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-
         {/* Match Status */}
         <View style={styles.statusSection}>
           {hasMatch ? (
@@ -650,6 +634,22 @@ export const HomeScreen = ({ navigation }: Props) => {
             </>
           )}
         </View>
+
+        {/* MY SOULS LABORATORY CARD - Simple */}
+        <TouchableOpacity
+          style={styles.libraryCard}
+          onPress={() => navigation.navigate('NextStep')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.libraryHeader}>
+            <View style={styles.libraryInfo}>
+              <Text style={styles.libraryTitle}>My Souls Laboratory</Text>
+              <Text style={styles.librarySubtitle}>
+                Readings, audio & people
+              </Text>
+            </View>
+          </View>
+        </TouchableOpacity>
 
       </ScrollView>
 
