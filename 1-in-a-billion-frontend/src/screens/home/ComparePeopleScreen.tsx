@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
   },
   backText: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },
   controlRoomText: { fontFamily: typography.sansSemiBold, fontSize: 14, color: colors.primary },
-  content: { flex: 1, paddingHorizontal: spacing.page, paddingTop: spacing.lg },
+  content: { flex: 1, paddingHorizontal: spacing.page, paddingTop: 70 },
   title: {
     fontFamily: typography.headline,
     fontSize: 26,
