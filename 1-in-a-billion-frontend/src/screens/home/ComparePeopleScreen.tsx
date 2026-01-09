@@ -239,6 +239,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
   },
+  subheadline: {
+    fontFamily: typography.sansRegular,
+    fontSize: 16,
+    color: colors.text,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+  },
   subtitle: {
     fontFamily: typography.sansRegular,
     fontSize: 14,
