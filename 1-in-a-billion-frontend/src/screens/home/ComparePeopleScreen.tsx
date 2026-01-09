@@ -210,7 +210,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.title}>My Zoo Experiments</Text>
+        <Text style={styles.title}>My Karmic Zoo</Text>
         <Text style={styles.subtitle}>Deep analyses of one or two souls</Text>
         <Animated.Text style={[styles.boldSubheadline, { opacity: blinkAnim }]}>
           CHOOSE ONE OR TWO PEOPLE{'\n'}FOR DEEP READINGS

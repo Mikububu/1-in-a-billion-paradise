@@ -18,7 +18,7 @@ export const NextStepScreen = ({ navigation }: Props) => {
       onPress: () => navigation.navigate('MyLibrary'),
     },
     {
-      label: 'MY ZOO EXPERIMENTS',
+      label: 'MY KARMIC ZOO',
       onPress: () => navigation.navigate('ComparePeople'),
     },
     {
