@@ -2063,69 +2063,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                       </>
                     );
                   })()}
-                  <View style={styles.personSigns}>
-                    {(() => {
-                      // CRITICAL: We now filter out people without placements in allPeopleWithReadings,
-                      // so we can safely assume this person has placements (either stored or temp)
-                      const placements = person.placements?.sunSign
-                        ? person.placements
-                        : (tempPlacements[person.name] || {});
-
-                      // If still no placements, this should not happen due to filter, but handle gracefully
-                      if (!placements.sunSign) {
-                        console.warn(`⚠️ Person "${person.name}" shown without placements - should have been filtered out`);
-                        return null;
-                      }
-
-                      return (
-                        <>
-                          <Text style={styles.personSignBadge}>
-                            ☉ {placements.sunSign}
-                          </Text>
-                          <Text style={styles.personSignBadge}>
-                            ☽ {placements.moonSign}
-                          </Text>
-                          <Text style={styles.personSignBadge}>
-                            ↑ {placements.risingSign}
-                          </Text>
-                        </>
-                      );
-                    })()}
-                  </View>
-                  {/* Reading badges - show which systems have readings */}
-                  {(() => {
-                    const systemsWithReadings = new Set<string>();
-
-                    // Check profile store readings
-                    if (person.readings && person.readings.length > 0) {
-                      person.readings.forEach((r: any) => {
-                        if (r.system) systemsWithReadings.add(r.system);
-                      });
-                    }
-
-                    // Check nuclear_v2 job artifacts (for this person)
-                    const personArtifacts = nuclearJobArtifacts[person.name] || [];
-                    personArtifacts.forEach(a => {
-                      if (a.system && (a.docType === 'person1' || a.docType === 'person2')) {
-                        systemsWithReadings.add(a.system);
-                      }
-                    });
-
-                    const readingBadges = Array.from(systemsWithReadings).map((sys: string) => {
-                      const systemInfo = SYSTEM_INFO[sys as ReadingSystem];
-                      return systemInfo ? { name: systemInfo.name, icon: systemInfo.icon } : null;
-                    }).filter(Boolean);
-
-                    return readingBadges.length > 0 ? (
-                      <View style={styles.personReadings}>
-                        {readingBadges.map((badge: any, idx: number) => (
-                          <Text key={idx} style={styles.readingBadge}>
-                            {badge.icon} {badge.name} ✓
-                          </Text>
-                        ))}
-                      </View>
-                    ) : null;
-                  })()}
                   {/* Audio player */}
                   {(() => {
                     const personAudio = getPersonAudio(person.id);
