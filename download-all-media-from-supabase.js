@@ -15,12 +15,20 @@
  *   - Or create a .env file in the backend directory
  */
 
-const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const http = require('http');
-require('dotenv').config({ path: path.join(__dirname, '1-in-a-billion-backend', '.env') });
+
+// Add backend node_modules to require path
+const backendPath = path.join(__dirname, '1-in-a-billion-backend');
+const backendNodeModules = path.join(backendPath, 'node_modules');
+if (fs.existsSync(backendNodeModules)) {
+  require('module')._nodeModulePaths.push(backendNodeModules);
+}
+
+const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config({ path: path.join(backendPath, '.env') });
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
