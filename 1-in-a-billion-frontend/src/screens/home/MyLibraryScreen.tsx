@@ -2287,29 +2287,58 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                   : 'Complete onboarding to receive your readings.'}
               </Text>
 
-              {/* ON-SCREEN DEBUG DISPLAY - Always visible if jobs exist but no cards */}
-              {queueJobs.length > 0 && (
-                <View style={{ marginTop: 20, padding: 15, backgroundColor: '#f5f5f5', borderRadius: 8, width: '90%', alignSelf: 'center' }}>
-                  <Text style={{ fontWeight: 'bold', marginBottom: 10, fontSize: 13, color: '#333' }}>🔍 Debug Details:</Text>
-                  {queueJobs.slice(0, 2).map((job: any, idx: number) => {
-                    let params = job.params || job.input || {};
-                    if (typeof params === 'string') {
-                      try { params = JSON.parse(params); } catch { params = {}; }
-                    }
-                    return (
-                      <View key={idx} style={{ marginBottom: 8, padding: 8, backgroundColor: 'white', borderRadius: 4, borderLeftWidth: 3, borderLeftColor: '#666' }}>
-                        <Text style={{ fontSize: 10, fontFamily: 'monospace', color: '#444' }}>
-                          Type: {job.type} ({job.status}){'\n'}
-                          Keys: {Object.keys(job).join(', ')}{'\n'}
-                          Params keys: {params ? Object.keys(params).join(', ') : 'none'}{'\n'}
-                          P1 name: {params.person1?.name || params.personName || params.name || 'MISSING'}{'\n'}
-                          Raw params: {JSON.stringify(params).slice(0, 100)}...
-                        </Text>
-                      </View>
-                    );
-                  })}
+              {/* COMPREHENSIVE DEBUG DISPLAY */}
+              <View style={{ marginTop: 20, padding: 15, backgroundColor: '#f5f5f5', borderRadius: 8, width: '90%', alignSelf: 'center' }}>
+                <Text style={{ fontWeight: 'bold', marginBottom: 10, fontSize: 13, color: '#333' }}>🔍 Full Debug Info:</Text>
+                
+                {/* Summary Stats */}
+                <View style={{ marginBottom: 12, padding: 8, backgroundColor: 'white', borderRadius: 4 }}>
+                  <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#333', marginBottom: 4 }}>Summary:</Text>
+                  <Text style={{ fontSize: 10, fontFamily: 'monospace', color: '#444' }}>
+                    Total Jobs: {queueJobs.length}{'\n'}
+                    People Extracted: {allPeopleWithReadings.length}{'\n'}
+                    Paid Filter: DISABLED{'\n'}
+                    Placements Filter: DISABLED{'\n'}
+                    User Name: {userName || 'NOT SET'}
+                  </Text>
                 </View>
-              )}
+
+                {/* People List */}
+                {allPeopleWithReadings.length > 0 && (
+                  <View style={{ marginBottom: 12, padding: 8, backgroundColor: 'white', borderRadius: 4 }}>
+                    <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#333', marginBottom: 4 }}>People Found:</Text>
+                    {allPeopleWithReadings.map((p, idx) => (
+                      <Text key={idx} style={{ fontSize: 10, fontFamily: 'monospace', color: '#444', marginBottom: 2 }}>
+                        {idx + 1}. {p.name} (isUser: {p.isUser ? 'YES' : 'NO'}, jobs: {p.jobIds?.length || 0}, placements: {p.placements?.sunSign || 'NONE'})
+                      </Text>
+                    ))}
+                  </View>
+                )}
+
+                {/* Job Details */}
+                {queueJobs.length > 0 && (
+                  <View style={{ marginBottom: 8 }}>
+                    <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#333', marginBottom: 4 }}>Jobs ({queueJobs.length}):</Text>
+                    {queueJobs.slice(0, 3).map((job: any, idx: number) => {
+                      let params = job.params || job.input || {};
+                      if (typeof params === 'string') {
+                        try { params = JSON.parse(params); } catch { params = {}; }
+                      }
+                      const p1Name = params.person1?.name || params.personName || params.name || 'MISSING';
+                      return (
+                        <View key={idx} style={{ marginBottom: 6, padding: 8, backgroundColor: 'white', borderRadius: 4, borderLeftWidth: 3, borderLeftColor: '#666' }}>
+                          <Text style={{ fontSize: 10, fontFamily: 'monospace', color: '#444' }}>
+                            Job {idx + 1}: {job.type} ({job.status}){'\n'}
+                            Person1: {p1Name}{'\n'}
+                            Person2: {params.person2?.name || 'N/A'}{'\n'}
+                            Has params: {params ? 'YES' : 'NO'}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
             </View>
           )}
 
