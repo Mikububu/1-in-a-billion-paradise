@@ -639,6 +639,8 @@ const startJobSchema = z.object({
   relationshipIntensity: z.number().min(1).max(10).default(5),
   relationshipContext: z.string().max(500).optional(), // Contextual infusion for overlay interpretation
   personalContext: z.string().max(500).optional(), // Contextual infusion for individual readings
+  voiceId: z.string().optional(), // Voice narrator ID (e.g., 'david', 'elisabeth')
+  audioUrl: z.string().optional(), // Optional direct audio URL (WAV for RunPod training)
 });
 
 // LLM calls now use centralized llm.generate() from ../services/llm
