@@ -110,6 +110,7 @@ export type Person = {
   hookReadings?: HookReading[]; // Sun/Moon/Rising free preview readings
   hookAudioPaths?: Partial<Record<HookReading['type'], string>>; // Supabase Storage paths for hook audios (optional)
   readings: Reading[];
+  jobIds?: string[]; // Job IDs associated with this person (for quick lookup)
   createdAt: string;
   updatedAt: string;
 };
@@ -161,6 +162,7 @@ type ProfileState = {
   syncReadingArtifacts: (personId: string, readingId: string, artifacts: { pdfPath?: string; audioPath?: string; songPath?: string; duration?: number }) => void;
   createPlaceholderReadings: (personId: string, jobId: string, systems: ReadingSystem[], createdAt: string) => void;
   getReadingsByJobId: (personId: string, jobId: string) => Reading[];
+  linkJobToPerson: (personId: string, jobId: string) => void;
 
   // Actions - Compatibility
   addCompatibilityReading: (reading: Omit<CompatibilityReading, 'id'>) => string;
@@ -1002,6 +1004,7 @@ export const useProfileStore = create<ProfileState>()(
               ? {
                   ...p,
                   readings: [...p.readings, ...placeholderReadings],
+                  jobIds: Array.from(new Set([...(p.jobIds || []), jobId])),
                   updatedAt: new Date().toISOString(),
                 }
               : p
@@ -1024,6 +1027,20 @@ export const useProfileStore = create<ProfileState>()(
         fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:getReadingsByJobId:result',message:'Readings found',data:{personId,jobId,readingsCount:readings.length,personTotalReadings:person.readings.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STORE'})}).catch(()=>{});
         // #endregion
         return readings;
+      },
+
+      linkJobToPerson: (personId, jobId) => {
+        set((state) => ({
+          people: state.people.map((p) =>
+            p.id === personId
+              ? {
+                  ...p,
+                  jobIds: Array.from(new Set([...(p.jobIds || []), jobId])),
+                  updatedAt: new Date().toISOString(),
+                }
+              : p
+          ),
+        }));
       },
 
       // Compatibility Actions
