@@ -793,7 +793,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primary,
     borderStyle: 'dashed',
-    marginTop: 80,
+    marginTop: spacing.lg,
   },
   libraryHeader: {
     alignItems: 'center',
