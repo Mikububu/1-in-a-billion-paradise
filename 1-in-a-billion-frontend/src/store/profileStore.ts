@@ -163,6 +163,7 @@ type ProfileState = {
   createPlaceholderReadings: (personId: string, jobId: string, systems: ReadingSystem[], createdAt: string) => void;
   getReadingsByJobId: (personId: string, jobId: string) => Reading[];
   linkJobToPerson: (personId: string, jobId: string) => void;
+  linkJobToPersonByName: (personName: string, jobId: string) => void;
 
   // Actions - Compatibility
   addCompatibilityReading: (reading: Omit<CompatibilityReading, 'id'>) => string;
@@ -1056,6 +1057,12 @@ export const useProfileStore = create<ProfileState>()(
         const updatedPerson = get().people.find((p) => p.id === personId);
         fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:linkJobToPerson:result',message:'Job linked successfully',data:{personId,jobId,oldJobIdsCount:oldJobIds.length,newJobIdsCount:updatedPerson?.jobIds?.length||0,newJobIds:updatedPerson?.jobIds},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STORE'})}).catch(()=>{});
         // #endregion
+      },
+
+      linkJobToPersonByName: (personName, jobId) => {
+        const person = get().people.find((p) => p.name === personName);
+        if (!person) return;
+        linkJobToPerson(person.id, jobId);
       },
 
       // Compatibility Actions

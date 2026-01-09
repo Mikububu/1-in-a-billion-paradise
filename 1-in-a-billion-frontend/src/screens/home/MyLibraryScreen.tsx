@@ -178,6 +178,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   const repairReadings = useProfileStore((state) => state.repairReadings);
   const fixDuplicateIds = useProfileStore((state) => state.fixDuplicateIds);
   const linkJobToPerson = useProfileStore((state) => state.linkJobToPerson);
+  const linkJobToPersonByName = useProfileStore((state) => state.linkJobToPersonByName);
 
   // Onboarding store for hook readings
   const authUser = useAuthStore((s) => s.user);
@@ -646,11 +647,8 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           if (existing) {
             // Merge jobIds if person already exists
             existing.jobIds = [...new Set([...(existing.jobIds || []), job.id])];
-            // Persist to store (Audible-style)
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:linkJobToPerson:p1',message:'Calling linkJobToPerson for person1',data:{personName:p1Name,personId:existing.id,jobId:job.id,existingJobIds:existing.jobIds,beforeLinkJobIds:existing.jobIds},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'LINK'})}).catch(()=>{});
-            // #endregion
-            linkJobToPerson(existing.id, job.id);
+            // Persist to store (Audible-style) - use name lookup to handle temp IDs
+            linkJobToPersonByName(p1Name, job.id);
           } else {
             // Create placeholder readings based on job type
             const isOverlay = job.type === 'overlay' || job.type === 'compatibility';
@@ -692,11 +690,8 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           if (existing) {
             // Merge jobIds if person already exists
             existing.jobIds = [...new Set([...(existing.jobIds || []), job.id])];
-            // Persist to store (Audible-style)
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:linkJobToPerson:p2',message:'Calling linkJobToPerson for person2',data:{personName:p2Name,personId:existing.id,jobId:job.id,existingJobIds:existing.jobIds,beforeLinkJobIds:existing.jobIds},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'LINK'})}).catch(()=>{});
-            // #endregion
-            linkJobToPerson(existing.id, job.id);
+            // Persist to store (Audible-style) - use name lookup to handle temp IDs
+            linkJobToPersonByName(p2Name, job.id);
           } else {
             // Create placeholder readings based on job type
             const isOverlay = job.type === 'overlay' || job.type === 'compatibility';
