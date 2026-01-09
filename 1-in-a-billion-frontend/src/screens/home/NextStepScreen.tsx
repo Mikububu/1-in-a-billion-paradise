@@ -115,17 +115,17 @@ const styles = StyleSheet.create({
   },
   button: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     paddingVertical: 16, // Reduced from 18 to save space
     borderRadius: 999,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#000',
+    borderColor: colors.text,
   },
   buttonText: {
     fontFamily: typography.sansSemiBold,
     fontSize: 15,
-    color: '#000',
+    color: colors.text,
     letterSpacing: 0.5,
   },
 });

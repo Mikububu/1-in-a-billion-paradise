@@ -138,6 +138,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   systemButton: {
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.text,
     borderRadius: 999,

@@ -286,9 +286,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   jobCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: colors.border,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
