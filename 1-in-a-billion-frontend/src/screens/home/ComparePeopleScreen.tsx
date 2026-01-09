@@ -6,6 +6,7 @@ import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { useProfileStore } from '@/store/profileStore';
 import { Button } from '@/components/Button';
+import { importPeople } from '@/scripts/importPeopleToStore';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ComparePeople'>;
 
@@ -13,6 +14,12 @@ const screenId = '11b';
 
 export const ComparePeopleScreen = ({ navigation }: Props) => {
   const people = useProfileStore((s) => s.people);
+  
+  // Import the 9 people on first load
+  const handleImportPeople = () => {
+    const result = importPeople();
+    Alert.alert('Import Complete', `Successfully imported ${result.successCount} people!`);
+  };
 
   const candidates = useMemo(() => {
     return (people || [])
