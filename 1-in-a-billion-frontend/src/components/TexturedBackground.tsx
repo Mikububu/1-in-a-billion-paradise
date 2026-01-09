@@ -5,7 +5,7 @@
  * Uses the white-leather-texture.jpg image as the app-wide background with 30% opacity.
  */
 
-import { StyleSheet, View, ImageBackground } from 'react-native';
+import { StyleSheet, View, Image } from 'react-native';
 import { colors } from '@/theme/tokens';
 
 type Props = {
@@ -19,14 +19,18 @@ type Props = {
  */
 export const TexturedBackground = ({ children, style }: Props) => {
   return (
-    <ImageBackground
-      source={require('../../assets/images/white-leather-texture.jpg')}
-      style={[styles.container, style]}
-      resizeMode="cover"
-      imageStyle={{ opacity: 0.3 }}
-    >
-      {children}
-    </ImageBackground>
+    <View style={[styles.container, style]}>
+      {/* Texture layer at 30% opacity */}
+      <Image
+        source={require('../../assets/images/white-leather-texture.jpg')}
+        style={[StyleSheet.absoluteFill, { opacity: 0.3 }]}
+        resizeMode="cover"
+      />
+      {/* Content on top */}
+      <View style={styles.content}>
+        {children}
+      </View>
+    </View>
   );
 };
 
@@ -40,5 +44,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  content: {
+    flex: 1,
   },
 });
