@@ -179,8 +179,8 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                   onPress={() => handlePick(p.id)}
                   activeOpacity={0.85}
                 >
-                  <View style={[styles.avatar, p.gender === 'male' ? { backgroundColor: colors.success } : p.gender === 'female' ? { backgroundColor: colors.primary } : {}]}>
-                    <Text style={styles.avatarText}>{p.name.charAt(0).toUpperCase()}</Text>
+                  <View style={[styles.avatar, p.gender === 'male' ? { backgroundColor: '#E8F4E4' } : p.gender === 'female' ? { backgroundColor: '#FFE4E4' } : {}]}>
+                    <Text style={[styles.avatarText, p.gender === 'male' ? { color: colors.success } : p.gender === 'female' ? { color: colors.primary } : {}]}>{p.name.charAt(0).toUpperCase()}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.rowName, p.gender === 'male' ? { color: colors.success } : p.gender === 'female' ? { color: colors.primary } : {}]}>{p.name}</Text>
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontFamily: typography.headline,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: colors.text,
     fontStyle: 'italic',
   },
   rowName: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },
