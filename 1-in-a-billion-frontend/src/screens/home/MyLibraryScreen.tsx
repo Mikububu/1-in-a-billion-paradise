@@ -817,16 +817,15 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
     // }
     console.log('📊 [MyLibrary] Showing all people with jobs (paid filter disabled)');
 
-    // CRITICAL FILTER 2: Only show people with complete placements (no "Calculating..." entries)
-    // This ensures "My Souls Library" only displays valid, complete profiles with sun/moon/rising signs
-    result = result.filter(person => {
-      // Check stored placements
-      if (person.placements?.sunSign) return true;
-      // Check temp calculated placements
-      if (tempPlacements[person.name]?.sunSign) return true;
-      // Otherwise, hide this person (they're still processing)
-      return false;
-    });
+    // NOTE: Placements filter disabled for debugging
+    // Was hiding people without sunSign calculated
+    // TODO: Re-enable once placements are working correctly
+    // result = result.filter(person => {
+    //   if (person.placements?.sunSign) return true;
+    //   if (tempPlacements[person.name]?.sunSign) return true;
+    //   return false;
+    // });
+    console.log('📊 [MyLibrary] Placements filter disabled for debugging');
 
     console.log('📊 [MyLibrary] Final peopleMap size:', peopleMap.size);
     console.log('📊 [MyLibrary] People names:', Array.from(peopleMap.keys()).join(', '));
