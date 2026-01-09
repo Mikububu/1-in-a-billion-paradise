@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
+import { PRODUCTS } from '@/config/products';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ExtendedReading'>;
 
@@ -13,15 +14,16 @@ type ReadingSystem = {
   price: number;
 };
 
-const READING_SYSTEMS: ReadingSystem[] = [
-  { id: 'western', name: 'Western Astrology', price: 30 },
-  { id: 'vedic', name: 'Vedic Astrology', price: 30 },
-  { id: 'human_design', name: 'Human Design', price: 30 },
-  { id: 'gene_keys', name: 'Gene Keys', price: 30 },
-  { id: 'kabbalah', name: 'Kabbalah', price: 30 },
-];
+const SINGLE_PRICE = PRODUCTS.single_system.priceUSD;
+const BUNDLE_PRICE = PRODUCTS.complete_reading.priceUSD;
 
-const BUNDLE_PRICE = 100;
+const READING_SYSTEMS: ReadingSystem[] = [
+  { id: 'western', name: 'Western Astrology', price: SINGLE_PRICE },
+  { id: 'vedic', name: 'Vedic Astrology', price: SINGLE_PRICE },
+  { id: 'human_design', name: 'Human Design', price: SINGLE_PRICE },
+  { id: 'gene_keys', name: 'Gene Keys', price: SINGLE_PRICE },
+  { id: 'kabbalah', name: 'Kabbalah', price: SINGLE_PRICE },
+];
 
 export const ExtendedReadingScreen = ({ navigation }: Props) => {
   // Get user's name from store or use default
@@ -85,7 +87,7 @@ export const ExtendedReadingScreen = ({ navigation }: Props) => {
           </View>
           <View style={styles.bestChoiceRight}>
             <Text style={styles.bestChoicePrice}>${BUNDLE_PRICE}</Text>
-            <Text style={styles.savingsText}>Save ${(READING_SYSTEMS.length * 30) - BUNDLE_PRICE}</Text>
+            <Text style={styles.savingsText}>Save ${(READING_SYSTEMS.length * SINGLE_PRICE) - BUNDLE_PRICE}</Text>
           </View>
         </TouchableOpacity>
       </ScrollView>
