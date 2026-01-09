@@ -1833,7 +1833,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
             return (
               <TouchableOpacity
-                key={person.id}
+                key={`person-${person.name}-${person.id || 'no-id'}`}
                 style={styles.personCard}
                 onPress={() => navigation.navigate('PersonReadings', {
                   personName: person.name,
