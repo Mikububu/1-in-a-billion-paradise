@@ -273,8 +273,9 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         borderColor: colors.primary,
         paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.lg,
-        textAlignVertical: 'center',
+        paddingTop: CIRCLE_SIZE / 2 - 20, // Center text vertically
+        textAlignVertical: 'top',
+        textAlign: 'center',
     },
     buttonContainer: {
         flexDirection: 'row',
