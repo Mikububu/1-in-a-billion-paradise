@@ -30,7 +30,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
 
     const [voices, setVoices] = useState<Voice[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedVoice, setSelectedVoice] = useState<string>(preselectedVoice || 'grandpa');
+    const [selectedVoice, setSelectedVoice] = useState<string>(preselectedVoice || 'david');
     const [playingVoice, setPlayingVoice] = useState<string | null>(null);
     const [sound, setSound] = useState<Audio.Sound | null>(null);
 

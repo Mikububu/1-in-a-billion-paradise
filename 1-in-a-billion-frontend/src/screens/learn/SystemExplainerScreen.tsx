@@ -131,6 +131,9 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
     partnerBirthDate,
     partnerBirthTime,
     partnerBirthCity,
+    userName,
+    person1Override,
+    person2Override,
   } = route.params || {};
   const content = SYSTEM_CONTENT[system] || SYSTEM_CONTENT.western;
   const price = SYSTEM_PRICES[system] || SINGLE_SYSTEM.price;
@@ -145,13 +148,15 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
       navigation.navigate('RelationshipContext', {
         readingType: 'overlay',
         forPartner: false,
-        userName: 'You',
+        userName: userName || 'You',
         partnerName,
         partnerBirthDate,
         partnerBirthTime,
         partnerBirthCity,
         preselectedSystem: system,
-      });
+        person1Override,
+        person2Override,
+      } as any);
     } else {
       // Individual reading → PersonalContext
       navigation.navigate('PersonalContext', {

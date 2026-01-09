@@ -277,11 +277,31 @@ const mergePeople = (a: any, b: any): Person => {
     ...(base?.hookAudioPaths || {}),
   };
 
+  // CRITICAL: For user profiles, prefer the name from the record marked as user
+  // For other profiles, prefer the newer name based on updatedAt timestamp
+  const baseUpdatedAt = base?.updatedAt ? new Date(base.updatedAt).getTime() : 0;
+  const otherUpdatedAt = other?.updatedAt ? new Date(other.updatedAt).getTime() : 0;
+  const baseIsUser = Boolean(base?.isUser);
+  const otherIsUser = Boolean(other?.isUser);
+  
+  let preferredName: string;
+  if (baseIsUser && !otherIsUser) {
+    preferredName = typeof base?.name === 'string' ? base.name : (typeof other?.name === 'string' ? other.name : 'Unknown');
+  } else if (otherIsUser && !baseIsUser) {
+    preferredName = typeof other?.name === 'string' ? other.name : (typeof base?.name === 'string' ? base.name : 'Unknown');
+  } else if (otherUpdatedAt > baseUpdatedAt) {
+    // Neither is user, or both are users - prefer newer name
+    preferredName = typeof other?.name === 'string' ? other.name : (typeof base?.name === 'string' ? base.name : 'Unknown');
+  } else {
+    // Default to base name (original logic)
+    preferredName = typeof base?.name === 'string' ? base.name : (typeof other?.name === 'string' ? other.name : 'Unknown');
+  }
+
   return {
     ...other,
     ...base,
     id: base.id,
-    name: typeof base?.name === 'string' ? base.name : (typeof other?.name === 'string' ? other.name : 'Unknown'),
+    name: preferredName,
     isUser: Boolean(base?.isUser),
     isVerified: Boolean(base?.isVerified || other?.isVerified),
     birthData: mergedBirth,
@@ -588,9 +608,18 @@ export const useProfileStore = create<ProfileState>()(
           }
 
           const existing = state.people[idx];
+          
+          // CRITICAL: For user profiles, prefer local name over Supabase name (local is authoritative)
+          // For other profiles, prefer the newer name based on updatedAt timestamp
+          const existingUpdatedAt = existing.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
+          const incomingUpdatedAt = incoming.updatedAt ? new Date(incoming.updatedAt).getTime() : 0;
+          const preferLocalName = existing.isUser || (existingUpdatedAt > incomingUpdatedAt);
+          const preferredName = preferLocalName && existing.name ? existing.name : (incoming.name || existing.name);
+          
           const merged: Person = {
             ...existing,
             ...incoming,
+            name: preferredName, // Use preferred name instead of blindly taking incoming
             // Preserve deep readings already cached locally unless incoming explicitly has them
             readings: Array.isArray(incoming.readings) && incoming.readings.length > 0 ? incoming.readings : existing.readings,
             // Ensure birthData is always sanitized
@@ -942,6 +971,13 @@ export const useProfileStore = create<ProfileState>()(
       },
 
       syncReadingArtifacts: (personId, readingId, artifacts) => {
+        // CRITICAL: Only sync if at least one artifact exists (prevents empty readings in cache)
+        const hasAnyArtifact = !!(artifacts.pdfPath || artifacts.audioPath || artifacts.songPath);
+        if (!hasAnyArtifact) {
+          console.log(`⚠️ Skipping syncReadingArtifacts for ${readingId} - no artifacts provided`);
+          return;
+        }
+        
         // #region agent log
         fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:syncReadingArtifacts',message:'Syncing artifacts',data:{personId,readingId,hasPdf:!!artifacts.pdfPath,hasAudio:!!artifacts.audioPath,hasSong:!!artifacts.songPath},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STORE'})}).catch(()=>{});
         // #endregion

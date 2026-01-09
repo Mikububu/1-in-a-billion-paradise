@@ -6,8 +6,8 @@
  * specific focus areas without affecting astrological calculations.
  */
 
-import { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Dimensions, Animated, Easing } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
@@ -15,11 +15,78 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonalContext'>;
 
-const MAX_CHARS = 500;
+const MAX_CHARS = 100;
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const CIRCLE_SIZE = Math.min(SCREEN_WIDTH * 0.7, SCREEN_HEIGHT * 0.4);
+const CIRCLE_SIZE_2 = CIRCLE_SIZE * 1.1; // Second circle - 10% larger
+const CIRCLE_SIZE_3 = CIRCLE_SIZE * 1.25; // Third circle - 25% larger
 
 export const PersonalContextScreen = ({ navigation, route }: Props) => {
     const { personName, isSelf, ...restParams } = route.params;
     const [context, setContext] = useState('');
+    const pulseAnim1 = useRef(new Animated.Value(1)).current;
+    const pulseAnim2 = useRef(new Animated.Value(1)).current;
+    const pulseAnim3 = useRef(new Animated.Value(1)).current;
+    const opacityAnim1 = useRef(new Animated.Value(0.8)).current;
+    const opacityAnim2 = useRef(new Animated.Value(0.6)).current;
+    const opacityAnim3 = useRef(new Animated.Value(0.4)).current;
+
+    useEffect(() => {
+        // Create a harmonious wave effect - circles pulse outward in sequence
+        // Each circle starts slightly after the previous one, creating a ripple effect
+        const createPulseAnimation = (scaleAnim: Animated.Value, opacityAnim: Animated.Value, delay: number) => {
+            return Animated.loop(
+                Animated.sequence([
+                    Animated.delay(delay),
+                    Animated.parallel([
+                        Animated.timing(scaleAnim, {
+                            toValue: 1.12,
+                            duration: 3000,
+                            easing: Easing.out(Easing.ease),
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(opacityAnim, {
+                            toValue: 0.3,
+                            duration: 3000,
+                            easing: Easing.out(Easing.ease),
+                            useNativeDriver: true,
+                        }),
+                    ]),
+                    Animated.parallel([
+                        Animated.timing(scaleAnim, {
+                            toValue: 1,
+                            duration: 3000,
+                            easing: Easing.in(Easing.ease),
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(opacityAnim, {
+                            toValue: opacityAnim === opacityAnim1 ? 0.8 : opacityAnim === opacityAnim2 ? 0.6 : 0.4,
+                            duration: 3000,
+                            easing: Easing.in(Easing.ease),
+                            useNativeDriver: true,
+                        }),
+                    ]),
+                ])
+            );
+        };
+        
+        // Stagger the animations to create a wave effect
+        // Inner circle starts first, then middle, then outer
+        // Inner circle: darker red, middle: medium pink-red, outer: lighter pink
+        const pulseAnimation1 = createPulseAnimation(pulseAnim1, opacityAnim1, 0);
+        const pulseAnimation2 = createPulseAnimation(pulseAnim2, opacityAnim2, 600);
+        const pulseAnimation3 = createPulseAnimation(pulseAnim3, opacityAnim3, 1200);
+        
+        pulseAnimation1.start();
+        pulseAnimation2.start();
+        pulseAnimation3.start();
+        
+        return () => {
+            pulseAnimation1.stop();
+            pulseAnimation2.stop();
+            pulseAnimation3.stop();
+        };
+    }, [pulseAnim1, pulseAnim2, pulseAnim3, opacityAnim1, opacityAnim2, opacityAnim3]);
 
     const handleSkip = () => {
         navigation.navigate('SystemSelection', {
@@ -35,18 +102,13 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
         });
     };
 
-    const charsRemaining = MAX_CHARS - context.length;
-
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.keyboardView}
             >
-                <ScrollView
-                    contentContainerStyle={styles.scrollContent}
-                    keyboardShouldPersistTaps="handled"
-                >
+                <View style={styles.content}>
                     {/* Header */}
                     <View style={styles.header}>
                         <Text style={styles.headline}>
@@ -60,24 +122,57 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                         </Text>
                     </View>
 
-                    {/* Text Input */}
-                    <View style={styles.inputContainer}>
-                        <TextInput
-                            style={styles.textInput}
-                            multiline
-                            placeholder="Share your questions or focus areas here..."
-                            placeholderTextColor={colors.mutedText}
-                            value={context}
-                            onChangeText={setContext}
-                            maxLength={MAX_CHARS}
-                            autoFocus
-                            textAlignVertical="top"
+                    {/* Circular Text Input - Centered */}
+                    <View style={styles.circleWrapper}>
+                        <Animated.View
+                            style={[
+                                styles.animatedCircle,
+                                styles.animatedCircle1,
+                                {
+                                    transform: [{ scale: pulseAnim1 }],
+                                    opacity: opacityAnim1,
+                                    borderColor: '#FF1744', // Deep red
+                                },
+                            ]}
                         />
-                        <Text style={styles.charCount}>
-                            {charsRemaining} characters remaining
-                        </Text>
+                        <Animated.View
+                            style={[
+                                styles.animatedCircle,
+                                styles.animatedCircle2,
+                                {
+                                    transform: [{ scale: pulseAnim2 }],
+                                    opacity: opacityAnim2,
+                                    borderColor: '#FF6B9D', // Medium pink-red
+                                },
+                            ]}
+                        />
+                        <Animated.View
+                            style={[
+                                styles.animatedCircle,
+                                styles.animatedCircle3,
+                                {
+                                    transform: [{ scale: pulseAnim3 }],
+                                    opacity: opacityAnim3,
+                                    borderColor: '#FFB3D1', // Light pink
+                                },
+                            ]}
+                        />
+                        <View style={styles.circleContainer}>
+                            <TextInput
+                                style={styles.circleInput}
+                                multiline
+                                placeholder="Share your questions..."
+                                placeholderTextColor={colors.mutedText}
+                                value={context}
+                                onChangeText={setContext}
+                                maxLength={MAX_CHARS}
+                                autoFocus
+                                textAlignVertical="center"
+                                textAlign="center"
+                            />
+                        </View>
                     </View>
-                </ScrollView>
+                </View>
 
                 {/* Bottom Buttons */}
                 <View style={styles.buttonContainer}>
@@ -108,51 +203,79 @@ const styles = StyleSheet.create({
     keyboardView: {
         flex: 1,
     },
-    scrollContent: {
-        flexGrow: 1,
+    content: {
+        flex: 1,
         padding: spacing.page,
+        alignItems: 'center',
+        paddingTop: spacing.xl * 2,
     },
     header: {
-        marginBottom: spacing.xl,
-        marginTop: spacing.lg,
+        width: '100%',
+        marginBottom: spacing.xl * 2,
     },
     headline: {
         fontFamily: typography.headline,
-        fontSize: 18,
+        fontSize: 24,
         color: colors.text,
         marginBottom: spacing.md,
-        lineHeight: 24,
+        lineHeight: 30,
         fontStyle: 'italic',
         textAlign: 'center',
     },
     subheadline: {
         fontFamily: typography.sansRegular,
-        fontSize: 14,
+        fontSize: 16,
         color: colors.mutedText,
-        lineHeight: 20,
+        lineHeight: 22,
         textAlign: 'center',
     },
-    inputContainer: {
-        flex: 1,
-        minHeight: 200,
+    circleWrapper: {
+        width: CIRCLE_SIZE,
+        height: CIRCLE_SIZE,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: spacing.xl,
+        position: 'relative',
     },
-    textInput: {
+    animatedCircle: {
+        position: 'absolute',
+        borderWidth: 2,
+        backgroundColor: 'transparent',
+    },
+    animatedCircle1: {
+        width: CIRCLE_SIZE,
+        height: CIRCLE_SIZE,
+        borderRadius: CIRCLE_SIZE / 2,
+    },
+    animatedCircle2: {
+        width: CIRCLE_SIZE_2,
+        height: CIRCLE_SIZE_2,
+        borderRadius: CIRCLE_SIZE_2 / 2,
+    },
+    animatedCircle3: {
+        width: CIRCLE_SIZE_3,
+        height: CIRCLE_SIZE_3,
+        borderRadius: CIRCLE_SIZE_3 / 2,
+    },
+    circleContainer: {
+        width: CIRCLE_SIZE,
+        height: CIRCLE_SIZE,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    circleInput: {
+        width: CIRCLE_SIZE,
+        height: CIRCLE_SIZE,
+        borderRadius: CIRCLE_SIZE / 2,
         fontFamily: typography.sansRegular,
-        fontSize: 16,
+        fontSize: 14,
         color: colors.text,
         backgroundColor: colors.surface,
         borderWidth: 2,
         borderColor: colors.primary,
-        borderRadius: radii.lg,
-        padding: spacing.lg,
-        height: 300,
-    },
-    charCount: {
-        fontFamily: typography.sansRegular,
-        fontSize: 12,
-        color: colors.mutedText,
-        marginTop: spacing.sm,
-        textAlign: 'right',
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.lg,
+        textAlignVertical: 'center',
     },
     buttonContainer: {
         flexDirection: 'row',

@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Keyboard, ScrollView, Alert, Modal } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, Keyboard, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -49,22 +49,11 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
   const [birthTime, setBirthTime] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [showPeoplePicker, setShowPeoplePicker] = useState(false);
 
   // Get people from store to check for duplicates
 
   const people = useProfileStore((state) => state.people);
   const addPerson = useProfileStore((state) => state.addPerson);
-  const savedPeople = useMemo(() => {
-    return (people || [])
-      .filter((p: any) => p && !p.isUser)
-      .slice()
-      .sort((a: any, b: any) => {
-        const ta = Date.parse(a.updatedAt || a.createdAt || '') || 0;
-        const tb = Date.parse(b.updatedAt || b.createdAt || '') || 0;
-        return tb - ta;
-      });
-  }, [people]);
 
   // City search state
   const [cityQuery, setCityQuery] = useState('');
@@ -247,31 +236,6 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
     return `${time.getHours().toString().padStart(2, '0')}:${time.getMinutes().toString().padStart(2, '0')}`;
   };
 
-  const handlePickExistingPerson = useCallback((p: any) => {
-    setShowPeoplePicker(false);
-    if (!p?.birthData) {
-      Alert.alert('Missing data', 'This person is missing birth data.');
-      return;
-    }
-
-    setName(p.name || '');
-    setBirthDate(parseIsoDate(p.birthData.birthDate));
-    setBirthTime(parseHHMM(p.birthData.birthTime));
-
-    const nextCity: CityOption = {
-      id: `saved-${p.id}`,
-      name: p.birthData.birthCity || 'Unknown',
-      country: '',
-      region: '',
-      latitude: typeof p.birthData.latitude === 'number' ? p.birthData.latitude : 0,
-      longitude: typeof p.birthData.longitude === 'number' ? p.birthData.longitude : 0,
-      timezone: p.birthData.timezone || 'UTC',
-    };
-
-    setSelectedCity(nextCity);
-    setCityQuery(nextCity.name);
-    setShowCitySuggestions(false);
-  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -289,17 +253,6 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
       >
         <View style={styles.content}>
           <Text style={styles.title} selectable>Tell us about...</Text>
-
-          {savedPeople.length > 0 && (
-            <TouchableOpacity
-              style={styles.pickFromPeopleBtn}
-              onPress={() => setShowPeoplePicker(true)}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.pickFromPeopleIcon}>☰</Text>
-              <Text style={styles.pickFromPeopleText}>Choose from My People</Text>
-            </TouchableOpacity>
-          )}
 
           {/* Name Input */}
           <View style={styles.inputRow}>
@@ -403,63 +356,6 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
         </View>
       </ScrollView>
 
-      <Modal
-        visible={showPeoplePicker}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowPeoplePicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Choose a person</Text>
-              <TouchableOpacity onPress={() => setShowPeoplePicker(false)} style={styles.modalCloseBtn}>
-                <Text style={styles.modalCloseText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.modalList} contentContainerStyle={{ paddingBottom: spacing.md }}>
-              {savedPeople.length === 0 ? (
-                <View style={styles.modalEmpty}>
-                  <Text style={styles.modalEmptyTitle}>No saved people yet</Text>
-                  <Text style={styles.modalEmptyText}>
-                    Add someone first, then you can reuse them here for instant comparisons.
-                  </Text>
-                </View>
-              ) : (
-                savedPeople.map((p: any) => (
-                  <TouchableOpacity
-                    key={p.id}
-                    style={styles.modalPersonRow}
-                    onPress={() => handlePickExistingPerson(p)}
-                    activeOpacity={0.85}
-                  >
-                    <View style={styles.modalAvatar}>
-                      <Text style={styles.modalAvatarText}>{String(p.name || '?').charAt(0).toUpperCase()}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.modalPersonName}>{p.name}</Text>
-                      <Text style={styles.modalPersonMeta} numberOfLines={1}>
-                        {p.birthData?.birthDate || '—'} · {p.birthData?.birthTime || '—'} · {p.birthData?.birthCity || '—'}
-                      </Text>
-                    </View>
-                    <Text style={styles.modalChevron}>→</Text>
-                  </TouchableOpacity>
-                ))
-              )}
-
-              <TouchableOpacity
-                style={styles.modalAddNewRow}
-                onPress={() => setShowPeoplePicker(false)}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.modalAddNewIcon}>＋</Text>
-                <Text style={styles.modalAddNewText}>Add a new person</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
 
       <View style={styles.footer}>
         <Button
@@ -521,29 +417,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.md, // Reduced margin
     textAlign: 'center', // Centered headline
-  },
-  pickFromPeopleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    borderRadius: 999,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  pickFromPeopleIcon: {
-    fontFamily: typography.sansSemiBold,
-    fontSize: 16,
-    color: colors.primary,
-    marginRight: spacing.sm,
-  },
-  pickFromPeopleText: {
-    fontFamily: typography.sansSemiBold,
-    fontSize: 15,
-    color: colors.primary,
   },
   inputRow: {
     flexDirection: 'row',
@@ -627,131 +500,5 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: spacing.page,
     paddingBottom: spacing.xl,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.page,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 520,
-    height: '70%',
-    backgroundColor: colors.background,
-    borderRadius: radii.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
-  },
-  modalTitle: {
-    fontFamily: typography.sansSemiBold,
-    fontSize: 16,
-    color: colors.text,
-  },
-  modalCloseBtn: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-  },
-  modalCloseText: {
-    fontFamily: typography.sansRegular,
-    fontSize: 18,
-    color: colors.text,
-    lineHeight: 18,
-  },
-  modalList: {
-    flex: 1,
-  },
-  modalEmpty: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xl,
-    alignItems: 'center',
-  },
-  modalEmptyTitle: {
-    fontFamily: typography.sansSemiBold,
-    fontSize: 16,
-    color: colors.text,
-  },
-  modalEmptyText: {
-    fontFamily: typography.sansRegular,
-    fontSize: 14,
-    color: colors.mutedText,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-    lineHeight: 20,
-  },
-  modalPersonRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
-    backgroundColor: colors.background,
-  },
-  modalAvatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
-  },
-  modalAvatarText: {
-    fontFamily: typography.headline,
-    fontSize: 18,
-    color: '#FFFFFF',
-    fontStyle: 'italic',
-  },
-  modalPersonName: {
-    fontFamily: typography.sansSemiBold,
-    fontSize: 16,
-    color: colors.text,
-  },
-  modalPersonMeta: {
-    fontFamily: typography.sansRegular,
-    fontSize: 13,
-    color: colors.mutedText,
-    marginTop: 2,
-  },
-  modalChevron: {
-    fontFamily: typography.sansSemiBold,
-    fontSize: 18,
-    color: colors.mutedText,
-    marginLeft: spacing.md,
-  },
-  modalAddNewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    backgroundColor: colors.surface,
-  },
-  modalAddNewIcon: {
-    fontFamily: typography.sansBold,
-    fontSize: 18,
-    color: colors.primary,
-    marginRight: spacing.sm,
-  },
-  modalAddNewText: {
-    fontFamily: typography.sansSemiBold,
-    fontSize: 15,
-    color: colors.primary,
   },
 });

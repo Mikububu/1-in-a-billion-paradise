@@ -244,7 +244,7 @@ export const CompleteReadingScreen = ({ navigation, route }: Props) => {
         style: 'production',
         person1: personData,
         relationshipIntensity: relationshipIntensity || 50,
-        voiceId: 'grandpa', // Default narrator
+        voiceId: 'david', // Default narrator
         // Optional: audioUrl if custom voice
       };
 

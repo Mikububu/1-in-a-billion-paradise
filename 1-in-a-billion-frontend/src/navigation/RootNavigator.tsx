@@ -322,6 +322,23 @@ export type MainStackParamList = {
     partnerBirthDate?: string;
     partnerBirthTime?: string | null;
     partnerBirthCity?: CityOption | null;
+    userName?: string;
+    person1Override?: {
+      name: string;
+      birthDate: string;
+      birthTime: string;
+      timezone: string;
+      latitude: number;
+      longitude: number;
+    };
+    person2Override?: {
+      name: string;
+      birthDate: string;
+      birthTime: string;
+      timezone: string;
+      latitude: number;
+      longitude: number;
+    };
   };
   WhyDifferent: undefined;
   // Audio Player

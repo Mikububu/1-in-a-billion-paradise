@@ -102,7 +102,7 @@ type OnboardingState = {
   hookAudio: Partial<Record<HookReading['type'], string>>; // Pre-loaded audio URLs (from Supabase Storage) or legacy Base64/file paths
   // Partner audio (for 3rd person readings - legacy, kept for backwards compat)
   partnerAudio: Partial<Record<HookReading['type'], string>>;
-  voiceId: string; // 'Grandpa' | 'Anabella' | 'Dorothy' | 'Ludwig'
+  voiceId: string; // Voice ID from backend API (e.g., 'david', 'elisabeth', 'michael', 'peter', 'victor')
 
   // ═══════════════════════════════════════════════════════════════════════════
   // NEW: People & Readings Library
@@ -174,7 +174,7 @@ const baseState = {
   hookReadings: {} as Partial<Record<HookReading['type'], HookReading>>,
   hookAudio: {} as Partial<Record<HookReading['type'], string>>,
   partnerAudio: {} as Partial<Record<HookReading['type'], string>>,
-  voiceId: 'Grandpa',
+  voiceId: 'david',
   // New People & Readings Library
   people: [] as PersonProfile[],
   readings: [] as ReadingRecord[],

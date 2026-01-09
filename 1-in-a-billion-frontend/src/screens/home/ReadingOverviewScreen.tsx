@@ -85,7 +85,7 @@ export default function ReadingOverviewScreen() {
     productType = 'single_system',
     systems = ['western'],
     readingType = 'individual',
-    voiceId = 'Grandpa', // Default if missing
+    voiceId = 'david', // Default if missing
     audioUrl = 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/voice_10sec.wav', // Default if missing
   } = params;
 

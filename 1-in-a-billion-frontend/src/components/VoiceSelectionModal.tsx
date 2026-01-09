@@ -27,7 +27,7 @@ export const VoiceSelectionModal = ({ visible, onConfirm, onCancel }: Props) => 
 
     const [voices, setVoices] = useState<Voice[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedVoice, setSelectedVoice] = useState<string>(storeVoiceId || 'grandpa');
+    const [selectedVoice, setSelectedVoice] = useState<string>(storeVoiceId || 'david');
     const [playingVoice, setPlayingVoice] = useState<string | null>(null);
     const [sound, setSound] = useState<Audio.Sound | null>(null);
 

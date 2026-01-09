@@ -103,7 +103,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   
   // Initialize with store readings for instant display (like Audible)
   // Convert store readings to screen format
-  const initialReadings = storedReadings.map(r => ({
+  const initialReadingsRaw = storedReadings.map(r => ({
     id: r.id,
     system: r.system,
     name: SYSTEMS.find(s => s.id === r.system)?.name || r.system,
@@ -114,8 +114,15 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     timestamp: r.createdAt || r.generatedAt,
   }));
   
+  // CRITICAL: Filter out readings without artifacts BEFORE displaying (prevents "flash" of empty readings)
+  // This matches the filter logic used after loading fresh data
+  const initialReadings = initialReadingsRaw.filter(r => {
+    const hasRealContent = !!(r.pdfPath || r.audioPath || r.songPath);
+    return hasRealContent;
+  });
+  
   // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:initialReadings',message:'Initial readings mapped',data:{initialReadingsCount:initialReadings.length,systemsAvailable:!!SYSTEMS,systemsCount:SYSTEMS?.length,initialReadings:initialReadings.map(r=>({id:r.id,system:r.system,name:r.name}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5,H6'})}).catch(()=>{});
+  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:initialReadings',message:'Initial readings mapped and filtered',data:{initialReadingsRawCount:initialReadingsRaw.length,initialReadingsCount:initialReadings.length,filteredOut:initialReadingsRaw.length-initialReadings.length,systemsAvailable:!!SYSTEMS,systemsCount:SYSTEMS?.length,initialReadings:initialReadings.map(r=>({id:r.id,system:r.system,name:r.name,hasPdf:!!r.pdfPath,hasAudio:!!r.audioPath,hasSong:!!r.songPath}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5,H6'})}).catch(()=>{});
   // #endregion
   
   const [readings, setReadings] = useState<Reading[]>(initialReadings);
@@ -740,20 +747,34 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       // #endregion
 
       // AUDIBLE-STYLE PERSISTENCE: Sync to store for persistent library
+      // CRITICAL: Only sync readings that have at least one artifact (prevents empty readings in cache)
       if (personId && jobId && realReadings.length > 0) {
         // Check if readings already exist in store for this job
         const existingReadings = getReadingsByJobId(personId, jobId);
         
         if (existingReadings.length === 0) {
-          // First time loading - create placeholders in store
-          const systems = realReadings.map(r => r.system as any);
-          const createdAt = jobData?.job?.created_at || new Date().toISOString();
-          createPlaceholderReadings(personId, jobId, systems, createdAt);
-          console.log(`✅ Created ${systems.length} placeholder readings in store for job ${jobId}`);
+          // First time loading - create placeholders ONLY for readings with artifacts
+          // This prevents empty readings from being saved to the store
+          const systemsWithArtifacts = realReadings
+            .filter(r => !!(r.pdfPath || r.audioPath || r.songPath))
+            .map(r => r.system as any);
+          
+          if (systemsWithArtifacts.length > 0) {
+            const createdAt = jobData?.job?.created_at || new Date().toISOString();
+            createPlaceholderReadings(personId, jobId, systemsWithArtifacts, createdAt);
+            console.log(`✅ Created ${systemsWithArtifacts.length} placeholder readings in store for job ${jobId} (only systems with artifacts)`);
+          }
         }
         
         // Sync artifact paths to store (updates existing placeholders)
+        // CRITICAL: Only sync readings that have at least one artifact
         for (const reading of realReadings) {
+          // Skip readings without any artifacts - don't save empty readings to store
+          if (!reading.pdfPath && !reading.audioPath && !reading.songPath) {
+            console.log(`⚠️ Skipping sync for ${reading.system} - no artifacts`);
+            continue;
+          }
+          
           // Find corresponding store reading by system + jobId
           const storeReading = getReadingsByJobId(personId, jobId).find(r => r.system === reading.system);
           if (storeReading) {
@@ -765,17 +786,24 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
             });
           }
         }
-        console.log(`✅ Synced ${realReadings.length} readings to store (Audible-style persistence)`);
+        console.log(`✅ Synced ${realReadings.filter(r => !!(r.pdfPath || r.audioPath || r.songPath)).length} readings to store (only readings with artifacts)`);
       }
     } catch (e: any) {
       const errorMsg = e.name === 'AbortError' ? 'Request timed out' : e.message;
       console.error('❌ [PersonReadings] Error loading readings:', errorMsg);
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:catch',message:'Error in loadReadings',data:{error:errorMsg,jobId,personType},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'ERROR'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:catch',message:'Error in loadReadings',data:{error:errorMsg,jobId,personType,hadReadingsBeforeError:readings.length>0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'ERROR'})}).catch(()=>{});
       // #endregion
-      setLoadError(errorMsg || 'Could not load reading');
-      // Show empty state on error - the loadError banner provides retry option
-      setReadings([]);
+      // Only set error if we were refreshing existing readings (had readings before error)
+      // If no readings existed, just show empty state - no error needed
+      const hadReadingsBeforeError = readings.length > 0;
+      if (hadReadingsBeforeError) {
+        setLoadError(errorMsg || 'Could not load reading');
+        // Keep existing readings so user can retry
+      } else {
+        setLoadError(null); // Clear error - empty state is appropriate when no readings exist
+        setReadings([]);
+      }
     } finally {
       console.log('✅ [PersonReadings] Load finished, setting loading=false');
       setLoading(false);
@@ -1130,7 +1158,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           </View>
         )}
 
-        {!!loadError && !loading ? (
+        {!!loadError && !loading && jobId && readings.length > 0 ? (
           <TouchableOpacity
             onPress={load}
             onLongPress={() => {

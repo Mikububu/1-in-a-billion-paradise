@@ -17,7 +17,7 @@ import { useOnboardingStore } from '@/store/onboardingStore';
 import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { useState, useEffect } from 'react';
-import { VOICES } from '@/config/readingConfig'; // Added for voice options
+// Voices are now fetched from backend API - no need for hardcoded VOICES object
 import { VoiceSelectionModal } from '@/components/VoiceSelectionModal';
 import { useProfileStore } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
@@ -38,7 +38,7 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
   console.log(`📱 Screen ${screenId}: SystemSelectionScreen`);
   const [isLoading, setIsLoading] = useState(false);
   // Voice Selection State
-  const [selectedVoice, setSelectedVoice] = useState<keyof typeof VOICES>('Grandpa');
+  const [selectedVoice, setSelectedVoice] = useState<string>('david');
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
@@ -207,7 +207,13 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
         if (playingVoice === voiceName) return;
       }
 
-      const url = VOICES[voiceName as keyof typeof VOICES];
+      // Fetch voice sample URL from API
+      const voiceResponse = await fetch(`${env.CORE_API_URL}/api/voices/${voiceName}`);
+      const voiceData = await voiceResponse.json();
+      if (!voiceData.success || !voiceData.voice?.sampleUrl) {
+        throw new Error('Voice sample not found');
+      }
+      const url = voiceData.voice.sampleUrl;
       console.log(`▶️ Playing sample for ${voiceName}: ${url}`);
 
       const { sound: newSound } = await Audio.Sound.createAsync(
@@ -323,7 +329,8 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
       person1,
       relationshipIntensity,
       voiceId: voiceIdOverride || selectedVoice, // Use override if passed
-      audioUrl: VOICES[(voiceIdOverride || selectedVoice) as keyof typeof VOICES],
+      // Note: audioUrl is no longer needed - backend will fetch it based on voiceId
+      // audioUrl: Will be fetched by backend based on voiceId
     };
     
     // #region agent log
@@ -386,23 +393,21 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
   };
 
   const handleSelectSystem = (systemId: string) => {
-    const systemName = SYSTEMS.find(s => s.id === systemId)?.name || systemId;
-    
-    // Navigate to full-screen voice selection instead of modal
-    navigation.navigate('VoiceSelection', {
-      preselectedVoice: selectedVoice,
-      onSelect: (voiceId: string) => {
-        // Callback when voice is selected
-        startJobAndNavigate({
-          productType: isOverlay ? 'compatibility_overlay' : 'single_system',
-          title: systemName,
-          systems: [systemId],
-          voiceIdOverride: voiceId,
-          relationshipContext,
-          personalContext,
-        });
-      },
-    });
+    // Navigate to system explainer screen (slider overview)
+    navigation.navigate('SystemExplainer', {
+      system: systemId as any,
+      forPurchase: true,
+      readingType: isOverlay ? 'overlay' : 'individual',
+      forPartner: false,
+      partnerName: partnerName,
+      partnerBirthDate: partnerBirthDate,
+      partnerBirthTime: partnerBirthTime,
+      partnerBirthCity: partnerBirthCity,
+      // Pass through person overrides for SystemExplainer → RelationshipContext → SystemSelection flow
+      person1Override,
+      person2Override,
+      userName,
+    } as any);
   };
 
   const handleSelectBundle = () => {

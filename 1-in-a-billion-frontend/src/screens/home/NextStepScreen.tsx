@@ -18,10 +18,6 @@ export const NextStepScreen = ({ navigation }: Props) => {
       onPress: () => navigation.navigate('MyLibrary'),
     },
     {
-      label: 'MY KARMIC ZOO',
-      onPress: () => navigation.navigate('PeopleList', { mode: 'select', returnTo: 'SystemSelection' }),
-    },
-    {
       label: 'COMPARE TWO PEOPLE',
       onPress: () => navigation.navigate('ComparePeople'),
     },
@@ -30,7 +26,7 @@ export const NextStepScreen = ({ navigation }: Props) => {
       onPress: () => navigation.navigate('SystemsOverview'),
     },
     {
-      label: 'BACK TO CONTROL CENTER',
+      label: 'BACK TO MY SECRET LIFE',
       onPress: () => navigation.navigate('Home'),
     },
   ];
@@ -110,7 +106,7 @@ const styles = StyleSheet.create({
   buttonsContainer: {
     flex: 1,
     justifyContent: 'flex-start', // Align to top
-    paddingTop: 200, // Moved higher to accommodate 5 buttons
+    paddingTop: 240, // Moved down a bit (was 200)
     paddingBottom: 0,
     alignItems: 'center',
     paddingHorizontal: 32,

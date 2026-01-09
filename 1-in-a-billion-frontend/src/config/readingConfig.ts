@@ -31,13 +31,20 @@ export const AUDIO_CONFIG = {
   charsPerMinute: { slow: 300, fast: 500 },
 };
 
+/**
+ * @deprecated VOICES object is deprecated. 
+ * Voices are now fetched from the backend API (/api/voices/samples).
+ * This object is kept for backwards compatibility but should not be used for new code.
+ * Use the API endpoint instead - it's the single source of truth and easily updatable.
+ */
 export const VOICES = {
-  // Supabase storage URLs for voice samples or local required assets
-  Grandpa: 'https://yvlxhcvwxvwfakgudldp.supabase.co/storage/v1/object/public/voices/voice_10sec.wav',
-  Anabella: require('../../assets/audio/voices/Anabella.wav'),
-  Dorothy: require('../../assets/audio/voices/Dorothy.wav'),
-  Ludwig: require('../../assets/audio/voices/Ludwig.wav'),
-  'The Creator': require('../../assets/audio/voices/Mike.mp3'),
+  // Legacy voice mappings - kept for backwards compatibility only
+  // New voices are managed in backend/src/config/voices.ts
+  david: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/david/henry_miller_sample.mp3',
+  elisabeth: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/elisabeth/henry_miller_sample.mp3',
+  michael: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/michael/henry_miller_sample.mp3',
+  peter: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/peter/henry_miller_sample.mp3',
+  victor: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/victor/henry_miller_sample.mp3',
 };
 
 /**

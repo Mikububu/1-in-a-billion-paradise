@@ -80,8 +80,8 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
       return;
     }
 
-    // Route straight to paid overlay packages with explicit person overrides.
-    navigation.navigate('RelationshipContext', {
+    // Route to overview menu (SystemSelection) with explicit person overrides.
+    navigation.navigate('SystemSelection', {
       readingType: 'overlay',
       forPartner: false,
       userName: personA.name,
