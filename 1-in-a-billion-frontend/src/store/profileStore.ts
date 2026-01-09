@@ -1030,6 +1030,17 @@ export const useProfileStore = create<ProfileState>()(
       },
 
       linkJobToPerson: (personId, jobId) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:linkJobToPerson:entry',message:'Linking job to person',data:{personId,jobId,allPeopleIds:get().people.map(p=>p.id),allPeopleNames:get().people.map(p=>p.name)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STORE'})}).catch(()=>{});
+        // #endregion
+        const person = get().people.find((p) => p.id === personId);
+        if (!person) {
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:linkJobToPerson:noPerson',message:'Person not found for linking',data:{personId,jobId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STORE'})}).catch(()=>{});
+          // #endregion
+          return;
+        }
+        const oldJobIds = person.jobIds || [];
         set((state) => ({
           people: state.people.map((p) =>
             p.id === personId
@@ -1041,6 +1052,10 @@ export const useProfileStore = create<ProfileState>()(
               : p
           ),
         }));
+        // #region agent log
+        const updatedPerson = get().people.find((p) => p.id === personId);
+        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profileStore.ts:linkJobToPerson:result',message:'Job linked successfully',data:{personId,jobId,oldJobIdsCount:oldJobIds.length,newJobIdsCount:updatedPerson?.jobIds?.length||0,newJobIds:updatedPerson?.jobIds},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STORE'})}).catch(()=>{});
+        // #endregion
       },
 
       // Compatibility Actions

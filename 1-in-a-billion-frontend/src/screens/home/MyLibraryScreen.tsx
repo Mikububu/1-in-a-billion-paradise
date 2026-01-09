@@ -647,6 +647,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             // Merge jobIds if person already exists
             existing.jobIds = [...new Set([...(existing.jobIds || []), job.id])];
             // Persist to store (Audible-style)
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:linkJobToPerson:p1',message:'Calling linkJobToPerson for person1',data:{personName:p1Name,personId:existing.id,jobId:job.id,existingJobIds:existing.jobIds,beforeLinkJobIds:existing.jobIds},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'LINK'})}).catch(()=>{});
+            // #endregion
             linkJobToPerson(existing.id, job.id);
           } else {
             // Create placeholder readings based on job type
@@ -689,6 +692,11 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           if (existing) {
             // Merge jobIds if person already exists
             existing.jobIds = [...new Set([...(existing.jobIds || []), job.id])];
+            // Persist to store (Audible-style)
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:linkJobToPerson:p2',message:'Calling linkJobToPerson for person2',data:{personName:p2Name,personId:existing.id,jobId:job.id,existingJobIds:existing.jobIds,beforeLinkJobIds:existing.jobIds},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'LINK'})}).catch(()=>{});
+            // #endregion
+            linkJobToPerson(existing.id, job.id);
           } else {
             // Create placeholder readings based on job type
             const isOverlay = job.type === 'overlay' || job.type === 'compatibility';
@@ -1983,7 +1991,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                 style={styles.personCard}
                 onPress={() => {
                   // #region agent log
-                  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:navigation',message:'Navigating to PersonReadings',data:{personName:person.name,personId:person.id,personType,jobId:person.jobIds?.[0],jobIdsCount:person.jobIds?.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'NAV'})}).catch(()=>{});
+                  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:navigation',message:'Navigating to PersonReadings',data:{personName:person.name,personId:person.id,personType,jobId:person.jobIds?.[0],jobIdsCount:person.jobIds?.length,allJobIds:person.jobIds,personFromStore:people.find(p=>p.id===person.id||p.name===person.name)?.jobIds},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'NAV'})}).catch(()=>{});
                   // #endregion
                   navigation.navigate('PersonReadings', {
                     personName: person.name,
