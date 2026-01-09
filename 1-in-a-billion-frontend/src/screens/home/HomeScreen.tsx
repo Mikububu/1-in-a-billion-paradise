@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Animated, Alert, Modal, ActivityIndicator, Pressable, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Animated, Alert, Modal, ActivityIndicator, Pressable, useWindowDimensions, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
 import { useOnboardingStore } from '@/store/onboardingStore';
@@ -651,6 +651,16 @@ export const HomeScreen = ({ navigation }: Props) => {
           </View>
         </TouchableOpacity>
 
+        {/* Produced By Section */}
+        <View style={styles.producedBySection}>
+          <Text style={styles.producedByText}>produced by</Text>
+          <Image
+            source={require('../../../assets/images/forbidden-yoga-logo-white.png')}
+            style={styles.forbiddenYogaLogo}
+            resizeMode="contain"
+          />
+        </View>
+
       </ScrollView>
 
       {/* Reading Detail Modal */}
@@ -1049,6 +1059,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.background,
     letterSpacing: 0.5,
+  },
+  
+  // Produced By Section
+  producedBySection: {
+    alignItems: 'center',
+    marginTop: spacing.xl * 2,
+    marginBottom: spacing.xl,
+  },
+  producedByText: {
+    fontFamily: typography.sansRegular,
+    fontSize: 12,
+    color: colors.mutedText,
+    marginBottom: spacing.sm,
+  },
+  forbiddenYogaLogo: {
+    width: 150,
+    height: 50,
   },
 });
 
