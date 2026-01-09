@@ -2,7 +2,7 @@
  * TEXTURED BACKGROUND
  * 
  * Adds a white leather texture to all backgrounds.
- * Uses the white-leather-texture.jpg image as the app-wide background.
+ * Uses the white-leather-texture.jpg image as the app-wide background with 30% opacity.
  */
 
 import { StyleSheet, View, ImageBackground } from 'react-native';
@@ -15,19 +15,21 @@ type Props = {
 
 /**
  * Main textured background component
- * Uses actual leather texture image
+ * Uses actual leather texture image with 30% opacity
  */
 export const TexturedBackground = ({ children, style }: Props) => {
   return (
-    <ImageBackground
-      source={require('../../assets/images/white-leather-texture.jpg')}
-      style={[styles.container, style]}
-      resizeMode="cover"
-    >
+    <View style={[styles.container, style]}>
+      <ImageBackground
+        source={require('../../assets/images/white-leather-texture.jpg')}
+        style={StyleSheet.absoluteFill}
+        resizeMode="cover"
+        imageStyle={{ opacity: 0.3 }}
+      />
       <View style={styles.content}>
         {children}
       </View>
-    </ImageBackground>
+    </View>
   );
 };
 
