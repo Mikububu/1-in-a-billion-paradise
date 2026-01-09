@@ -125,6 +125,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   >([]);
   const [loadingQueueJobs, setLoadingQueueJobs] = useState(false);
   const [queueJobsUpdatedAt, setQueueJobsUpdatedAt] = useState<string | null>(null);
+  const [queueJobsError, setQueueJobsError] = useState<string | null>(null);
   // People with paid readings from Supabase (source of truth)
   const [paidPeopleNames, setPaidPeopleNames] = useState<Set<string>>(new Set());
   // Track nuclear_v2 job artifacts for reading badges
@@ -436,6 +437,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           // #endregion
           setQueueJobs(jobsWithDetails);
           setQueueJobsUpdatedAt(new Date().toISOString());
+          setQueueJobsError(null); // Clear error on success
           setLoadingQueueJobs(false);
 
           const hasActiveJobs = jobsWithDetails.some((j: any) =>
@@ -447,6 +449,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           console.error('❌ Backend API failed:', apiError);
           console.error('❌ Error details:', apiError.message, apiError.stack);
           if (mountedRef.current) {
+            setQueueJobsError(`API Error: ${apiError.message}`);
             setLoadingQueueJobs(false);
           }
         }
@@ -475,6 +478,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           if (!mountedRef.current) return;
           setQueueJobs(data || []);
           setQueueJobsUpdatedAt(new Date().toISOString());
+          setQueueJobsError(null); // Clear error on success
 
           const hasActiveJobs = (data || []).some((j: any) =>
             ['pending', 'queued', 'processing', 'claimed'].includes(String(j.status || '').toLowerCase())
@@ -483,6 +487,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         } catch (e: any) {
           // Don't block the library if this fails
           if (mountedRef.current) {
+            setQueueJobsError(`Supabase Error: ${e.message || String(e)}`);
             setQueueJobsUpdatedAt(new Date().toISOString());
           }
         } finally {
@@ -2329,7 +2334,10 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                     People Extracted: {allPeopleWithReadings.length}{'\n'}
                     Paid Filter: DISABLED{'\n'}
                     Placements Filter: DISABLED{'\n'}
-                    User Name: {userName || 'NOT SET'}
+                    User Name: {userName || 'NOT SET'}{'\n'}
+                    Auth User ID: {authUser?.id || 'NONE'}{'\n'}
+                    Loading: {loadingQueueJobs ? 'YES' : 'NO'}{'\n'}
+                    Error: {queueJobsError || 'NONE'}
                   </Text>
                 </View>
 
