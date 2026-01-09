@@ -125,7 +125,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [zipLoading, setZipLoading] = useState(false);
-  const [bulkDownloadLoading, setBulkDownloadLoading] = useState(false);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [loadingAudioId, setLoadingAudioId] = useState<string | null>(null);
   const [audioLoadProgress, setAudioLoadProgress] = useState<Record<string, number>>({});
@@ -1006,144 +1005,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     }
   };
 
-  const downloadAllMediaFiles = async () => {
-    if (readings.length === 0) {
-      Alert.alert('No Readings', 'There are no readings to download.');
-      return;
-    }
-
-    setBulkDownloadLoading(true);
-    try {
-      // Create a folder for all media files
-      const baseDir = (FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory;
-      if (!baseDir) {
-        throw new Error('No writable directory available');
-      }
-
-      const folderName = `Readings_${personName?.replace(/[^a-zA-Z0-9]/g, '_') || 'All'}_${new Date().toISOString().split('T')[0]}`;
-      const mediaFolder = `${baseDir}${folderName}/`;
-      
-      // Ensure folder exists
-      const dirInfo = await FileSystem.getInfoAsync(mediaFolder);
-      if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(mediaFolder, { intermediates: true });
-      }
-
-      // Create subfolders
-      const pdfFolder = `${mediaFolder}PDFs/`;
-      const audioFolder = `${mediaFolder}Audio/`;
-      const songsFolder = `${mediaFolder}Songs/`;
-      
-      await FileSystem.makeDirectoryAsync(pdfFolder, { intermediates: true });
-      await FileSystem.makeDirectoryAsync(audioFolder, { intermediates: true });
-      await FileSystem.makeDirectoryAsync(songsFolder, { intermediates: true });
-
-      let downloadedCount = 0;
-      let failedCount = 0;
-      const errors: string[] = [];
-
-      // Download all files
-      for (const reading of readings) {
-        const sanitizedName = reading.name.replace(/[^a-zA-Z0-9]/g, '_');
-        
-        // Download PDF
-        if (reading.pdfPath) {
-          try {
-            const pdfFileName = `${sanitizedName}_${reading.system}.pdf`;
-            const pdfPath = `${pdfFolder}${pdfFileName}`;
-            
-            const downloadResumable = FileSystem.createDownloadResumable(
-              reading.pdfPath,
-              pdfPath
-            );
-            await downloadResumable.downloadAsync();
-            downloadedCount++;
-          } catch (error: any) {
-            failedCount++;
-            errors.push(`PDF ${reading.name}: ${error.message}`);
-          }
-        }
-
-        // Download Audio
-        if (reading.audioPath) {
-          try {
-            const audioFileName = `${sanitizedName}_${reading.system}.mp3`;
-            const audioPath = `${audioFolder}${audioFileName}`;
-            
-            const downloadResumable = FileSystem.createDownloadResumable(
-              reading.audioPath,
-              audioPath
-            );
-            await downloadResumable.downloadAsync();
-            downloadedCount++;
-          } catch (error: any) {
-            failedCount++;
-            errors.push(`Audio ${reading.name}: ${error.message}`);
-          }
-        }
-
-        // Download Song
-        if (reading.songPath) {
-          try {
-            const songFileName = `${sanitizedName}_${reading.system}_song.mp3`;
-            const songPath = `${songsFolder}${songFileName}`;
-            
-            const downloadResumable = FileSystem.createDownloadResumable(
-              reading.songPath,
-              songPath
-            );
-            await downloadResumable.downloadAsync();
-            downloadedCount++;
-          } catch (error: any) {
-            failedCount++;
-            errors.push(`Song ${reading.name}: ${error.message}`);
-          }
-        }
-      }
-
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:bulkDownload',message:'Bulk download complete',data:{downloadedCount,failedCount,errorsCount:errors.length,folderName,readingsCount:readings.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'BULK'})}).catch(()=>{});
-      // #endregion
-
-      // Share the folder (on iOS/Android, this opens Files app)
-      if (await Sharing.isAvailableAsync()) {
-        // Create a summary file
-        const summaryText = `Readings Download Summary\n\nPerson: ${personName}\nDate: ${new Date().toLocaleString()}\n\nDownloaded: ${downloadedCount} files\nFailed: ${failedCount} files\n\nFiles saved to: ${folderName}\n\n${errors.length > 0 ? `Errors:\n${errors.join('\n')}` : 'All files downloaded successfully!'}`;
-        const summaryPath = `${mediaFolder}Download_Summary.txt`;
-        await FileSystem.writeAsStringAsync(summaryPath, summaryText);
-
-        // Share the folder (on mobile, user can save to Files/iCloud)
-        Alert.alert(
-          'Download Complete',
-          `Downloaded ${downloadedCount} files to ${folderName}.\n\n${failedCount > 0 ? `Failed: ${failedCount} files. Check summary.` : 'All files downloaded successfully!'}\n\nWould you like to open the folder?`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Open Folder',
-              onPress: async () => {
-                // On mobile, we can't directly open folders, but we can share the summary
-                // User can navigate to Files app manually
-                await Sharing.shareAsync(summaryPath, {
-                  mimeType: 'text/plain',
-                  dialogTitle: 'Download Summary',
-                });
-              },
-            },
-          ]
-        );
-      } else {
-        Alert.alert(
-          'Download Complete',
-          `Downloaded ${downloadedCount} files to:\n${mediaFolder}\n\n${failedCount > 0 ? `Failed: ${failedCount} files.` : 'All files downloaded successfully!'}`
-        );
-      }
-    } catch (error: any) {
-      console.error('Bulk download error:', error);
-      Alert.alert('Download Error', error.message || 'Could not download files');
-    } finally {
-      setBulkDownloadLoading(false);
-    }
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -1369,22 +1230,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           );
         })()}
 
-        {/* Download All Media Files Button - downloads PDFs, Audio, Songs to folder */}
-        {readings.length > 0 && (
-          <TouchableOpacity
-            onPress={downloadAllMediaFiles}
-            disabled={bulkDownloadLoading}
-            style={[styles.bulkDownloadButton, bulkDownloadLoading && styles.bulkDownloadButtonLoading]}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.bulkDownloadButtonText}>
-              {bulkDownloadLoading ? 'Downloading...' : '📥 Download All Media Files'}
-            </Text>
-            <Text style={styles.bulkDownloadButtonSubtext}>
-              PDFs, Audio, Songs → Device Storage
-            </Text>
-          </TouchableOpacity>
-        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -1447,33 +1292,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFF',
-  },
-  bulkDownloadButton: {
-    backgroundColor: '#000',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 12,
-    marginBottom: 20,
-    borderWidth: 2,
-    borderColor: '#C41E3A',
-  },
-  bulkDownloadButtonLoading: {
-    backgroundColor: '#333',
-    opacity: 0.7,
-  },
-  bulkDownloadButtonText: {
-    fontFamily: 'System',
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFF',
-    marginBottom: 4,
-  },
-  bulkDownloadButtonSubtext: {
-    fontFamily: 'System',
-    fontSize: 12,
-    color: '#CCC',
   },
   loadingText: {
     fontFamily: 'System',
