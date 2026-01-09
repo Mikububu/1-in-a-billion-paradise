@@ -61,6 +61,7 @@ import { ExtendedReadingScreen } from '@/screens/home/ExtendedReadingScreen';
 import { FullReadingRedirectScreen } from '@/screens/home/FullReadingRedirectScreen';
 import { CompleteReadingScreen } from '@/screens/home/CompleteReadingScreen';
 import { ReadingSummaryScreen } from '@/screens/home/ReadingSummaryScreen';
+import ReadingOverviewScreen from '@/screens/home/ReadingOverviewScreen';
 import { SavedReadingScreen } from '@/screens/home/SavedReadingScreen';
 import { SystemOverviewScreen } from '@/screens/home/SystemOverviewScreen';
 import { EditBirthDataScreen } from '@/screens/home/EditBirthDataScreen';
@@ -278,6 +279,30 @@ export type MainStackParamList = {
     partnerBirthDate?: string;
     partnerBirthTime?: string | null;
     partnerBirthCity?: CityOption | null;
+  } | undefined;
+  ReadingOverview: {
+    title?: string;
+    person1Name?: string;
+    person2Name?: string;
+    person1?: {
+      name: string;
+      birthDate: string;
+      birthTime: string;
+      timezone: string;
+      latitude: number;
+      longitude: number;
+    };
+    person2?: {
+      name: string;
+      birthDate: string;
+      birthTime: string;
+      timezone: string;
+      latitude: number;
+      longitude: number;
+    };
+    productType?: string;
+    systems?: string[];
+    readingType?: 'individual' | 'overlay';
   } | undefined;
   ReadingSummary: {
     readingType?: string;
@@ -614,6 +639,7 @@ const MainNavigator = () => {
       <MainStack.Screen name="OverlayReader" component={OverlayReaderScreen} />
       <MainStack.Screen name="CompleteReading" component={CompleteReadingScreen} />
       <MainStack.Screen name="ReadingSummary" component={ReadingSummaryScreen} />
+      <MainStack.Screen name="ReadingOverview" component={ReadingOverviewScreen} />
       <MainStack.Screen name="PeopleList" component={PeopleListScreen} />
       <MainStack.Screen name="PersonProfile" component={PersonProfileScreen} />
       <MainStack.Screen name="PersonJobsList" component={PersonJobsListScreen} />
