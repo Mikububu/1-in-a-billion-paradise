@@ -211,6 +211,10 @@ All tables exported as JSON files in this folder.
   // ============================================================================
   console.log('📦 PART 2: Downloading all files from storage buckets...\n');
   
+  let totalFilesDownloaded = 0;
+  let totalFilesFailed = 0;
+  const allErrors: string[] = [];
+  
   // List all buckets
   const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
   
@@ -218,10 +222,6 @@ All tables exported as JSON files in this folder.
     console.error('❌ Error listing buckets:', bucketsError);
   } else {
     console.log(`✅ Found ${buckets.length} storage buckets\n`);
-    
-    let totalFilesDownloaded = 0;
-    let totalFilesFailed = 0;
-    const allErrors: string[] = [];
     
     for (const bucket of buckets || []) {
       console.log(`📁 Processing bucket: ${bucket.name}`);
