@@ -137,6 +137,115 @@ const SYSTEM_CONTENT: Record<SystemType, {
   },
 };
 
+// Overlay/compatibility content for each system - relationship focused
+const OVERLAY_CONTENT: Record<SystemType, {
+  name: string;
+  tagline: string;
+  origin: string;
+  intro: string;
+  howItHelpsYou: string;
+  whatYouDiscover: string[];
+  personalNote: string;
+  icon: string;
+}> = {
+  western: {
+    name: 'Western Compatibility',
+    tagline: 'How your charts dance together',
+    origin: 'Synastry & Composite Analysis',
+    icon: '☉',
+    intro: `When two birth charts meet, something magical happens. Your Venus might land on their Mars. Their Moon might embrace your Sun. These connections tell the story of your relationship.`,
+    howItHelpsYou: `Synastry reveals why you're drawn to each other, where the passion lives, and where the friction comes from. It's not about whether you're "compatible" - it's about understanding the specific dance between you.`,
+    whatYouDiscover: [
+      'Why you felt that instant connection',
+      'Where passion and tension live in your relationship',
+      'Your communication patterns and blind spots',
+      'The growth each of you triggers in the other',
+    ],
+    personalNote: `"Your Venus on their 8th house? That's not casual attraction - that's soul-deep magnetism. This connection was never meant to be simple."`,
+  },
+  
+  vedic: {
+    name: 'Vedic Compatibility',
+    tagline: 'The karmic threads between you',
+    origin: 'Kundali Milan · Nakshatra Matching',
+    icon: 'ॐ',
+    intro: `Vedic astrology has matched couples for thousands of years. It sees relationships as karmic contracts - souls who agreed to meet again, to heal something, to complete something.`,
+    howItHelpsYou: `The Nakshatra compatibility between you reveals past-life connections and present-life lessons. Why did your souls choose each other? What are you here to learn together?`,
+    whatYouDiscover: [
+      'Your Nakshatra compatibility score',
+      'Past-life connections showing up now',
+      'The karmic lessons you\'re learning together',
+      'Timing for major relationship milestones',
+    ],
+    personalNote: `"Your Nakshatras share the same Nadi - you've known each other before. This isn't your first dance together, and the universe made sure you'd find each other again."`,
+  },
+  
+  human_design: {
+    name: 'Human Design Compatibility',
+    tagline: 'How your energies merge',
+    origin: 'Composite Bodygraph Analysis',
+    icon: '◬',
+    intro: `When two Bodygraphs combine, new channels activate. Gates that were dormant suddenly light up. Your partnership creates an energy field that neither of you has alone.`,
+    howItHelpsYou: `Understanding your composite design shows why certain things only happen when you're together. The creativity, the conflicts, the magic - it's all in how your energies merge.`,
+    whatYouDiscover: [
+      'Channels that activate only together',
+      'Where you amplify each other\'s gifts',
+      'Potential friction points in your design',
+      'How to make decisions as a couple',
+    ],
+    personalNote: `"Together you complete the Channel of Discovery. Apart, you both search. Together, you find. This partnership was designed to explore."`,
+  },
+  
+  gene_keys: {
+    name: 'Gene Keys Compatibility',
+    tagline: 'Shadows that heal, gifts that multiply',
+    origin: 'Venus Sequence Compatibility',
+    icon: '❋',
+    intro: `Your shadows and gifts don't exist in isolation - they dance with your partner's. Sometimes their gift unlocks your shadow. Sometimes your shadow triggers their wound. This is how relationships transform us.`,
+    howItHelpsYou: `Gene Keys compatibility reveals the alchemy between you. Which shadows are you healing in each other? Which gifts are you multiplying? This is relationship as transformation.`,
+    whatYouDiscover: [
+      'How your shadows interact and heal',
+      'Gifts you multiply when together',
+      'Your shared pathway to intimacy',
+      'The Siddhi potential of your union',
+    ],
+    personalNote: `"Your Gene Key 25 meets their 46 - Innocence meets Delight. Together, you remind each other that life is meant to be enjoyed, not survived."`,
+  },
+  
+  kabbalah: {
+    name: 'Kabbalistic Compatibility',
+    tagline: 'Two souls, one Tree of Life',
+    origin: 'Shared Tikkun Analysis',
+    icon: '✧',
+    intro: `In Kabbalah, relationships are never random. You're together because your Tikkunim (soul corrections) are linked. What one needs to heal, the other can help transform.`,
+    howItHelpsYou: `Your combined Tree of Life shows where divine light flows between you and where it gets blocked. Understanding this map helps you become true partners in each other's spiritual growth.`,
+    whatYouDiscover: [
+      'How your Tikkunim complement each other',
+      'Shared pathways on the Tree of Life',
+      'Where you help each other grow',
+      'The spiritual purpose of your union',
+    ],
+    personalNote: `"Your Tikkunim are mirror images - what you struggle with, they've mastered, and vice versa. You're each other's teachers, dressed as lovers."`,
+  },
+  
+  all: {
+    name: 'Nuclear Package',
+    tagline: 'The ultimate relationship analysis',
+    origin: 'Two souls · Five systems · Complete truth',
+    icon: '★',
+    intro: `This is everything. Both of your complete readings across all 5 systems. Every compatibility overlay. And the final verdict - what your connection truly means and where it's headed.`,
+    howItHelpsYou: `16 documents. 100 pages. 3+ hours of audio. We analyze both of you individually, then layer your charts together in every system. Nothing is left unexplored. No question unanswered.`,
+    whatYouDiscover: [
+      'Both complete individual readings (5 systems each)',
+      'All 5 compatibility overlays combined',
+      'Where you harmonize and where you clash',
+      'The karmic purpose of your connection',
+      'The final verdict on your relationship',
+    ],
+    personalNote: `"This is for couples who want the complete truth. Not just surface compatibility - the deep patterns, the shadow dynamics, the soul contracts. Everything that makes your connection what it is."`,
+  },
+};
+
 // Prices imported from @/config/products - SYSTEM_PRICES
 
 export const SystemExplainerScreen = ({ navigation, route }: Props) => {
@@ -153,7 +262,12 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
     person1Override,
     person2Override,
   } = route.params || {};
-  const content = SYSTEM_CONTENT[system] || SYSTEM_CONTENT.western;
+  
+  // Use overlay content for relationship readings, regular content for individual
+  const isOverlay = readingType === 'overlay';
+  const content = isOverlay 
+    ? (OVERLAY_CONTENT[system] || OVERLAY_CONTENT.western)
+    : (SYSTEM_CONTENT[system] || SYSTEM_CONTENT.western);
   const price = SYSTEM_PRICES[system] || SINGLE_SYSTEM.price;
   
   const [currentPage, setCurrentPage] = useState(0);
@@ -197,12 +311,12 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
       </View>
       
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>How it helps you</Text>
+        <Text style={styles.sectionTitle}>{isOverlay ? 'How it helps your relationship' : 'How it helps you'}</Text>
         <Text style={styles.sectionText} selectable>{content.howItHelpsYou}</Text>
       </View>
       
       <View style={styles.insightBox}>
-        <Text style={styles.insightLabel}>A note for you</Text>
+        <Text style={styles.insightLabel}>{isOverlay ? 'A note for you both' : 'A note for you'}</Text>
         <Text style={styles.insightText} selectable>{content.personalNote}</Text>
       </View>
     </View>,
