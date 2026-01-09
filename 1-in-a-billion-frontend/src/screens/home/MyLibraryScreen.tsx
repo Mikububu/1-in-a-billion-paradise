@@ -359,6 +359,20 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             // #region agent log
             fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:332',message:'After deduplication',data:{allJobsCount:allJobs.length,mergedJobsCount:mergedJobs.length,mergedJobIds:mergedJobs.map((j:any)=>j.id?.slice(0,8))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
             // #endregion
+            
+            // FALLBACK: If no jobs found from user-specific fetch, try dev dashboard as backup
+            if (mergedJobs.length === 0 && __DEV__) {
+              console.log('⚠️ [MyLibrary] No jobs from user fetch, trying dev dashboard fallback...');
+              try {
+                const devJobs = await fetchJobsFromDevDashboard();
+                console.log('📥 [MyLibrary] Dev dashboard fallback jobs:', devJobs.length);
+                if (devJobs.length > 0) {
+                  mergedJobs = devJobs;
+                }
+              } catch (devError) {
+                console.error('❌ [MyLibrary] Dev dashboard fallback also failed:', devError);
+              }
+            }
           }
 
           console.log('📥 [MyLibrary] Merged jobs:', mergedJobs.length);
