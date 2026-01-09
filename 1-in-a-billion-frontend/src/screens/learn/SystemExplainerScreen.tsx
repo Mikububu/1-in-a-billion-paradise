@@ -353,8 +353,8 @@ const styles = StyleSheet.create({
   
   // What you'll discover - centered with symbols
   discoverSection: {
-    marginTop: spacing.xl * 2,
-    marginBottom: spacing.xl,
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
     alignItems: 'center',
   },
   discoverTitle: {
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   },
   discoverItem: {
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   discoverSymbol: {
     fontSize: 24,
