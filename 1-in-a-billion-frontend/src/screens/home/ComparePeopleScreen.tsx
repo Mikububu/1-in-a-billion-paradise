@@ -249,7 +249,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.rowName}>{p.name}</Text>
-                    <Text style={styles.rowMeta}>
+                    <Text style={styles.rowMeta} numberOfLines={1}>
                       {p.birthData?.birthDate ? `Born ${(() => {
                         try {
                           const date = new Date(p.birthData.birthDate);
@@ -261,7 +261,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                       {p.birthData?.birthTime ? ` at ${p.birthData.birthTime}` : ''}
                     </Text>
                     {p.birthData?.birthCity && (
-                      <Text style={styles.rowMeta}>{p.birthData.birthCity}</Text>
+                      <Text style={styles.rowMeta} numberOfLines={1}>{p.birthData.birthCity}</Text>
                     )}
                     {p.placements && (
                       <View style={styles.rowSigns}>
