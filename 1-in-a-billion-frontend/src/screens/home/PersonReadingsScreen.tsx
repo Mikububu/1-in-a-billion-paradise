@@ -25,7 +25,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { getCacheDirectory, getDocumentDirectory } from '@/utils/fileSystem';
 import * as Sharing from 'expo-sharing';
 import { MainStackParamList } from '@/navigation/RootNavigator';
@@ -273,32 +273,51 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
 
       for (const doc of documents) {
         const docNum = Number(doc.docNum);
-        if (!docNum || !docRange.includes(docNum)) continue;
-
-        // Calculate system based on docNum and job type
-        let systemIndex: number;
-        let isVerdict = false;
-
-        if (isExtendedJob || personType === 'individual') {
-          // Extended jobs: docs 1-5 map directly to systems 0-4
-          systemIndex = docNum - 1;
-        } else if (personType === 'person1') {
-          // Nuclear person1: docs 1-5 → systems 0-4
-          systemIndex = docNum - 1;
-        } else if (personType === 'person2') {
-          // Nuclear person2: docs 6-10 → systems 0-4
-          systemIndex = docNum - 6;
-        } else {
-          // Nuclear overlay: docs 11-15 → systems 0-4, doc 16 → verdict
-          if (docNum === 16) {
-            isVerdict = true;
-            systemIndex = 5;
-          } else {
-            systemIndex = docNum - 11;
-          }
+        console.log(`🔍 [PersonReadings] Processing doc: docNum=${docNum} (type=${typeof doc.docNum}), docRange=${JSON.stringify(docRange)}, includes=${docRange.includes(docNum)}`);
+        if (!docNum || !docRange.includes(docNum)) {
+          console.log(`⚠️ [PersonReadings] Skipping doc ${docNum}: !docNum=${!docNum}, !includes=${!docRange.includes(docNum)}`);
+          continue;
         }
 
-        const system = isVerdict ? SYSTEMS[5] : SYSTEMS[systemIndex];
+        // Use system from backend if available, otherwise calculate from docNum
+        let system: { id: string; name: string } | undefined;
+        
+        if (doc.system) {
+          // Backend provides system - use it directly (fixes Vedic showing as Western)
+          system = SYSTEMS.find(s => s.id === doc.system);
+          if (!system) {
+            // Fallback: try to find by name match
+            system = SYSTEMS.find(s => s.name.toLowerCase().includes(doc.system.toLowerCase()));
+          }
+        }
+        
+        // Fallback to docNum-based calculation for backward compatibility
+        if (!system) {
+          let systemIndex: number;
+          let isVerdict = false;
+
+          if (isExtendedJob || personType === 'individual') {
+            // Extended jobs: docs 1-5 map directly to systems 0-4
+            systemIndex = docNum - 1;
+          } else if (personType === 'person1') {
+            // Nuclear person1: docs 1-5 → systems 0-4
+            systemIndex = docNum - 1;
+          } else if (personType === 'person2') {
+            // Nuclear person2: docs 6-10 → systems 0-4
+            systemIndex = docNum - 6;
+          } else {
+            // Nuclear overlay: docs 11-15 → systems 0-4, doc 16 → verdict
+            if (docNum === 16) {
+              isVerdict = true;
+              systemIndex = 5;
+            } else {
+              systemIndex = docNum - 11;
+            }
+          }
+
+          system = isVerdict ? SYSTEMS[5] : SYSTEMS[systemIndex];
+        }
+        
         if (!system) continue;
 
         readingsMap[docNum] = {
@@ -310,7 +329,8 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           // This avoids sending Supabase signed URLs directly to clients.
           audioPath: doc.audioUrl ? `${env.CORE_API_URL}/api/jobs/v2/${jobId}/audio/${docNum}` : undefined,
           // Song URL (if generated)
-          songPath: doc.songUrl || undefined,
+          // Use backend proxy endpoint for song downloads (consistent with audio)
+          songPath: doc.songUrl ? `${env.CORE_API_URL}/api/jobs/v2/${jobId}/song/${docNum}` : undefined,
         };
 
         console.log(`📄 Doc ${docNum} (${system.name}): pdf=${!!doc.pdfUrl} audio=${!!doc.audioUrl} song=${!!doc.songUrl}`);
@@ -393,7 +413,11 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       const finalSystemsToShow = systemsToShow.length > 0 ? systemsToShow : SYSTEMS.slice(0, systemCount);
       
       let finalReadings = docRange.map((docNum, i) => {
-        if (readingsMap[docNum]) return readingsMap[docNum];
+        if (readingsMap[docNum]) {
+          console.log(`✅ [PersonReadings] Found reading in map for docNum ${docNum}`);
+          return readingsMap[docNum];
+        }
+        console.log(`⚠️ [PersonReadings] No reading in map for docNum ${docNum}, creating placeholder`);
         const sys = finalSystemsToShow[i] || SYSTEMS[0];
         return {
           id: `placeholder-${docNum}`,
@@ -638,7 +662,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
             }
           }
         ),
-        20000,
+        60000, // Increased to 60s for large audio files
         'Audio load timed out'
       );
       sound = created.sound;

@@ -16,6 +16,9 @@ export const BASE_QUALITY_CHECKS = [
   'Literary voice maintained throughout',
   'Audio-ready formatting (numbers spelled out)',
   'Pure prose, flowing paragraphs',
+  'NO weird symbols, unicode, or garbage text (text must be flawless for TTS)',
+  'Headlines/sections have proper spacing after them for TTS pauses',
+  'All text is readable and pronounceable (no broken words)',
 ];
 
 /**

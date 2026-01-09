@@ -9,6 +9,9 @@ export const env = {
   SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '',
   SUPABASE_FUNCTION_URL: process.env.EXPO_PUBLIC_SUPABASE_FUNCTION_URL || '',
 
+  // Expo push notifications
+  EXPO_PROJECT_ID: process.env.EXPO_PUBLIC_PROJECT_ID || '',
+
   // Feature flags
   ENABLE_APPLE_SIGNIN: process.env.EXPO_PUBLIC_ENABLE_APPLE_SIGNIN === 'true',
   ENABLE_SUPABASE_LIBRARY_SYNC: process.env.EXPO_PUBLIC_ENABLE_SUPABASE_LIBRARY_SYNC === 'true',

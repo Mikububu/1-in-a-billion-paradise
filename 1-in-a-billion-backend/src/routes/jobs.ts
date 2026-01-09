@@ -265,6 +265,12 @@ router.get('/v2/user/:userId/jobs', async (c) => {
         tasksTotal: (j.progress as any)?.tasksTotal,
         taskBreakdown: tasksByStatus,
         systems: (j.params as any)?.systems || [],
+        // CRITICAL: Include person names so frontend can link jobs to people cards
+        params: {
+          person1: (j.params as any)?.person1 ? { name: (j.params as any).person1.name } : undefined,
+          person2: (j.params as any)?.person2 ? { name: (j.params as any).person2.name } : undefined,
+          systems: (j.params as any)?.systems || [],
+        },
       };
     })
   );
@@ -274,6 +280,210 @@ router.get('/v2/user/:userId/jobs', async (c) => {
     totalJobs: jobs.length,
     jobs: jobsWithDetails,
   });
+});
+
+// Audio streaming endpoint: /api/jobs/v2/:jobId/audio/:docNum
+// Returns a redirect to the signed URL for the audio artifact
+router.get('/v2/:jobId/audio/:docNum', async (c) => {
+  const jobId = c.req.param('jobId');
+  const docNum = parseInt(c.req.param('docNum'), 10);
+  
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+    return c.json({ success: false, error: 'Supabase not configured' }, 500);
+  }
+
+  if (!Number.isFinite(docNum) || docNum < 1) {
+    return c.json({ success: false, error: 'Invalid docNum' }, 400);
+  }
+
+  try {
+    const { jobQueueV2 } = await import('../services/jobQueueV2');
+    const job = await jobQueueV2.getJob(jobId);
+    
+    if (!job) {
+      return c.json({ success: false, error: 'Job not found' }, 404);
+    }
+
+    // Get all artifacts for this job
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    
+    const { data: artifacts, error } = await supabase
+      .from('job_artifacts')
+      .select('*')
+      .eq('job_id', jobId)
+      .in('artifact_type', ['audio_mp3', 'audio_m4a'])
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching audio artifacts:', JSON.stringify(error, null, 2));
+      return c.json({ success: false, error: `Failed to fetch audio artifacts: ${error.message || JSON.stringify(error)}` }, 500);
+    }
+
+    if (!artifacts || artifacts.length === 0) {
+      return c.json({ success: false, error: 'No audio artifacts found' }, 404);
+    }
+
+    // Find artifact matching docNum (from metadata or derive from task sequence)
+    let audioArtifact = artifacts.find(a => a.metadata?.docNum === docNum);
+    
+    // If not found by metadata, try to match by task sequence
+    if (!audioArtifact) {
+      const tasks = await jobQueueV2.getJobTasks(jobId);
+      const taskIdToSequence: Record<string, number> = {};
+      for (const task of tasks) {
+        taskIdToSequence[task.id] = task.sequence;
+      }
+      
+      // Audio tasks typically have sequence 200+ (docNum = sequence - 199)
+      for (const artifact of artifacts) {
+        if (artifact.task_id) {
+          const seq = taskIdToSequence[artifact.task_id];
+          if (typeof seq === 'number' && seq >= 200) {
+            const artifactDocNum = seq - 199;
+            if (artifactDocNum === docNum) {
+              audioArtifact = artifact;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // Fallback: if only one audio artifact, use it (common for single-document jobs)
+    if (!audioArtifact && artifacts.length === 1) {
+      console.log(`📦 Using single audio artifact as fallback for docNum ${docNum}`);
+      audioArtifact = artifacts[0];
+    }
+
+    // If still not found and docNum is 1, try first artifact (most common case)
+    if (!audioArtifact && docNum === 1 && artifacts.length > 0) {
+      console.log(`📦 Using first audio artifact for docNum 1`);
+      audioArtifact = artifacts[0];
+    }
+
+    if (!audioArtifact || !audioArtifact.storage_path) {
+      console.error(`❌ Audio artifact not found for job ${jobId}, docNum ${docNum}. Available artifacts: ${artifacts.length}`);
+      return c.json({ success: false, error: `Audio artifact not found for docNum ${docNum}` }, 404);
+    }
+
+    console.log(`✅ Found audio artifact for docNum ${docNum}: ${audioArtifact.storage_path}`);
+
+    // Get signed URL (valid for 1 hour)
+    const signedUrl = await getSignedArtifactUrl(audioArtifact.storage_path, 3600);
+    
+    if (!signedUrl) {
+      return c.json({ success: false, error: 'Failed to generate signed URL' }, 500);
+    }
+
+    // Redirect to the signed URL
+    return c.redirect(signedUrl);
+  } catch (error: any) {
+    console.error('Error in audio endpoint:', error);
+    return c.json({ success: false, error: error.message || 'Internal server error' }, 500);
+  }
+});
+
+// Song download endpoint: /api/jobs/v2/:jobId/song/:docNum
+// Returns a redirect to the signed URL for the song artifact
+router.get('/v2/:jobId/song/:docNum', async (c) => {
+  const jobId = c.req.param('jobId');
+  const docNum = parseInt(c.req.param('docNum'), 10);
+  
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+    return c.json({ success: false, error: 'Supabase not configured' }, 500);
+  }
+
+  if (!Number.isFinite(docNum) || docNum < 1) {
+    return c.json({ success: false, error: 'Invalid docNum' }, 400);
+  }
+
+  try {
+    const { jobQueueV2 } = await import('../services/jobQueueV2');
+    const job = await jobQueueV2.getJob(jobId);
+    
+    if (!job) {
+      return c.json({ success: false, error: 'Job not found' }, 404);
+    }
+
+    // Get all song artifacts for this job
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    
+    const { data: artifacts, error } = await supabase
+      .from('job_artifacts')
+      .select('*')
+      .eq('job_id', jobId)
+      .eq('artifact_type', 'audio_song')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching song artifacts:', error);
+      return c.json({ success: false, error: 'Failed to fetch song artifacts' }, 500);
+    }
+
+    if (!artifacts || artifacts.length === 0) {
+      return c.json({ success: false, error: 'No song artifacts found' }, 404);
+    }
+
+    // Find artifact matching docNum (from metadata or derive from task sequence)
+    let songArtifact = artifacts.find(a => a.metadata?.docNum === docNum);
+    
+    // If not found by metadata, try to match by task sequence
+    if (!songArtifact) {
+      const tasks = await jobQueueV2.getJobTasks(jobId);
+      const taskIdToSequence: Record<string, number> = {};
+      for (const task of tasks) {
+        taskIdToSequence[task.id] = task.sequence;
+      }
+      
+      // Song tasks typically have sequence 300+ (docNum = sequence - 299)
+      for (const artifact of artifacts) {
+        if (artifact.task_id) {
+          const seq = taskIdToSequence[artifact.task_id];
+          if (typeof seq === 'number' && seq >= 300) {
+            const artifactDocNum = seq - 299;
+            if (artifactDocNum === docNum) {
+              songArtifact = artifact;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // Fallback: if only one song artifact, use it
+    if (!songArtifact && artifacts.length === 1) {
+      console.log(`📦 Using single song artifact as fallback for docNum ${docNum}`);
+      songArtifact = artifacts[0];
+    }
+
+    // If still not found and docNum is 1, try first artifact (most common case)
+    if (!songArtifact && docNum === 1 && artifacts.length > 0) {
+      console.log(`📦 Using first song artifact for docNum 1`);
+      songArtifact = artifacts[0];
+    }
+
+    if (!songArtifact || !songArtifact.storage_path) {
+      console.error(`❌ Song artifact not found for job ${jobId}, docNum ${docNum}. Available artifacts: ${artifacts.length}`);
+      return c.json({ success: false, error: `Song artifact not found for docNum ${docNum}` }, 404);
+    }
+
+    console.log(`✅ Found song artifact for docNum ${docNum}: ${songArtifact.storage_path}`);
+
+    // Get signed URL (valid for 1 hour)
+    const signedUrl = await getSignedArtifactUrl(songArtifact.storage_path, 3600);
+    
+    if (!signedUrl) {
+      return c.json({ success: false, error: 'Failed to generate signed URL' }, 500);
+    }
+
+    // Redirect to the signed URL
+    return c.redirect(signedUrl);
+  } catch (error: any) {
+    console.error('Error in song endpoint:', error);
+    return c.json({ success: false, error: error.message || 'Internal server error' }, 500);
+  }
 });
 
 // DEBUG: Reset stuck tasks (claimed/processing but stale)

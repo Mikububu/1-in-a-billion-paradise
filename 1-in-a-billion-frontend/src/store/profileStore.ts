@@ -40,6 +40,8 @@ export type Reading = {
   generatedAt: string;
   source: 'claude' | 'deepseek' | 'gpt';
   wordCount: number;
+  note?: string; // For Vedic: "This is the second reading" etc.
+  readingNumber?: number; // For Vedic: 1, 2, 3, etc.
 };
 
 // NEW: Saved Audio type
@@ -801,8 +803,39 @@ export const useProfileStore = create<ProfileState>()(
 
       // Reading Actions
       addReading: (personId, readingData) => {
-        // De-dupe accidental duplicates (same system + same content signature saved multiple times)
         const person = get().people.find((p) => p.id === personId);
+        
+        // For Vedic readings: Always allow multiple readings, mark if it's a second reading
+        if (readingData.system === 'vedic' && person) {
+          const existingVedicReadings = person.readings.filter((r) => r.system === 'vedic');
+          const isSecondReading = existingVedicReadings.length > 0;
+          
+          const id = generateId();
+          const reading: Reading = { 
+            ...readingData, 
+            id,
+            // Add note if this is a second reading
+            ...(isSecondReading && { 
+              note: 'This is the second reading for this system.',
+              readingNumber: existingVedicReadings.length + 1 
+            })
+          };
+          
+          set((state) => ({
+            people: state.people.map((p) =>
+              p.id === personId
+                ? {
+                    ...p,
+                    readings: [...p.readings, reading],
+                    updatedAt: new Date().toISOString(),
+                  }
+                : p
+            ),
+          }));
+          return id;
+        }
+        
+        // For other systems: De-dupe accidental duplicates (same system + same content signature saved multiple times)
         if (person) {
           const sig = `${readingData.system}|${readingData.wordCount}|${(readingData.content || '').slice(0, 180)}`;
           const newAt = Date.parse(readingData.generatedAt || '');
@@ -829,10 +862,10 @@ export const useProfileStore = create<ProfileState>()(
           people: state.people.map((p) =>
             p.id === personId
               ? {
-                ...p,
-                readings: [...p.readings, reading],
-                updatedAt: new Date().toISOString(),
-              }
+                  ...p,
+                  readings: [...p.readings, reading],
+                  updatedAt: new Date().toISOString(),
+                }
               : p
           ),
         }));

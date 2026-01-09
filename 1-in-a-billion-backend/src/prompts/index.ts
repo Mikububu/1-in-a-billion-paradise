@@ -37,7 +37,7 @@ export * from './core';
 export { StyleName, buildStyleSection, getStyleConfig } from './styles';
 
 // Spice levels
-export { SpiceLevel, buildSpiceSection, getSpiceConfig } from './spice';
+export { SpiceLevel, buildSpiceSection, getSpiceConfig, getShadowPercent } from './spice';
 
 // Systems
 export { 

@@ -26,12 +26,34 @@ PUNCTUATION:
 - NO em-dashes (—) - use commas or semicolons instead
 - NO special symbols or unicode characters
 
-AUDIO-READY:
+AUDIO-READY FORMATTING (CRITICAL FOR TTS):
 - Spell out all numbers: "twenty-three degrees" not "23°"
 - Spell out positions: "zero degrees Virgo" not "0° Virgo"  
 - No abbreviations: "Human Design" not "HD"
 - Natural rhythm for listening
 - Varied sentence length creates musicality
+
+TEXT CLEANUP REQUIREMENTS (MUST BE FLAWLESS FOR AUDIO):
+- Remove ALL weird symbols, unicode characters, or garbage text
+- Remove ALL markdown syntax that TTS can't interpret (#, ##, **, __, -, etc.)
+- NO special characters: ♈, ♉, °, ', ", —, –, etc.
+- NO emojis or symbols
+- NO HTML tags or entities
+- NO broken words or unreadable text
+
+HEADLINE AND SECTION FORMATTING FOR TTS:
+- If you use section breaks or headlines, ALWAYS add a space AFTER them
+- Example: "THE LAGNA PORTAL [space] Her Lagna is the portal..."
+- TTS needs pauses after headlines to interpret them correctly
+- Use paragraph breaks (double line break) between major sections
+- Use natural sentence breaks - TTS will pause at periods, commas, semicolons
+
+FINAL TEXT VALIDATION:
+- Read through mentally as if speaking aloud
+- Ensure every word can be pronounced clearly
+- Ensure no symbols that would confuse TTS
+- Ensure headlines have proper spacing for pauses
+- The text must be FLAWLESS for audio generation - no cleanup needed after generation
 `;
 
 /**

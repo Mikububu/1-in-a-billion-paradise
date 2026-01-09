@@ -23,7 +23,7 @@ const ZODIAC_SIGNS = [
   { name: 'Pisces', symbol: '♓︎' },
 ];
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { getDocumentDirectory } from '@/utils/fileSystem';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';

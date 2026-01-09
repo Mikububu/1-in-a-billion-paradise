@@ -4,7 +4,7 @@
  * Helper functions to access expo-file-system APIs that may have type issues
  */
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 // Type-safe accessors for FileSystem properties
 export const getDocumentDirectory = (): string | null => {

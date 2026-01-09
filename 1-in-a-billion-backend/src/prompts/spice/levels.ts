@@ -77,6 +77,12 @@ SPICE LEVEL 7-8 - RAW:
 - Addiction, manipulation, destruction patterns
 - Make them uncomfortable with truth
 - Shadow emphasis: 35%
+
+PLANETARY FOCUS (Based on Spice Level):
+- Higher spice levels (7-10): Focus on Mars (passion, aggression, sexuality), Venus (desire, attraction), Pluto (obsession, transformation, power), 8th house (sexuality, shared resources, transformation), 12th house (hidden enemies, self-undoing, dependency)
+- These placements reveal sexuality, obsession, dependency patterns - our main themes
+- Lower spice levels (1-4): Focus on Sun, Moon, Rising, Jupiter, Saturn (core identity, emotional needs, growth, structure)
+- Medium spice levels (5-6): Balanced focus on all planets with emphasis on relationship dynamics
 `,
   },
   nuclear: {
@@ -92,6 +98,11 @@ SPICE LEVEL 9-10 - NUCLEAR:
 - The full darkness AND the full light
 - Include Vedic Maraka analysis if applicable
 - Shadow emphasis: 40-50%
+
+PLANETARY FOCUS (Based on Spice Level):
+- Highest spice levels (9-10): DEEP focus on Mars-Venus-Pluto dynamics, 8th house (sexuality, obsession, shared power), 12th house (dependency, self-undoing, hidden patterns)
+- These are our MAIN themes: sexuality, obsession, dependency
+- Include all dark aspects: manipulation, codependency, addiction patterns, power dynamics
 `,
   },
 };
@@ -136,6 +147,11 @@ SPICE LEVEL 7-10 - Full Depth:
 - Power dynamics raw and explicit
 - "The raw animal collision of need meeting need, bodies speaking what words cannot..."
 - Shadow emphasis: 40-50%
+
+PLANETARY FOCUS (Based on Spice Level):
+- High spice (7-10): PRIMARY focus on Mars (sexuality, aggression), Venus (desire, attraction), Pluto (obsession, transformation), 8th house (sexuality, shared resources), 12th house (dependency, hidden patterns)
+- These placements reveal our MAIN themes: sexuality, obsession, dependency
+- Include Mars-Venus aspects, Pluto placements, 8th/12th house themes extensively
 `,
   },
 };

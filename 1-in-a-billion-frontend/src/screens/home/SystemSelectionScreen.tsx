@@ -99,11 +99,29 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
   const bundleProduct = isOverlay ? PRODUCTS.nuclear_package : PRODUCTS.complete_reading;
 
   const authDisplayName = useAuthStore((s) => s.displayName);
-  const meName = useOnboardingStore((s) => s.getMainUser()?.name) || userName || authDisplayName || 'You';
-  const meBirthDate = useOnboardingStore((s) => s.birthDate);
-  const meBirthTime = useOnboardingStore((s) => s.birthTime);
-  const meCity = useOnboardingStore((s) => s.birthCity);
-  const relationshipIntensity = useOnboardingStore((s) => s.relationshipIntensity) || 5;
+  
+  // CRITICAL: Get user data from profileStore FIRST (synced from Supabase), 
+  // then fallback to onboardingStore (local device storage which may be empty after re-signin)
+  const profileStoreUser = useProfileStore((s) => s.getUser());
+  const onboardingMainUser = useOnboardingStore((s) => s.getMainUser());
+  const onboardingBirthDate = useOnboardingStore((s) => s.birthDate);
+  const onboardingBirthTime = useOnboardingStore((s) => s.birthTime);
+  const onboardingBirthCity = useOnboardingStore((s) => s.birthCity);
+  const onboardingIntensity = useOnboardingStore((s) => s.relationshipIntensity);
+  
+  // Priority: profileStore (Supabase synced) > onboardingStore (local) > route params > fallback
+  const meName = profileStoreUser?.name || onboardingMainUser?.name || userName || authDisplayName || 'You';
+  const meBirthDate = profileStoreUser?.birthData?.birthDate || onboardingBirthDate;
+  const meBirthTime = profileStoreUser?.birthData?.birthTime || onboardingBirthTime;
+  const meCity = profileStoreUser?.birthData 
+    ? { 
+        timezone: profileStoreUser.birthData.timezone, 
+        latitude: profileStoreUser.birthData.latitude, 
+        longitude: profileStoreUser.birthData.longitude,
+        name: profileStoreUser.birthData.birthCity,
+      } 
+    : onboardingBirthCity;
+  const relationshipIntensity = onboardingIntensity || (profileStoreUser as any)?.relationshipIntensity || 5;
 
   // NEVER use "You/Your" - always use actual NAME (3rd person per docs)
   const displayP1Name = person1Override?.name || (targetPerson?.name) || (forPartner ? (partnerName || userName || 'Partner') : meName);
@@ -216,6 +234,17 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
     if (isLoading) return; // Prevent double-clicks
     setIsLoading(true);
 
+    // Debug: Log data sources for person1
+    console.log('🔍 SystemSelection: Data sources for job creation:', {
+      profileStoreUser: profileStoreUser ? { name: profileStoreUser.name, hasBirthData: !!profileStoreUser.birthData } : null,
+      onboardingBirthDate,
+      onboardingBirthTime,
+      meName,
+      meBirthDate,
+      meBirthTime,
+      meCity: meCity ? { timezone: (meCity as any)?.timezone, lat: (meCity as any)?.latitude } : null,
+    });
+
     const { productType, systems: systemsToGenerate, voiceIdOverride, relationshipContext: contextOverride, personalContext: personalContextOverride } = opts;
     const isOverlayFlow = isOverlay;
 
@@ -249,6 +278,7 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
             timezone: (meCity as any)?.timezone,
             latitude: (meCity as any)?.latitude,
             longitude: (meCity as any)?.longitude,
+            placements: profileStoreUser?.placements, // Pass cached placements from profileStore!
           };
 
     // Person 2 data (overlay only)

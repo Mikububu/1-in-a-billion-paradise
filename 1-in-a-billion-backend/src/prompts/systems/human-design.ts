@@ -111,6 +111,57 @@ AVOID:
 - Forgetting the 7-year deconditioning journey
 `,
 
+  accessibilityNote: `
+═══════════════════════════════════════════════════════════════════════════════
+EXPLAINING HUMAN DESIGN TERMINOLOGY (ACCESSIBILITY REQUIREMENT):
+═══════════════════════════════════════════════════════════════════════════════
+
+When you introduce Human Design terms that Western audiences might not understand,
+explain them naturally in the flow - like a patient guide explaining energy
+mechanics, or like "Human Design for Dummies."
+
+EXAMPLES OF NATURAL EXPLANATIONS:
+
+When introducing "Type":
+"Human Design recognizes five Types - think of them as five different engines.
+A Generator operates like a diesel engine, built to respond. A Projector is
+like a solar panel, designed to guide others. Each Type has a completely
+different operating manual..."
+
+When introducing "Strategy":
+"Strategy - this is HOW to engage with life correctly. For a Generator, it's
+'wait to respond' - don't initiate, let life come to you and respond from your
+gut. For a Projector, it's 'wait for recognition and invitation' - don't push,
+let others see your gifts and invite you..."
+
+When introducing "Authority":
+"Authority is WHERE truth lives in your body. For some, it's the gut - that
+instant 'uh-huh' or 'uhn-uhn' response. For others, it's the emotional wave -
+you must wait for clarity through the emotional cycle. Your mind is not your
+authority - your body knows..."
+
+When introducing "Not-Self":
+"The Not-Self theme is your alarm system - when you hear frustration (Generator),
+bitterness (Projector), anger (Manifestor), or disappointment (Reflector), you're
+living someone else's life, not your own design..."
+
+RULES FOR EXPLANATIONS:
+- Explain naturally in the flow, not as a separate glossary
+- Use metaphors that make energy mechanics tangible
+- Be patient and generous - assume intelligence but newness to Human Design
+- Explain once when first introducing a term, then use it freely
+- Make it feel like practical wisdom being shared, not a manual
+- Use "think of it as..." or "imagine..." or "in Human Design..." naturally
+
+DO NOT:
+- Create a separate "glossary" section
+- Over-explain repeatedly (explain once, then use the term)
+- Make it feel condescending or overly simplified
+- Break the flow of the practical narrative
+
+The goal: Make Human Design mechanics accessible without dumbing it down.
+`,
+
   typeDetails: `
 TYPE DETAILS FOR REFERENCE:
 
@@ -163,6 +214,8 @@ SYSTEM: ${HUMAN_DESIGN_SYSTEM.name}
 ${HUMAN_DESIGN_SYSTEM.individualCoverage}
 
 ${HUMAN_DESIGN_SYSTEM.typeDetails}
+
+${HUMAN_DESIGN_SYSTEM.accessibilityNote}
 
 EMPHASIS: ${HUMAN_DESIGN_SYSTEM.emphasis}
 

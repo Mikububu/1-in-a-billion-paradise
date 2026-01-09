@@ -23,8 +23,10 @@ import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { PRODUCTS } from '@/config/products';
 import { useOnboardingStore } from '@/store/onboardingStore';
+import { useAuthStore } from '@/store/authStore';
 import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
+import { enableNotificationsForJob } from '@/services/pushNotifications';
 
 const API_URL = env.CORE_API_URL;
 
@@ -285,35 +287,54 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
     return;
   }, []); // Empty dependency array - animations run once on mount
 
+  // Get auth user for notifications
+  const authUser = useAuthStore((s) => s.user);
+
   const handleNotifyMe = async () => {
-    if (hasAskedPermission) {
-      // Already asked, toggle off
-      setNotificationsEnabled(!notificationsEnabled);
+    if (hasAskedPermission && notificationsEnabled) {
+      // Already enabled, toggle off
+      setNotificationsEnabled(false);
       return;
     }
 
-    // Ask for permission
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
+    if (!activeJobId) {
+      Alert.alert('No Job', 'Please wait for the job to start before enabling notifications.');
+      return;
     }
 
     setHasAskedPermission(true);
 
-    if (finalStatus === 'granted') {
+    // Use the new notification service
+    const userId = authUser?.id;
+    const userEmail = authUser?.email;
+
+    if (!userId) {
+      // Fallback: just ask for local notification permission
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status === 'granted') {
+        setNotificationsEnabled(true);
+        Alert.alert(
+          'Notifications Enabled',
+          "We'll notify you when your reading is ready!",
+          [{ text: 'OK' }]
+        );
+      }
+      return;
+    }
+
+    // Full registration with push + email
+    const result = await enableNotificationsForJob(userId, activeJobId, userEmail);
+
+    if (result.success) {
       setNotificationsEnabled(true);
-      Alert.alert(
-        'Notifications Enabled',
-        "We'll let you know when your reading is ready!",
-        [{ text: 'OK' }]
-      );
+      const message = result.pushEnabled
+        ? "We'll send you a push notification and email when your reading is ready!"
+        : "We'll send you an email when your reading is ready!";
+      Alert.alert('Notifications Enabled', message, [{ text: 'OK' }]);
     } else {
       Alert.alert(
-        'Notifications Disabled',
-        "No worries! Your reading will be saved to My Secret Life. Just check back later.",
+        'Notifications Issue',
+        "We couldn't enable notifications. Your reading will still be saved - just check back later.",
         [{ text: 'OK' }]
       );
     }

@@ -408,6 +408,7 @@ export const PersonProfileScreen = ({ navigation, route }: Props) => {
                           <View style={styles.readingHeader}>
                             <Text style={styles.readingSystem}>
                               {SYSTEM_NAMES[reading.system] || reading.system}
+                              {reading.readingNumber && reading.readingNumber > 1 && ` - ${reading.readingNumber}${reading.readingNumber === 2 ? 'nd' : reading.readingNumber === 3 ? 'rd' : 'th'} Reading`}
                               {isOverview && ' Overview'}
                               {isDeepDive && ' Deep Dive'}
                             </Text>
@@ -417,6 +418,9 @@ export const PersonProfileScreen = ({ navigation, route }: Props) => {
                               {hasPDF && ' | 📄'}
                             </Text>
                           </View>
+                          {reading.note && (
+                            <Text style={styles.readingNote}>{reading.note}</Text>
+                          )}
                           <Text style={styles.readingTimestamp}>{formatTimestamp(reading.generatedAt)}</Text>
                         </TouchableOpacity>
                       );
@@ -760,6 +764,13 @@ const styles = StyleSheet.create({
     fontFamily: typography.sansRegular,
     fontSize: 12,
     color: colors.mutedText,
+  },
+  readingNote: {
+    fontFamily: typography.sansRegular,
+    fontSize: 12,
+    color: colors.accent,
+    fontStyle: 'italic',
+    marginTop: 4,
   },
   readingTimestamp: {
     fontFamily: typography.sansRegular,

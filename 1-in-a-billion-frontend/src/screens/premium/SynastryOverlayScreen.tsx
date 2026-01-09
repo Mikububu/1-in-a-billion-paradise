@@ -21,7 +21,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 // @ts-ignore - expo-file-system types not resolving correctly
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { getCacheDirectory, EncodingType } from '@/utils/fileSystem';
 import * as Sharing from 'expo-sharing';
 import { colors, spacing, typography, radii } from '@/theme/tokens';

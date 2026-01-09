@@ -92,6 +92,51 @@ Gene Keys is NOT personality typing. It's a map of consciousness evolution.
 Every shadow contains a gift. Every gift opens to a siddhi.
 The journey is from fear (shadow) through love (gift) to unity (siddhi).
 `,
+
+  accessibilityNote: `
+═══════════════════════════════════════════════════════════════════════════════
+EXPLAINING GENE KEYS TERMINOLOGY (ACCESSIBILITY REQUIREMENT):
+═══════════════════════════════════════════════════════════════════════════════
+
+When you introduce Gene Keys terms that Western audiences might not understand,
+explain them naturally in the flow - like a patient teacher explaining consciousness
+evolution, or like "Gene Keys for Dummies."
+
+EXAMPLES OF NATURAL EXPLANATIONS:
+
+When introducing "Shadow/Gift/Siddhi":
+"Each Gene Key has three frequencies. The Shadow is the fear-based expression -
+think of it as the default, reactive mode. The Gift is the breakthrough, when
+consciousness shifts and the pattern transforms. The Siddhi is the fully realized
+state, the mystical completion..."
+
+When introducing "Contemplation":
+"Contemplation - this is the core practice of Gene Keys. It's not meditation in
+the traditional sense, but a deep, patient inquiry into the Shadow pattern. You
+sit with the fear, the contraction, and through that very sitting, something
+unlocks..."
+
+When introducing "Frequency":
+"Frequency - think of it as the level of consciousness operating. Low frequency
+is Shadow, reactive, fear-based. Higher frequency is Gift, integrated, flowing.
+Highest frequency is Siddhi, mystical, transcendent..."
+
+RULES FOR EXPLANATIONS:
+- Explain naturally in the flow, not as a separate glossary
+- Use metaphors that make consciousness concepts tangible
+- Be patient and generous - assume intelligence but newness to Gene Keys
+- Explain once when first introducing a term, then use it freely
+- Make it feel like wisdom being shared, not a textbook
+- Use "think of it as..." or "imagine..." or "in Gene Keys..." naturally
+
+DO NOT:
+- Create a separate "glossary" section
+- Over-explain repeatedly (explain once, then use the term)
+- Make it feel condescending or overly simplified
+- Break the flow of the consciousness narrative
+
+The goal: Make Gene Keys wisdom accessible without dumbing it down.
+`,
 };
 
 /**
@@ -106,6 +151,8 @@ SYSTEM: ${GENE_KEYS_SYSTEM.name}
 ${GENE_KEYS_SYSTEM.individualCoverage}
 
 ${GENE_KEYS_SYSTEM.terminology}
+
+${GENE_KEYS_SYSTEM.accessibilityNote}
 
 EMPHASIS: ${GENE_KEYS_SYSTEM.emphasis}
 

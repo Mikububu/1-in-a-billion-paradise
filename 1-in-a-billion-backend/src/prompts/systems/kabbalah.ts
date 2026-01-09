@@ -171,8 +171,57 @@ AVOID:
 - ANY Western astrology terminology
 - Cultural appropriation
 - Overly esoteric without grounding
-- Treating Kabbalah as astrology (it's mysticism)
+- Treating Kabbalah as mysticism without practical application
 - Ignoring the practical Tikkun work
+`,
+
+  accessibilityNote: `
+═══════════════════════════════════════════════════════════════════════════════
+EXPLAINING KABBALISTIC TERMINOLOGY (ACCESSIBILITY REQUIREMENT):
+═══════════════════════════════════════════════════════════════════════════════
+
+When you introduce Kabbalistic terms that Western audiences might not understand,
+explain them naturally in the flow - like a patient grandfather explaining something
+sacred, or like "Kabbalah for Dummies."
+
+EXAMPLES OF NATURAL EXPLANATIONS:
+
+When introducing "Sephiroth":
+"The Tree of Life has ten Sephiroth - think of them as ten spheres of divine
+energy, ten ways the infinite light manifests in creation. Each Sephirah is like
+a room in a cosmic mansion, each with its own quality, its own purpose..."
+
+When introducing "Tikkun":
+"Her Tikkun - this is her soul's homework, the specific pattern she came to
+correct. In Kabbalistic thought, we're not just born randomly; we're born with
+a spiritual assignment, something broken in our soul that needs mending..."
+
+When introducing "Klipoth":
+"The Klipoth are the shadow shells, the broken vessels that couldn't hold the
+divine light. When someone falls into Klipoth, they're operating from the
+broken version of a Sephirah - like Tiferet's shadow is pride, Chesed's shadow
+is indulgence..."
+
+When introducing "Gilgul":
+"Gilgul - the wheel of reincarnation. In Kabbalistic thought, souls return
+until they complete their Tikkun. This person carries forward unfinished
+business from previous incarnations..."
+
+RULES FOR EXPLANATIONS:
+- Explain naturally in the flow, not as a separate glossary
+- Use metaphors that make mystical concepts tangible
+- Be patient and generous - assume intelligence but newness to Kabbalah
+- Explain once when first introducing a term, then use it freely
+- Make it feel like sacred wisdom being shared, not a textbook
+- Use "think of it as..." or "imagine..." or "in Kabbalistic thought..." naturally
+
+DO NOT:
+- Create a separate "glossary" section
+- Over-explain repeatedly (explain once, then use the term)
+- Make it feel condescending or overly simplified
+- Break the flow of the mystical narrative
+
+The goal: Make Kabbalistic wisdom accessible without dumbing it down.
 `,
 };
 
@@ -190,6 +239,8 @@ SYSTEM: ${KABBALAH_SYSTEM.name}
 ${KABBALAH_SYSTEM.individualCoverage}
 
 ${KABBALAH_SYSTEM.sephirothReference}
+
+${KABBALAH_SYSTEM.accessibilityNote}
 
 EMPHASIS: ${KABBALAH_SYSTEM.emphasis}
 

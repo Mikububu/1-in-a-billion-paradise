@@ -120,29 +120,187 @@ ${person2Name!.toUpperCase()} WESTERN (TROPICAL) CHART:
     case 'vedic':
       const p1SunSidereal = toSidereal(p1SunDeg);
       const p1MoonSidereal = toSidereal(p1MoonDeg);
+      const p1AscSidereal = p1Placements.ascendantDegree ? toSidereal((p1Placements.ascendantDegree.degree || 0) + (p1Placements.ascendantDegree.minute || 0) / 60) : 0;
+      const p1LagnaSign = p1AscSidereal > 0 ? getZodiacSign(p1AscSidereal) : 'Unknown';
+      const p1LagnaLord = p1AscSidereal > 0 ? ['Mars', 'Venus', 'Mercury', 'Moon', 'Sun', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Saturn', 'Jupiter'][Math.floor(p1AscSidereal / 30) % 12] : 'Unknown';
+      
+      // Calculate Rahu-Ketu (Moon's nodes - approximate)
+      // Rahu = Moon's North Node, Ketu = Moon's South Node (180° opposite)
+      // Simplified: Use Moon position + 90° for Rahu, -90° for Ketu
+      const p1RahuSidereal = (p1MoonSidereal + 90) % 360;
+      const p1KetuSidereal = (p1MoonSidereal - 90 + 360) % 360;
+      
+      const p1MoonNakshatra = getNakshatra(p1MoonSidereal);
+      const p1MoonNakshatraLord = ['Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'][Math.floor(p1MoonSidereal / 13.333) % 9];
+      const p1MoonPada = Math.floor((p1MoonSidereal % 13.333) / 3.333) + 1;
+      
       const p2SunSidereal = hasP2 ? toSidereal(p2SunDeg) : 0;
       const p2MoonSidereal = hasP2 ? toSidereal(p2MoonDeg) : 0;
+      const p2AscSidereal = hasP2 && p2Placements?.ascendantDegree ? toSidereal((p2Placements.ascendantDegree.degree || 0) + (p2Placements.ascendantDegree.minute || 0) / 60) : 0;
+      const p2LagnaSign = p2AscSidereal > 0 ? getZodiacSign(p2AscSidereal) : 'Unknown';
+      const p2LagnaLord = p2AscSidereal > 0 ? ['Mars', 'Venus', 'Mercury', 'Moon', 'Sun', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Saturn', 'Jupiter'][Math.floor(p2AscSidereal / 30) % 12] : 'Unknown';
+      const p2RahuSidereal = hasP2 ? (p2MoonSidereal + 90) % 360 : 0;
+      const p2KetuSidereal = hasP2 ? (p2MoonSidereal - 90 + 360) % 360 : 0;
+      const p2MoonNakshatra = hasP2 ? getNakshatra(p2MoonSidereal) : '';
+      const p2MoonNakshatraLord = hasP2 ? ['Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'][Math.floor(p2MoonSidereal / 13.333) % 9] : '';
+      const p2MoonPada = hasP2 ? Math.floor((p2MoonSidereal % 13.333) / 3.333) + 1 : 0;
 
       if (!hasP2) {
-        return `${person1Name.toUpperCase()} VEDIC (SIDEREAL/JYOTISH) CHART:
-- Sun (Surya): ${getZodiacSign(p1SunSidereal)} ${Math.floor(p1SunSidereal % 30)}° - Nakshatra: ${getNakshatra(p1SunSidereal)}
-- Moon (Chandra): ${getZodiacSign(p1MoonSidereal)} ${Math.floor(p1MoonSidereal % 30)}° - Nakshatra: ${getNakshatra(p1MoonSidereal)}
-- Moon Nakshatra Lord: ${['Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'][Math.floor(p1MoonSidereal / 13.333) % 9]}
+        return `${person1Name.toUpperCase()} VEDIC JYOTISH CHART (SIDEREAL ONLY):
 
-NOTE: Vedic astrology uses the sidereal zodiac (~24° offset from tropical). Focus on Nakshatras, planetary periods (Dashas), and Vedic house system.`;
+═══════════════════════════════════════════════════════════════════════════════
+CRITICAL: THIS IS PURE VEDIC ASTROLOGY - ZERO WESTERN CONCEPTS ALLOWED
+═══════════════════════════════════════════════════════════════════════════════
+
+FORBIDDEN TERMINOLOGY:
+- DO NOT use "Sun sign", "Moon sign", "zodiac sign" (these are Western concepts)
+- DO NOT use "Ascendant" (use "Lagna" only)
+- DO NOT reference tropical zodiac, Western astrology, or any non-Vedic systems
+- DO NOT use Western house meanings or interpretations
+
+REQUIRED VEDIC TERMINOLOGY ONLY:
+- Use "Rashi" for Moon sign (not "Moon sign")
+- Use "Lagna" for Ascendant (not "Ascendant" or "Rising")
+- Use "Graha" for planets (Surya, Chandra, Mangal, Budha, Guru, Shukra, Shani, Rahu, Ketu)
+- Use "Bhava" for houses (not "house")
+- Use "Nakshatra" (27 lunar mansions, not zodiac signs)
+- Use "Dasha" for planetary periods (Vimshottari system)
+
+═══════════════════════════════════════════════════════════════════════════════
+CHART DATA (SIDEREAL - LAHIRI AYANAMSA):
+═══════════════════════════════════════════════════════════════════════════════
+
+LAGNA (SOUL PORTAL):
+- Lagna Rashi: ${p1LagnaSign} ${Math.floor(p1AscSidereal % 30)}° ${Math.floor((p1AscSidereal % 1) * 60)}'
+- Lagna Lord: ${p1LagnaLord}
+- The Lagna is the portal through which the soul entered this body. It determines the dharmic direction and life path.
+
+CHANDRA (MOON) - THE MIND ITSELF:
+- Chandra Rashi: ${getZodiacSign(p1MoonSidereal)} ${Math.floor(p1MoonSidereal % 30)}° ${Math.floor((p1MoonSidereal % 1) * 60)}'
+- Janma Nakshatra: ${p1MoonNakshatra} (Pada ${p1MoonPada}/4)
+- Nakshatra Lord: ${p1MoonNakshatraLord}
+- CRITICAL: In Jyotish, the Moon Rashi IS the mind. The Janma Nakshatra is MORE IMPORTANT than the Rashi - it reveals the soul's emotional nature, ruling deity, animal symbol, guna quality (sattva/rajas/tamas), and karmic patterns.
+
+SURYA (SUN) - SOUL PURPOSE:
+- Surya Rashi: ${getZodiacSign(p1SunSidereal)} ${Math.floor(p1SunSidereal % 30)}° ${Math.floor((p1SunSidereal % 1) * 60)}'
+- Surya Nakshatra: ${getNakshatra(p1SunSidereal)}
+- Represents the soul's purpose, dharma, and essential nature.
+
+RAHU-KETU AXIS (KARMIC NODES):
+- Rahu: ${getZodiacSign(p1RahuSidereal)} ${Math.floor(p1RahuSidereal % 30)}° - Where the soul is HUNGRY, overcompensating, obsessed this lifetime (material desires, worldly attachments)
+- Ketu: ${getZodiacSign(p1KetuSidereal)} ${Math.floor(p1KetuSidereal % 30)}° - Where the soul is EXHAUSTED, done, cutting loose (past life mastery, spiritual detachment)
+
+═══════════════════════════════════════════════════════════════════════════════
+VEDIC ANALYSIS REQUIREMENTS (PURE JYOTISH ONLY):
+═══════════════════════════════════════════════════════════════════════════════
+
+1. LAGNA ANALYSIS:
+   - Lagna lord strength (exaltation, debilitation, own sign, friend/enemy)
+   - Lagna lord placement and aspects
+   - Benefic vs malefic nature for this specific Lagna
+
+2. NAKSHATRA ANALYSIS (MOST CRITICAL):
+   - Janma Nakshatra deity and what the deity WANTS from this person
+   - Nakshatra planetary ruler (links to Dasha system)
+   - Pada (quarter) analysis - each pada has different flavor
+   - Animal symbol (instinctual nature)
+   - Guna quality (sattva/rajas/tamas)
+   - Nakshatra is MORE IMPORTANT than Rashi in Jyotish
+
+3. PLANETARY ANALYSIS:
+   - All Grahas in sidereal positions only
+   - Planetary strengths: exaltation (Uccha), debilitation (Neecha), own sign (Swakshetra)
+   - Friend/enemy relationships between planets
+   - Key house lords: 1st (Lagna), 4th, 7th, 9th, 10th Bhava lords
+
+4. DASHA SYSTEM (VIMSHOTTARI):
+   - Current Mahadasha (based on Moon Nakshatra lord)
+   - Current Antardasha (sub-period)
+   - Upcoming periods and their implications
+   - Dasha activation of Yogas and Doshas
+
+5. YOGAS (PLANETARY COMBINATIONS):
+   - Raja Yoga (power, success, authority)
+   - Dhana Yoga (wealth, prosperity)
+   - Difficult yogas if present (Kemadruma, etc.)
+   - Yogas must be analyzed in sidereal positions only
+
+6. KARMIC INDICATORS:
+   - Rahu-Ketu axis (past life patterns, current lessons)
+   - 8th Bhava (longevity, transformation, hidden matters)
+   - 12th Bhava (spiritual liberation, losses, moksha)
+   - Atmakaraka (soul significator - planet with highest degree)
+
+7. HOUSE SYSTEM:
+   - Use Vedic Bhava system (not Western house meanings)
+   - Each Bhava has specific Vedic significations
+   - Bhava lords and their condition
+
+═══════════════════════════════════════════════════════════════════════════════
+ABSOLUTE REQUIREMENTS:
+═══════════════════════════════════════════════════════════════════════════════
+
+- Use ONLY sidereal positions (Lahiri ayanamsa)
+- Use ONLY Vedic terminology (Rashi, Lagna, Nakshatra, Graha, Bhava, Dasha)
+- Focus on Nakshatras, Dashas, and Vedic house system
+- DO NOT reference tropical zodiac, Western astrology, or Western house meanings
+- DO NOT use "Sun sign", "Moon sign", "Ascendant" - use Vedic terms only
+- This is PURE JYOTISH - zero mixing with Western concepts`;
       }
 
-      return `${person1Name.toUpperCase()} VEDIC (SIDEREAL/JYOTISH) CHART:
-- Sun (Surya): ${getZodiacSign(p1SunSidereal)} ${Math.floor(p1SunSidereal % 30)}° - Nakshatra: ${getNakshatra(p1SunSidereal)}
-- Moon (Chandra): ${getZodiacSign(p1MoonSidereal)} ${Math.floor(p1MoonSidereal % 30)}° - Nakshatra: ${getNakshatra(p1MoonSidereal)}
-- Moon Nakshatra Lord: ${['Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'][Math.floor(p1MoonSidereal / 13.333) % 9]}
+      return `${person1Name.toUpperCase()} VEDIC JYOTISH CHART (SIDEREAL ONLY):
 
-${person2Name!.toUpperCase()} VEDIC (SIDEREAL/JYOTISH) CHART:
-- Sun (Surya): ${getZodiacSign(p2SunSidereal)} ${Math.floor(p2SunSidereal % 30)}° - Nakshatra: ${getNakshatra(p2SunSidereal)}
-- Moon (Chandra): ${getZodiacSign(p2MoonSidereal)} ${Math.floor(p2MoonSidereal % 30)}° - Nakshatra: ${getNakshatra(p2MoonSidereal)}
-- Moon Nakshatra Lord: ${['Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'][Math.floor(p2MoonSidereal / 13.333) % 9]}
+═══════════════════════════════════════════════════════════════════════════════
+CRITICAL: PURE VEDIC ASTROLOGY - ZERO WESTERN CONCEPTS ALLOWED
+═══════════════════════════════════════════════════════════════════════════════
 
-NOTE: Vedic astrology uses the sidereal zodiac (~24° offset from tropical). Focus on Nakshatras, planetary periods (Dashas), and Vedic house system.`;
+FORBIDDEN: "Sun sign", "Moon sign", "Ascendant", "Rising", "house", tropical zodiac, Western astrology
+
+REQUIRED: "Rashi", "Lagna", "Nakshatra", "Graha", "Bhava", "Dasha" (Vedic terms only)
+
+LAGNA (SOUL PORTAL):
+- Lagna Rashi: ${p1LagnaSign} ${Math.floor(p1AscSidereal % 30)}° - Lagna Lord: ${p1LagnaLord}
+
+CHANDRA (MOON) - THE MIND:
+- Chandra Rashi: ${getZodiacSign(p1MoonSidereal)} ${Math.floor(p1MoonSidereal % 30)}° 
+- Janma Nakshatra: ${p1MoonNakshatra} (Pada ${p1MoonPada}/4) - Lord: ${p1MoonNakshatraLord}
+
+SURYA (SUN) - SOUL PURPOSE:
+- Surya Rashi: ${getZodiacSign(p1SunSidereal)} ${Math.floor(p1SunSidereal % 30)}° - Nakshatra: ${getNakshatra(p1SunSidereal)}
+
+RAHU-KETU AXIS (KARMIC NODES):
+- Rahu: ${getZodiacSign(p1RahuSidereal)} ${Math.floor(p1RahuSidereal % 30)}° | Ketu: ${getZodiacSign(p1KetuSidereal)} ${Math.floor(p1KetuSidereal % 30)}°
+
+${person2Name!.toUpperCase()} VEDIC JYOTISH CHART (SIDEREAL ONLY):
+
+LAGNA (SOUL PORTAL):
+- Lagna Rashi: ${p2LagnaSign} ${Math.floor(p2AscSidereal % 30)}° - Lagna Lord: ${p2LagnaLord}
+
+CHANDRA (MOON) - THE MIND:
+- Chandra Rashi: ${getZodiacSign(p2MoonSidereal)} ${Math.floor(p2MoonSidereal % 30)}° 
+- Janma Nakshatra: ${p2MoonNakshatra} (Pada ${p2MoonPada}/4) - Lord: ${p2MoonNakshatraLord}
+
+SURYA (SUN) - SOUL PURPOSE:
+- Surya Rashi: ${getZodiacSign(p2SunSidereal)} ${Math.floor(p2SunSidereal % 30)}° - Nakshatra: ${getNakshatra(p2SunSidereal)}
+
+RAHU-KETU AXIS (KARMIC NODES):
+- Rahu: ${getZodiacSign(p2RahuSidereal)} ${Math.floor(p2RahuSidereal % 30)}° | Ketu: ${getZodiacSign(p2KetuSidereal)} ${Math.floor(p2KetuSidereal % 30)}°
+
+═══════════════════════════════════════════════════════════════════════════════
+VEDIC ANALYSIS REQUIREMENTS (PURE JYOTISH - NO WESTERN MIXING):
+═══════════════════════════════════════════════════════════════════════════════
+
+- Analyze both charts using SIDEREAL positions ONLY
+- Use ONLY Vedic terminology (Rashi, Lagna, Nakshatra, Graha, Bhava, Dasha)
+- Janma Nakshatra analysis is CRITICAL for both - cover deity, qualities, animal symbol, guna
+- Lagna lords and their condition for both charts
+- Planetary strengths (Uccha/Neecha/Swakshetra) and Bhava lords
+- Vimshottari Dasha compatibility (timing cycles alignment)
+- Yogas and karmic indicators
+- Rahu-Ketu axis interaction (karmic connections between charts)
+- DO NOT use Western house meanings or interpretations
+- DO NOT reference tropical zodiac or Western astrology
+- This is PURE JYOTISH - zero mixing with Western concepts`;
 
     case 'human_design':
       const p1SunGate = getHDGate(p1SunDeg);
@@ -503,6 +661,18 @@ export class TextWorker extends BaseWorker {
       } else {
         throw new Error(`Unknown docType: ${docType}`);
       }
+    }
+
+    // DEBUG: Log prompt for Vedic system to verify instructions are included
+    if (system === 'vedic') {
+      console.log('🔍 [Vedic Debug] System:', system);
+      console.log('🔍 [Vedic Debug] Chart data length:', chartData.length);
+      console.log('🔍 [Vedic Debug] Chart data preview:', chartData.substring(0, 200));
+      console.log('🔍 [Vedic Debug] Prompt includes "VEDIC":', prompt.includes('VEDIC'));
+      console.log('🔍 [Vedic Debug] Prompt includes "Nakshatra":', prompt.includes('Nakshatra'));
+      console.log('🔍 [Vedic Debug] Prompt includes "Sidereal":', prompt.includes('Sidereal'));
+      console.log('🔍 [Vedic Debug] Prompt includes "Jyotish":', prompt.includes('Jyotish'));
+      console.log('🔍 [Vedic Debug] Prompt length:', prompt.length);
     }
 
     // Use centralized LLM service (provider set by LLM_PROVIDER env)
