@@ -500,7 +500,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [jobId, personType, personName, readings.length]);
+  }, [jobId, personType, personName]); // ✅ REMOVED readings.length to prevent infinite loop
 
   useFocusEffect(
     useCallback(() => {
