@@ -32,14 +32,14 @@ function findFontsDir(): string {
 
 const FONTS_DIR = findFontsDir();
 const FONTS = {
-  // FORCE GARAMOND EVERYWHERE (User Request)
-  interRegular: path.join(FONTS_DIR, 'EBGaramond-Regular.ttf'),
-  interMedium: path.join(FONTS_DIR, 'EBGaramond-Regular.ttf'),
-  interSemiBold: path.join(FONTS_DIR, 'EBGaramond-Regular.ttf'),
-  lora: path.join(FONTS_DIR, 'EBGaramond-Regular.ttf'),
-  ebGaramond: path.join(FONTS_DIR, 'EBGaramond-Regular.ttf'),
-  playfair: path.join(FONTS_DIR, 'EBGaramond-Regular.ttf'),
-  playfairBold: path.join(FONTS_DIR, 'EBGaramond-Regular.ttf'),
+  // USE LORA - Better unicode support for special characters
+  interRegular: path.join(FONTS_DIR, 'Lora_400Regular.ttf'),
+  interMedium: path.join(FONTS_DIR, 'Lora_400Regular.ttf'),
+  interSemiBold: path.join(FONTS_DIR, 'Lora_400Regular.ttf'),
+  lora: path.join(FONTS_DIR, 'Lora_400Regular.ttf'),
+  ebGaramond: path.join(FONTS_DIR, 'Lora_400Regular.ttf'),
+  playfair: path.join(FONTS_DIR, 'Lora_400Regular.ttf'),
+  playfairBold: path.join(FONTS_DIR, 'Lora_400Regular.ttf'),
 };
 
 interface ChapterContent {

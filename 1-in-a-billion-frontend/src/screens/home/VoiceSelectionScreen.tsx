@@ -15,6 +15,7 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { env } from '@/config/env';
 import { AmbientMusic } from '@/services/ambientMusic';
 import { TexturedBackground } from '@/components/TexturedBackground';
+import { useProfileStore } from '@/store/profileStore';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'VoiceSelection'>;
 
@@ -272,8 +273,8 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
             
             // CRITICAL: Store jobId in person's profile so PersonReadingsScreen can find it
             const personId = person1.id || userId;
-            const updatePerson = profileStore.getState().updatePerson;
-            const existingPerson = profileStore.people.find(p => p.id === personId);
+            const updatePerson = useProfileStore.getState().updatePerson;
+            const existingPerson = useProfileStore.getState().people.find(p => p.id === personId);
             
             if (existingPerson) {
                 const updatedJobIds = [...(existingPerson.jobIds || []), data.jobId];
