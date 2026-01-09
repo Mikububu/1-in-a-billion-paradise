@@ -1867,13 +1867,35 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
               personType = 'individual';
             } else {
               const p = primaryJobId ? jobIdToParams.get(primaryJobId) : null;
+              
+              // DEBUG: Log the job params lookup
+              if (primaryJobId && !p) {
+                console.warn(`⚠️ [MyLibrary] No job params found for jobId ${primaryJobId} (${person.name})`);
+                console.warn(`   Available job IDs in map:`, Array.from(jobIdToParams.keys()).slice(0, 5));
+              }
+              
               const fromJob =
                 p?.person1?.name === person.name
                   ? 'person1'
                   : p?.person2?.name === person.name
                     ? 'person2'
                     : null;
-              personType = fromJob || (person.isUser || person.name === userName ? 'person1' : 'person2');
+              
+              if (!fromJob && primaryJobId) {
+                console.warn(`⚠️ [MyLibrary] Could not determine personType from job params for ${person.name}`);
+                console.warn(`   Job params:`, p);
+                console.warn(`   Person name:`, person.name);
+                console.warn(`   person1 name:`, p?.person1?.name);
+                console.warn(`   person2 name:`, p?.person2?.name);
+              }
+              
+              // CRITICAL: Only use fallback if we truly can't find the job params
+              // Default to person1 to avoid swapping (better to show wrong range than wrong person's reading)
+              personType = fromJob || 'person1';
+              
+              if (!fromJob) {
+                console.warn(`⚠️ [MyLibrary] Using fallback personType='person1' for ${person.name} - readings may be incorrect`);
+              }
             }
 
             return (
