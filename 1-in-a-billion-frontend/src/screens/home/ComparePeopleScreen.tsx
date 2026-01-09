@@ -293,12 +293,12 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
               </View>
               <Text style={styles.addPersonText}>Add another person</Text>
             </TouchableOpacity>
+
+            <View style={{ marginTop: spacing.lg }}>
+              <Button label="Continue to Packages" onPress={handleContinue} disabled={!canContinue} />
+            </View>
           </ScrollView>
         )}
-      </View>
-
-      <View style={styles.footer}>
-        <Button label="Continue to Packages" onPress={handleContinue} disabled={!canContinue} />
       </View>
     </SafeAreaView>
   );
