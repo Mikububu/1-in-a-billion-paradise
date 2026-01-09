@@ -90,7 +90,12 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   // #endregion
 
   // Get readings from store (SINGLE SOURCE OF TRUTH - Audible style)
-  const storedReadings = personId && jobId ? getReadingsByJobId(personId, jobId) : [];
+  // If jobId provided, use it. Otherwise, get readings from ALL jobs for this person
+  const storedReadings = personId 
+    ? (jobId 
+        ? getReadingsByJobId(personId, jobId)
+        : (person?.readings || [])) // Show all readings if no specific jobId
+    : [];
   
   // #region agent log
   fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:storedReadings',message:'Readings from store',data:{personId,jobId,storedReadingsCount:storedReadings.length,storedReadings:storedReadings.map(r=>({id:r.id,system:r.system,jobId:r.jobId,hasPdf:!!r.pdfPath,hasAudio:!!r.audioPath}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3,H4'})}).catch(()=>{});
@@ -309,8 +314,46 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       // Detect job type and calculate document range
       const jobType = jobData.job?.type || 'nuclear_v2';
       const isExtendedJob = jobType === 'extended' || jobType === 'single_system';
-      const systemCount = jobData.job?.params?.systems?.length || 5;
+      const orderedSystems = jobData.job?.params?.systems || [];
+      const systemCount = orderedSystems.length || 5;
+      
+      // FIX: If current job only has 1 system but person has multiple jobs, fetch from ALL jobs
+      const allJobIds = person?.jobIds || [];
+      const shouldAggregateJobs = orderedSystems.length === 1 && allJobIds.length > 1 && jobType === 'extended';
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:aggregateCheck',message:'Checking if should aggregate jobs',data:{currentJobId:jobId,currentJobSystemsCount:orderedSystems.length,allJobIdsCount:allJobIds.length,allJobIds,shouldAggregateJobs},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'AGGREGATE'})}).catch(()=>{});
+      // #endregion
+      
       const docRange = getDocRange(jobType, systemCount);
+      
+      // AGGREGATE: If current job only has 1 system, fetch from all other jobs too
+      let allDocuments = documents;
+      if (shouldAggregateJobs) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:aggregateStart',message:'Starting job aggregation',data:{allJobIdsCount:allJobIds.length,otherJobIds:allJobIds.filter(id=>id!==jobId)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'AGGREGATE'})}).catch(()=>{});
+        // #endregion
+        const otherJobIds = allJobIds.filter(id => id !== jobId);
+        const otherJobsData = await Promise.all(
+          otherJobIds.map(async (otherJobId) => {
+            try {
+              const res = await fetch(`${env.CORE_API_URL}/api/jobs/v2/${otherJobId}`, { signal: AbortSignal.timeout(10000) });
+              if (!res.ok) return null;
+              const data = await res.json();
+              return data;
+            } catch {
+              return null;
+            }
+          })
+        );
+        const otherDocuments = otherJobsData
+          .filter(Boolean)
+          .flatMap((jd: any) => jd.job?.results?.documents || []);
+        allDocuments = [...documents, ...otherDocuments];
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:aggregateResult',message:'Job aggregation complete',data:{originalDocumentsCount:documents.length,otherDocumentsCount:otherDocuments.length,totalDocumentsCount:allDocuments.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'AGGREGATE'})}).catch(()=>{});
+        // #endregion
+      }
 
       const documents = jobData.job?.results?.documents || [];
       const hasAnyAudioFromApi = Array.isArray(documents) && documents.some((d: any) => !!d?.audioUrl);
@@ -323,15 +366,22 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         console.log('📦 All docNums:', documents.map((d: any) => d.docNum).join(', '));
       }
 
-      // Build readings from documents
-      const readingsMap: Record<number, Reading> = {};
+      // Build readings from documents (use allDocuments if aggregated)
+      // For aggregated jobs, use system as key to avoid docNum conflicts
+      const readingsMap: Record<string, Reading> = {};
+      const documentsToProcess = shouldAggregateJobs ? allDocuments : documents;
 
-      for (const doc of documents) {
+      for (const doc of documentsToProcess) {
         const docNum = Number(doc.docNum);
-        console.log(`🔍 [PersonReadings] Processing doc: docNum=${docNum} (type=${typeof doc.docNum}), docRange=${JSON.stringify(docRange)}, includes=${docRange.includes(docNum)}`);
-        if (!docNum || !docRange.includes(docNum)) {
-          console.log(`⚠️ [PersonReadings] Skipping doc ${docNum}: !docNum=${!docNum}, !includes=${!docRange.includes(docNum)}`);
-          continue;
+        const docJobId = doc.jobId || jobId; // Use source jobId for aggregated jobs
+        
+        // For aggregated jobs, skip docRange check (we want all systems)
+        if (!shouldAggregateJobs) {
+          console.log(`🔍 [PersonReadings] Processing doc: docNum=${docNum} (type=${typeof doc.docNum}), docRange=${JSON.stringify(docRange)}, includes=${docRange.includes(docNum)}`);
+          if (!docNum || !docRange.includes(docNum)) {
+            console.log(`⚠️ [PersonReadings] Skipping doc ${docNum}: !docNum=${!docNum}, !includes=${!docRange.includes(docNum)}`);
+            continue;
+          }
         }
 
         // Use system from backend if available, otherwise calculate from docNum
@@ -375,18 +425,23 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         
         if (!system) continue;
 
-        readingsMap[docNum] = {
-          id: `reading-${docNum}`,
+        // Use system.id as key for aggregated jobs (avoids docNum conflicts)
+        const mapKey = shouldAggregateJobs ? system.id : String(docNum);
+        
+        // If reading already exists (from another job), merge artifacts (keep best)
+        const existing = readingsMap[mapKey];
+        readingsMap[mapKey] = {
+          id: existing?.id || `reading-${docNum}-${docJobId}`,
           system: system.id,
           name: system.name,
-          pdfPath: doc.pdfUrl || undefined,
+          pdfPath: existing?.pdfPath || doc.pdfUrl || undefined,
           // Use backend proxy endpoint for audio streaming (AVPlayer-friendly Range support).
           // This avoids sending Supabase signed URLs directly to clients.
-          audioPath: doc.audioUrl ? `${env.CORE_API_URL}/api/jobs/v2/${jobId}/audio/${docNum}` : undefined,
+          audioPath: existing?.audioPath || (doc.audioUrl ? `${env.CORE_API_URL}/api/jobs/v2/${docJobId}/audio/${docNum}` : undefined),
           // Song URL (if generated)
           // Use backend proxy endpoint for song downloads (consistent with audio)
-          songPath: doc.songUrl ? `${env.CORE_API_URL}/api/jobs/v2/${jobId}/song/${docNum}` : undefined,
-          timestamp: jobData?.job?.created_at || new Date().toISOString(),
+          songPath: existing?.songPath || (doc.songUrl ? `${env.CORE_API_URL}/api/jobs/v2/${docJobId}/song/${docNum}` : undefined),
+          timestamp: existing?.timestamp || doc.created_at || jobData?.job?.created_at || new Date().toISOString(),
         };
 
         console.log(`📄 Doc ${docNum} (${system.name}): pdf=${!!doc.pdfUrl} audio=${!!doc.audioUrl} song=${!!doc.songUrl}`);
@@ -460,10 +515,13 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       }
 
       // Fill in missing with placeholders - ONLY show systems that were actually ordered
-      const orderedSystems = jobData.job?.params?.systems || [];
+      // For aggregated jobs, show all 5 systems
+      const orderedSystems = shouldAggregateJobs 
+        ? ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah']
+        : (jobData.job?.params?.systems || []);
       console.log(`📋 Ordered systems from job params:`, orderedSystems);
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:orderedSystems',message:'Ordered systems analysis',data:{orderedSystemsCount:orderedSystems.length,orderedSystems,personType,systemCount,docRange},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SYSTEMS'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:orderedSystems',message:'Ordered systems analysis',data:{orderedSystemsCount:orderedSystems.length,orderedSystems,personType,systemCount:orderedSystems.length,docRange,shouldAggregateJobs},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SYSTEMS'})}).catch(()=>{});
       // #endregion
       const systemsToShow = personType === 'overlay' 
         ? SYSTEMS 
@@ -473,23 +531,45 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       const finalSystemsToShow = systemsToShow.length > 0 ? systemsToShow : SYSTEMS.slice(0, systemCount);
       console.log(`📋 Final systems to show (${finalSystemsToShow.length}):`, finalSystemsToShow.map(s => s.name));
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:finalSystemsToShow',message:'Final systems to show',data:{finalSystemsToShowCount:finalSystemsToShow.length,finalSystemsToShow:finalSystemsToShow.map(s=>s.id),readingsMapKeys:Object.keys(readingsMap),readingsMapCount:Object.keys(readingsMap).length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SYSTEMS'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:finalSystemsToShow',message:'Final systems to show',data:{finalSystemsToShowCount:finalSystemsToShow.length,finalSystemsToShow:finalSystemsToShow.map(s=>s.id),readingsMapKeys:Object.keys(readingsMap),readingsMapCount:Object.keys(readingsMap).length,shouldAggregateJobs},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SYSTEMS'})}).catch(()=>{});
       // #endregion
       
-      let finalReadings = docRange.map((docNum, i) => {
-        if (readingsMap[docNum]) {
-          console.log(`✅ [PersonReadings] Found reading in map for docNum ${docNum}`);
-          return readingsMap[docNum];
-        }
-        console.log(`⚠️ [PersonReadings] No reading in map for docNum ${docNum}, creating placeholder`);
-        const sys = finalSystemsToShow[i] || SYSTEMS[0];
-        return {
-          id: `placeholder-${docNum}`,
-          system: sys.id,
-          name: sys.name,
-          timestamp: jobData?.job?.created_at || new Date().toISOString(),
-        };
-      });
+      // Build finalReadings: for aggregated jobs, use system-based lookup; otherwise use docNum
+      let finalReadings: Reading[];
+      if (shouldAggregateJobs) {
+        // Aggregated: map each system to its reading (or placeholder)
+        finalReadings = finalSystemsToShow.map((sys, i) => {
+          const reading = readingsMap[sys.id];
+          if (reading) {
+            console.log(`✅ [PersonReadings] Found reading in map for system ${sys.id}`);
+            return reading;
+          }
+          console.log(`⚠️ [PersonReadings] No reading in map for system ${sys.id}, creating placeholder`);
+          return {
+            id: `placeholder-${sys.id}`,
+            system: sys.id,
+            name: sys.name,
+            timestamp: jobData?.job?.created_at || new Date().toISOString(),
+          };
+        });
+      } else {
+        // Normal: use docNum-based lookup
+        finalReadings = docRange.map((docNum, i) => {
+          const reading = readingsMap[String(docNum)];
+          if (reading) {
+            console.log(`✅ [PersonReadings] Found reading in map for docNum ${docNum}`);
+            return reading;
+          }
+          console.log(`⚠️ [PersonReadings] No reading in map for docNum ${docNum}, creating placeholder`);
+          const sys = finalSystemsToShow[i] || SYSTEMS[0];
+          return {
+            id: `placeholder-${docNum}`,
+            system: sys.id,
+            name: sys.name,
+            timestamp: jobData?.job?.created_at || new Date().toISOString(),
+          };
+        });
+      }
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:finalReadingsBeforeFilter',message:'Final readings before filter',data:{finalReadingsCount:finalReadings.length,finalReadings:finalReadings.map(r=>({id:r.id,system:r.system,name:r.name,hasPdf:!!r.pdfPath,hasAudio:!!r.audioPath,hasSong:!!r.songPath,isPlaceholder:r.id.startsWith('placeholder')}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FILTER'})}).catch(()=>{});
       // #endregion
