@@ -58,11 +58,11 @@ type Reading = {
 };
 
 export const PersonReadingsScreen = ({ navigation, route }: Props) => {
-  const { personName, personType, jobId } = route.params;
+  const { personName, personType, jobId: routeJobId } = route.params;
   const routePersonId = (route.params as any).personId; // May not exist in older nav calls
 
   // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:mount',message:'Screen mounted',data:{personName,personType,jobId,routePersonId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:mount',message:'Screen mounted',data:{personName,personType,routeJobId,routePersonId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
   // #endregion
 
   // Store access
@@ -82,8 +82,11 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   
   const personId = person?.id;
 
+  // FALLBACK: If no jobId from route, use first jobId from person's store
+  const jobId = routeJobId || person?.jobIds?.[0] || undefined;
+
   // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:personLookup',message:'Person lookup result',data:{found:!!person,personId,personName:person?.name,routePersonId,searchName:personName,personJobIds:person?.jobIds,personJobIdsCount:person?.jobIds?.length||0,routeJobId:jobId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:personLookup',message:'Person lookup result',data:{found:!!person,personId,personName:person?.name,routePersonId,searchName:personName,personJobIds:person?.jobIds,personJobIdsCount:person?.jobIds?.length||0,routeJobId,resolvedJobId:jobId,usedFallback:!routeJobId&&!!person?.jobIds?.[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
   // #endregion
 
   // Get readings from store (SINGLE SOURCE OF TRUTH - Audible style)
