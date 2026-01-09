@@ -62,9 +62,6 @@ export const NextStepScreen = ({ navigation }: Props) => {
         shouldPlay
         isLooping
         isMuted
-        usePoster
-        posterSource={require('../../../assets/images/hello_i_love_you_poster.png')}
-        posterStyle={{ resizeMode: 'cover' }}
       />
     </View>
   );
