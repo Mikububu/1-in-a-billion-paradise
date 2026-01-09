@@ -1927,7 +1927,21 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             <Text style={{ color: 'white' }}>
               Names: {allPeopleWithReadings.map(p => p.name).join(', ') || 'NONE'}
             </Text>
+            <Text style={{ color: 'white' }}>
+              hasUserReadings: {hasUserReadings ? 'YES' : 'NO'}, partners: {partners.length}, cloudCards: {cloudPeopleCards.length}
+            </Text>
           </View>
+
+          {/* FORCE TEST CARD - Always visible */}
+          <TouchableOpacity style={styles.personCard} onPress={() => Alert.alert('Test', 'Card is clickable')}>
+            <View style={[styles.personAvatar, { backgroundColor: '#E8F4E4' }]}>
+              <Text style={[styles.personInitial, { color: '#2E7D32' }]}>T</Text>
+            </View>
+            <View style={styles.personInfo}>
+              <Text style={styles.personName}>TEST CARD - Should Always Show</Text>
+              <Text style={styles.personDate}>If you see this, cards CAN render</Text>
+            </View>
+          </TouchableOpacity>
 
           {/* Person Cards - show ALL people who have readings (grouped by name) */}
           {/* #region agent log */}
