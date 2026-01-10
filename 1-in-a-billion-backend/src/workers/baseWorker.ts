@@ -169,6 +169,7 @@ export abstract class BaseWorker {
       }
 
       console.log(`✅ Task complete: ${task.id}`);
+      await this.syncJobStatus(task.job_id);
 
     } catch (error: any) {
       console.error(`❌ Task failed: ${task.id} - ${error.message}`);
@@ -225,9 +226,96 @@ export abstract class BaseWorker {
         }
       }
 
+      await this.syncJobStatus(task.job_id);
     } finally {
       // Stop heartbeat
       this.stopHeartbeat(task.id);
+    }
+  }
+
+  /**
+   * Ensure jobs.status/progress reflects current task state.
+   * Some deployments may be missing DB triggers that update job status on task changes.
+   */
+  private async syncJobStatus(jobId: string): Promise<void> {
+    if (!supabase) return;
+
+    try {
+      const { data: tasks, error: tasksErr } = await supabase
+        .from('job_tasks')
+        .select('status,error')
+        .eq('job_id', jobId);
+
+      if (tasksErr || !tasks) return;
+
+      const total = tasks.length;
+      const complete = tasks.filter(t => t.status === 'complete').length;
+      const failed = tasks.filter(t => t.status === 'failed').length;
+      const done = complete + failed;
+
+      const percent = total > 0 ? Math.round((complete / total) * 100) : 0;
+
+      // Preserve existing progress fields where possible
+      const { data: jobRow } = await supabase
+        .from('jobs')
+        .select('progress')
+        .eq('id', jobId)
+        .single();
+
+      const prevProgress = (jobRow as any)?.progress || {};
+
+      if (failed > 0 && done === total) {
+        const firstError = tasks.find(t => t.status === 'failed')?.error || 'Some tasks failed';
+        await supabase
+          .from('jobs')
+          .update({
+            status: 'error',
+            error: firstError,
+            progress: {
+              ...prevProgress,
+              phase: 'error',
+              message: 'Some tasks failed',
+              percent,
+              tasksComplete: complete,
+              tasksTotal: total,
+            },
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', jobId);
+      } else if (total > 0 && complete === total) {
+        await supabase
+          .from('jobs')
+          .update({
+            status: 'complete',
+            progress: {
+              ...prevProgress,
+              phase: 'complete',
+              message: 'Generation complete!',
+              percent: 100,
+              tasksComplete: complete,
+              tasksTotal: total,
+            },
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', jobId);
+      } else if (total > 0) {
+        await supabase
+          .from('jobs')
+          .update({
+            status: 'processing',
+            progress: {
+              ...prevProgress,
+              phase: 'processing',
+              message: `Processing... (${complete}/${total} tasks complete)`,
+              percent,
+              tasksComplete: complete,
+              tasksTotal: total,
+            },
+          })
+          .eq('id', jobId);
+      }
+    } catch {
+      // Best-effort; don't fail tasks for sync errors.
     }
   }
 
