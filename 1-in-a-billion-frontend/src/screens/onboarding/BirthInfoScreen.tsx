@@ -317,7 +317,7 @@ export const BirthInfoScreen = ({ navigation }: Props) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: 'transparent',
   },
   backButton: {
     position: 'absolute',

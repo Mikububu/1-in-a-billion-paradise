@@ -54,6 +54,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   texture: {
-    opacity: 0.32,
+    opacity: 0.38,
   },
 });
