@@ -14,6 +14,7 @@ export const colors = {
   primarySoft: '#FFF2F2',
   accentSoft: 'rgba(209, 0, 0, 0.06)',
   cardStroke: 'rgba(30, 25, 20, 0.05)',
+  highlightYellow: '#FACC15',
   inputBg: '#ECEAE6',
   // Canonical "black stroke" for input fields
   inputStroke: 'rgba(26, 26, 26, 0.45)',

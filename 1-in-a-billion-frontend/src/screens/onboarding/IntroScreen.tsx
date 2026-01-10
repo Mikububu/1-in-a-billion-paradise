@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   wordActive: {
-    backgroundColor: '#FDE68A',
+    backgroundColor: colors.highlightYellow,
   },
   wordText: {
     fontFamily: typography.sansRegular,
