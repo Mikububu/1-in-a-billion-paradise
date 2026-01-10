@@ -507,7 +507,7 @@ export const HomeScreen = ({ navigation }: Props) => {
   return (
     <SafeAreaView style={styles.container}>
       {/* Screen ID */}
-      <Text style={styles.screenId}>10</Text>
+      {/** Screen numbers temporarily removed */}
       {/* Two minimalist humans roam the entire screen in the background (never interacts with UI). */}
       {/* Sprite animation temporarily disabled */}
       {/* <View style={styles.walkersOverlay} pointerEvents="none">

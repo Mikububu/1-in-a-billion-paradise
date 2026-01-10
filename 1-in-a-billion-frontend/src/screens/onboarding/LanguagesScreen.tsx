@@ -76,7 +76,7 @@ export const LanguagesScreen = ({ navigation }: Props) => {
       </TouchableOpacity>
 
       {/* Screen ID */}
-      <Text style={styles.screenId}>4</Text>
+      {/** Screen numbers temporarily removed */}
 
       {/* Content at top */}
       <ScrollView

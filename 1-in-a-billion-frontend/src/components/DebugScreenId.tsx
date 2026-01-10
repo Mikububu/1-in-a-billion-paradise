@@ -10,14 +10,16 @@ interface DebugScreenIdProps {
 }
 
 export const DebugScreenId = ({ id }: DebugScreenIdProps) => {
-  // Only show in development
-  if (!__DEV__) return null;
+  // Temporarily disabled while polishing design.
+  // (We keep the component so it can be re-enabled later.)
+  void id;
+  return null;
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.text}>{id}</Text>
-    </View>
-  );
+  // return (
+  //   <View style={styles.container}>
+  //     <Text style={styles.text}>{id}</Text>
+  //   </View>
+  // );
 };
 
 const styles = StyleSheet.create({

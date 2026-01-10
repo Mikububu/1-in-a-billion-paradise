@@ -681,7 +681,7 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
       </View>
 
       {/* Screen ID */}
-      <Text style={styles.screenId}>7</Text>
+      {/** Screen numbers temporarily removed */}
 
       <View style={styles.footer}>
         {/* Progress bar - 0% to 100% */}

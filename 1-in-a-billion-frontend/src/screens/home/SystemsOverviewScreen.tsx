@@ -97,7 +97,7 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.screenId}>12</Text>
+      {/** Screen numbers temporarily removed */}
       {/* Back button */}
       <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
         <Text style={styles.backText}>← Back</Text>

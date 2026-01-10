@@ -198,7 +198,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.screenId}>{screenId}</Text>
+      {/** Screen numbers temporarily removed */}
 
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>

@@ -39,9 +39,7 @@ export const ScreenShell = ({
       )}
 
       {/* Screen ID - positioned under D button */}
-      {screenId !== undefined && (
-        <Text style={styles.screenId}>{screenId}</Text>
-      )}
+      {screenId !== undefined ? null : null}
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingTop: contentPaddingTop }]}

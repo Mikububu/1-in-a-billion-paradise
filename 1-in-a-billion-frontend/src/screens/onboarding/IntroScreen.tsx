@@ -242,32 +242,9 @@ export const IntroScreen = ({ navigation }: Props) => {
             />
           </View>
 
-          {/* RESET (Beta Control) */}
-          <Pressable
-            onPress={() => {
-              Alert.alert('Reset App (Beta)', 'This will wipe all local data. Continue?', [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Nuclear Reset',
-                  style: 'destructive',
-                  onPress: async () => {
-                    reset();
-                    await signOut();
-                    Alert.alert('Reset Complete', 'App data has been wiped.');
-                  }
-                }
-              ]);
-            }}
-            style={styles.resetButton}
-          >
-            <Text style={styles.resetText}>RESET</Text>
-          </Pressable>
-
           {/* Spacer to push content up from the background image */}
           <View style={styles.bottomSpacer} />
 
-          {/* Debug Screen index */}
-          <Text style={styles.screenId}>1</Text>
         </View>
       </SafeAreaView>
     </View>
@@ -346,27 +323,6 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: height * 0.25,
-  },
-  screenId: {
-    position: 'absolute',
-    top: 95,
-    left: 20,
-    fontFamily: typography.sansRegular,
-    fontSize: 12,
-    color: colors.text,
-  },
-  resetButton: {
-    position: 'absolute',
-    top: 10,
-    left: 20,
-    zIndex: 100,
-    padding: 10,
-  },
-  resetText: {
-    fontFamily: typography.sansMedium,
-    fontSize: 10,
-    color: colors.mutedText,
-    opacity: 0.5,
   },
   headerControls: {
     position: 'absolute',

@@ -596,7 +596,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
   return (
     <SafeAreaView style={styles.container}>
       {/* Screen ID */}
-      <Text style={styles.screenId}>{screenId}</Text>
+      {/** Screen numbers temporarily removed */}
       <View style={styles.content}>
         <Text style={[styles.line1, { color: screen.colors.line1 }]} selectable>
           {screen.line1}

@@ -188,7 +188,9 @@ export const BirthInfoScreen = ({ navigation }: Props) => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.title} selectable>When & where{'\n'}were you born?</Text>
+          <View style={styles.titleBackdrop}>
+            <Text style={styles.title} selectable>When & where{'\n'}were you born?</Text>
+          </View>
 
           {/* Date Input */}
           <Pressable
@@ -358,6 +360,15 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.md,
     textAlign: 'center',
+  },
+  titleBackdrop: {
+    alignSelf: 'center',
+    width: '100%',
+    backgroundColor: '#FDE68A',
+    borderRadius: radii.card,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
   },
   inputRow: {
     flexDirection: 'row',

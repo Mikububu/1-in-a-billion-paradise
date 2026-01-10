@@ -268,7 +268,6 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.screenId}>15</Text>
       {/* Header with exit button */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>

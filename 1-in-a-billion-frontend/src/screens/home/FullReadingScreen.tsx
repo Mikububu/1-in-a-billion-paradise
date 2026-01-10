@@ -855,7 +855,7 @@ export const FullReadingScreen = ({ navigation, route }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.screenId}>13</Text>
+      {/** Screen numbers temporarily removed */}
 
       {/* LOADING STATE - Full screen, no scroll */}
       {isStillLoading && currentArts ? (

@@ -58,7 +58,7 @@ export const OnboardingCompleteScreen = ({ navigation }: Props) => {
   return (
     <SafeAreaView style={styles.container}>
       {/* Screen ID */}
-      <Text style={styles.screenId}>9</Text>
+      {/** Screen numbers temporarily removed */}
       <Animated.View
         style={[
           styles.content,

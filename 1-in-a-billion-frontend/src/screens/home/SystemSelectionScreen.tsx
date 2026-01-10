@@ -427,7 +427,7 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.screenId}>{screenId}</Text>
+      {/** Screen numbers temporarily removed */}
 
       <View style={styles.navRow}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>

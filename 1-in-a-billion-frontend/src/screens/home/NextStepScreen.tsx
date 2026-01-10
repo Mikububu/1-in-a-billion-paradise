@@ -44,9 +44,6 @@ export const NextStepScreen = ({ navigation }: Props) => {
 
   return (
     <View style={styles.container}>
-      {/* Screen ID */}
-      <Text style={styles.screenId}>11</Text>
-
       {/* Headline */}
       <Text style={styles.headline}>Soul Laboratory</Text>
 

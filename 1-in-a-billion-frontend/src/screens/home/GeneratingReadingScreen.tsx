@@ -374,7 +374,7 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
   return (
     <SafeAreaView style={styles.container}>
       {/* Screen ID */}
-      <Text style={styles.screenId}>{screenId}</Text>
+      {/** Screen numbers temporarily removed */}
 
       <ScrollView
         contentContainerStyle={styles.content}
