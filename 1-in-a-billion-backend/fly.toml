@@ -38,6 +38,50 @@ primary_region = "sin"
   watchdog = "node dist/workers/watchdogWorker.js"
 
 [[vm]]
+  # Default VM settings (used if a process group
+  # doesn't have an override below).
   memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[[vm]]
+  # API server (lightweight)
+  processes = ["app"]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[[vm]]
+  # Text worker (LLM + small storage I/O)
+  processes = ["worker"]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[[vm]]
+  # PDF generation can be memory heavy (fonts/layout buffers).
+  processes = ["pdf-worker"]
+  memory = "2048mb"
+  cpu_kind = "shared"
+  cpus = 2
+
+[[vm]]
+  # Audio generation can spike memory during stitching/compression.
+  processes = ["audio-worker"]
+  memory = "1024mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[[vm]]
+  # Song generation downloads audio and may buffer.
+  processes = ["song-worker"]
+  memory = "1024mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[[vm]]
+  # Watchdog is lightweight.
+  processes = ["watchdog"]
+  memory = "256mb"
   cpu_kind = "shared"
   cpus = 1

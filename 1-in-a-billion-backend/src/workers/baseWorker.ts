@@ -328,7 +328,13 @@ export abstract class BaseWorker {
       throw new Error('Failed to get job for artifact upload');
     }
 
-    // Generate storage path with user-friendly filename
+    // Generate storage path.
+    // IMPORTANT:
+    // - Queue task inputs (e.g. pdf/audio/song) reference text artifacts by a deterministic path
+    //   (`.../text/<sourceTaskId>.txt`). If we store text files with "friendly" names, downstream
+    //   workers cannot download them and jobs will stall.
+    // - So: keep text artifacts deterministic by task.id, and keep friendly naming for user-facing
+    //   artifacts (pdf/audio/song) where internal linking does not depend on filename.
     // NOTE: artifact.type is not always in the form "foo_bar" (e.g. "text").
     const extension =
       artifact.type === 'audio_mp3' ? 'mp3' :
@@ -337,12 +343,14 @@ export abstract class BaseWorker {
             artifact.type === 'json' ? 'json' :
               artifact.type === 'text' ? 'txt' :
                 'bin';
-    
-    // Generate user-friendly filename
-    const friendlyFileName = this.generateFriendlyFileName(job.params, task, artifact.type, extension);
-    
-    // Storage path: user_id/job_id/artifact_type/friendly_filename
-    const storagePath = `${job.user_id}/${task.job_id}/${artifact.type}/${friendlyFileName}`;
+
+    // Storage path:
+    // - text: user_id/job_id/text/<taskId>.txt  (deterministic; used by downstream tasks)
+    // - other: user_id/job_id/<artifact_type>/<friendly_filename>
+    const storagePath =
+      artifact.type === 'text'
+        ? `${job.user_id}/${task.job_id}/text/${task.id}.${extension}`
+        : `${job.user_id}/${task.job_id}/${artifact.type}/${this.generateFriendlyFileName(job.params, task, artifact.type, extension)}`;
 
     // Upload to Storage
     const uploadedPath = await uploadArtifact(storagePath, artifact.buffer, artifact.contentType);
