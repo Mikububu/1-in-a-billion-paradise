@@ -19,7 +19,8 @@ const variantStyles: Record<ButtonVariant, ViewStyle> = {
     borderColor: colors.text,
   },
   secondary: {
-    backgroundColor: colors.background,
+    // "Broken white" UI button background
+    backgroundColor: colors.buttonBg,
     borderColor: colors.text,
   },
   ghost: {

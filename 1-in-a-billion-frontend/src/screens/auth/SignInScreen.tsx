@@ -717,10 +717,10 @@ const styles = StyleSheet.create({
     minHeight: 56,
   },
   googleButton: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.buttonBg,
   },
   googleText: {
-    color: '#000',
+    color: colors.text,
     fontSize: 16,
     fontFamily: typography.sansMedium,
   },
