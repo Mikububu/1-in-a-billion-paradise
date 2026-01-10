@@ -114,8 +114,18 @@ export async function processSongTask(task: { id: string; job_id: string; input:
 
     // Step 3: Generate song with MiniMax
     console.log(`🎵 Generating song for doc ${docNum}...`);
+    // MiniMax is sensitive to very long lyric payloads. Keep this bounded and ensure
+    // the subject name remains present even after trimming.
+    const MAX_LYRICS_CHARS = 1400;
+    let safeLyrics = lyricsResult.lyrics || '';
+    if (safeLyrics.length > MAX_LYRICS_CHARS) {
+      safeLyrics = safeLyrics.slice(0, MAX_LYRICS_CHARS).trim();
+    }
+    if (personName && !safeLyrics.toLowerCase().includes(personName.toLowerCase())) {
+      safeLyrics = `${safeLyrics}\n\n${personName}.`;
+    }
     const songResult = await generateSong({
-      lyrics: lyricsResult.lyrics,
+      lyrics: safeLyrics,
       personName,
       style: lyricsResult.style || 'dark_poetic',
       emotion: 'intimate',

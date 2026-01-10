@@ -34,21 +34,9 @@ case "$PROCESS_GROUP" in
   # COMBINED WORKER (runs text + PDF + audio in one container)
   # ═══════════════════════════════════════════════════════════════════════════
   worker)
-    echo "[entrypoint] Starting combined worker (text + PDF + audio)..."
-    
-    node dist/workers/textWorker.js &
-    TEXT_PID=$!
-    node dist/workers/pdfWorker.js &
-    PDF_PID=$!
-    node dist/workers/audioWorker.js &
-    AUDIO_PID=$!
-
-    echo "[entrypoint] Started text worker pid=${TEXT_PID}, PDF worker pid=${PDF_PID}, audio worker pid=${AUDIO_PID}"
-
-    # Forward signals
-    trap 'echo "[entrypoint] Caught signal, stopping..."; kill -TERM ${TEXT_PID} ${PDF_PID} ${AUDIO_PID} 2>/dev/null || true; wait ${TEXT_PID} ${PDF_PID} ${AUDIO_PID} 2>/dev/null || true; exit 0' TERM INT
-
-    wait ${TEXT_PID} ${PDF_PID} ${AUDIO_PID}
+    echo "[entrypoint] Starting text worker (worker group)..."
+    # Dedicated PDF/audio workers run in their own process groups.
+    exec node dist/workers/textWorker.js
     ;;
   
   # ═══════════════════════════════════════════════════════════════════════════

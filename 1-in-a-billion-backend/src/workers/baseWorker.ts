@@ -174,11 +174,56 @@ export abstract class BaseWorker {
       console.error(`❌ Task failed: ${task.id} - ${error.message}`);
 
       // Mark as failed (will retry if attempts < max)
-      await supabase?.rpc('fail_task', {
-        p_task_id: task.id,
-        p_worker_id: this.workerId,
-        p_error: error.message || 'Unknown error',
-      });
+      const failErrorMessage = error?.message || 'Unknown error';
+      try {
+        const { error: failRpcError } = await supabase!.rpc('fail_task', {
+          p_task_id: task.id,
+          p_worker_id: this.workerId,
+          p_error: failErrorMessage,
+        });
+
+        // Some environments may not have fail_task() deployed (PostgREST schema cache PGRST202),
+        // which would otherwise leave tasks stuck in "processing" forever.
+        if (failRpcError) {
+          throw failRpcError;
+        }
+      } catch (rpcErr: any) {
+        console.warn(`⚠️ fail_task RPC failed; falling back to direct update: ${rpcErr?.message || String(rpcErr)}`);
+
+        // Fallback: emulate fail_task behavior directly.
+        const { data: currentTask, error: readErr } = await supabase!
+          .from('job_tasks')
+          .select('attempts, max_attempts')
+          .eq('id', task.id)
+          .single();
+
+        if (readErr || !currentTask) {
+          console.error('❌ Failed to read job_tasks for fallback fail:', readErr?.message || 'unknown');
+        } else {
+          const attempts = Number((currentTask as any).attempts || 0);
+          const maxAttempts = Number((currentTask as any).max_attempts || 3);
+          const nextAttempts = attempts + 1;
+          const nextStatus = nextAttempts >= maxAttempts ? 'failed' : 'pending';
+
+          const { error: updateErr } = await supabase!
+            .from('job_tasks')
+            .update({
+              status: nextStatus,
+              attempts: nextAttempts,
+              error: failErrorMessage,
+              worker_id: null,
+              claimed_at: null,
+              started_at: null,
+              last_heartbeat: null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', task.id);
+
+          if (updateErr) {
+            console.error('❌ Fallback fail update failed:', updateErr?.message || 'unknown');
+          }
+        }
+      }
 
     } finally {
       // Stop heartbeat

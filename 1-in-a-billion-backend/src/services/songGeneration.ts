@@ -65,9 +65,15 @@ export async function generateSong(input: SongGenerationInput): Promise<SongGene
       throw new Error(`MiniMax API returned status ${response.status}`);
     }
 
+    const baseResp = response.data?.base_resp;
+    if (baseResp && typeof baseResp.status_code === 'number' && baseResp.status_code !== 0) {
+      throw new Error(`MiniMax error ${baseResp.status_code}: ${baseResp.status_msg || 'unknown'}`);
+    }
+
     const data = response.data?.data;
     if (!data) {
-      throw new Error('No data in MiniMax response');
+      const snippet = JSON.stringify(response.data || {}).slice(0, 500);
+      throw new Error(`No data in MiniMax response (snippet=${snippet})`);
     }
 
     // Extract audio (prefer URL, fallback to base64)
