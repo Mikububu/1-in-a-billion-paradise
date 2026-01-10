@@ -91,7 +91,7 @@ export const ChapterCard = ({ chapter, onDownloadPDF }: ChapterCardProps) => {
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.surface,
         borderRadius: radii.card,
         padding: spacing.md,
         marginBottom: spacing.md,

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StyleSheet, Text, View, TouchableOpacity, Dimensions } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
@@ -13,6 +13,15 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 export const NextStepScreen = ({ navigation }: Props) => {
   const videoRef = useRef<Video>(null);
   const isFocused = useIsFocused();
+
+  // Be explicit: expo-av can sometimes fail to autoplay with only `shouldPlay`.
+  useEffect(() => {
+    if (isFocused) {
+      videoRef.current?.playAsync().catch(() => {});
+    } else {
+      videoRef.current?.pauseAsync().catch(() => {});
+    }
+  }, [isFocused]);
 
   const buttons = [
     {
@@ -61,13 +70,13 @@ export const NextStepScreen = ({ navigation }: Props) => {
         source={require('../../../assets/videos/hello_i_love_you.mp4')}
         style={styles.bottomVideo}
         resizeMode={ResizeMode.COVER}
-        shouldPlay={isFocused}
+        shouldPlay={false}
         isLooping
         isMuted
         volume={0}
-        onLoad={() => {
-          // Make sure we always start from the beginning when entering.
-          videoRef.current?.setPositionAsync(0).catch(() => {});
+        onReadyForDisplay={() => {
+          // Ensure autoplay resumes once the first frame is ready.
+          if (isFocused) videoRef.current?.playAsync().catch(() => {});
         }}
       />
     </View>
