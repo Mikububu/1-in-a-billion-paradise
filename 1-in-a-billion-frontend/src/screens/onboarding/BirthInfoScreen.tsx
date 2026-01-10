@@ -170,7 +170,7 @@ export const BirthInfoScreen = ({ navigation }: Props) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <BackButton onPress={() => navigation.goBack()} />
 
       <KeyboardAvoidingView
@@ -323,6 +323,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    backgroundColor: 'transparent',
   },
   scrollContent: {
     paddingHorizontal: spacing.page,
@@ -426,6 +427,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.page,
     paddingTop: spacing.md,
     paddingBottom: spacing.xl,
+    backgroundColor: 'transparent',
   },
   imageWrapper: {
     position: 'absolute',

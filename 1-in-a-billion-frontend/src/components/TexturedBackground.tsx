@@ -28,7 +28,7 @@ export const TexturedBackground = ({ children, style }: Props) => {
       <Image
         source={require('../../assets/images/white-leather-texture.jpg')}
         style={[StyleSheet.absoluteFill, styles.texture]}
-        resizeMode="cover"
+        resizeMode="stretch"
         pointerEvents="none"
       />
       {/* Content on top */}
@@ -55,5 +55,9 @@ const styles = StyleSheet.create({
   },
   texture: {
     opacity: 0.38,
+    bottom: 0,
+    top: 0,
+    left: 0,
+    right: 0,
   },
 });
