@@ -278,7 +278,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
         const fetchJobsFromDevDashboard = async () => {
           const url = `${env.CORE_API_URL}/api/dev/dashboard`;
-          console.log('📡 [MyLibrary] No user UUID found; using dev dashboard:', url);
+          console.log('📡 [MyLibrary] Fetching dev dashboard jobs:', url);
           const response = await fetch(url);
           if (!response.ok) {
             const errorText = await response.text().catch(() => '');
@@ -315,87 +315,59 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             }
           }
 
+          // IMPORTANT: Some jobs may have been created under the "test" UUID (when auth wasn't hydrated).
+          // Always fetch by user UUID(s) first. The dev dashboard endpoint can be empty on Fly if service-role env is missing.
           let mergedJobs: any[] = [];
-          if (!resolvedUserId && __DEV__) {
-            // Dev fallback: show jobs even if Supabase auth isn't available yet (e.g. after reinstall).
-            mergedJobs = await fetchJobsFromDevDashboard();
-            console.log('📥 [MyLibrary] Dev dashboard jobs:', mergedJobs.length);
-          } else {
-            // IMPORTANT: Some jobs may have been created under the "test" UUID (when auth wasn't hydrated).
-            // To prevent "missing" readings, always merge jobs from both ids when they differ.
-            const userIdsToTry = resolvedUserId ? [resolvedUserId, TEST_USER_ID] : [TEST_USER_ID];
-            console.log('📡 [MyLibrary] Trying userIds:', userIdsToTry);
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:300',message:'Before fetching jobs',data:{resolvedUserId,userIdsToTry,testUserId:TEST_USER_ID},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
-            // #endregion
-            const results = await Promise.allSettled(userIdsToTry.map((uid) => fetchJobsForUser(uid)));
+          const userIdsToTry = resolvedUserId ? [resolvedUserId, TEST_USER_ID] : [TEST_USER_ID];
+          console.log('📡 [MyLibrary] Trying userIds:', userIdsToTry);
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:300',message:'Before fetching jobs',data:{resolvedUserId,userIdsToTry,testUserId:TEST_USER_ID},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
+          // #endregion
+          const results = await Promise.allSettled(userIdsToTry.map((uid) => fetchJobsForUser(uid)));
 
-            const allJobs: any[] = [];
-            for (const r of results) {
-              if (r.status === 'fulfilled') {
-                const res = r.value.result;
-                console.log('📥 [MyLibrary] Got response from', r.value.url);
-                console.log('📥 [MyLibrary] Response structure:', Object.keys(res || {}));
-                console.log('📥 [MyLibrary] success:', res?.success, 'totalJobs:', res?.totalJobs);
-                
-                // Check if API returned error
-                if (res?.success === false) {
-                  console.error('❌ [MyLibrary] API returned success:false, error:', res?.error);
-                  continue; // Skip this userId
-                }
-                
-                // Handle different response formats
-                let jobsArray = res?.jobs;
-                if (!jobsArray && Array.isArray(res)) {
-                  // Sometimes API returns array directly (dev dashboard)
-                  jobsArray = res;
-                  console.log('📥 [MyLibrary] Response is array directly, length:', jobsArray.length);
-                }
-                
-                console.log('📥 [MyLibrary] jobs array length:', jobsArray?.length, 'type:', typeof jobsArray, 'isArray:', Array.isArray(jobsArray));
-                
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:308',message:'API response received',data:{url:r.value.url,responseKeys:Object.keys(res||{}),totalJobs:res?.totalJobs,jobsCount:jobsArray?.length||0,jobsIsArray:Array.isArray(jobsArray),jobTypes:jobsArray?.map((j:any)=>j.type)||[],jobStatuses:jobsArray?.map((j:any)=>j.status)||[]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
-                // #endregion
-                if (jobsArray && jobsArray.length > 0) {
-                  console.log('📥 [MyLibrary] Adding', jobsArray.length, 'jobs - types:', jobsArray.map((j: any) => `${j.type}:${j.status}`));
-                  allJobs.push(...jobsArray);
-                } else {
-                  console.warn('⚠️ [MyLibrary] No jobs in response or jobs array is empty');
-                }
-              } else {
-                console.error('❌ [MyLibrary] Backend API failed for one userId:', r.reason?.message || String(r.reason));
-                console.error('❌ [MyLibrary] Full error:', r.reason);
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:314',message:'API fetch failed',data:{error:r.reason?.message||String(r.reason),stack:r.reason?.stack},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
-                // #endregion
-              }
-            }
-            
-            console.log('📊 [MyLibrary] Total allJobs collected:', allJobs.length);
+          const allJobs: any[] = [];
+          for (const r of results) {
+            if (r.status === 'fulfilled') {
+              const res = r.value.result;
+              console.log('📥 [MyLibrary] Got response from', r.value.url);
+              console.log('📥 [MyLibrary] Response structure:', Object.keys(res || {}));
+              console.log('📥 [MyLibrary] success:', res?.success, 'totalJobs:', res?.totalJobs);
 
-            // Deduplicate by job id
-            const byId = new Map<string, any>();
-            for (const j of allJobs) {
-              if (j?.id) byId.set(j.id, j);
-            }
-            mergedJobs = Array.from(byId.values());
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:332',message:'After deduplication',data:{allJobsCount:allJobs.length,mergedJobsCount:mergedJobs.length,mergedJobIds:mergedJobs.map((j:any)=>j.id?.slice(0,8))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
-            // #endregion
-            
-            // FALLBACK: If no jobs found from user-specific fetch, try dev dashboard as backup
-            if (mergedJobs.length === 0 && __DEV__) {
-              console.log('⚠️ [MyLibrary] No jobs from user fetch, trying dev dashboard fallback...');
-              try {
-                const devJobs = await fetchJobsFromDevDashboard();
-                console.log('📥 [MyLibrary] Dev dashboard fallback jobs:', devJobs.length);
-                if (devJobs.length > 0) {
-                  mergedJobs = devJobs;
-                }
-              } catch (devError) {
-                console.error('❌ [MyLibrary] Dev dashboard fallback also failed:', devError);
+              if (res?.success === false) {
+                console.error('❌ [MyLibrary] API returned success:false, error:', res?.error);
+                continue;
               }
+
+              const jobsArray = Array.isArray(res?.jobs) ? res.jobs : [];
+              // #region agent log
+              fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:308',message:'API response received',data:{url:r.value.url,responseKeys:Object.keys(res||{}),totalJobs:res?.totalJobs,jobsCount:jobsArray?.length||0,jobsIsArray:Array.isArray(jobsArray),jobTypes:jobsArray?.map((j:any)=>j.type)||[],jobStatuses:jobsArray?.map((j:any)=>j.status)||[]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
+              // #endregion
+
+              if (jobsArray.length > 0) allJobs.push(...jobsArray);
+            } else {
+              console.error('❌ [MyLibrary] Backend API failed for one userId:', r.reason?.message || String(r.reason));
+              // #region agent log
+              fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:314',message:'API fetch failed',data:{error:r.reason?.message||String(r.reason),stack:r.reason?.stack},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
+              // #endregion
+            }
+          }
+
+          // Deduplicate by job id
+          const byId = new Map<string, any>();
+          for (const j of allJobs) {
+            if (j?.id) byId.set(j.id, j);
+          }
+          mergedJobs = Array.from(byId.values());
+
+          // LAST RESORT (dev only): if still empty, try dev dashboard.
+          if (mergedJobs.length === 0 && __DEV__) {
+            console.log('⚠️ [MyLibrary] No jobs from user fetch, trying dev dashboard as last resort...');
+            try {
+              const devJobs = await fetchJobsFromDevDashboard();
+              console.log('📥 [MyLibrary] Dev dashboard jobs:', devJobs.length);
+              if (devJobs.length > 0) mergedJobs = devJobs;
+            } catch (devError) {
+              console.error('❌ [MyLibrary] Dev dashboard fetch failed:', devError);
             }
           }
 
@@ -631,7 +603,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   // Derived data - compute user from people array
   const user = useMemo(() => people.find((p) => p.isUser), [people]);
   // User name fallback
-  const userName = 'User';
+  const userName = user?.name || 'User';
 
   // Explicit type for the merged person object
   interface LibraryPerson {
