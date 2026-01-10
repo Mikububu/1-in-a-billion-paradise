@@ -21,6 +21,7 @@ import { Button } from '@/components/Button';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { SINGLE_SYSTEM, SYSTEM_PRICES, PRODUCT_STRINGS, PRODUCTS, formatAudioDuration } from '@/config/products';
 import { initiatePurchaseFlow } from '@/utils/purchaseFlow';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SystemExplainer'>;
 
@@ -366,13 +367,7 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Back Button */}
-      <TouchableOpacity 
-        style={styles.backButton} 
-        onPress={() => navigation.goBack()}
-      >
-        <Text style={styles.backButtonText}>← Back</Text>
-      </TouchableOpacity>
+      <BackButton onPress={() => navigation.goBack()} />
 
       {/* Swipeable Pages */}
       <FlatList
@@ -407,19 +402,6 @@ const styles = StyleSheet.create({
   container: { 
     flex: 1, 
     backgroundColor: colors.background,
-  },
-  backButton: {
-    position: 'absolute',
-    top: 60,
-    left: spacing.page,
-    zIndex: 10,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-  },
-  backButtonText: {
-    fontFamily: typography.sansRegular,
-    fontSize: 16,
-    color: colors.text,
   },
   
   // Page

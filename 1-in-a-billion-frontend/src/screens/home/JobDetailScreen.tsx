@@ -16,6 +16,7 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { createArtifactSignedUrl, downloadTextContent } from '@/services/nuclearReadingsService';
 import { env } from '@/config/env';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'JobDetail'>;
 
@@ -200,10 +201,8 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <BackButton onPress={() => navigation.goBack()} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>Activity</Text>
         <TouchableOpacity onPress={load} disabled={isRefreshing} style={styles.refreshBtn}>
           <Text style={[styles.refreshText, isRefreshing && { opacity: 0.5 }]}>↻</Text>
@@ -289,7 +288,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.divider,
   },
-  backText: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },
   headerTitle: { fontFamily: typography.headline, fontSize: 20, color: colors.text },
   refreshBtn: { paddingVertical: spacing.xs, paddingHorizontal: spacing.sm },
   refreshText: { fontFamily: typography.sansSemiBold, fontSize: 18, color: colors.primary },

@@ -7,6 +7,7 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { useProfileStore } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/Button';
+import { BackButton } from '@/components/BackButton';
 import { importPeople } from '@/scripts/importPeopleToStore';
 import { fetchPeopleFromSupabase } from '@/services/peopleService';
 
@@ -199,11 +200,9 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
   return (
     <SafeAreaView style={styles.container}>
       {/** Screen numbers temporarily removed */}
+      <BackButton onPress={() => navigation.goBack()} />
 
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.navigate('Home')}>
           <Text style={styles.controlRoomText}>My Secret Life</Text>
         </TouchableOpacity>

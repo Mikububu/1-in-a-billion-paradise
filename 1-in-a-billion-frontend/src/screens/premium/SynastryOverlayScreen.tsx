@@ -28,6 +28,7 @@ import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { Button } from '@/components/Button';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { env } from '@/config/env';
+import { BackButton } from '@/components/BackButton';
 
 // Cycling loading messages
 const LOADING_MESSAGES = [
@@ -197,9 +198,7 @@ export const SynastryOverlayScreen = ({ navigation, route }: Props) => {
   if (error) {
     return (
       <SafeAreaView style={styles.container}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => navigation.goBack()} />
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingTitle}>Error</Text>
           <Text style={styles.loadingSubtext}>{error}</Text>
@@ -218,9 +217,7 @@ export const SynastryOverlayScreen = ({ navigation, route }: Props) => {
   if (isGenerating) {
     return (
       <SafeAreaView style={styles.container}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => navigation.goBack()} />
         <View style={styles.loadingContainer}>
           <Animated.Text
             style={[
@@ -293,10 +290,8 @@ export const SynastryOverlayScreen = ({ navigation, route }: Props) => {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
+      <BackButton onPress={() => navigation.goBack()} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
         <TouchableOpacity onPress={generateReading}>
           <Text style={styles.regenerateText}>Regenerate</Text>
         </TouchableOpacity>

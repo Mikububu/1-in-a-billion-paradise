@@ -17,6 +17,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { AmbientMusic } from '@/services/ambientMusic';
 import { useMusicStore } from '@/store/musicStore';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Relationship'>;
 
@@ -88,13 +89,7 @@ export const RelationshipScreen = ({ navigation }: Props) => {
         />
       )}
 
-      {/* Back Button */}
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={handleBack}
-      >
-        <Text style={styles.backButtonText}>← Back</Text>
-      </TouchableOpacity>
+      <BackButton onPress={handleBack} />
 
       {/* Content at top */}
       <View style={styles.content}>
@@ -176,7 +171,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.cardStroke,
     padding: spacing.lg,
-    backgroundColor: colors.surface,
+    // Use broken-white card background (not pure white)
+    backgroundColor: colors.buttonBg,
     marginBottom: spacing.xl,
   },
   legend: {

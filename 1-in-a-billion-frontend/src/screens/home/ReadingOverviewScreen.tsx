@@ -59,6 +59,7 @@ interface ReadingOverviewParams {
 import { ChapterCard, Chapter } from '@/components/ChapterCard';
 import { toAbsoluteUrl } from '@/utils/url';
 import { systemLabelForHeadline, systemBlurb } from '@/data/systems';
+import { BackButton } from '@/components/BackButton';
 
 const BRAND_RED = '#FF4FA3';
 const SYSTEM_NAMES: Record<string, string> = {
@@ -701,6 +702,7 @@ export default function ReadingOverviewScreen() {
   if (isGenerating) {
     return (
       <SafeAreaView style={styles.container}>
+        <BackButton onPress={() => navigation.goBack()} />
         <Animated.View style={[styles.artsContainer, { opacity: fadeAnim }]}>
           <Text style={styles.artsLine1}>Your</Text>
           <Text style={styles.artsLine2}>Soul Journey</Text>
@@ -714,12 +716,6 @@ export default function ReadingOverviewScreen() {
 
           {/* Exit buttons */}
           <View style={styles.exitButtons}>
-            <Pressable
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Text style={styles.backButtonText}>← Back</Text>
-            </Pressable>
             <Pressable
               style={styles.libraryButton}
               onPress={() => navigation.navigate('MyLibrary')}
@@ -1132,20 +1128,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 16,
     justifyContent: 'center',
-  },
-  backButton: {
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#EEE',
-  },
-  backButtonText: {
-    fontSize: 16,
-    fontFamily: 'System',
-    fontWeight: '600',
-    color: '#000',
   },
   libraryButton: {
     backgroundColor: BRAND_RED,

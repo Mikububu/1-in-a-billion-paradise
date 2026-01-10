@@ -20,6 +20,7 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useProfileStore } from '@/store/profileStore';
 import { deleteAccount } from '@/services/accountDeletion';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'AccountDeletion'>;
 
@@ -78,12 +79,7 @@ export const AccountDeletionScreen = ({ navigation }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-      </View>
+      <BackButton onPress={() => navigation.goBack()} />
 
       <ScrollView
         style={styles.scrollView}

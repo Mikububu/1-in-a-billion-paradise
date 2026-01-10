@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SystemsOverview'>;
 
@@ -98,10 +99,7 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
   return (
     <SafeAreaView style={styles.container}>
       {/** Screen numbers temporarily removed */}
-      {/* Back button */}
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.backText}>← Back</Text>
-      </TouchableOpacity>
+      <BackButton onPress={() => navigation.goBack()} />
 
       {/* Header */}
       <View style={styles.header}>

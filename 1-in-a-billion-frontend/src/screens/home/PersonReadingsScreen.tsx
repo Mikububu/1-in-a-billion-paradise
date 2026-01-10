@@ -35,6 +35,7 @@ import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { createArtifactSignedUrl } from '@/services/nuclearReadingsService';
 import { colors } from '@/theme/tokens';
 import { useProfileStore } from '@/store/profileStore';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonReadings'>;
 
@@ -1531,11 +1532,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   // Handlers are defined further below once we have download helpers.
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-      </View>
+      <BackButton onPress={() => navigation.goBack()} />
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <View style={styles.titleContainer}>

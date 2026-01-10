@@ -19,6 +19,7 @@ import { useProfileStore } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Settings'>;
 
@@ -231,12 +232,9 @@ export const SettingsScreen = ({ navigation }: Props) => {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
+      <BackButton onPress={() => navigation.goBack()} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>
-        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
@@ -294,27 +292,16 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: spacing.page,
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.divider,
   },
-  backButton: {
-    paddingVertical: spacing.xs,
-  },
-  backText: {
-    fontFamily: typography.sansMedium,
-    fontSize: 16,
-    color: colors.primary,
-  },
   headerTitle: {
     fontFamily: typography.headline,
     fontSize: 24,
     color: colors.text,
-  },
-  headerSpacer: {
-    width: 60,
   },
   scrollView: {
     flex: 1,

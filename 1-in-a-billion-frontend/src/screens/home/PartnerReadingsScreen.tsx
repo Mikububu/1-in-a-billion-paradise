@@ -30,6 +30,7 @@ import { useOnboardingStore } from '@/store/onboardingStore';
 import { useAuthStore } from '@/store/authStore';
 import { AUDIO_CONFIG, getPartnerSignLabel } from '@/config/readingConfig';
 // Audio stored in memory (base64) - no file system needed
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PartnerReadings'>;
 
@@ -490,12 +491,7 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header with Back Button - moved higher */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButtonContainer}>
-          <Text style={styles.backButton}>← Back</Text>
-        </TouchableOpacity>
-      </View>
+      <BackButton onPress={() => navigation.goBack()} />
 
       <View style={styles.wrapper}>
         {/* Content */}

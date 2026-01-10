@@ -14,6 +14,7 @@ import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { useFocusEffect } from '@react-navigation/native';
 import { AmbientMusic } from '@/services/ambientMusic';
 import { useMusicStore } from '@/store/musicStore';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Languages'>;
 
@@ -68,12 +69,7 @@ export const LanguagesScreen = ({ navigation }: Props) => {
       />
 
       {/* Back Button */}
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => navigation.goBack()}
-      >
-        <Text style={styles.backButtonText}>← Back</Text>
-      </TouchableOpacity>
+      <BackButton onPress={() => navigation.goBack()} />
 
       {/* Screen ID */}
       {/** Screen numbers temporarily removed */}

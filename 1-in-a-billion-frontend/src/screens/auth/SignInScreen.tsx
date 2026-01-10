@@ -32,6 +32,7 @@ import { useAuthStore } from '@/store/authStore';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
 import { AmbientMusic } from '@/services/ambientMusic';
 import { useMusicStore } from '@/store/musicStore';
+import { BackButton } from '@/components/BackButton';
 
 // Required for OAuth redirect handling
 WebBrowser.maybeCompleteAuthSession();
@@ -504,13 +505,7 @@ export const SignInScreen = ({ route }: SignInScreenProps) => {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => navigation.navigate('Intro')}
-        disabled={isLoading}
-      >
-        <Text style={styles.backButtonText}>← Back</Text>
-      </TouchableOpacity>
+      <BackButton onPress={() => navigation.navigate('Intro')} />
 
       {/* Background Video + Poster */}
       {!videoReady && (

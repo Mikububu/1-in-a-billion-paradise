@@ -35,6 +35,7 @@ import { supabase, isSupabaseConfigured } from '@/services/supabase';
 import { AmbientMusic } from '@/services/ambientMusic';
 import { env } from '@/config/env';
 import { logAuthIssue } from '@/utils/authDebug';
+import { BackButton } from '@/components/BackButton';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -297,14 +298,7 @@ export const AccountScreen = ({ navigation }: Props) => {
         onReadyForDisplay={() => setVideoReady(true)}
       />
 
-      {/* Back Button */}
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => navigation.goBack()}
-        disabled={isLoading}
-      >
-        <Text style={styles.backButtonText}>← Back</Text>
-      </TouchableOpacity>
+      <BackButton onPress={() => navigation.goBack()} />
 
       <View style={styles.contentContainer}>
         <View style={{ flex: 1 }} />

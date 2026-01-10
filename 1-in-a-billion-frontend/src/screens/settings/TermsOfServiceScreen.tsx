@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'TermsOfService'>;
 
@@ -176,12 +177,7 @@ For support issues, please contact: support@oneinabillion.app`,
 export const TermsOfServiceScreen = ({ navigation }: Props) => {
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-      </View>
+      <BackButton onPress={() => navigation.goBack()} />
 
       <ScrollView 
         style={styles.scrollView}
@@ -215,20 +211,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  header: {
-    paddingHorizontal: spacing.page,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
-  },
-  backButton: {
-    paddingVertical: spacing.xs,
-  },
-  backText: {
-    fontFamily: typography.sansMedium,
-    fontSize: 16,
-    color: colors.primary,
   },
   scrollView: {
     flex: 1,

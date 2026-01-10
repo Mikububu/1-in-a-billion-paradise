@@ -5,6 +5,7 @@ import { useOnboardingStore } from '@/store/onboardingStore';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { PRODUCTS } from '@/config/products';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ExtendedReading'>;
 
@@ -47,10 +48,7 @@ export const ExtendedReadingScreen = ({ navigation }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Back button */}
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.backText}>← Back</Text>
-      </TouchableOpacity>
+      <BackButton onPress={() => navigation.goBack()} />
       
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         <Text style={styles.title} selectable>Extended Reading Options</Text>
@@ -99,15 +97,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  backButton: {
-    paddingHorizontal: spacing.page,
-    paddingVertical: spacing.sm,
-  },
-  backText: {
-    fontFamily: typography.sansSemiBold,
-    fontSize: 16,
-    color: colors.text,
   },
   scrollView: {
     flex: 1,

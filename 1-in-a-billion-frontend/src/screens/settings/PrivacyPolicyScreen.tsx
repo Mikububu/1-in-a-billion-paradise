@@ -12,6 +12,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
 
 import { MainStackParamList } from '@/navigation/RootNavigator';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PrivacyPolicy'>;
 
@@ -130,12 +131,7 @@ For EU residents: You have the right to lodge a complaint with your local data p
 export const PrivacyPolicyScreen = ({ navigation }: Props) => {
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-      </View>
+      <BackButton onPress={() => navigation.goBack()} />
 
       <ScrollView 
         style={styles.scrollView}

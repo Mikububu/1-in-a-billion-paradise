@@ -14,6 +14,7 @@ import { useProfileStore, Person, selectAllPeople } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
 import { deletePersonFromSupabase } from '@/services/peopleService';
 import { useEffect } from 'react';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PeopleList'>;
 
@@ -124,11 +125,8 @@ export const PeopleListScreen = ({ navigation, route }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+      <BackButton onPress={() => navigation.goBack()} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
         <TouchableOpacity onPress={handleClearAll}>
           <Text style={styles.clearText}>Clear All</Text>
         </TouchableOpacity>

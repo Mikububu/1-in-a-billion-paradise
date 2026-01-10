@@ -12,6 +12,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { colors, spacing, typography } from '@/theme/tokens';
 import { useProfileStore } from '@/store/profileStore';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SavedReading'>;
 
@@ -60,12 +61,7 @@ export const SavedReadingScreen = ({ navigation, route }: Props) => {
   if (!person || !reading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.backText}>← Back</Text>
-          </TouchableOpacity>
-          <View style={{ width: 60 }} />
-        </View>
+        <BackButton onPress={() => navigation.goBack()} />
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>Reading not found</Text>
           <Text style={styles.emptySubtitle}>
@@ -84,10 +80,8 @@ export const SavedReadingScreen = ({ navigation, route }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <BackButton onPress={() => navigation.goBack()} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
         <TouchableOpacity
           onPress={() => {
             Alert.alert('Options', undefined, [

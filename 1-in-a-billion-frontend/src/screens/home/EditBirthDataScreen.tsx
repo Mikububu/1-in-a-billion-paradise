@@ -25,6 +25,7 @@ import { useOnboardingStore } from '@/store/onboardingStore';
 import { useAuthStore } from '@/store/authStore';
 import { recalculateAndUpdatePlacements } from '@/services/peopleService';
 import { Button } from '@/components/Button';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'EditBirthData'>;
 
@@ -207,11 +208,10 @@ export const EditBirthDataScreen = ({ navigation, route }: Props) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <BackButton onPress={() => navigation.goBack()} />
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.backText}>← Back</Text>
-          </TouchableOpacity>
+          <View style={{ width: 60 }} />
           <Text style={styles.headerTitle} selectable>Edit Birth Data</Text>
           <View style={{ width: 60 }} />
         </View>

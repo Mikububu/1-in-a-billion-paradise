@@ -56,6 +56,14 @@ export const spacing = {
   xs: 6,
 };
 
+// Layout primitives (single source of truth)
+export const layout = {
+  // Global back button position (safe-area aware). Adjust these two values to move
+  // the back button everywhere in the app.
+  backButtonOffsetTop: spacing.sm,
+  backButtonOffsetLeft: spacing.page,
+};
+
 export const shadows = {
   card: {
     shadowColor: 'rgba(17, 17, 17, 0.12)',
@@ -71,5 +79,6 @@ export const tokens = {
   typography,
   radii,
   spacing,
+  layout,
   shadows,
 };

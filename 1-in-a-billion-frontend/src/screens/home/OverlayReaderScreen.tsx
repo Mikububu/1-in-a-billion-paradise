@@ -17,6 +17,7 @@ import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { createArtifactSignedUrl, downloadTextContent } from '@/services/nuclearReadingsService';
 import { splitIntoBlocks } from '@/utils/readingTextFormat';
 import { env } from '@/config/env';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'OverlayReader'>;
 
@@ -147,10 +148,8 @@ export const OverlayReaderScreen = ({ navigation, route }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <BackButton onPress={() => navigation.goBack()} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>Overlay</Text>
         <TouchableOpacity onPress={load} disabled={isRefreshing} style={styles.refreshBtn}>
           <Text style={[styles.refreshText, isRefreshing && { opacity: 0.5 }]}>↻</Text>

@@ -21,6 +21,7 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { env } from '@/config/env';
 import { colors } from '@/theme/tokens';
 import { useAuthStore } from '@/store/authStore';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonJobsList'>;
 
@@ -159,11 +160,7 @@ export const PersonJobsListScreen = ({ navigation, route }: Props) => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.backText}>← Back</Text>
-          </TouchableOpacity>
-        </View>
+        <BackButton onPress={() => navigation.goBack()} />
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#C41E3A" />
           <Text style={styles.loadingText}>Loading jobs...</Text>
@@ -175,11 +172,7 @@ export const PersonJobsListScreen = ({ navigation, route }: Props) => {
   if (error) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.backText}>← Back</Text>
-          </TouchableOpacity>
-        </View>
+        <BackButton onPress={() => navigation.goBack()} />
         <View style={styles.centered}>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity onPress={loadJobs} style={styles.retryButton}>
@@ -192,11 +185,7 @@ export const PersonJobsListScreen = ({ navigation, route }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-      </View>
+      <BackButton onPress={() => navigation.goBack()} />
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>{personName || 'Readings'}</Text>

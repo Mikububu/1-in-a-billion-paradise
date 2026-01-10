@@ -17,6 +17,7 @@ import { useProfileStore, Person, Reading, CompatibilityReading } from '@/store/
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useAuthStore } from '@/store/authStore';
 import { deletePersonFromSupabase } from '@/services/peopleService';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonProfile'>;
 
@@ -191,11 +192,8 @@ export const PersonProfileScreen = ({ navigation, route }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+      <BackButton onPress={() => navigation.goBack()} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
         <View style={styles.headerActions}>
           <TouchableOpacity
             onPress={() => navigation.navigate('EditBirthData', { personId })}

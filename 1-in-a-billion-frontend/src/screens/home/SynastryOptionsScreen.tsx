@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SynastryOptions'>;
 
@@ -52,11 +53,10 @@ export const SynastryOptionsScreen = ({ navigation, route }: Props) => {
       {/* Screen ID */}
       {/** Screen numbers temporarily removed */}
 
+      <BackButton onPress={() => navigation.goBack()} />
+
       {/* Navigation */}
       <View style={styles.navRow}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Home')}>
           <Text style={styles.controlRoomText}>My Secret Life</Text>
         </TouchableOpacity>
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   },
   navRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     paddingHorizontal: spacing.page,
     paddingVertical: spacing.sm,

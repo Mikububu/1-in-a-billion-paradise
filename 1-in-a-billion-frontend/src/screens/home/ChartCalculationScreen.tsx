@@ -7,6 +7,7 @@ import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { useProfileStore } from '@/store/profileStore';
 import { audioApi } from '@/services/api'; // Using api base path from here or fetch directly
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ChartCalculation'>;
 
@@ -96,10 +97,8 @@ export const ChartCalculationScreen = ({ navigation, route }: Props) => {
 
     return (
         <SafeAreaView style={styles.container}>
+            <BackButton onPress={() => navigation.goBack()} />
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <Text style={styles.backText}>← Back</Text>
-                </TouchableOpacity>
                 <Text style={styles.title}>Your Chart Data</Text>
                 <View style={{ width: 40 }} />
             </View>

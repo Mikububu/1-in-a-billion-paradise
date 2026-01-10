@@ -38,6 +38,7 @@ import { FEATURES } from '@/config/features';
 import { generatePdfFilename } from '@/utils/fileNames';
 import { audioApi } from '@/services/api';
 import { GENERATION_MESSAGES, estimateReadingTime } from '@/config/readingConfig';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'FullReading'>;
 
@@ -894,14 +895,10 @@ export const FullReadingScreen = ({ navigation, route }: Props) => {
             {cyclingMessage}
           </Animated.Text>
 
+          <BackButton onPress={() => navigation.goBack()} />
+
           {/* Exit buttons */}
           <View style={styles.exitButtons}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Text style={styles.backButtonText}>← Back</Text>
-            </TouchableOpacity>
             <TouchableOpacity
               style={styles.libraryButton}
               onPress={() => navigation.navigate('MyLibrary')}
@@ -912,12 +909,7 @@ export const FullReadingScreen = ({ navigation, route }: Props) => {
         </View>
       ) : (
         <>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Text style={styles.backText}>← Back</Text>
-            </TouchableOpacity>
-          </View>
+          <BackButton onPress={() => navigation.goBack()} />
 
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
             {/* Title Section */}
@@ -995,7 +987,7 @@ export const FullReadingScreen = ({ navigation, route }: Props) => {
                   style={styles.homeButton}
                   onPress={() => navigation.navigate('Home')}
                 >
-                  <Text style={styles.homeButtonText}>← Back to Home</Text>
+                  <Text style={styles.homeButtonText}>Back to Home</Text>
                 </TouchableOpacity>
               </View>
             )}

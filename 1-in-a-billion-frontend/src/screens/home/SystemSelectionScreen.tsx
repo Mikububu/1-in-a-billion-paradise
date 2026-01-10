@@ -24,6 +24,7 @@ import { VoiceSelectionModal } from '@/components/VoiceSelectionModal';
 import { useProfileStore } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
 import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SystemSelection'>;
 
@@ -428,11 +429,9 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
   return (
     <SafeAreaView style={styles.container}>
       {/** Screen numbers temporarily removed */}
+      <BackButton onPress={() => navigation.goBack()} />
 
       <View style={styles.navRow}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Home')}>
           <Text style={styles.controlRoomText}>My Secret Life</Text>
         </TouchableOpacity>

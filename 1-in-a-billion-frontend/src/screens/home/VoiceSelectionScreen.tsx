@@ -16,6 +16,7 @@ import { env } from '@/config/env';
 import { AmbientMusic } from '@/services/ambientMusic';
 import { TexturedBackground } from '@/components/TexturedBackground';
 import { useProfileStore } from '@/store/profileStore';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'VoiceSelection'>;
 
@@ -337,13 +338,11 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
             <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
                 {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Text style={styles.backText}>← Back</Text>
-                </TouchableOpacity>
                 <TouchableOpacity onPress={() => navigation.navigate('Home')}>
                     <Text style={styles.homeText}>My Secret Life</Text>
                 </TouchableOpacity>
             </View>
+            <BackButton onPress={() => navigation.goBack()} />
 
             {/* Title */}
             <View style={styles.titleContainer}>

@@ -1,7 +1,8 @@
 import { ReactNode } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, typography } from '@/theme/tokens';
+import { BackButton } from '@/components/BackButton';
 
 type ScreenShellProps = {
   title?: string;
@@ -33,9 +34,7 @@ export const ScreenShell = ({
     <SafeAreaView style={styles.root}>
       {/* Back Button */}
       {onBack && (
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
+        <BackButton onPress={onBack} />
       )}
 
       {/* Screen ID - positioned under D button */}
@@ -68,19 +67,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  backButton: {
-    position: 'absolute',
-    top: 60,
-    left: spacing.page,
-    zIndex: 10,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-  },
-  backButtonText: {
-    fontFamily: typography.sansRegular,
-    fontSize: 16,
-    color: colors.text,
   },
   content: {
     paddingHorizontal: spacing.page,

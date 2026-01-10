@@ -16,6 +16,7 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { useProfileStore, selectPartners } from '@/store/profileStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { PRODUCTS, PRODUCT_STRINGS, formatAudioDuration } from '@/config/products';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Purchase'>;
 
@@ -247,11 +248,7 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-      </View>
+      <BackButton onPress={() => navigation.goBack()} />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         <Text style={styles.title} selectable>{title}</Text>
@@ -340,9 +337,6 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: spacing.page, paddingVertical: spacing.sm, paddingLeft: 60 },
-  backButton: { paddingVertical: spacing.xs },
-  backText: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },
   scrollView: { flex: 1 },
   content: { paddingHorizontal: spacing.page, paddingBottom: spacing.xl },
   title: { fontFamily: typography.headline, fontSize: 28, color: colors.text, fontStyle: 'italic' },

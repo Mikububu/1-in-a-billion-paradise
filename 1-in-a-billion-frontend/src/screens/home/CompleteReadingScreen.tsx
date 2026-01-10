@@ -31,6 +31,7 @@ import { useProfileStore } from '@/store/profileStore';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { initiatePurchaseFlow } from '@/utils/purchaseFlow';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'CompleteReading'>;
 
@@ -302,12 +303,7 @@ export const CompleteReadingScreen = ({ navigation, route }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-      </View>
+      <BackButton onPress={() => navigation.goBack()} />
 
       <ScrollView
         ref={scrollRef}

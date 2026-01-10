@@ -26,6 +26,7 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useAuthStore } from '@/store/authStore';
 import { env } from '@/config/env';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SynastryPreview'>;
 
@@ -370,15 +371,12 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
   
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header with Back Button */}
+      <BackButton onPress={() => navigation.goBack()} />
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>← Back</Text>
-        </TouchableOpacity>
         <View style={styles.screenIdBadge}>
           <Text style={styles.screenIdText}>{screenId}</Text>
         </View>
-        <View style={{ width: 60 }} />
       </View>
       
       {/* Swipeable Pages */}

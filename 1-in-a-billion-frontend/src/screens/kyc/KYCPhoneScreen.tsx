@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { Button } from '@/components/Button';
+import { BackButton } from '@/components/BackButton';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'KYCPhone'>;
@@ -74,9 +75,7 @@ export const KYCPhoneScreen = ({ navigation }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.backText}>← Back</Text>
-      </TouchableOpacity>
+      <BackButton onPress={() => navigation.goBack()} />
 
       <View style={styles.content}>
         <Text style={styles.step}>Step 1 of 3</Text>
@@ -137,8 +136,6 @@ export const KYCPhoneScreen = ({ navigation }: Props) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  backButton: { paddingHorizontal: spacing.page, paddingVertical: spacing.sm, paddingLeft: 60 },
-  backText: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },
   content: { flex: 1, paddingHorizontal: spacing.page, paddingTop: spacing.xl },
   step: { fontFamily: typography.sansSemiBold, fontSize: 12, color: colors.primary, textTransform: 'uppercase', letterSpacing: 1 },
   title: { fontFamily: typography.headline, fontSize: 32, color: colors.text, marginTop: spacing.sm },

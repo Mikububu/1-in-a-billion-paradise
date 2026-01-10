@@ -25,6 +25,7 @@ import { shareAudioFile, saveAudioToFile, generateAudioFileName, downloadAudioFr
 import { useProfileStore } from '@/store/profileStore';
 import { audioApi } from '@/services/api';
 import { AUDIO_CONFIG, estimateAudioTime, AUDIO_GENERATION_MESSAGE } from '@/config/readingConfig';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'AudioPlayer'>;
 
@@ -517,12 +518,7 @@ export const AudioPlayerScreen = ({ navigation, route }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
-          <Text style={styles.closeText}>✕</Text>
-        </TouchableOpacity>
-      </View>
+      <BackButton onPress={() => navigation.goBack()} />
 
       <View style={styles.content}>
         {/* Title */}
@@ -582,13 +578,6 @@ export const AudioPlayerScreen = ({ navigation, route }: Props) => {
           <Text style={styles.generatingMessage}>{generatingMessage}</Text>
           <Text style={styles.generatingHint}>{AUDIO_GENERATION_MESSAGE.hint}</Text>
           <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: spacing.md }} />
-          {/* Exit button */}
-          <TouchableOpacity
-            style={styles.exitButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.exitButtonText}>← Back</Text>
-          </TouchableOpacity>
         </View>
       )}
 
@@ -684,19 +673,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: spacing.page,
-    paddingVertical: spacing.sm,
-  },
-  closeButton: {
-    padding: spacing.sm,
-  },
-  closeText: {
-    fontSize: 24,
-    color: colors.text,
-  },
+  // header/close button removed (global BackButton is used instead)
   content: {
     flex: 1,
     justifyContent: 'center',
@@ -803,21 +780,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
     letterSpacing: 2,
   },
-  exitButton: {
-    marginTop: spacing.lg,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.surface,
-    borderRadius: radii.button,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-  },
-  exitButtonText: {
-    fontFamily: typography.sansBold,
-    fontSize: 14,
-    color: colors.text,
-  },
+  // exit button removed (global BackButton is used instead)
   generatingEstimate: {
     fontFamily: typography.sansBold,
     fontSize: 16,
