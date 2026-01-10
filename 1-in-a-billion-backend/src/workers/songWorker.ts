@@ -39,3 +39,15 @@ export class SongWorker extends BaseWorker {
     }
   }
 }
+
+// Run if called directly (Fly process group: song-worker)
+if (require.main === module) {
+  const worker = new SongWorker();
+  process.on('SIGTERM', () => worker.stop());
+  process.on('SIGINT', () => worker.stop());
+
+  worker.start().catch((error) => {
+    console.error('Fatal song worker error:', error);
+    process.exit(1);
+  });
+}

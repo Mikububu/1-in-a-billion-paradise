@@ -68,16 +68,8 @@ if (process.env.ENABLE_TEXT_WORKER !== 'false') {
   });
 }
 
-// Start song worker in background (processes song generation tasks)
-if (process.env.ENABLE_SONG_WORKER !== 'false') {
-  import('./workers/songWorker').then(({ SongWorker }) => {
-    const worker = new SongWorker();
-    worker.start();
-    console.log('🎵 Song worker started in background');
-  }).catch(err => {
-    console.warn('Song worker not started:', err.message);
-  });
-}
+// NOTE: Song generation runs in the Fly `song-worker` process group.
+// We intentionally do NOT run it in the API process to avoid double-claiming tasks.
 
 // Preload API keys from Supabase at startup
 preloadApiKeys().catch(err => {
