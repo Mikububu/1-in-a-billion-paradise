@@ -1,6 +1,7 @@
-// Slight transparency so the global leather texture shows through.
-// (Too opaque makes the texture disappear; too transparent hurts legibility.)
-const UNIFIED_BG = 'rgba(247, 246, 243, 0.85)';
+// Unified base background (solid). The leather texture is provided by TexturedBackground.
+// Screens should avoid painting opaque backgrounds on top of it; prefer `backgroundColor: 'transparent'`
+// for root containers so the texture remains visible consistently.
+const UNIFIED_BG = 'rgb(247, 246, 243)';
 
 export const colors = {
   background: UNIFIED_BG,
