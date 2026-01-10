@@ -18,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { Audio, AVPlaybackStatus } from 'expo-av';
-import { SimpleSlider } from '@/components/SimpleSlider';
+import Slider from '@react-native-community/slider';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { shareAudioFile, saveAudioToFile, generateAudioFileName, downloadAudioFromUrl, getAudioFileSize } from '@/services/audioDownload';
@@ -65,11 +65,14 @@ export const AudioPlayerScreen = ({ navigation, route }: Props) => {
   const [generatingMessage, setGeneratingMessage] = useState(AUDIO_GENERATION_MESSAGE.title);
   const [duration, setDuration] = useState(0);
   const [position, setPosition] = useState(0);
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [scrubPosition, setScrubPosition] = useState(0);
   const [speedIndex, setSpeedIndex] = useState(1); // Default 1x
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
 
   const soundRef = useRef<Audio.Sound | null>(null);
+  const isScrubbingRef = useRef(false);
   const autoPlayCancelRef = useRef(false);
   const addSavedAudio = useProfileStore((state) => state.addSavedAudio);
   const getUser = useProfileStore((state) => state.getUser);
@@ -268,7 +271,12 @@ export const AudioPlayerScreen = ({ navigation, route }: Props) => {
         shouldDuckAndroid: false,
       });
 
-      const { sound } = await Audio.Sound.createAsync(source, { shouldPlay: true }, onPlaybackStatusUpdate);
+      const { sound } = await Audio.Sound.createAsync(
+        source,
+        { shouldPlay: true, progressUpdateIntervalMillis: 250 },
+        onPlaybackStatusUpdate,
+        false // stream when possible
+      );
       soundRef.current = sound;
       setIsLoading(false);
 
@@ -361,12 +369,18 @@ export const AudioPlayerScreen = ({ navigation, route }: Props) => {
   const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
     if (status.isLoaded) {
       setDuration(status.durationMillis || 0);
-      setPosition(status.positionMillis || 0);
+      // While user is scrubbing, don't fight the slider value.
+      if (!isScrubbingRef.current) {
+        setPosition(status.positionMillis || 0);
+      }
       setIsPlaying(status.isPlaying);
 
       if (status.didJustFinish) {
         setIsPlaying(false);
         setPosition(0);
+        setIsScrubbing(false);
+        setScrubPosition(0);
+        isScrubbingRef.current = false;
       }
     }
   };
@@ -407,9 +421,22 @@ export const AudioPlayerScreen = ({ navigation, route }: Props) => {
     await soundRef.current.setPositionAsync(newPosition);
   };
 
-  const onSliderChange = async (value: number) => {
+  const onScrubStart = () => {
     if (!soundRef.current) return;
-    await soundRef.current.setPositionAsync(value);
+    isScrubbingRef.current = true;
+    setIsScrubbing(true);
+    setScrubPosition(position);
+  };
+
+  const onScrubComplete = async (value: number) => {
+    if (!soundRef.current) return;
+    try {
+      await soundRef.current.setPositionAsync(value);
+      setPosition(value);
+    } finally {
+      isScrubbingRef.current = false;
+      setIsScrubbing(false);
+    }
   };
 
   const cycleSpeed = async () => {
@@ -528,15 +555,22 @@ export const AudioPlayerScreen = ({ navigation, route }: Props) => {
 
         {/* Progress Bar */}
         <View style={styles.progressContainer}>
-          <SimpleSlider
+          <Slider
             minimumValue={0}
             maximumValue={duration}
-            value={position}
+            value={isScrubbing ? scrubPosition : position}
             // minimumTrackTintColor={colors.primary}
             // maximumTrackTintColor={colors.cardStroke}
             // thumbTintColor={colors.primary}
-            onValueChange={onSliderChange}
-          /><Text style={styles.timeText}>{formatTime(position)}</Text>
+            onSlidingStart={onScrubStart}
+            onValueChange={(v) => setScrubPosition(v)}
+            onSlidingComplete={onScrubComplete}
+            minimumTrackTintColor={colors.primary}
+            maximumTrackTintColor={colors.cardStroke}
+            thumbTintColor={colors.primary}
+            disabled={!soundRef.current || duration <= 0}
+          />
+          <Text style={styles.timeText}>{formatTime(isScrubbing ? scrubPosition : position)}</Text>
           <Text style={styles.timeText}>{formatTime(duration)}</Text>
         </View>
       </View>

@@ -25,6 +25,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { Audio } from 'expo-av';
+import Slider from '@react-native-community/slider';
 import * as FileSystem from 'expo-file-system/legacy';
 import { getCacheDirectory, getDocumentDirectory } from '@/utils/fileSystem';
 import * as Sharing from 'expo-sharing';
@@ -131,10 +132,10 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   const [audioLoadProgress, setAudioLoadProgress] = useState<Record<string, number>>({});
   const [playbackPosition, setPlaybackPosition] = useState(0);
   const [playbackDuration, setPlaybackDuration] = useState(0);
-  const [isSeeking, setIsSeeking] = useState(false);
-  const [seekPosition, setSeekPosition] = useState(0);
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [scrubPosition, setScrubPosition] = useState(0);
   const soundRef = useRef<Audio.Sound | null>(null);
-  const progressBarWidths = useRef<Record<string, number>>({});
+  const scrubbingNarrationIdRef = useRef<string | null>(null);
   const isPlayingMutex = useRef(false); // Prevent multiple plays at once
   
   // Song playback state (separate from narration)
@@ -142,10 +143,10 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   const [loadingSongId, setLoadingSongId] = useState<string | null>(null);
   const [songPosition, setSongPosition] = useState(0);
   const [songDuration, setSongDuration] = useState(0);
-  const [isSongSeeking, setIsSongSeeking] = useState(false);
-  const [songSeekPosition, setSongSeekPosition] = useState(0);
+  const [isSongScrubbing, setIsSongScrubbing] = useState(false);
+  const [songScrubPosition, setSongScrubPosition] = useState(0);
   const songSoundRef = useRef<Audio.Sound | null>(null);
-  const songProgressBarWidths = useRef<Record<string, number>>({});
+  const scrubbingSongIdRef = useRef<string | null>(null);
   const isSongPlayingMutex = useRef(false);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const readingsCountRef = useRef(0);
@@ -995,7 +996,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     console.log(`🔄 Starting poll (job ${jobStatus}) every ${pollInterval}ms`);
 
     pollTimerRef.current = setInterval(() => {
-      if (isSeeking) return;
+      if (isScrubbing || isSongScrubbing) return;
       if (isPlayingMutex.current) return;
       if (soundRef.current) return;
       loadV2();
@@ -1007,7 +1008,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         pollTimerRef.current = null;
       }
     };
-  }, [jobId, jobStatus, loading, playingId, isSeeking, loadV2]);
+  }, [jobId, jobStatus, loading, playingId, isScrubbing, isSongScrubbing, loadV2]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -1084,18 +1085,24 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           { uri: url },
           { 
             shouldPlay: true,
-            progressUpdateIntervalMillis: 500,
+            progressUpdateIntervalMillis: 250,
             positionMillis: 0,
           },
           (status) => {
             if (status.isLoaded) {
               setLoadingAudioId(null);
-              setPlaybackPosition(status.positionMillis / 1000);
+              // While the user is scrubbing, do not fight the slider.
+              if (scrubbingNarrationIdRef.current !== reading.id) {
+                setPlaybackPosition(status.positionMillis / 1000);
+              }
               setPlaybackDuration(status.durationMillis ? status.durationMillis / 1000 : 0);
               if (status.didJustFinish) {
                 console.log('✅ Audio finished:', reading.name);
                 setPlayingId(null);
                 soundRef.current = null;
+                scrubbingNarrationIdRef.current = null;
+                setIsScrubbing(false);
+                setScrubPosition(0);
               }
             } else if ('error' in status) {
               console.error('❌ Audio status error:', status.error);
@@ -1136,31 +1143,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         console.error('Seek error:', e);
       }
     }
-  };
-
-  const handleSeekStart = () => {
-    setIsSeeking(true);
-    setSeekPosition(playbackPosition);
-  };
-
-  const handleSeekMove = (readingId: string, locationX: number) => {
-    if (!isSeeking || playingId !== readingId) return;
-    const barWidth = progressBarWidths.current[readingId] || 200;
-    const clampedX = Math.max(0, Math.min(locationX, barWidth));
-    const newPosition = (clampedX / barWidth) * playbackDuration;
-    setSeekPosition(newPosition);
-  };
-
-  const handleSeekEnd = async (readingId: string, locationX: number) => {
-    if (!isSeeking || playingId !== readingId) {
-      setIsSeeking(false);
-      return;
-    }
-    const barWidth = progressBarWidths.current[readingId] || 200;
-    const clampedX = Math.max(0, Math.min(locationX, barWidth));
-    const newPosition = (clampedX / barWidth) * playbackDuration;
-    setIsSeeking(false);
-    await seekTo(newPosition);
   };
 
   // ==================== SONG PLAYBACK ====================
@@ -1216,15 +1198,21 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
 
       const { sound } = await Audio.Sound.createAsync(
         { uri: songUrl },
-        { shouldPlay: true, progressUpdateIntervalMillis: 500 },
+        { shouldPlay: true, progressUpdateIntervalMillis: 250 },
         (status) => {
           if (status.isLoaded) {
             setLoadingSongId(null);
-            setSongPosition(status.positionMillis / 1000);
+            // While the user is scrubbing, do not fight the slider.
+            if (scrubbingSongIdRef.current !== reading.id) {
+              setSongPosition(status.positionMillis / 1000);
+            }
             setSongDuration(status.durationMillis ? status.durationMillis / 1000 : 0);
             if (status.didJustFinish) {
               setPlayingSongId(null);
               songSoundRef.current = null;
+              scrubbingSongIdRef.current = null;
+              setIsSongScrubbing(false);
+              setSongScrubPosition(0);
             }
           }
         },
@@ -1249,31 +1237,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       await songSoundRef.current.setPositionAsync(positionSeconds * 1000);
       setSongPosition(positionSeconds);
     }
-  };
-
-  const handleSongSeekStart = () => {
-    setIsSongSeeking(true);
-    setSongSeekPosition(songPosition);
-  };
-
-  const handleSongSeekMove = (readingId: string, locationX: number) => {
-    if (!isSongSeeking || playingSongId !== readingId) return;
-    const barWidth = songProgressBarWidths.current[readingId] || 200;
-    const clampedX = Math.max(0, Math.min(locationX, barWidth));
-    const newPosition = (clampedX / barWidth) * songDuration;
-    setSongSeekPosition(newPosition);
-  };
-
-  const handleSongSeekEnd = async (readingId: string, locationX: number) => {
-    if (!isSongSeeking || playingSongId !== readingId) {
-      setIsSongSeeking(false);
-      return;
-    }
-    const barWidth = songProgressBarWidths.current[readingId] || 200;
-    const clampedX = Math.max(0, Math.min(locationX, barWidth));
-    const newPosition = (clampedX / barWidth) * songDuration;
-    setIsSongSeeking(false);
-    await seekSongTo(newPosition);
   };
   // ==================== END SONG PLAYBACK ====================
 
@@ -1647,13 +1610,21 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                 !hasAudioRemote &&
                 !hasSongRemote &&
                 (jobStatus === 'processing' || jobStatus === 'pending' || jobStatus === 'queued');
-              const progress = isPlaying && playbackDuration > 0
-                ? (playbackPosition / playbackDuration) * 100
+              const canScrubNarration =
+                playingId === reading.id && !!soundRef.current && playbackDuration > 0;
+              const narrationSliderValue = canScrubNarration
+                ? isScrubbing && scrubbingNarrationIdRef.current === reading.id
+                  ? scrubPosition
+                  : playbackPosition
                 : 0;
 
               const isSongPlaying = playingSongId === reading.id;
-              const songProgress = isSongPlaying && songDuration > 0
-                ? (songPosition / songDuration) * 100
+              const canScrubSong =
+                playingSongId === reading.id && !!songSoundRef.current && songDuration > 0;
+              const songSliderValue = canScrubSong
+                ? isSongScrubbing && scrubbingSongIdRef.current === reading.id
+                  ? songScrubPosition
+                  : songPosition
                 : 0;
               const allRemoteReady = hasPdfRemote && hasAudioRemote && hasSongRemote;
 
@@ -1716,38 +1687,42 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                       )}
                     </TouchableOpacity>
 
-                    <View
-                      style={styles.progressContainer}
-                      onLayout={(e: LayoutChangeEvent) => {
-                        progressBarWidths.current[reading.id] = e.nativeEvent.layout.width;
-                      }}
-                      onStartShouldSetResponder={() => isPlaying}
-                      onMoveShouldSetResponder={() => isPlaying}
-                      onResponderGrant={() => { if (isPlaying) handleSeekStart(); }}
-                      onResponderMove={(e: GestureResponderEvent) => {
-                        if (isPlaying) handleSeekMove(reading.id, e.nativeEvent.locationX);
-                      }}
-                      onResponderRelease={(e: GestureResponderEvent) => {
-                        if (isPlaying) handleSeekEnd(reading.id, e.nativeEvent.locationX);
-                      }}
-                    >
-                      <View style={styles.progressTrack}>
-                        <View style={[
-                          styles.progressFill,
-                          { width: `${isSeeking && isPlaying ? (seekPosition / playbackDuration) * 100 : progress}%` }
-                        ]} />
-                        {isPlaying && (
-                          <View style={[
-                            styles.progressThumb,
-                            { left: `${isSeeking ? (seekPosition / playbackDuration) * 100 : progress}%` }
-                          ]} />
-                        )}
-                      </View>
+                    <View style={styles.progressContainer}>
+                      <Slider
+                        style={styles.slider}
+                        minimumValue={0}
+                        maximumValue={canScrubNarration ? playbackDuration : 1}
+                        value={narrationSliderValue}
+                        onSlidingStart={() => {
+                          if (!canScrubNarration) return;
+                          scrubbingNarrationIdRef.current = reading.id;
+                          setIsScrubbing(true);
+                          setScrubPosition(playbackPosition);
+                        }}
+                        onValueChange={(v) => {
+                          if (!canScrubNarration) return;
+                          setScrubPosition(v);
+                        }}
+                        onSlidingComplete={async (v) => {
+                          if (!canScrubNarration) return;
+                          scrubbingNarrationIdRef.current = null;
+                          setIsScrubbing(false);
+                          await seekTo(v);
+                        }}
+                        minimumTrackTintColor="#C41E3A"
+                        maximumTrackTintColor="#E5E7EB"
+                        thumbTintColor="#C41E3A"
+                        disabled={!canScrubNarration}
+                      />
                     </View>
 
                     <Text style={styles.timeText}>
-                      {isPlaying
-                        ? `${formatTime(isSeeking ? seekPosition : playbackPosition)} / ${formatTime(playbackDuration)}`
+                      {canScrubNarration
+                        ? `${formatTime(
+                            isScrubbing && scrubbingNarrationIdRef.current === reading.id
+                              ? scrubPosition
+                              : playbackPosition
+                          )} / ${formatTime(playbackDuration)}`
                         : '--:--'
                       }
                     </Text>
@@ -1767,38 +1742,42 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                       )}
                     </TouchableOpacity>
 
-                    <View
-                      style={styles.songProgressContainer}
-                      onLayout={(e: LayoutChangeEvent) => {
-                        songProgressBarWidths.current[reading.id] = e.nativeEvent.layout.width;
-                      }}
-                      onStartShouldSetResponder={() => isSongPlaying}
-                      onMoveShouldSetResponder={() => isSongPlaying}
-                      onResponderGrant={() => { if (isSongPlaying) handleSongSeekStart(); }}
-                      onResponderMove={(e: GestureResponderEvent) => {
-                        if (isSongPlaying) handleSongSeekMove(reading.id, e.nativeEvent.locationX);
-                      }}
-                      onResponderRelease={(e: GestureResponderEvent) => {
-                        if (isSongPlaying) handleSongSeekEnd(reading.id, e.nativeEvent.locationX);
-                      }}
-                    >
-                      <View style={styles.songProgressTrack}>
-                        <View style={[
-                          styles.songProgressFill,
-                          { width: `${isSongSeeking && isSongPlaying ? (songSeekPosition / songDuration) * 100 : songProgress}%` }
-                        ]} />
-                        {isSongPlaying && (
-                          <View style={[
-                            styles.songProgressThumb,
-                            { left: `${isSongSeeking ? (songSeekPosition / songDuration) * 100 : songProgress}%` }
-                          ]} />
-                        )}
-                      </View>
+                    <View style={styles.songProgressContainer}>
+                      <Slider
+                        style={styles.slider}
+                        minimumValue={0}
+                        maximumValue={canScrubSong ? songDuration : 1}
+                        value={songSliderValue}
+                        onSlidingStart={() => {
+                          if (!canScrubSong) return;
+                          scrubbingSongIdRef.current = reading.id;
+                          setIsSongScrubbing(true);
+                          setSongScrubPosition(songPosition);
+                        }}
+                        onValueChange={(v) => {
+                          if (!canScrubSong) return;
+                          setSongScrubPosition(v);
+                        }}
+                        onSlidingComplete={async (v) => {
+                          if (!canScrubSong) return;
+                          scrubbingSongIdRef.current = null;
+                          setIsSongScrubbing(false);
+                          await seekSongTo(v);
+                        }}
+                        minimumTrackTintColor="#000"
+                        maximumTrackTintColor="#E5E7EB"
+                        thumbTintColor="#000"
+                        disabled={!canScrubSong}
+                      />
                     </View>
 
                     <Text style={styles.songTimeText}>
-                      {isSongPlaying
-                        ? `${formatTime(isSongSeeking ? songSeekPosition : songPosition)} / ${formatTime(songDuration)}`
+                      {canScrubSong
+                        ? `${formatTime(
+                            isSongScrubbing && scrubbingSongIdRef.current === reading.id
+                              ? songScrubPosition
+                              : songPosition
+                          )} / ${formatTime(songDuration)}`
                         : '--:--'
                       }
                     </Text>
@@ -2012,6 +1991,10 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     paddingVertical: 8,
+  },
+  slider: {
+    width: '100%',
+    height: 24,
   },
   progressTrack: {
     width: '100%',

@@ -293,6 +293,7 @@ router.get('/v2/user/:userId/jobs', async (c) => {
 router.get('/v2/:jobId/audio/:docNum', async (c) => {
   const jobId = c.req.param('jobId');
   const docNum = parseInt(c.req.param('docNum'), 10);
+  const rangeHeader = c.req.header('range') || c.req.header('Range') || null;
   
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return c.json({ success: false, error: 'Supabase not configured' }, 500);
@@ -382,28 +383,31 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
       return c.json({ success: false, error: 'Failed to generate signed URL' }, 500);
     }
 
-    // Stream the audio bytes directly (iOS AVPlayer has issues with redirects)
-    console.log(`🎵 Streaming audio from: ${signedUrl.substring(0, 80)}...`);
-    const audioResponse = await fetch(signedUrl);
+    // Stream the audio bytes directly (iOS AVPlayer has issues with redirects).
+    // IMPORTANT: Support HTTP Range requests so seeking works.
+    console.log(
+      `🎵 Streaming audio from: ${signedUrl.substring(0, 80)}...${rangeHeader ? ` (Range: ${rangeHeader})` : ''}`
+    );
+    const audioResponse = await fetch(signedUrl, {
+      headers: rangeHeader ? { Range: rangeHeader } : undefined,
+    });
     
     if (!audioResponse.ok) {
       console.error(`❌ Failed to fetch audio: ${audioResponse.status} ${audioResponse.statusText}`);
       return c.json({ success: false, error: 'Failed to fetch audio from storage' }, 500);
     }
 
-    const contentType = audioResponse.headers.get('content-type') || 'audio/mpeg';
-    const contentLength = audioResponse.headers.get('content-length');
-    
-    // Return streaming response with proper headers for iOS AVPlayer
-    return new Response(audioResponse.body, {
-      status: 200,
-      headers: {
-        'Content-Type': contentType,
-        ...(contentLength ? { 'Content-Length': contentLength } : {}),
-        'Accept-Ranges': 'bytes',
-        'Cache-Control': 'public, max-age=3600',
-      },
-    });
+    const headers = new Headers();
+    const passthroughKeys = ['content-type', 'content-length', 'content-range', 'etag', 'last-modified'];
+    for (const k of passthroughKeys) {
+      const v = audioResponse.headers.get(k);
+      if (v) headers.set(k, v);
+    }
+    headers.set('accept-ranges', 'bytes');
+    headers.set('cache-control', 'public, max-age=3600');
+
+    // Return streaming response with upstream status (200 or 206)
+    return new Response(audioResponse.body, { status: audioResponse.status, headers });
   } catch (error: any) {
     console.error('Error in audio endpoint:', error);
     return c.json({ success: false, error: error.message || 'Internal server error' }, 500);
@@ -415,6 +419,7 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
 router.get('/v2/:jobId/song/:docNum', async (c) => {
   const jobId = c.req.param('jobId');
   const docNum = parseInt(c.req.param('docNum'), 10);
+  const rangeHeader = c.req.header('range') || c.req.header('Range') || null;
   
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return c.json({ success: false, error: 'Supabase not configured' }, 500);
@@ -507,28 +512,31 @@ router.get('/v2/:jobId/song/:docNum', async (c) => {
       return c.json({ success: false, error: 'Failed to generate URL' }, 500);
     }
 
-    // Stream the song bytes directly (iOS AVPlayer has issues with redirects)
-    console.log(`🎵 Streaming song from: ${fetchUrl.substring(0, 80)}...`);
-    const songResponse = await fetch(fetchUrl);
+    // Stream the song bytes directly (iOS AVPlayer has issues with redirects).
+    // IMPORTANT: Support HTTP Range requests so seeking works.
+    console.log(
+      `🎵 Streaming song from: ${fetchUrl.substring(0, 80)}...${rangeHeader ? ` (Range: ${rangeHeader})` : ''}`
+    );
+    const songResponse = await fetch(fetchUrl, {
+      headers: rangeHeader ? { Range: rangeHeader } : undefined,
+    });
     
     if (!songResponse.ok) {
       console.error(`❌ Failed to fetch song: ${songResponse.status} ${songResponse.statusText}`);
       return c.json({ success: false, error: 'Failed to fetch song from storage' }, 500);
     }
 
-    const contentType = songResponse.headers.get('content-type') || 'audio/mpeg';
-    const contentLength = songResponse.headers.get('content-length');
-    
-    // Return streaming response with proper headers for iOS AVPlayer
-    return new Response(songResponse.body, {
-      status: 200,
-      headers: {
-        'Content-Type': contentType,
-        ...(contentLength ? { 'Content-Length': contentLength } : {}),
-        'Accept-Ranges': 'bytes',
-        'Cache-Control': 'public, max-age=3600',
-      },
-    });
+    const headers = new Headers();
+    const passthroughKeys = ['content-type', 'content-length', 'content-range', 'etag', 'last-modified'];
+    for (const k of passthroughKeys) {
+      const v = songResponse.headers.get(k);
+      if (v) headers.set(k, v);
+    }
+    headers.set('accept-ranges', 'bytes');
+    headers.set('cache-control', 'public, max-age=3600');
+
+    // Return streaming response with upstream status (200 or 206)
+    return new Response(songResponse.body, { status: songResponse.status, headers });
   } catch (error: any) {
     console.error('Error in song endpoint:', error);
     return c.json({ success: false, error: error.message || 'Internal server error' }, 500);
