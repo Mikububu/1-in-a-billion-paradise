@@ -643,18 +643,25 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         }
       }
 
-      const names = [params?.person1?.name, params?.person2?.name].filter(
-        (n: any) => typeof n === 'string' && n.trim().length > 0
-      ) as string[];
+      const peopleFromJob = [
+        { id: params?.person1?.id, name: params?.person1?.name },
+        { id: params?.person2?.id, name: params?.person2?.name },
+      ].filter((p: any) => typeof p?.name === 'string' && p.name.trim().length > 0);
 
-      for (const name of names) {
-        const k = `${name}:${jobId}`;
-        if (linkedJobPairsRef.current.has(k)) continue;
-        linkedJobPairsRef.current.add(k);
-        linkJobToPersonByName(name, jobId);
+      for (const p of peopleFromJob as any[]) {
+        // Prefer stable personId; fallback to name only when id is missing.
+        const dedupeKey = p?.id ? `id:${p.id}:${jobId}` : `name:${p.name}:${jobId}`;
+        if (linkedJobPairsRef.current.has(dedupeKey)) continue;
+        linkedJobPairsRef.current.add(dedupeKey);
+
+        if (typeof p?.id === 'string' && p.id.trim().length > 0) {
+          linkJobToPerson(p.id, jobId);
+        } else {
+          linkJobToPersonByName(p.name, jobId);
+        }
       }
     }
-  }, [queueJobs, linkJobToPersonByName]);
+  }, [queueJobs, linkJobToPerson, linkJobToPersonByName]);
 
   // Load nuclear_v2 job artifacts to determine which systems have readings
   useEffect(() => {
@@ -927,12 +934,8 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         }
       });
 
-    // Convert to array and sort:
-    // - user first
-    // - then by recency
+    // Convert to array and sort by recency only (newest first).
     let result = Array.from(peopleMap.values()).sort((a, b) => {
-      if (a.isUser && !b.isUser) return -1;
-      if (!a.isUser && b.isUser) return 1;
       const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return timeB - timeA;
@@ -970,7 +973,18 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   const jobIdToParams = useMemo(() => {
     const m = new Map<string, any>();
     for (const j of queueJobs as any[]) {
-      if (j?.id && (j as any)?.params) m.set(j.id, (j as any).params);
+      const jobId = j?.id;
+      if (!jobId) continue;
+
+      let raw = (j as any)?.params ?? (j as any)?.input ?? null;
+      if (typeof raw === 'string') {
+        try {
+          raw = JSON.parse(raw);
+        } catch {
+          raw = null;
+        }
+      }
+      if (raw && typeof raw === 'object') m.set(jobId, raw);
     }
     return m;
   }, [queueJobs]);
@@ -1988,6 +2002,69 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
     return cards;
   }, [queueJobs]);
 
+  // Chronological feed rule: newest card first, regardless of person/system.
+  const timelineItems = useMemo(() => {
+    const toTime = (iso?: string | null) => {
+      const t = iso ? new Date(iso).getTime() : 0;
+      return Number.isFinite(t) ? t : 0;
+    };
+
+    const personItems = allPeopleWithReadings
+      .map((person) => {
+        const primaryJobId = person.jobIds?.[0];
+        if (!primaryJobId) return null;
+
+        const primaryJob = queueJobs.find((j: any) => j.id === primaryJobId);
+        const jobType = primaryJob?.type;
+        const isExtendedJob = jobType === 'extended' || jobType === 'single_system';
+
+        let personType: 'individual' | 'person1' | 'person2' = 'person1';
+        if (isExtendedJob) {
+          personType = 'individual';
+        } else {
+          const p = jobIdToParams.get(primaryJobId) || null;
+          const fromJob =
+            (p?.person1?.id && p.person1.id === person.id)
+              ? 'person1'
+              : (p?.person2?.id && p.person2.id === person.id)
+                ? 'person2'
+                : (p?.person1?.name === person.name)
+                  ? 'person1'
+                  : (p?.person2?.name === person.name)
+                    ? 'person2'
+                    : null;
+          personType = fromJob || 'person1';
+        }
+
+        const createdAt = (primaryJob as any)?.created_at || (primaryJob as any)?.createdAt || person.createdAt;
+        return {
+          kind: 'person' as const,
+          key: `person-${person.id}-${primaryJobId}`,
+          createdAt,
+          person,
+          personType,
+          primaryJobId,
+        };
+      })
+      .filter(Boolean) as Array<{
+      kind: 'person';
+      key: string;
+      createdAt: string;
+      person: any;
+      personType: 'individual' | 'person1' | 'person2';
+      primaryJobId: string;
+    }>;
+
+    const coupleItems = cloudPeopleCards.map((card: any) => ({
+      kind: 'couple' as const,
+      key: `couple-${card.jobId}-${card.systemKey}`,
+      createdAt: card.createdAt,
+      card,
+    }));
+
+    return [...personItems, ...coupleItems].sort((a, b) => toTime(b.createdAt) - toTime(a.createdAt));
+  }, [allPeopleWithReadings, cloudPeopleCards, queueJobs, jobIdToParams]);
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -2030,45 +2107,15 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         {/* ALL CARDS - Only show when data exists */}
         <View style={styles.tabContent}>
 
-          {/* Person Cards - show ALL people who have readings (grouped by name) */}
-          {allPeopleWithReadings.map((person, mapIndex) => {
-            // Determine personType based on the actual job params for the job we're linking to.
-            // - Extended/Combined jobs: personType = 'individual' (1 person, 1-5 systems)
-            // - Nuclear jobs: personType = 'person1' | 'person2' | 'overlay'
-            const primaryJobId = person.jobIds?.[0];
-            if (!primaryJobId) return null;
-            const primaryJob = queueJobs.find((j: any) => j.id === primaryJobId);
-            const jobType = primaryJob?.type;
-            const isExtendedJob = jobType === 'extended' || jobType === 'single_system';
-            
-            // For extended jobs, use 'individual' personType
-            // For nuclear jobs, determine person1/person2 based on job params
-            let personType: 'individual' | 'person1' | 'person2' = 'person1';
-            if (isExtendedJob) {
-              personType = 'individual';
-            } else {
-              const p = primaryJobId ? jobIdToParams.get(primaryJobId) : null;
-              
-              // CRITICAL: Match by ID first (unique), fallback to name only if no IDs
-              const fromJob =
-                (p?.person1?.id && p.person1.id === person.id)
-                  ? 'person1'
-                  : (p?.person2?.id && p.person2.id === person.id)
-                    ? 'person2'
-                    : (p?.person1?.name === person.name)
-                      ? 'person1'
-                      : (p?.person2?.name === person.name)
-                        ? 'person2'
-                        : null;
-              
-              // CRITICAL: Only use fallback if we truly can't find the job params
-              // Default to person1 to avoid swapping (better to show wrong range than wrong person's reading)
-              personType = fromJob || 'person1';
-            }
-
-            return (
+          {/* Chronological feed: newest first (across people + couples) */}
+          {timelineItems.map((item: any) => {
+            if (item.kind === 'person') {
+              const person = item.person;
+              const personType = item.personType as 'individual' | 'person1' | 'person2';
+              const primaryJobId = item.primaryJobId as string;
+              return (
               <TouchableOpacity
-                key={`person-${person.name}-${person.id || 'no-id'}`}
+                key={item.key}
                 style={styles.personCard}
                 onPress={() => {
                   navigation.navigate('PersonReadings', {
@@ -2262,97 +2309,98 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                 </View>
               </TouchableOpacity>
             );
-          })}
+            }
 
-          {/* Shared Karma Cards (from overlay/compatibility jobs) - deduplicated by couple + purchase type */}
-          {cloudPeopleCards.map((card, idx) => (
-            <TouchableOpacity
-              key={card.jobId || idx}
-              style={styles.personCard}
-              onPress={() => {
-                // Always navigate to PersonReadings with overlay type to show only overlay/verdict readings (6 max)
-                navigation.navigate('PersonReadings', {
-                  personName: `${card.person1} & ${card.person2}`,
-                  personType: 'overlay',
-                  jobId: card.jobId,
-                });
-              }}
-            >
-              <View style={styles.compatPeopleVertical}>
-                {/* Person 1 - GREEN (like Michael's card) - stacked vertically, close together, 50% opacity */}
-                <View style={[styles.personAvatar, { backgroundColor: '#E8F4E8', marginBottom: -8, opacity: 0.5 }]}>
-                  <Text style={[styles.personInitial, { color: '#2E7D32' }]}>{card.person1?.charAt(0)}</Text>
+            const card = item.card as any;
+            return (
+              <TouchableOpacity
+                key={item.key}
+                style={styles.personCard}
+                onPress={() => {
+                  // Always navigate to PersonReadings with overlay type to show only overlay/verdict readings (6 max)
+                  navigation.navigate('PersonReadings', {
+                    personName: `${card.person1} & ${card.person2}`,
+                    personType: 'overlay',
+                    jobId: card.jobId,
+                  });
+                }}
+              >
+                <View style={styles.compatPeopleVertical}>
+                  {/* Person 1 - GREEN (like Michael's card) - stacked vertically, close together, 50% opacity */}
+                  <View style={[styles.personAvatar, { backgroundColor: '#E8F4E8', marginBottom: -8, opacity: 0.5 }]}>
+                    <Text style={[styles.personInitial, { color: '#2E7D32' }]}>{card.person1?.charAt(0)}</Text>
+                  </View>
+                  {/* Heart - highest layer (zIndex) */}
+                  <Text style={{ fontSize: 16, marginVertical: -4, color: colors.primary, zIndex: 10, elevation: 10 }}>♡</Text>
+                  {/* Person 2 - RED (like partner's card) - stacked vertically, close together, 50% opacity */}
+                  <View style={[styles.personAvatar, { backgroundColor: '#FFE4E4', marginTop: -8, opacity: 0.5 }]}>
+                    <Text style={[styles.personInitial, { color: colors.primary }]}>{card.person2?.charAt(0)}</Text>
+                  </View>
                 </View>
-                {/* Heart - highest layer (zIndex) */}
-                <Text style={{ fontSize: 16, marginVertical: -4, color: colors.primary, zIndex: 10, elevation: 10 }}>♡</Text>
-                {/* Person 2 - RED (like partner's card) - stacked vertically, close together, 50% opacity */}
-                <View style={[styles.personAvatar, { backgroundColor: '#FFE4E4', marginTop: -8, opacity: 0.5 }]}>
-                  <Text style={[styles.personInitial, { color: colors.primary }]}>{card.person2?.charAt(0)}</Text>
-                </View>
-              </View>
-              <View style={styles.personInfo}>
-                <Text style={styles.personName}>{card.person1} and {card.person2}</Text>
-                <Text style={styles.personDate}>Shared Karma</Text>
-                {/* Reading badges for overlay - show which systems have readings */}
-                {(() => {
-                  // Find completed job for this couple and purchase type
-                  const coupleJob = queueJobs.find((j: any) =>
-                    j.id === card.jobId &&
-                    (j.status === 'complete' || j.status === 'completed')
-                  );
-
-                  if (!coupleJob) return null;
-
-                  // For nuclear_v2: show systems from overlay documents (11-15)
-                  const results = (coupleJob as any).results;
-                  if (coupleJob.type === 'nuclear_v2' && results?.documents) {
-                    const overlayDocs = results.documents.filter((d: any) =>
-                      d.docNum >= 11 && d.docNum <= 15
+                <View style={styles.personInfo}>
+                  <Text style={styles.personName}>{card.person1} and {card.person2}</Text>
+                  <Text style={styles.personDate}>Shared Karma</Text>
+                  {/* Reading badges for overlay - show which systems have readings */}
+                  {(() => {
+                    // Find completed job for this couple and purchase type
+                    const coupleJob = queueJobs.find((j: any) =>
+                      j.id === card.jobId &&
+                      (j.status === 'complete' || j.status === 'completed')
                     );
-                    const systemsWithOverlays = new Set(overlayDocs.map((d: any) => {
-                      const systemMap: Record<number, string> = { 11: 'western', 12: 'vedic', 13: 'human_design', 14: 'gene_keys', 15: 'kabbalah' };
-                      return systemMap[d.docNum];
-                    }).filter(Boolean));
 
-                    const badges = Array.from(systemsWithOverlays).map((sys) => {
-                      const systemInfo = SYSTEM_INFO[sys as ReadingSystem];
-                      return systemInfo ? { name: systemInfo.name, icon: systemInfo.icon } : null;
-                    }).filter(Boolean);
+                    if (!coupleJob) return null;
 
-                    return badges.length > 0 ? (
-                      <View style={styles.personReadings}>
-                        {badges.map((badge: any, idx: number) => (
-                          <Text key={idx} style={styles.readingBadge}>
-                            {badge.icon} {badge.name} ✓
-                          </Text>
-                        ))}
-                      </View>
-                    ) : null;
-                  }
+                    // For nuclear_v2: show systems from overlay documents (11-15)
+                    const results = (coupleJob as any).results;
+                    if (coupleJob.type === 'nuclear_v2' && results?.documents) {
+                      const overlayDocs = results.documents.filter((d: any) =>
+                        d.docNum >= 11 && d.docNum <= 15
+                      );
+                      const systemsWithOverlays = new Set(overlayDocs.map((d: any) => {
+                        const systemMap: Record<number, string> = { 11: 'western', 12: 'vedic', 13: 'human_design', 14: 'gene_keys', 15: 'kabbalah' };
+                        return systemMap[d.docNum];
+                      }).filter(Boolean));
 
-                  // For synastry: show the system(s) from the job
-                  if (coupleJob.type === 'synastry' && card.systems && card.systems.length > 0) {
-                    const badges = card.systems.map((sys: string) => {
-                      const systemInfo = SYSTEM_INFO[sys as ReadingSystem];
-                      return systemInfo ? { name: systemInfo.name, icon: systemInfo.icon } : null;
-                    }).filter(Boolean);
+                      const badges = Array.from(systemsWithOverlays).map((sys) => {
+                        const systemInfo = SYSTEM_INFO[sys as ReadingSystem];
+                        return systemInfo ? { name: systemInfo.name, icon: systemInfo.icon } : null;
+                      }).filter(Boolean);
 
-                    return badges.length > 0 ? (
-                      <View style={styles.personReadings}>
-                        {badges.map((badge: any, idx: number) => (
-                          <Text key={idx} style={styles.readingBadge}>
-                            {badge.icon} {badge.name} ✓
-                          </Text>
-                        ))}
-                      </View>
-                    ) : null;
-                  }
+                      return badges.length > 0 ? (
+                        <View style={styles.personReadings}>
+                          {badges.map((badge: any, idx: number) => (
+                            <Text key={idx} style={styles.readingBadge}>
+                              {badge.icon} {badge.name} ✓
+                            </Text>
+                          ))}
+                        </View>
+                      ) : null;
+                    }
 
-                  return null;
-                })()}
-              </View>
-            </TouchableOpacity>
-          ))}
+                    // For synastry: show the system(s) from the job
+                    if (coupleJob.type === 'synastry' && card.systems && card.systems.length > 0) {
+                      const badges = card.systems.map((sys: string) => {
+                        const systemInfo = SYSTEM_INFO[sys as ReadingSystem];
+                        return systemInfo ? { name: systemInfo.name, icon: systemInfo.icon } : null;
+                      }).filter(Boolean);
+
+                      return badges.length > 0 ? (
+                        <View style={styles.personReadings}>
+                          {badges.map((badge: any, idx: number) => (
+                            <Text key={idx} style={styles.readingBadge}>
+                              {badge.icon} {badge.name} ✓
+                            </Text>
+                          ))}
+                        </View>
+                      ) : null;
+                    }
+
+                    return null;
+                  })()}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
 
           {/* Empty state when no cards */}
           {allPeopleWithReadings.length === 0 && !hasUserReadings && partners.length === 0 && cloudPeopleCards.length === 0 && !loadingQueueJobs && (

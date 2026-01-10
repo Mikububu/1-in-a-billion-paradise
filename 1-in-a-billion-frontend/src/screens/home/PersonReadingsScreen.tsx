@@ -1636,9 +1636,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           </TouchableOpacity>
         ) : null}
 
-        {isRefreshing && readings.length > 0 && jobStatus !== 'complete' && (
-          <Text style={styles.refreshingText}>Refreshing...</Text>
-        )}
+        {/* Intentionally no "Refreshing..." label: it caused layout shifts under the title. */}
 
         {loading && readings.length === 0 ? (
           <Text style={styles.loadingText}>Loading...</Text>
@@ -1914,14 +1912,6 @@ const styles = StyleSheet.create({
     color: '#888', // Grey
     textAlign: 'center',
     marginTop: 40,
-  },
-  refreshingText: {
-    fontFamily: 'System',
-    fontSize: 14,
-    color: '#888',
-    textAlign: 'center',
-    marginBottom: 16,
-    fontStyle: 'italic',
   },
   readingsList: {
     gap: 16,
