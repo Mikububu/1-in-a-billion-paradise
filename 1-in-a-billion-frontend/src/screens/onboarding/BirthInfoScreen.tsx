@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/Button';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { searchCities } from '@/services/geonames';
@@ -68,6 +68,7 @@ const formatDateDisplay = (date: Date) => {
 };
 
 export const BirthInfoScreen = ({ navigation }: Props) => {
+  const insets = useSafeAreaInsets();
   const storedDate = useOnboardingStore((state) => state.birthDate);
   const storedTime = useOnboardingStore((state) => state.birthTime);
   const storedCity = useOnboardingStore((state) => state.birthCity);
@@ -169,7 +170,14 @@ export const BirthInfoScreen = ({ navigation }: Props) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Back Button - hidden on first onboarding screen */}
+      <TouchableOpacity
+        onPress={() => navigation.goBack()}
+        activeOpacity={0.8}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        style={[styles.backButton, { top: insets.top + spacing.sm }]}
+      >
+        <Text style={styles.backButtonText}>← Back</Text>
+      </TouchableOpacity>
 
       <KeyboardAvoidingView
         style={styles.container}
@@ -321,11 +329,14 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: 'absolute',
-    top: 60,
     left: spacing.page,
-    zIndex: 10,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
+    zIndex: 50,
+    paddingVertical: spacing.xs + 2,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.button,
+    backgroundColor: colors.buttonBg,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   backButtonText: {
     fontFamily: typography.sansRegular,
@@ -352,7 +363,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: colors.inputStroke,
     borderRadius: radii.button,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm + 4,

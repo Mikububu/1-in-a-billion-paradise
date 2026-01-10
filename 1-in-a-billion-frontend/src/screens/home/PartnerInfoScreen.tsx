@@ -451,6 +451,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.inputBg,
+    borderWidth: 1,
+    borderColor: colors.inputStroke,
     borderRadius: 24,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md, // Reduced vertical padding

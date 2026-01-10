@@ -15,6 +15,8 @@ export const colors = {
   accentSoft: 'rgba(209, 0, 0, 0.06)',
   cardStroke: 'rgba(30, 25, 20, 0.05)',
   inputBg: '#ECEAE6',
+  // Canonical "black stroke" for input fields
+  inputStroke: 'rgba(26, 26, 26, 0.45)',
   success: '#10B981',
   warning: '#F97316',
   error: '#EF4444',

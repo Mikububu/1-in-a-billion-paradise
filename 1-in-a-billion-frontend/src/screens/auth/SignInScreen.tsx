@@ -757,6 +757,8 @@ const styles = StyleSheet.create({
   },
   emailInput: {
     backgroundColor: colors.inputBg,
+    borderWidth: 1,
+    borderColor: colors.inputStroke,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
     borderRadius: radii.button,
