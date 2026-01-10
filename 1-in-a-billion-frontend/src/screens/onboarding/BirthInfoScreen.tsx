@@ -100,6 +100,7 @@ export const BirthInfoScreen = ({ navigation }: Props) => {
   // Simple slideshow - just change image index
   const [imageIndex, setImageIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const imageOpacity = useMemo(() => Animated.multiply(fadeAnim, 0.35), [fadeAnim]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -297,7 +298,7 @@ export const BirthInfoScreen = ({ navigation }: Props) => {
         <View pointerEvents="none" style={styles.imageWrapper}>
           <Animated.Image
             source={CITY_IMAGES[imageIndex]}
-            style={[styles.bottomImage, { opacity: fadeAnim }]}
+            style={[styles.bottomImage, { opacity: imageOpacity }]}
             resizeMode="contain"
           />
         </View>
