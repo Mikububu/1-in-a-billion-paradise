@@ -20,6 +20,7 @@
     "test:pipeline": "ts-node src/scripts/testFullPipeline.ts",
     "test:e2e": "ts-node src/scripts/testEndToEndJob.ts",
     "test:vedic": "ts-node src/scripts/testVedicModules.ts",
+    "test:vedic:reference": "ts-node src/scripts/verifyVedicReference.ts",
     "setup:email": "ts-node src/scripts/setupEmailConfig.ts"
   },
   "keywords": [],

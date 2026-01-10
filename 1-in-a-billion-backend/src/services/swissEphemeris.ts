@@ -82,7 +82,19 @@ const SIGNS = [
   'Pisces',
 ];
 
+// Default flags for tropical calculations.
 const flags = swe.SEFLG_SWIEPH | swe.SEFLG_SPEED;
+// Default flags for sidereal (Jyotish) calculations. Sidereal mode is configured below.
+const siderealFlags = flags | swe.SEFLG_SIDEREAL;
+
+// Configure sidereal mode globally (only impacts calculations when SEFLG_SIDEREAL is used).
+// Lahiri ayanamsa is the most common "Kundli app" default.
+try {
+  swe.swe_set_sid_mode(swe.SE_SIDM_LAHIRI, 0, 0);
+} catch (e) {
+  // Non-fatal: tropical still works; sidereal would be wrong without this.
+  console.warn('[Swiss Ephemeris] Failed to set sidereal mode (Lahiri):', e);
+}
 
 const toSign = (longitude: number): string => {
   const normalized = (longitude % 360 + 360) % 360;
@@ -176,14 +188,34 @@ const toJulianDay = (payload: ReadingPayload): number => {
 };
 
 export type PlacementSummary = {
+  // Tropical (Western) summary
   sunSign: string;
   moonSign: string;
   risingSign: string;
+  sunLongitude: number; // tropical ecliptic longitude (0-360)
+  moonLongitude: number; // tropical ecliptic longitude (0-360)
+  ascendantLongitude: number; // tropical ascendant longitude (0-360)
   sunDegree?: { sign: string; degree: number; minute: number; decan: 1 | 2 | 3 };
   moonDegree?: { sign: string; degree: number; minute: number; decan: 1 | 2 | 3 };
   ascendantDegree?: { sign: string; degree: number; minute: number; decan: 1 | 2 | 3 };
   sunHouse?: number;
   moonHouse?: number;
+
+  // Sidereal (Vedic/Jyotish) summary
+  ayanamsaUt?: number; // degrees
+  sidereal?: {
+    ayanamsaName: string;
+    sunLongitude: number; // sidereal ecliptic longitude (0-360)
+    moonLongitude: number; // sidereal ecliptic longitude (0-360)
+    ascendantLongitude: number; // sidereal ascendant longitude (0-360)
+    rahuLongitude?: number; // mean node (sidereal)
+    ketuLongitude?: number; // 180° opposite Rahu
+    lagnaSign: string;
+    chandraRashi: string;
+    suryaRashi: string;
+    janmaNakshatra: string;
+    janmaPada: 1 | 2 | 3 | 4;
+  };
 };
 
 export class SwissEphemerisEngine {
@@ -208,7 +240,7 @@ export class SwissEphemerisEngine {
     }
     const moonLongitude = (moon as { longitude: number }).longitude;
 
-    // Calculate Houses (Ascendant/Rising + House Cusps)
+    // Calculate Houses (Ascendant/Rising + House Cusps) - Tropical Western
     const houses = swe.swe_houses(jdUt, payload.latitude, payload.longitude, 'P'); // Placidus
     if ('error' in houses) {
       throw new Error(`Swiss Ephemeris Houses calculation failed: ${houses.error}`);
@@ -229,6 +261,9 @@ export class SwissEphemerisEngine {
       sunSign: toSign(sunLongitude),
       moonSign: toSign(moonLongitude),
       risingSign: toSign(ascendant),
+      sunLongitude: (sunLongitude % 360 + 360) % 360,
+      moonLongitude: (moonLongitude % 360 + 360) % 360,
+      ascendantLongitude: (ascendant % 360 + 360) % 360,
       sunDegree: {
         ...sunDeg,
         decan: getDecan(sunDeg.degree),
@@ -244,6 +279,62 @@ export class SwissEphemerisEngine {
       sunHouse,
       moonHouse,
     };
+
+    // Sidereal (Vedic) extras: compute sidereal longitudes + sidereal houses/ascendant.
+    // NOTE: We keep these attached so the LLM never "guesses" sidereal math.
+    try {
+      const ayanamsaUt = swe.swe_get_ayanamsa_ut(jdUt);
+      const ayanamsaName = swe.swe_get_ayanamsa_name(swe.SE_SIDM_LAHIRI);
+
+      const sunSid = swe.swe_calc_ut(jdUt, swe.SE_SUN, siderealFlags);
+      if ('error' in sunSid) throw new Error(sunSid.error);
+      const moonSid = swe.swe_calc_ut(jdUt, swe.SE_MOON, siderealFlags);
+      if ('error' in moonSid) throw new Error(moonSid.error);
+      const rahuSid = swe.swe_calc_ut(jdUt, swe.SE_MEAN_NODE, siderealFlags);
+      if ('error' in rahuSid) throw new Error(rahuSid.error);
+
+      // Vedic charts are commonly presented as whole-sign houses (Rashi chart).
+      // Using swe_houses_ex with SEFLG_SIDEREAL returns a sidereal ascendant longitude.
+      const housesSid = swe.swe_houses_ex(jdUt, swe.SEFLG_SIDEREAL, payload.latitude, payload.longitude, 'W');
+      if ('error' in housesSid) throw new Error(housesSid.error);
+
+      const sunSidLon = ((sunSid as any).longitude % 360 + 360) % 360;
+      const moonSidLon = ((moonSid as any).longitude % 360 + 360) % 360;
+      const ascSidLon = ((housesSid as any).ascendant % 360 + 360) % 360;
+      const rahuSidLon = ((rahuSid as any).longitude % 360 + 360) % 360;
+      const ketuSidLon = (rahuSidLon + 180) % 360;
+
+      // Nakshatra math: 27 nakshatras × 13°20' each; 4 padas × 3°20' each.
+      const NAK_LEN = 360 / 27; // 13.3333333333...
+      const PADA_LEN = NAK_LEN / 4; // 3.3333333333...
+      const nakshatras = [
+        'Ashwini', 'Bharani', 'Krittika', 'Rohini', 'Mrigashira', 'Ardra',
+        'Punarvasu', 'Pushya', 'Ashlesha', 'Magha', 'Purva Phalguni', 'Uttara Phalguni',
+        'Hasta', 'Chitra', 'Swati', 'Vishakha', 'Anuradha', 'Jyeshtha',
+        'Mula', 'Purva Ashadha', 'Uttara Ashadha', 'Shravana', 'Dhanishtha', 'Shatabhisha',
+        'Purva Bhadrapada', 'Uttara Bhadrapada', 'Revati',
+      ];
+      const nakIdx = Math.floor(moonSidLon / NAK_LEN) % 27;
+      const janmaNakshatra = nakshatras[nakIdx] || 'Unknown';
+      const pada = (Math.floor((moonSidLon % NAK_LEN) / PADA_LEN) + 1) as 1 | 2 | 3 | 4;
+
+      result.ayanamsaUt = ayanamsaUt;
+      result.sidereal = {
+        ayanamsaName,
+        sunLongitude: sunSidLon,
+        moonLongitude: moonSidLon,
+        ascendantLongitude: ascSidLon,
+        rahuLongitude: rahuSidLon,
+        ketuLongitude: ketuSidLon,
+        lagnaSign: toSign(ascSidLon),
+        chandraRashi: toSign(moonSidLon),
+        suryaRashi: toSign(sunSidLon),
+        janmaNakshatra,
+        janmaPada: pada,
+      };
+    } catch (e) {
+      console.warn('[Swiss Ephemeris] Sidereal computation failed:', e);
+    }
 
     console.log(`Swiss Ephemeris Results:`, JSON.stringify(result, null, 2));
 

@@ -46,13 +46,6 @@ function buildChartDataForSystem(
   const formatDegree = (d: any) => (d ? `${d.degree}° ${d.minute}'` : '');
   const hasP2 = Boolean(person2Name && p2Placements && p2BirthData);
 
-  // Calculate approximate sidereal positions (Lahiri ayanamsa ~23°50')
-  const AYANAMSA = 23.85; // Lahiri ayanamsa for current era
-  const toSidereal = (tropicalDegree: number) => {
-    const sidereal = tropicalDegree - AYANAMSA;
-    return sidereal < 0 ? sidereal + 360 : sidereal;
-  };
-
   const getZodiacSign = (degree: number): string => {
     const signs = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
       'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'];
@@ -87,16 +80,59 @@ function buildChartDataForSystem(
     return sum;
   };
 
-  // Extract tropical degrees (estimate from sign if exact degree not available)
-  const signToDegree: Record<string, number> = {
-    'Aries': 15, 'Taurus': 45, 'Gemini': 75, 'Cancer': 105, 'Leo': 135, 'Virgo': 165,
-    'Libra': 195, 'Scorpio': 225, 'Sagittarius': 255, 'Capricorn': 285, 'Aquarius': 315, 'Pisces': 345
+  // IMPORTANT:
+  // For Vedic (sidereal) calculations we MUST use true longitudes from Swiss Ephemeris,
+  // not "degree within sign" or guessed mid-sign values. Those approximations can be off
+  // by an entire sign + wrong nakshatra/pada.
+  //
+  // For Human Design / Gene Keys, we also need a continuous 0-360° longitude for the Sun.
+  // Prefer Swiss-provided longitudes; fall back to (signIndex*30 + degree + minute/60).
+  const signIndex: Record<string, number> = {
+    Aries: 0,
+    Taurus: 1,
+    Gemini: 2,
+    Cancer: 3,
+    Leo: 4,
+    Virgo: 5,
+    Libra: 6,
+    Scorpio: 7,
+    Sagittarius: 8,
+    Capricorn: 9,
+    Aquarius: 10,
+    Pisces: 11,
   };
 
-  const p1SunDeg = p1Placements.sunDegree?.degree || signToDegree[p1Placements.sunSign] || 0;
-  const p1MoonDeg = p1Placements.moonDegree?.degree || signToDegree[p1Placements.moonSign] || 0;
-  const p2SunDeg = hasP2 ? (p2Placements!.sunDegree?.degree || signToDegree[p2Placements!.sunSign] || 0) : 0;
-  const p2MoonDeg = hasP2 ? (p2Placements!.moonDegree?.degree || signToDegree[p2Placements!.moonSign] || 0) : 0;
+  const fallbackLongitude = (pl: any, which: 'sun' | 'moon' | 'asc') => {
+    const sign =
+      which === 'sun'
+        ? pl?.sunDegree?.sign || pl?.sunSign
+        : which === 'moon'
+          ? pl?.moonDegree?.sign || pl?.moonSign
+          : pl?.ascendantDegree?.sign || pl?.risingSign;
+    const deg =
+      which === 'sun'
+        ? (pl?.sunDegree?.degree ?? 0)
+        : which === 'moon'
+          ? (pl?.moonDegree?.degree ?? 0)
+          : (pl?.ascendantDegree?.degree ?? 0);
+    const min =
+      which === 'sun'
+        ? (pl?.sunDegree?.minute ?? 0)
+        : which === 'moon'
+          ? (pl?.moonDegree?.minute ?? 0)
+          : (pl?.ascendantDegree?.minute ?? 0);
+    const idx = typeof sign === 'string' && sign in signIndex ? signIndex[sign]! : 0;
+    return (idx * 30 + deg + min / 60) % 360;
+  };
+
+  const p1SunDeg =
+    typeof p1Placements?.sunLongitude === 'number' ? (p1Placements.sunLongitude as number) : fallbackLongitude(p1Placements, 'sun');
+  const p2SunDeg =
+    hasP2 && typeof p2Placements?.sunLongitude === 'number'
+      ? (p2Placements.sunLongitude as number)
+      : hasP2
+        ? fallbackLongitude(p2Placements, 'sun')
+        : 0;
 
   switch (system) {
     case 'western':
@@ -118,32 +154,37 @@ ${person2Name!.toUpperCase()} WESTERN (TROPICAL) CHART:
 - Rising: ${p2Placements!.risingSign} ${formatDegree(p2Placements!.ascendantDegree)}`;
 
     case 'vedic':
-      const p1SunSidereal = toSidereal(p1SunDeg);
-      const p1MoonSidereal = toSidereal(p1MoonDeg);
-      const p1AscSidereal = p1Placements.ascendantDegree ? toSidereal((p1Placements.ascendantDegree.degree || 0) + (p1Placements.ascendantDegree.minute || 0) / 60) : 0;
+      const p1Sid = p1Placements?.sidereal;
+      const p2Sid = hasP2 ? p2Placements?.sidereal : null;
+
+      const p1SunSidereal = Number.isFinite(p1Sid?.sunLongitude) ? (p1Sid.sunLongitude as number) : 0;
+      const p1MoonSidereal = Number.isFinite(p1Sid?.moonLongitude) ? (p1Sid.moonLongitude as number) : 0;
+      const p1AscSidereal = Number.isFinite(p1Sid?.ascendantLongitude) ? (p1Sid.ascendantLongitude as number) : 0;
+      const p1RahuSidereal = Number.isFinite(p1Sid?.rahuLongitude) ? (p1Sid.rahuLongitude as number) : null;
+      const p1KetuSidereal = Number.isFinite(p1Sid?.ketuLongitude) ? (p1Sid.ketuLongitude as number) : null;
+
       const p1LagnaSign = p1AscSidereal > 0 ? getZodiacSign(p1AscSidereal) : 'Unknown';
-      const p1LagnaLord = p1AscSidereal > 0 ? ['Mars', 'Venus', 'Mercury', 'Moon', 'Sun', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Saturn', 'Jupiter'][Math.floor(p1AscSidereal / 30) % 12] : 'Unknown';
+      const p1LagnaLord =
+        p1AscSidereal > 0
+          ? ['Mars', 'Venus', 'Mercury', 'Moon', 'Sun', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Saturn', 'Jupiter'][
+              Math.floor(p1AscSidereal / 30) % 12
+            ]
+          : 'Unknown';
       
-      // Calculate Rahu-Ketu (Moon's nodes - approximate)
-      // Rahu = Moon's North Node, Ketu = Moon's South Node (180° opposite)
-      // Simplified: Use Moon position + 90° for Rahu, -90° for Ketu
-      const p1RahuSidereal = (p1MoonSidereal + 90) % 360;
-      const p1KetuSidereal = (p1MoonSidereal - 90 + 360) % 360;
-      
-      const p1MoonNakshatra = getNakshatra(p1MoonSidereal);
+      const p1MoonNakshatra = p1Sid?.janmaNakshatra || getNakshatra(p1MoonSidereal);
+      const p1MoonPada = (p1Sid?.janmaPada || (Math.floor((p1MoonSidereal % 13.333) / 3.333) + 1)) as number;
       const p1MoonNakshatraLord = ['Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'][Math.floor(p1MoonSidereal / 13.333) % 9];
-      const p1MoonPada = Math.floor((p1MoonSidereal % 13.333) / 3.333) + 1;
       
-      const p2SunSidereal = hasP2 ? toSidereal(p2SunDeg) : 0;
-      const p2MoonSidereal = hasP2 ? toSidereal(p2MoonDeg) : 0;
-      const p2AscSidereal = hasP2 && p2Placements?.ascendantDegree ? toSidereal((p2Placements.ascendantDegree.degree || 0) + (p2Placements.ascendantDegree.minute || 0) / 60) : 0;
+      const p2SunSidereal = hasP2 && Number.isFinite(p2Sid?.sunLongitude) ? (p2Sid!.sunLongitude as number) : 0;
+      const p2MoonSidereal = hasP2 && Number.isFinite(p2Sid?.moonLongitude) ? (p2Sid!.moonLongitude as number) : 0;
+      const p2AscSidereal = hasP2 && Number.isFinite(p2Sid?.ascendantLongitude) ? (p2Sid!.ascendantLongitude as number) : 0;
+      const p2RahuSidereal = hasP2 && Number.isFinite(p2Sid?.rahuLongitude) ? (p2Sid!.rahuLongitude as number) : null;
+      const p2KetuSidereal = hasP2 && Number.isFinite(p2Sid?.ketuLongitude) ? (p2Sid!.ketuLongitude as number) : null;
       const p2LagnaSign = p2AscSidereal > 0 ? getZodiacSign(p2AscSidereal) : 'Unknown';
       const p2LagnaLord = p2AscSidereal > 0 ? ['Mars', 'Venus', 'Mercury', 'Moon', 'Sun', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Saturn', 'Jupiter'][Math.floor(p2AscSidereal / 30) % 12] : 'Unknown';
-      const p2RahuSidereal = hasP2 ? (p2MoonSidereal + 90) % 360 : 0;
-      const p2KetuSidereal = hasP2 ? (p2MoonSidereal - 90 + 360) % 360 : 0;
-      const p2MoonNakshatra = hasP2 ? getNakshatra(p2MoonSidereal) : '';
+      const p2MoonNakshatra = hasP2 ? (p2Sid?.janmaNakshatra || getNakshatra(p2MoonSidereal)) : '';
       const p2MoonNakshatraLord = hasP2 ? ['Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'][Math.floor(p2MoonSidereal / 13.333) % 9] : '';
-      const p2MoonPada = hasP2 ? Math.floor((p2MoonSidereal % 13.333) / 3.333) + 1 : 0;
+      const p2MoonPada = hasP2 ? ((p2Sid?.janmaPada || (Math.floor((p2MoonSidereal % 13.333) / 3.333) + 1)) as number) : 0;
 
       if (!hasP2) {
         return `${person1Name.toUpperCase()} VEDIC JYOTISH CHART (SIDEREAL ONLY):
@@ -187,8 +228,8 @@ SURYA (SUN) - SOUL PURPOSE:
 - Represents the soul's purpose, dharma, and essential nature.
 
 RAHU-KETU AXIS (KARMIC NODES):
-- Rahu: ${getZodiacSign(p1RahuSidereal)} ${Math.floor(p1RahuSidereal % 30)}° - Where the soul is HUNGRY, overcompensating, obsessed this lifetime (material desires, worldly attachments)
-- Ketu: ${getZodiacSign(p1KetuSidereal)} ${Math.floor(p1KetuSidereal % 30)}° - Where the soul is EXHAUSTED, done, cutting loose (past life mastery, spiritual detachment)
+- Rahu: ${p1RahuSidereal != null ? `${getZodiacSign(p1RahuSidereal)} ${Math.floor(p1RahuSidereal % 30)}°` : '[not available]'} - Where the soul is HUNGRY, overcompensating, obsessed this lifetime (material desires, worldly attachments)
+- Ketu: ${p1KetuSidereal != null ? `${getZodiacSign(p1KetuSidereal)} ${Math.floor(p1KetuSidereal % 30)}°` : '[not available]'} - Where the soul is EXHAUSTED, done, cutting loose (past life mastery, spiritual detachment)
 
 ═══════════════════════════════════════════════════════════════════════════════
 VEDIC ANALYSIS REQUIREMENTS (PURE JYOTISH ONLY):
@@ -263,13 +304,13 @@ LAGNA (SOUL PORTAL):
 
 CHANDRA (MOON) - THE MIND:
 - Chandra Rashi: ${getZodiacSign(p1MoonSidereal)} ${Math.floor(p1MoonSidereal % 30)}° 
-- Janma Nakshatra: ${p1MoonNakshatra} (Pada ${p1MoonPada}/4) - Lord: ${p1MoonNakshatraLord}
+ - Janma Nakshatra: ${p1MoonNakshatra} (Pada ${p1MoonPada}/4) - Lord: ${p1MoonNakshatraLord}
 
 SURYA (SUN) - SOUL PURPOSE:
 - Surya Rashi: ${getZodiacSign(p1SunSidereal)} ${Math.floor(p1SunSidereal % 30)}° - Nakshatra: ${getNakshatra(p1SunSidereal)}
 
 RAHU-KETU AXIS (KARMIC NODES):
-- Rahu: ${getZodiacSign(p1RahuSidereal)} ${Math.floor(p1RahuSidereal % 30)}° | Ketu: ${getZodiacSign(p1KetuSidereal)} ${Math.floor(p1KetuSidereal % 30)}°
+ - Rahu: ${p1RahuSidereal != null ? `${getZodiacSign(p1RahuSidereal)} ${Math.floor(p1RahuSidereal % 30)}°` : '[not available]'} | Ketu: ${p1KetuSidereal != null ? `${getZodiacSign(p1KetuSidereal)} ${Math.floor(p1KetuSidereal % 30)}°` : '[not available]'}
 
 ${person2Name!.toUpperCase()} VEDIC JYOTISH CHART (SIDEREAL ONLY):
 
@@ -284,7 +325,7 @@ SURYA (SUN) - SOUL PURPOSE:
 - Surya Rashi: ${getZodiacSign(p2SunSidereal)} ${Math.floor(p2SunSidereal % 30)}° - Nakshatra: ${getNakshatra(p2SunSidereal)}
 
 RAHU-KETU AXIS (KARMIC NODES):
-- Rahu: ${getZodiacSign(p2RahuSidereal)} ${Math.floor(p2RahuSidereal % 30)}° | Ketu: ${getZodiacSign(p2KetuSidereal)} ${Math.floor(p2KetuSidereal % 30)}°
+ - Rahu: ${p2RahuSidereal != null ? `${getZodiacSign(p2RahuSidereal)} ${Math.floor(p2RahuSidereal % 30)}°` : '[not available]'} | Ketu: ${p2KetuSidereal != null ? `${getZodiacSign(p2KetuSidereal)} ${Math.floor(p2KetuSidereal % 30)}°` : '[not available]'}
 
 ═══════════════════════════════════════════════════════════════════════════════
 VEDIC ANALYSIS REQUIREMENTS (PURE JYOTISH - NO WESTERN MIXING):
