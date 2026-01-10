@@ -1661,14 +1661,14 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                       <Text style={[styles.pdfText, !hasPdfRemote && styles.disabledText]}>PDF</Text>
                     </TouchableOpacity>
                     
-                    {/* Download All - black button, only when all files ready */}
+                    {/* Download All - black down-arrow icon, only when all files ready */}
                     {allRemoteReady ? (
                       <TouchableOpacity
                         onPress={() => handleDownloadAllPress(reading)}
                         style={styles.downloadAllBlackButton}
                         activeOpacity={0.7}
                       >
-                        <Text style={styles.downloadAllBlackText}>Save</Text>
+                        <Text style={styles.downloadAllBlackText}>⬇︎</Text>
                       </TouchableOpacity>
                     ) : null}
                   </View>
@@ -2029,18 +2029,22 @@ const styles = StyleSheet.create({
     minWidth: 45,
     textAlign: 'center',
   },
-  // Download All - matches PDF button style but black
+  // Download All - black down-arrow icon next to PDF
   downloadAllBlackButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    width: 40,
+    height: 34,
     borderRadius: 8,
-    backgroundColor: '#1a1a1a',
+    borderWidth: 1,
+    borderColor: '#1a1a1a',
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   downloadAllBlackText: {
     fontFamily: 'System',
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1a1a1a',
   },
   // Song Audio Bar (black themed)
   songAudioBar: {
