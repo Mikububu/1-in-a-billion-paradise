@@ -126,6 +126,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   const [loadingQueueJobs, setLoadingQueueJobs] = useState(false);
   const [queueJobsUpdatedAt, setQueueJobsUpdatedAt] = useState<string | null>(null);
   const [queueJobsError, setQueueJobsError] = useState<string | null>(null);
+  const [queueRefreshKey, setQueueRefreshKey] = useState(0);
   // People with paid readings from Supabase (source of truth)
   const [paidPeopleNames, setPaidPeopleNames] = useState<Set<string>>(new Set());
   // Track nuclear_v2 job artifacts for reading badges
@@ -214,6 +215,28 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
   // Activity feed: show background queue status (RunPod/Supabase jobs)
   const mountedRef = useRef(true);
+  const queueFetchInFlightRef = useRef(false);
+  const pollingIntervalRef = useRef<any>(null);
+  const linkedJobPairsRef = useRef<Set<string>>(new Set());
+
+  // Absolute safety: never allow loading state to hang forever.
+  // (Even if fetch/abort misbehaves or the promise never settles.)
+  useEffect(() => {
+    if (!loadingQueueJobs) return;
+    const t = setTimeout(() => {
+      if (!mountedRef.current) return;
+      console.warn('⏰ [MyLibrary] Global loading timeout - clearing loading state');
+      setQueueJobsError((prev) => prev || 'Timed out loading cloud readings. Tap to retry.');
+      setLoadingQueueJobs(false);
+      queueFetchInFlightRef.current = false;
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    }, 20000);
+    return () => clearTimeout(t);
+  }, [loadingQueueJobs]);
+
   useFocusEffect(
     useCallback(() => {
       mountedRef.current = true;
@@ -224,12 +247,14 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         if (enabled) {
           if (!interval) {
             interval = setInterval(loadQueue, 15000);
+            pollingIntervalRef.current = interval;
             console.log('🔄 [MyLibrary] Polling ON (active jobs)');
           }
         } else {
           if (interval) {
             clearInterval(interval);
             interval = null;
+            pollingIntervalRef.current = null;
             console.log('✅ [MyLibrary] Polling OFF (no active jobs)');
           }
         }
@@ -238,15 +263,34 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
       // Use the latest authUser from closure - this function is recreated when authUser?.id changes
       const currentAuthUserId = authUser?.id;
       const loadQueue = async () => {
+        if (queueFetchInFlightRef.current) return;
+        queueFetchInFlightRef.current = true;
+
         console.log('🔄 [MyLibrary] loadQueue called - currentAuthUserId:', currentAuthUserId || 'null');
-        const TEST_USER_ID = '00000000-0000-0000-0000-000000000001';
+        // NOTE: On some RN runtimes AbortController may not reliably abort in-flight fetches.
+        // This wrapper guarantees the await will settle via Promise.race + (best-effort) abort.
         const fetchWithTimeout = async (url: string, init: RequestInit = {}, timeoutMs = 12000) => {
-          const controller = new AbortController();
-          const t = setTimeout(() => controller.abort(), timeoutMs);
+          let timeoutId: ReturnType<typeof setTimeout> | undefined;
+          const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+          const signal = controller?.signal;
+
+          const fetchPromise = fetch(url, { ...init, ...(signal ? { signal } : {}) });
+
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            timeoutId = setTimeout(() => {
+              try {
+                controller?.abort();
+              } catch {
+                // ignore
+              }
+              reject(new Error(`Request timed out after ${timeoutMs}ms: ${url}`));
+            }, timeoutMs);
+          });
+
           try {
-            return await fetch(url, { ...init, signal: controller.signal });
+            return await Promise.race([fetchPromise, timeoutPromise]);
           } finally {
-            clearTimeout(t);
+            if (timeoutId) clearTimeout(timeoutId);
           }
         };
         const isUuid = (v: string | null): v is string =>
@@ -254,7 +298,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 
         // Prefer a real authenticated user id (either from auth store or Supabase session).
-        // Falling back to the test UUID will hide "real" jobs created under your actual user.
         let resolvedUserId: string | null = currentAuthUserId || null;
         console.log('🔄 [MyLibrary] Initial resolvedUserId:', resolvedUserId || 'null');
         if (!resolvedUserId && isSupabaseConfigured) {
@@ -267,16 +310,43 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         }
         // Only treat a resolved userId as valid if it is a real UUID. (Supabase user ids are UUIDs.)
         if (!isUuid(resolvedUserId)) {
-          console.log('⚠️ [MyLibrary] resolvedUserId is not UUID, using TEST_USER_ID');
+          console.log('⚠️ [MyLibrary] resolvedUserId is not UUID');
           resolvedUserId = null;
         }
-        const userId = resolvedUserId ?? TEST_USER_ID;
-        console.log('🔄 [MyLibrary] Final userId to use:', userId);
+        const userId = resolvedUserId;
+        console.log('🔄 [MyLibrary] Final userId to use:', userId || 'null');
 
-        const fetchJobsForUser = async (uid: string) => {
+        // If we don't have a userId, we cannot fetch the user's jobs.
+        if (!userId) {
+          if (mountedRef.current) {
+            setQueueJobsError('Please sign in to load your cloud readings.');
+            setLoadingQueueJobs(false);
+            setPolling(false);
+          }
+          queueFetchInFlightRef.current = false;
+          return;
+        }
+
+        if (!env.CORE_API_URL) {
+          if (mountedRef.current) {
+            setQueueJobsError('CORE_API_URL is not configured. Cannot load cloud readings.');
+            setLoadingQueueJobs(false);
+            setPolling(false);
+          }
+          queueFetchInFlightRef.current = false;
+          return;
+        }
+
+        const fetchJobsForUser = async (uid: string, accessToken?: string) => {
           const url = `${env.CORE_API_URL}/api/jobs/v2/user/${uid}/jobs`;
           console.log('📡 [MyLibrary] Fetching jobs from:', url);
-          const response = await fetchWithTimeout(url);
+          let response = await fetchWithTimeout(url, {
+            headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+          });
+          if (response.status === 401 || response.status === 403 || response.status === 500) {
+            console.log('⚠️ [MyLibrary] Jobs list auth request failed with', response.status, '- retrying without auth');
+            response = await fetchWithTimeout(url);
+          }
           if (!response.ok) {
             const errorText = await response.text().catch(() => '');
             throw new Error(`Failed to fetch jobs for ${uid}: ${response.status} ${errorText}`);
@@ -285,30 +355,18 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           return { result, url };
         };
 
-        const fetchJobsFromDevDashboard = async () => {
-          const url = `${env.CORE_API_URL}/api/dev/dashboard`;
-          console.log('📡 [MyLibrary] Fetching dev dashboard jobs:', url);
-          const response = await fetchWithTimeout(url);
-          if (!response.ok) {
-            const errorText = await response.text().catch(() => '');
-            throw new Error(`Failed to fetch dev dashboard: ${response.status} ${errorText}`);
-          }
-          const data = await response.json();
-          const jobs = Array.isArray(data?.jobs) ? data.jobs : [];
-          // Normalize to the same shape as /api/jobs/v2/user/:id/jobs
-          return jobs.map((j: any) => ({
-            id: j.id,
-            status: j.status,
-            type: j.type,
-            createdAt: j.createdAt,
-            percent: j?.progress?.percent,
-            tasksComplete: j?.progress?.tasksComplete,
-            tasksTotal: j?.progress?.tasksTotal,
-          }));
-        };
-
         // Fetch from backend API (works with or without auth)
         setLoadingQueueJobs(true);
+        // Watchdog: never let the UI hang indefinitely if fetch never settles.
+        // Cleared on success/error/early-return below.
+        const loadingWatchdog = setTimeout(() => {
+          if (!mountedRef.current) return;
+          console.warn('⏰ [MyLibrary] Watchdog timeout: loadQueue still pending, clearing loading state');
+          setQueueJobsError('Timed out loading cloud readings. Please reload the app (or restart Metro).');
+          setLoadingQueueJobs(false);
+          setPolling(false);
+          queueFetchInFlightRef.current = false;
+        }, 15000);
         try {
           console.log('📡 [MyLibrary] CORE_API_URL is:', env.CORE_API_URL);
           console.log('📡 [MyLibrary] resolvedUserId:', resolvedUserId || '(none)', '→ using:', userId);
@@ -324,81 +382,22 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             }
           }
 
-          // IMPORTANT: Some jobs may have been created under the "test" UUID (when auth wasn't hydrated).
-          // Always fetch by user UUID(s) first. The dev dashboard endpoint can be empty on Fly if service-role env is missing.
-          let mergedJobs: any[] = [];
-          const userIdsToTry = resolvedUserId ? [resolvedUserId, TEST_USER_ID] : [TEST_USER_ID];
-          console.log('📡 [MyLibrary] Trying userIds:', userIdsToTry);
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:300',message:'Before fetching jobs',data:{resolvedUserId,userIdsToTry,testUserId:TEST_USER_ID},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
-          // #endregion
-          const results = await Promise.allSettled(userIdsToTry.map((uid) => fetchJobsForUser(uid)));
-
-          const allJobs: any[] = [];
-          for (const r of results) {
-            if (r.status === 'fulfilled') {
-              const res = r.value.result;
-              console.log('📥 [MyLibrary] Got response from', r.value.url);
-              console.log('📥 [MyLibrary] Response structure:', Object.keys(res || {}));
-              console.log('📥 [MyLibrary] success:', res?.success, 'totalJobs:', res?.totalJobs);
-
-              if (res?.success === false) {
-                console.error('❌ [MyLibrary] API returned success:false, error:', res?.error);
-                continue;
-              }
-
-              const jobsArray = Array.isArray(res?.jobs) ? res.jobs : [];
-              // #region agent log
-              fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:308',message:'API response received',data:{url:r.value.url,responseKeys:Object.keys(res||{}),totalJobs:res?.totalJobs,jobsCount:jobsArray?.length||0,jobsIsArray:Array.isArray(jobsArray),jobTypes:jobsArray?.map((j:any)=>j.type)||[],jobStatuses:jobsArray?.map((j:any)=>j.status)||[]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
-              // #endregion
-
-              if (jobsArray.length > 0) allJobs.push(...jobsArray);
-            } else {
-              console.error('❌ [MyLibrary] Backend API failed for one userId:', r.reason?.message || String(r.reason));
-              // #region agent log
-              fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:314',message:'API fetch failed',data:{error:r.reason?.message||String(r.reason),stack:r.reason?.stack},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
-              // #endregion
-            }
-          }
-
-          // Deduplicate by job id
-          const byId = new Map<string, any>();
-          for (const j of allJobs) {
-            if (j?.id) byId.set(j.id, j);
-          }
-          mergedJobs = Array.from(byId.values());
-
-          // LAST RESORT (dev only): if still empty, try dev dashboard.
-          if (mergedJobs.length === 0 && __DEV__) {
-            console.log('⚠️ [MyLibrary] No jobs from user fetch, trying dev dashboard as last resort...');
-            try {
-              const devJobs = await fetchJobsFromDevDashboard();
-              console.log('📥 [MyLibrary] Dev dashboard jobs:', devJobs.length);
-              if (devJobs.length > 0) mergedJobs = devJobs;
-            } catch (devError) {
-              console.error('❌ [MyLibrary] Dev dashboard fetch failed:', devError);
-            }
-          }
-
-          console.log('📥 [MyLibrary] Merged jobs:', mergedJobs.length);
-          console.log('📥 [MyLibrary] Job statuses:', mergedJobs.map((j: any) => `${j.id?.slice(0, 8)}:${j.status}`));
-          console.log(
-            '📥 [MyLibrary] Complete jobs:',
-            mergedJobs.filter((j: any) => j.status === 'complete' || j.status === 'completed').length
-          );
+          const { result } = await fetchJobsForUser(userId, accessToken);
+          const jobsArray = Array.isArray(result) ? result : (Array.isArray(result?.jobs) ? result.jobs : []);
+          const mergedJobs: any[] = jobsArray;
           
-          // CRITICAL: If mergedJobs is empty, log why and try one more fallback
+          // If no jobs found, stop polling and exit cleanly.
           if (mergedJobs.length === 0) {
-            console.warn('⚠️ [MyLibrary] mergedJobs is EMPTY! userId:', userId, 'resolvedUserId:', resolvedUserId);
-            console.warn('⚠️ [MyLibrary] API URL:', env.CORE_API_URL);
-            console.warn('⚠️ [MyLibrary] This means no jobs were found - either API failed or user has no jobs');
-            // Don't set queueJobs to empty - keep previous state if we had any
-            if (mountedRef.current && queueJobs.length > 0) {
-              console.log('📚 [MyLibrary] Keeping previous', queueJobs.length, 'jobs instead of clearing');
-              setQueueJobsError(`No jobs found for userId: ${userId}. Keeping previous state.`);
+            if (mountedRef.current) {
+              setQueueJobs([]);
+              setQueueJobsUpdatedAt(new Date().toISOString());
+              setQueueJobsError(null);
+              setPolling(false);
+              clearTimeout(loadingWatchdog);
               setLoadingQueueJobs(false);
-              return;
             }
+            queueFetchInFlightRef.current = false;
+            return;
           }
           
           const fetchJobDetail = async (jobIdToFetch: string) => {
@@ -417,10 +416,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             return detailData;
           };
 
-          // Fetch full details for completed jobs to get person names
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:352',message:'Before fetching job details',data:{mergedJobsCount:mergedJobs.length,mergedJobTypes:mergedJobs.map((j:any)=>j.type),mergedJobStatuses:mergedJobs.map((j:any)=>j.status)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
-          // #endregion
+          // Fetch details for jobs that need params (to show the correct person names).
           const jobsWithDetails = await Promise.all(
             mergedJobs.map(async (j: any) => {
               // For relationship jobs AND extended/single_system jobs, we want person names even while processing so the Library can explain what's happening.
@@ -431,40 +427,40 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                 try {
                   const detailData = await fetchJobDetail(j.id);
                   const params = detailData.job?.params || {};
-                  // #region agent log
-                  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:361',message:'Job detail fetched',data:{jobId:j.id?.slice(0,8),hasParams:!!params,person1Name:params.person1?.name},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
-                  // #endregion
+                  const createdAt = j.created_at || j.createdAt || detailData?.job?.created_at || new Date().toISOString();
+                  const updatedAt = j.updated_at || j.updatedAt || detailData?.job?.updated_at || createdAt;
                   return {
                     id: j.id,
                     type: j.type,
                     status: j.status,
-                    progress: { percent: j.percent, tasksComplete: j.tasksComplete, tasksTotal: j.tasksTotal },
-                    created_at: j.createdAt,
-                    updated_at: j.createdAt,
+                    progress: j.progress || { percent: j.percent, tasksComplete: j.tasksComplete, tasksTotal: j.tasksTotal },
+                    created_at: createdAt,
+                    updated_at: updatedAt,
                     params, // Include full params with person names
                   };
                 } catch (e: any) {
-                  // #region agent log
-                  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:372',message:'Job detail fetch failed',data:{jobId:j.id?.slice(0,8),error:e?.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
-                  // #endregion
+                  const createdAt = j.created_at || j.createdAt || new Date().toISOString();
+                  const updatedAt = j.updated_at || j.updatedAt || createdAt;
                   return {
                     id: j.id,
                     type: j.type,
                     status: j.status,
-                    progress: { percent: j.percent, tasksComplete: j.tasksComplete, tasksTotal: j.tasksTotal },
-                    created_at: j.createdAt,
-                    updated_at: j.createdAt,
+                    progress: j.progress || { percent: j.percent, tasksComplete: j.tasksComplete, tasksTotal: j.tasksTotal },
+                    created_at: createdAt,
+                    updated_at: updatedAt,
                   };
                 }
               }
               // For extended/single_system jobs, params are already in the job object from the list endpoint
+              const createdAt = j.created_at || j.createdAt || new Date().toISOString();
+              const updatedAt = j.updated_at || j.updatedAt || createdAt;
               return {
                 id: j.id,
                 type: j.type,
                 status: j.status,
-                progress: { percent: j.percent, tasksComplete: j.tasksComplete, tasksTotal: j.tasksTotal },
-                created_at: j.createdAt,
-                updated_at: j.createdAt,
+                progress: j.progress || { percent: j.percent, tasksComplete: j.tasksComplete, tasksTotal: j.tasksTotal },
+                created_at: createdAt,
+                updated_at: updatedAt,
                 params: j.params || j.input || {}, // Use params from list endpoint
               };
             })
@@ -472,18 +468,17 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
           console.log('✅ Setting queueJobs:', jobsWithDetails.length, 'jobs');
           console.log('✅ Jobs with person names:', jobsWithDetails.filter((j: any) => j.params?.person1 || j.params?.person2).length);
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:415',message:'About to setQueueJobs - REMOVED MOUNTED CHECK',data:{jobsWithDetailsCount:jobsWithDetails.length,jobsWithParams:jobsWithDetails.filter((j:any)=>j.params).length,jobIds:jobsWithDetails.map((j:any)=>j.id?.slice(0,8))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
-          // #endregion
           setQueueJobs(jobsWithDetails);
           setQueueJobsUpdatedAt(new Date().toISOString());
           setQueueJobsError(null); // Clear error on success
+          clearTimeout(loadingWatchdog);
           setLoadingQueueJobs(false);
 
           const hasActiveJobs = jobsWithDetails.some((j: any) =>
             ['pending', 'queued', 'processing', 'claimed'].includes(String(j.status || '').toLowerCase())
           );
           setPolling(hasActiveJobs);
+          queueFetchInFlightRef.current = false;
           return;
         } catch (apiError: any) {
           console.error('❌ Backend API failed:', apiError);
@@ -492,7 +487,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           console.error('❌ UserId was:', userId);
           if (mountedRef.current) {
             setQueueJobsError(`API Error: ${apiError.message || 'Unknown error'}. URL: ${env.CORE_API_URL}, UserId: ${userId}`);
+            clearTimeout(loadingWatchdog);
             setLoadingQueueJobs(false);
+            setPolling(false);
             // Don't clear queueJobs - keep previous state on error
           }
         }
@@ -503,9 +500,11 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           if (mountedRef.current) {
             console.warn('⚠️ [MyLibrary] Backend API failed and Supabase not configured - keeping previous jobs');
             setQueueJobsError('Backend API failed and Supabase not configured');
+            clearTimeout(loadingWatchdog);
             setLoadingQueueJobs(false);
             // Don't clear queueJobs - keep previous state
           }
+          queueFetchInFlightRef.current = false;
           return;
         }
 
@@ -536,7 +535,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             setQueueJobsUpdatedAt(new Date().toISOString());
           }
         } finally {
+          clearTimeout(loadingWatchdog);
           if (mountedRef.current) setLoadingQueueJobs(false);
+          queueFetchInFlightRef.current = false;
         }
       };
 
@@ -546,8 +547,40 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         mountedRef.current = false;
         if (interval) clearInterval(interval);
       };
-    }, [authUser?.id])
+    }, [authUser?.id, queueRefreshKey])
   );
+
+  // Persist job→person associations without updating state during render.
+  // (Previously this happened inside `allPeopleWithReadings` useMemo, which triggered
+  // "Cannot update a component while rendering a different component".)
+  useEffect(() => {
+    if (!Array.isArray(queueJobs) || queueJobs.length === 0) return;
+
+    for (const job of queueJobs as any[]) {
+      const jobId = job?.id;
+      if (!jobId) continue;
+
+      let params = job.params || job.input || {};
+      if (typeof params === 'string') {
+        try {
+          params = JSON.parse(params);
+        } catch {
+          params = {};
+        }
+      }
+
+      const names = [params?.person1?.name, params?.person2?.name].filter(
+        (n: any) => typeof n === 'string' && n.trim().length > 0
+      ) as string[];
+
+      for (const name of names) {
+        const k = `${name}:${jobId}`;
+        if (linkedJobPairsRef.current.has(k)) continue;
+        linkedJobPairsRef.current.add(k);
+        linkJobToPersonByName(name, jobId);
+      }
+    }
+  }, [queueJobs, linkJobToPersonByName]);
 
   // Load nuclear_v2 job artifacts to determine which systems have readings
   useEffect(() => {
@@ -635,6 +668,48 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   const allPeopleWithReadings = useMemo<LibraryPerson[]>(() => {
     const peopleMap = new Map<string, LibraryPerson>();
 
+    const personKey = (p: { id?: string; name?: string } | null | undefined) => {
+      const id = p?.id;
+      if (typeof id === 'string' && id.trim().length > 0) return id;
+      const name = p?.name;
+      if (typeof name === 'string' && name.trim().length > 0) return name;
+      return null;
+    };
+
+    // 0) Seed from profileStore first (source of truth for person identity, placements, and birth data).
+    // This prevents the library from "flipping" between job-derived cards vs local cards.
+    for (const p of people) {
+      if (!p) continue;
+      const key = personKey(p);
+      if (!key) continue;
+
+      const hasAnyContent =
+        (Array.isArray(p.readings) && p.readings.length > 0) ||
+        (Array.isArray(p.jobIds) && p.jobIds.length > 0) ||
+        !!p.isUser;
+      if (!hasAnyContent) continue;
+
+      const existing = peopleMap.get(key);
+      if (existing) {
+        existing.readings = [...new Set([...(existing.readings || []), ...(p.readings || [])])];
+        existing.jobIds = [...new Set([...(existing.jobIds || []), ...(p.jobIds || [])])];
+        existing.birthData = existing.birthData?.birthDate ? existing.birthData : (p.birthData as any);
+        existing.placements = existing.placements?.sunSign ? existing.placements : (p.placements as any);
+        continue;
+      }
+
+      peopleMap.set(key, {
+        id: p.id,
+        name: p.name,
+        isUser: !!p.isUser,
+        birthData: p.birthData as any,
+        placements: (p.placements as any) || {},
+        readings: [...(p.readings || [])],
+        createdAt: p.createdAt || new Date().toISOString(),
+        jobIds: [...(p.jobIds || [])],
+      });
+    }
+
     // IMPORTANT: Always process newest jobs first so `person.jobIds[0]` is the most recent receipt.
     // This prevents picking an older job (which may have missing artifacts) and showing greyed-out audio.
     const queueJobsNewestFirst = [...queueJobs].sort((a: any, b: any) => {
@@ -643,38 +718,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
       return tb - ta;
     });
 
-    // 1. FALLBACK: Add people from profile store who have readings if queueJobs is empty
-    // This ensures something shows even if API fails
+    // 1. (Legacy) Debug logs only
     console.log('📊 [MyLibrary] Total queueJobs:', queueJobs.length);
     console.log('📊 [MyLibrary] Job types:', queueJobs.map((j: any) => `${j.type}(${j.status})`).join(', '));
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:557',message:'All queueJobs analysis',data:{totalJobs:queueJobs.length,jobs:queueJobs.map((j:any,i:number)=>({idx:i,id:j.id?.slice(0,8),type:j.type,status:j.status,hasParams:!!j.params,hasInput:!!j.input,paramsType:typeof j.params,inputType:typeof j.input}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
-    // #endregion
-
-    // FALLBACK: If queueJobs is empty, try to show people from profileStore as backup
-    if (queueJobs.length === 0 && people.length > 0) {
-      console.log('⚠️ [MyLibrary] queueJobs empty, using profileStore fallback - people:', people.length);
-      for (const p of people) {
-        if (p.readings && p.readings.length > 0) {
-          // Only add if person has readings
-          const existing = peopleMap.get(p.name);
-          if (existing) {
-            existing.readings = [...new Set([...existing.readings, ...p.readings])];
-          } else {
-            peopleMap.set(p.name, {
-              id: p.id || `store-${p.name}`,
-              name: p.name,
-              isUser: p.isUser || false,
-              birthData: p.birthData || {},
-              placements: p.placements || {},
-              readings: [...p.readings],
-              createdAt: p.createdAt || new Date().toISOString(),
-              jobIds: p.jobIds || [],
-            });
-          }
-        }
-      }
-    }
 
     // 2. Add people from nuclear_v2 and extended jobs (person1 and person2) - include processing jobs
     queueJobsNewestFirst
@@ -712,17 +758,37 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         const isProcessing = job.status === 'processing' || job.status === 'pending' || job.status === 'queued';
         const p1Name = params.person1?.name || (isProcessing ? `Reading ${job.id.slice(0, 8)}` : undefined);
         const p2Name = params.person2?.name || (isProcessing && params.person2 ? 'Partner' : undefined);
+        const p1Id = params.person1?.id;
+        const p2Id = params.person2?.id;
 
         console.log('🔍 [MyLibrary] Final p1Name:', p1Name, 'from params.person1?.name:', params.person1?.name);
 
         // Add person1 - deduplicate by name, merge jobIds
         if (p1Name) {
-          const existing = peopleMap.get(p1Name);
+          const storeMatch =
+            (p1Id ? people.find((sp) => sp?.id === p1Id) : undefined) ||
+            people.find((sp) => sp?.name === p1Name) ||
+            (p1Name === userName ? user : undefined);
+          const storePlacements = storeMatch?.placements || {};
+          const storeBirthData = storeMatch?.birthData || {};
+          const p1Key = (storeMatch?.id || p1Id || p1Name) as string;
+
+          const existing = peopleMap.get(p1Key);
           if (existing) {
             // Merge jobIds if person already exists
             existing.jobIds = [...new Set([...(existing.jobIds || []), job.id])];
-            // Persist to store (Audible-style) - use name lookup to handle temp IDs
-            linkJobToPersonByName(p1Name, job.id);
+            // Also keep the stable id if this entry was previously name-keyed
+            if (p1Id && existing.id !== p1Id && (!existing.id || existing.id === p1Name)) {
+              existing.id = p1Id;
+            }
+            // Prefer real placements from store if available
+            if (!existing.placements?.sunSign && (storePlacements as any)?.sunSign) {
+              existing.placements = storePlacements as any;
+            }
+            // Prefer richer birth data from store if available
+            if (!existing.birthData?.birthDate && (storeBirthData as any)?.birthDate) {
+              existing.birthData = storeBirthData as any;
+            }
           } else {
             // Create placeholder readings based on job type
             const isOverlay = job.type === 'overlay' || job.type === 'compatibility';
@@ -745,12 +811,13 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
               songPath: undefined,
             }));
 
-            peopleMap.set(p1Name, {
-              id: `job-${job.id}-p1`,
+            peopleMap.set(p1Key, {
+              // If the person already exists locally OR the job provides a client_person_id, keep it stable.
+              id: storeMatch?.id || p1Id || `job-${job.id}-p1`,
               name: p1Name,
               isUser: p1Name === userName,
-              birthData: params.person1 || {},
-              placements: {},
+              birthData: (Object.keys(storeBirthData || {}).length > 0 ? storeBirthData : (params.person1 || {})),
+              placements: (Object.keys(storePlacements || {}).length > 0 ? storePlacements : {}),
               readings: placeholderReadings,
               createdAt: job.created_at || job.createdAt || new Date().toISOString(),
               jobIds: [job.id],
@@ -760,12 +827,27 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
         // Add person2 - deduplicate by name, merge jobIds
         if (p2Name) {
-          const existing = peopleMap.get(p2Name);
+          const storeMatch =
+            (p2Id ? people.find((sp) => sp?.id === p2Id) : undefined) ||
+            people.find((sp) => sp?.name === p2Name) ||
+            (p2Name === userName ? user : undefined);
+          const storePlacements = storeMatch?.placements || {};
+          const storeBirthData = storeMatch?.birthData || {};
+          const p2Key = (storeMatch?.id || p2Id || p2Name) as string;
+
+          const existing = peopleMap.get(p2Key);
           if (existing) {
             // Merge jobIds if person already exists
             existing.jobIds = [...new Set([...(existing.jobIds || []), job.id])];
-            // Persist to store (Audible-style) - use name lookup to handle temp IDs
-            linkJobToPersonByName(p2Name, job.id);
+            if (p2Id && existing.id !== p2Id && (!existing.id || existing.id === p2Name)) {
+              existing.id = p2Id;
+            }
+            if (!existing.placements?.sunSign && (storePlacements as any)?.sunSign) {
+              existing.placements = storePlacements as any;
+            }
+            if (!existing.birthData?.birthDate && (storeBirthData as any)?.birthDate) {
+              existing.birthData = storeBirthData as any;
+            }
           } else {
             // Create placeholder readings based on job type
             const isOverlay = job.type === 'overlay' || job.type === 'compatibility';
@@ -788,12 +870,12 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
               songPath: undefined,
             }));
 
-            peopleMap.set(p2Name, {
-              id: `job-${job.id}-p2`,
+            peopleMap.set(p2Key, {
+              id: storeMatch?.id || p2Id || `job-${job.id}-p2`,
               name: p2Name,
               isUser: false,
-              birthData: params.person2 || {},
-              placements: {},
+              birthData: (Object.keys(storeBirthData || {}).length > 0 ? storeBirthData : (params.person2 || {})),
+              placements: (Object.keys(storePlacements || {}).length > 0 ? storePlacements : {}),
               readings: placeholderReadings,
               createdAt: job.created_at || job.createdAt || new Date().toISOString(),
               jobIds: [job.id],
@@ -809,9 +891,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         (j.status === 'complete' || j.status === 'completed' || j.status === 'processing' || j.status === 'pending' || j.status === 'queued')
       )
       .forEach((job: any) => {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:664',message:'Processing extended/single_system job',data:{jobId:job.id?.slice(0,8),type:job.type,status:job.status,hasParams:!!job.params,hasInput:!!job.input},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
-        // #endregion
         let params = job.params || job.input || {};
         if (typeof params === 'string') {
           try {
@@ -823,9 +902,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
         const isProcessing = job.status === 'processing' || job.status === 'pending' || job.status === 'queued';
         const p1Name = params.person1?.name || (isProcessing ? `Reading ${job.id.slice(0, 8)}` : undefined);
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:677',message:'Extracted person name from job',data:{jobId:job.id?.slice(0,8),p1Name,paramsPerson1Name:params.person1?.name,isProcessing,willMerge:!!peopleMap.get(p1Name)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
-        // #endregion
 
         if (p1Name) {
           // FIXED: Use person name as key (not job ID) to deduplicate same person
@@ -833,9 +909,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           if (existing) {
             // Merge jobIds if person already exists
             existing.jobIds = [...new Set([...(existing.jobIds || []), job.id])];
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:682',message:'Merged jobId into existing person',data:{personName:p1Name,jobId:job.id?.slice(0,8),newJobIdsCount:existing.jobIds.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
-            // #endregion
           } else {
             // Create placeholder readings based on job type
             const isOverlay = job.type === 'overlay' || job.type === 'compatibility';
@@ -872,15 +945,15 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         }
       });
 
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:697',message:'After processing all jobs - peopleMap state',data:{peopleMapSize:peopleMap.size,peopleNames:Array.from(peopleMap.keys()),peopleWithJobIds:Array.from(peopleMap.values()).filter(p=>p.jobIds&&p.jobIds.length>0).map(p=>({name:p.name,jobIdsCount:p.jobIds.length}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOB_LINK'})}).catch(()=>{});
-    // #endregion
-
-    // Convert to array and sort by most recent
+    // Convert to array and sort:
+    // - user first
+    // - then by recency
     let result = Array.from(peopleMap.values()).sort((a, b) => {
+      if (a.isUser && !b.isUser) return -1;
+      if (!a.isUser && b.isUser) return 1;
       const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return timeB - timeA; // Most recent first
+      return timeB - timeA;
     });
 
     // NOTE: Paid reading filter disabled for now
@@ -914,6 +987,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
     if (!allPeopleWithReadings || allPeopleWithReadings.length === 0) return;
 
     const peopleNeedingPlacements = allPeopleWithReadings.filter(p => {
+      // Never backfill placements for the user card here — it should come from profileStore/Supabase.
+      if (p.isUser || p.name === userName) return false;
+
       // Check if missing placements
       const hasPlacements = p.placements?.sunSign;
       // Check if we already calculated temp placements
@@ -1963,8 +2039,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.screenId}>14</Text>
-
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -1990,53 +2064,23 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         {/* Headline */}
         <Text style={styles.headerTitle}>My Souls Library</Text>
 
+        {!!queueJobsError && !loadingQueueJobs && (
+          <TouchableOpacity
+            style={styles.errorBanner}
+            activeOpacity={0.8}
+            onPress={() => setQueueRefreshKey((k) => k + 1)}
+          >
+            <Text style={styles.errorBannerTitle}>Couldn’t load cloud readings</Text>
+            <Text style={styles.errorBannerText}>{queueJobsError}</Text>
+            <Text style={styles.errorBannerCta}>Tap to retry</Text>
+          </TouchableOpacity>
+        )}
+
         {/* ALL CARDS - Only show when data exists */}
         <View style={styles.tabContent}>
 
-          {/* DEBUG: Force visible test */}
-          <View style={{ backgroundColor: 'red', padding: 20, margin: 10 }}>
-            <Text style={{ color: 'white', fontWeight: 'bold' }}>
-              DEBUG: allPeopleWithReadings.length = {allPeopleWithReadings.length}
-            </Text>
-            <Text style={{ color: 'white' }}>
-              Names: {allPeopleWithReadings.map(p => p.name).join(', ') || 'NONE'}
-            </Text>
-            <Text style={{ color: 'white' }}>
-              hasUserReadings: {hasUserReadings ? 'YES' : 'NO'}, partners: {partners.length}, cloudCards: {cloudPeopleCards.length}
-            </Text>
-            <Text style={{ color: 'white' }}>
-              queueJobs: {queueJobs.length}, loadingQueueJobs: {loadingQueueJobs ? 'YES' : 'NO'}
-            </Text>
-            <Text style={{ color: 'white' }}>
-              userName: {userName}
-            </Text>
-            {!!queueJobsError && (
-              <Text style={{ color: 'white' }}>
-                error: {queueJobsError}
-              </Text>
-            )}
-          </View>
-
-          {/* FORCE TEST CARD - Always visible */}
-          <TouchableOpacity style={styles.personCard} onPress={() => Alert.alert('Test', 'Card is clickable')}>
-            <View style={[styles.personAvatar, { backgroundColor: '#E8F4E4' }]}>
-              <Text style={[styles.personInitial, { color: '#2E7D32' }]}>T</Text>
-            </View>
-            <View style={styles.personInfo}>
-              <Text style={styles.personName}>TEST CARD - Should Always Show</Text>
-              <Text style={styles.personDate}>If you see this, cards CAN render</Text>
-            </View>
-          </TouchableOpacity>
-
           {/* Person Cards - show ALL people who have readings (grouped by name) */}
-          {/* #region agent log */}
-          {(() => { const keys = allPeopleWithReadings.map((p,i) => ({ idx: i, name: p.name, id: p.id, computedKey: `person-${p.name}-${p.id || 'no-id'}` })); const duplicateKeys = keys.filter((k,i,arr) => arr.findIndex(x => x.computedKey === k.computedKey) !== i); fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:1809',message:'allPeopleWithReadings keys analysis',data:{totalPeople:keys.length,allKeys:keys,duplicateKeys,hasUndefinedIds:keys.filter(k=>!k.id||k.id==='no-id').length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,C,E'})}).catch(()=>{}); return null; })()}
-          {/* #endregion */}
           {allPeopleWithReadings.map((person, mapIndex) => {
-            // #region agent log
-            const computedKey = `person-${person.name}-${person.id || 'no-id'}`;
-            fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:1812',message:'Rendering person card',data:{mapIndex,name:person.name,id:person.id,computedKey},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,C'})}).catch(()=>{});
-            // #endregion
             // Determine personType based on the actual job params for the job we're linking to.
             // - Extended/Combined jobs: personType = 'individual' (1 person, 1-5 systems)
             // - Nuclear jobs: personType = 'person1' | 'person2' | 'overlay'
@@ -2053,16 +2097,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             } else {
               const p = primaryJobId ? jobIdToParams.get(primaryJobId) : null;
               
-              // DEBUG: Log the job params lookup
-              if (primaryJobId && !p) {
-                console.warn(`⚠️ [MyLibrary] No job params found for jobId ${primaryJobId} (${person.name})`);
-                console.warn(`   Available job IDs in map:`, Array.from(jobIdToParams.keys()).slice(0, 5));
-              }
-              
-              // #region agent log
-              fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:personType',message:'Determining personType',data:{personName:person.name,personId:person.id,jobId:primaryJobId,person1Id:p?.person1?.id,person1Name:p?.person1?.name,person2Id:p?.person2?.id,person2Name:p?.person2?.name},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-              // #endregion
-              
               // CRITICAL: Match by ID first (unique), fallback to name only if no IDs
               const fromJob =
                 (p?.person1?.id && p.person1.id === person.id)
@@ -2075,25 +2109,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                         ? 'person2'
                         : null;
               
-              // #region agent log
-              fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:personTypeResult',message:'PersonType determined',data:{personName:person.name,personId:person.id,jobId:primaryJobId,determinedType:fromJob||'person1'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-              // #endregion
-              
-              if (!fromJob && primaryJobId) {
-                console.warn(`⚠️ [MyLibrary] Could not determine personType from job params for ${person.name}`);
-                console.warn(`   Job params:`, p);
-                console.warn(`   Person name:`, person.name);
-                console.warn(`   person1 name:`, p?.person1?.name);
-                console.warn(`   person2 name:`, p?.person2?.name);
-              }
-              
               // CRITICAL: Only use fallback if we truly can't find the job params
               // Default to person1 to avoid swapping (better to show wrong range than wrong person's reading)
               personType = fromJob || 'person1';
-              
-              if (!fromJob) {
-                console.warn(`⚠️ [MyLibrary] Using fallback personType='person1' for ${person.name} - readings may be incorrect`);
-              }
             }
 
             return (
@@ -2101,9 +2119,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                 key={`person-${person.name}-${person.id || 'no-id'}`}
                 style={styles.personCard}
                 onPress={() => {
-                  // #region agent log
-                  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:navigation',message:'Navigating to PersonReadings',data:{personName:person.name,personId:person.id,personType,jobId:person.jobIds?.[0],jobIdsCount:person.jobIds?.length,allJobIds:person.jobIds,personFromStore:people.find(p=>p.id===person.id||p.name===person.name)?.jobIds},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'NAV'})}).catch(()=>{});
-                  // #endregion
                   navigation.navigate('PersonReadings', {
                     personName: person.name,
                     personId: person.id,
@@ -2401,67 +2416,11 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                   ? `${queueJobs.length} job(s) found but no readings yet.\nJobs may still be processing.`
                   : 'Complete onboarding to receive your readings.'}
               </Text>
-
-              {/* COMPREHENSIVE DEBUG DISPLAY */}
-              <View style={{ marginTop: 20, padding: 15, backgroundColor: '#f5f5f5', borderRadius: 8, width: '90%', alignSelf: 'center' }}>
-                <Text style={{ fontWeight: 'bold', marginBottom: 10, fontSize: 13, color: '#333' }}>🔍 Full Debug Info:</Text>
-                
-                {/* Summary Stats */}
-                <View style={{ marginBottom: 12, padding: 8, backgroundColor: 'white', borderRadius: 4 }}>
-                  <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#333', marginBottom: 4 }}>Summary:</Text>
-                  <Text style={{ fontSize: 10, fontFamily: 'monospace', color: '#444' }}>
-                    Total Jobs: {queueJobs.length}{'\n'}
-                    People Extracted: {allPeopleWithReadings.length}{'\n'}
-                    Paid Filter: DISABLED{'\n'}
-                    Placements Filter: DISABLED{'\n'}
-                    User Name: {userName || 'NOT SET'}{'\n'}
-                    Auth User ID: {authUser?.id || 'NONE'}{'\n'}
-                    Loading: {loadingQueueJobs ? 'YES' : 'NO'}{'\n'}
-                    Error: {queueJobsError || 'NONE'}
-                  </Text>
-                </View>
-
-                {/* People List */}
-                {allPeopleWithReadings.length > 0 && (
-                  <View style={{ marginBottom: 12, padding: 8, backgroundColor: 'white', borderRadius: 4 }}>
-                    <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#333', marginBottom: 4 }}>People Found:</Text>
-                    {allPeopleWithReadings.map((p, idx) => (
-                      <Text key={idx} style={{ fontSize: 10, fontFamily: 'monospace', color: '#444', marginBottom: 2 }}>
-                        {idx + 1}. {p.name} (isUser: {p.isUser ? 'YES' : 'NO'}, jobs: {p.jobIds?.length || 0}, placements: {p.placements?.sunSign || 'NONE'})
-                      </Text>
-                    ))}
-                  </View>
-                )}
-
-                {/* Job Details */}
-                {queueJobs.length > 0 && (
-                  <View style={{ marginBottom: 8 }}>
-                    <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#333', marginBottom: 4 }}>Jobs ({queueJobs.length}):</Text>
-                    {queueJobs.slice(0, 3).map((job: any, idx: number) => {
-                      let params = job.params || job.input || {};
-                      if (typeof params === 'string') {
-                        try { params = JSON.parse(params); } catch { params = {}; }
-                      }
-                      const p1Name = params.person1?.name || params.personName || params.name || 'MISSING';
-                      return (
-                        <View key={idx} style={{ marginBottom: 6, padding: 8, backgroundColor: 'white', borderRadius: 4, borderLeftWidth: 3, borderLeftColor: '#666' }}>
-                          <Text style={{ fontSize: 10, fontFamily: 'monospace', color: '#444' }}>
-                            Job {idx + 1}: {job.type} ({job.status}){'\n'}
-                            Person1: {p1Name}{'\n'}
-                            Person2: {params.person2?.name || 'N/A'}{'\n'}
-                            Has params: {params ? 'YES' : 'NO'}
-                          </Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                )}
-              </View>
             </View>
           )}
 
           {/* Loading indicator */}
-          {loadingQueueJobs && (
+          {loadingQueueJobs && queueJobs.length === 0 && (
             <Text style={{ textAlign: 'center', color: colors.mutedText, marginTop: spacing.md }}>
               Loading cloud readings...
             </Text>
@@ -2485,6 +2444,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.text,
     zIndex: 100,
+  },
+  errorBanner: {
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#F0C2C8',
+    backgroundColor: '#FFF5F6',
+  },
+  errorBannerTitle: {
+    fontFamily: typography.sansSemiBold,
+    fontSize: 14,
+    color: '#C41E3A',
+    marginBottom: 4,
+  },
+  errorBannerText: {
+    fontFamily: typography.sansRegular,
+    fontSize: 12,
+    color: '#7A1B2A',
+  },
+  errorBannerCta: {
+    marginTop: 8,
+    fontFamily: typography.sansSemiBold,
+    fontSize: 12,
+    color: '#C41E3A',
   },
   header: {
     alignItems: 'center',

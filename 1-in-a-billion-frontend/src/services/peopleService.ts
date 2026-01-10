@@ -28,7 +28,7 @@ export type LibraryPerson = {
  * Fetch all people for the current user from Supabase
  */
 export async function fetchPeopleFromSupabase(userId: string): Promise<Person[]> {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured) {
     console.warn('⚠️ Supabase not configured - skipping people fetch');
     return [];
   }
@@ -83,7 +83,7 @@ export async function insertPersonToSupabase(
   userId: string,
   person: Person
 ): Promise<{ success: boolean; error?: string }> {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured) {
     console.warn('⚠️ Supabase not configured - skipping insert');
     return { success: false, error: 'Supabase not configured' };
   }
@@ -127,7 +127,7 @@ export async function updatePersonInSupabase(
   clientPersonId: string,
   updates: Partial<Person>
 ): Promise<{ success: boolean; error?: string }> {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured) {
     console.warn('⚠️ Supabase not configured - skipping update');
     return { success: false, error: 'Supabase not configured' };
   }
@@ -168,7 +168,7 @@ export async function deletePersonFromSupabase(
   userId: string,
   clientPersonId: string
 ): Promise<{ success: boolean; error?: string }> {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured) {
     console.warn('⚠️ Supabase not configured - skipping delete');
     return { success: false, error: 'Supabase not configured' };
   }
@@ -203,7 +203,7 @@ export async function markPersonAsPaidReading(
   userId: string,
   personName: string
 ): Promise<{ success: boolean; error?: string }> {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured) {
     console.warn('⚠️ Supabase not configured - skipping markPersonAsPaidReading');
     return { success: false, error: 'Supabase not configured' };
   }
@@ -235,7 +235,7 @@ export async function markPersonAsPaidReading(
  * Used for My Souls Library (Screen 14)
  */
 export async function fetchPeopleWithPaidReadings(userId: string): Promise<Person[]> {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured) {
     console.warn('⚠️ Supabase not configured - skipping fetch');
     return [];
   }
