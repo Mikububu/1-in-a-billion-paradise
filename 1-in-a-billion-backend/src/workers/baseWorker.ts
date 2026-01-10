@@ -388,8 +388,8 @@ export abstract class BaseWorker {
     const person1Name = cleanForFilename(params?.person1?.name || params?.person1Name || 'Person1');
     const person2Name = params?.person2?.name ? cleanForFilename(params.person2.name) : null;
     
-    // Extract system and doc info from task input
-    const systemRaw = task.input?.system || 'western';
+    // Extract system and doc info from task input (fallback to job params.systems)
+    const systemRaw = task.input?.system || params?.systems?.[0] || 'western';
     const system = cleanForFilename(systemRaw.charAt(0).toUpperCase() + systemRaw.slice(1)); // Capitalize first letter
     const docType = task.input?.docType || 'individual';
     const docNum = task.input?.docNum;
