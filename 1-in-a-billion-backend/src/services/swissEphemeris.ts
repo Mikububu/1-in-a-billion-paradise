@@ -102,6 +102,11 @@ const toSign = (longitude: number): string => {
   return SIGNS[index] ?? 'Unknown';
 };
 
+const toSignIndex = (longitude: number): number => {
+  const normalized = (longitude % 360 + 360) % 360;
+  return Math.floor(normalized / 30) % 12;
+};
+
 const toDegrees = (longitude: number): { sign: string; degree: number; minute: number } => {
   const normalized = (longitude % 360 + 360) % 360;
   const signIndex = Math.floor(normalized / 30);
@@ -208,15 +213,32 @@ export type PlacementSummary = {
     sunLongitude: number; // sidereal ecliptic longitude (0-360)
     moonLongitude: number; // sidereal ecliptic longitude (0-360)
     ascendantLongitude: number; // sidereal ascendant longitude (0-360)
-    rahuLongitude?: number; // mean node (sidereal)
-    ketuLongitude?: number; // 180° opposite Rahu
+    rahuLongitude?: number; // mean node (sidereal) - most common default
+    ketuLongitude?: number; // 180° opposite Rahu (mean)
+    rahuTrueLongitude?: number; // true node (sidereal) - some apps use this
+    ketuTrueLongitude?: number; // 180° opposite true Rahu
     lagnaSign: string;
     chandraRashi: string;
     suryaRashi: string;
     janmaNakshatra: string;
     janmaPada: 1 | 2 | 3 | 4;
+    // Full graha list for deterministic Vedic analysis (no guessing in prompts).
+    // House numbers are WHOLE-SIGN (Rashi houses) based on sidereal lagna sign.
+    grahas: Array<{
+      key: 'sun' | 'moon' | 'mars' | 'mercury' | 'jupiter' | 'venus' | 'saturn' | 'rahu' | 'ketu';
+      longitude: number; // sidereal ecliptic longitude (0-360)
+      sign: string;
+      degree: number;
+      minute: number;
+      bhava: number; // 1-12 (whole sign from lagna)
+      nakshatra?: string;
+      pada?: 1 | 2 | 3 | 4;
+      isTrueNode?: boolean; // only for Rahu/Ketu when true node used
+    }>;
   };
 };
+
+type VedicGrahaKey = NonNullable<PlacementSummary['sidereal']>['grahas'][number]['key'];
 
 export class SwissEphemerisEngine {
   /**
@@ -292,6 +314,19 @@ export class SwissEphemerisEngine {
       if ('error' in moonSid) throw new Error(moonSid.error);
       const rahuSid = swe.swe_calc_ut(jdUt, swe.SE_MEAN_NODE, siderealFlags);
       if ('error' in rahuSid) throw new Error(rahuSid.error);
+      const rahuTrueSid = swe.swe_calc_ut(jdUt, swe.SE_TRUE_NODE, siderealFlags);
+      if ('error' in rahuTrueSid) throw new Error(rahuTrueSid.error);
+
+      const mercurySid = swe.swe_calc_ut(jdUt, swe.SE_MERCURY, siderealFlags);
+      if ('error' in mercurySid) throw new Error(mercurySid.error);
+      const venusSid = swe.swe_calc_ut(jdUt, swe.SE_VENUS, siderealFlags);
+      if ('error' in venusSid) throw new Error(venusSid.error);
+      const marsSid = swe.swe_calc_ut(jdUt, swe.SE_MARS, siderealFlags);
+      if ('error' in marsSid) throw new Error(marsSid.error);
+      const jupiterSid = swe.swe_calc_ut(jdUt, swe.SE_JUPITER, siderealFlags);
+      if ('error' in jupiterSid) throw new Error(jupiterSid.error);
+      const saturnSid = swe.swe_calc_ut(jdUt, swe.SE_SATURN, siderealFlags);
+      if ('error' in saturnSid) throw new Error(saturnSid.error);
 
       // Vedic charts are commonly presented as whole-sign houses (Rashi chart).
       // Using swe_houses_ex with SEFLG_SIDEREAL returns a sidereal ascendant longitude.
@@ -303,6 +338,13 @@ export class SwissEphemerisEngine {
       const ascSidLon = ((housesSid as any).ascendant % 360 + 360) % 360;
       const rahuSidLon = ((rahuSid as any).longitude % 360 + 360) % 360;
       const ketuSidLon = (rahuSidLon + 180) % 360;
+      const rahuTrueSidLon = ((rahuTrueSid as any).longitude % 360 + 360) % 360;
+      const ketuTrueSidLon = (rahuTrueSidLon + 180) % 360;
+      const mercurySidLon = (((mercurySid as any).longitude as number) % 360 + 360) % 360;
+      const venusSidLon = (((venusSid as any).longitude as number) % 360 + 360) % 360;
+      const marsSidLon = (((marsSid as any).longitude as number) % 360 + 360) % 360;
+      const jupiterSidLon = (((jupiterSid as any).longitude as number) % 360 + 360) % 360;
+      const saturnSidLon = (((saturnSid as any).longitude as number) % 360 + 360) % 360;
 
       // Nakshatra math: 27 nakshatras × 13°20' each; 4 padas × 3°20' each.
       const NAK_LEN = 360 / 27; // 13.3333333333...
@@ -318,6 +360,26 @@ export class SwissEphemerisEngine {
       const janmaNakshatra = nakshatras[nakIdx] || 'Unknown';
       const pada = (Math.floor((moonSidLon % NAK_LEN) / PADA_LEN) + 1) as 1 | 2 | 3 | 4;
 
+      const lagnaSignIndex = toSignIndex(ascSidLon);
+      const wholeSignBhava = (planetLon: number) => ((toSignIndex(planetLon) - lagnaSignIndex + 12) % 12) + 1;
+
+      const toGraha = (
+        key: VedicGrahaKey,
+        lon: number,
+        extra?: Partial<NonNullable<PlacementSummary['sidereal']>['grahas'][number]>
+      ) => {
+        const d = toDegrees(lon);
+        return {
+          key,
+          longitude: lon,
+          sign: d.sign,
+          degree: d.degree,
+          minute: d.minute,
+          bhava: wholeSignBhava(lon),
+          ...extra,
+        };
+      };
+
       result.ayanamsaUt = ayanamsaUt;
       result.sidereal = {
         ayanamsaName,
@@ -326,11 +388,28 @@ export class SwissEphemerisEngine {
         ascendantLongitude: ascSidLon,
         rahuLongitude: rahuSidLon,
         ketuLongitude: ketuSidLon,
+        rahuTrueLongitude: rahuTrueSidLon,
+        ketuTrueLongitude: ketuTrueSidLon,
         lagnaSign: toSign(ascSidLon),
         chandraRashi: toSign(moonSidLon),
         suryaRashi: toSign(sunSidLon),
         janmaNakshatra,
         janmaPada: pada,
+        grahas: [
+          toGraha('sun', sunSidLon),
+          toGraha('moon', moonSidLon, { nakshatra: janmaNakshatra, pada }),
+          toGraha('mars', marsSidLon),
+          toGraha('mercury', mercurySidLon),
+          toGraha('jupiter', jupiterSidLon),
+          toGraha('venus', venusSidLon),
+          toGraha('saturn', saturnSidLon),
+          toGraha('rahu', rahuSidLon),
+          toGraha('ketu', ketuSidLon),
+          // True node variants are included for Kundli-style configurability
+          // (some apps let users choose True vs Mean Rahu). We keep them separate.
+          toGraha('rahu', rahuTrueSidLon, { isTrueNode: true }),
+          toGraha('ketu', ketuTrueSidLon, { isTrueNode: true }),
+        ],
       };
     } catch (e) {
       console.warn('[Swiss Ephemeris] Sidereal computation failed:', e);

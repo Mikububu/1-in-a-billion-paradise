@@ -186,6 +186,34 @@ ${person2Name!.toUpperCase()} WESTERN (TROPICAL) CHART:
       const p2MoonNakshatraLord = hasP2 ? ['Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'][Math.floor(p2MoonSidereal / 13.333) % 9] : '';
       const p2MoonPada = hasP2 ? ((p2Sid?.janmaPada || (Math.floor((p2MoonSidereal % 13.333) / 3.333) + 1)) as number) : 0;
 
+      const formatGrahas = (sid: any) => {
+        const grahas: any[] = Array.isArray(sid?.grahas) ? sid.grahas : [];
+        if (grahas.length === 0) return '[Graha list unavailable]';
+        // Prefer mean nodes for default output; include true nodes only if explicitly present.
+        const filtered = grahas.filter((g) => !(g?.isTrueNode === true));
+        const order: Record<string, number> = {
+          sun: 1,
+          moon: 2,
+          mars: 3,
+          mercury: 4,
+          jupiter: 5,
+          venus: 6,
+          saturn: 7,
+          rahu: 8,
+          ketu: 9,
+        };
+        filtered.sort((a, b) => (order[a.key] || 99) - (order[b.key] || 99));
+        return filtered
+          .map((g) => {
+            const deg = typeof g.degree === 'number' ? g.degree : 0;
+            const min = typeof g.minute === 'number' ? g.minute : 0;
+            const bhava = typeof g.bhava === 'number' ? g.bhava : 0;
+            const nak = g.nakshatra ? ` | Nakshatra: ${g.nakshatra}${g.pada ? ` (Pada ${g.pada}/4)` : ''}` : '';
+            return `- ${String(g.key).toUpperCase()}: ${g.sign} ${deg}°${String(min).padStart(2, '0')}' | Bhava ${bhava}${nak}`;
+          })
+          .join('\n');
+      };
+
       if (!hasP2) {
         return `${person1Name.toUpperCase()} VEDIC JYOTISH CHART (SIDEREAL ONLY):
 
@@ -210,6 +238,9 @@ REQUIRED VEDIC TERMINOLOGY ONLY:
 ═══════════════════════════════════════════════════════════════════════════════
 CHART DATA (SIDEREAL - LAHIRI AYANAMSA):
 ═══════════════════════════════════════════════════════════════════════════════
+
+GRAHAS + BHAVAS (WHOLE SIGN / RASHI HOUSES):
+${formatGrahas(p1Sid)}
 
 LAGNA (SOUL PORTAL):
 - Lagna Rashi: ${p1LagnaSign} ${Math.floor(p1AscSidereal % 30)}° ${Math.floor((p1AscSidereal % 1) * 60)}'
@@ -299,6 +330,9 @@ FORBIDDEN: "Sun sign", "Moon sign", "Ascendant", "Rising", "house", tropical zod
 
 REQUIRED: "Rashi", "Lagna", "Nakshatra", "Graha", "Bhava", "Dasha" (Vedic terms only)
 
+GRAHAS + BHAVAS (WHOLE SIGN / RASHI HOUSES):
+${formatGrahas(p1Sid)}
+
 LAGNA (SOUL PORTAL):
 - Lagna Rashi: ${p1LagnaSign} ${Math.floor(p1AscSidereal % 30)}° - Lagna Lord: ${p1LagnaLord}
 
@@ -313,6 +347,9 @@ RAHU-KETU AXIS (KARMIC NODES):
  - Rahu: ${p1RahuSidereal != null ? `${getZodiacSign(p1RahuSidereal)} ${Math.floor(p1RahuSidereal % 30)}°` : '[not available]'} | Ketu: ${p1KetuSidereal != null ? `${getZodiacSign(p1KetuSidereal)} ${Math.floor(p1KetuSidereal % 30)}°` : '[not available]'}
 
 ${person2Name!.toUpperCase()} VEDIC JYOTISH CHART (SIDEREAL ONLY):
+
+GRAHAS + BHAVAS (WHOLE SIGN / RASHI HOUSES):
+${formatGrahas(p2Sid)}
 
 LAGNA (SOUL PORTAL):
 - Lagna Rashi: ${p2LagnaSign} ${Math.floor(p2AscSidereal % 30)}° - Lagna Lord: ${p2LagnaLord}
