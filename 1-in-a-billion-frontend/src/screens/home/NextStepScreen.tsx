@@ -1,11 +1,10 @@
-import { useRef, useEffect } from 'react';
+import { useRef } from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StyleSheet, Text, View, TouchableOpacity, Dimensions } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { typography, colors } from '@/theme/tokens';
-import { useFocusEffect } from '@react-navigation/native';
-import { useCallback } from 'react';
+import { useIsFocused } from '@react-navigation/native';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'NextStep'>;
 
@@ -13,19 +12,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export const NextStepScreen = ({ navigation }: Props) => {
   const videoRef = useRef<Video>(null);
-
-  // Stop video when leaving screen
-  useFocusEffect(
-    useCallback(() => {
-      // Play when focused
-      videoRef.current?.playAsync();
-      
-      return () => {
-        // Stop when unfocused
-        videoRef.current?.stopAsync();
-      };
-    }, [])
-  );
+  const isFocused = useIsFocused();
 
   const buttons = [
     {
@@ -74,10 +61,14 @@ export const NextStepScreen = ({ navigation }: Props) => {
         source={require('../../../assets/videos/hello_i_love_you.mp4')}
         style={styles.bottomVideo}
         resizeMode={ResizeMode.COVER}
-        shouldPlay={false}
+        shouldPlay={isFocused}
         isLooping
         isMuted
         volume={0}
+        onLoad={() => {
+          // Make sure we always start from the beginning when entering.
+          videoRef.current?.setPositionAsync(0).catch(() => {});
+        }}
       />
     </View>
   );

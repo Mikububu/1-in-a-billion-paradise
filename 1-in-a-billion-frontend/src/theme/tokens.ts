@@ -1,4 +1,6 @@
-const UNIFIED_BG = 'rgb(247, 246, 243)';
+// Slight transparency so the global leather texture shows through everywhere.
+// Texture is provided by TexturedBackground at the root.
+const UNIFIED_BG = 'rgba(247, 246, 243, 0.92)';
 
 export const colors = {
   background: UNIFIED_BG,
