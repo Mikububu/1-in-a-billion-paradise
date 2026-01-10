@@ -761,10 +761,10 @@ export const RootNavigator = () => {
             : 'CoreIdentities';
     console.log(`🔄 ROUTING: Session exists but onboarding incomplete → Continue to ${initialRoute}`);    
     return (
-      <View style={{ flex: 1 }}>
+      <TexturedBackground style={{ flex: 1 }}>
         <OnboardingNavigator initialRouteName={initialRoute} />
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'box-none' }} />
-      </View>
+      </TexturedBackground>
     );
   }
 
