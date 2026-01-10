@@ -155,11 +155,12 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: colors.inputStroke,
     borderRadius: radii.input,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     paddingRight: 44,
+    backgroundColor: colors.inputBg,
     fontFamily: typography.sansRegular,
     fontSize: 16,
     color: colors.text,
@@ -183,9 +184,9 @@ const styles = StyleSheet.create({
   },
   suggestionBox: {
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: colors.cardStroke,
     borderRadius: radii.card,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     marginTop: spacing.xs,
   },
   option: {
@@ -196,7 +197,7 @@ const styles = StyleSheet.create({
   },
   optionBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
+    borderBottomColor: colors.cardStroke,
   },
   optionPrimary: {
     fontFamily: typography.sansMedium,

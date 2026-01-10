@@ -66,7 +66,8 @@ export const ScreenShell = ({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background,
+    // Keep transparent so the global leather texture shows through.
+    backgroundColor: 'transparent',
   },
   content: {
     paddingHorizontal: spacing.page,
@@ -80,7 +81,7 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: spacing.page,
     paddingBottom: spacing.xl, // Match IntroScreen's paddingVertical: spacing.xl = 32px
-    backgroundColor: colors.background,
+    backgroundColor: 'transparent',
   },
   title: {
     fontFamily: typography.headline,

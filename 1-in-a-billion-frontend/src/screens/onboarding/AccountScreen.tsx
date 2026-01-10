@@ -411,7 +411,8 @@ const { width, height } = Dimensions.get('window');
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    // Keep root transparent so leather texture always shows through.
+    backgroundColor: 'transparent',
   },
   backgroundVideo: {
     position: 'absolute',
@@ -447,7 +448,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
   titleBackground: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: colors.surface,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     borderRadius: radii.button,
@@ -546,7 +547,7 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   loadingCard: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.xxl,
     borderRadius: radii.card,

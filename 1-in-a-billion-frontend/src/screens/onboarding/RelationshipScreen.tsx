@@ -2,7 +2,7 @@ import { SimpleSlider } from '@/components/SimpleSlider';
 // import { Slider } from 'react-native'; // Fallback or mock if needed, but RN doesn't have Slider anymore.
 // We will mock it inline or use a simple view.
 import * as Haptics from 'expo-haptics';
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useCallback } from 'react';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/Button';
@@ -12,7 +12,7 @@ import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { describeIntensity } from '@/utils/intensity';
 
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { AmbientMusic } from '@/services/ambientMusic';
@@ -28,7 +28,6 @@ export const RelationshipScreen = ({ navigation }: Props) => {
   const lastValue = useRef(relationshipIntensity);
   const descriptor = describeIntensity(relationshipIntensity);
   const { isPlaying } = useMusicStore();
-  const [videoReady, setVideoReady] = useState(false);
 
   // Keep ambient music playing
   useFocusEffect(
@@ -77,17 +76,7 @@ export const RelationshipScreen = ({ navigation }: Props) => {
         isLooping
         isMuted
         rate={0.5}
-        onReadyForDisplay={() => setVideoReady(true)}
       />
-
-      {/* Poster overlay - shows until video is ready */}
-      {!videoReady && (
-        <Image
-          source={require('../../../assets/images/couple-poster.jpg')}
-          style={[styles.bottomVideo, styles.posterOverlay]}
-          resizeMode="cover"
-        />
-      )}
 
       <BackButton onPress={handleBack} />
 
@@ -209,10 +198,5 @@ const styles = StyleSheet.create({
     marginTop: -20, // Negative margin to pull button up
     paddingHorizontal: spacing.page,
     zIndex: 10,
-  },
-  posterOverlay: {
-    position: 'absolute',
-    zIndex: 1,
-    opacity: 1,
   },
 });

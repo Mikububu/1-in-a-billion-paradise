@@ -133,7 +133,8 @@ export const LanguagesScreen = ({ navigation }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    // Keep the root container transparent so the global leather texture shows through.
+    backgroundColor: 'transparent',
   },
   backButton: {
     position: 'absolute',

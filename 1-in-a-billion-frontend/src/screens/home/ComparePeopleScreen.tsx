@@ -316,7 +316,8 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    // Keep "My Secret Life" on the top-right (opposite the global back button).
+    justifyContent: 'flex-end',
     alignItems: 'center',
     paddingHorizontal: spacing.page,
     paddingVertical: spacing.sm,

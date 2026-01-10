@@ -120,7 +120,7 @@ export const OnboardingCompleteScreen = ({ navigation }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: 'transparent',
   },
   content: {
     flex: 1,
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.xs,
     marginHorizontal: 2,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,

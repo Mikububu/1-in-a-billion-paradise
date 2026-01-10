@@ -535,12 +535,26 @@ export const HomeScreen = ({ navigation }: Props) => {
 
         {/* Headline - centered - shows current person's name */}
         <Animated.View style={{ opacity: fadeAnim }}>
-          <Text style={styles.headline}>
-            {currentPerson ?
-              (currentPerson.person.isUser ? 'My' : `${currentPerson.person.name}'s`)
-              : 'My'
-            } Secret Life
-          </Text>
+          <View style={styles.headlineWrap}>
+            <Text
+              style={styles.headlineTop}
+              numberOfLines={2}
+              ellipsizeMode="tail"
+            >
+              {(() => {
+                const toPossessive = (name: string) => {
+                  const trimmed = name.trim();
+                  if (!trimmed) return "Someone's";
+                  // common English possessive rule for names ending in s
+                  return /s$/i.test(trimmed) ? `${trimmed}'` : `${trimmed}'s`;
+                };
+
+                if (!currentPerson) return 'My';
+                return currentPerson.person.isUser ? 'My' : toPossessive(currentPerson.person.name);
+              })()}
+            </Text>
+            <Text style={styles.headlineBottom}>Secret Life</Text>
+          </View>
         </Animated.View>
 
         {/* CORE SIGNS - 3 Card Layout (Tappable with shimmer) - rotates through all people */}
@@ -771,9 +785,9 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: spacing.page,
-    paddingTop: spacing.sm, // Reduced to move all content up
+    paddingTop: 0, // Move everything up (SafeAreaView still protects notch)
     paddingBottom: spacing.xl * 2,
-    gap: spacing.lg,
+    gap: spacing.md,
   },
   headerRow: {
     flexDirection: 'row',
@@ -785,6 +799,24 @@ const styles = StyleSheet.create({
     fontSize: 32,
     color: colors.text,
     textAlign: 'center',
+  },
+  headlineWrap: {
+    alignItems: 'center',
+  },
+  headlineTop: {
+    fontFamily: typography.headline,
+    fontSize: 32,
+    lineHeight: 38,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  headlineBottom: {
+    fontFamily: typography.headline,
+    fontSize: 32,
+    lineHeight: 38,
+    color: colors.text,
+    textAlign: 'center',
+    marginTop: -2,
   },
   settingsButton: {
     padding: spacing.sm,

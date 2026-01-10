@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/Button';
 import { BackButton } from '@/components/BackButton';
 import { useOnboardingStore } from '@/store/onboardingStore';
@@ -69,6 +69,8 @@ const formatDateDisplay = (date: Date) => {
 };
 
 export const BirthInfoScreen = ({ navigation }: Props) => {
+  const insets = useSafeAreaInsets();
+
   const storedDate = useOnboardingStore((state) => state.birthDate);
   const storedTime = useOnboardingStore((state) => state.birthTime);
   const storedCity = useOnboardingStore((state) => state.birthCity);
@@ -100,7 +102,6 @@ export const BirthInfoScreen = ({ navigation }: Props) => {
   // Simple slideshow - just change image index
   const [imageIndex, setImageIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
-  const imageOpacity = useMemo(() => Animated.multiply(fadeAnim, 0.35), [fadeAnim]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -298,13 +299,13 @@ export const BirthInfoScreen = ({ navigation }: Props) => {
         <View pointerEvents="none" style={styles.imageWrapper}>
           <Animated.Image
             source={CITY_IMAGES[imageIndex]}
-            style={[styles.bottomImage, { opacity: imageOpacity }]}
+            style={[styles.bottomImage, { opacity: fadeAnim }]}
             resizeMode="contain"
           />
         </View>
 
         {/* Button at very bottom */}
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
           <Button
             label="Continue"
             onPress={handleContinue}
@@ -425,8 +426,8 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: spacing.page,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xl,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
     backgroundColor: 'transparent',
   },
   imageWrapper: {

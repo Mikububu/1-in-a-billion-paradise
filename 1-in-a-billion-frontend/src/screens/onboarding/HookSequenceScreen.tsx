@@ -1247,7 +1247,7 @@ ${rising.main}`;
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: 'transparent',
   },
   // Match IntroScreen layout
   wrapper: {
@@ -1287,8 +1287,8 @@ const styles = StyleSheet.create({
   providerBtn: {
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: colors.divider,
-    backgroundColor: colors.background,
+    borderColor: colors.cardStroke,
+    backgroundColor: colors.surface,
     overflow: 'hidden',
   },
   providerBtnInner: {
@@ -1310,7 +1310,7 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
   },
   providerBtnTextActive: {
-    color: colors.background,
+    color: '#FFFFFF',
   },
   // Page content - MUST be bounded to prevent overflow into footer
   page: {

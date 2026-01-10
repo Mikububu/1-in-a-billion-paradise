@@ -145,7 +145,8 @@ export const StatementScreen = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    // Keep transparent so the global leather texture shows through.
+    backgroundColor: 'transparent',
   },
   content: {
     flex: 1,

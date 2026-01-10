@@ -298,8 +298,18 @@ export const useOnboardingStore = create<OnboardingState>()(
         );
       },
 
-      setHasCompletedOnboarding: (hasCompletedOnboarding) => {      },
-      completeOnboarding: () => {      },
+      setHasCompletedOnboarding: (hasCompletedOnboarding) =>
+        set({
+          hasCompletedOnboarding,
+          // If onboarding is completed, the user should be in the main app UI.
+          showDashboard: hasCompletedOnboarding ? true : get().showDashboard,
+        }),
+      completeOnboarding: () =>
+        set({
+          hasCompletedOnboarding: true,
+          // Switch RootNavigator to MainNavigator immediately to avoid loops.
+          showDashboard: true,
+        }),
       reset: () => set({ ...baseState }),
     }),
     {

@@ -414,7 +414,15 @@ const OnboardingNavigator = ({ initialRouteName = "Intro" }: { initialRouteName?
   const navigation = useNavigation();
 
   return (
-    <OnboardingStack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRouteName}>
+    <OnboardingStack.Navigator
+      screenOptions={{
+        headerShown: false,
+        // CRITICAL: native-stack paints an opaque scene background by default.
+        // Keep it transparent so TexturedBackground always shows through.
+        contentStyle: { backgroundColor: 'transparent' },
+      }}
+      initialRouteName={initialRouteName}
+    >
       <OnboardingStack.Screen name="Intro" component={IntroScreen} />
       <OnboardingStack.Screen name="SignIn" component={SignInScreenWrapper} />
       <OnboardingStack.Screen name="Relationship" component={RelationshipScreen} />
@@ -601,6 +609,8 @@ const MainNavigator = () => {
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
+        // Same deal here: ensure the scene background never blocks the leather texture.
+        contentStyle: { backgroundColor: 'transparent' },
       }}
       initialRouteName={initialRoute as keyof MainStackParamList}
     >
@@ -776,12 +786,8 @@ export const RootNavigator = () => {
   return (
     <TexturedBackground style={{ flex: 1 }}>
       {hasSession && hasCompletedOnboarding ? (
-        // Logged-in users with completed onboarding: Check showDashboard flag
-        showDashboard ? (
-          <MainNavigator />
-        ) : (
-          <OnboardingNavigator initialRouteName="Intro" />
-        )
+        // Logged-in users with completed onboarding go straight to MainNavigator.
+        <MainNavigator />
       ) : hasSession ? (
         // Session exists but onboarding incomplete → Continue onboarding
         <OnboardingNavigator initialRouteName={initialRoute} />

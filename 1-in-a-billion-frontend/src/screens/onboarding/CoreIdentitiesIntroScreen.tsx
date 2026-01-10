@@ -130,7 +130,8 @@ export const CoreIdentitiesIntroScreen = ({ navigation }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    // Keep root transparent so leather texture always shows through.
+    backgroundColor: 'transparent',
   },
   content: {
     flex: 1,
