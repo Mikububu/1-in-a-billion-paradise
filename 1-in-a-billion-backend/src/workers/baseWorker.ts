@@ -248,9 +248,10 @@ export abstract class BaseWorker {
 
       if (tasksErr || !tasks) return;
 
-      const total = tasks.length;
-      const complete = tasks.filter(t => t.status === 'complete').length;
-      const failed = tasks.filter(t => t.status === 'failed').length;
+      const rows = tasks as Array<{ status: string; error: string | null }>;
+      const total = rows.length;
+      const complete = rows.filter((t) => t.status === 'complete').length;
+      const failed = rows.filter((t) => t.status === 'failed').length;
       const done = complete + failed;
 
       const percent = total > 0 ? Math.round((complete / total) * 100) : 0;
@@ -265,7 +266,7 @@ export abstract class BaseWorker {
       const prevProgress = (jobRow as any)?.progress || {};
 
       if (failed > 0 && done === total) {
-        const firstError = tasks.find(t => t.status === 'failed')?.error || 'Some tasks failed';
+        const firstError = rows.find((t) => t.status === 'failed')?.error || 'Some tasks failed';
         await supabase
           .from('jobs')
           .update({
