@@ -2248,6 +2248,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                           onPress={() => {
                             navigation.navigate('PersonReadings', {
                               personName: person.name,
+                              personId: person.id,
                               personType: personType,
                               jobId: primaryJobId,
                             });
