@@ -295,15 +295,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   wordWrapper: {
-    paddingHorizontal: 1,
-    paddingVertical: 0,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     marginHorizontal: 0,
     marginVertical: 0,
-    borderRadius: 2,
+    borderRadius: 10,
     backgroundColor: 'transparent',
   },
   wordActive: {
-    backgroundColor: 'rgba(230, 0, 0, 0.5)',
+    backgroundColor: '#FDE68A',
   },
   wordText: {
     fontFamily: typography.sansRegular,
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
   },
   wordTextActive: {
-    color: '#FFFFFF',
+    color: colors.text,
     fontFamily: typography.sansMedium,
   },
   middleButtons: {
