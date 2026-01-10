@@ -1930,16 +1930,19 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start', // LEFT ALIGN
   },
   pdfButton: {
+    height: 34,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#C41E3A', // Red
+    backgroundColor: '#F3F4F6', // soft grey-white (matches UI buttons)
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   pdfText: {
     fontFamily: 'System',
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFF',
+    color: '#111827',
   },
   downloadButton: {
     paddingHorizontal: 16,
@@ -2033,14 +2036,14 @@ const styles = StyleSheet.create({
     minWidth: 45,
     textAlign: 'center',
   },
-  // Download All - black down-arrow icon next to PDF
+  // Download All - same style as PDF button
   downloadAllBlackButton: {
     width: 40,
     height: 34,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#1a1a1a',
-    backgroundColor: 'transparent',
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2048,7 +2051,7 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
     fontSize: 16,
     fontWeight: '700',
-    color: '#1a1a1a',
+    color: '#111827',
   },
   // Song Audio Bar (black themed)
   songAudioBar: {
