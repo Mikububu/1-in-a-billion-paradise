@@ -41,7 +41,6 @@ import { deletePersonFromSupabase, fetchPeopleWithPaidReadings } from '@/service
 import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { fetchNuclearJobs, fetchJobArtifacts } from '@/services/nuclearReadingsService';
-import { calculatePlacements, Placements } from '@/services/placementsCalculator';
 
 // Define radii values directly to avoid import issues
 const RADIUS_CARD = 22;
@@ -100,9 +99,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
 
-  // Local state for temporary placements (calculated on the fly for queue jobs)
-  const [tempPlacements, setTempPlacements] = useState<Record<string, Placements>>({});
-
 
   // Audio playback state for person cards
   const [playingPersonId, setPlayingPersonId] = useState<string | null>(null);
@@ -129,6 +125,8 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   const [queueRefreshKey, setQueueRefreshKey] = useState(0);
   // People with paid readings from Supabase (source of truth)
   const [paidPeopleNames, setPaidPeopleNames] = useState<Set<string>>(new Set());
+  // Cache of people profiles (placements, birth data) from Supabase library_people
+  const [libraryPeopleById, setLibraryPeopleById] = useState<Record<string, Person>>({});
   // Track nuclear_v2 job artifacts for reading badges
   const [nuclearJobArtifacts, setNuclearJobArtifacts] = useState<Record<string, Array<{ system?: string; docType?: string }>>>({});
 
@@ -188,6 +186,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   // Onboarding store for hook readings
   const authUser = useAuthStore((s) => s.user);
   const cloudEnabled = env.ENABLE_SUPABASE_LIBRARY_SYNC && isSupabaseConfigured && !!authUser?.id;
+  const selfPersonId = authUser?.id ? `self-${authUser.id}` : null;
 
   // One-time library repair (merges duplicate people like "Born Unknown" into the real profile)
   useEffect(() => {
@@ -212,6 +211,81 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
       console.warn('⚠️ Failed to fetch paid people:', err);
     });
   }, [authUser?.id]);
+
+  // Cache the Supabase `library_people` rows for people referenced by jobs.
+  // This provides stable placements/birthData even when job params are minimal.
+  useEffect(() => {
+    if (!authUser?.id) return;
+    if (!isSupabaseConfigured) return;
+    if (!Array.isArray(queueJobs) || queueJobs.length === 0) return;
+
+    const ids = new Set<string>();
+    for (const j of queueJobs as any[]) {
+      let params: any = (j as any)?.params || (j as any)?.input || {};
+      if (typeof params === 'string') {
+        try {
+          params = JSON.parse(params);
+        } catch {
+          params = {};
+        }
+      }
+      const p1 = params?.person1?.id;
+      const p2 = params?.person2?.id;
+      if (typeof p1 === 'string' && p1.trim().length > 0) ids.add(p1);
+      if (typeof p2 === 'string' && p2.trim().length > 0) ids.add(p2);
+    }
+
+    const idList = Array.from(ids);
+    if (idList.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const chunkSize = 100;
+        const nextMap: Record<string, Person> = {};
+
+        for (let i = 0; i < idList.length; i += chunkSize) {
+          const chunk = idList.slice(i, i + chunkSize);
+          const { data, error } = await supabase
+            .from('library_people')
+            .select('*')
+            .eq('user_id', authUser.id)
+            .in('client_person_id', chunk);
+
+          if (error) throw error;
+          if (!data) continue;
+
+          for (const row of data as any[]) {
+            const id = row.client_person_id;
+            if (!id) continue;
+            nextMap[id] = {
+              id,
+              name: row.name,
+              isUser: row.is_user || false,
+              isVerified: row.is_user || false,
+              gender: row.gender,
+              birthData: row.birth_data,
+              placements: row.placements,
+              readings: [],
+              jobIds: [],
+              createdAt: row.created_at || new Date().toISOString(),
+              updatedAt: row.updated_at || row.created_at || new Date().toISOString(),
+            };
+          }
+        }
+
+        if (!cancelled) {
+          setLibraryPeopleById((prev) => ({ ...prev, ...nextMap }));
+        }
+      } catch (e) {
+        // Non-blocking: if this fails we can still render from job params + local cache.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authUser?.id, queueJobs]);
 
   // Activity feed: show background queue status (RunPod/Supabase jobs)
   const mountedRef = useRef(true);
@@ -661,10 +735,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   }
 
   // Collect ALL people who have readings from ANY source:
-  // 1. Profile store (people with readings array - single-system purchases)
-  // 2. Nuclear_v2 job artifacts (person1 and person2 from completed jobs)
-  // 3. Extended/single-system jobs (person1 from completed jobs)
-  // Group by person name (one card per person)
+  // Library overview rule (Audible model):
+  // A card exists iff at least one job was initiated for that person/couple.
+  // This screen must NOT show profile-only people without jobs.
   const allPeopleWithReadings = useMemo<LibraryPerson[]>(() => {
     const peopleMap = new Map<string, LibraryPerson>();
 
@@ -675,40 +748,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
       if (typeof name === 'string' && name.trim().length > 0) return name;
       return null;
     };
-
-    // 0) Seed from profileStore first (source of truth for person identity, placements, and birth data).
-    // This prevents the library from "flipping" between job-derived cards vs local cards.
-    for (const p of people) {
-      if (!p) continue;
-      const key = personKey(p);
-      if (!key) continue;
-
-      const hasAnyContent =
-        (Array.isArray(p.readings) && p.readings.length > 0) ||
-        (Array.isArray(p.jobIds) && p.jobIds.length > 0) ||
-        !!p.isUser;
-      if (!hasAnyContent) continue;
-
-      const existing = peopleMap.get(key);
-      if (existing) {
-        existing.readings = [...new Set([...(existing.readings || []), ...(p.readings || [])])];
-        existing.jobIds = [...new Set([...(existing.jobIds || []), ...(p.jobIds || [])])];
-        existing.birthData = existing.birthData?.birthDate ? existing.birthData : (p.birthData as any);
-        existing.placements = existing.placements?.sunSign ? existing.placements : (p.placements as any);
-        continue;
-      }
-
-      peopleMap.set(key, {
-        id: p.id,
-        name: p.name,
-        isUser: !!p.isUser,
-        birthData: p.birthData as any,
-        placements: (p.placements as any) || {},
-        readings: [...(p.readings || [])],
-        createdAt: p.createdAt || new Date().toISOString(),
-        jobIds: [...(p.jobIds || [])],
-      });
-    }
 
     // IMPORTANT: Always process newest jobs first so `person.jobIds[0]` is the most recent receipt.
     // This prevents picking an older job (which may have missing artifacts) and showing greyed-out audio.
@@ -722,10 +761,10 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
     console.log('📊 [MyLibrary] Total queueJobs:', queueJobs.length);
     console.log('📊 [MyLibrary] Job types:', queueJobs.map((j: any) => `${j.type}(${j.status})`).join(', '));
 
-    // 2. Add people from nuclear_v2 and extended jobs (person1 and person2) - include processing jobs
+    // Add people from job receipts (person1/person2) - include processing jobs.
     queueJobsNewestFirst
       .filter((j: any) =>
-        (j.type === 'nuclear_v2' || j.type === 'extended') &&
+        (j.type === 'nuclear_v2' || j.type === 'extended' || j.type === 'single_system') &&
         (j.status === 'complete' || j.status === 'completed' || j.status === 'processing' || j.status === 'pending' || j.status === 'queued')
       )
       .forEach((job: any) => {
@@ -763,9 +802,11 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
         console.log('🔍 [MyLibrary] Final p1Name:', p1Name, 'from params.person1?.name:', params.person1?.name);
 
-        // Add person1 - deduplicate by name, merge jobIds
+        // Add person1 - deduplicate by stable id first, merge jobIds
         if (p1Name) {
+          const libMatch = p1Id ? libraryPeopleById[p1Id] : undefined;
           const storeMatch =
+            libMatch ||
             (p1Id ? people.find((sp) => sp?.id === p1Id) : undefined) ||
             people.find((sp) => sp?.name === p1Name) ||
             (p1Name === userName ? user : undefined);
@@ -815,7 +856,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
               // If the person already exists locally OR the job provides a client_person_id, keep it stable.
               id: storeMatch?.id || p1Id || `job-${job.id}-p1`,
               name: p1Name,
-              isUser: p1Name === userName,
+              isUser: !!storeMatch?.isUser || (!!selfPersonId && (p1Id === selfPersonId || storeMatch?.id === selfPersonId)),
               birthData: (Object.keys(storeBirthData || {}).length > 0 ? storeBirthData : (params.person1 || {})),
               placements: (Object.keys(storePlacements || {}).length > 0 ? storePlacements : {}),
               readings: placeholderReadings,
@@ -827,7 +868,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
         // Add person2 - deduplicate by name, merge jobIds
         if (p2Name) {
+          const libMatch = p2Id ? libraryPeopleById[p2Id] : undefined;
           const storeMatch =
+            libMatch ||
             (p2Id ? people.find((sp) => sp?.id === p2Id) : undefined) ||
             people.find((sp) => sp?.name === p2Name) ||
             (p2Name === userName ? user : undefined);
@@ -873,70 +916,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             peopleMap.set(p2Key, {
               id: storeMatch?.id || p2Id || `job-${job.id}-p2`,
               name: p2Name,
-              isUser: false,
+              isUser: !!storeMatch?.isUser || (!!selfPersonId && (p2Id === selfPersonId || storeMatch?.id === selfPersonId)),
               birthData: (Object.keys(storeBirthData || {}).length > 0 ? storeBirthData : (params.person2 || {})),
               placements: (Object.keys(storePlacements || {}).length > 0 ? storePlacements : {}),
-              readings: placeholderReadings,
-              createdAt: job.created_at || job.createdAt || new Date().toISOString(),
-              jobIds: [job.id],
-            });
-          }
-        }
-      });
-
-    // 3. Add people from extended/single-system jobs (person1) - include processing jobs
-    queueJobsNewestFirst
-      .filter((j: any) =>
-        (j.type === 'extended' || j.type === 'single_system') &&
-        (j.status === 'complete' || j.status === 'completed' || j.status === 'processing' || j.status === 'pending' || j.status === 'queued')
-      )
-      .forEach((job: any) => {
-        let params = job.params || job.input || {};
-        if (typeof params === 'string') {
-          try {
-            params = JSON.parse(params);
-          } catch {
-            params = {};
-          }
-        }
-
-        const isProcessing = job.status === 'processing' || job.status === 'pending' || job.status === 'queued';
-        const p1Name = params.person1?.name || (isProcessing ? `Reading ${job.id.slice(0, 8)}` : undefined);
-
-        if (p1Name) {
-          // FIXED: Use person name as key (not job ID) to deduplicate same person
-          const existing = peopleMap.get(p1Name);
-          if (existing) {
-            // Merge jobIds if person already exists
-            existing.jobIds = [...new Set([...(existing.jobIds || []), job.id])];
-          } else {
-            // Create placeholder readings based on job type
-            const isOverlay = job.type === 'overlay' || job.type === 'compatibility';
-            const systems = isOverlay 
-              ? ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah', 'verdict']
-              : ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'];
-            
-            const placeholderReadings = systems.map((system, index) => ({
-              id: `reading-${index + 1}`,
-              system: system,
-              name: system === 'western' ? 'Western Astrology'
-                  : system === 'vedic' ? 'Vedic (Jyotish)'
-                  : system === 'human_design' ? 'Human Design'
-                  : system === 'gene_keys' ? 'Gene Keys'
-                  : system === 'kabbalah' ? 'Kabbalah'
-                  : 'Final Verdict',
-              // No paths yet - readings are inactive until artifacts are generated
-              pdfPath: undefined,
-              audioPath: undefined,
-              songPath: undefined,
-            }));
-
-            peopleMap.set(p1Name, {
-              id: `job-${job.id}-p1`,
-              name: p1Name,
-              isUser: p1Name === userName,
-              birthData: params.person1 || {},
-              placements: {},
               readings: placeholderReadings,
               createdAt: job.created_at || job.createdAt || new Date().toISOString(),
               jobIds: [job.id],
@@ -956,6 +938,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
       return timeB - timeA;
     });
 
+    // Hard guarantee for this screen: no job receipt => no card.
+    result = result.filter((p) => Array.isArray(p.jobIds) && p.jobIds.length > 0);
+
     // NOTE: Paid reading filter disabled for now
     // The has_paid_reading flag in Supabase wasn't being set correctly for existing jobs
     // TODO: Re-enable when backfill is complete
@@ -969,7 +954,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
     // TODO: Re-enable once placements are working correctly
     // result = result.filter(person => {
     //   if (person.placements?.sunSign) return true;
-    //   if (tempPlacements[person.name]?.sunSign) return true;
     //   return false;
     // });
     console.log('📊 [MyLibrary] Placements filter disabled for debugging');
@@ -979,55 +963,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
     console.log('📊 [MyLibrary] After placements filter:', result.length);
 
     return result;
-  }, [queueJobs, people, userName, paidPeopleNames, tempPlacements]);
-
-  // Effect: Calculate placements for any person (from queue or store) who has birth data but no signs
-  useEffect(() => {
-    // Only run if we have people to check
-    if (!allPeopleWithReadings || allPeopleWithReadings.length === 0) return;
-
-    const peopleNeedingPlacements = allPeopleWithReadings.filter(p => {
-      // Never backfill placements for the user card here — it should come from profileStore/Supabase.
-      if (p.isUser || p.name === userName) return false;
-
-      // Check if missing placements
-      const hasPlacements = p.placements?.sunSign;
-      // Check if we already calculated temp placements
-      const hasTemp = tempPlacements[p.name];
-      if (hasPlacements || hasTemp) return false;
-
-      // Check if has valid birth data
-      const bd = p.birthData;
-      return bd?.birthDate && bd?.birthTime && typeof bd?.latitude === 'number';
-    });
-
-    if (peopleNeedingPlacements.length === 0) return;
-
-    peopleNeedingPlacements.forEach(async (p) => {
-      // console.log(`🔮 [MyLibrary] Calculating missing placements for ${p.name}...`);
-      try {
-        const result = await calculatePlacements({
-          birthDate: p.birthData.birthDate,
-          birthTime: p.birthData.birthTime,
-          timezone: p.birthData.timezone || 'UTC',
-          latitude: p.birthData.latitude,
-          longitude: p.birthData.longitude,
-        });
-
-        if (result) {
-          console.log(`✅ [MyLibrary] Calculated for ${p.name}: ${result.sunSign}`);
-          setTempPlacements(prev => ({ ...prev, [p.name]: result }));
-
-          // Optionally save to persistent store if it's a real person (has ID)
-          if (p.id && !p.id.startsWith('job-')) {
-            // We can't easily import updatePerson here without context, so we just rely on local state for now
-          }
-        }
-      } catch (err) {
-        console.warn(`⚠️ [MyLibrary] Failed to calculate for ${p.name}`, err);
-      }
-    });
-  }, [allPeopleWithReadings, tempPlacements]);
+  }, [queueJobs, people, userName, user, libraryPeopleById, paidPeopleNames]);
 
   // Map jobId -> job params so we can determine whether a person was person1 or person2 for a given job.
   // This avoids incorrect heuristics like "non-user == person2" (e.g. Eva can be person1).
@@ -1040,12 +976,12 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   }, [queueJobs]);
 
   const hasUserReadings = useMemo(() => {
-    return allPeopleWithReadings.some(p => p.isUser || p.name === userName);
-  }, [allPeopleWithReadings, userName]);
+    return allPeopleWithReadings.some((p) => p.isUser || (!!selfPersonId && p.id === selfPersonId));
+  }, [allPeopleWithReadings, selfPersonId]);
 
   const partners = useMemo(() => {
-    return allPeopleWithReadings.filter(p => !p.isUser && p.name !== userName);
-  }, [allPeopleWithReadings, userName]);
+    return allPeopleWithReadings.filter((p) => !p.isUser && !(selfPersonId && p.id === selfPersonId));
+  }, [allPeopleWithReadings, selfPersonId]);
 
   const userReadings = useMemo(() => user?.readings || [], [user]);
 
@@ -1415,7 +1351,12 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
               }}
               onPress={() => {
                 if (j?.type === 'nuclear_v2') {
-                  navigation.navigate('PersonReadings', { personName: (j as any).params?.person1?.name || 'Unknown', personType: 'person1', jobId: j.id });
+                  navigation.navigate('PersonReadings', {
+                    personName: (j as any).params?.person1?.name || 'Unknown',
+                    personId: (j as any).params?.person1?.id,
+                    personType: 'person1',
+                    jobId: j.id,
+                  });
                   return;
                 }
                 navigation.navigate('JobDetail', { jobId: j.id });
@@ -1570,18 +1511,31 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
               key={person.id}
               style={styles.personCard}
               onPress={() => {
-                // If this is a job-based person (from nuclear_v2), route to PersonReadings for progress tracking
-                if (person.id.startsWith('job-')) {
-                  const [_, jobId, suffix] = person.id.split('-');
-                  const personType = suffix === 'p1' ? 'person1' : 'person2';
-                  navigation.navigate('PersonReadings', {
-                    personName: person.name,
-                    personType: personType as any,
-                    jobId: jobId
-                  });
-                } else {
-                  navigation.navigate('PersonProfile', { personId: person.id });
+                const jobId = person.jobIds?.[0];
+                if (!jobId) return;
+                const job = queueJobs.find((j: any) => j.id === jobId);
+                const isExtendedJob = job?.type === 'extended' || job?.type === 'single_system';
+                let personType: 'individual' | 'person1' | 'person2' = isExtendedJob ? 'individual' : 'person1';
+                if (!isExtendedJob) {
+                  const p = jobIdToParams.get(jobId);
+                  const fromJob =
+                    (p?.person1?.id && p.person1.id === person.id)
+                      ? 'person1'
+                      : (p?.person2?.id && p.person2.id === person.id)
+                        ? 'person2'
+                        : (p?.person1?.name === person.name)
+                          ? 'person1'
+                          : (p?.person2?.name === person.name)
+                            ? 'person2'
+                            : null;
+                  personType = (fromJob || 'person1') as any;
                 }
+                navigation.navigate('PersonReadings', {
+                  personName: person.name,
+                  personId: person.id,
+                  personType,
+                  jobId,
+                });
               }}
             >
               <View style={styles.personAvatar}>
@@ -1983,14 +1937,11 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
     // Include overlay/compatibility jobs (complete or processing):
     // - synastry (single system overlays like "Vedic overlay")
     // - nuclear_v2 (ultimate 16-reading package)
-    const completedOverlayJobs = queueJobs.filter((j) =>
-      (j.type === 'synastry' || j.type === 'nuclear_v2') &&
-      (j.status === 'complete' || j.status === 'completed' || j.status === 'processing')
-    );
-    console.log('🔄 [MyLibrary] Completed overlay jobs:', completedOverlayJobs.length);
+    const overlayJobs = queueJobs.filter((j) => j.type === 'synastry' || j.type === 'nuclear_v2');
+    console.log('🔄 [MyLibrary] Overlay jobs:', overlayJobs.length);
 
     const seen = new Set<string>();
-    const cards = completedOverlayJobs
+    const cards = overlayJobs
       .map((job: any) => {
         const p1 = job?.params?.person1?.name || job?.input?.person1?.name || null;
         const p2 = job?.params?.person2?.name || job?.input?.person2?.name || null;
@@ -2085,6 +2036,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             // - Extended/Combined jobs: personType = 'individual' (1 person, 1-5 systems)
             // - Nuclear jobs: personType = 'person1' | 'person2' | 'overlay'
             const primaryJobId = person.jobIds?.[0];
+            if (!primaryJobId) return null;
             const primaryJob = queueJobs.find((j: any) => j.id === primaryJobId);
             const jobType = primaryJob?.type;
             const isExtendedJob = jobType === 'extended' || jobType === 'single_system';
@@ -2125,7 +2077,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                     personType: personType,
                     // If this person is coming from a queued job, include a verifiable receipt.
                     // PersonReadings can then render the correct job instead of guessing (or falling back to test UUID).
-                    jobId: person.jobIds?.[0],
+                    jobId: primaryJobId,
                   });
                 }}
                 onLongPress={() => {
@@ -2208,20 +2160,15 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                   })()}
                   <View style={styles.personSigns}>
                     {(() => {
-                      // CRITICAL: We now filter out people without placements in allPeopleWithReadings,
-                      // so we can safely assume this person has placements (either stored or temp)
-                      const placements = person.placements?.sunSign
-                        ? person.placements
-                        : (tempPlacements[person.name] || {});
+                      const placements = person.placements?.sunSign ? person.placements : {};
 
-                      // If still no placements, show placeholder (filter is disabled for debugging)
+                      // If placements are missing, show placeholder (do not calculate here).
                       if (!placements.sunSign) {
-                        console.warn(`⚠️ Person "${person.name}" shown without placements - filter disabled`);
                         return (
                           <>
-                            <Text style={styles.personSignBadge}>☉ Calculating...</Text>
-                            <Text style={styles.personSignBadge}>☽ Calculating...</Text>
-                            <Text style={styles.personSignBadge}>↑ Calculating...</Text>
+                            <Text style={styles.personSignBadge}>☉ —</Text>
+                            <Text style={styles.personSignBadge}>☽ —</Text>
+                            <Text style={styles.personSignBadge}>↑ —</Text>
                           </>
                         );
                       }
@@ -2302,7 +2249,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                             navigation.navigate('PersonReadings', {
                               personName: person.name,
                               personType: personType,
-                              jobId: person.jobIds?.[0],
+                              jobId: primaryJobId,
                             });
                           }}
                         >

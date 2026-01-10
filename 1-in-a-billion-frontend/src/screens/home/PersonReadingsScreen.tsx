@@ -55,6 +55,12 @@ type Reading = {
   songPath?: string; // Personalized song for this document
   duration?: number; // seconds
   timestamp?: string; // Job creation timestamp
+  jobId?: string; // Source job for this row (required for duplicates)
+  docNum?: number; // Document number within job (required for stable caching)
+  // Local cache (A2 gating): enabled only after downloaded & verified
+  localPdfPath?: string;
+  localAudioPath?: string;
+  localSongPath?: string;
 };
 
 export const PersonReadingsScreen = ({ navigation, route }: Props) => {
@@ -70,6 +76,10 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   const getReadingsByJobId = useProfileStore((s) => s.getReadingsByJobId);
   const createPlaceholderReadings = useProfileStore((s) => s.createPlaceholderReadings);
   const syncReadingArtifacts = useProfileStore((s) => s.syncReadingArtifacts);
+  const savedAudios = useProfileStore((s) => s.savedAudios);
+  const savedPDFs = useProfileStore((s) => s.savedPDFs);
+  const addSavedAudio = useProfileStore((s) => s.addSavedAudio);
+  const addSavedPDF = useProfileStore((s) => s.addSavedPDF);
 
   // #region agent log
   fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:people',message:'People from store',data:{peopleCount:people.length,peopleNames:people.map(p=>p.name),peopleIds:people.map(p=>p.id)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
@@ -131,7 +141,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [zipLoading, setZipLoading] = useState(false);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [loadingAudioId, setLoadingAudioId] = useState<string | null>(null);
   const [audioLoadProgress, setAudioLoadProgress] = useState<Record<string, number>>({});
@@ -143,6 +152,11 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   const progressBarWidths = useRef<Record<string, number>>({});
   const isPlayingMutex = useRef(false); // Prevent multiple plays at once
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const readingsCountRef = useRef(0);
+
+  useEffect(() => {
+    readingsCountRef.current = readings.length;
+  }, [readings.length]);
 
   const withTimeout = useCallback(
     async <T,>(p: Promise<T>, ms: number, label: string): Promise<T> => {
@@ -811,9 +825,174 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     }
   }, [jobId, personType, personName]); // ✅ REMOVED readings.length to prevent infinite loop
 
+  /**
+   * V2 loader: one row per (system × job instance), newest-first by job.created_at.
+   * Also hydrates any already-downloaded local files from profileStore (savedAudios/savedPDFs).
+   */
+  const loadV2 = useCallback(async () => {
+    if (readingsCountRef.current === 0) setLoading(true);
+    else setIsRefreshing(true);
+    setLoadError(null);
+
+    const REQUEST_TIMEOUT_MS = 30000;
+    const MAX_ATTEMPTS = 2;
+
+    const uniqueJobIds = Array.from(
+      new Set<string>([...(person?.jobIds || []), ...(jobId ? [jobId] : [])].filter(Boolean) as string[])
+    );
+
+    if (uniqueJobIds.length === 0) {
+      setReadings([]);
+      setLoading(false);
+      setIsRefreshing(false);
+      return;
+    }
+
+    const fetchJobWithRetry = async (jid: string) => {
+      let lastErr: any = null;
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+        try {
+          const res = await fetch(`${env.CORE_API_URL}/api/jobs/v2/${jid}`, { signal: controller.signal });
+          clearTimeout(timeoutId);
+          if (!res.ok) {
+            const errorText = await res.text().catch(() => '');
+            throw new Error(`Failed to load job (${res.status}) ${errorText}`);
+          }
+          const data = await res.json();
+          return data?.job ? data : null;
+        } catch (e: any) {
+          clearTimeout(timeoutId);
+          lastErr = e;
+          if (attempt < MAX_ATTEMPTS) await new Promise((r) => setTimeout(r, 600));
+        }
+      }
+      throw lastErr || new Error('Failed to load job');
+    };
+
+    try {
+      const jobPayloads = (await Promise.all(
+        uniqueJobIds.map(async (jid) => {
+          try {
+            const payload = await fetchJobWithRetry(jid);
+            return payload ? { jid, payload } : null;
+          } catch {
+            return null;
+          }
+        })
+      )).filter(Boolean) as Array<{ jid: string; payload: any }>;
+
+      const jobs = jobPayloads
+        .map(({ payload }) => payload.job)
+        .filter(Boolean)
+        .sort((a: any, b: any) => (Date.parse(b?.created_at) || 0) - (Date.parse(a?.created_at) || 0));
+
+      const primaryJob = jobs.find((j: any) => j?.id === jobId) || jobs[0];
+      if (primaryJob) {
+        setJobStatus(primaryJob.status || 'pending');
+        setJobProgress(primaryJob.progress || null);
+      }
+
+      const systemIdForDoc = (jobType: string, systems: string[], docNum: number) => {
+        if (jobType === 'extended' || jobType === 'single_system' || personType === 'individual') {
+          const idx = Math.max(0, docNum - 1);
+          return systems[idx] || SYSTEMS[idx]?.id || 'western';
+        }
+        if (personType === 'person1') return SYSTEMS[Math.max(0, docNum - 1)]?.id || 'western';
+        if (personType === 'person2') return SYSTEMS[Math.max(0, docNum - 6)]?.id || 'western';
+        if (personType === 'overlay') {
+          if (docNum === 16) return 'verdict';
+          return SYSTEMS[Math.max(0, docNum - 11)]?.id || 'western';
+        }
+        return 'western';
+      };
+
+      const rows: Reading[] = [];
+
+      for (const j of jobs as any[]) {
+        const jt = String(j?.type || '');
+        // Keep couple-only job types out of single-person views.
+        if (jt === 'synastry' && personType !== 'overlay') continue;
+
+        const createdAt = j?.created_at || new Date().toISOString();
+        const systems: string[] = Array.isArray(j?.params?.systems) ? j.params.systems : [];
+        const docs: any[] = Array.isArray(j?.results?.documents) ? j.results.documents : [];
+        const systemCount = systems.length || 5;
+        const docRange = getDocRange(jt, systemCount);
+
+        if (docs.length > 0) {
+          for (const doc of docs) {
+            const docNum = Number(doc?.docNum);
+            if (!docNum || !docRange.includes(docNum)) continue;
+
+            const systemId = String(doc?.system || systemIdForDoc(jt, systems, docNum));
+            const systemName = SYSTEMS.find((s) => s.id === systemId)?.name || systemId;
+            const rowId = `row-${j.id}-${docNum}`;
+
+            const localPdf = savedPDFs.find((p) => p.readingId === `${rowId}:pdf`)?.filePath;
+            const localAudio = savedAudios.find((a) => a.readingId === `${rowId}:audio`)?.filePath;
+            const localSong = savedAudios.find((a) => a.readingId === `${rowId}:song`)?.filePath;
+
+            rows.push({
+              id: rowId,
+              jobId: j.id,
+              docNum,
+              system: systemId,
+              name: systemName,
+              timestamp: createdAt,
+              pdfPath: doc?.pdfUrl || undefined,
+              audioPath: doc?.audioUrl ? `${env.CORE_API_URL}/api/jobs/v2/${j.id}/audio/${docNum}` : undefined,
+              songPath: doc?.songUrl ? `${env.CORE_API_URL}/api/jobs/v2/${j.id}/song/${docNum}` : undefined,
+              localPdfPath: localPdf,
+              localAudioPath: localAudio,
+              localSongPath: localSong,
+            });
+          }
+        } else if (systems.length > 0) {
+          for (const docNum of docRange) {
+            const sysId = systemIdForDoc(jt, systems, docNum);
+            const sysName = SYSTEMS.find((s) => s.id === sysId)?.name || sysId;
+            const rowId = `row-${j.id}-${docNum}`;
+
+            const localPdf = savedPDFs.find((p) => p.readingId === `${rowId}:pdf`)?.filePath;
+            const localAudio = savedAudios.find((a) => a.readingId === `${rowId}:audio`)?.filePath;
+            const localSong = savedAudios.find((a) => a.readingId === `${rowId}:song`)?.filePath;
+
+            rows.push({
+              id: rowId,
+              jobId: j.id,
+              docNum,
+              system: sysId,
+              name: sysName,
+              timestamp: createdAt,
+              localPdfPath: localPdf,
+              localAudioPath: localAudio,
+              localSongPath: localSong,
+            });
+          }
+        }
+      }
+
+      rows.sort(
+        (a, b) =>
+          (Date.parse(b.timestamp || '') || 0) - (Date.parse(a.timestamp || '') || 0) ||
+          String(a.name).localeCompare(String(b.name))
+      );
+
+      setReadings(rows);
+    } catch (e: any) {
+      const errorMsg = e?.name === 'AbortError' ? 'Request timed out' : (e?.message || 'Could not load reading');
+      setLoadError(errorMsg);
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [jobId, person?.jobIds, personType, savedAudios, savedPDFs]);
+
   useFocusEffect(
     useCallback(() => {
-      load();
+      loadV2();
       return () => {
         // Stop polling when leaving
         if (pollTimerRef.current) {
@@ -828,7 +1007,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         }
         setPlayingId(null);
       };
-    }, [load])
+    }, [loadV2])
   );
 
   useEffect(() => {
@@ -883,7 +1062,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       if (isSeeking) return;
       if (isPlayingMutex.current) return;
       if (soundRef.current) return;
-      load();
+      loadV2();
     }, pollInterval);
 
     return () => {
@@ -892,7 +1071,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         pollTimerRef.current = null;
       }
     };
-  }, [jobId, loading, readings, playingId, isSeeking, load]);
+  }, [jobId, loading, readings, playingId, isSeeking, loadV2]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -971,8 +1150,8 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                 const currentIndex = readings.findIndex((r) => r.id === reading.id);
                 if (currentIndex < readings.length - 1) {
                   const next = readings[currentIndex + 1];
-                  if (next.audioPath) {
-                    setTimeout(() => togglePlay(next), 500);
+                  if (next.localAudioPath) {
+                    setTimeout(() => togglePlay({ ...next, audioPath: next.localAudioPath }), 500);
                   }
                 }
               }
@@ -1038,101 +1217,283 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     await seekTo(newPosition);
   };
 
-  const openPdf = async (reading: Reading) => {
-    if (!reading.pdfPath) {
-      Alert.alert('PDF not ready', 'Still generating...');
-      return;
-    }
-    // URL is already signed from API
-    Linking.openURL(reading.pdfPath);
-  };
+  const MEDIA_BASE_DIR = (() => {
+    const base = getDocumentDirectory() || getCacheDirectory() || '';
+    return base ? `${base}library-media/` : '';
+  })();
 
-  const downloadAudio = async (reading: Reading) => {
-    if (!reading.audioPath) {
-      Alert.alert('Audio not ready', 'Still generating...');
-      return;
-    }
+  const sanitize = (s: string) => String(s || '').replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/_+/g, '_');
 
+  const ensureMediaDir = useCallback(async () => {
+    if (!MEDIA_BASE_DIR) throw new Error('No writable directory available');
+    const info = await FileSystem.getInfoAsync(MEDIA_BASE_DIR);
+    if (!info.exists) await FileSystem.makeDirectoryAsync(MEDIA_BASE_DIR, { intermediates: true });
+  }, [MEDIA_BASE_DIR]);
+
+  const getRowFolder = useCallback(
+    async (reading: Reading) => {
+      await ensureMediaDir();
+      const ts = reading.timestamp ? new Date(reading.timestamp).toISOString() : 'unknown_time';
+      const folder = `${MEDIA_BASE_DIR}${sanitize(personName)}/${sanitize(reading.system)}/${sanitize(ts)}_${sanitize(
+        reading.jobId || ''
+      )}_${sanitize(String(reading.docNum || ''))}/`;
+      const info = await FileSystem.getInfoAsync(folder);
+      if (!info.exists) await FileSystem.makeDirectoryAsync(folder, { intermediates: true });
+      return folder;
+    },
+    [MEDIA_BASE_DIR, ensureMediaDir, personName]
+  );
+
+  const fileExistsNonEmpty = useCallback(async (uri: string) => {
+    if (!uri) return false;
+    const info = await FileSystem.getInfoAsync(uri);
+    const size = (info as any)?.size;
+    return !!info.exists && (typeof size !== 'number' || size > 0);
+  }, []);
+
+  const inferAudioExtension = useCallback(async (url: string): Promise<'mp3' | 'm4a'> => {
     try {
-      // Download to local file
-      const fileName = `${reading.name.replace(/[^a-zA-Z0-9]/g, '_')}.mp3`;
-      const localUri = (getDocumentDirectory() || '') + fileName;
+      const res = await fetch(url, { method: 'HEAD' });
+      const ct = res.headers.get('content-type') || '';
+      if (ct.includes('audio/mp4') || ct.includes('audio/aac') || ct.includes('audio/m4a')) return 'm4a';
+      return 'mp3';
+    } catch {
+      return 'mp3';
+    }
+  }, []);
 
-      Alert.alert('Downloading...', 'Please wait');
+  const updateReadingLocal = useCallback((readingId: string, patch: Partial<Reading>) => {
+    setReadings((prev) => prev.map((r) => (r.id === readingId ? { ...r, ...patch } : r)));
+  }, []);
 
-      const downloadResult = await FileSystem.downloadAsync(reading.audioPath, localUri);
+  const downloadTo = useCallback(
+    async (url: string, destUri: string, readingIdForProgress?: string) => {
+      const dl = FileSystem.createDownloadResumable(
+        url,
+        destUri,
+        {},
+        readingIdForProgress
+          ? (p: { totalBytesWritten: number; totalBytesExpectedToWrite: number }) => {
+              const total = p.totalBytesExpectedToWrite || 0;
+              const pct = total > 0 ? Math.max(0, Math.min(1, p.totalBytesWritten / total)) : 0;
+              setAudioLoadProgress((prev) => ({ ...prev, [readingIdForProgress]: pct }));
+            }
+          : undefined
+      );
+      const result = await dl.downloadAsync();
+      return result?.uri || null;
+    },
+    []
+  );
 
-      if (downloadResult.status === 200) {
-        // Share the file (opens iOS share sheet to save to Files, etc.)
-        if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(downloadResult.uri, {
-            mimeType: 'audio/mpeg',
-            dialogTitle: `Save ${reading.name}`,
-          });
-        } else {
-          Alert.alert('Downloaded', `Saved to: ${localUri}`);
-        }
-      } else {
-        Alert.alert('Error', 'Download failed');
+  const ensureLocalAudio = useCallback(
+    async (reading: Reading) => {
+      if (reading.localAudioPath && (await fileExistsNonEmpty(reading.localAudioPath))) {
+        return reading.localAudioPath;
       }
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Download failed');
-    }
-  };
+      if (!reading.audioPath) throw new Error('Audio not ready yet');
 
-  const downloadAllAsZip = async () => {
-    if (!jobId) {
-      Alert.alert('Error', 'No job ID available');
-      return;
-    }
+      const folder = await getRowFolder(reading);
+      const ext = await inferAudioExtension(reading.audioPath);
+      const dest = `${folder}narration.${ext}`;
 
-    setZipLoading(true);
-    try {
-      // Extract docNums from reading IDs (handle both 'reading-1' and 'reading-1-{jobId}' formats)
-      const docNums = readings
-        .filter((r) => r.id.startsWith('reading-'))
-        .map((r) => {
-          // Try standard format: reading-1
-          let m = r.id.match(/^reading-(\d+)$/);
-          if (m) return Number(m[1]);
-          // Try aggregated format: reading-1-{jobId}
-          m = r.id.match(/^reading-(\d+)-/);
-          if (m) return Number(m[1]);
-          return null;
-        })
-        .filter((n): n is number => typeof n === 'number' && Number.isFinite(n));
+      setLoadingAudioId(reading.id);
+      const uri = await downloadTo(reading.audioPath, dest, reading.id);
+      setLoadingAudioId(null);
+      setAudioLoadProgress((prev) => ({ ...prev, [reading.id]: 0 }));
+      if (!uri) throw new Error('Audio download failed');
+      if (!(await fileExistsNonEmpty(uri))) throw new Error('Audio file is empty');
 
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:zipDownload',message:'ZIP download initiated',data:{jobId,readingsCount:readings.length,docNums,readingsWithSongs:readings.filter(r=>!!r.songPath).length,readingsWithPdf:readings.filter(r=>!!r.pdfPath).length,readingsWithAudio:readings.filter(r=>!!r.audioPath).length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'ZIP'})}).catch(()=>{});
-      // #endregion
+      // Verify playable (2B)
+      let durationSeconds = 0;
+      const check = await Audio.Sound.createAsync({ uri }, { shouldPlay: false });
+      const st = await check.sound.getStatusAsync();
+      if ((st as any)?.isLoaded && (st as any)?.durationMillis) {
+        durationSeconds = Math.round(((st as any).durationMillis as number) / 1000);
+      }
+      await check.sound.unloadAsync();
 
-      const docsParam = docNums.length > 0 ? `?docs=${encodeURIComponent(docNums.sort((a, b) => a - b).join(','))}` : '';
-      const url = `${env.CORE_API_URL}/api/jobs/v2/${jobId}/download-zip${docsParam}`;
+      // Persist local file reference
+      const info = await FileSystem.getInfoAsync(uri);
+      const sizeMB = typeof (info as any)?.size === 'number' ? (info as any).size / (1024 * 1024) : 0;
+      addSavedAudio({
+        readingId: `${reading.id}:audio`,
+        personId,
+        system: reading.system as any,
+        fileName: `narration.${ext}`,
+        filePath: uri,
+        durationSeconds,
+        fileSizeMB: Number(sizeMB.toFixed(2)),
+        createdAt: new Date().toISOString(),
+        title: `${personName} — ${reading.name}`,
+      });
 
-      const response = await fetch(url);
-      const raw = await response.text();
-      let data: any = null;
+      updateReadingLocal(reading.id, { localAudioPath: uri });
+      return uri;
+    },
+    [
+      addSavedAudio,
+      downloadTo,
+      fileExistsNonEmpty,
+      getRowFolder,
+      inferAudioExtension,
+      personId,
+      personName,
+      updateReadingLocal,
+    ]
+  );
+
+  const ensureLocalSong = useCallback(
+    async (reading: Reading) => {
+      if (reading.localSongPath && (await fileExistsNonEmpty(reading.localSongPath))) {
+        return reading.localSongPath;
+      }
+      if (!reading.songPath) throw new Error('Song not ready yet');
+
+      const folder = await getRowFolder(reading);
+      const ext = await inferAudioExtension(reading.songPath);
+      const dest = `${folder}song.${ext}`;
+
+      const uri = await downloadTo(reading.songPath, dest);
+      if (!uri) throw new Error('Song download failed');
+      if (!(await fileExistsNonEmpty(uri))) throw new Error('Song file is empty');
+
+      // Verify playable (2B)
+      const check = await Audio.Sound.createAsync({ uri }, { shouldPlay: false });
+      await check.sound.unloadAsync();
+
+      const info = await FileSystem.getInfoAsync(uri);
+      const sizeMB = typeof (info as any)?.size === 'number' ? (info as any).size / (1024 * 1024) : 0;
+      addSavedAudio({
+        readingId: `${reading.id}:song`,
+        personId,
+        system: reading.system as any,
+        fileName: `song.${ext}`,
+        filePath: uri,
+        durationSeconds: 0,
+        fileSizeMB: Number(sizeMB.toFixed(2)),
+        createdAt: new Date().toISOString(),
+        title: `${personName} — ${reading.name} (Song)`,
+      });
+
+      updateReadingLocal(reading.id, { localSongPath: uri });
+      return uri;
+    },
+    [addSavedAudio, downloadTo, fileExistsNonEmpty, getRowFolder, inferAudioExtension, personId, personName, updateReadingLocal]
+  );
+
+  const ensureLocalPdf = useCallback(
+    async (reading: Reading) => {
+      if (reading.localPdfPath && (await fileExistsNonEmpty(reading.localPdfPath))) {
+        return reading.localPdfPath;
+      }
+      if (!reading.pdfPath) throw new Error('PDF not ready yet');
+
+      const folder = await getRowFolder(reading);
+      const dest = `${folder}reading.pdf`;
+      const uri = await downloadTo(reading.pdfPath, dest);
+      if (!uri) throw new Error('PDF download failed');
+      if (!(await fileExistsNonEmpty(uri))) throw new Error('PDF file is empty');
+
+      const info = await FileSystem.getInfoAsync(uri);
+      const sizeMB = typeof (info as any)?.size === 'number' ? (info as any).size / (1024 * 1024) : 0;
+      addSavedPDF({
+        readingId: `${reading.id}:pdf`,
+        personId,
+        system: reading.system as any,
+        fileName: 'reading.pdf',
+        filePath: uri,
+        pageCount: 0,
+        fileSizeMB: Number(sizeMB.toFixed(2)),
+        createdAt: new Date().toISOString(),
+        title: `${personName} — ${reading.name}`,
+        type: 'individual',
+      });
+
+      updateReadingLocal(reading.id, { localPdfPath: uri });
+      return uri;
+    },
+    [addSavedPDF, downloadTo, fileExistsNonEmpty, getRowFolder, personId, personName, updateReadingLocal]
+  );
+
+  const handlePdfPress = useCallback(
+    async (reading: Reading) => {
       try {
-        data = JSON.parse(raw);
-      } catch {
-        // Non-JSON response (e.g. Not Found). Surface a helpful error.
-        throw new Error(raw?.slice(0, 120) || `ZIP request failed (${response.status})`);
+        const uri = await ensureLocalPdf(reading);
+        await Linking.openURL(uri);
+      } catch (e: any) {
+        Alert.alert('PDF', e?.message || 'Could not open PDF');
       }
+    },
+    [ensureLocalPdf]
+  );
 
-      if (!response.ok || !data?.success || !data?.downloadUrl) {
-        throw new Error(data?.error || `Failed to create ZIP (${response.status})`);
+  const handlePdfShare = useCallback(
+    async (reading: Reading) => {
+      try {
+        const uri = await ensureLocalPdf(reading);
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (!isAvailable) {
+          Alert.alert('Sharing not available', 'Unable to share files on this device.');
+          return;
+        }
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Save PDF',
+          UTI: 'com.adobe.pdf',
+        });
+      } catch (e: any) {
+        Alert.alert('PDF', e?.message || 'Could not share PDF');
       }
+    },
+    [ensureLocalPdf]
+  );
 
-      await Linking.openURL(data.downloadUrl);
-    } catch (error: any) {
-      console.error('ZIP download error:', error);
-      Alert.alert('Download Error', error.message || 'Could not download ZIP');
-    } finally {
-      setZipLoading(false);
-    }
-  };
+  const handleSongPress = useCallback(
+    async (reading: Reading) => {
+      try {
+        const uri = await ensureLocalSong(reading);
+        navigation.navigate('AudioPlayer', {
+          audioUrl: uri,
+          title: `${personName} — ${reading.name} (Song)`,
+          personName,
+          system: reading.system,
+          readingId: `${reading.id}:song`,
+        });
+      } catch (e: any) {
+        Alert.alert('Song', e?.message || 'Could not open song');
+      }
+    },
+    [ensureLocalSong, navigation, personName]
+  );
 
+  const handlePlayPress = useCallback(
+    async (reading: Reading) => {
+      try {
+        const uri = await ensureLocalAudio(reading);
+        await togglePlay({ ...reading, audioPath: uri, localAudioPath: uri });
+      } catch (e: any) {
+        Alert.alert('Audio', e?.message || 'Could not play audio');
+      }
+    },
+    [ensureLocalAudio, togglePlay]
+  );
 
+  const handleDownloadAllPress = useCallback(
+    async (reading: Reading) => {
+      try {
+        await ensureLocalPdf(reading);
+        await ensureLocalAudio(reading);
+        await ensureLocalSong(reading);
+      } catch (e: any) {
+        Alert.alert('Download All', e?.message || 'Download failed');
+      }
+    },
+    [ensureLocalAudio, ensureLocalPdf, ensureLocalSong]
+  );
+
+  // NOTE: PDF/audio/song are gated by local download+verification (A2 + 2B).
+  // Handlers are defined further below once we have download helpers.
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -1160,7 +1521,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
 
         {!!loadError && !loading && jobId && readings.length > 0 ? (
           <TouchableOpacity
-            onPress={load}
+            onPress={loadV2}
             onLongPress={() => {
               if (!__DEV__) return;
               const msg = [
@@ -1208,19 +1569,30 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           <View style={styles.readingsList}>
             {readings.map((reading, index) => {
               const isPlaying = playingId === reading.id;
-              const hasAudio = !!reading.audioPath;
-              const hasPdf = !!reading.pdfPath;
-              const hasSong = !!reading.songPath;
+              const hasAudioRemote = !!reading.audioPath;
+              const hasPdfRemote = !!reading.pdfPath;
+              const hasSongRemote = !!reading.songPath;
+              const hasAudioLocal = !!reading.localAudioPath;
+              const hasPdfLocal = !!reading.localPdfPath;
+              const hasSongLocal = !!reading.localSongPath;
+              const isGenerating =
+                !hasPdfRemote &&
+                !hasAudioRemote &&
+                !hasSongRemote &&
+                (jobStatus === 'processing' || jobStatus === 'pending' || jobStatus === 'queued');
               const progress = isPlaying && playbackDuration > 0
                 ? (playbackPosition / playbackDuration) * 100
                 : 0;
 
               return (
-                <View key={`${jobId}-${reading.id}-${reading.system}-${index}`} style={styles.readingCard}>
+                <View key={reading.id} style={styles.readingCard}>
                   {/* System Name with Timestamp - LEFT ALIGNED ABOVE BUTTONS */}
                   <View style={styles.systemNameContainer}>
                     <Text style={styles.systemName}>{reading.name}</Text>
-                    {reading.timestamp && (
+                    {isGenerating ? (
+                      <Text style={styles.generatingText}>Generating...</Text>
+                    ) : null}
+                    {reading.timestamp && (jobStatus === 'complete' || hasPdfRemote || hasAudioRemote || hasSongRemote) ? (
                       <Text style={styles.timestampText}>
                         {' '}
                         {new Date(reading.timestamp).toLocaleDateString('en-US', {
@@ -1231,48 +1603,46 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                           minute: '2-digit',
                         })}
                       </Text>
-                    )}
+                    ) : null}
                   </View>
                   
                   {/* Action Buttons Row */}
                   <View style={styles.actionButtons}>
                     <TouchableOpacity
-                      onPress={() => openPdf(reading)}
-                      style={[styles.pdfButton, !hasPdf && styles.disabledButton]}
-                      disabled={!hasPdf}
+                      onPress={() => handlePdfPress(reading)}
+                      onLongPress={() => handlePdfShare(reading)}
+                      style={[styles.pdfButton, !hasPdfLocal && styles.disabledButton]}
+                      disabled={!hasPdfRemote} // can't download/open if it doesn't exist remotely
                     >
-                      <Text style={[styles.pdfText, !hasPdf && styles.disabledText]}>PDF</Text>
+                      <Text style={[styles.pdfText, !hasPdfLocal && styles.disabledText]}>PDF</Text>
                     </TouchableOpacity>
                     
                     <TouchableOpacity
-                      onPress={() => downloadAudio(reading)}
-                      style={[styles.downloadButton, !hasAudio && styles.disabledButton]}
-                      disabled={!hasAudio}
+                      onPress={() => handleSongPress(reading)}
+                      style={[styles.songButton, !hasSongLocal && styles.disabledButton]}
+                      disabled={!hasSongRemote} // can't download/open if it doesn't exist remotely
                     >
-                      <Text style={[styles.downloadIcon, !hasAudio && styles.disabledText]}>↓</Text>
+                      <Text style={[styles.songIcon, !hasSongLocal && styles.disabledText]}>🎵</Text>
                     </TouchableOpacity>
-                    
-                    <TouchableOpacity
-                      onPress={() => {
-                        if (reading.songPath) {
-                          Linking.openURL(reading.songPath).catch(() => {
-                            Alert.alert('Error', 'Could not open song');
-                          });
-                        }
-                      }}
-                      style={[styles.songButton, !hasSong && styles.disabledButton]}
-                      disabled={!hasSong}
-                    >
-                      <Text style={[styles.songIcon, !hasSong && styles.disabledText]}>🎵</Text>
-                    </TouchableOpacity>
+
+                    {/* Download All (per-row) - only when all 3 exist remotely */}
+                    {hasPdfRemote && hasAudioRemote && hasSongRemote ? (
+                      <TouchableOpacity
+                        onPress={() => handleDownloadAllPress(reading)}
+                        style={styles.downloadAllButton}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.downloadAllText}>Download All</Text>
+                      </TouchableOpacity>
+                    ) : null}
                   </View>
 
                   {/* Audio Bar */}
                   <View style={styles.audioBar}>
                     <TouchableOpacity
-                      onPress={() => togglePlay(reading)}
-                      style={[styles.playButton, !hasAudio && styles.disabledButton]}
-                      disabled={!hasAudio}
+                      onPress={() => handlePlayPress(reading)}
+                      style={[styles.playButton, !hasAudioLocal && styles.disabledButton]}
+                      disabled={!hasAudioRemote} // can't download/play if it doesn't exist remotely
                     >
                       {loadingAudioId === reading.id ? (
                         audioLoadProgress[reading.id] && audioLoadProgress[reading.id] > 0 ? (
@@ -1293,8 +1663,8 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                       onLayout={(e: LayoutChangeEvent) => {
                         progressBarWidths.current[reading.id] = e.nativeEvent.layout.width;
                       }}
-                      onStartShouldSetResponder={() => isPlaying && hasAudio}
-                      onMoveShouldSetResponder={() => isPlaying && hasAudio}
+                      onStartShouldSetResponder={() => isPlaying && hasAudioLocal}
+                      onMoveShouldSetResponder={() => isPlaying && hasAudioLocal}
                       onResponderGrant={(e: GestureResponderEvent) => {
                         if (isPlaying) handleSeekStart();
                       }}
@@ -1323,7 +1693,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                     <Text style={styles.timeText}>
                       {isPlaying
                         ? `${formatTime(isSeeking ? seekPosition : playbackPosition)} / ${formatTime(playbackDuration)}`
-                        : hasAudio ? '0:00' : (hasPdf ? '…' : '--:--')
+                        : hasAudioLocal ? '0:00' : (hasPdfLocal ? '…' : '--:--')
                       }
                     </Text>
                   </View>
@@ -1332,30 +1702,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
             })}
           </View>
         )}
-
-        {/* Download All ZIP Button - only when everything is actually ready */}
-        {(() => {
-          const expectedCount = personType === 'overlay' ? 6 : 5;
-          const actual = readings.filter((r) => r.id.startsWith('reading-'));
-          const allReady =
-            jobId &&
-            !loading &&
-            actual.length === expectedCount &&
-            actual.every((r) => !!r.audioPath && !!r.pdfPath && !!r.songPath);
-          if (!allReady) return null;
-          return (
-            <TouchableOpacity
-              onPress={downloadAllAsZip}
-              disabled={zipLoading}
-              style={[styles.zipButton, zipLoading && styles.zipButtonLoading]}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.zipButtonText}>
-                {zipLoading ? 'Creating ZIP...' : 'Download All (ZIP)'}
-              </Text>
-            </TouchableOpacity>
-          );
-        })()}
 
       </ScrollView>
     </SafeAreaView>
@@ -1483,6 +1829,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#888',
     marginLeft: 8,
+  },
+  generatingText: {
+    fontFamily: 'System',
+    fontSize: 12,
+    color: '#888',
+    marginLeft: 8,
+    fontStyle: 'italic',
   },
   // Action buttons row - LEFT ALIGNED
   actionButtons: {

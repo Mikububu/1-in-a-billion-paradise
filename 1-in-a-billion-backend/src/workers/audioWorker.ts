@@ -268,7 +268,7 @@ export class AudioWorker extends BaseWorker {
     this.runpodEndpointId = env.RUNPOD_ENDPOINT_ID;
     this.voiceSampleUrl =
       env.VOICE_SAMPLE_URL ||
-      'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/voice_10sec.wav';
+      'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/david.wav';
   }
 
   protected async processTask(task: JobTask): Promise<TaskResult> {

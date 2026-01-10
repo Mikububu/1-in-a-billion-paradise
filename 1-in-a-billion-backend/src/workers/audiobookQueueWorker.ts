@@ -362,7 +362,7 @@ export class AudiobookQueueWorker {
     this.runpodEndpointId = env.RUNPOD_ENDPOINT_ID;
     this.voiceSampleUrl =
       env.VOICE_SAMPLE_URL ||
-      'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/voice_10sec.wav';
+      'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/david.wav';
 
     console.log(`🤖 AudiobookQueueWorker initialized: ${this.workerId}`);
   }

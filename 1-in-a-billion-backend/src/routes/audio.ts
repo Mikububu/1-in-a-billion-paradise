@@ -385,8 +385,9 @@ router.post('/generate-tts', async (c) => {
       const chunks = splitIntoChunks(parsed.text, chunkSize);
       console.log(`📦 Chunking ${textLength} chars into ${chunks.length} pieces (max ${chunkSize} chars/chunk)`);
 
-      // Voice sample for cloning (Michael's voice)
-      const voiceSampleUrl = parsed.audioUrl || 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/voice_10sec.wav';
+      // Voice sample for cloning (default narrator)
+      // NOTE: voice_10sec.wav was removed/renamed; default to a known-good public sample.
+      const voiceSampleUrl = parsed.audioUrl || 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/david.wav';
 
       // Sequential processing (RunPod serverless handles one at a time best)
       const generateChunk = async (chunk: string, index: number, maxRetries = 3): Promise<Buffer> => {
@@ -596,7 +597,7 @@ router.post('/generate-tts-stream', async (c) => {
   const textLength = parsed.text.length;
   const chunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || '300', 10);
   const chunks = splitIntoChunks(parsed.text, chunkSize);
-  const voiceSampleUrl = parsed.audioUrl || 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/voice_10sec.wav';
+  const voiceSampleUrl = parsed.audioUrl || 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/david.wav';
 
   console.log(`🌊 STREAMING TTS: ${textLength} chars -> ${chunks.length} chunks (max ${chunkSize} chars/chunk)`);
 
@@ -740,7 +741,7 @@ router.post('/hook-audio/generate', async (c) => {
     const chunks = splitIntoChunks(parsed.text, chunkSize);
     console.log(`📦 Chunking ${textLength} chars into ${chunks.length} pieces`);
 
-    const voiceSampleUrl = parsed.audioUrl || 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/voice_10sec.wav';
+    const voiceSampleUrl = parsed.audioUrl || 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/david.wav';
 
     // Generate chunks sequentially
     const audioBuffers: Buffer[] = [];
