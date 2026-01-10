@@ -14,6 +14,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { useAuthStore } from '@/store/authStore';
+import { colors } from '@/theme/tokens';
 
 const queryClient = new QueryClient();
 
@@ -43,9 +44,10 @@ export default function App() {
       ...NavigationDefaultTheme,
       colors: {
         ...NavigationDefaultTheme.colors,
-        background: '#FFFFFF',
+        // Make navigator surfaces transparent so the global leather texture shows through.
+        background: 'transparent',
         text: '#111111',
-        card: '#FFFFFF',
+        card: 'transparent',
         primary: '#FF4FA3',
         border: '#E5E7EB',
       },

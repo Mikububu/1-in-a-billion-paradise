@@ -70,12 +70,12 @@ export const NextStepScreen = ({ navigation }: Props) => {
         source={require('../../../assets/videos/hello_i_love_you.mp4')}
         style={styles.bottomVideo}
         resizeMode={ResizeMode.COVER}
-        shouldPlay={false}
+        shouldPlay={isFocused}
         isLooping
         isMuted
         volume={0}
         onReadyForDisplay={() => {
-          // Ensure autoplay resumes once the first frame is ready.
+          // Belt + suspenders: ensure autoplay resumes once frames are ready.
           if (isFocused) videoRef.current?.playAsync().catch(() => {});
         }}
       />
