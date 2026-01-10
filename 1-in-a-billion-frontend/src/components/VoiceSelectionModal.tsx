@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     container: {
-        backgroundColor: colors.background,
+        backgroundColor: colors.surface,
         borderTopLeftRadius: radii.xl,
         borderTopRightRadius: radii.xl,
         padding: spacing.lg,

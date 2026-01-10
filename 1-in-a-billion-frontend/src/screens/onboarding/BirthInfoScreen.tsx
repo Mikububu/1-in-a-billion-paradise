@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm + 4,
     marginBottom: spacing.sm,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.inputBg,
   },
   iconArt: {
     fontSize: 28,
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.divider,
     borderRadius: radii.card,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     marginBottom: spacing.sm,
     maxHeight: 250,
   },

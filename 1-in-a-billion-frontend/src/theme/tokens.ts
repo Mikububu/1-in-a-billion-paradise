@@ -4,7 +4,8 @@ const UNIFIED_BG = 'rgba(247, 246, 243, 0.88)';
 
 export const colors = {
   background: UNIFIED_BG,
-  surface: UNIFIED_BG,
+  // Canonical "broken white" surfaces for cards + inputs
+  surface: '#ECEAE6',
   text: '#1A1A1A',
   mutedText: '#6B6B6B',
   divider: '#ECEAE6',
@@ -13,7 +14,7 @@ export const colors = {
   primarySoft: '#FFF2F2',
   accentSoft: 'rgba(209, 0, 0, 0.06)',
   cardStroke: 'rgba(30, 25, 20, 0.05)',
-  inputBg: UNIFIED_BG,
+  inputBg: '#ECEAE6',
   success: '#10B981',
   warning: '#F97316',
   error: '#EF4444',
