@@ -382,8 +382,28 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
       return c.json({ success: false, error: 'Failed to generate signed URL' }, 500);
     }
 
-    // Redirect to the signed URL
-    return c.redirect(signedUrl);
+    // Stream the audio bytes directly (iOS AVPlayer has issues with redirects)
+    console.log(`🎵 Streaming audio from: ${signedUrl.substring(0, 80)}...`);
+    const audioResponse = await fetch(signedUrl);
+    
+    if (!audioResponse.ok) {
+      console.error(`❌ Failed to fetch audio: ${audioResponse.status} ${audioResponse.statusText}`);
+      return c.json({ success: false, error: 'Failed to fetch audio from storage' }, 500);
+    }
+
+    const contentType = audioResponse.headers.get('content-type') || 'audio/mpeg';
+    const contentLength = audioResponse.headers.get('content-length');
+    
+    // Return streaming response with proper headers for iOS AVPlayer
+    return new Response(audioResponse.body, {
+      status: 200,
+      headers: {
+        'Content-Type': contentType,
+        ...(contentLength ? { 'Content-Length': contentLength } : {}),
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'public, max-age=3600',
+      },
+    });
   } catch (error: any) {
     console.error('Error in audio endpoint:', error);
     return c.json({ success: false, error: error.message || 'Internal server error' }, 500);
@@ -477,15 +497,38 @@ router.get('/v2/:jobId/song/:docNum', async (c) => {
 
     console.log(`✅ Found song artifact for docNum ${docNum}: ${songArtifact.storage_path}`);
 
-    // Get signed URL (valid for 1 hour)
-    const signedUrl = await getSignedArtifactUrl(songArtifact.storage_path, 3600);
+    // Get the URL to fetch from (prefer public, fallback to signed)
+    let fetchUrl = songArtifact.public_url;
+    if (!fetchUrl) {
+      fetchUrl = await getSignedArtifactUrl(songArtifact.storage_path, 3600);
+    }
     
-    if (!signedUrl) {
-      return c.json({ success: false, error: 'Failed to generate signed URL' }, 500);
+    if (!fetchUrl) {
+      return c.json({ success: false, error: 'Failed to generate URL' }, 500);
     }
 
-    // Redirect to the signed URL
-    return c.redirect(signedUrl);
+    // Stream the song bytes directly (iOS AVPlayer has issues with redirects)
+    console.log(`🎵 Streaming song from: ${fetchUrl.substring(0, 80)}...`);
+    const songResponse = await fetch(fetchUrl);
+    
+    if (!songResponse.ok) {
+      console.error(`❌ Failed to fetch song: ${songResponse.status} ${songResponse.statusText}`);
+      return c.json({ success: false, error: 'Failed to fetch song from storage' }, 500);
+    }
+
+    const contentType = songResponse.headers.get('content-type') || 'audio/mpeg';
+    const contentLength = songResponse.headers.get('content-length');
+    
+    // Return streaming response with proper headers for iOS AVPlayer
+    return new Response(songResponse.body, {
+      status: 200,
+      headers: {
+        'Content-Type': contentType,
+        ...(contentLength ? { 'Content-Length': contentLength } : {}),
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'public, max-age=3600',
+      },
+    });
   } catch (error: any) {
     console.error('Error in song endpoint:', error);
     return c.json({ success: false, error: error.message || 'Internal server error' }, 500);
@@ -739,14 +782,6 @@ router.post('/v2/start', async (c) => {
   try {
     const payload = startJobSchema.parse(await c.req.json());
     console.log(`📥 Starting ${payload.type} job (V2) for ${payload.person1.name}`);
-    
-    // #region agent log
-    const fs = require('fs');
-    const logPath = '/Users/michaelperinwogenburg/Desktop/big challenge/.cursor/debug.log';
-    try {
-      fs.appendFileSync(logPath, JSON.stringify({location:'jobs.ts:740',message:'Backend received job',data:{type:payload.type,person1Name:payload.person1.name,person1Id:payload.person1.id,systems:payload.systems,systemsCount:payload.systems?.length,voiceId:payload.voiceId,hasAudioUrl:!!payload.audioUrl},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'BACKEND'}) + '\n');
-    } catch {}
-    // #endregion
 
     // Check if Supabase is configured
     if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {

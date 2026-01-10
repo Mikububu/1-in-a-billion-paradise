@@ -334,12 +334,7 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
       voiceId: voiceIdOverride || selectedVoice, // Use override if passed
       // Note: audioUrl is no longer needed - backend will fetch it based on voiceId
       // audioUrl: Will be fetched by backend based on voiceId
-    };
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SystemSelectionScreen.tsx:320',message:'Job payload created',data:{person1Id:person1?.id,person1Name:person1?.name,person2Id:person2?.id,person2Name:person2?.name,jobType,systems:systemsToGenerate,systemsCount:systemsToGenerate.length,voiceId:payload.voiceId,audioUrl:payload.audioUrl?.substring(0,80)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOBCREATE'})}).catch(()=>{});
-    // #endregion
-    if (isOverlayFlow) {
+    };    if (isOverlayFlow) {
       payload.person2 = person2;
       if (contextOverride || relationshipContext) {
         payload.relationshipContext = contextOverride || relationshipContext; // Add context for overlays

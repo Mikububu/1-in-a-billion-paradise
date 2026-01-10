@@ -391,12 +391,6 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
   // Handle audio playback
   const handlePlayAudio = useCallback(async (reading: HookReading) => {
     const type = reading.type;
-
-    // #region agent log
-    // H5: Button click handler fired
-    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:handlePlayAudio:entry',message:'handlePlayAudio called',data:{type,hasReading:!!reading,hookAudioValue:hookAudio[type],hookAudioType:typeof hookAudio[type],isEmptyString:hookAudio[type]==='',isNull:hookAudio[type]===null,isUndefined:hookAudio[type]===undefined,fullHookAudio:hookAudio},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H5'})}).catch(()=>{});
-    // #endregion
-
     // Stop logic ... (same as before)
     if (currentPlayingType.current === type && soundRef.current) {
       // ... stop ...
@@ -426,12 +420,6 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
 
     // RESOLVE AUDIO SOURCE
     let audioSource: string | null = hookAudio[type] || null;
-
-    // #region agent log
-    // H2, H4: Audio source resolution
-    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:handlePlayAudio:resolveSource',message:'Audio source resolved',data:{type,audioSource,hasAudioSource:!!audioSource,isUrl:audioSource?.startsWith('http'),isFile:audioSource?.endsWith('.mp3'),isBase64:!audioSource?.startsWith('http')&&!audioSource?.endsWith('.mp3')&&!!audioSource},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
-
     // Check in-flight
     if (!audioSource) {
       const inFlight = inFlightAudio.current[type];
@@ -493,50 +481,17 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
   useEffect(() => {
     const currentReading = readings[page];
     console.log(`🎯 Preload check: page=${page}, type=${currentReading?.type}, moon=${!!moon}, moonAudio=${!!hookAudio.moon}`);
-
-    // #region agent log
-    // H2, H3: Preload check triggered
-    if (__DEV__) {
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:preloadCheck',message:'Preload check triggered',data:{page,currentType:currentReading?.type,hasMoon:!!moon,hasMoonAudio:!!hookAudio.moon,hasRising:!!rising,hasRisingAudio:!!hookAudio.rising,isGeneratingMoon:isGeneratingMoonAudio.current,isGeneratingRising:isGeneratingRisingAudio.current},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H2'})}).catch(()=>{});
-    }
-    // #endregion
-
     // On SUN page → background generate MOON audio
     if (currentReading?.type === 'sun' && moon && !hookAudio.moon && !isGeneratingMoonAudio.current) {
       isGeneratingMoonAudio.current = true;
       const startTime = Date.now();
       console.log('🎵 SUN page: Starting MOON audio generation...');
-
-      // #region agent log
-      // H2: Moon audio pre-rendering started
-      if (__DEV__) {
-        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:preloadMoon:start',message:'Moon audio pre-rendering started',data:{page,triggeredFrom:'sun-page'},timestamp:startTime,sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H2'})}).catch(()=>{});
-      }
-      // #endregion
-
       startHookAudioGeneration('moon', moon).then((url) => {
-        const duration = Date.now() - startTime;
-        
-        // #region agent log
-        // H2, H5: Moon audio pre-rendering result
-        if (__DEV__) {
-          const stored = useOnboardingStore.getState().hookAudio.moon;
-          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:preloadMoon:complete',message:'Moon audio pre-rendering complete',data:{success:!!url,audioUrl:url,storedUrl:stored,matches:stored===url,durationMs:duration},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H2'})}).catch(()=>{});
-        }
-        // #endregion
-        
+        const duration = Date.now() - startTime;        
         if (url) console.log('✅ MOON audio ready!');
         else console.log('❌ MOON audio failed');
       }).catch((err: any) => {
-        const duration = Date.now() - startTime;
-        
-        // #region agent log
-        // H2, H4: Moon audio pre-rendering error
-        if (__DEV__) {
-          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:preloadMoon:error',message:'Moon audio pre-rendering error',data:{error:err.message,durationMs:duration},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H2'})}).catch(()=>{});
-        }
-        // #endregion
-        
+        const duration = Date.now() - startTime;        
         console.log('❌ MOON audio failed:', err);
       });
     }
@@ -546,37 +501,12 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
       isGeneratingRisingAudio.current = true;
       const startTime = Date.now();
       console.log('🎵 MOON page: Starting RISING audio generation...');
-
-      // #region agent log
-      // H3: Rising audio pre-rendering started
-      if (__DEV__) {
-        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:preloadRising:start',message:'Rising audio pre-rendering started',data:{page,triggeredFrom:'moon-page'},timestamp:startTime,sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H3'})}).catch(()=>{});
-      }
-      // #endregion
-
       startHookAudioGeneration('rising', rising).then((url) => {
-        const duration = Date.now() - startTime;
-        
-        // #region agent log
-        // H3, H5: Rising audio pre-rendering result
-        if (__DEV__) {
-          const stored = useOnboardingStore.getState().hookAudio.rising;
-          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:preloadRising:complete',message:'Rising audio pre-rendering complete',data:{success:!!url,audioUrl:url,storedUrl:stored,matches:stored===url,durationMs:duration},timestamp:Date.now(),sessionId:'audio-debug',runId:'audio-debug',hypothesisId:'H3'})}).catch(()=>{});
-        }
-        // #endregion
-        
+        const duration = Date.now() - startTime;        
         if (url) console.log('✅ RISING audio ready!');
         else console.log('❌ RISING audio failed');
       }).catch((err: any) => {
-        const duration = Date.now() - startTime;
-        
-        // #region agent log
-        // H3, H4: Rising audio pre-rendering error
-        if (__DEV__) {
-          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:preloadRising:error',message:'Rising audio pre-rendering error',data:{error:err.message,durationMs:duration},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H3'})}).catch(()=>{});
-        }
-        // #endregion
-        
+        const duration = Date.now() - startTime;        
         console.log('❌ RISING audio failed:', err);
       });
     }
@@ -1004,16 +934,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     const { contentOffset, layoutMeasurement } = event.nativeEvent;
     const index = Math.round(contentOffset.x / layoutMeasurement.width);
     const oldPage = page;
-    setPage(index);
-    
-    // #region agent log
-    // H2, H3: Page change tracked
-    if (__DEV__ && index !== oldPage) {
-      const currentReading = readings[index];
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:handleScroll',message:'Page changed',data:{oldPage,newPage:index,currentType:currentReading?.type,hasMoon:!!moon,hasMoonAudio:!!hookAudio.moon,hasRising:!!rising,hasRisingAudio:!!hookAudio.rising},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H2'})}).catch(()=>{});
-    }
-    // #endregion
-  };
+    setPage(index);  };
 
   // No longer need swipe detection - we have a real 4th page now
 
@@ -1256,12 +1177,7 @@ ${rising.main}`;
                           audioPlaying[item.type] && styles.audioBtnActive,
                         ]}
                         onPress={() => {
-                          console.log('🔊 Audio button pressed for:', item.type);
-                          // #region agent log
-                          // H5: Button onPress fired
-                          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HookSequenceScreen.tsx:audioButton:onPress',message:'Audio button onPress fired',data:{type:item.type,audioLoading:audioLoading[item.type],audioPlaying:audioPlaying[item.type],hasHookAudio:!!hookAudio[item.type],hookAudioValue:hookAudio[item.type]},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H5'})}).catch(()=>{});
-                          // #endregion
-                          handlePlayAudio(item as HookReading);
+                          console.log('🔊 Audio button pressed for:', item.type);                          handlePlayAudio(item as HookReading);
                         }}
                         disabled={audioLoading[item.type]}
                         activeOpacity={0.7}

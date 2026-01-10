@@ -9,7 +9,8 @@
 import { apiKeys } from './apiKeysHelper';
 import axios from 'axios';
 
-const MINIMAX_MUSIC_BASE_URL = 'https://platform.minimax.io';
+// CORRECT API endpoint per MiniMax docs: https://platform.minimax.io/docs/api-reference/music-generation
+const MINIMAX_MUSIC_BASE_URL = 'https://api.minimax.io';
 
 export interface SongGenerationInput {
   lyrics: string;
@@ -51,12 +52,15 @@ export async function generateSong(input: SongGenerationInput): Promise<SongGene
         'Content-Type': 'application/json',
       },
       data: {
-        model: 'music-1.5',
+        model: 'music-2.0', // Updated per MiniMax docs
         prompt,
         lyrics,
-        style,
-        emotion,
-        duration,
+        output_format: 'url', // Get URL instead of hex-encoded audio
+        audio_setting: {
+          sample_rate: 44100,
+          bitrate: 256000,
+          format: 'mp3',
+        },
       },
       timeout: 300000, // 5 minutes timeout (song generation can take time)
     });
@@ -76,21 +80,29 @@ export async function generateSong(input: SongGenerationInput): Promise<SongGene
       throw new Error(`No data in MiniMax response (snippet=${snippet})`);
     }
 
-    // Extract audio (prefer URL, fallback to base64)
-    const audioUrl = data.audio_url;
-    const audioBase64 = data.audio_base64;
-    const songDuration = data.duration || duration;
+    // Music 2.0 API returns:
+    // - data.audio: hex-encoded audio OR URL (depending on output_format)
+    // - data.status: 2 = success
+    // - extra_info.music_duration: duration in ms
+    const audioData = data.audio;
+    const extraInfo = response.data?.extra_info;
+    const songDuration = extraInfo?.music_duration ? Math.round(extraInfo.music_duration / 1000) : duration;
     const traceId = response.data.trace_id;
 
-    if (!audioUrl && !audioBase64) {
+    if (!audioData) {
       throw new Error('No audio data in MiniMax response');
     }
+
+    // Determine if we got a URL or hex-encoded audio
+    const isUrl = typeof audioData === 'string' && audioData.startsWith('http');
+    const audioUrl = isUrl ? audioData : undefined;
+    const audioBase64 = !isUrl ? Buffer.from(audioData, 'hex').toString('base64') : undefined;
 
     console.log(`✅ Song generated successfully (${songDuration}s)`);
     if (audioUrl) {
       console.log(`   Audio URL: ${audioUrl.substring(0, 50)}...`);
-    } else {
-      console.log(`   Audio Base64: ${audioBase64.length} bytes`);
+    } else if (audioBase64) {
+      console.log(`   Audio Base64: ${audioBase64.length} chars`);
     }
 
     return {

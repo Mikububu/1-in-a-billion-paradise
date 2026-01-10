@@ -67,9 +67,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   const { personName, personType, jobId: routeJobId } = route.params;
   const routePersonId = (route.params as any).personId; // May not exist in older nav calls
 
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:mount',message:'Screen mounted',data:{personName,personType,routeJobId,routePersonId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-  // #endregion
 
   // Store access
   const people = useProfileStore((s) => s.people);
@@ -81,9 +78,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   const addSavedAudio = useProfileStore((s) => s.addSavedAudio);
   const addSavedPDF = useProfileStore((s) => s.addSavedPDF);
 
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:people',message:'People from store',data:{peopleCount:people.length,peopleNames:people.map(p=>p.name),peopleIds:people.map(p=>p.id)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-  // #endregion
 
   // Find person - try ID first, then fallback to name lookup
   const person = routePersonId 
@@ -95,9 +89,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   // FALLBACK: If no jobId from route, use first jobId from person's store
   const jobId = routeJobId || person?.jobIds?.[0] || undefined;
 
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:personLookup',message:'Person lookup result',data:{found:!!person,personId,personName:person?.name,routePersonId,searchName:personName,personJobIds:person?.jobIds,personJobIdsCount:person?.jobIds?.length||0,routeJobId,resolvedJobId:jobId,usedFallback:!routeJobId&&!!person?.jobIds?.[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-  // #endregion
 
   // Get readings from store (SINGLE SOURCE OF TRUTH - Audible style)
   // If jobId provided, use it. Otherwise, get readings from ALL jobs for this person
@@ -107,9 +98,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         : (person?.readings || [])) // Show all readings if no specific jobId
     : [];
   
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:storedReadings',message:'Readings from store',data:{personId,jobId,storedReadingsCount:storedReadings.length,storedReadings:storedReadings.map(r=>({id:r.id,system:r.system,jobId:r.jobId,hasPdf:!!r.pdfPath,hasAudio:!!r.audioPath}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3,H4'})}).catch(()=>{});
-  // #endregion
   
   // Initialize with store readings for instant display (like Audible)
   // Convert store readings to screen format
@@ -131,9 +119,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     return hasRealContent;
   });
   
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:initialReadings',message:'Initial readings mapped and filtered',data:{initialReadingsRawCount:initialReadingsRaw.length,initialReadingsCount:initialReadings.length,filteredOut:initialReadingsRaw.length-initialReadings.length,systemsAvailable:!!SYSTEMS,systemsCount:SYSTEMS?.length,initialReadings:initialReadings.map(r=>({id:r.id,system:r.system,name:r.name,hasPdf:!!r.pdfPath,hasAudio:!!r.audioPath,hasSong:!!r.songPath}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5,H6'})}).catch(()=>{});
-  // #endregion
   
   const [readings, setReadings] = useState<Reading[]>(initialReadings);
   const [jobStatus, setJobStatus] = useState<string>('pending'); // NEW: Track job status
@@ -151,6 +136,17 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   const soundRef = useRef<Audio.Sound | null>(null);
   const progressBarWidths = useRef<Record<string, number>>({});
   const isPlayingMutex = useRef(false); // Prevent multiple plays at once
+  
+  // Song playback state (separate from narration)
+  const [playingSongId, setPlayingSongId] = useState<string | null>(null);
+  const [loadingSongId, setLoadingSongId] = useState<string | null>(null);
+  const [songPosition, setSongPosition] = useState(0);
+  const [songDuration, setSongDuration] = useState(0);
+  const [isSongSeeking, setIsSongSeeking] = useState(false);
+  const [songSeekPosition, setSongSeekPosition] = useState(0);
+  const songSoundRef = useRef<Audio.Sound | null>(null);
+  const songProgressBarWidths = useRef<Record<string, number>>({});
+  const isSongPlayingMutex = useRef(false);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const readingsCountRef = useRef(0);
 
@@ -276,9 +272,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     }
     setLoadError(null);
 
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:loadStart',message:'loadReadings start',data:{jobId,personType,personName,hasJobId:!!jobId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'LOAD'})}).catch(()=>{});
-    // #endregion
     // Fly can take >10s to assemble job results + sign URLs (especially nuclear_v2),
     // so use a more forgiving timeout and retry once on transient failures.
     const REQUEST_TIMEOUT_MS = 30000;
@@ -322,9 +315,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       }
       if (!jobData) throw lastErr || new Error('Failed to load job');
 
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:jobData',message:'Job data loaded',data:{jobId,status:jobData.job?.status,type:jobData.job?.type,documentsCount:jobData.job?.results?.documents?.length||0,documents:(jobData.job?.results?.documents||[]).map((d:any)=>({docNum:d.docNum,hasPdf:!!d.pdfUrl,hasAudio:!!d.audioUrl,hasSong:!!d.songUrl}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'JOBDATA'})}).catch(()=>{});
-      // #endregion
       // NEW: Extract and set job status and progress
       const status = jobData.job?.status || 'pending';
       const progress = jobData.job?.progress || null;
@@ -342,9 +332,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       const allJobIds = person?.jobIds || [];
       const shouldAggregateJobs = initialOrderedSystems.length === 1 && allJobIds.length > 1 && jobType === 'extended';
       
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:aggregateCheck',message:'Checking if should aggregate jobs',data:{currentJobId:jobId,currentJobSystemsCount:initialOrderedSystems.length,allJobIdsCount:allJobIds.length,allJobIds,shouldAggregateJobs},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'AGGREGATE'})}).catch(()=>{});
-      // #endregion
       
       const docRange = getDocRange(jobType, systemCount);
       
@@ -354,9 +341,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       // AGGREGATE: If current job only has 1 system, fetch from all other jobs too
       let allDocuments = documents;
       if (shouldAggregateJobs) {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:aggregateStart',message:'Starting job aggregation',data:{allJobIdsCount:allJobIds.length,otherJobIds:allJobIds.filter(id=>id!==jobId)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'AGGREGATE'})}).catch(()=>{});
-        // #endregion
         const otherJobIds = allJobIds.filter(id => id !== jobId);
         const otherJobsData = await Promise.all(
           otherJobIds.map(async (otherJobId) => {
@@ -374,9 +358,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           .filter(Boolean)
           .flatMap((jd: any) => (jd.data.job?.results?.documents || []).map((doc: any) => ({ ...doc, jobId: jd.jobId })));
         allDocuments = [...documents, ...otherDocuments];
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:aggregateResult',message:'Job aggregation complete',data:{originalDocumentsCount:documents.length,otherDocumentsCount:otherDocuments.length,totalDocumentsCount:allDocuments.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'AGGREGATE'})}).catch(()=>{});
-        // #endregion
       }
       const hasAnyAudioFromApi = Array.isArray(documents) && documents.some((d: any) => !!d?.audioUrl);
 
@@ -457,11 +438,8 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           system: system.id,
           name: system.name,
           pdfPath: existing?.pdfPath || doc.pdfUrl || undefined,
-          // Use backend proxy endpoint for audio streaming (AVPlayer-friendly Range support).
-          // This avoids sending Supabase signed URLs directly to clients.
+          // Use backend proxy URLs (streams bytes directly, iOS compatible)
           audioPath: existing?.audioPath || (doc.audioUrl ? `${env.CORE_API_URL}/api/jobs/v2/${docJobId}/audio/${docNum}` : undefined),
-          // Song URL (if generated)
-          // Use backend proxy endpoint for song downloads (consistent with audio)
           songPath: existing?.songPath || (doc.songUrl ? `${env.CORE_API_URL}/api/jobs/v2/${docJobId}/song/${docNum}` : undefined),
           timestamp: existing?.timestamp || doc.created_at || jobData?.job?.created_at || new Date().toISOString(),
         };
@@ -473,9 +451,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         if (doc.songUrl) {
           console.log(`   🎶 Song URL: ${doc.songUrl.substring(0, 80)}...`);
         }
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:songCheck',message:'Song artifact check',data:{docNum,system:system.id,hasSongUrl:!!doc.songUrl,hasSongPath:!!readingsMap[mapKey]?.songPath,docJobId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SONG'})}).catch(()=>{});
-        // #endregion
       }
 
       console.log('📦 Readings built:', Object.keys(readingsMap).length);
@@ -501,8 +476,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
             }
           }
 
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:supabaseSync',message:'Syncing artifacts from Supabase',data:{jobIdsChecked:jobIdsToCheck.length,totalArtifacts:allArtifacts.length,artifactTypes:allArtifacts.map((a:any)=>a.artifact_type)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SYNC'})}).catch(()=>{});
           // #endregion
 
           // Fetch tasks to derive docNum from sequence (like backend does)
@@ -562,9 +535,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
             }
             
             if (!key) {
-              // #region agent log
-              fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:artifactSkipped',message:'Artifact skipped - no key',data:{artifactId:a.id,artifactType:a.artifact_type,hasDocNum:!!docNum,hasSystem:!!system,hasTaskId:!!a.task_id,taskSequence:taskIdToSequence[a.task_id]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SYNC'})}).catch(()=>{});
-              // #endregion
               continue;
             }
             
@@ -608,11 +578,15 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           for (const s of signed) {
             if (!s) continue;
             const r = readingsMap[s.key];
+            // Map key to docNum for proxy URL (key is docNum string or system ID)
+            const docNumFromKey = !isNaN(parseInt(s.key, 10)) ? parseInt(s.key, 10) : 
+              (SYSTEMS.findIndex(sys => sys.id === s.key) + 1) || 1;
             if (r) {
               // Update existing reading - fill gaps, prefer Supabase if API didn't provide
+              // Use backend proxy URLs for iOS compatibility
               if (!r.pdfPath && s.pdfUrl) r.pdfPath = s.pdfUrl;
-              if (!r.audioPath && s.audioUrl) r.audioPath = s.audioUrl;
-              if (!r.songPath && s.songUrl) r.songPath = s.songUrl;
+              if (!r.audioPath && s.audioUrl) r.audioPath = `${env.CORE_API_URL}/api/jobs/v2/${s.jobId}/audio/${docNumFromKey}`;
+              if (!r.songPath && s.songUrl) r.songPath = `${env.CORE_API_URL}/api/jobs/v2/${s.jobId}/song/${docNumFromKey}`;
             } else if (shouldAggregateJobs) {
               // For aggregated jobs, create reading from Supabase artifact if not in API response
               const system = SYSTEMS.find(sys => sys.id === s.key);
@@ -622,22 +596,16 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                   system: system.id,
                   name: system.name,
                   pdfPath: s.pdfUrl || undefined,
-                  audioPath: s.audioUrl || undefined,
-                  songPath: s.songUrl || undefined,
+                  audioPath: s.audioUrl ? `${env.CORE_API_URL}/api/jobs/v2/${s.jobId}/audio/${docNumFromKey}` : undefined,
+                  songPath: s.songUrl ? `${env.CORE_API_URL}/api/jobs/v2/${s.jobId}/song/${docNumFromKey}` : undefined,
                   timestamp: jobData?.job?.created_at || new Date().toISOString(),
                 };
               }
             }
           }
           
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:supabaseSyncComplete',message:'Supabase sync complete',data:{artifactsProcessed:allArtifacts.length,readingsUpdated:Object.keys(readingsMap).length,keysProcessed:keysToProcess.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SYNC'})}).catch(()=>{});
-          // #endregion
         } catch (e) {
           console.error('⚠️ Error syncing from Supabase:', e);
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:supabaseSyncError',message:'Supabase sync failed',data:{error:String(e)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SYNC'})}).catch(()=>{});
-          // #endregion
         }
       }
 
@@ -647,9 +615,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         ? ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah']
         : (jobData.job?.params?.systems || []);
       console.log(`📋 Ordered systems from job params:`, orderedSystems);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:orderedSystems',message:'Ordered systems analysis',data:{orderedSystemsCount:orderedSystems.length,orderedSystems,personType,systemCount:orderedSystems.length,docRange,shouldAggregateJobs},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SYSTEMS'})}).catch(()=>{});
-      // #endregion
       const systemsToShow = personType === 'overlay' 
         ? SYSTEMS 
         : SYSTEMS.filter(s => orderedSystems.includes(s.id));
@@ -657,9 +622,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       // If no systems specified, fall back to showing first N systems (legacy behavior)
       const finalSystemsToShow = systemsToShow.length > 0 ? systemsToShow : SYSTEMS.slice(0, systemCount);
       console.log(`📋 Final systems to show (${finalSystemsToShow.length}):`, finalSystemsToShow.map(s => s.name));
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:finalSystemsToShow',message:'Final systems to show',data:{finalSystemsToShowCount:finalSystemsToShow.length,finalSystemsToShow:finalSystemsToShow.map(s=>s.id),readingsMapKeys:Object.keys(readingsMap),readingsMapCount:Object.keys(readingsMap).length,shouldAggregateJobs},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SYSTEMS'})}).catch(()=>{});
-      // #endregion
       
       // Build finalReadings: for aggregated jobs, use system-based lookup; otherwise use docNum
       let finalReadings: Reading[];
@@ -697,9 +659,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           };
         });
       }
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:finalReadingsBeforeFilter',message:'Final readings before filter',data:{finalReadingsCount:finalReadings.length,finalReadings:finalReadings.map(r=>({id:r.id,system:r.system,name:r.name,hasPdf:!!r.pdfPath,hasAudio:!!r.audioPath,hasSong:!!r.songPath,isPlaceholder:r.id.startsWith('placeholder')}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FILTER'})}).catch(()=>{});
-      // #endregion
 
       // Add numbering + timestamps for duplicate system readings (newest first)
       const systemGroups: Record<string, typeof finalReadings> = {};
@@ -738,9 +697,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
 
       // Show all readings if job is processing, otherwise filter out truly empty ones
       // This allows inactive placeholder readings to be visible while job processes
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:beforeFilter',message:'Pre-filter readings',data:{finalReadingsCount:finalReadings.length,jobStatus:status,finalReadings:finalReadings.map(r=>({id:r.id,system:r.system,hasPdf:!!r.pdfPath,hasAudio:!!r.audioPath,hasSong:!!r.songPath}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FILTER'})}).catch(()=>{});
-      // #endregion
       const isJobProcessing = status === 'processing' || status === 'pending' || status === 'queued';
       const realReadings = isJobProcessing 
         ? finalReadings // Show all placeholders while processing
@@ -750,15 +706,9 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
             return hasRealContent;
           });
 
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:afterFilter',message:'Post-filter readings',data:{realReadingsCount:realReadings.length,realReadings:realReadings.map(r=>({id:r.id,system:r.system}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FILTER'})}).catch(()=>{});
-      // #endregion
       // If no real readings exist, show nothing (empty state)
       // Don't show placeholders for incomplete/failed jobs
       setReadings(realReadings);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:setReadings',message:'State updated with readings',data:{newReadingsCount:realReadings.length,systems:realReadings.map(r=>r.system)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'STATE'})}).catch(()=>{});
-      // #endregion
 
       // AUDIBLE-STYLE PERSISTENCE: Sync to store for persistent library
       // CRITICAL: Only sync readings that have at least one artifact (prevents empty readings in cache)
@@ -805,9 +755,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     } catch (e: any) {
       const errorMsg = e.name === 'AbortError' ? 'Request timed out' : e.message;
       console.error('❌ [PersonReadings] Error loading readings:', errorMsg);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:catch',message:'Error in loadReadings',data:{error:errorMsg,jobId,personType,hadReadingsBeforeError:readings.length>0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'ERROR'})}).catch(()=>{});
-      // #endregion
       // Only set error if we were refreshing existing readings (had readings before error)
       // If no readings existed, just show empty state - no error needed
       const hadReadingsBeforeError = readings.length > 0;
@@ -942,6 +889,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
               name: systemName,
               timestamp: createdAt,
               pdfPath: doc?.pdfUrl || undefined,
+              // Use backend proxy URLs (streams bytes directly, iOS compatible)
               audioPath: doc?.audioUrl ? `${env.CORE_API_URL}/api/jobs/v2/${j.id}/audio/${docNum}` : undefined,
               songPath: doc?.songUrl ? `${env.CORE_API_URL}/api/jobs/v2/${j.id}/song/${docNum}` : undefined,
               localPdfPath: localPdf,
@@ -1022,43 +970,31 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     };
   }, []);
 
-  // Auto-refresh while chapters are still arriving (PDF/audio often lands at slightly different times).
-  // This prevents the "everything greyed out / missing one chapter" experience.
-  // 
-  // ✅ OPTIMIZATION: Now that placements are saved during hooks, we don't need to poll
-  // for basic user data anymore. Only poll if there's an ACTIVE JOB generating content.
+  // Auto-refresh ONLY while job is actively generating (processing/pending/queued).
+  // Once job is complete, no need to poll - all content should be available.
   useEffect(() => {
-    if (!jobId) return; // No job = nothing to poll for
+    if (!jobId) return;
     if (loading) return;
     if (playingId) return; // don't disrupt active playback
 
-    // Only poll if we're ACTUALLY missing content from an active job
-    const hasActualReadings = readings.some((r) => r.id.startsWith('reading-'));
-    const missingAudio = readings.some((r) => r.id.startsWith('reading-') && !r.audioPath);
-    const missingPdf = readings.some((r) => r.id.startsWith('reading-') && !r.pdfPath);
-
-    // If we have NO real readings yet (all placeholders), poll more frequently
-    const shouldPollFast = !hasActualReadings;
-    // If we have SOME readings but missing audio/PDF, poll slowly
-    const shouldPollSlow = hasActualReadings && (missingAudio || missingPdf);
-
-    if (!shouldPollFast && !shouldPollSlow) {
-      // Everything is complete - stop polling
+    // STOP polling if job is complete or failed
+    const jobIsActive = jobStatus === 'processing' || jobStatus === 'pending' || jobStatus === 'queued';
+    if (!jobIsActive) {
       if (pollTimerRef.current) {
         clearInterval(pollTimerRef.current);
         pollTimerRef.current = null;
-        console.log('✅ All content loaded - stopping poll');
+        console.log('✅ Job complete - stopping poll');
       }
       return;
     }
 
+    // Only poll if job is still generating
     if (pollTimerRef.current) return; // already polling
 
-    const pollInterval = shouldPollFast ? 8000 : 20000; // Fast while generating, slow for stragglers
-    console.log(`🔄 Starting poll: ${shouldPollFast ? 'FAST' : 'SLOW'} (${pollInterval}ms)`);
+    const pollInterval = 15000; // Poll every 15s while generating
+    console.log(`🔄 Starting poll (job ${jobStatus}) every ${pollInterval}ms`);
 
     pollTimerRef.current = setInterval(() => {
-      // Don't poll while seeking or playing; keep UI stable
       if (isSeeking) return;
       if (isPlayingMutex.current) return;
       if (soundRef.current) return;
@@ -1071,7 +1007,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         pollTimerRef.current = null;
       }
     };
-  }, [jobId, loading, readings, playingId, isSeeking, loadV2]);
+  }, [jobId, jobStatus, loading, playingId, isSeeking, loadV2]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -1121,24 +1057,38 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         setPlayingId(null);
       }
 
+      // Also stop song if playing (mutual exclusion - like Audible)
+      if (songSoundRef.current) {
+        console.log('🛑 Stopping song for narration');
+        try {
+          await songSoundRef.current.stopAsync();
+          await songSoundRef.current.unloadAsync();
+        } catch {}
+        songSoundRef.current = null;
+        setPlayingSongId(null);
+        setSongPosition(0);
+        setSongDuration(0);
+      }
+
       // Small delay to ensure cleanup is complete
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 50));
 
-      // Start new audio
+      // Start new audio - STREAM directly from URL
       setLoadingAudioId(reading.id);
-      let url: string = await getPlayableAudioUri(reading);
-
-      console.log('▶️ Starting audio:', reading.name);
-      console.log('▶️ Audio URL:', url.substring(0, 100) + '...');
-
-      let sound: Audio.Sound | null = null;
-      const created = await withTimeout(
+      const url = reading.audioPath;
+      
+      if (!url) throw new Error('No audio URL');
+      
+      const { sound } = await Promise.race([
         Audio.Sound.createAsync(
           { uri: url },
-          { shouldPlay: true },
+          { 
+            shouldPlay: true,
+            progressUpdateIntervalMillis: 500,
+            positionMillis: 0,
+          },
           (status) => {
             if (status.isLoaded) {
-              // Stop showing spinner once we have any loaded status
               setLoadingAudioId(null);
               setPlaybackPosition(status.positionMillis / 1000);
               setPlaybackDuration(status.durationMillis ? status.durationMillis / 1000 : 0);
@@ -1146,23 +1096,19 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                 console.log('✅ Audio finished:', reading.name);
                 setPlayingId(null);
                 soundRef.current = null;
-                // Auto-play next
-                const currentIndex = readings.findIndex((r) => r.id === reading.id);
-                if (currentIndex < readings.length - 1) {
-                  const next = readings[currentIndex + 1];
-                  if (next.localAudioPath) {
-                    setTimeout(() => togglePlay({ ...next, audioPath: next.localAudioPath }), 500);
-                  }
-                }
               }
+            } else if ('error' in status) {
+              console.error('❌ Audio status error:', status.error);
             }
-          }
+          },
+          false // downloadFirst = false for streaming (don't download entire file first)
         ),
-        60000, // Increased to 60s for large audio files
-        'Audio load timed out'
-      );
-      sound = created.sound;
-      // createAsync resolves only after initial load
+        new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('Audio load timeout - try again')), 30000)
+        )
+      ]);
+      
+      console.log('✅ Audio loaded, playing...');
       setLoadingAudioId(null);
 
       if (!sound) throw new Error('Failed to initialize audio');
@@ -1216,6 +1162,120 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     setIsSeeking(false);
     await seekTo(newPosition);
   };
+
+  // ==================== SONG PLAYBACK ====================
+  const toggleSongPlay = async (reading: Reading) => {
+    const songUrl = reading.localSongPath || reading.songPath;
+    if (!songUrl) {
+      Alert.alert('Song not ready', 'Still generating...');
+      return;
+    }
+
+    if (isSongPlayingMutex.current) return;
+    isSongPlayingMutex.current = true;
+
+    try {
+      // If this song is playing, pause/resume
+      if (playingSongId === reading.id && songSoundRef.current) {
+        const status = await songSoundRef.current.getStatusAsync();
+        if (status.isLoaded && status.isPlaying) {
+          await songSoundRef.current.pauseAsync();
+          return;
+        } else if (status.isLoaded) {
+          await songSoundRef.current.playAsync();
+          return;
+        }
+      }
+
+      // Stop any current song
+      if (songSoundRef.current) {
+        try {
+          await songSoundRef.current.stopAsync();
+          await songSoundRef.current.unloadAsync();
+        } catch {}
+        songSoundRef.current = null;
+        setPlayingSongId(null);
+      }
+
+      // Stop narration if playing (mutual exclusion - like Audible)
+      if (soundRef.current) {
+        console.log('🛑 Stopping narration for song');
+        try {
+          await soundRef.current.stopAsync();
+          await soundRef.current.unloadAsync();
+        } catch {}
+        soundRef.current = null;
+        setPlayingId(null);
+        setPlaybackPosition(0);
+        setPlaybackDuration(0);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      setLoadingSongId(reading.id);
+
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: songUrl },
+        { shouldPlay: true, progressUpdateIntervalMillis: 500 },
+        (status) => {
+          if (status.isLoaded) {
+            setLoadingSongId(null);
+            setSongPosition(status.positionMillis / 1000);
+            setSongDuration(status.durationMillis ? status.durationMillis / 1000 : 0);
+            if (status.didJustFinish) {
+              setPlayingSongId(null);
+              songSoundRef.current = null;
+            }
+          }
+        },
+        false // downloadFirst = false for streaming
+      );
+
+      songSoundRef.current = sound;
+      setPlayingSongId(reading.id);
+      setLoadingSongId(null);
+    } catch (e: any) {
+      console.error('❌ Song error:', e);
+      Alert.alert('Song Error', e?.message || 'Could not play song');
+      setPlayingSongId(null);
+      setLoadingSongId(null);
+    } finally {
+      isSongPlayingMutex.current = false;
+    }
+  };
+
+  const seekSongTo = async (positionSeconds: number) => {
+    if (songSoundRef.current) {
+      await songSoundRef.current.setPositionAsync(positionSeconds * 1000);
+      setSongPosition(positionSeconds);
+    }
+  };
+
+  const handleSongSeekStart = () => {
+    setIsSongSeeking(true);
+    setSongSeekPosition(songPosition);
+  };
+
+  const handleSongSeekMove = (readingId: string, locationX: number) => {
+    if (!isSongSeeking || playingSongId !== readingId) return;
+    const barWidth = songProgressBarWidths.current[readingId] || 200;
+    const clampedX = Math.max(0, Math.min(locationX, barWidth));
+    const newPosition = (clampedX / barWidth) * songDuration;
+    setSongSeekPosition(newPosition);
+  };
+
+  const handleSongSeekEnd = async (readingId: string, locationX: number) => {
+    if (!isSongSeeking || playingSongId !== readingId) {
+      setIsSongSeeking(false);
+      return;
+    }
+    const barWidth = songProgressBarWidths.current[readingId] || 200;
+    const clampedX = Math.max(0, Math.min(locationX, barWidth));
+    const newPosition = (clampedX / barWidth) * songDuration;
+    setIsSongSeeking(false);
+    await seekSongTo(newPosition);
+  };
+  // ==================== END SONG PLAYBACK ====================
 
   const MEDIA_BASE_DIR = (() => {
     const base = getDocumentDirectory() || getCacheDirectory() || '';
@@ -1452,7 +1512,12 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   const handleSongPress = useCallback(
     async (reading: Reading) => {
       try {
-        const uri = await ensureLocalSong(reading);
+        // Use local file if available, otherwise stream from remote
+        const uri = reading.localSongPath || reading.songPath;
+        if (!uri) {
+          Alert.alert('Song', 'Song not ready yet');
+          return;
+        }
         navigation.navigate('AudioPlayer', {
           audioUrl: uri,
           title: `${personName} — ${reading.name} (Song)`,
@@ -1464,19 +1529,26 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         Alert.alert('Song', e?.message || 'Could not open song');
       }
     },
-    [ensureLocalSong, navigation, personName]
+    [navigation, personName]
   );
 
   const handlePlayPress = useCallback(
     async (reading: Reading) => {
       try {
-        const uri = await ensureLocalAudio(reading);
-        await togglePlay({ ...reading, audioPath: uri, localAudioPath: uri });
+        // STREAM first (don't wait for download) - use local if available
+        if (reading.localAudioPath) {
+          await togglePlay({ ...reading, audioPath: reading.localAudioPath });
+        } else if (reading.audioPath) {
+          // Stream directly from remote URL
+          await togglePlay(reading);
+        } else {
+          Alert.alert('Audio', 'Audio not ready yet');
+        }
       } catch (e: any) {
         Alert.alert('Audio', e?.message || 'Could not play audio');
       }
     },
-    [ensureLocalAudio, togglePlay]
+    [togglePlay]
   );
 
   const handleDownloadAllPress = useCallback(
@@ -1507,12 +1579,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           <Text style={styles.title}>{personName}</Text>
         </View>
 
-        {/* Job Status Banner: Complete or Error only */}
-        {jobStatus === 'complete' && (
-          <View style={[styles.statusBanner, styles.statusBannerComplete]}>
-            <Text style={styles.statusTextComplete}>✅ Ready</Text>
-          </View>
-        )}
+        {/* Job Status Banner: Error only (Ready banner removed per user request) */}
         {jobStatus === 'error' && (
           <View style={[styles.statusBanner, styles.statusBannerError]}>
             <Text style={styles.statusTextError}>❌ Error</Text>
@@ -1552,7 +1619,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           </TouchableOpacity>
         ) : null}
 
-        {isRefreshing && readings.length > 0 && (
+        {isRefreshing && readings.length > 0 && jobStatus !== 'complete' && (
           <Text style={styles.refreshingText}>Refreshing...</Text>
         )}
 
@@ -1584,9 +1651,15 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                 ? (playbackPosition / playbackDuration) * 100
                 : 0;
 
+              const isSongPlaying = playingSongId === reading.id;
+              const songProgress = isSongPlaying && songDuration > 0
+                ? (songPosition / songDuration) * 100
+                : 0;
+              const allRemoteReady = hasPdfRemote && hasAudioRemote && hasSongRemote;
+
               return (
                 <View key={reading.id} style={styles.readingCard}>
-                  {/* System Name with Timestamp - LEFT ALIGNED ABOVE BUTTONS */}
+                  {/* System Name with Timestamp */}
                   <View style={styles.systemNameContainer}>
                     <Text style={styles.systemName}>{reading.name}</Text>
                     {isGenerating ? (
@@ -1606,68 +1679,51 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                     ) : null}
                   </View>
                   
-                  {/* Action Buttons Row */}
+                  {/* Action Buttons: PDF + Download All (black arrow) */}
                   <View style={styles.actionButtons}>
                     <TouchableOpacity
                       onPress={() => handlePdfPress(reading)}
                       onLongPress={() => handlePdfShare(reading)}
-                      style={[styles.pdfButton, !hasPdfLocal && styles.disabledButton]}
-                      disabled={!hasPdfRemote} // can't download/open if it doesn't exist remotely
+                      style={[styles.pdfButton, !hasPdfRemote && styles.disabledButton]}
+                      disabled={!hasPdfRemote}
                     >
-                      <Text style={[styles.pdfText, !hasPdfLocal && styles.disabledText]}>PDF</Text>
+                      <Text style={[styles.pdfText, !hasPdfRemote && styles.disabledText]}>PDF</Text>
                     </TouchableOpacity>
                     
-                    <TouchableOpacity
-                      onPress={() => handleSongPress(reading)}
-                      style={[styles.songButton, !hasSongLocal && styles.disabledButton]}
-                      disabled={!hasSongRemote} // can't download/open if it doesn't exist remotely
-                    >
-                      <Text style={[styles.songIcon, !hasSongLocal && styles.disabledText]}>🎵</Text>
-                    </TouchableOpacity>
-
-                    {/* Download All (per-row) - only when all 3 exist remotely */}
-                    {hasPdfRemote && hasAudioRemote && hasSongRemote ? (
+                    {/* Download All - black button, only when all files ready */}
+                    {allRemoteReady ? (
                       <TouchableOpacity
                         onPress={() => handleDownloadAllPress(reading)}
-                        style={styles.downloadAllButton}
-                        activeOpacity={0.8}
+                        style={styles.downloadAllBlackButton}
+                        activeOpacity={0.7}
                       >
-                        <Text style={styles.downloadAllText}>Download All</Text>
+                        <Text style={styles.downloadAllBlackText}>Save</Text>
                       </TouchableOpacity>
                     ) : null}
                   </View>
 
-                  {/* Audio Bar */}
+                  {/* Narration Audio Bar (pink/red) */}
                   <View style={styles.audioBar}>
                     <TouchableOpacity
                       onPress={() => handlePlayPress(reading)}
-                      style={[styles.playButton, !hasAudioLocal && styles.disabledButton]}
-                      disabled={!hasAudioRemote} // can't download/play if it doesn't exist remotely
+                      style={[styles.playButton, !hasAudioRemote && styles.disabledButton]}
+                      disabled={!hasAudioRemote}
                     >
                       {loadingAudioId === reading.id ? (
-                        audioLoadProgress[reading.id] && audioLoadProgress[reading.id] > 0 ? (
-                          <Text style={styles.playIcon}>
-                            {Math.round(audioLoadProgress[reading.id] * 100)}%
-                          </Text>
-                        ) : (
-                          <ActivityIndicator size="small" color="#FFF" />
-                        )
+                        <ActivityIndicator size="small" color="#FFF" />
                       ) : (
                         <Text style={styles.playIcon}>{isPlaying ? '❚❚' : '▶'}</Text>
                       )}
                     </TouchableOpacity>
 
-                    {/* Seekable Progress Bar */}
                     <View
                       style={styles.progressContainer}
                       onLayout={(e: LayoutChangeEvent) => {
                         progressBarWidths.current[reading.id] = e.nativeEvent.layout.width;
                       }}
-                      onStartShouldSetResponder={() => isPlaying && hasAudioLocal}
-                      onMoveShouldSetResponder={() => isPlaying && hasAudioLocal}
-                      onResponderGrant={(e: GestureResponderEvent) => {
-                        if (isPlaying) handleSeekStart();
-                      }}
+                      onStartShouldSetResponder={() => isPlaying}
+                      onMoveShouldSetResponder={() => isPlaying}
+                      onResponderGrant={() => { if (isPlaying) handleSeekStart(); }}
                       onResponderMove={(e: GestureResponderEvent) => {
                         if (isPlaying) handleSeekMove(reading.id, e.nativeEvent.locationX);
                       }}
@@ -1680,7 +1736,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                           styles.progressFill,
                           { width: `${isSeeking && isPlaying ? (seekPosition / playbackDuration) * 100 : progress}%` }
                         ]} />
-                        {/* Draggable thumb - only show when playing */}
                         {isPlaying && (
                           <View style={[
                             styles.progressThumb,
@@ -1693,7 +1748,58 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                     <Text style={styles.timeText}>
                       {isPlaying
                         ? `${formatTime(isSeeking ? seekPosition : playbackPosition)} / ${formatTime(playbackDuration)}`
-                        : hasAudioLocal ? '0:00' : (hasPdfLocal ? '…' : '--:--')
+                        : '--:--'
+                      }
+                    </Text>
+                  </View>
+
+                  {/* Song Audio Bar (black) */}
+                  <View style={styles.songAudioBar}>
+                    <TouchableOpacity
+                      onPress={() => toggleSongPlay(reading)}
+                      style={[styles.songPlayButton, !hasSongRemote && styles.songDisabledButton]}
+                      disabled={!hasSongRemote}
+                    >
+                      {loadingSongId === reading.id ? (
+                        <ActivityIndicator size="small" color="#FFF" />
+                      ) : (
+                        <Text style={styles.songPlayIcon}>{isSongPlaying ? '❚❚' : '♪'}</Text>
+                      )}
+                    </TouchableOpacity>
+
+                    <View
+                      style={styles.songProgressContainer}
+                      onLayout={(e: LayoutChangeEvent) => {
+                        songProgressBarWidths.current[reading.id] = e.nativeEvent.layout.width;
+                      }}
+                      onStartShouldSetResponder={() => isSongPlaying}
+                      onMoveShouldSetResponder={() => isSongPlaying}
+                      onResponderGrant={() => { if (isSongPlaying) handleSongSeekStart(); }}
+                      onResponderMove={(e: GestureResponderEvent) => {
+                        if (isSongPlaying) handleSongSeekMove(reading.id, e.nativeEvent.locationX);
+                      }}
+                      onResponderRelease={(e: GestureResponderEvent) => {
+                        if (isSongPlaying) handleSongSeekEnd(reading.id, e.nativeEvent.locationX);
+                      }}
+                    >
+                      <View style={styles.songProgressTrack}>
+                        <View style={[
+                          styles.songProgressFill,
+                          { width: `${isSongSeeking && isSongPlaying ? (songSeekPosition / songDuration) * 100 : songProgress}%` }
+                        ]} />
+                        {isSongPlaying && (
+                          <View style={[
+                            styles.songProgressThumb,
+                            { left: `${isSongSeeking ? (songSeekPosition / songDuration) * 100 : songProgress}%` }
+                          ]} />
+                        )}
+                      </View>
+                    </View>
+
+                    <Text style={styles.songTimeText}>
+                      {isSongPlaying
+                        ? `${formatTime(isSongSeeking ? songSeekPosition : songPosition)} / ${formatTime(songDuration)}`
+                        : '--:--'
                       }
                     </Text>
                   </View>
@@ -1937,6 +2043,78 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
     fontSize: 11,
     color: '#888',
+    minWidth: 45,
+    textAlign: 'center',
+  },
+  // Download All - matches PDF button style but black
+  downloadAllBlackButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#1a1a1a',
+  },
+  downloadAllBlackText: {
+    fontFamily: 'System',
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFF',
+  },
+  // Song Audio Bar (black themed)
+  songAudioBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 8,
+  },
+  songPlayButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#1a1a1a',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  songDisabledButton: {
+    backgroundColor: '#ccc',
+  },
+  songPlayIcon: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  songProgressContainer: {
+    flex: 1,
+    height: 24,
+    justifyContent: 'center',
+  },
+  songProgressTrack: {
+    height: 3,
+    backgroundColor: '#ddd',
+    borderRadius: 1.5,
+    overflow: 'visible',
+  },
+  songProgressFill: {
+    height: 3,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 1.5,
+  },
+  songProgressThumb: {
+    position: 'absolute',
+    top: -6,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#1a1a1a',
+    marginLeft: -7,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  songTimeText: {
+    fontFamily: 'System',
+    fontSize: 11,
+    color: '#666',
     minWidth: 45,
     textAlign: 'center',
   },

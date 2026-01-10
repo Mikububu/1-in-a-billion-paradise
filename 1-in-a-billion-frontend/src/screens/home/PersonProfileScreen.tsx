@@ -156,11 +156,7 @@ export const PersonProfileScreen = ({ navigation, route }: Props) => {
     loadProcessing();
   }, [person]);
 
-  const grouped = useMemo(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonProfileScreen.tsx:grouped',message:'Grouping readings',data:{personName:person.name,personId:person.id,totalReadings:person.readings?.length||0,readingsSummary:person.readings?.map(r=>({system:r.system,hasContent:!!r?.content,contentLength:r?.content?.length||0,readingNumber:r?.readingNumber}))||[]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-    // #endregion
-    
+  const grouped = useMemo(() => {    
     const bySystem = new Map<string, (Reading & { isProcessing?: boolean })[]>();
     for (const r of person.readings || []) {
       const arr = bySystem.get(r.system) || [];

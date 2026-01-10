@@ -759,23 +759,7 @@ export const RootNavigator = () => {
           : hasHookReadings
             ? 'HookSequence'
             : 'CoreIdentities';
-    console.log(`🔄 ROUTING: Session exists but onboarding incomplete → Continue to ${initialRoute}`);
-    
-    // #region agent log
-    // Auto-instrument navigation decision
-    if (__DEV__) {
-      import('@/utils/architectureDebugger').then(({ instrumentNavigationDecision }) => {
-        instrumentNavigationDecision({
-          hasSession,
-          hasCompletedOnboarding,
-          hasHookReadings,
-          route: initialRoute,
-          reason: 'Onboarding incomplete - continuing onboarding flow',
-        });
-      }).catch(() => {});
-    }
-    // #endregion
-    
+    console.log(`🔄 ROUTING: Session exists but onboarding incomplete → Continue to ${initialRoute}`);    
     return (
       <View style={{ flex: 1 }}>
         <OnboardingNavigator initialRouteName={initialRoute} />
@@ -786,40 +770,8 @@ export const RootNavigator = () => {
 
   // INVARIANT ASSERTION: Warn if session exists but we're about to render onboarding
   if (hasSession) {
-    console.log('✅ INVARIANT: Session exists + Onboarding complete → Rendering MainNavigator (Dashboard)');
-    
-    // #region agent log
-    // Auto-instrument navigation decision
-    if (__DEV__) {
-      import('@/utils/architectureDebugger').then(({ instrumentNavigationDecision }) => {
-        instrumentNavigationDecision({
-          hasSession,
-          hasCompletedOnboarding,
-          hasHookReadings,
-          route: 'Dashboard',
-          reason: 'Onboarding complete - routing to dashboard',
-        });
-      }).catch(() => {});
-    }
-    // #endregion
-  } else {
-    console.log('✅ INVARIANT: No session → Rendering OnboardingNavigator (Intro)');
-    
-    // #region agent log
-    // Auto-instrument navigation decision
-    if (__DEV__) {
-      import('@/utils/architectureDebugger').then(({ instrumentNavigationDecision }) => {
-        instrumentNavigationDecision({
-          hasSession: false,
-          hasCompletedOnboarding: false,
-          hasHookReadings: false,
-          route: 'Intro',
-          reason: 'No session - starting onboarding',
-        });
-      }).catch(() => {});
-    }
-    // #endregion
-  }
+    console.log('✅ INVARIANT: Session exists + Onboarding complete → Rendering MainNavigator (Dashboard)');  } else {
+    console.log('✅ INVARIANT: No session → Rendering OnboardingNavigator (Intro)');  }
 
   return (
     <TexturedBackground style={{ flex: 1 }}>

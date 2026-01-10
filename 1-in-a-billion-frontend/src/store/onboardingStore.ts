@@ -298,50 +298,8 @@ export const useOnboardingStore = create<OnboardingState>()(
         );
       },
 
-      setHasCompletedOnboarding: (hasCompletedOnboarding) => {
-        // #region agent log
-        // Instrument state change
-        if (__DEV__) {
-          import('@/utils/architectureDebugger').then(({ instrumentStateChange }) => {
-            const oldValue = get().hasCompletedOnboarding;
-            set({ hasCompletedOnboarding });
-            
-            instrumentStateChange('onboarding', {
-              key: 'hasCompletedOnboarding',
-              oldValue,
-              newValue: hasCompletedOnboarding,
-              reason: 'Direct setter called',
-            });
-          }).catch(() => {
-            set({ hasCompletedOnboarding });
-          });
-        } else {
-          set({ hasCompletedOnboarding });
-        }
-        // #endregion
-      },
-      completeOnboarding: () => {
-        // #region agent log
-        // Instrument state change
-        if (__DEV__) {
-          import('@/utils/architectureDebugger').then(({ instrumentStateChange }) => {
-            const oldValue = get().hasCompletedOnboarding;
-            set({ hasCompletedOnboarding: true, showDashboard: true }); // Set showDashboard to go to Dashboard immediately
-            
-            instrumentStateChange('onboarding', {
-              key: 'hasCompletedOnboarding',
-              oldValue,
-              newValue: true,
-              reason: 'User completed onboarding flow',
-            });
-          }).catch(() => {
-            set({ hasCompletedOnboarding: true, showDashboard: true });
-          });
-        } else {
-          set({ hasCompletedOnboarding: true, showDashboard: true }); // Set showDashboard to go to Dashboard immediately
-        }
-        // #endregion
-      },
+      setHasCompletedOnboarding: (hasCompletedOnboarding) => {      },
+      completeOnboarding: () => {      },
       reset: () => set({ ...baseState }),
     }),
     {

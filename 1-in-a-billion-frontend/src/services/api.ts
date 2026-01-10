@@ -233,15 +233,7 @@ export const audioApi = {
     sizeBytes?: number;
     error?: string;
   }> => {
-    const startTime = Date.now();
-    
-    // #region agent log
-    // H6, H7: API call started
-    if (__DEV__) {
-      fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:generateHookAudio:start',message:'Hook audio API call started',data:{type:params.type,hasUserId:!!params.userId,userId:params.userId,textLength:params.text.length,exaggeration:params.exaggeration},timestamp:startTime,sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H6'})}).catch(()=>{});
-    }
-    // #endregion
-    
+    const startTime = Date.now();    
     try {
       const response = await coreClient.post('/api/audio/hook-audio/generate', {
         text: params.text,
@@ -253,26 +245,10 @@ export const audioApi = {
         timeout: 240000, // 4 minute timeout
       });
       
-      const duration = Date.now() - startTime;
-      
-      // #region agent log
-      // H6: API call success
-      if (__DEV__) {
-        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:generateHookAudio:success',message:'Hook audio API call success',data:{type:params.type,success:response.data.success,hasAudioUrl:!!response.data.audioUrl,audioUrl:response.data.audioUrl,storagePath:response.data.storagePath,durationMs:duration},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H6'})}).catch(()=>{});
-      }
-      // #endregion
-      
+      const duration = Date.now() - startTime;      
       return response.data;
     } catch (error: any) {
-      const duration = Date.now() - startTime;
-      
-      // #region agent log
-      // H4, H6, H7: API call failed
-      if (__DEV__) {
-        fetch('http://127.0.0.1:7243/ingest/3c526d91-253e-4ee7-b894-96ad8dfa46e7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:generateHookAudio:error',message:'Hook audio API call failed',data:{type:params.type,error:error.message,code:error.code,response:error.response?.data,durationMs:duration,timeout:duration>240000},timestamp:Date.now(),sessionId:'debug-session',runId:'audio-debug',hypothesisId:'H6'})}).catch(()=>{});
-      }
-      // #endregion
-      
+      const duration = Date.now() - startTime;      
       console.warn('Hook audio generation failed:', error.message);
       return {
         success: false,
