@@ -139,6 +139,7 @@ const styles = StyleSheet.create({
     right: 0,
     height: '55%',
     zIndex: 0, // Background
+    opacity: 0.82,
   },
   content: {
     paddingHorizontal: spacing.page,
@@ -212,5 +213,6 @@ const styles = StyleSheet.create({
   posterOverlay: {
     position: 'absolute',
     zIndex: 1,
+    opacity: 0.82,
   },
 });
