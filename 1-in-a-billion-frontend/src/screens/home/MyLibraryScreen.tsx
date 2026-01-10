@@ -240,6 +240,15 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
       const loadQueue = async () => {
         console.log('🔄 [MyLibrary] loadQueue called - currentAuthUserId:', currentAuthUserId || 'null');
         const TEST_USER_ID = '00000000-0000-0000-0000-000000000001';
+        const fetchWithTimeout = async (url: string, init: RequestInit = {}, timeoutMs = 12000) => {
+          const controller = new AbortController();
+          const t = setTimeout(() => controller.abort(), timeoutMs);
+          try {
+            return await fetch(url, { ...init, signal: controller.signal });
+          } finally {
+            clearTimeout(t);
+          }
+        };
         const isUuid = (v: string | null): v is string =>
           !!v &&
           /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
@@ -267,7 +276,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         const fetchJobsForUser = async (uid: string) => {
           const url = `${env.CORE_API_URL}/api/jobs/v2/user/${uid}/jobs`;
           console.log('📡 [MyLibrary] Fetching jobs from:', url);
-          const response = await fetch(url);
+          const response = await fetchWithTimeout(url);
           if (!response.ok) {
             const errorText = await response.text().catch(() => '');
             throw new Error(`Failed to fetch jobs for ${uid}: ${response.status} ${errorText}`);
@@ -279,7 +288,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         const fetchJobsFromDevDashboard = async () => {
           const url = `${env.CORE_API_URL}/api/dev/dashboard`;
           console.log('📡 [MyLibrary] Fetching dev dashboard jobs:', url);
-          const response = await fetch(url);
+          const response = await fetchWithTimeout(url);
           if (!response.ok) {
             const errorText = await response.text().catch(() => '');
             throw new Error(`Failed to fetch dev dashboard: ${response.status} ${errorText}`);
@@ -395,14 +404,14 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           const fetchJobDetail = async (jobIdToFetch: string) => {
             const url = `${env.CORE_API_URL}/api/jobs/v2/${jobIdToFetch}`;
             // Try with auth header first (if we have it), then fall back without.
-            let resp = await fetch(url, {
+            let resp = await fetchWithTimeout(url, {
               headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
             });
 
             // If auth fails (401/403) OR backend is misconfigured for auth (500), try without auth
             if (resp.status === 401 || resp.status === 403 || resp.status === 500) {
               console.log('⚠️ [MyLibrary] Auth request failed with', resp.status, '- retrying without auth');
-              resp = await fetch(url);
+              resp = await fetchWithTimeout(url);
             }
             const detailData = await resp.json().catch(() => ({}));
             return detailData;
@@ -602,8 +611,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
   // Derived data - compute user from people array
   const user = useMemo(() => people.find((p) => p.isUser), [people]);
-  // User name fallback
-  const userName = user?.name || 'User';
+  const authDisplayName = useAuthStore((s) => s.displayName);
+  // User name fallback (avoid generic "User" when possible)
+  const userName = user?.name || authDisplayName || 'User';
 
   // Explicit type for the merged person object
   interface LibraryPerson {
@@ -1994,6 +2004,17 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             <Text style={{ color: 'white' }}>
               hasUserReadings: {hasUserReadings ? 'YES' : 'NO'}, partners: {partners.length}, cloudCards: {cloudPeopleCards.length}
             </Text>
+            <Text style={{ color: 'white' }}>
+              queueJobs: {queueJobs.length}, loadingQueueJobs: {loadingQueueJobs ? 'YES' : 'NO'}
+            </Text>
+            <Text style={{ color: 'white' }}>
+              userName: {userName}
+            </Text>
+            {!!queueJobsError && (
+              <Text style={{ color: 'white' }}>
+                error: {queueJobsError}
+              </Text>
+            )}
           </View>
 
           {/* FORCE TEST CARD - Always visible */}
