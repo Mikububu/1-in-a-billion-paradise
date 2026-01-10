@@ -1971,19 +1971,20 @@ const styles = StyleSheet.create({
   audioBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
     marginTop: 4,
   },
   playButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#C41E3A',
     alignItems: 'center',
     justifyContent: 'center',
   },
   playIcon: {
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: '700',
     color: '#FFF',
   },
   progressContainer: {
@@ -1991,10 +1992,13 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     paddingVertical: 8,
+    // Keep the slider a bit shorter so it doesn't crowd the play button/time.
+    paddingHorizontal: 4,
   },
   slider: {
     width: '100%',
-    height: 24,
+    height: 22,
+    marginHorizontal: 6,
   },
   progressTrack: {
     width: '100%',
@@ -2051,7 +2055,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
-    gap: 8,
+    gap: 12,
   },
   songPlayButton: {
     width: 40,
@@ -2071,8 +2075,10 @@ const styles = StyleSheet.create({
   },
   songProgressContainer: {
     flex: 1,
-    height: 24,
+    height: 40,
     justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
   },
   songProgressTrack: {
     height: 3,
