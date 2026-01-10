@@ -4,9 +4,9 @@
  * Adds a white leather texture to all screens.
  *
  * IMPORTANT:
- * Many screens render an opaque background color. If we put the texture "behind" children,
- * it will be fully hidden. So we render the texture as a subtle overlay (pointerEvents off),
- * which makes it consistently visible app-wide while keeping readability.
+ * This texture must remain the *back-most* layer so it never covers videos or other
+ * intentional visuals. Some screens may paint opaque backgrounds and hide it—those
+ * screens should be adjusted individually if we want more texture visibility there.
  */
 
 import { StyleSheet, View, Image } from 'react-native';
@@ -24,17 +24,17 @@ type Props = {
 export const TexturedBackground = ({ children, style }: Props) => {
   return (
     <View style={[styles.container, style]}>
-      {/* Content on top */}
-      <View style={styles.content}>
-        {children}
-      </View>
-      {/* Texture overlay (subtle, never blocks touches) */}
+      {/* Texture background (never blocks touches, never covers content/videos) */}
       <Image
         source={require('../../assets/images/white-leather-texture.jpg')}
         style={[StyleSheet.absoluteFill, styles.texture]}
         resizeMode="cover"
         pointerEvents="none"
       />
+      {/* Content on top */}
+      <View style={styles.content}>
+        {children}
+      </View>
     </View>
   );
 };
@@ -54,6 +54,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   texture: {
-    opacity: 0.14,
+    opacity: 0.22,
   },
 });
