@@ -101,10 +101,13 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
       {/** Screen numbers temporarily removed */}
       <BackButton onPress={() => navigation.goBack()} />
 
+      {/* Spacer so title never overlaps the absolute BackButton */}
+      <View style={styles.topSpacer} />
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>
-          {forPartner ? `Explore ${partnerName}` : 'Explore Yourself'}
+          {forPartner ? `Explore ${partnerName}` : 'Explore Myself'}
         </Text>
         <Text style={styles.subtitle}>
           {forPartner ? `Five lenses into ${partnerName}` : 'Five lenses into who you are'}
@@ -153,6 +156,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
     paddingHorizontal: spacing.page,
+  },
+  topSpacer: {
+    height: 72,
   },
   screenId: {
     position: 'absolute',

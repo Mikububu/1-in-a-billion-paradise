@@ -1002,7 +1002,8 @@ export const FullReadingScreen = ({ navigation, route }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background, // Cream white, not pink
+    // Keep root transparent so leather texture shows through.
+    backgroundColor: 'transparent',
   },
   screenId: {
     position: 'absolute',

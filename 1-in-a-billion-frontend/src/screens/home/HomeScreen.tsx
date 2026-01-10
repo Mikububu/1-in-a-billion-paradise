@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Animated, Alert, Modal, ActivityIndicator, Pressable, useWindowDimensions, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { backfillMissingPlacements } from '@/services/placementsCalculator';
@@ -26,6 +26,15 @@ type ReadingType = 'sun' | 'moon' | 'rising';
 export const HomeScreen = ({ navigation }: Props) => {
   console.log('🏠 HomeScreen MOUNTED - This is Screen 10');
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  // Responsive vertical rhythm:
+  // - On very tall phones, default spacing makes the UI feel "swimmy" (too much air).
+  // - On smaller phones, we must not increase spacing (scrolling is already tight).
+  const compactV = useMemo(() => {
+    const BASE_HEIGHT = 812; // baseline-ish iPhone height for our spacing rhythm
+    const raw = BASE_HEIGHT / Math.max(1, windowHeight);
+    return Math.max(0.82, Math.min(1, raw));
+  }, [windowHeight]);
   const hookReadings = useOnboardingStore((state) => state.hookReadings);
   const setHookReading = useOnboardingStore((state) => state.setHookReading);
   const hookAudio = useOnboardingStore((state) => state.hookAudio);
@@ -506,6 +515,14 @@ export const HomeScreen = ({ navigation }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Settings button (fixed; not part of scroll content) */}
+      <TouchableOpacity
+        style={[styles.settingsButton, { top: insets.top + spacing.sm }]}
+        onPress={() => navigation.navigate('Settings')}
+      >
+        <Text style={styles.settingsIcon}>⚙</Text>
+      </TouchableOpacity>
+
       {/* Screen ID */}
       {/** Screen numbers temporarily removed */}
       {/* Two minimalist humans roam the entire screen in the background (never interacts with UI). */}
@@ -519,20 +536,22 @@ export const HomeScreen = ({ navigation }: Props) => {
       </View> */}
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.content}
+        scrollEnabled={false}
+        bounces={false}
+        alwaysBounceVertical={false}
+        overScrollMode="never"
+        contentContainerStyle={[
+          styles.content,
+          {
+            gap: spacing.lg * compactV,
+            // Keep headlines on the app's standard baseline (not "too high").
+            // The screen can scroll on smaller devices, but the baseline should feel consistent.
+            paddingTop: spacing.xl + 20,
+            paddingBottom: spacing.xl * 2 * compactV,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Settings button */}
-        <View style={styles.headerRow}>
-          <View style={{ flex: 1 }} />
-          <TouchableOpacity
-            style={styles.settingsButton}
-            onPress={() => navigation.navigate('Settings')}
-          >
-            <Text style={styles.settingsIcon}>⚙</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Headline - centered - shows current person's name */}
         <Animated.View style={{ opacity: fadeAnim }}>
           <View style={styles.headlineWrap}>
@@ -607,7 +626,15 @@ export const HomeScreen = ({ navigation }: Props) => {
         </Animated.View>
 
         {/* Match Status */}
-        <View style={styles.statusSection}>
+        <View
+          style={[
+            styles.statusSection,
+            {
+              paddingTop: 40 * compactV,
+              paddingBottom: spacing.xl * compactV,
+            },
+          ]}
+        >
           {hasMatch ? (
             <>
               <Text style={styles.matchFoundText} selectable>
@@ -651,7 +678,7 @@ export const HomeScreen = ({ navigation }: Props) => {
 
         {/* MY SOULS LABORATORY CARD - Simple */}
         <TouchableOpacity
-          style={styles.libraryCard}
+          style={[styles.libraryCard, { marginTop: spacing.lg * compactV }]}
           onPress={() => navigation.navigate('NextStep')}
           activeOpacity={0.8}
         >
@@ -666,7 +693,15 @@ export const HomeScreen = ({ navigation }: Props) => {
         </TouchableOpacity>
 
         {/* Produced By Section */}
-        <View style={styles.producedBySection}>
+        <View
+          style={[
+            styles.producedBySection,
+            {
+              marginTop: spacing.lg * compactV,
+              marginBottom: spacing.xl * compactV,
+            },
+          ]}
+        >
           <Text style={styles.producedByText}>produced by</Text>
           <Image
             source={require('../../../assets/images/forbidden-yoga-logo-white.png')}
@@ -785,14 +820,9 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: spacing.page,
-    paddingTop: 0, // Move everything up (SafeAreaView still protects notch)
+    paddingTop: spacing.sm,
     paddingBottom: spacing.xl * 2,
-    gap: spacing.md,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: spacing.lg,
   },
   headline: {
     fontFamily: typography.headline,
@@ -819,6 +849,9 @@ const styles = StyleSheet.create({
     marginTop: -2,
   },
   settingsButton: {
+    position: 'absolute',
+    right: spacing.page,
+    zIndex: 50,
     padding: spacing.sm,
   },
   settingsIcon: {

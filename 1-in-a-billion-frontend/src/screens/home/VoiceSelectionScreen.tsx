@@ -336,13 +336,10 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
     return (
         <TexturedBackground>
             <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-                {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.navigate('Home')}>
-                    <Text style={styles.homeText}>My Secret Life</Text>
-                </TouchableOpacity>
-            </View>
             <BackButton onPress={() => navigation.goBack()} />
+
+            {/* Spacer so this screen aligns with others (no extra header buttons) */}
+            <View style={styles.topSpacer} />
 
             {/* Title */}
             <View style={styles.titleContainer}>
@@ -414,33 +411,17 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: spacing.page,
-        paddingVertical: spacing.md,
-    },
-    backButton: {
-        paddingVertical: spacing.xs,
-    },
-    backText: {
-        fontFamily: typography.sansSemiBold,
-        fontSize: 16,
-        color: colors.text,
-    },
-    homeText: {
-        fontFamily: typography.sansSemiBold,
-        fontSize: 14,
-        color: colors.primary,
+        // Keep root transparent so the global leather texture shows through.
+        backgroundColor: 'transparent',
     },
     titleContainer: {
         paddingHorizontal: spacing.page,
         paddingVertical: spacing.lg,
         borderBottomWidth: 1,
         borderBottomColor: colors.border,
+    },
+    topSpacer: {
+        height: 72,
     },
     title: {
         fontFamily: typography.headline,

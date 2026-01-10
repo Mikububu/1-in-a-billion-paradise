@@ -201,12 +201,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
     <SafeAreaView style={styles.container}>
       {/** Screen numbers temporarily removed */}
       <BackButton onPress={() => navigation.goBack()} />
-
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.navigate('Home')}>
-          <Text style={styles.controlRoomText}>My Secret Life</Text>
-        </TouchableOpacity>
-      </View>
+      <View style={styles.topSpacer} />
 
       <View style={styles.content}>
         <Text style={styles.title}>My Karmic Zoo</Text>
@@ -305,6 +300,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
+  topSpacer: { height: 72 },
   screenId: {
     position: 'absolute',
     top: 55,
@@ -324,7 +320,7 @@ const styles = StyleSheet.create({
   },
   backText: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },
   controlRoomText: { fontFamily: typography.sansSemiBold, fontSize: 14, color: colors.primary },
-  content: { flex: 1, paddingHorizontal: spacing.page, paddingTop: spacing.lg },
+  content: { flex: 1, paddingHorizontal: spacing.page, paddingTop: 0 },
   title: {
     fontFamily: typography.headline,
     fontSize: 32,

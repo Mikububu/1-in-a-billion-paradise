@@ -859,6 +859,26 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
 
       const rows: Reading[] = [];
 
+      // If this screen title is a couple (e.g. "Charmaine & Michael"), use docNum ranges
+      // to label each system card with the correct person, so we never show duplicates like
+      // "Gene Keys / Gene Keys" without names.
+      const parsePair = (value: string) => {
+        const parts = String(value || '')
+          .split('&')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        if (parts.length >= 2) return { a: parts[0], b: parts.slice(1).join(' & ') };
+        return null;
+      };
+      const pair = parsePair(personName);
+      const labelForDocNum = (docNum: number) => {
+        if (!pair) return null;
+        if (docNum >= 1 && docNum <= 5) return pair.a;
+        if (docNum >= 6 && docNum <= 10) return pair.b;
+        if (docNum >= 11 && docNum <= 16) return `${pair.a} & ${pair.b}`;
+        return null;
+      };
+
       for (const j of jobs as any[]) {
         const jt = String(j?.type || '');
         // Keep couple-only job types out of single-person views.
@@ -877,6 +897,8 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
 
             const systemId = String(doc?.system || systemIdForDoc(jt, systems, docNum));
             const systemName = SYSTEMS.find((s) => s.id === systemId)?.name || systemId;
+            const who = labelForDocNum(docNum);
+            const displayName = who ? `${systemName} — ${who}` : systemName;
             const rowId = `row-${j.id}-${docNum}`;
 
             const localPdf = savedPDFs.find((p) => p.readingId === `${rowId}:pdf`)?.filePath;
@@ -888,7 +910,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
               jobId: j.id,
               docNum,
               system: systemId,
-              name: systemName,
+              name: displayName,
               timestamp: createdAt,
               pdfPath: doc?.pdfUrl || undefined,
               // Use backend proxy URLs (streams bytes directly, iOS compatible)
@@ -903,6 +925,8 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           for (const docNum of docRange) {
             const sysId = systemIdForDoc(jt, systems, docNum);
             const sysName = SYSTEMS.find((s) => s.id === sysId)?.name || sysId;
+            const who = labelForDocNum(docNum);
+            const displayName = who ? `${sysName} — ${who}` : sysName;
             const rowId = `row-${j.id}-${docNum}`;
 
             const localPdf = savedPDFs.find((p) => p.readingId === `${rowId}:pdf`)?.filePath;
@@ -914,7 +938,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
               jobId: j.id,
               docNum,
               system: sysId,
-              name: sysName,
+              name: displayName,
               timestamp: createdAt,
               localPdfPath: localPdf,
               localAudioPath: localAudio,
@@ -924,13 +948,46 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         }
       }
 
-      rows.sort(
-        (a, b) =>
-          (Date.parse(b.timestamp || '') || 0) - (Date.parse(a.timestamp || '') || 0) ||
-          String(a.name).localeCompare(String(b.name))
-      );
+      // -----------------------------------------------------------------------
+      // FINALIZE LIST (dedupe + correct order)
+      // User expectation:
+      // - individual/person1/person2: ALWAYS 5 systems in fixed order
+      // - overlay: ALWAYS 6 systems in fixed order incl Final Verdict
+      // Also: never show duplicates of the same system (e.g. "Vedic" twice)
+      // even if multiple jobs exist.
+      // -----------------------------------------------------------------------
+      const tsValue = (r: Reading) => Date.parse(r.timestamp || '') || 0;
+      const pickLatest = (list: Reading[]) =>
+        list
+          .slice()
+          .sort((a, b) => tsValue(b) - tsValue(a) || (b.docNum || 0) - (a.docNum || 0))[0];
 
-      setReadings(rows);
+      const makePlaceholder = (systemId: string, systemName: string): Reading => ({
+        id: `placeholder-${jobId || 'job'}-${personType}-${systemId}`,
+        jobId: jobId || undefined,
+        system: systemId,
+        name: systemName,
+        timestamp: new Date().toISOString(),
+      });
+
+      const orderedSystemIds =
+        personType === 'overlay'
+          ? (['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah', 'verdict'] as const)
+          : (['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'] as const);
+
+      const normalized = rows.map((r) => ({
+        ...r,
+        system: r.system === 'vedic' ? 'vedic' : r.system, // (noop, but keeps intent explicit)
+      }));
+
+      const finalized: Reading[] = orderedSystemIds.map((sysId) => {
+        const candidates = normalized.filter((r) => r.system === sysId);
+        if (candidates.length > 0) return pickLatest(candidates);
+        const sysName = SYSTEMS.find((s) => s.id === sysId)?.name || String(sysId);
+        return makePlaceholder(sysId, sysName);
+      });
+
+      setReadings(finalized);
     } catch (e: any) {
       const errorMsg = e?.name === 'AbortError' ? 'Request timed out' : (e?.message || 'Could not load reading');
       setLoadError(errorMsg);
@@ -1793,7 +1850,8 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    // Keep root transparent so leather texture shows through.
+    backgroundColor: 'transparent',
   },
   header: {
     paddingHorizontal: 20,
@@ -1809,6 +1867,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
+    // Ensure title never overlaps the absolute BackButton.
+    paddingTop: 72,
     paddingBottom: 40,
   },
   titleContainer: {

@@ -55,13 +55,6 @@ export const SynastryOptionsScreen = ({ navigation, route }: Props) => {
 
       <BackButton onPress={() => navigation.goBack()} />
 
-      {/* Navigation */}
-      <View style={styles.navRow}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Home')}>
-          <Text style={styles.controlRoomText}>My Secret Life</Text>
-        </TouchableOpacity>
-      </View>
-
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         <Text style={styles.title}>What would you like?</Text>
         <Text style={styles.subtitle}>

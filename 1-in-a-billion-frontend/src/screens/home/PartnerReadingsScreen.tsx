@@ -686,18 +686,18 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: 'transparent',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'flex-start',
     paddingHorizontal: spacing.page,
-    paddingTop: spacing.xs, // Moved higher to save screen space
+    paddingTop: spacing.md, // Prevent overlap with BackButton
     paddingBottom: spacing.xs,
   },
   backButtonContainer: {
-    paddingTop: spacing.xs,
+    paddingTop: spacing.md,
     paddingBottom: spacing.xs,
   },
   backButton: {

@@ -401,7 +401,8 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: colors.background,
+    // Keep root transparent so leather texture shows through.
+    backgroundColor: 'transparent',
   },
   
   // Page

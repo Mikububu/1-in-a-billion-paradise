@@ -12,7 +12,6 @@ export const MatchesScreen = ({ navigation }: Props) => {
     <ScreenShell
       title="Your matches"
       subtitle="People with rare compatibility across all systems."
-      footer={<Button label="My Secret Life" onPress={() => navigation.goBack()} />}
     >
       <View style={styles.placeholder}>
         <Text style={styles.placeholderText}>No matches yet</Text>

@@ -431,11 +431,8 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
       {/** Screen numbers temporarily removed */}
       <BackButton onPress={() => navigation.goBack()} />
 
-      <View style={styles.navRow}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Home')}>
-          <Text style={styles.controlRoomText}>My Secret Life</Text>
-        </TouchableOpacity>
-      </View>
+    {/* Spacer so title never overlaps the absolute BackButton */}
+    <View style={styles.topSpacer} />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         <Text style={styles.title}>{title}</Text>
@@ -515,6 +512,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'transparent',
+  },
+  topSpacer: {
+    height: 72,
   },
   screenId: {
     position: 'absolute',
