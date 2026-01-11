@@ -108,8 +108,10 @@ export const SettingsScreen = ({ navigation }: Props) => {
     }, 1500);
   };
 
+  const SUPPORT_EMAIL = 'contact@1-in-a-billion.app';
+  
   const handleContactSupport = () => {
-    Linking.openURL('mailto:support@oneinabillion.app?subject=App Support Request');
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=App Support Request`);
   };
 
   const sections: SettingsSection[] = [
@@ -188,7 +190,7 @@ export const SettingsScreen = ({ navigation }: Props) => {
           id: 'contact',
           icon: '→',
           title: 'Contact Us',
-          subtitle: 'support@oneinabillion.app',
+          subtitle: SUPPORT_EMAIL,
           onPress: handleContactSupport,
         },
         {

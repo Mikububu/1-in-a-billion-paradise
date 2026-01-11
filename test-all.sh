@@ -1,9 +1,9 @@
 #!/bin/bash
-# Comprehensive test script for Paradise project
+# Comprehensive test script for 1 in a Billion project
 
 set -e
 
-echo "🧪 Paradise Comprehensive Test Suite"
+echo "🧪 1 in a Billion Comprehensive Test Suite"
 echo "═══════════════════════════════════════════════════════════════"
 echo ""
 

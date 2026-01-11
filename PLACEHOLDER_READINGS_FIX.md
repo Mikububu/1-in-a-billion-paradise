@@ -42,7 +42,8 @@ const placeholderReadings = systems.map((system, index) => ({
 }));
 ```
 
-**Result**: 
+**Result**:
+
 - Akasha now appears in library with 5 or 6 readings (depending on job type)
 - All readings start as **inactive** (no PDF/audio/song badges)
 - As artifacts complete, individual badges become **active** independently
@@ -64,12 +65,12 @@ actual.every((r) => !!r.audioPath && !!r.pdfPath && !!r.songPath);
 
 ## Files Changed
 
-1. `Paradise/1-in-a-billion-frontend/src/screens/home/MyLibraryScreen.tsx`
+1. `1 in a Billion/1-in-a-billion-frontend/src/screens/home/MyLibraryScreen.tsx`
    - Lines ~645-680 (overlay/compatibility jobs person1)
    - Lines ~664-695 (overlay/compatibility jobs person2)
    - Lines ~710-745 (extended/single_system jobs person1)
 
-2. `Paradise/1-in-a-billion-frontend/src/screens/home/PersonReadingsScreen.tsx`
+2. `1 in a Billion/1-in-a-billion-frontend/src/screens/home/PersonReadingsScreen.tsx`
    - Line 1002 (ZIP ready check)
 
 ## Testing

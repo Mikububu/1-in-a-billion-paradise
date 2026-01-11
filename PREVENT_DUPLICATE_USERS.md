@@ -3,11 +3,13 @@
 ## The Problem
 
 Users should have **exactly ONE** profile with `is_user=true` in the `library_people` table. Multiple entries cause:
+
 - Duplicate names in "My Souls Library" screen
 - Confusion about which is the "real" user profile
 - Data inconsistency and sync issues
 
 **Example of the bug:**
+
 ```
 👥 People in Profile Store (2)
 1. Michael (YOU) ✅
@@ -29,6 +31,7 @@ WHERE is_user = true;
 ```
 
 **Run this migration:**
+
 ```bash
 # Connect to your Supabase database and run:
 psql $DATABASE_URL -f migrations/add_unique_user_profile_constraint.sql
@@ -46,7 +49,7 @@ Finds and removes existing duplicates, keeping the **newest** profile.
 **Usage:**
 
 ```bash
-cd Paradise/1-in-a-billion-backend
+cd "1 in a Billion/1-in-a-billion-backend"
 
 # Preview what would be deleted (safe, no changes):
 DRY_RUN=true npx ts-node src/scripts/cleanupDuplicateUserProfiles.ts
@@ -56,6 +59,7 @@ npx ts-node src/scripts/cleanupDuplicateUserProfiles.ts
 ```
 
 **Example output:**
+
 ```
 ⚠️  Found 1 user(s) with duplicate profiles:
 
@@ -74,6 +78,7 @@ npx ts-node src/scripts/cleanupDuplicateUserProfiles.ts
 Automatically cleans up duplicates when the app loads from AsyncStorage.
 
 **Logic:**
+
 - Detects multiple `is_user=true` entries in memory
 - Keeps the **newest** one (by `createdAt`)
 - Removes older ghosts
@@ -157,6 +162,7 @@ ORDER BY user_id, created_at DESC;
 ### Storage Inspector (Dev Tool)
 
 In the app (DEV mode), tap the 🔍 button on "My Souls Library" to see:
+
 - All people in memory
 - Which are marked as "YOU"
 - Birth data and placements
@@ -168,12 +174,14 @@ In the app (DEV mode), tap the 🔍 button on "My Souls Library" to see:
 **Good!** This means the database constraint is working. It prevented a duplicate from being created.
 
 **Fix:** The frontend should already handle this. If you see this error, check:
+
 1. Is `addPerson` checking for existing `isUser=true`?
 2. Is the Supabase sync creating duplicates?
 
 ### User sees duplicate names in library
 
 **Option 1:** Run cleanup script
+
 ```bash
 npx ts-node src/scripts/cleanupDuplicateUserProfiles.ts
 ```
@@ -193,8 +201,8 @@ npx ts-node src/scripts/cleanupDuplicateUserProfiles.ts
 ## Questions?
 
 If a user still has duplicates after all this:
+
 1. Run the cleanup script
 2. Check if the database constraint exists
 3. Use the Storage Inspector to see where the duplicate is coming from
 4. Check Supabase `library_people` table directly
-

@@ -63,6 +63,8 @@ export async function getApiKey(
         'google_places': 'GOOGLE_PLACES_API_KEY',
         'fly_io': 'FLY_ACCESS_TOKEN', // Fly.io deployment token
         'minimax': 'MINIMAX_API_KEY', // MiniMax API for music generation
+        'stripe': 'STRIPE_SECRET_KEY', // Stripe payment processing
+        'stripe_webhook_secret': 'STRIPE_WEBHOOK_SECRET', // Stripe webhook verification
       };
 
       const configKey = keyMapping[service];
@@ -132,6 +134,7 @@ export async function preloadApiKeys() {
     'runpod_endpoint',
     'google_places',
     'minimax',
+    'stripe',
   ];
 
   console.log('🔄 [API Keys] Preloading keys from Supabase...');

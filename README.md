@@ -1,11 +1,11 @@
-# 1-in-a-Billion - Paradise
+# 1-in-a-Billion
 
 Clean rebuild of the 1-in-a-Billion astrology app, built from the "1-in-a-billion-all 2" version.
 
 ## Project Structure
 
 ```
-Paradise/
+1 in a Billion/
 ├── 1-in-a-billion-frontend/    # React Native/Expo mobile app
 └── 1-in-a-billion-backend/     # Hono.js backend server
 ```

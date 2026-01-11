@@ -72,7 +72,7 @@ export const AccountDeletionScreen = ({ navigation }: Props) => {
   const handleContactSupport = () => {
     Alert.alert(
       'Contact Support',
-      'For help with account deletion, please email:\n\nsupport@oneinabillion.app\n\nSubject: Account Deletion Request',
+      'For help with account deletion, please email:\n\ncontact@1-in-a-billion.app\n\nSubject: Account Deletion Request',
       [{ text: 'OK' }]
     );
   };

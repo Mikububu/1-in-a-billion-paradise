@@ -194,7 +194,7 @@ export const DataPrivacyScreen = ({ navigation }: Props) => {
 
         <View style={styles.footer}>
           <Text style={styles.footerTitle}>Questions?</Text>
-          <Text style={styles.footerEmail}>privacy@oneinabillion.app</Text>
+          <Text style={styles.footerEmail}>contact@1-in-a-billion.app</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

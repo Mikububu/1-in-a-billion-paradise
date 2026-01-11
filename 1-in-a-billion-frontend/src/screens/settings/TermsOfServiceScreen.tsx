@@ -14,14 +14,13 @@ import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'TermsOfService'>;
 
-const LAST_UPDATED = 'December 9, 2024';
+const LAST_UPDATED = 'January 11, 2026';
 
 const SECTIONS = [
   {
-    title: 'Agreement to Terms',
-    content: `By downloading, installing, or using the 1 In A Billion application ("App"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, do not use the App.
+    content: `By downloading, installing, or using the 1 in a Billion application ("App"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, do not use the App.
 
-These Terms constitute a legally binding agreement between you and One In A Billion Ltd. ("Company," "we," "us," or "our").`,
+These Terms constitute a legally binding agreement between you and **SwiftBuy Solutions LLC** ("Company," "we," "us," or "our"), based in Dubai, U.A.E.`,
   },
   {
     title: 'Description of Service',
@@ -56,11 +55,10 @@ By using the App, you represent and warrant that you meet these eligibility requ
 We reserve the right to suspend or terminate accounts that violate these Terms.`,
   },
   {
-    title: 'Purchases & Subscriptions',
-    content: `**In-App Purchases**:
-• All purchases are processed through Apple's App Store
+    content: `**Payments**:
+• All purchases for horoscope readings and premium features are processed through **Stripe**
 • Prices are displayed in your local currency
-• Purchases are final and non-refundable except as required by law
+• Due to the personalized nature of our digital content, **all purchases are final and non-refundable**
 
 **Available Products**:
 • Individual readings: $14 per system (5 pages, 13 min audio)
@@ -69,13 +67,12 @@ We reserve the right to suspend or terminate accounts that violate these Terms.`
 • Nuclear Package: $108 (100 pages, 3h 28m audio) - 50% off
 
 **Refund Policy**:
-• Refund requests must be made through Apple
-• We may offer refunds at our discretion for technical issues
-• Partially used readings are generally non-refundable
+• We do not offer refunds once a reading has been purchased and processed
+• In the event of a technical failure (e.g., reading not delivered), we provide a **Manual Fix**
+• To request a manual fix, please contact our support team at **contact@1-in-a-billion.app**
 
 **Restore Purchases**:
-• You can restore previous purchases through the Settings menu
-• Purchases are tied to your Apple ID`,
+• You can restore previous purchases identified by your email or device through the Settings menu`,
   },
   {
     title: 'Intellectual Property',
@@ -159,18 +156,20 @@ Continued use of the App after changes constitutes acceptance of the new Terms.`
   },
   {
     title: 'Governing Law',
-    content: `These Terms shall be governed by and construed in accordance with the laws of [Jurisdiction], without regard to its conflict of law provisions.
+    content: `These Terms shall be governed by and construed in accordance with the laws of the **United Arab Emirates**.
 
-Any disputes arising from these Terms or the App shall be resolved through binding arbitration, except where prohibited by law.`,
+Any disputes arising from these Terms or the App shall be resolved in the courts of **Dubai, U.A.E.**`,
   },
   {
     title: 'Contact Information',
-    content: `For questions about these Terms, please contact us:
+    content: `For questions about these Terms, or for technical support:
 
-Email: legal@oneinabillion.app
-Address: One In A Billion Ltd.
-
-For support issues, please contact: support@oneinabillion.app`,
+Email: **contact@1-in-a-billion.app**
+Address:
+SwiftBuy Solutions LLC
+Meydan Grandstand, 6th floor
+Meydan Road, Nad Al Sheba
+Dubai, U.A.E.`,
   },
 ];
 

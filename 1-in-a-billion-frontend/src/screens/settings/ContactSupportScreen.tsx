@@ -29,7 +29,7 @@ const FAQ_ITEMS = [
   },
   {
     question: 'Can I get a refund?',
-    answer: 'Purchases are processed through Apple. For refund requests, please contact Apple Support or use the "Report a Problem" feature in your purchase history. We may offer refunds at our discretion for technical issues.',
+    answer: 'All sales are final. If you experience technical issues with your reading (incorrect calculations, missing content), contact us at contact@1-in-a-billion.app and we will regenerate your reading at no additional cost.',
   },
   {
     question: 'Is my data secure?',
@@ -50,13 +50,15 @@ const FAQ_ITEMS = [
 ];
 
 export const ContactSupportScreen = ({ navigation }: Props) => {
+  const SUPPORT_EMAIL = 'contact@1-in-a-billion.app';
+  
   const handleEmail = (subject: string) => {
-    Linking.openURL(`mailto:support@oneinabillion.app?subject=${encodeURIComponent(subject)}`);
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}`);
   };
 
   const handleCopyEmail = () => {
     // In production, use Clipboard API
-    Alert.alert('Email Copied', 'support@oneinabillion.app');
+    Alert.alert('Email Copied', SUPPORT_EMAIL);
   };
 
   return (
@@ -90,7 +92,7 @@ export const ContactSupportScreen = ({ navigation }: Props) => {
           >
             <Text style={styles.quickActionIcon}>◎</Text>
             <Text style={styles.quickActionTitle}>Copy Email</Text>
-            <Text style={styles.quickActionDesc}>support@oneinabillion.app</Text>
+            <Text style={styles.quickActionDesc}>{SUPPORT_EMAIL}</Text>
           </TouchableOpacity>
         </View>
 

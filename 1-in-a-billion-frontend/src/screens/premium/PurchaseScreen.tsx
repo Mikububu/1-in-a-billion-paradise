@@ -3,20 +3,34 @@
  * 
  * Shows different products based on WHERE user came from (mode param).
  * Never shows everything at once - always contextual.
+ * 
+ * PAYMENT: Stripe (Apple Pay, Google Pay, Cards)
+ * REFUND POLICY: All sales final. Manual fixes for technical issues only.
+ * Support: contact@1-in-a-billion.app
  */
 
 import { useState, useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, TouchableOpacity, Alert } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useStripe, usePaymentSheet } from '@stripe/stripe-react-native';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { Button } from '@/components/Button';
 import { WhyDifferentCard } from '@/components/WhyDifferentCard';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { useProfileStore, selectPartners } from '@/store/profileStore';
+import { useAuthStore } from '@/store/authStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { PRODUCTS, PRODUCT_STRINGS, formatAudioDuration } from '@/config/products';
 import { BackButton } from '@/components/BackButton';
+import { createPaymentIntent, mapToProductId, extractSystemFromProductId } from '@/services/payments';
+
+// Developer bypass emails (for testing without payment)
+const DEV_BYPASS_EMAILS = [
+  'michael@1-in-a-billion.app',
+  'dev@1-in-a-billion.app',
+  'test@1-in-a-billion.app',
+];
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Purchase'>;
 
@@ -42,6 +56,18 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
   const { preselectedProduct, onPurchaseComplete, mode = 'all', partnerName: routePartnerName, afterPurchaseParams } = route.params || {} as any;
   const [selectedProduct, setSelectedProduct] = useState<string | null>(preselectedProduct || null);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+
+  // Stripe hooks
+  const { initPaymentSheet, presentPaymentSheet } = usePaymentSheet();
+  
+  // Auth store for user ID and email
+  const authUser = useAuthStore(state => state.user);
+  const userId = authUser?.id || 'anonymous';
+  const userEmail = authUser?.email || '';
+  
+  // Developer bypass check
+  const isDeveloperAccount = DEV_BYPASS_EMAILS.includes(userEmail.toLowerCase());
 
   const user = useProfileStore(state => state.people.find(p => p.isUser));
   const userName = user?.name || 'You';
@@ -188,62 +214,164 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
     setSelectedProduct(product.id);
   };
 
+  const handlePurchaseSuccess = () => {
+    // If we have afterPurchaseParams, navigate to context injection screens
+    if (afterPurchaseParams) {
+      const { readingType, productType, systems, personName, userName, partnerName: pName, partnerBirthDate, partnerBirthTime, partnerBirthCity, person1Override, person2Override, personId, partnerId, forPartner } = afterPurchaseParams;
+      
+      const isOverlay = readingType === 'overlay';
+      
+      if (isOverlay && pName) {
+        // Overlay reading → RelationshipContext
+        navigation.replace('RelationshipContext', {
+          readingType: 'overlay',
+          forPartner: false,
+          userName: userName || 'You',
+          partnerName: pName,
+          partnerBirthDate,
+          partnerBirthTime,
+          partnerBirthCity,
+          preselectedSystem: systems?.length === 1 ? systems[0] : undefined,
+          person1Override,
+          person2Override,
+          personId,
+          partnerId,
+          productType,
+          systems,
+        } as any);
+      } else {
+        // Individual reading → PersonalContext
+        navigation.replace('PersonalContext', {
+          personName: personName || 'You',
+          readingType: forPartner ? 'other' : 'self',
+          personBirthDate: forPartner ? partnerBirthDate : undefined,
+          personBirthTime: forPartner ? partnerBirthTime : undefined,
+          personBirthCity: forPartner ? partnerBirthCity : undefined,
+          preselectedSystem: systems?.length === 1 ? systems[0] : undefined,
+          person1Override,
+          personId,
+          productType,
+          systems,
+          forPartner,
+        } as any);
+      }
+      return;
+    }
+    
+    // Legacy behavior: show alert and go back
+    Alert.alert('Purchase Successful', `You now have access to ${selectedProductInfo?.name}!`, [
+      { text: 'Continue', onPress: () => { onPurchaseComplete?.(); navigation.goBack(); } },
+    ]);
+  };
+  
   const handlePurchase = async () => {
     if (!selectedProduct || !selectedProductInfo) return;
     setIsPurchasing(true);
+    setPaymentError(null);
 
-    // DEV MODE: Simulate payment
-    setTimeout(() => {
-      setIsPurchasing(false);
-      
-      // If we have afterPurchaseParams, navigate to context injection screens
-      if (afterPurchaseParams) {
-        const { readingType, productType, systems, personName, userName, partnerName: pName, partnerBirthDate, partnerBirthTime, partnerBirthCity, person1Override, person2Override, personId, partnerId, forPartner } = afterPurchaseParams;
-        
-        const isOverlay = readingType === 'overlay';
-        
-        if (isOverlay && pName) {
-          // Overlay reading → RelationshipContext
-          navigation.replace('RelationshipContext', {
-            readingType: 'overlay',
-            forPartner: false,
-            userName: userName || 'You',
-            partnerName: pName,
-            partnerBirthDate,
-            partnerBirthTime,
-            partnerBirthCity,
-            preselectedSystem: systems?.length === 1 ? systems[0] : undefined,
-            person1Override,
-            person2Override,
-            personId,
-            partnerId,
-            productType,
-            systems,
-          } as any);
-        } else {
-          // Individual reading → PersonalContext
-          navigation.replace('PersonalContext', {
-            personName: personName || 'You',
-            readingType: forPartner ? 'other' : 'self',
-            personBirthDate: forPartner ? partnerBirthDate : undefined,
-            personBirthTime: forPartner ? partnerBirthTime : undefined,
-            personBirthCity: forPartner ? partnerBirthCity : undefined,
-            preselectedSystem: systems?.length === 1 ? systems[0] : undefined,
-            person1Override,
-            personId,
-            productType,
-            systems,
-            forPartner,
-          } as any);
-        }
+    try {
+      // DEVELOPER BYPASS: Skip payment for dev accounts
+      if (isDeveloperAccount) {
+        console.log('🔧 DEV BYPASS: Skipping payment for developer account');
+        Alert.alert(
+          'Developer Mode',
+          'Payment bypassed for testing. Proceeding without charge.',
+          [{ text: 'Continue', onPress: handlePurchaseSuccess }]
+        );
+        setIsPurchasing(false);
         return;
       }
+
+      // Map frontend product to backend product ID
+      const backendProductId = mapToProductId(selectedProduct);
+      const systemId = extractSystemFromProductId(selectedProduct);
       
-      // Legacy behavior: show alert and go back
-      Alert.alert('Purchase Successful', `You now have access to ${selectedProductInfo.name}!`, [
-        { text: 'Continue', onPress: () => { onPurchaseComplete?.(); navigation.goBack(); } },
-      ]);
-    }, 1000);
+      // Determine person/partner IDs
+      const isOverlay = selectedProduct.startsWith('overlay_') || selectedProduct === 'nuclear_package';
+      const isPartner = selectedProduct.startsWith('partner_');
+      
+      // 1. Create PaymentIntent on backend
+      console.log('💳 Creating PaymentIntent for:', backendProductId);
+      const intentResult = await createPaymentIntent({
+        userId,
+        productId: backendProductId,
+        systemId: systemId || undefined,
+        personId: isPartner ? partners[0]?.id : user?.id,
+        partnerId: isOverlay ? partners[0]?.id : undefined,
+        readingType: isOverlay ? 'overlay' : 'individual',
+        userEmail,
+      });
+      
+      if (!intentResult.success || !intentResult.clientSecret) {
+        throw new Error(intentResult.error || 'Failed to create payment');
+      }
+      
+      console.log('💳 PaymentIntent created:', intentResult.paymentIntentId);
+      
+      // 2. Initialize Payment Sheet
+      const { error: initError } = await initPaymentSheet({
+        paymentIntentClientSecret: intentResult.clientSecret,
+        merchantDisplayName: '1 in a Billion',
+        // Apple Pay configuration
+        applePay: {
+          merchantCountryCode: 'US',
+        },
+        // Google Pay configuration
+        googlePay: {
+          merchantCountryCode: 'US',
+          testEnv: __DEV__, // Use test environment in development
+        },
+        // Appearance customization
+        appearance: {
+          colors: {
+            primary: colors.primary,
+            background: colors.background,
+            componentBackground: colors.background,
+            componentBorder: colors.border,
+            componentDivider: colors.border,
+            primaryText: colors.text,
+            secondaryText: colors.mutedText,
+            placeholderText: colors.mutedText,
+          },
+        },
+        // Return URL for 3DS/redirects
+        returnURL: 'oneinabillion://stripe-redirect',
+      });
+      
+      if (initError) {
+        throw new Error(initError.message);
+      }
+      
+      // 3. Present Payment Sheet
+      console.log('💳 Presenting Payment Sheet...');
+      const { error: presentError } = await presentPaymentSheet();
+      
+      if (presentError) {
+        if (presentError.code === 'Canceled') {
+          // User cancelled - not an error
+          console.log('💳 User cancelled payment');
+          setIsPurchasing(false);
+          return;
+        }
+        throw new Error(presentError.message);
+      }
+      
+      // 4. Payment successful!
+      console.log('✅ Payment successful!');
+      setIsPurchasing(false);
+      handlePurchaseSuccess();
+      
+    } catch (error: any) {
+      console.error('❌ Payment error:', error);
+      setPaymentError(error.message || 'Payment failed');
+      setIsPurchasing(false);
+      
+      Alert.alert(
+        'Payment Failed',
+        `${error.message || 'An error occurred during payment.'}\n\nNeed help? Contact contact@1-in-a-billion.app`,
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   return (
@@ -319,15 +447,29 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
       {mode !== 'all' && (
         <View style={styles.footer}>
           {selectedProduct && selectedProductInfo ? (
-            <Button
-              label={`Purchase - $${selectedProductInfo.price}`}
-              onPress={handlePurchase}
-              loading={isPurchasing}
-            />
+            <>
+              {isDeveloperAccount && (
+                <View style={styles.devBadge}>
+                  <Text style={styles.devBadgeText}>🔧 DEV MODE - Payment Bypassed</Text>
+                </View>
+              )}
+              <Button
+                label={isPurchasing ? 'Processing...' : `Purchase - $${selectedProductInfo.price}`}
+                onPress={handlePurchase}
+                loading={isPurchasing}
+                disabled={isPurchasing}
+              />
+              <Text style={styles.refundPolicy}>
+                All sales final. Questions? contact@1-in-a-billion.app
+              </Text>
+            </>
           ) : (
             <View style={styles.selectPrompt}>
               <Text style={styles.selectPromptText}>Select an option above</Text>
             </View>
+          )}
+          {paymentError && (
+            <Text style={styles.errorText}>{paymentError}</Text>
           )}
         </View>
       )}
@@ -370,4 +512,37 @@ const styles = StyleSheet.create({
   footer: { paddingHorizontal: spacing.page, paddingVertical: spacing.md },
   selectPrompt: { paddingVertical: spacing.sm, alignItems: 'center' },
   selectPromptText: { fontFamily: typography.sansRegular, fontSize: 16, color: colors.mutedText },
+  
+  // No refunds policy text
+  refundPolicy: { 
+    fontFamily: typography.sansRegular, 
+    fontSize: 11, 
+    color: colors.mutedText, 
+    textAlign: 'center', 
+    marginTop: spacing.sm,
+  },
+  
+  // Error text
+  errorText: {
+    fontFamily: typography.sansRegular,
+    fontSize: 13,
+    color: '#D32F2F',
+    textAlign: 'center',
+    marginTop: spacing.sm,
+  },
+  
+  // Developer badge
+  devBadge: {
+    backgroundColor: '#FFF3CD',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: spacing.sm,
+    alignSelf: 'center',
+  },
+  devBadgeText: {
+    fontFamily: typography.sansSemiBold,
+    fontSize: 12,
+    color: '#856404',
+  },
 });

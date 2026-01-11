@@ -16,7 +16,7 @@ import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PrivacyPolicy'>;
 
-const LAST_UPDATED = 'December 9, 2024';
+const LAST_UPDATED = 'January 11, 2026';
 
 const SECTIONS = [
   {
@@ -33,7 +33,7 @@ By using our app, you agree to the collection and use of information in accordan
 • **Relationship Preferences**: Your relationship intensity and mode preferences
 • **Language Preferences**: Primary and secondary languages
 • **Account Information**: Email address (if you create an account)
-• **Payment Information**: Processed securely through Apple's payment system
+• **Payment Information**: Processed securely through **Stripe** (we do not store your credit card details)
 
 We do NOT collect:
 • Photos or images from your device
@@ -96,7 +96,7 @@ All AI providers are bound by their own privacy policies and data protection sta
 • **Portability**: Export your readings and data
 • **Withdraw Consent**: Opt out of data processing at any time
 
-To exercise these rights, use the Settings menu in the app or contact us at privacy@oneinabillion.app`,
+To exercise these rights, use the Settings menu in the app or contact us at **contact@1-in-a-billion.app**`,
   },
   {
     title: 'Data Retention',
@@ -121,8 +121,12 @@ To exercise these rights, use the Settings menu in the app or contact us at priv
     title: 'Contact Us',
     content: `If you have questions about this privacy policy or our data practices, please contact us:
 
-Email: privacy@oneinabillion.app
-Address: One In A Billion Ltd.
+Email: **contact@1-in-a-billion.app**
+Address:
+SwiftBuy Solutions LLC
+Meydan Grandstand, 6th floor
+Meydan Road, Nad Al Sheba
+Dubai, U.A.E.
 
 For EU residents: You have the right to lodge a complaint with your local data protection authority.`,
   },
@@ -133,7 +137,7 @@ export const PrivacyPolicyScreen = ({ navigation }: Props) => {
     <SafeAreaView style={styles.container}>
       <BackButton onPress={() => navigation.goBack()} />
 
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}

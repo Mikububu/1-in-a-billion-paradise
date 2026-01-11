@@ -35,6 +35,7 @@
 ### Why This Worked Before
 
 **If** the `reclaim_stale_tasks()` function existed before:
+
 - Workers would crash occasionally (normal)
 - Within 10 minutes, the function would reset the stuck task to "pending"
 - Another worker would claim and complete it
@@ -50,7 +51,7 @@
 
 **You must do this manually in Supabase Dashboard:**
 
-1. Open: https://supabase.com/dashboard
+1. Open: <https://supabase.com/dashboard>
 2. Go to: **SQL Editor**
 3. Copy/paste the SQL from: `apply_reclaim_function.sql`
 4. Click: **Run**
@@ -65,7 +66,7 @@ I've created a watchdog worker that calls `reclaim_stale_tasks()` every 5 minute
 **To deploy:**
 
 ```bash
-cd /Users/michaelperinwogenburg/Desktop/big\ challenge/Paradise/1-in-a-billion-backend
+cd "/Users/michaelperinwogenburg/Desktop/big challenge/1 in a Billion/1-in-a-billion-backend"
 npm run build
 flyctl deploy --remote-only
 flyctl scale count watchdog=1 -a 1-in-a-billion-backend
@@ -88,6 +89,7 @@ flyctl logs -a 1-in-a-billion-backend --no-tail | grep "text_generation\|ERROR\|
 ```
 
 **Common causes:**
+
 - DeepSeek API timeouts (>10 min)
 - Memory leaks
 - Ephemeris calculation crashes
@@ -100,13 +102,16 @@ flyctl logs -a 1-in-a-billion-backend --no-tail | grep "text_generation\|ERROR\|
 ### After Applying Fix
 
 1. **Check function exists:**
+
    ```bash
    cd 1-in-a-billion-backend
    npx tsx check_supabase_functions.ts
    ```
+
    Should show: `✅ reclaim_stale_tasks EXISTS`
 
 2. **Monitor watchdog:**
+
    ```bash
    flyctl logs -a 1-in-a-billion-backend | grep "Reclaimed\|No stale"
    ```
@@ -121,12 +126,14 @@ flyctl logs -a 1-in-a-billion-backend --no-tail | grep "text_generation\|ERROR\|
 ## 📋 Files Changed
 
 ### New Files
+
 - `src/workers/watchdogWorker.ts` - Automatic stale task recovery (every 5 min)
 - `apply_reclaim_function.sql` - SQL to apply to Supabase
 - `APPLY_RECLAIM_FUNCTION.md` - Step-by-step instructions
 - `STUCK_JOBS_ROOT_CAUSE_AND_FIX.md` - This file
 
 ### Modified Files
+
 - `fly.toml` - Added watchdog process
 
 ---
@@ -153,6 +160,7 @@ flyctl logs -a 1-in-a-billion-backend --no-tail | grep "text_generation\|ERROR\|
 ## 🤔 Why Wasn't This Applied Before?
 
 Possible reasons:
+
 - Migration 001 was partially applied (tables + `claim_tasks()` but not `reclaim_stale_tasks()`)
 - Function was dropped during a schema change
 - Different Supabase project/environment
