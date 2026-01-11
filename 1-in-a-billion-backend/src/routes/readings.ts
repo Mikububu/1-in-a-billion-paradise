@@ -42,6 +42,52 @@ const buildResponse = (
 
 const router = new Hono();
 
+// Placements endpoint (Swiss Ephemeris only)
+// Used by mobile to compute Sun/Moon/Rising immediately after saving a person.
+const placementsSchema = z.object({
+  birthDate: z.string(),
+  birthTime: z.string(),
+  timezone: z.string(),
+  latitude: z.number(),
+  longitude: z.number(),
+  system: z.enum(['western', 'vedic']).optional().default('western'),
+});
+
+router.post('/placements', async (c) => {
+  const parsed = placementsSchema.parse(await c.req.json());
+
+  // Swiss engine expects a ReadingPayload; provide safe defaults for non-reading fields.
+  const placements = await swissEngine.computePlacements({
+    birthDate: parsed.birthDate,
+    birthTime: parsed.birthTime,
+    timezone: parsed.timezone,
+    latitude: parsed.latitude,
+    longitude: parsed.longitude,
+    relationshipIntensity: 5,
+    relationshipMode: 'sensual',
+    primaryLanguage: 'en',
+  } as any);
+
+  // If vedic requested, return sidereal signs in the top-level fields
+  // so the mobile client can use a single normalize function.
+  if (parsed.system === 'vedic' && (placements as any)?.sidereal) {
+    const sid = (placements as any).sidereal;
+    return c.json({
+      placements: {
+        sunSign: sid.suryaRashi,
+        moonSign: sid.chandraRashi,
+        risingSign: sid.lagnaSign,
+        // Still include western degree objects for now; vedic degrees are available via placements.sidereal.grahas if needed later.
+        sunDegree: placements.sunDegree,
+        moonDegree: placements.moonDegree,
+        risingDegree: placements.ascendantDegree,
+      },
+    });
+  }
+
+  return c.json({ placements });
+});
+
 router.post('/sun', async (c) => {
   const parsed = payloadSchema.parse(await c.req.json());
   const cacheKey = JSON.stringify({ type: 'sun', parsed });
