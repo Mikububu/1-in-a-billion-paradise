@@ -388,12 +388,35 @@ export abstract class BaseWorker {
     const person1Name = cleanForFilename(params?.person1?.name || params?.person1Name || 'Person1');
     const person2Name = params?.person2?.name ? cleanForFilename(params.person2.name) : null;
     
-    // Extract system and doc info from task input (fallback to job params.systems)
-    const systemRaw = task.input?.system || params?.systems?.[0] || 'western';
-    const system = cleanForFilename(systemRaw.charAt(0).toUpperCase() + systemRaw.slice(1)); // Capitalize first letter
-    const docType = task.input?.docType || 'individual';
+    // Extract system and doc info from task input
+    // FALLBACK: Parse from title if not set (e.g., "kabbalah - Person 2" → system="kabbalah", docType="person2")
+    let systemRaw = task.input?.system;
+    let docType = task.input?.docType;
     const docNum = task.input?.docNum;
-    const title = task.input?.title;
+    const title = task.input?.title as string | undefined;
+    
+    // If system/docType not set, try to extract from title (format: "system - DocType")
+    if ((!systemRaw || !docType) && title) {
+      const titleMatch = title.match(/^(\w+)\s*-\s*(.+)$/i);
+      if (titleMatch) {
+        if (!systemRaw) {
+          systemRaw = titleMatch[1].toLowerCase(); // e.g., "kabbalah", "human_design"
+        }
+        if (!docType) {
+          const docTypePart = titleMatch[2].toLowerCase().trim();
+          if (docTypePart.includes('overlay')) docType = 'overlay';
+          else if (docTypePart.includes('person 2') || docTypePart.includes('person2')) docType = 'person2';
+          else if (docTypePart.includes('person 1') || docTypePart.includes('person1')) docType = 'person1';
+          else if (docTypePart.includes('verdict')) docType = 'verdict';
+          else docType = 'individual';
+        }
+      }
+    }
+    
+    // Final fallbacks
+    systemRaw = systemRaw || params?.systems?.[0] || 'western';
+    docType = docType || 'individual';
+    const system = cleanForFilename(systemRaw.charAt(0).toUpperCase() + systemRaw.slice(1)); // Capitalize first letter
     
     // Build filename based on artifact type and context
     let fileName: string;
