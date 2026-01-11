@@ -7,21 +7,22 @@
  * PAYMENT: Stripe (Apple Pay, Google Pay, Cards)
  * REFUND POLICY: All sales final. Manual fixes for technical issues only.
  * Support: contact@1-in-a-billion.app
+ * 
+ * NOTE: Stripe native modules require a development build (not Expo Go).
+ * Developer bypass works regardless of Stripe availability.
  */
 
 import { useState, useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useStripe, usePaymentSheet } from '@stripe/stripe-react-native';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { Button } from '@/components/Button';
 import { WhyDifferentCard } from '@/components/WhyDifferentCard';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { useProfileStore, selectPartners } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
-import { useOnboardingStore } from '@/store/onboardingStore';
-import { PRODUCTS, PRODUCT_STRINGS, formatAudioDuration } from '@/config/products';
+import { PRODUCTS, formatAudioDuration } from '@/config/products';
 import { BackButton } from '@/components/BackButton';
 import { createPaymentIntent, mapToProductId, extractSystemFromProductId } from '@/services/payments';
 
@@ -58,9 +59,6 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
-  // Stripe hooks
-  const { initPaymentSheet, presentPaymentSheet } = usePaymentSheet();
-  
   // Auth store for user ID and email
   const authUser = useAuthStore(state => state.user);
   const userId = authUser?.id || 'anonymous';
@@ -282,6 +280,21 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
         return;
       }
 
+      // Try to load Stripe dynamically
+      let stripeModule: any;
+      try {
+        stripeModule = require('@stripe/stripe-react-native');
+      } catch (e) {
+        // Stripe not available - show message
+        Alert.alert(
+          'Payments Not Available',
+          'Payment processing requires a full app build. Please use TestFlight or the production app to make purchases.\n\nNeed help? Contact contact@1-in-a-billion.app',
+          [{ text: 'OK' }]
+        );
+        setIsPurchasing(false);
+        return;
+      }
+
       // Map frontend product to backend product ID
       const backendProductId = mapToProductId(selectedProduct);
       const systemId = extractSystemFromProductId(selectedProduct);
@@ -308,7 +321,9 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
       
       console.log('💳 PaymentIntent created:', intentResult.paymentIntentId);
       
-      // 2. Initialize Payment Sheet
+      // 2. Initialize Payment Sheet using imperative API
+      const { initPaymentSheet, presentPaymentSheet } = stripeModule;
+      
       const { error: initError } = await initPaymentSheet({
         paymentIntentClientSecret: intentResult.clientSecret,
         merchantDisplayName: '1 in a Billion',
@@ -321,12 +336,12 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
           merchantCountryCode: 'US',
           testEnv: __DEV__, // Use test environment in development
         },
-        // Appearance customization
+        // Appearance customization to match app theme
         appearance: {
           colors: {
             primary: colors.primary,
             background: colors.background,
-            componentBackground: colors.background,
+            componentBackground: colors.surface,
             componentBorder: colors.border,
             componentDivider: colors.border,
             primaryText: colors.text,

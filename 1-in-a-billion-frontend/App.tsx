@@ -2,7 +2,7 @@ import 'react-native-gesture-handler';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { NavigationContainer, DefaultTheme as NavigationDefaultTheme } from '@react-navigation/native';
 import { navigationRef } from '@/navigation/navigationRef';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -15,15 +15,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { useAuthStore } from '@/store/authStore';
 import { colors } from '@/theme/tokens';
-import { getPaymentConfig } from '@/services/payments';
-
-// Lazy-load Stripe to avoid crash if native modules aren't available
-let StripeProvider: any = null;
-try {
-  StripeProvider = require('@stripe/stripe-react-native').StripeProvider;
-} catch (e) {
-  console.warn('⚠️ Stripe native modules not available - payments disabled');
-}
 
 const queryClient = new QueryClient();
 
@@ -39,21 +30,6 @@ export default function App() {
   const user = useAuthStore((state: any) => state.user);
   const isAuthReady = useAuthStore((state: any) => state.isAuthReady);
   const hasSession = !!user;
-
-  // Stripe configuration
-  const [stripeKey, setStripeKey] = useState<string | null>(null);
-  
-  useEffect(() => {
-    // Fetch Stripe publishable key from backend
-    getPaymentConfig().then(config => {
-      if (config?.publishableKey) {
-        setStripeKey(config.publishableKey);
-        console.log('💳 Stripe configured');
-      }
-    }).catch(err => {
-      console.warn('⚠️ Stripe config failed:', err.message);
-    });
-  }, []);
 
   const [fontsLoaded] = useFonts({
     PlayfairDisplay_600SemiBold,
@@ -90,8 +66,9 @@ export default function App() {
     return null; // Or return a loading screen component
   }
 
-  // Wrap content with StripeProvider if key is available
-  const appContent = (
+  // Note: Stripe is initialized on-demand in PurchaseScreen, not at app root
+  // This avoids native module crashes in Expo Go
+  return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
@@ -109,20 +86,4 @@ export default function App() {
       </GestureHandlerRootView>
     </ErrorBoundary>
   );
-  
-  // Wrap with StripeProvider when key is available AND native modules are loaded
-  if (stripeKey && StripeProvider) {
-    return (
-      <StripeProvider
-        publishableKey={stripeKey}
-        merchantIdentifier="merchant.app.1-in-a-billion"
-        urlScheme="oneinabillion"
-      >
-        {appContent}
-      </StripeProvider>
-    );
-  }
-  
-  // Render without Stripe if key not yet loaded or native modules unavailable
-  return appContent;
 }
