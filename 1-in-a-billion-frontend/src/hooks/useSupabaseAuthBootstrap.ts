@@ -168,6 +168,28 @@ export function useSupabaseAuthBootstrap() {
                 (typeof profile.hook_readings === 'object' && Object.keys(profile.hook_readings).length > 0) ||
                 (Array.isArray(profile.hook_readings) && profile.hook_readings.length > 0)
               );
+              // Hydrate birth_data from Supabase to local store
+              if (profile.birth_data) {
+                const bd = profile.birth_data;
+                console.log('📅 Bootstrap: Hydrating birth_data from Supabase:', JSON.stringify(bd));
+                if (bd.birthDate) {
+                  useOnboardingStore.getState().setBirthDate(bd.birthDate);
+                }
+                if (bd.birthTime) {
+                  useOnboardingStore.getState().setBirthTime(bd.birthTime);
+                }
+                if (bd.birthCity || (bd.latitude && bd.longitude)) {
+                  useOnboardingStore.getState().setBirthCity({
+                    id: bd.birthCity || 'restored',
+                    name: bd.birthCity || 'Unknown',
+                    country: bd.country || '',
+                    latitude: bd.latitude || 0,
+                    longitude: bd.longitude || 0,
+                    timezone: bd.timezone || 'UTC',
+                  });
+                }
+              }
+
               if (hasHookReadings) {
                 console.log('✅ Bootstrap: User has profile AND hook readings - marking onboarding complete');                
                 // Hydrate hook readings
@@ -176,8 +198,12 @@ export function useSupabaseAuthBootstrap() {
                     useOnboardingStore.getState().setHookReading(reading);
                   }
                 });
+                // CRITICAL: Actually mark onboarding as complete!
+                useOnboardingStore.getState().completeOnboarding();
+                console.log('✅ Bootstrap: completeOnboarding() called');
               } else {
-                console.log('🔄 Bootstrap: User has profile but no hook readings - onboarding incomplete');              }
+                console.log('🔄 Bootstrap: User has profile but no hook readings - onboarding incomplete');
+              }
             } else {
               console.log('🔄 Bootstrap: No profile found - user needs to complete onboarding');
             }
