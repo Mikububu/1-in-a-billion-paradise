@@ -2,27 +2,151 @@
 
 ## The Problem
 
-Users should have **exactly ONE** profile with `is_user=true` in the `library_people` table. Multiple entries cause:
+Users should have **exactly ONE** profile with `isUser=true` in the local store and `is_user=true` in Supabase. Multiple entries cause:
 
-- Duplicate names in "My Souls Library" screen
+- Duplicate names in "My Karmic Zoo" / "My Souls Library" screen
 - Confusion about which is the "real" user profile
 - Data inconsistency and sync issues
+- App crashes if user deletes their own profile
 
 **Example of the bug:**
 
 ```
 👥 People in Profile Store (2)
 1. Michael (YOU) ✅
-2. fantasyisland007 (YOU) ❌ GHOST
+2. Michael (YOU) ❌ DUPLICATE - different ID from cloud sync
 ```
 
-## The Solution (3-Layer Protection)
+---
 
-### Layer 1: Database Constraint (STRONGEST)
+## The Solution (5-Layer Protection)
+
+### Layer 1: `upsertPersonById` Guard (PREVENTS CREATION)
+
+**File:** `src/store/profileStore.ts`
+
+When syncing from Supabase cloud, if incoming profile has `isUser: true` AND there's already a local user profile (any ID), **MERGE** instead of adding duplicate.
+
+```typescript
+upsertPersonById: (incoming) => {
+  // ...
+  if (idx < 0) {
+    // CRITICAL FIX: If incoming is a user profile, check if ANY user already exists
+    if (Boolean(incoming.isUser)) {
+      const existingUser = state.people.find((p) => p.isUser);
+      if (existingUser) {
+        console.log(`👤 Merging cloud user into existing local user (preventing duplicate)`);
+        const merged = mergePeople(existingUser, incoming);
+        return { people: state.people.map((p) => (p.id === existingUser.id ? merged : p)) };
+      }
+    }
+    // ... add new person only if no conflict
+  }
+}
+```
+
+**This fixes the root cause:** Cloud sync with different `client_person_id` no longer creates duplicates.
+
+---
+
+### Layer 2: `deletePerson` Protection (PREVENTS SELF-DELETION)
+
+**File:** `src/store/profileStore.ts`
+
+User **CANNOT** delete their own profile. This prevents app crashes.
+
+```typescript
+deletePerson: (id) => {
+  const personToDelete = get().people.find((p) => p.id === id);
+  if (personToDelete?.isUser) {
+    console.error('❌ BLOCKED: Cannot delete user profile.');
+    return; // Silently refuse
+  }
+  // ... proceed with delete for partners
+}
+```
+
+---
+
+### Layer 3: `dedupePeopleState` Fix (MERGES ALL USERS)
+
+**File:** `src/store/profileStore.ts`
+
+Previously grouped by `name + isUser`, which missed users with different names (e.g., "Michael" vs "You").
+
+**Now:** ALL `isUser: true` profiles are merged into ONE, regardless of name.
+
+```typescript
+const dedupePeopleState = (state) => {
+  // CRITICAL FIX: Merge ALL isUser:true profiles into ONE
+  const userProfiles = people.filter((p) => p?.isUser === true);
+  
+  if (userProfiles.length > 1) {
+    // Sort by completeness, merge all into best one
+    let mergedUser = userProfiles[0];
+    for (let i = 1; i < userProfiles.length; i++) {
+      mergedUser = mergePeople(mergedUser, userProfiles[i]);
+    }
+    survivors.push(mergedUser);
+  }
+  // ... then process partner profiles separately
+}
+```
+
+---
+
+### Layer 4: Auto-Cleanup on Hydration (SAFETY NET)
+
+**File:** `src/store/profileStore.ts` - `onRehydrateStorage`
+
+Every time the app starts and loads from AsyncStorage, it checks for duplicate user profiles and cleans them up automatically.
+
+```typescript
+onRehydrateStorage: () => {
+  return (state, error) => {
+    if (state) {
+      state.hasHydrated = true;
+      
+      // Auto-cleanup duplicate user profiles on every app start
+      const userCount = state.people?.filter((p) => p?.isUser === true)?.length || 0;
+      if (userCount > 1) {
+        console.warn(`⚠️ Found ${userCount} user profiles - running cleanup...`);
+        setTimeout(() => {
+          useProfileStore.getState().cleanupDuplicateUsers();
+        }, 100);
+      }
+    }
+  };
+}
+```
+
+---
+
+### Layer 5: Screen-Level Self-Delete Protection
+
+**Files:**
+- `ComparePeopleScreen.tsx`
+- `PeopleListScreen.tsx`
+- `PersonProfileScreen.tsx`
+- `MyLibraryScreen.tsx`
+
+All delete handlers check `person.isUser` before showing delete confirmation:
+
+```typescript
+const handleDeletePerson = (person) => {
+  if (person.isUser) {
+    Alert.alert('Cannot Delete', 'You cannot delete your own profile.');
+    return;
+  }
+  // ... show delete confirmation
+};
+```
+
+---
+
+### Layer 6: Database Constraint (STRONGEST - Supabase)
 
 **File:** `migrations/add_unique_user_profile_constraint.sql`
-
-Creates a unique partial index that **prevents** duplicate `is_user=true` entries at the database level.
 
 ```sql
 CREATE UNIQUE INDEX library_people_unique_user_profile 
@@ -30,179 +154,101 @@ ON library_people (user_id)
 WHERE is_user = true;
 ```
 
-**Run this migration:**
+This prevents duplicates at the database level. Even if frontend bugs exist, Supabase will reject duplicate inserts.
 
-```bash
-# Connect to your Supabase database and run:
-psql $DATABASE_URL -f migrations/add_unique_user_profile_constraint.sql
+---
 
-# Or via Supabase Dashboard:
-# SQL Editor → New Query → Paste SQL → Run
-```
+## How Duplicates Were Created (Root Cause)
 
-### Layer 2: Cleanup Script (REACTIVE)
+**Scenario:**
+1. User completes onboarding → Local profile `id = "abc123"`, `isUser: true`
+2. Syncs to Supabase with `client_person_id = "abc123"`
+3. User clears storage / reinstalls / logs in on new device
+4. New local profile created with `id = "xyz789"`, `isUser: true`
+5. Supabase sync fetches old profile (`id = "abc123"`)
+6. **OLD BUG:** `upsertPersonById` saw ID doesn't match → added as new person
+7. **Result:** TWO user profiles with `isUser: true`
 
-**File:** `src/scripts/cleanupDuplicateUserProfiles.ts`
+**NOW FIXED:** `upsertPersonById` checks for ANY existing user profile before adding, and merges instead.
 
-Finds and removes existing duplicates, keeping the **newest** profile.
-
-**Usage:**
-
-```bash
-cd "1 in a Billion/1-in-a-billion-backend"
-
-# Preview what would be deleted (safe, no changes):
-DRY_RUN=true npx ts-node src/scripts/cleanupDuplicateUserProfiles.ts
-
-# Actually clean up duplicates:
-npx ts-node src/scripts/cleanupDuplicateUserProfiles.ts
-```
-
-**Example output:**
-
-```
-⚠️  Found 1 user(s) with duplicate profiles:
-
-👤 User ID: cf26a09f-a8b9-4bb5-91f2-54f92e29470e
-   ✅ KEEP: "Michael" (id: 1767776964396-3icmfllzc, created: 2026-01-07T09:09:24.396Z)
-   ❌ DELETE: "fantasyisland007" (id: self-82fbde84-..., created: 2026-01-07T09:08:56.788Z)
-
-✅ CLEANUP COMPLETE:
-   Deleted: 1 duplicate profiles
-```
-
-### Layer 3: Frontend Migration (PROACTIVE)
-
-**File:** `src/store/profileStore.ts` (v6 migration)
-
-Automatically cleans up duplicates when the app loads from AsyncStorage.
-
-**Logic:**
-
-- Detects multiple `is_user=true` entries in memory
-- Keeps the **newest** one (by `createdAt`)
-- Removes older ghosts
-- Logs what was cleaned
-
-**Runs automatically** when app version bumps to v6.
+---
 
 ## Deployment Checklist
 
-### Step 1: Clean Up Existing Duplicates
+### Already Applied (Committed):
+- [x] `upsertPersonById` guard against duplicate users
+- [x] `deletePerson` blocks self-deletion
+- [x] `dedupePeopleState` merges ALL user profiles regardless of name
+- [x] Auto-cleanup on store hydration
+- [x] Screen-level self-delete protection (4 screens)
+
+### Optional: Database Constraint
 
 ```bash
-# Preview first
-DRY_RUN=true npx ts-node src/scripts/cleanupDuplicateUserProfiles.ts
-
-# If looks good, run for real
-npx ts-node src/scripts/cleanupDuplicateUserProfiles.ts
-```
-
-### Step 2: Add Database Constraint
-
-```bash
-# Via psql
+# If not already applied:
 psql $SUPABASE_DATABASE_URL -f migrations/add_unique_user_profile_constraint.sql
-
-# OR via Supabase Dashboard:
-# 1. Go to SQL Editor
-# 2. Paste contents of add_unique_user_profile_constraint.sql
-# 3. Run
 ```
 
-### Step 3: Deploy Frontend with v6 Migration
+---
 
-```bash
-# Commit changes
-git add .
-git commit -m "Add duplicate user profile prevention system"
+## Verification
 
-# Deploy
-# (migration v6 will run automatically on app load)
-```
+### Check Local Store (Dev Mode)
+Use Storage Inspector in app to see all people and verify only ONE has `isUser: true`.
 
-### Step 4: Verify
-
-```bash
-# Check for any remaining duplicates:
-psql $SUPABASE_DATABASE_URL -c "
-  SELECT user_id, COUNT(*) as count 
-  FROM library_people 
-  WHERE is_user = true 
-  GROUP BY user_id 
-  HAVING COUNT(*) > 1;
-"
-
-# Should return 0 rows
-```
-
-## How It Prevents Future Duplicates
-
-1. **Database Layer**: Any INSERT/UPDATE that tries to create a second `is_user=true` for the same `user_id` will **fail** with a unique constraint violation.
-
-2. **Frontend Layer**: The `addPerson` function already checks for existing `isUser=true` entries and **updates** instead of creating new ones.
-
-3. **Migration Layer**: On app load, if duplicates somehow exist in local storage, they're automatically cleaned up.
-
-## Monitoring
-
-### Check for Duplicates
-
-```bash
-# Via script
-npx ts-node src/scripts/cleanupDuplicateUserProfiles.ts
-
-# Via SQL
-SELECT user_id, name, is_user, created_at 
+### Check Supabase
+```sql
+-- Should return 0 rows (no duplicates)
+SELECT user_id, COUNT(*) as count 
 FROM library_people 
 WHERE is_user = true 
-ORDER BY user_id, created_at DESC;
+GROUP BY user_id 
+HAVING COUNT(*) > 1;
 ```
 
-### Storage Inspector (Dev Tool)
-
-In the app (DEV mode), tap the 🔍 button on "My Souls Library" to see:
-
-- All people in memory
-- Which are marked as "YOU"
-- Birth data and placements
-
-## Troubleshooting
-
-### "ERROR: duplicate key value violates unique constraint"
-
-**Good!** This means the database constraint is working. It prevented a duplicate from being created.
-
-**Fix:** The frontend should already handle this. If you see this error, check:
-
-1. Is `addPerson` checking for existing `isUser=true`?
-2. Is the Supabase sync creating duplicates?
-
-### User sees duplicate names in library
-
-**Option 1:** Run cleanup script
-
-```bash
-npx ts-node src/scripts/cleanupDuplicateUserProfiles.ts
+### Check Logs
+On app start, look for:
+```
+📦 Profile store: Hydration complete
+✅ No duplicate user profiles found
 ```
 
-**Option 2:** They can delete and re-create account (account deletion now properly cleans up)
+Or if cleanup runs:
+```
+⚠️ Found 2 user profiles on hydration - running cleanup...
+✅ Hydration cleanup: merged 1 duplicate user profiles
+```
 
-**Option 3:** Force app reload (migration v6 will clean up on next load)
+---
 
 ## Related Files
 
-- `profileStore.ts` - Frontend store with duplicate prevention
-- `cleanupDuplicateUserProfiles.ts` - Cleanup script
-- `add_unique_user_profile_constraint.sql` - Database migration
-- `StorageInspector.tsx` - Debug tool to see what's in memory
-- `account.ts` - Account deletion endpoint (should clean up properly)
+| File | Purpose |
+|------|---------|
+| `profileStore.ts` | Core store with all duplicate prevention logic |
+| `ComparePeopleScreen.tsx` | Self-delete protection |
+| `PeopleListScreen.tsx` | Self-delete protection |
+| `PersonProfileScreen.tsx` | Self-delete protection |
+| `MyLibraryScreen.tsx` | Self-delete protection |
+| `cleanupDuplicateUserProfiles.ts` | Backend cleanup script |
+| `add_unique_user_profile_constraint.sql` | Database constraint |
 
-## Questions?
+---
 
-If a user still has duplicates after all this:
+## Troubleshooting
 
-1. Run the cleanup script
-2. Check if the database constraint exists
-3. Use the Storage Inspector to see where the duplicate is coming from
-4. Check Supabase `library_people` table directly
+### User still sees duplicates after update
+1. Force close and reopen app (triggers hydration cleanup)
+2. Check console logs for cleanup messages
+3. If persists, clear AsyncStorage and re-login
+
+### "Cannot delete" alert when trying to delete self
+**This is correct behavior!** Users cannot delete their own profile.
+
+### Cloud sync seems to create duplicates
+Check if `upsertPersonById` fix is deployed. The fix merges into existing user instead of adding.
+
+---
+
+## Last Updated
+**January 11, 2026** - Added 5-layer protection system

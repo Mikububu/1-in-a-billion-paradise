@@ -206,6 +206,64 @@ http://localhost:8787/dev/dashboard
 
 ---
 
+---
+
+## 👤 BUG #4: Duplicate User Profiles (Two "Michael"s in Karmic Zoo)
+
+### Root Cause
+The `upsertPersonById` function in `profileStore.ts` was adding new profiles based on ID match only. When Supabase sync fetched a user profile with a different `client_person_id` than the local one, it created a second `isUser: true` profile instead of merging.
+
+**Scenario:**
+1. User completes onboarding → Local `id = "abc123"`, `isUser: true`
+2. Syncs to Supabase
+3. User reinstalls or logs in elsewhere
+4. New local `id = "xyz789"`, `isUser: true`
+5. Supabase returns old `id = "abc123"`
+6. **BUG:** Old code saw ID mismatch → added as new person
+7. **Result:** Two "Michael" entries, both `isUser: true`
+
+### Fix Applied ✅
+
+**5-Layer Protection System:**
+
+| Layer | Location | What It Does |
+|-------|----------|--------------|
+| 1. `upsertPersonById` guard | `profileStore.ts` | Merges incoming user profile into existing one |
+| 2. `deletePerson` protection | `profileStore.ts` | Blocks deletion of `isUser: true` |
+| 3. `dedupePeopleState` fix | `profileStore.ts` | Merges ALL `isUser` profiles regardless of name |
+| 4. Hydration auto-cleanup | `profileStore.ts` | Runs cleanup on every app start |
+| 5. Screen-level guards | 4 screen files | Alerts user they cannot delete themselves |
+
+**Files Modified:**
+- `src/store/profileStore.ts`
+- `src/screens/home/ComparePeopleScreen.tsx`
+- `src/screens/home/PeopleListScreen.tsx`
+- `src/screens/home/PersonProfileScreen.tsx`
+- `src/screens/home/MyLibraryScreen.tsx`
+
+### Verification
+
+```sql
+-- Should return 0 rows
+SELECT user_id, COUNT(*) 
+FROM library_people 
+WHERE is_user = true 
+GROUP BY user_id 
+HAVING COUNT(*) > 1;
+```
+
+On app start, console should show:
+```
+📦 Profile store: Hydration complete
+✅ No duplicate user profiles found
+```
+
+### Documentation
+
+See `PREVENT_DUPLICATE_USERS.md` for complete technical details.
+
+---
+
 ## 📞 Next Steps
 
 1. **User applies migration 017** to fix voice selection
