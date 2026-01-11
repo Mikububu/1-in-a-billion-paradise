@@ -188,7 +188,7 @@ export const KYCPhotoScreen = ({ navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   backButton: { paddingHorizontal: spacing.page, paddingVertical: spacing.sm, paddingLeft: 60 },
   backText: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },
   content: { flex: 1, paddingHorizontal: spacing.page, paddingTop: spacing.xl },

@@ -202,7 +202,7 @@ export const DataPrivacyScreen = ({ navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   header: { paddingHorizontal: spacing.page, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.divider },
   backButton: { paddingVertical: spacing.xs },
   backText: { fontFamily: typography.sansMedium, fontSize: 16, color: colors.primary },

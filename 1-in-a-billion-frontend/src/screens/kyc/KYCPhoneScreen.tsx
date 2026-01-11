@@ -135,7 +135,7 @@ export const KYCPhoneScreen = ({ navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   content: { flex: 1, paddingHorizontal: spacing.page, paddingTop: spacing.xl },
   step: { fontFamily: typography.sansSemiBold, fontSize: 12, color: colors.primary, textTransform: 'uppercase', letterSpacing: 1 },
   title: { fontFamily: typography.headline, fontSize: 32, color: colors.text, marginTop: spacing.sm },

@@ -64,7 +64,7 @@ export const FullReadingRedirectScreen = ({ navigation, route }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
   text: { fontFamily: typography.sansRegular, color: colors.mutedText },
 });

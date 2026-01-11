@@ -50,7 +50,7 @@ export const WelcomeBackScreen = ({ userName, onContinue }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.page },
   welcome: { fontFamily: typography.headline, fontSize: 28, color: colors.mutedText, fontStyle: 'italic' },
   name: { fontFamily: typography.headline, fontSize: 56, color: colors.text, marginTop: spacing.sm },

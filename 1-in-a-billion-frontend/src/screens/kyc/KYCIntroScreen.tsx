@@ -84,7 +84,7 @@ export const KYCIntroScreen = ({ navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   content: { flex: 1, paddingHorizontal: spacing.page, paddingTop: 80 },
   headline: { fontFamily: typography.headline, fontSize: 48, color: colors.text },
   headline2: { fontFamily: typography.headline, fontSize: 48, color: colors.primary, fontStyle: 'italic', marginBottom: spacing.xl },

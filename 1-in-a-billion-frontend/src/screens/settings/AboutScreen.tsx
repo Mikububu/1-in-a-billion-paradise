@@ -161,7 +161,7 @@ export const AboutScreen = ({ navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   scrollView: { flex: 1 },
   scrollContent: { paddingHorizontal: spacing.page, paddingVertical: spacing.xl },
 

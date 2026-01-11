@@ -55,7 +55,7 @@ export const ReadyToMatchScreen = ({ onContinue }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.page },
   line1: { fontFamily: typography.headline, fontSize: 32, color: colors.mutedText },
   line2: { fontFamily: typography.headline, fontSize: 32, color: colors.text, marginTop: spacing.sm },

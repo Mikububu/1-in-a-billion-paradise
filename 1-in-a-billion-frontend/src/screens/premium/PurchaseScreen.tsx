@@ -336,7 +336,7 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   scrollView: { flex: 1 },
   content: { paddingHorizontal: spacing.page, paddingBottom: spacing.xl },
   title: { fontFamily: typography.headline, fontSize: 28, color: colors.text, fontStyle: 'italic' },
