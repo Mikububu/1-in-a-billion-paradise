@@ -9,7 +9,7 @@ import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/Button';
 import { BackButton } from '@/components/BackButton';
 import { importPeople } from '@/scripts/importPeopleToStore';
-import { fetchPeopleFromSupabase } from '@/services/peopleService';
+import { fetchPeopleFromSupabase, deletePersonFromSupabase } from '@/services/peopleService';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ComparePeople'>;
 
@@ -19,7 +19,9 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
   const people = useProfileStore((s) => s.people);
   const updatePerson = useProfileStore((s) => s.updatePerson);
   const addPerson = useProfileStore((s) => s.addPerson);
+  const deletePerson = useProfileStore((s) => s.deletePerson);
   const userId = useAuthStore((s) => s.userId);
+  const authUser = useAuthStore((s) => s.user);
   
   // Blinking animation for "CHOOSE ONE OR TWO PEOPLE" text
   const blinkAnim = useRef(new Animated.Value(1)).current;
@@ -197,6 +199,43 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
     } as any);
   }, [navigation, personA, personB]);
 
+  // Long-press to delete a person (with cascade deletion of all readings)
+  const handleDeletePerson = useCallback((person: any) => {
+    Alert.alert(
+      'Delete Person',
+      `Are you sure you want to delete ${person.name} and all their readings?\n\nThis cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            // Clear selection if this person was selected
+            if (personAId === person.id) {
+              setPersonAId(null);
+              setPersonBId(null);
+            } else if (personBId === person.id) {
+              setPersonBId(null);
+            }
+            
+            // Delete from local store
+            deletePerson(person.id);
+            
+            // Delete from Supabase (cascade deletes readings too)
+            if (authUser?.id) {
+              const result = await deletePersonFromSupabase(authUser.id, person.id);
+              if (result.success) {
+                console.log(`✅ Deleted "${person.name}" and all readings from Supabase`);
+              } else {
+                console.warn(`⚠️ Local delete OK, Supabase failed: ${result.error}`);
+              }
+            }
+          },
+        },
+      ]
+    );
+  }, [personAId, personBId, deletePerson, authUser]);
+
   return (
     <SafeAreaView style={styles.container}>
       {/** Screen numbers temporarily removed */}
@@ -209,6 +248,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
         <Animated.Text style={[styles.boldSubheadline, { opacity: blinkAnim }]}>
           CHOOSE ONE OR TWO PEOPLE{'\n'}FOR DEEP READINGS
         </Animated.Text>
+        <Text style={styles.hintText}>Long press to delete</Text>
 
         {candidates.length === 0 ? (
           <View style={styles.emptyState}>
@@ -232,6 +272,8 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                   key={`p-${p.id}`}
                   style={[styles.row, (isA || isB) && styles.rowSelected]}
                   onPress={() => handlePick(p.id)}
+                  onLongPress={() => handleDeletePerson(p)}
+                  delayLongPress={500}
                   activeOpacity={0.85}
                 >
                   <View style={[styles.avatar, {
@@ -340,8 +382,15 @@ const styles = StyleSheet.create({
     color: colors.primary,
     textAlign: 'center',
     marginTop: spacing.lg,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xs,
     lineHeight: 20,
+  },
+  hintText: {
+    fontFamily: typography.sansRegular,
+    fontSize: 12,
+    color: colors.mutedText,
+    textAlign: 'center',
+    marginBottom: spacing.md,
   },
   list: { flex: 1 },
   sectionLabel: {
