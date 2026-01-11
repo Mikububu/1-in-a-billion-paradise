@@ -23,6 +23,7 @@
     "@react-navigation/native-stack": "^6.11.0",
     "@supabase/supabase-js": "^2.45.0",
     "@tanstack/react-query": "^5.51.0",
+    "@stripe/stripe-react-native": "^0.40.0",
     "axios": "^1.7.0",
     "expo": "^54.0.30",
     "expo-apple-authentication": "~8.0.8",

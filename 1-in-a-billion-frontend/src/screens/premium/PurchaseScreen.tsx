@@ -24,7 +24,7 @@ import { useProfileStore, selectPartners } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
 import { PRODUCTS, formatAudioDuration } from '@/config/products';
 import { BackButton } from '@/components/BackButton';
-import { createPaymentIntent, mapToProductId, extractSystemFromProductId } from '@/services/payments';
+import { createPaymentIntent, mapToProductId, extractSystemFromProductId, getPaymentConfig } from '@/services/payments';
 
 // Developer bypass emails (for testing without payment)
 const DEV_BYPASS_EMAILS = [
@@ -295,6 +295,30 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
         return;
       }
 
+      // Fetch publishable key (must match secret mode: test vs live)
+      const cfg = await getPaymentConfig();
+      const publishableKey = cfg?.publishableKey?.trim();
+      if (!publishableKey) {
+        Alert.alert(
+          'Payments Not Configured',
+          'Stripe publishable key is missing. This must be configured on the backend (test key for sandbox).\n\nContact contact@1-in-a-billion.app if you need help.',
+          [{ text: 'OK' }]
+        );
+        setIsPurchasing(false);
+        return;
+      }
+
+      // Initialize Stripe native SDK (required for PaymentSheet)
+      // NOTE: This requires a dev build / TestFlight build (Expo Go will not have native modules).
+      if (typeof stripeModule.initStripe === 'function') {
+        await stripeModule.initStripe({
+          publishableKey,
+          merchantIdentifier: 'merchant.com.oneinabillion.app',
+          // Must match app.json scheme for 3DS redirects
+          urlScheme: 'oneinabillion',
+        });
+      }
+
       // Map frontend product to backend product ID
       const backendProductId = mapToProductId(selectedProduct);
       const systemId = extractSystemFromProductId(selectedProduct);
@@ -322,7 +346,11 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
       console.log('💳 PaymentIntent created:', intentResult.paymentIntentId);
       
       // 2. Initialize Payment Sheet using imperative API
-      const { initPaymentSheet, presentPaymentSheet } = stripeModule;
+      const initPaymentSheet = stripeModule.initPaymentSheet;
+      const presentPaymentSheet = stripeModule.presentPaymentSheet;
+      if (typeof initPaymentSheet !== 'function' || typeof presentPaymentSheet !== 'function') {
+        throw new Error('Stripe PaymentSheet API not available. Rebuild the app with Stripe native modules.');
+      }
       
       const { error: initError } = await initPaymentSheet({
         paymentIntentClientSecret: intentResult.clientSecret,
