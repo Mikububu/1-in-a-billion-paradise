@@ -36,6 +36,7 @@ import { createArtifactSignedUrl } from '@/services/nuclearReadingsService';
 import { colors } from '@/theme/tokens';
 import { useProfileStore } from '@/store/profileStore';
 import { BackButton } from '@/components/BackButton';
+import { FEATURES } from '@/config/features';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonReadings'>;
 
@@ -152,6 +153,9 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const readingsCountRef = useRef(0);
 
+  // ZIP export (server-side)
+  const [zipLoading, setZipLoading] = useState(false);
+
   useEffect(() => {
     readingsCountRef.current = readings.length;
   }, [readings.length]);
@@ -263,6 +267,84 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       default: return [1, 2, 3, 4, 5];
     }
   };
+
+  const isZipReady = useCallback(() => {
+    if (!FEATURES.ZIP_EXPORT_ENABLED) return false;
+    if (!jobId) return false;
+    if (jobStatus !== 'complete' && jobStatus !== 'completed') return false;
+    const docRange = getDocRange();
+    // Require the core bundle for every doc in this scope (pdf + narration).
+    // Songs are included only if EVERY doc has a song; otherwise we still allow exporting the core package.
+    return docRange.every((d) => {
+      const r = readings.find((x) => x.docNum === d);
+      return !!(r?.pdfPath && r?.audioPath);
+    });
+  }, [jobId, jobStatus, readings, personType]);
+
+  const shouldIncludeSongInZip = useCallback(() => {
+    if (!FEATURES.ZIP_EXPORT_ENABLED) return false;
+    if (!jobId) return false;
+    const docRange = getDocRange();
+    // Include song only if every doc has it (prevents "button never appears" due to one missing song)
+    return docRange.every((d) => {
+      const r = readings.find((x) => x.docNum === d);
+      return !!r?.songPath;
+    });
+  }, [jobId, readings, personType]);
+
+  const handleZipDownload = useCallback(async () => {
+    if (!jobId) return;
+    if (!isZipReady()) return;
+
+    try {
+      setZipLoading(true);
+
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data?.session?.access_token;
+      if (!accessToken) {
+        Alert.alert('Download', 'You must be signed in to download the ZIP.');
+        return;
+      }
+
+      const docRange = getDocRange();
+      const include = shouldIncludeSongInZip() ? 'pdf,audio,song' : 'pdf,audio';
+      const url = `${env.CORE_API_URL}/api/jobs/v2/${jobId}/export?docs=${encodeURIComponent(docRange.join(','))}&include=${include}`;
+
+      const fileBase = `${personName || 'reading'}_${jobId.slice(0, 8)}.zip`.replace(/[^a-zA-Z0-9._-]+/g, '_');
+      const destDir = getDocumentDirectory() || FileSystem.documentDirectory || '';
+      const dest = `${destDir}${fileBase}`;
+
+      const dl = FileSystem.createDownloadResumable(
+        url,
+        dest,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      const result = await dl.downloadAsync();
+      const uri = result?.uri;
+      if (!uri) throw new Error('ZIP download failed');
+
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        Alert.alert('Download complete', 'ZIP saved, but sharing is not available on this device.');
+        return;
+      }
+
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/zip',
+        dialogTitle: 'Save ZIP',
+        UTI: 'public.zip-archive',
+      });
+    } catch (e: any) {
+      Alert.alert('Download all', e?.message || 'ZIP download failed');
+    } finally {
+      setZipLoading(false);
+    }
+  }, [jobId, isZipReady, shouldIncludeSongInZip, personName, jobStatus, personType, readings]);
 
   const load = useCallback(async () => {
     console.log('🚀 [PersonReadings] Starting load for', personName, personType);
@@ -1840,6 +1922,37 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           </View>
         )}
 
+        {/* Bottom ZIP export: one subtle button for this screen’s scope (5 systems or 6 for overlay) */}
+        {isZipReady() ? (
+          <View style={{ alignItems: 'center', marginTop: 18, marginBottom: 10 }}>
+            <TouchableOpacity
+              onPress={handleZipDownload}
+              disabled={zipLoading}
+              activeOpacity={0.8}
+              style={[styles.zipCircleBtn, zipLoading && { opacity: 0.6 }]}
+            >
+              <View style={styles.zipCircleStripes}>
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <View
+                    // eslint-disable-next-line react/no-array-index-key
+                    key={i}
+                    style={[
+                      styles.zipStripe,
+                      { backgroundColor: i % 2 === 0 ? '#C41E3A' : '#FFF' },
+                    ]}
+                  />
+                ))}
+              </View>
+              {zipLoading ? (
+                <ActivityIndicator color="#111827" />
+              ) : (
+                <Text style={styles.zipCircleText}>zip</Text>
+              )}
+            </TouchableOpacity>
+            <Text style={styles.zipHintText}>Download all</Text>
+          </View>
+        ) : null}
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -1905,6 +2018,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFF',
+  },
+  zipCircleBtn: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.12)',
+    backgroundColor: '#FFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zipCircleStripes: {
+    position: 'absolute',
+    top: -20,
+    left: -20,
+    right: -20,
+    bottom: -20,
+    transform: [{ rotate: '20deg' }],
+  },
+  zipStripe: {
+    height: 10,
+    width: '140%',
+    opacity: 0.45,
+  },
+  zipCircleText: {
+    fontFamily: 'System',
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#111827',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  zipHintText: {
+    marginTop: 8,
+    fontFamily: 'System',
+    fontSize: 13,
+    color: '#6B7280',
   },
   loadingText: {
     fontFamily: 'System',

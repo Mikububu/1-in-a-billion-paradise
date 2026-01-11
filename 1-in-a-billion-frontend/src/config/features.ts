@@ -44,6 +44,13 @@ export const FEATURES = {
   
   /** Mock API responses instead of real calls */
   MOCK_API: false,
+
+  // ═══════════════════════════════════════════════════════════════
+  // EXPORT / DOWNLOAD
+  // ═══════════════════════════════════════════════════════════════
+
+  /** Enable "Download all (ZIP)" export buttons for completed jobs */
+  ZIP_EXPORT_ENABLED: true,
 };
 
 // Type export for autocomplete
