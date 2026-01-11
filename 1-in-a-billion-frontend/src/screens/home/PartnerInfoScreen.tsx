@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Button } from '@/components/Button';
+import { TexturedBackground } from '@/components/TexturedBackground';
 import { searchCities } from '@/services/geonames';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
@@ -267,9 +268,10 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
 
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header with exit button */}
-      <View style={styles.header}>
+    <TexturedBackground style={{ flex: 1 }}>
+      <SafeAreaView style={styles.container}>
+        {/* Header with exit button */}
+        <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
           <Text style={styles.closeText}>✕</Text>
         </TouchableOpacity>
@@ -392,14 +394,15 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
           disabled={!canContinue}
         />
       </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </TexturedBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: 'transparent', // Let TexturedBackground show through
   },
   screenId: {
     position: 'absolute',
