@@ -32,7 +32,7 @@ const payments = new Hono();
  */
 payments.get('/config', async (c) => {
   try {
-    const publishableKey = getPublishableKey();
+    const publishableKey = await getPublishableKey();
     
     return c.json({
       success: true,

@@ -144,7 +144,8 @@ export async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent):
       amount_cents: paymentIntent.amount,
       currency: paymentIntent.currency,
       status: 'completed',
-      stripe_receipt_url: (paymentIntent as any).charges?.data?.[0]?.receipt_url || null,
+      // Stripe API versions may not include expanded charges array; prefer latest_charge if present.
+      stripe_receipt_url: (paymentIntent as any).latest_charge ? String((paymentIntent as any).latest_charge) : null,
     });
   
   if (purchaseError) {
@@ -159,10 +160,14 @@ export async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent):
 /**
  * Get Stripe publishable key for frontend
  */
-export function getPublishableKey(): string {
-  // Publishable key can be exposed to frontend
-  // This should be set in environment or fetched from config
-  return process.env.STRIPE_PUBLISHABLE_KEY || 'pk_live_51SeWkJL0c4u8ytKNxWjOTqJtPfRQCg3lM8VLMlq3KJC7dQhVdQV3MqLHVcPqKRfvBZ2Z2KQJC8OZqJjKqJjKqJj';
+export async function getPublishableKey(): Promise<string> {
+  // Publishable key is safe to expose to frontend, but must match the secret key mode (test vs live).
+  // Prefer Supabase api_keys table for consistency across deployments.
+  const fromSupabase = await getApiKey('stripe_publishable');
+  const fromEnv = process.env.STRIPE_PUBLISHABLE_KEY;
+  const key = (fromSupabase || fromEnv || '').trim();
+  if (!key) throw new Error('Stripe publishable key not configured');
+  return key;
 }
 
 /**

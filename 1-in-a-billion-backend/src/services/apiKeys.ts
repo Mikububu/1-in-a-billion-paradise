@@ -64,6 +64,7 @@ export async function getApiKey(
         'fly_io': 'FLY_ACCESS_TOKEN', // Fly.io deployment token
         'minimax': 'MINIMAX_API_KEY', // MiniMax API for music generation
         'stripe': 'STRIPE_SECRET_KEY', // Stripe payment processing
+        'stripe_publishable': 'STRIPE_PUBLISHABLE_KEY', // Stripe publishable key for mobile SDK
         'stripe_webhook_secret': 'STRIPE_WEBHOOK_SECRET', // Stripe webhook verification
       };
 
@@ -135,6 +136,7 @@ export async function preloadApiKeys() {
     'google_places',
     'minimax',
     'stripe',
+    'stripe_publishable',
   ];
 
   console.log('🔄 [API Keys] Preloading keys from Supabase...');
