@@ -89,7 +89,7 @@ export async function upsertSelfProfileToSupabase(params: UpsertSelfProfileParam
             user_id: userId,
             client_person_id: clientPersonId,
             name: displayName || email?.split('@')[0] || 'You',
-            // NOTE: email column removed - does not exist in library_people schema
+            email: email || null, // Sync email for admin convenience
             is_user: true,
             created_at: now,
             updated_at: now,
@@ -118,6 +118,7 @@ export async function upsertSelfProfileToSupabase(params: UpsertSelfProfileParam
                 .from(TABLE_PEOPLE)
                 .update({
                     name: profileRow.name,
+                    email: profileRow.email, // Sync email on every update
                     updated_at: profileRow.updated_at,
                     ...(profileRow.relationship_intensity ? { relationship_intensity: profileRow.relationship_intensity } : {}),
                     ...(profileRow.birth_data ? { birth_data: profileRow.birth_data } : {}),
