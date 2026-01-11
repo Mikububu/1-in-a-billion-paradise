@@ -1,11 +1,17 @@
 # 1-in-a-Billion: Complete UX System Documentation
 
-**Version:** 1.4  
+**Version:** 1.5  
 **Date:** January 2025  
-**Last Updated:** January 9, 2026  
+**Last Updated:** January 11, 2026  
 **Purpose:** Complete mapping of all screens, navigation flows, and backend interactions
 
-**Recent Changes (v1.4):**
+**Recent Changes (v1.5):**
+- **Global TexturedBackground:** All screens now use transparent containers so the global leather texture shows through. Change texture by editing ONE file: `src/components/TexturedBackground.tsx` (line 29 for image, line 57 for opacity)
+- **Delete Person Button:** Visible × button on person cards in MyLibraryScreen (non-user people only). Triggers cascade delete: removes all jobs, storage files (PDFs/audio), and person record
+- **Existing User Login Fix:** Bootstrap now properly hydrates birth_data from Supabase and calls `completeOnboarding()` for returning users
+- **Email Sync:** User emails now synced to `library_people` table for admin convenience
+
+**Previous Changes (v1.4):**
 - PersonReadingsScreen (S19): Added **Button Enabling Rules** - PDF, audio, and song buttons enable progressively as each artifact completes (do NOT wait for all artifacts)
 - Deleted all old test jobs to clean up library
 
@@ -976,6 +982,26 @@ Use these handlers when discussing navigation:
    - SignInScreen: "Login with Google/Apple/Email" (all in same section)
    - AccountScreen: "Sign up with Google/Apple/Email" (same order, same section)
    - Both screens have identical button layout for consistency
+
+9. **Global TexturedBackground (ONE variable to change):**
+   - All screens use `backgroundColor: 'transparent'` in their container styles
+   - `RootNavigator.tsx` wraps entire app with `TexturedBackground` component
+   - To change texture globally: Edit `src/components/TexturedBackground.tsx`:
+     - Line 29: `source={require('../../assets/images/white-leather-texture.jpg')}` - swap image
+     - Line 57: `opacity: 0.38` - adjust texture visibility
+
+10. **Delete Person (Cascade Delete):**
+    - Visible × button on person cards in MyLibraryScreen (only for partners, not self)
+    - Shows confirmation: "Delete [Name]? This will permanently remove this person and all their readings."
+    - Cascade deletes: Storage files (PDFs, audio) → Jobs → Person record
+    - Implemented in `deletePersonFromSupabase()` in `src/services/peopleService.ts`
+
+11. **Existing User Bootstrap:**
+    - When existing user logs in, `useSupabaseAuthBootstrap.ts` fetches profile from Supabase
+    - Hydrates `birth_data` to local `onboardingStore` (birthDate, birthTime, birthCity)
+    - Hydrates `hook_readings` to local store
+    - Calls `completeOnboarding()` to mark onboarding as done
+    - User goes directly to Dashboard, not back to BirthInfo screen
 
 ---
 
