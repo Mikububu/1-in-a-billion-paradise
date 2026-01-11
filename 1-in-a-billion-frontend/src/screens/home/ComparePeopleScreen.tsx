@@ -8,7 +8,6 @@ import { useProfileStore } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/Button';
 import { BackButton } from '@/components/BackButton';
-import { importPeople } from '@/scripts/importPeopleToStore';
 import { fetchPeopleFromSupabase, deletePersonFromSupabase } from '@/services/peopleService';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ComparePeople'>;
@@ -34,13 +33,6 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
         Animated.timing(blinkAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
       ])
     ).start();
-  }, []);
-  
-  // Auto-import 9 people (will update existing people with new data like gender)
-  useEffect(() => {
-    console.log('🚀 Auto-importing/updating 9 test people...');
-    const result = importPeople();
-    console.log(`✅ Imported/Updated ${result.successCount} people`);
   }, []);
 
   // Fetch people from Supabase and sync to local store
@@ -201,6 +193,12 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
 
   // Long-press to delete a person (with cascade deletion of all readings)
   const handleDeletePerson = useCallback((person: any) => {
+    // CRITICAL: Cannot delete your own profile
+    if (person.isUser) {
+      Alert.alert('Cannot Delete', 'You cannot delete your own profile.');
+      return;
+    }
+    
     Alert.alert(
       'Delete Person',
       `Are you sure you want to delete ${person.name} and all their readings?\n\nThis cannot be undone.`,

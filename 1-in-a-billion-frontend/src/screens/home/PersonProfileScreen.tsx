@@ -84,6 +84,12 @@ export const PersonProfileScreen = ({ navigation, route }: Props) => {
   };
 
   const handleDeletePerson = () => {
+    // CRITICAL: Cannot delete your own profile
+    if (person.isUser) {
+      Alert.alert('Cannot Delete', 'You cannot delete your own profile.');
+      return;
+    }
+    
     Alert.alert(
       'Delete Profile',
       `Delete ${person.name} and all their readings? This cannot be undone.`,

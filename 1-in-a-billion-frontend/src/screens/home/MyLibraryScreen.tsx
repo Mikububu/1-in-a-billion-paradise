@@ -2134,6 +2134,12 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                     style={styles.personDeleteButton}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     onPress={() => {
+                      // CRITICAL: Cannot delete your own profile
+                      if (person.isUser) {
+                        Alert.alert('Cannot Delete', 'You cannot delete your own profile.');
+                        return;
+                      }
+                      
                       Alert.alert(
                         'Delete ' + person.name + '?',
                         'This will permanently remove this person and all their readings.',

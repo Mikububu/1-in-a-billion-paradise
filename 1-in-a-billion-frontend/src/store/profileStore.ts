@@ -322,10 +322,39 @@ const dedupePeopleState = (state: any) => {
   const survivors: any[] = [];
   let mergedCount = 0;
 
-  // Group by (nameKey + isUser), then within group only merge if birthDate matches OR either is unknown.
+  // CRITICAL FIX: First, merge ALL user profiles into ONE (regardless of name)
+  // There must only be ONE user profile (isUser: true) in the system
+  const userProfiles = people.filter((p) => p?.isUser === true);
+  const partnerProfiles = people.filter((p) => p?.isUser !== true);
+  
+  if (userProfiles.length > 1) {
+    console.log(`🔧 dedupePeopleState: Found ${userProfiles.length} user profiles, merging into one...`);
+    // Sort by completeness to pick the "best" as the base
+    userProfiles.sort((a, b) =>
+      (birthCompletenessScore(b) + (b?.readings?.length || 0)) -
+      (birthCompletenessScore(a) + (a?.readings?.length || 0))
+    );
+    
+    let mergedUser = userProfiles[0];
+    for (let i = 1; i < userProfiles.length; i++) {
+      const toMerge = userProfiles[i];
+      const beforeId = toMerge?.id;
+      mergedUser = mergePeople(mergedUser, toMerge);
+      if (beforeId && beforeId !== mergedUser.id) {
+        idMap[beforeId] = mergedUser.id;
+      }
+      mergedCount += 1;
+    }
+    survivors.push(mergedUser);
+    console.log(`✅ Merged ${userProfiles.length} user profiles into "${mergedUser.name}" (ID: ${mergedUser.id})`);
+  } else if (userProfiles.length === 1) {
+    survivors.push(userProfiles[0]);
+  }
+
+  // Now process partner profiles with original logic (group by name + birthDate)
   const groups = new Map<string, any[]>();
-  for (const p of people) {
-    const key = `${norm(p?.name)}|${p?.isUser ? 'user' : 'partner'}`;
+  for (const p of partnerProfiles) {
+    const key = norm(p?.name);
     const arr = groups.get(key) || [];
     arr.push(p);
     groups.set(key, arr);
@@ -570,7 +599,20 @@ export const useProfileStore = create<ProfileState>()(
         set((state) => {
           const idx = state.people.findIndex((p) => p.id === incoming.id);
           if (idx < 0) {
-            // Ensure required fields exist
+            // CRITICAL FIX: If incoming is a user profile (isUser: true), check if ANY user already exists
+            // This prevents duplicate user profiles when syncing from cloud with different IDs
+            if (Boolean(incoming.isUser)) {
+              const existingUser = state.people.find((p) => p.isUser);
+              if (existingUser) {
+                console.log(`👤 upsertPersonById: Merging cloud user "${incoming.name}" into existing local user "${existingUser.name}" (preventing duplicate)`);
+                const merged = mergePeople(existingUser, incoming);
+                return {
+                  people: state.people.map((p) => (p.id === existingUser.id ? merged : p)),
+                };
+              }
+            }
+            
+            // No conflict - add new person
             const now = new Date().toISOString();
             const safePerson: Person = {
               id: incoming.id,
@@ -615,6 +657,13 @@ export const useProfileStore = create<ProfileState>()(
       },
 
       deletePerson: (id) => {
+        // CRITICAL: Cannot delete the user's own profile - this would break the app
+        const personToDelete = get().people.find((p) => p.id === id);
+        if (personToDelete?.isUser) {
+          console.error('❌ BLOCKED: Cannot delete user profile. This operation is not allowed.');
+          return; // Silently refuse to delete user profile
+        }
+        
         set((state) => ({
           people: state.people.filter((p) => p.id !== id),
           compatibilityReadings: state.compatibilityReadings.filter(
@@ -1151,6 +1200,18 @@ export const useProfileStore = create<ProfileState>()(
             // Mark store as hydrated
             if (state) {
               state.hasHydrated = true;
+              
+              // CRITICAL: Auto-cleanup duplicate user profiles on every app start
+              // This is a safety net to ensure data integrity
+              const userCount = state.people?.filter((p: any) => p?.isUser === true)?.length || 0;
+              if (userCount > 1) {
+                console.warn(`⚠️ Found ${userCount} user profiles on hydration - running cleanup...`);
+                // Use setTimeout to run after hydration completes
+                setTimeout(() => {
+                  const result = useProfileStore.getState().cleanupDuplicateUsers();
+                  console.log(`✅ Hydration cleanup: merged ${result.mergedCount} duplicate user profiles`);
+                }, 100);
+              }
             }
           }
         };
