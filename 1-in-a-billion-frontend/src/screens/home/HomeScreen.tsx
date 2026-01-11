@@ -24,6 +24,36 @@ type Props = NativeStackScreenProps<MainStackParamList, 'Home'>;
 
 type ReadingType = 'sun' | 'moon' | 'rising';
 
+type HookReadingLike = {
+  type: ReadingType;
+  sign: string;
+  intro: string;
+  main: string;
+  generatedAt?: string;
+};
+
+const toHookRecord = (hookReadings: any): Record<ReadingType, HookReadingLike> | null => {
+  if (!hookReadings) return null;
+  // already record
+  if (!Array.isArray(hookReadings) && typeof hookReadings === 'object') return hookReadings as any;
+  // array -> record
+  if (Array.isArray(hookReadings)) {
+    const out: any = {};
+    for (const r of hookReadings) {
+      if (r?.type) out[r.type] = r;
+    }
+    return out;
+  }
+  return null;
+};
+
+const recordToArray = (rec: Record<ReadingType, HookReadingLike>): any[] => {
+  return (['sun', 'moon', 'rising'] as ReadingType[])
+    .map((k) => rec[k])
+    .filter(Boolean)
+    .map((r) => ({ ...r, type: r.type || (r as any).type }));
+};
+
 export const HomeScreen = ({ navigation }: Props) => {
   console.log('🏠 HomeScreen MOUNTED - This is Screen 10');
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -241,6 +271,9 @@ export const HomeScreen = ({ navigation }: Props) => {
 
   // State for expanded reading modal
   const [selectedReading, setSelectedReading] = useState<ReadingType | null>(null);
+  const [hookPreviewLoading, setHookPreviewLoading] = useState(false);
+  const [hookPreviewError, setHookPreviewError] = useState<string | null>(null);
+  const hookPreviewRequestTokenRef = useRef(0);
 
   // The modal must ONLY show text/audio for the currently displayed person.
   // Never fall back to *your* hook previews when the carousel is showing someone else.
@@ -283,6 +316,131 @@ export const HomeScreen = ({ navigation }: Props) => {
 
     return null;
   }, [currentPerson, hookReadings]);
+
+  // UX: Hook preview text should be cached for saved people (audio can be on-demand).
+  // If we don't have text for the current person + selected reading, fetch from Supabase `library_people.hook_readings`.
+  // If missing in Supabase, generate via API once and persist back to Supabase and local store.
+  useEffect(() => {
+    const run = async () => {
+      if (!selectedReading) return;
+      if (!currentPerson?.person) return;
+      if (!authUserId) return;
+      if (currentPerson.person.isUser) return; // user handled via onboardingStore + userReadings loader
+
+      const rec = toHookRecord(currentPerson.hookReadings);
+      if (rec?.[selectedReading]) {
+        setHookPreviewLoading(false);
+        setHookPreviewError(null);
+        return;
+      }
+
+      const myToken = ++hookPreviewRequestTokenRef.current;
+      const isCancelled = () => myToken !== hookPreviewRequestTokenRef.current;
+
+      setHookPreviewLoading(true);
+      setHookPreviewError(null);
+
+      try {
+        // 1) Try Supabase cached hook_readings first
+        const { data: row, error } = await supabase
+          .from('library_people')
+          .select('hook_readings')
+          .eq('user_id', authUserId)
+          .eq('client_person_id', currentPerson.person.id)
+          .maybeSingle();
+
+        if (isCancelled()) return;
+
+        if (error) {
+          console.warn('⚠️ Failed to fetch hook_readings from Supabase:', error.message);
+        }
+
+        const rowRec = row?.hook_readings ? toHookRecord(row.hook_readings) : null;
+        if (rowRec?.[selectedReading]) {
+          // Cache into local store for instant future access
+          updatePerson(currentPerson.person.id, {
+            hookReadings: recordToArray(rowRec) as any,
+          } as any);
+          setHookPreviewLoading(false);
+          setHookPreviewError(null);
+          return;
+        }
+
+        // 2) Not in Supabase → generate it now (one reading) and persist
+        const onboarding = useOnboardingStore.getState() as any;
+        const bd = currentPerson.person.birthData;
+        if (!bd?.birthDate || !bd?.birthTime || !bd?.timezone || !bd?.latitude || !bd?.longitude) {
+          setHookPreviewError('Missing birth data to generate preview.');
+          setHookPreviewLoading(false);
+          return;
+        }
+
+        const payload: any = {
+          name: currentPerson.person.name,
+          birthDate: bd.birthDate,
+          birthTime: bd.birthTime,
+          latitude: bd.latitude,
+          longitude: bd.longitude,
+          timezone: bd.timezone,
+          relationshipMode: onboarding.relationshipMode,
+          relationshipIntensity: onboarding.relationshipIntensity,
+          primaryLanguage: onboarding.primaryLanguage?.code || onboarding.primaryLanguage,
+          secondaryLanguage: onboarding.secondaryLanguage?.code || onboarding.secondaryLanguage,
+        };
+
+        const apiRes =
+          selectedReading === 'sun'
+            ? await readingsApi.sun(payload)
+            : selectedReading === 'moon'
+              ? await readingsApi.moon(payload)
+              : await readingsApi.rising(payload);
+
+        if (isCancelled()) return;
+
+        const generated = apiRes?.reading;
+        if (!generated?.type || !generated?.intro || !generated?.main) {
+          setHookPreviewError('Failed to generate preview.');
+          setHookPreviewLoading(false);
+          return;
+        }
+
+        const merged: Record<ReadingType, HookReadingLike> = {
+          ...(rowRec || ({} as any)),
+          [selectedReading]: generated,
+        } as any;
+
+        // Persist to Supabase for future sessions
+        const { error: upError } = await supabase
+          .from('library_people')
+          .update({ hook_readings: merged, updated_at: new Date().toISOString() })
+          .eq('user_id', authUserId)
+          .eq('client_person_id', currentPerson.person.id);
+
+        if (upError) {
+          console.warn('⚠️ Failed to persist hook_readings to Supabase:', upError.message);
+        }
+
+        // Cache locally
+        updatePerson(currentPerson.person.id, {
+          hookReadings: recordToArray(merged) as any,
+        } as any);
+
+        setHookPreviewLoading(false);
+        setHookPreviewError(null);
+      } catch (e: any) {
+        if (isCancelled()) return;
+        console.warn('⚠️ Hook preview preload failed:', e?.message);
+        setHookPreviewError(e?.message || 'Failed to load preview.');
+        setHookPreviewLoading(false);
+      }
+    };
+
+    run();
+    return () => {
+      // cancel in-flight
+      hookPreviewRequestTokenRef.current += 1;
+    };
+  }, [selectedReading, currentPerson?.person?.id, currentPerson?.person?.isUser, authUserId, updatePerson]);
 
   // Audio state (simple - no file system, just play from memory)
   const [audioLoading, setAudioLoading] = useState(false);
@@ -851,9 +1009,18 @@ export const HomeScreen = ({ navigation }: Props) => {
 
             {selectedReading && !modalReadings?.[selectedReading] && (
               <View style={{ paddingHorizontal: spacing.sm }}>
-                <Text style={{ fontFamily: typography.sansRegular, color: colors.mutedText, textAlign: 'center' }}>
-                  Preview text/audio for this person isn’t saved yet.
-                </Text>
+                {hookPreviewLoading ? (
+                  <View style={{ alignItems: 'center', gap: spacing.sm }}>
+                    <ActivityIndicator />
+                    <Text style={{ fontFamily: typography.sansRegular, color: colors.mutedText, textAlign: 'center' }}>
+                      Loading preview...
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={{ fontFamily: typography.sansRegular, color: colors.mutedText, textAlign: 'center' }}>
+                    {hookPreviewError ? hookPreviewError : 'Preview text/audio for this person isn’t saved yet.'}
+                  </Text>
+                )}
               </View>
             )}
           </ScrollView>
