@@ -107,7 +107,7 @@ async function cleanupOldArtifacts(
         errors += batch.length;
       } else {
         deleted += batch.length;
-        const batchArtifacts = artifacts.filter(a => batch.includes(a.storage_path));
+        const batchArtifacts = artifacts.filter((a: any) => batch.includes(a.storage_path));
         freedBytes += batchArtifacts.reduce((sum: number, a: any) => sum + (a.file_size_bytes || 0), 0);
         console.log(`   ✅ Deleted batch ${Math.floor(i / batchSize) + 1} (${deleted}/${paths.length} files)`);
       }
@@ -117,7 +117,7 @@ async function cleanupOldArtifacts(
   // Delete database records
   if (deleted > 0) {
     console.log(`   🗄️  Deleting ${artifacts.length} database record(s)...`);
-    const artifactIds = artifacts.map(a => a.id);
+    const artifactIds = artifacts.map((a: any) => a.id);
     
     // Delete in batches
     const batchSize = 100;

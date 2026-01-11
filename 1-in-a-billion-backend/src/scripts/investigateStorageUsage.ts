@@ -120,7 +120,7 @@ async function investigateStorageUsage() {
     const { data: jobs, error: jobsError } = await supabase
       .from('jobs')
       .select('id, user_id, params, created_at')
-      .in('id', [...new Set(artifacts.map(a => a.job_id))]);
+      .in('id', [...new Set(artifacts.map((a: any) => a.job_id))]);
 
     if (!jobsError && jobs) {
       const byJob: Record<string, { count: number; totalBytes: number }> = {};
