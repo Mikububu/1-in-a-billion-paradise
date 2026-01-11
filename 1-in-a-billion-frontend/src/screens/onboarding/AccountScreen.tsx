@@ -8,7 +8,7 @@
  * - Creates Supabase account and attaches local onboarding data
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   StyleSheet,
@@ -49,6 +49,9 @@ export const AccountScreen = ({ navigation }: Props) => {
   const [isCreatingAccount, setIsCreatingAccount] = useState(false); // Full-screen loading overlay
   const [videoReady, setVideoReady] = useState(false);
   const { isPlaying } = useMusicStore();
+  const user = useAuthStore((s) => s.user);
+  const signOut = useAuthStore((s) => s.signOut);
+  const hasCheckedExistingAccountRef = useRef<Set<string>>(new Set()); // Track checked user IDs to avoid duplicate checks
 
   // Email authentication state
   const [name, setName] = useState('');
@@ -67,18 +70,78 @@ export const AccountScreen = ({ navigation }: Props) => {
     }, [isPlaying])
   );
 
+  // Check if user already has account (for Google OAuth flow which uses deep link)
+  useEffect(() => {
+    const checkExistingAccount = async () => {
+      if (!user?.id || !isSupabaseConfigured) return;
+      if (hasCheckedExistingAccountRef.current.has(user.id)) return; // Already checked this user
+      hasCheckedExistingAccountRef.current.add(user.id);
+
+      try {
+        console.log('🔍 AccountScreen: Checking if user already has profile:', user.id);
+        const { data: profiles, error } = await supabase
+          .from('library_people')
+          .select('user_id')
+          .eq('user_id', user.id)
+          .eq('is_user', true)
+          .limit(1);
+
+        if (error) {
+          console.error('❌ AccountScreen: Profile check error:', error);
+          return;
+        }
+
+        if (profiles && profiles.length > 0) {
+          console.log('🚫 AccountScreen: User already has account - rejecting sign-up');
+          // User already has account - reject and redirect
+          await signOut();
+          Alert.alert('Account Already Exists', 'You already have an account. Please sign in from the Sign In screen.', [
+            { text: 'OK', onPress: () => navigation.replace('Intro') },
+          ]);
+        }
+      } catch (err) {
+        console.error('❌ AccountScreen: Error checking existing account:', err);
+      }
+    };
+
+    checkExistingAccount();
+  }, [user?.id, signOut, navigation]);
+
   const handleSupabaseExchange = async (idToken: string, provider: 'apple' | 'google') => {
     try {
       setIsCreatingAccount(true); // Show loading overlay
       const { setFlowType } = useAuthStore.getState();
       setFlowType('onboarding'); // FLAG: Allow local data validation
 
-      const { error } = await supabase.auth.signInWithIdToken({
+      const { data, error } = await supabase.auth.signInWithIdToken({
         provider,
         token: idToken,
       });
 
       if (error) throw error;
+      if (!data?.user?.id) throw new Error('No user ID returned from authentication');
+
+      // Check if user already has account (before navigating)
+      if (isSupabaseConfigured) {
+        const { data: profiles, error: profileError } = await supabase
+          .from('library_people')
+          .select('user_id')
+          .eq('user_id', data.user.id)
+          .eq('is_user', true)
+          .limit(1);
+
+        if (!profileError && profiles && profiles.length > 0) {
+          console.log('🚫 AccountScreen: User already has account - rejecting sign-up');
+          await signOut();
+          setIsLoading(false);
+          setIsCreatingAccount(false);
+          Alert.alert('Account Already Exists', 'You already have an account. Please sign in from the Sign In screen.', [
+            { text: 'OK', onPress: () => navigation.replace('Intro') },
+          ]);
+          return;
+        }
+      }
+
       setIsLoading(false);
       // Keep loading overlay visible during navigation
       // Navigate directly to CoreIdentities (no white page flash)
@@ -245,6 +308,33 @@ export const AccountScreen = ({ navigation }: Props) => {
 
         if (sessionError) {
           throw new Error(sessionError.message);
+        }
+
+        // Get user ID after session is set
+        const { data: { user: currentUser }, error: getUserError } = await supabase.auth.getUser();
+        if (getUserError || !currentUser?.id) {
+          throw new Error('Failed to get user after sign-up');
+        }
+
+        // Check if user already has account (before navigating)
+        if (isSupabaseConfigured) {
+          const { data: profiles, error: profileError } = await supabase
+            .from('library_people')
+            .select('user_id')
+            .eq('user_id', currentUser.id)
+            .eq('is_user', true)
+            .limit(1);
+
+          if (!profileError && profiles && profiles.length > 0) {
+            console.log('🚫 AccountScreen: User already has account - rejecting email sign-up');
+            await signOut();
+            setEmailAuthState('idle');
+            setIsCreatingAccount(false);
+            Alert.alert('Account Already Exists', 'You already have an account. Please sign in from the Sign In screen.', [
+              { text: 'OK', onPress: () => navigation.replace('Intro') },
+            ]);
+            return;
+          }
         }
 
         // Save name to onboarding store for PostHookOfferScreen to use
