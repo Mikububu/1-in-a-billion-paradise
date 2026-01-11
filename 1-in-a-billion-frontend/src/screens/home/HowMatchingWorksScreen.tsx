@@ -4,12 +4,14 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { colors, spacing, typography } from '@/theme/tokens';
 import { Button } from '@/components/Button';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'HowMatchingWorks'>;
 
 export const HowMatchingWorksScreen = ({ navigation }: Props) => {
     return (
         <SafeAreaView style={styles.container}>
+            <BackButton onPress={() => navigation.goBack()} />
             <ScrollView
                 contentContainerStyle={styles.content}
                 showsVerticalScrollIndicator={false}
@@ -42,7 +44,7 @@ export const HowMatchingWorksScreen = ({ navigation }: Props) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: 'transparent',
     },
     content: {
         padding: spacing.page,

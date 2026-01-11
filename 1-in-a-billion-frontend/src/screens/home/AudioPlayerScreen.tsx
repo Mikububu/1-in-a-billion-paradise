@@ -671,7 +671,7 @@ export const AudioPlayerScreen = ({ navigation, route }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: 'transparent',
   },
   // header/close button removed (global BackButton is used instead)
   content: {

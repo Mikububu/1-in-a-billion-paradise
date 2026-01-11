@@ -7,6 +7,7 @@ import { Audio } from 'expo-av';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { backfillMissingPlacements } from '@/services/placementsCalculator';
 import { supabase } from '@/services/supabase';
+import { downloadHookAudioBase64 } from '@/services/hookAudioCloud';
 import { useProfileStore } from '@/store/profileStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
@@ -285,9 +286,13 @@ export const HomeScreen = ({ navigation }: Props) => {
 
   // Audio state (simple - no file system, just play from memory)
   const [audioLoading, setAudioLoading] = useState(false);
+  const [audioLoadingText, setAudioLoadingText] = useState<string | null>(null); // "Downloading audio..." etc
   const [audioPlaying, setAudioPlaying] = useState(false);
   const soundRef = useRef<Audio.Sound | null>(null);
   const playRequestTokenRef = useRef(0); // cancels in-flight async play when modal closes/switches
+  
+  // Session-level cache for downloaded audio (avoids re-downloading during same session)
+  const downloadedAudioCache = useRef<Record<string, string>>({});
 
   const stopAndUnloadAudio = useCallback(async () => {
     if (!soundRef.current) return;
@@ -430,7 +435,7 @@ export const HomeScreen = ({ navigation }: Props) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedReading]);
 
-  // Handle audio playback for the modal
+  // Handle audio playback for the modal (ON-DEMAND DOWNLOAD)
   const handlePlayAudio = useCallback(async () => {
     if (!selectedReading) return;
 
@@ -445,37 +450,88 @@ export const HomeScreen = ({ navigation }: Props) => {
       return;
     }
 
-    // Get cached audio from store (base64 in memory, no file system).
-    // User audio: hookAudio[type]
-    // Partner audio: partnerAudio[type]
-    const audioBase64 = currentPerson?.person?.isUser 
+    // Check reading exists for this person
+    const reading = modalReadings?.[selectedReading];
+    if (!reading) {
+      Alert.alert('Preview not available', 'This person does not have preview text saved yet.');
+      return;
+    }
+
+    // STEP 1: Check if audio is already in memory (hookAudio/partnerAudio store)
+    let audioBase64 = currentPerson?.person?.isUser 
       ? hookAudio[selectedReading] 
       : partnerAudio[selectedReading];
 
-    if (!audioBase64) {
-      const reading = modalReadings?.[selectedReading];
-      if (!reading) {
-        Alert.alert('Preview not available', 'This person does not have preview text/audio saved yet.');
-        return;
+    // STEP 2: Check session cache (for previously downloaded audio this session)
+    const personId = currentPerson?.person?.id;
+    const cacheKey = personId ? `${personId}_${selectedReading}` : null;
+    if (!audioBase64 && cacheKey && downloadedAudioCache.current[cacheKey]) {
+      console.log(`🎵 Using session-cached audio for ${currentPerson?.person?.name} ${selectedReading}`);
+      audioBase64 = downloadedAudioCache.current[cacheKey];
+    }
+
+    // STEP 3: Download from Supabase on-demand if not in memory
+    if (!audioBase64 && authUserId && personId) {
+      console.log(`📥 Downloading ${currentPerson?.person?.name}'s ${selectedReading} audio on-demand...`);
+      setAudioLoading(true);
+      setAudioLoadingText('Downloading audio...');
+      
+      try {
+        const result = await downloadHookAudioBase64({
+          userId: authUserId,
+          personId: personId,
+          type: selectedReading,
+        });
+        
+        if (isCancelled()) {
+          setAudioLoading(false);
+          setAudioLoadingText(null);
+          return;
+        }
+        
+        if (result.success) {
+          audioBase64 = result.audioBase64;
+          // Cache for this session
+          if (cacheKey) {
+            downloadedAudioCache.current[cacheKey] = audioBase64;
+          }
+          console.log(`✅ Downloaded ${selectedReading} audio for ${currentPerson?.person?.name}`);
+        } else {
+          console.log(`⚠️ Audio download failed: ${result.error}`);
+        }
+      } catch (err) {
+        console.error('Audio download error:', err);
       }
-      console.log('⚠️ Audio not pre-rendered - this should not happen if onboarding completed correctly');
-      Alert.alert('Audio not available', 'Please re-generate this reading to enable audio playback.');
+      
+      setAudioLoading(false);
+      setAudioLoadingText(null);
+    }
+
+    // STEP 4: If still no audio, show error
+    if (!audioBase64) {
+      Alert.alert('Audio not available', 'Audio for this reading is not available. It may still be generating.');
       return;
     }
 
     if (isCancelled()) return;
     
-    console.log(`🎵 Playing ${currentPerson?.person?.isUser ? 'user' : 'partner'} ${selectedReading} audio from memory (base64)`);
+    console.log(`🎵 Playing ${currentPerson?.person?.name}'s ${selectedReading} audio`);
     const uriToPlay = `data:audio/mpeg;base64,${audioBase64}`;
 
     // Play the audio
     try {
+      setAudioLoading(true);
+      setAudioLoadingText(null); // Just spinner, no text for playback loading
+      
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: true,
         staysActiveInBackground: false,
         shouldDuckAndroid: false,
       });
-      if (isCancelled()) return;
+      if (isCancelled()) {
+        setAudioLoading(false);
+        return;
+      }
 
       const { sound } = await Audio.Sound.createAsync(
         { uri: uriToPlay },
@@ -493,13 +549,16 @@ export const HomeScreen = ({ navigation }: Props) => {
         try {
           await sound.unloadAsync();
         } catch { }
+        setAudioLoading(false);
         return;
       }
 
       soundRef.current = sound;
       setAudioPlaying(true);
+      setAudioLoading(false);
     } catch (error) {
       console.error('Audio playback error:', error);
+      setAudioLoading(false);
       Alert.alert('Playback Error', 'Could not play audio');
     }
   }, [
@@ -509,6 +568,9 @@ export const HomeScreen = ({ navigation }: Props) => {
     partnerAudio,
     modalReadings,
     currentPerson?.person?.isUser,
+    currentPerson?.person?.id,
+    currentPerson?.person?.name,
+    authUserId,
     stopAndUnloadAudio,
   ]);
 
@@ -756,20 +818,25 @@ export const HomeScreen = ({ navigation }: Props) => {
                   </Text>
 
                   {/* Audio Button */}
-                  <TouchableOpacity
-                    style={[styles.audioBtn, audioPlaying && styles.audioBtnActive]}
-                    onPress={handlePlayAudio}
-                    disabled={audioLoading}
-                    activeOpacity={0.7}
-                  >
-                    {audioLoading ? (
-                      <ActivityIndicator size="small" color={colors.background} />
-                    ) : (
-                      <Text style={styles.audioBtnText}>
-                        {audioPlaying ? '■' : '▶'}
-                      </Text>
+                  <View style={styles.audioBtnWrapper}>
+                    <TouchableOpacity
+                      style={[styles.audioBtn, audioPlaying && styles.audioBtnActive]}
+                      onPress={handlePlayAudio}
+                      disabled={audioLoading}
+                      activeOpacity={0.7}
+                    >
+                      {audioLoading ? (
+                        <ActivityIndicator size="small" color={colors.background} />
+                      ) : (
+                        <Text style={styles.audioBtnText}>
+                          {audioPlaying ? '■' : '▶'}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                    {audioLoadingText && (
+                      <Text style={styles.audioLoadingText}>{audioLoadingText}</Text>
                     )}
-                  </TouchableOpacity>
+                  </View>
                 </View>
 
                 <Text style={styles.modalIntro} selectable>
@@ -1124,6 +1191,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.background,
     letterSpacing: 0.5,
+  },
+  audioBtnWrapper: {
+    alignItems: 'center',
+  },
+  audioLoadingText: {
+    fontFamily: typography.sansRegular,
+    fontSize: 11,
+    color: colors.mutedText,
+    marginTop: spacing.xs,
   },
   
   // Produced By Section

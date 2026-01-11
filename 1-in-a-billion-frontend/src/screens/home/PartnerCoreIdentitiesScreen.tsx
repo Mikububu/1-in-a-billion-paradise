@@ -680,7 +680,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: 'transparent',
   },
   screenId: {
     position: 'absolute',

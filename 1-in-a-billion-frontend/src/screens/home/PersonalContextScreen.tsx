@@ -13,6 +13,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { TexturedBackground } from '@/components/TexturedBackground';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonalContext'>;
 
@@ -155,6 +156,7 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
     return (
         <TexturedBackground>
             <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+                <BackButton onPress={() => navigation.goBack()} />
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                     style={styles.keyboardView}
@@ -250,7 +252,7 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: 'transparent',
     },
     keyboardView: {
         flex: 1,
