@@ -162,20 +162,103 @@ export async function updatePersonInSupabase(
 }
 
 /**
- * Delete a person from Supabase
+ * Delete a person from Supabase with CASCADE:
+ * 1. Find all jobs where this person is person1 or person2
+ * 2. Delete storage files (PDFs, audio) from those jobs
+ * 3. Delete the jobs (cascades to job_tasks and job_artifacts via FK)
+ * 4. Delete the person from library_people
  */
 export async function deletePersonFromSupabase(
   userId: string,
   clientPersonId: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; deletedJobs?: number; deletedFiles?: number }> {
   if (!isSupabaseConfigured) {
     console.warn('⚠️ Supabase not configured - skipping delete');
     return { success: false, error: 'Supabase not configured' };
   }
 
   try {
-    console.log(`📤 Deleting person "${clientPersonId}" from Supabase...`);
+    console.log(`🗑️ CASCADE DELETE starting for person "${clientPersonId}"...`);
 
+    // Step 1: Get person's name from library_people (needed to find jobs)
+    const { data: personData } = await supabase
+      .from('library_people')
+      .select('name')
+      .eq('user_id', userId)
+      .eq('client_person_id', clientPersonId)
+      .single();
+
+    const personName = personData?.name;
+    let deletedJobsCount = 0;
+    let deletedFilesCount = 0;
+
+    if (personName) {
+      // Step 2: Find all jobs where this person is involved
+      // Jobs store person names in params->person1->name or params->person2->name
+      const { data: jobs } = await supabase
+        .from('jobs')
+        .select('id, params')
+        .eq('user_id', userId);
+
+      const jobsToDelete = jobs?.filter((job: any) => {
+        const params = job.params || {};
+        const p1Name = params.person1?.name;
+        const p2Name = params.person2?.name;
+        return p1Name === personName || p2Name === personName;
+      }) || [];
+
+      console.log(`📋 Found ${jobsToDelete.length} jobs involving "${personName}"`);
+
+      if (jobsToDelete.length > 0) {
+        const jobIds = jobsToDelete.map((j: any) => j.id);
+
+        // Step 3: Get all artifacts from these jobs (to delete storage files)
+        const { data: artifacts } = await supabase
+          .from('job_artifacts')
+          .select('id, storage_path, artifact_type')
+          .in('job_id', jobIds);
+
+        // Step 4: Delete storage files
+        if (artifacts && artifacts.length > 0) {
+          const storagePaths = artifacts
+            .map((a: any) => a.storage_path)
+            .filter((path: string) => path && path.length > 0);
+
+          if (storagePaths.length > 0) {
+            console.log(`🗂️ Deleting ${storagePaths.length} storage files...`);
+            
+            // Group by bucket (assume format: bucket/path/file.ext or just path/file.ext)
+            // Most artifacts are in 'readings' bucket
+            const { error: storageError } = await supabase.storage
+              .from('readings')
+              .remove(storagePaths);
+
+            if (storageError) {
+              console.warn(`⚠️ Storage delete warning: ${storageError.message}`);
+            } else {
+              deletedFilesCount = storagePaths.length;
+              console.log(`✅ Deleted ${deletedFilesCount} storage files`);
+            }
+          }
+        }
+
+        // Step 5: Delete jobs (cascades to job_tasks and job_artifacts via FK)
+        const { error: jobsError } = await supabase
+          .from('jobs')
+          .delete()
+          .in('id', jobIds);
+
+        if (jobsError) {
+          console.error('❌ Jobs delete error:', jobsError);
+          // Continue anyway - try to delete the person
+        } else {
+          deletedJobsCount = jobIds.length;
+          console.log(`✅ Deleted ${deletedJobsCount} jobs (cascaded to tasks & artifacts)`);
+        }
+      }
+    }
+
+    // Step 6: Delete the person from library_people
     const { error } = await supabase
       .from('library_people')
       .delete()
@@ -183,12 +266,12 @@ export async function deletePersonFromSupabase(
       .eq('client_person_id', clientPersonId);
 
     if (error) {
-      console.error('❌ Supabase delete error:', error);
+      console.error('❌ Supabase person delete error:', error);
       return { success: false, error: error.message };
     }
 
-    console.log(`✅ Person "${clientPersonId}" deleted from Supabase`);
-    return { success: true };
+    console.log(`✅ CASCADE DELETE complete for "${personName || clientPersonId}": ${deletedJobsCount} jobs, ${deletedFilesCount} files`);
+    return { success: true, deletedJobs: deletedJobsCount, deletedFiles: deletedFilesCount };
   } catch (err: any) {
     console.error('❌ deletePersonFromSupabase error:', err.message);
     return { success: false, error: err.message };

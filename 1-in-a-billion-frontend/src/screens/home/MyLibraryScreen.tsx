@@ -2127,49 +2127,45 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                     jobId: primaryJobId,
                   });
                 }}
-                onLongPress={() => {
-                  Alert.alert(
-                    person.name,
-                    'What would you like to do?',
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      {
-                        text: 'Delete',
-                        style: 'destructive',
-                        onPress: () => {
-                          Alert.alert(
-                            'Delete ' + person.name + '?',
-                            'This will remove all their readings and data.',
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              {
-                                text: 'Delete',
-                                style: 'destructive',
-                                onPress: async () => {
-                                  // Delete locally
-                                  deletePerson(person.id);
-                                  
-                                  // Delete from Supabase if user is authenticated
-                                  if (authUser?.id) {
-                                    const result = await deletePersonFromSupabase(authUser.id, person.id);
-                                    if (result.success) {
-                                      console.log(`✅ Deleted "${person.name}" from Supabase`);
-                                    } else {
-                                      console.warn(`⚠️ Failed to delete from Supabase: ${result.error}`);
-                                    }
-                                  }
-                                  
-                                  Alert.alert('Deleted', person.name + ' has been removed');
+              >
+                {/* Delete button - only show for non-user people */}
+                {!person.isUser && (
+                  <TouchableOpacity
+                    style={styles.personDeleteButton}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    onPress={() => {
+                      Alert.alert(
+                        'Delete ' + person.name + '?',
+                        'This will permanently remove this person and all their readings.',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Delete',
+                            style: 'destructive',
+                            onPress: async () => {
+                              // Delete locally
+                              deletePerson(person.id);
+                              
+                              // Delete from Supabase if user is authenticated
+                              if (authUser?.id) {
+                                const result = await deletePersonFromSupabase(authUser.id, person.id);
+                                if (result.success) {
+                                  console.log(`✅ Deleted "${person.name}" from Supabase`);
+                                } else {
+                                  console.warn(`⚠️ Failed to delete from Supabase: ${result.error}`);
                                 }
                               }
-                            ]
-                          );
-                        }
-                      }
-                    ]
-                  );
-                }}
-              >
+                              
+                              Alert.alert('Deleted', person.name + ' has been removed');
+                            }
+                          }
+                        ]
+                      );
+                    }}
+                  >
+                    <Text style={styles.personDeleteIcon}>×</Text>
+                  </TouchableOpacity>
+                )}
                 <View style={[styles.personAvatar, {
                   backgroundColor: person.isUser ? '#E8F4E4' : '#FFE4E4'
                 }]}>
@@ -2898,6 +2894,25 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
+    position: 'relative', // For absolute positioning of delete button
+  },
+  personDeleteButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.mutedText + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  personDeleteIcon: {
+    fontSize: 16,
+    color: colors.mutedText,
+    fontWeight: '300',
+    marginTop: -1, // Visual centering adjustment
   },
   personAvatar: {
     width: 50,
