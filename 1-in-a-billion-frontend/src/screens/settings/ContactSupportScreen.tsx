@@ -29,7 +29,7 @@ const FAQ_ITEMS = [
   },
   {
     question: 'Can I get a refund?',
-    answer: 'All sales are final. If you experience technical issues with your reading (incorrect calculations, missing content), contact us at contact@1-in-a-billion.app and we will regenerate your reading at no additional cost.',
+    answer: 'All sales are final due to the digital nature of our services. Our AI processing occurs immediately upon purchase. If you experience a technical issue (reading not delivered, calculation error), contact us at contact@1-in-a-billion.app and we will provide a manual fix to regenerate your reading.',
   },
   {
     question: 'Is my data secure?',
@@ -45,7 +45,7 @@ const FAQ_ITEMS = [
   },
   {
     question: 'Can I delete my account?',
-    answer: 'Yes, you can delete your account and all data anytime through Settings > Delete Account. There\'s a 30-day grace period before permanent deletion.',
+    answer: 'Yes, you can delete your account and all data anytime through Settings > Delete Account. Deletion is immediate and permanent — all your readings, audio files, and personal data will be removed right away. This action cannot be undone.',
   },
 ];
 
