@@ -23,6 +23,8 @@
  * TOTAL: 120-140 words. Fills one phone screen perfectly.
  */
 
+import { env } from '../../config/env';
+
 export type ReadingType = 'sun' | 'moon' | 'rising';
 
 // Exact degree position from Swiss Ephemeris
@@ -106,6 +108,19 @@ REQUIRED:
 - Spell out "degrees" and "minutes" but use numeric values: "0 degrees 26 minutes Virgo"
 - No symbols that TTS can't read (no °, ', ♈, ♉, etc.)
 - Be careful with language to avoid API censorship, but don't shy away from dark themes
+
+${env.TRAGIC_REALISM_LEVEL >= 1 ? `
+TRAGIC REALISM LENS (LEVEL ${env.TRAGIC_REALISM_LEVEL}) - REQUIRED:
+- Speak like a left-handed astrologer who tells the truth society avoids. Poetic and brutal, but never vague.
+- The darkness must come FROM THE PLACEMENT ITSELF. Tie every hard statement to chart logic (degree, sign, house, and the profile's wound/defense/sabotage/erotic).
+- NAME THE COST: every gift has a price. Identify the pleasure-trap and the sacrifice required to live the gift cleanly.
+- NAME THE LOOP: the repeating failure pattern they cannot stop repeating when unconscious.
+- DESTINY LANGUAGE (Greek tragedy vibe): do NOT do fatalism. Use CONDITIONAL inevitability:
+  "If ${'they'} keep choosing the comfort of X, the consequence will be Y."
+  "If ${'they'} refuse the sacrifice, the pattern repeats."
+- Allow taboo truth: grief, death, addiction, compulsion, sexual shadow. No euphemisms. No moralizing.
+- Always include at least ONE sentence that feels like fate tightening: the thing they cannot outrun unless they change.
+` : ''}
 
 OUTPUT: JSON only: {"preamble":"...","analysis":"..."}
 
@@ -393,6 +408,14 @@ SIGN PSYCHOLOGY TO WEAVE IN:
 - Defense: ${depth!.defense}  
 - Sabotage: ${depth!.sabotage}
 - Erotic: ${depth!.erotic}
+
+${env.TRAGIC_REALISM_LEVEL >= 1 ? `
+TRAGIC REALISM (LEVEL ${env.TRAGIC_REALISM_LEVEL}) - FIT THIS INTO THE WORD LIMIT:
+- Include ONE sentence that names the COST OF THE GIFT (what they must give up to live this placement cleanly).
+- Include ONE sentence that names the LOOP (what they repeat when unconscious).
+- Include ONE sentence that feels like DESTINY tightening (conditional inevitability - "if... then..." not prophecy).
+- Do not comfort. Do not soften with "everything happens for a reason". Tell the truth with precision.
+` : ''}
 
 STRUCTURE:
 

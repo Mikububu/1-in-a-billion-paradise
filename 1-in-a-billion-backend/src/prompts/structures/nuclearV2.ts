@@ -13,6 +13,8 @@
  * - Same spicy depth, modular structure
  */
 
+import { env } from '../../config/env';
+
 export const SYSTEMS = ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'] as const;
 export type SystemName = typeof SYSTEMS[number];
 
@@ -25,6 +27,30 @@ export const SYSTEM_DISPLAY_NAMES: Record<SystemName, string> = {
 };
 
 export type DocType = 'person1' | 'person2' | 'overlay';
+
+function tragicRealismLensBlock(context: 'person' | 'overlay' | 'verdict'): string {
+  const level = env.TRAGIC_REALISM_LEVEL ?? 0;
+  if (level <= 0) return '';
+  const focus =
+    context === 'overlay'
+      ? `Overlay focus: Comfort Trap vs Evolution Path. Name the predictable failure mechanism and the sacrifice required to evolve.`
+      : context === 'verdict'
+        ? `Verdict focus: Do not sell comfort as love. If it's convenient, say what it costs. If it's transformative, name the price and the conditions.`
+        : `Person focus: Name the cost of the gift, the repeating loop, and the fate-pressure that tightens when they avoid truth.`;
+
+  return `
+TRAGIC REALISM LENS (LEVEL ${level}) - REQUIRED:
+- Poetic and brutal honesty. No whitewash. No spiritual comfort language.
+- The tragedy must be EARNED by the chart. Every hard statement must be traceable to a system mechanism.
+- Name the COST OF THE GIFT: what must be sacrificed to live it cleanly (comfort, status, snobbery, numbness, control, addiction).
+- Name the LOOP: the repeating failure pattern and the trigger that starts it.
+- Speak in destiny language without fatalism: conditional inevitability, not prophecy.
+  "If they keep choosing the comfort of X, the consequence will be Y."
+  "If they refuse the sacrifice, the pattern repeats."
+- Allow taboo truth (death, grief, addiction, compulsion, sexual shadow). No euphemism. No moral sermon. Clarity.
+- ${focus}
+`.trim();
+}
 
 export interface NuclearDoc {
   id: string;
@@ -149,6 +175,8 @@ SPICE LEVEL: ${spiceLevel}/10
 
 ${styleInstructions}
 
+${tragicRealismLensBlock('person')}
+
 **CRITICAL: WRITE 1500-1800 WORDS. This is essential.**
 
 STRUCTURE (1500-1800 words total):
@@ -250,6 +278,8 @@ SPICE LEVEL: ${spiceLevel}/10
 
 ${styleInstructions}
 
+${tragicRealismLensBlock('overlay')}
+
 **CRITICAL: WRITE EXACTLY 2200 WORDS MINIMUM. Do NOT write less than 2200 words.**
 
 STRUCTURE (2200+ words total):
@@ -317,6 +347,8 @@ ${allReadingsSummary}
 
 STYLE: ${style === 'spicy_surreal' ? 'SPICY SURREAL - unflinching truth' : 'PRODUCTION - sophisticated honesty'}
 SPICE LEVEL: ${spiceLevel}/10
+
+${tragicRealismLensBlock('verdict')}
 
 **CRITICAL: WRITE EXACTLY 2000 WORDS MINIMUM. Do NOT write less than 2000 words.**
 

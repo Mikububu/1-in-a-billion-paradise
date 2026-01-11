@@ -71,4 +71,13 @@ export const env = {
   
   // MiniMax API (for music/song generation) - Will be loaded from Supabase via getApiKey()
   MINIMAX_API_KEY: process.env.MINIMAX_API_KEY ?? '',
+
+  // Writing Lens: Tragic Realism (global, applies to hook + deep + overlays).
+  // Kill-switch: set TRAGIC_REALISM_LEVEL=0 to disable instantly.
+  // Levels:
+  // - 0: off (legacy tone)
+  // - 1: subtle
+  // - 2: clear
+  // - 3: mythic / destiny-forward (Michael's preference)
+  TRAGIC_REALISM_LEVEL: Math.max(0, Math.min(3, Number(process.env.TRAGIC_REALISM_LEVEL ?? 3))),
 };

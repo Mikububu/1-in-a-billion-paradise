@@ -26,6 +26,7 @@ import { buildNuclearStructure, buildNuclearPartInstructions } from './structure
 import { ReadingType } from './structures';
 
 import { buildSystemWeavingSection } from './techniques/system-weaving';
+import { env } from '../config/env';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -164,7 +165,11 @@ export function buildSimpleIndividualPrompt(config: IndividualPromptConfig): str
   
   const shadowEmphasis = spiceLevel >= 7 ? '35%' : spiceLevel >= 5 ? '25%' : '15%';
 
-  return `Write a 2000 word astrological reading for ${person.name} born ${person.birthDate} at ${person.birthTime} in ${person.birthPlace}.
+  const tragic = (env.TRAGIC_REALISM_LEVEL ?? 0) > 0
+    ? `\n\nTRAGIC REALISM LENS (LEVEL ${env.TRAGIC_REALISM_LEVEL}): Poetic and brutal honesty. Name the cost of the gift, the repeating loop, and the destiny pressure (conditional inevitability, not prophecy). Allow taboo truth (death, grief, addiction, compulsion, sexual shadow) without moralizing.`
+    : '';
+
+  return `Write a 2000 word astrological reading for ${person.name} born ${person.birthDate} at ${person.birthTime} in ${person.birthPlace}.${tragic}
 
 CHART (${systemName}):
 ${chartSection || `Sun, Moon, Rising positions to be analyzed`}
@@ -179,7 +184,7 @@ STRUCTURE:
 5. Gifts (300 words) - Natural talents when conscious
 6. Guidance (150 words) - How to love them
 
-RULES: Spell out numbers ("twenty-three degrees"). No em-dashes. Psychological depth. Be honest about shadows but compassionate.
+RULES: Spell out numbers ("twenty-three degrees"). No em-dashes. Psychological depth. Be honest about shadows. Do not whitewash.
 
 Begin directly with the reading.`;
 }
@@ -212,7 +217,11 @@ Synastry: ${chartData.synastry?.split('\n').slice(0, 5).join(', ') || 'Aspect da
     ? `\nCONTINUITY: Continue from Part ${partNumber - 1}. Previous summary: ${previousPartSummary.slice(0, 200)}...`
     : '';
 
-  return `Write Part ${partNumber} of 5: "${part.title}" (~${part.words} words) for ${person1.name} & ${person2.name}.
+  const tragic = (env.TRAGIC_REALISM_LEVEL ?? 0) > 0
+    ? `\n\nTRAGIC REALISM LENS (LEVEL ${env.TRAGIC_REALISM_LEVEL}): Make destiny pressure explicit. Name comfort-traps, the cost of the gift, the repeating loop, and the conditional inevitability of consequences. No euphemisms for taboo truth (death, grief, addiction, compulsion, sexual shadow).`
+    : '';
+
+  return `Write Part ${partNumber} of 5: "${part.title}" (~${part.words} words) for ${person1.name} & ${person2.name}.${tragic}
 
 ${part.desc}${part.shadow ? ' - GO DARK. Show real danger. No safety.' : ''}
 

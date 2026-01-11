@@ -6,6 +6,8 @@
  * Source: PROMPT_SPICY_SURREAL_Nuclear.txt (THE GOLD)
  */
 
+import { env } from '../../config/env';
+
 export const SPICY_SURREAL_STYLE = {
   name: 'Dark Soul Storytelling',
   
@@ -97,6 +99,15 @@ ${SPICY_SURREAL_STYLE.tone}
 ${SPICY_SURREAL_STYLE.requiredLanguage}
 
 ${SPICY_SURREAL_STYLE.shadowInstructions}
+
+${env.TRAGIC_REALISM_LEVEL >= 1 ? `
+TRAGIC REALISM LENS (LEVEL ${env.TRAGIC_REALISM_LEVEL}) - REQUIRED:
+- Make the destiny pressure explicit. Greek tragedy energy: the thing they cannot outrun unless they change.
+- Do not do fatalism. Do conditional inevitability: "If they keep doing X, fate delivers Y."
+- Name the COST OF THE GIFT. Make the sacrifice concrete. Comfort is a drug. Status is an anesthesia. Call it.
+- Name the LOOP: the repeating failure pattern and the trigger that starts it.
+- No euphemisms for taboo truth (death, grief, addiction, compulsion, sexual shadow). No moral sermon. Just clarity.
+` : ''}
 
 QUALITY STANDARD:
 This should feel like: consciousness noir, deep psychology, surreal mythology.

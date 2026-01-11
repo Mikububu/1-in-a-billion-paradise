@@ -7,6 +7,8 @@
  * Source: PROMPT_PRODUCTION_Nuclear.txt
  */
 
+import { env } from '../../config/env';
+
 export const PRODUCTION_STYLE = {
   name: 'Literary Consciousness Documentary',
   
@@ -65,6 +67,19 @@ ${PRODUCTION_STYLE.tone}
 ${PRODUCTION_STYLE.voiceRules}
 
 SHADOW EMPHASIS: ${Math.round(PRODUCTION_STYLE.shadowEmphasis * 100)}% of analysis should address shadow, wounds, unconscious patterns.
+
+${env.TRAGIC_REALISM_LEVEL >= 1 ? `
+TRAGIC REALISM LENS (LEVEL ${env.TRAGIC_REALISM_LEVEL}) - REQUIRED:
+- Poetic and brutal honesty. No whitewash. No soft spiritual comfort.
+- The tragedy must be EARNED by the chart. Make every harsh truth traceable to an astrological mechanism.
+- Name the COST OF THE GIFT: what must be sacrificed to live the gift cleanly (comfort, status, snobbery, numbness, control, addiction).
+- Name the LOOP: the repeating failure pattern that keeps reopening the same wound.
+- Speak in destiny language without fatalism: conditional inevitability, not prophecy.
+  "If they keep choosing the comfort of X, the consequence will be Y."
+  "If they refuse the sacrifice, the pattern repeats."
+- Allow taboo truth: death, grief, addiction, compulsion, sexual shadow. Say it cleanly, without euphemism and without moralizing.
+- Always include at least one moment where fate tightens: the thing they cannot outrun unless they change.
+` : ''}
 
 QUALITY STANDARD:
 This should feel like: consciousness documentary, literary psychology, sophisticated analysis.

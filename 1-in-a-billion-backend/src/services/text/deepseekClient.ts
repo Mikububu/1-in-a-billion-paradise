@@ -116,11 +116,24 @@ export const deepSeekClient = {
       return `${pos.degree} degrees ${pos.minute} minutes ${pos.sign}`;
     };
 
+    const tragicLens = (env.TRAGIC_REALISM_LEVEL ?? 0) > 0 ? `
+TRAGIC REALISM LENS (LEVEL ${env.TRAGIC_REALISM_LEVEL}) - REQUIRED:
+- Poetic and brutal honesty. No whitewash. No soft spiritual comfort.
+- The darkness must be EARNED by the system's logic. Tie every hard truth to a concrete mechanism in this system.
+- Name the COST OF THE GIFT: what must be sacrificed to live the gift cleanly (comfort, status, snobbery, numbness, control, addiction).
+- Name the LOOP: the repeating failure pattern and the trigger that starts it.
+- Speak in destiny language without fatalism: conditional inevitability, not prophecy.
+  "If ${subjectName} keeps choosing the comfort of X, the consequence will be Y."
+  "If ${subjectName} refuses the sacrifice, the pattern repeats."
+- Allow taboo truth (death, grief, addiction, compulsion, sexual shadow) with clarity, not moralizing.
+` : '';
+
     // System-specific prompts for brutal honesty through each system's lens
     const getSystemPrompt = (sys: string): string => {
       switch (sys) {
         case 'vedic':
-          return `
+          return `${tragicLens}
+
 VEDIC ASTROLOGY SPECIAL ANALYSIS:
 I want a classical Vedic astrology analysis focused specifically on spouse longevity and widowhood indicators. 
 Analyze the 7th house, 7th lord, Darakaraka, Venus and Jupiter as spouse significators. 
@@ -133,34 +146,38 @@ Avoid moral framing and provide a purely classical Jyotisha based assessment.
 Also analyze from a Kaula (left-handed tantric) perspective: What taboos must this person embrace? 
 What conventional boundaries must they transgress to achieve spiritual liberation through relationship?`;
         case 'western':
-          return `
+          return `${tragicLens}
+
 WESTERN SHADOW WORK ANALYSIS:
 Focus on Pluto aspects, Saturn wounds, Chiron placements, and 8th/12th house themes.
 What are their deepest fears in intimacy? Their compulsive patterns? Their power dynamics?
 Be brutally honest about self-sabotage and projection patterns.`;
         case 'human_design':
-          return `
+          return `${tragicLens}
+
 HUMAN DESIGN NOT-SELF ANALYSIS:
 Focus on their Not-Self theme and how it manifests in relationships.
 What conditioning have they absorbed that isn't theirs?
 How does their Type's strategy apply to love and partnership?
 Be direct about where they're living inauthentically.`;
         case 'gene_keys':
-          return `
+          return `${tragicLens}
+
 GENE KEYS SHADOW FREQUENCIES:
 Analyze their Shadow frequencies in love and relationship.
 What reactive patterns emerge under pressure?
 How do their Gifts transmute into Siddhis through conscious partnership?
 Don't sugarcoat the shadow work required.`;
         case 'kabbalah':
-          return `
+          return `${tragicLens}
+
 KABBALISTIC TIKKUN ANALYSIS:
 Examine from a Kabbalistic perspective including Klipot (shells/husks) blocking their love life.
 What Tikkun (soul correction) must they complete through relationship?
 Analyze the Sephirotic imbalances affecting partnership.
 Be direct about the soul work required.`;
         default:
-          return '';
+          return tragicLens;
       }
     };
 
@@ -174,6 +191,14 @@ ${systemPrompt}
 ⚠️ CRITICAL: Be BRUTALLY HONEST. No spiritual bypassing. No generic "you are special" platitudes.
 Real psychology. Real shadows. Real patterns that might hurt to hear.
 This reading is NOT for the faint-hearted.
+
+${(env.TRAGIC_REALISM_LEVEL ?? 0) > 0 ? `
+TRAGIC REALISM - DO NOT SKIP:
+- Name the cost of ${subjectName}'s gifts. Comfort can be a drug. Status can be anesthesia. Call it.
+- Name the repeating loop: what always fails the same way, and what trigger starts it.
+- Name the destiny constraint: the one thing ${subjectName} cannot outrun unless ${subjectName} changes.
+- Do not be nihilistic. Give the exit condition: what must be faced, sacrificed, or confessed for the loop to break.
+` : ''}
 
 🔥 DARK THEMES TO EXPLORE (do not shy away from these):
 - JEALOUSY: Their possessive patterns, envy triggers, territorial instincts
@@ -299,6 +324,16 @@ This explores the DANGEROUS, DARK, and PROBLEMATIC potential between two people.
 - DEATH: What must die for this to work? Symbolic deaths. Eros-Thanatos between them.
 - CONTROL: Power struggles, manipulation dynamics, who dominates whom
 - DESTRUCTION: How could they destroy each other? Toxic patterns. Mutual wounds.
+
+${(env.TRAGIC_REALISM_LEVEL ?? 0) > 0 ? `
+TRAGIC REALISM LENS (LEVEL ${env.TRAGIC_REALISM_LEVEL}) - REQUIRED:
+- Name the Comfort Trap: how this can become a beautiful compromise that kills destiny.
+- Name the Evolution Path: not abuse, not chaos - the hard truth that would actually evolve them.
+- Name the predictable failure mechanism (the loop) and its trigger.
+- Speak in destiny language without fatalism: conditional inevitability, not prophecy.
+  "If they keep choosing X, the consequence will be Y."
+  "If they avoid the sacrifice, the pattern repeats."
+` : ''}
 
 PERSON 1: ${person1.name}
 - Sun: ${person1.placements.sunSign} (${formatDegree(person1.placements.sunDegree)})
