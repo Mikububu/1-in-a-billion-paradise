@@ -18,6 +18,7 @@ import vedicV2Router from './routes/vedic_v2';
 import adminRouter from './routes/admin';
 import notificationsRouter from './routes/notifications';
 import paymentsRouter from './routes/payments';
+import peopleRouter from './routes/people';
 import { startAutoScaling } from './services/runpodScaler';
 import { preloadApiKeys } from './services/apiKeys';
 
@@ -57,6 +58,7 @@ app.route('/api/vedic-v2', vedicV2Router);
 app.route('/api/admin', adminRouter);
 app.route('/api/notifications', notificationsRouter);
 app.route('/api/payments', paymentsRouter);
+app.route('/api/people', peopleRouter);
 
 // Start text worker in background (processes Supabase queue)
 // No GPU needed - just calls DeepSeek API

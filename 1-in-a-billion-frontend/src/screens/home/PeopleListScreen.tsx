@@ -75,20 +75,23 @@ export const PeopleListScreen = ({ navigation, route }: Props) => {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: async () => {
-            // Delete locally
-            deletePerson(person.id);
-            
-            // Delete from Supabase if user is authenticated
-            if (authUser?.id) {
-              const result = await deletePersonFromSupabase(authUser.id, person.id);
-              if (result.success) {
+              onPress: async () => {
+                if (!authUser?.id) {
+                  Alert.alert('Delete Failed', 'You must be signed in to delete people.');
+                  return;
+                }
+
+                // CLOUD-FIRST deletion:
+                // Only delete locally after the backend confirms full purge.
+                const result = await deletePersonFromSupabase(authUser.id, person.id);
+                if (!result.success) {
+                  Alert.alert('Delete Failed', result.error || 'Could not delete from cloud.');
+                  return;
+                }
+
+                deletePerson(person.id);
                 console.log(`✅ Deleted "${person.name}" from Supabase`);
-              } else {
-                console.warn(`⚠️ Failed to delete from Supabase: ${result.error}`);
-              }
-            }
-          },
+              },
         },
       ]
     );

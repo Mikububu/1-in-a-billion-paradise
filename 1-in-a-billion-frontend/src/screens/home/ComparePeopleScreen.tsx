@@ -8,7 +8,7 @@ import { useProfileStore } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/Button';
 import { BackButton } from '@/components/BackButton';
-import { fetchPeopleFromSupabase, deletePersonFromSupabase } from '@/services/peopleService';
+import { deletePersonFromSupabase } from '@/services/peopleService';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ComparePeople'>;
 
@@ -35,37 +35,10 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
     ).start();
   }, []);
 
-  // Fetch people from Supabase and sync to local store
-  useEffect(() => {
-    if (!userId) {
-      console.log('⚠️ No userId - skipping Supabase fetch');
-      return;
-    }
-
-    console.log('📥 Fetching people from Supabase...');
-    fetchPeopleFromSupabase(userId).then(supabasePeople => {
-      if (supabasePeople.length === 0) {
-        console.log('📭 No people in Supabase');
-        return;
-      }
-
-      console.log(`✅ Fetched ${supabasePeople.length} people from Supabase`);
-      
-      // Merge with local store (update if exists, add if new)
-      supabasePeople.forEach(person => {
-        const existing = people.find(p => p.id === person.id);
-        if (existing) {
-          // Update existing with Supabase data
-          updatePerson(person.id, person);
-          console.log(`🔄 Updated "${person.name}" from Supabase`);
-        } else {
-          // Add new person from Supabase
-          addPerson(person);
-          console.log(`➕ Added "${person.name}" from Supabase`);
-        }
-      });
-    });
-  }, [userId]);
+  // IMPORTANT:
+  // Do NOT fetch and re-import people from Supabase on this screen.
+  // It causes deleted people to be "resurrected" immediately after deletion.
+  // Cloud sync is handled centrally by `useSupabaseLibraryAutoSync` / app bootstrap.
 
   const candidates = useMemo(() => {
     return (people || [])
@@ -216,18 +189,22 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
               setPersonBId(null);
             }
             
-            // Delete from local store
-            deletePerson(person.id);
-            
-            // Delete from Supabase (cascade deletes readings too)
-            if (authUser?.id) {
-              const result = await deletePersonFromSupabase(authUser.id, person.id);
-              if (result.success) {
-                console.log(`✅ Deleted "${person.name}" and all readings from Supabase`);
-              } else {
-                console.warn(`⚠️ Local delete OK, Supabase failed: ${result.error}`);
-              }
+            // CLOUD-FIRST deletion:
+            // Only delete locally after the backend confirms full purge.
+            if (!authUser?.id) {
+              Alert.alert('Delete Failed', 'You must be signed in to delete people.');
+              return;
             }
+
+            const result = await deletePersonFromSupabase(authUser.id, person.id);
+            if (!result.success) {
+              Alert.alert('Delete Failed', result.error || 'Could not delete from cloud.');
+              return;
+            }
+
+            // Delete from local store only after cloud delete succeeded
+            deletePerson(person.id);
+            console.log(`✅ Deleted "${person.name}" and all readings from Supabase`);
           },
         },
       ]

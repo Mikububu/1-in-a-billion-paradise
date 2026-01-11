@@ -8,6 +8,7 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 import { Person, BirthData, Placements } from '@/store/profileStore';
 import { calculatePlacements } from './placementsCalculator';
+import { env } from '@/config/env';
 
 export type LibraryPerson = {
   id?: string;
@@ -178,100 +179,46 @@ export async function deletePersonFromSupabase(
   }
 
   try {
-    console.log(`🗑️ CASCADE DELETE starting for person "${clientPersonId}"...`);
+    console.log(`🗑️ CASCADE DELETE (backend) starting for person "${clientPersonId}"...`);
 
-    // Step 1: Get person's name from library_people (needed to find jobs)
-    const { data: personData } = await supabase
-      .from('library_people')
-      .select('name')
-      .eq('user_id', userId)
-      .eq('client_person_id', clientPersonId)
-      .single();
+    // Get Supabase access token (required for backend to authenticate user)
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
 
-    const personName = personData?.name;
-    let deletedJobsCount = 0;
-    let deletedFilesCount = 0;
-
-    if (personName) {
-      // Step 2: Find all jobs where this person is involved
-      // Jobs store person names in params->person1->name or params->person2->name
-      const { data: jobs } = await supabase
-        .from('jobs')
-        .select('id, params')
-        .eq('user_id', userId);
-
-      const jobsToDelete = jobs?.filter((job: any) => {
-        const params = job.params || {};
-        const p1Name = params.person1?.name;
-        const p2Name = params.person2?.name;
-        return p1Name === personName || p2Name === personName;
-      }) || [];
-
-      console.log(`📋 Found ${jobsToDelete.length} jobs involving "${personName}"`);
-
-      if (jobsToDelete.length > 0) {
-        const jobIds = jobsToDelete.map((j: any) => j.id);
-
-        // Step 3: Get all artifacts from these jobs (to delete storage files)
-        const { data: artifacts } = await supabase
-          .from('job_artifacts')
-          .select('id, storage_path, artifact_type')
-          .in('job_id', jobIds);
-
-        // Step 4: Delete storage files
-        if (artifacts && artifacts.length > 0) {
-          const storagePaths = artifacts
-            .map((a: any) => a.storage_path)
-            .filter((path: string) => path && path.length > 0);
-
-          if (storagePaths.length > 0) {
-            console.log(`🗂️ Deleting ${storagePaths.length} storage files...`);
-            
-            // Group by bucket (assume format: bucket/path/file.ext or just path/file.ext)
-            // Most artifacts are in 'readings' bucket
-            const { error: storageError } = await supabase.storage
-              .from('readings')
-              .remove(storagePaths);
-
-            if (storageError) {
-              console.warn(`⚠️ Storage delete warning: ${storageError.message}`);
-            } else {
-              deletedFilesCount = storagePaths.length;
-              console.log(`✅ Deleted ${deletedFilesCount} storage files`);
-            }
-          }
-        }
-
-        // Step 5: Delete jobs (cascades to job_tasks and job_artifacts via FK)
-        const { error: jobsError } = await supabase
-          .from('jobs')
-          .delete()
-          .in('id', jobIds);
-
-        if (jobsError) {
-          console.error('❌ Jobs delete error:', jobsError);
-          // Continue anyway - try to delete the person
-        } else {
-          deletedJobsCount = jobIds.length;
-          console.log(`✅ Deleted ${deletedJobsCount} jobs (cascaded to tasks & artifacts)`);
-        }
-      }
+    const accessToken = session?.access_token;
+    if (sessionError || !accessToken) {
+      return { success: false, error: 'Missing session. Please sign in again.' };
     }
 
-    // Step 6: Delete the person from library_people
-    const { error } = await supabase
-      .from('library_people')
-      .delete()
-      .eq('user_id', userId)
-      .eq('client_person_id', clientPersonId);
-
-    if (error) {
-      console.error('❌ Supabase person delete error:', error);
-      return { success: false, error: error.message };
+    const coreApiUrl = (process.env.EXPO_PUBLIC_CORE_API_URL || env.CORE_API_URL || '').trim();
+    if (!coreApiUrl) {
+      return { success: false, error: 'CORE_API_URL not configured' };
     }
 
-    console.log(`✅ CASCADE DELETE complete for "${personName || clientPersonId}": ${deletedJobsCount} jobs, ${deletedFilesCount} files`);
-    return { success: true, deletedJobs: deletedJobsCount, deletedFiles: deletedFilesCount };
+    const res = await fetch(`${coreApiUrl}/api/people/${encodeURIComponent(clientPersonId)}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || !data?.success) {
+      const errMsg = data?.error || `Delete failed (HTTP ${res.status})`;
+      console.warn('❌ Backend person delete failed:', errMsg);
+      return { success: false, error: errMsg };
+    }
+
+    return {
+      success: true,
+      deletedJobs: data.deletedJobs || 0,
+      deletedFiles: data.deletedFiles || 0,
+    };
+
   } catch (err: any) {
     console.error('❌ deletePersonFromSupabase error:', err.message);
     return { success: false, error: err.message };
