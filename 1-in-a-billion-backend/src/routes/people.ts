@@ -92,9 +92,11 @@ router.delete('/:clientPersonId', async (c) => {
     }
 
     // 2) Find jobs involving this person (prefer ID match; fallback to name match if needed)
+    // NOTE: Some deployments have `jobs.params` but NOT `jobs.input`.
+    // Keep this query compatible by selecting only `id, params`.
     const { data: jobs, error: jobsFetchError } = await serviceClient
       .from('jobs')
-      .select('id, params, input')
+      .select('id, params')
       .eq('user_id', userId);
 
     if (jobsFetchError) {
@@ -105,9 +107,8 @@ router.delete('/:clientPersonId', async (c) => {
     const jobsToDelete =
       (jobs || []).filter((job: any) => {
         const params = job?.params || {};
-        const input = job?.input || {};
-        const p1 = params.person1 || input.person1 || {};
-        const p2 = params.person2 || input.person2 || {};
+        const p1 = params.person1 || {};
+        const p2 = params.person2 || {};
         const p1Id = p1?.id;
         const p2Id = p2?.id;
         const p1Name = p1?.name;
