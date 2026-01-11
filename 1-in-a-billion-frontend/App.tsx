@@ -12,11 +12,18 @@ import { PlayfairDisplay_600SemiBold, PlayfairDisplay_700Bold } from '@expo-goog
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StripeProvider } from '@stripe/stripe-react-native';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { useAuthStore } from '@/store/authStore';
 import { colors } from '@/theme/tokens';
 import { getPaymentConfig } from '@/services/payments';
+
+// Lazy-load Stripe to avoid crash if native modules aren't available
+let StripeProvider: any = null;
+try {
+  StripeProvider = require('@stripe/stripe-react-native').StripeProvider;
+} catch (e) {
+  console.warn('⚠️ Stripe native modules not available - payments disabled');
+}
 
 const queryClient = new QueryClient();
 
@@ -103,8 +110,8 @@ export default function App() {
     </ErrorBoundary>
   );
   
-  // Wrap with StripeProvider when key is available
-  if (stripeKey) {
+  // Wrap with StripeProvider when key is available AND native modules are loaded
+  if (stripeKey && StripeProvider) {
     return (
       <StripeProvider
         publishableKey={stripeKey}
@@ -116,6 +123,6 @@ export default function App() {
     );
   }
   
-  // Render without Stripe if key not yet loaded (payments will fail gracefully)
+  // Render without Stripe if key not yet loaded or native modules unavailable
   return appContent;
 }
