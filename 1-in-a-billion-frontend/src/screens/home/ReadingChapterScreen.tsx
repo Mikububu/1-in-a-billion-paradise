@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Audio } from 'expo-av';
@@ -15,6 +15,7 @@ type Props = NativeStackScreenProps<MainStackParamList, 'ReadingChapter'>;
 
 export const ReadingChapterScreen = ({ navigation, route }: Props) => {
   const { personName, jobId, systemId, systemName, docNum, timestamp, nextChapter } = route.params;
+  const { width: windowW } = useWindowDimensions();
 
   const nextSystemIcon = useMemo(() => {
     const sid = String(nextChapter?.systemId || '');
@@ -272,6 +273,16 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     }
   }, [timestamp]);
 
+  // Hard guarantee: bottom CTAs never overflow screen width.
+  // Matches ScrollView content padding (18) and uses a fixed inter-button gap.
+  const ctaGap = 10;
+  const ctaWidth = useMemo(() => {
+    const sidePad = 18 * 2;
+    const w = Math.floor((windowW - sidePad - ctaGap) / 2);
+    // Keep sane minimum so labels can still render
+    return Math.max(130, w);
+  }, [windowW]);
+
   // Keep the text "moving by itself" as audio progresses.
   useEffect(() => {
     if (!textScrollRef.current) return;
@@ -409,7 +420,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         {nextChapter ? (
           <View style={styles.bottomCtasRow}>
             <TouchableOpacity
-              style={[styles.ctaButtonBase, styles.backToLibraryButton]}
+              style={[styles.ctaButtonBase, { width: ctaWidth }, styles.backToLibraryButton]}
               onPress={() => navigation.navigate('MyLibrary')}
               activeOpacity={0.75}
             >
@@ -419,7 +430,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.ctaButtonBase, styles.nextChapterRowSmall]}
+              style={[styles.ctaButtonBase, { width: ctaWidth }, styles.nextChapterRowSmall]}
               onPress={() => navigation.push('ReadingChapter', nextChapter)}
               activeOpacity={0.7}
             >
@@ -535,12 +546,10 @@ const styles = StyleSheet.create({
 
   // Next Chapter row: match SystemsOverviewScreen / system list row 1:1
   bottomCtasRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
-  bottomCtasRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, alignSelf: 'stretch' },
+  bottomCtasRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, width: '100%' },
 
   // Both CTAs: same dimensions + aligned to margins + dashed red stroke on coated white
   ctaButtonBase: {
-    flex: 1,
-    minWidth: 0, // IMPORTANT: allow children to shrink instead of overflowing screen width
     height: 54,
     backgroundColor: colors.surface,
     borderRadius: radii.card,
