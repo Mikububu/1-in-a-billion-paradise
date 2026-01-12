@@ -282,6 +282,34 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     }
   };
 
+  // Preload audio durations when screen loads so sliders show correct time immediately
+  useEffect(() => {
+    const preloadDurations = async () => {
+      try {
+        // Preload narration duration
+        const { sound: narSound } = await Audio.Sound.createAsync({ uri: narrationUrl });
+        const narStatus = await narSound.getStatusAsync();
+        if (narStatus.isLoaded && narStatus.durationMillis) {
+          console.log('Preloaded narration duration:', narStatus.durationMillis / 1000);
+          setDur(narStatus.durationMillis / 1000);
+        }
+        await narSound.unloadAsync();
+
+        // Preload song duration
+        const { sound: sngSound } = await Audio.Sound.createAsync({ uri: songUrl });
+        const sngStatus = await sngSound.getStatusAsync();
+        if (sngStatus.isLoaded && sngStatus.durationMillis) {
+          console.log('Preloaded song duration:', sngStatus.durationMillis / 1000);
+          setSongDur(sngStatus.durationMillis / 1000);
+        }
+        await sngSound.unloadAsync();
+      } catch (e) {
+        console.warn('Could not preload durations:', e);
+      }
+    };
+    preloadDurations();
+  }, [narrationUrl, songUrl]);
+
   const fmt = (s: number) => {
     const m = Math.floor(s / 60);
     const sec = Math.floor(s % 60);
@@ -404,7 +432,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
                 <Text style={styles.sliderDurationText}>{dur ? fmt(dur) : '--:--'}</Text>
               </View>
               <Slider
-                style={styles.sliderAbsolute}
+                style={[styles.sliderAbsolute]}
                 value={dur > 0 ? Math.min(pos, dur) : 0}
                 minimumValue={0}
                 maximumValue={dur || 1}
@@ -623,13 +651,14 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 999,
     borderWidth: 2,
+    zIndex: 1,
   },
   sliderPillRed: { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
   sliderPillGreen: { borderColor: '#2E7D32', backgroundColor: '#2E7D3215' },
-  sliderDurationOverlay: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' },
+  sliderDurationOverlay: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center', zIndex: 2 },
   // Align slider with pill dimensions for perfect centering
-  sliderAbsolute: { position: 'absolute', left: 0, right: 54, height: 28, top: 8 },
-  sliderAbsoluteGreen: { position: 'absolute', left: 0, right: 54, height: 28, top: 8 },
+  sliderAbsolute: { position: 'absolute', left: 0, right: 54, height: 28, top: 8, zIndex: 10 },
+  sliderAbsoluteGreen: { position: 'absolute', left: 0, right: 54, height: 28, top: 8, zIndex: 10 },
   // Same bold black typography as "PDF"
   sliderDurationText: { fontFamily: typography.sansSemiBold, fontSize: 14, color: '#111827', includeFontPadding: false, textAlignVertical: 'center' },
 
