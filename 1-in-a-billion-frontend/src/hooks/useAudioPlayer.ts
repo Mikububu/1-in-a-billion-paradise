@@ -20,14 +20,24 @@ export const useAudioPlayer = ({ audioUrl, onPlaybackEnd }: UseAudioPlayerOption
   // Preload duration when URL changes
   useEffect(() => {
     const preloadDuration = async () => {
+      if (!audioUrl) {
+        console.warn('⚠️ useAudioPlayer: No audioUrl provided');
+        return;
+      }
       try {
+        console.log(`🎵 Preloading audio duration: ${audioUrl.substring(0, 80)}...`);
         const { sound } = await Audio.Sound.createAsync({ uri: audioUrl });
         const status = await sound.getStatusAsync();
         if (status.isLoaded && status.durationMillis) {
-          setDur(status.durationMillis / 1000);
+          const duration = status.durationMillis / 1000;
+          setDur(duration);
+          console.log(`✅ Audio duration preloaded: ${duration.toFixed(1)}s`);
+        } else {
+          console.warn('⚠️ Audio loaded but no duration available');
         }
         await sound.unloadAsync();
-      } catch (e) {
+      } catch (e: any) {
+        console.error(`❌ Failed to preload audio duration:`, e.message);
         // Silently fail - user can still play audio normally
       }
     };
@@ -44,27 +54,40 @@ export const useAudioPlayer = ({ audioUrl, onPlaybackEnd }: UseAudioPlayerOption
   }, []);
 
   const togglePlayback = async () => {
-    if (loading) return;
+    if (loading) {
+      console.log('⏳ Audio already loading, ignoring...');
+      return;
+    }
+    if (!audioUrl) {
+      console.error('❌ No audioUrl provided to togglePlayback');
+      return;
+    }
 
     try {
       setLoading(true);
+      console.log(`🎵 Toggling playback: ${audioUrl.substring(0, 80)}...`);
 
       // Pause/resume if already loaded
       if (soundRef.current) {
         const st = await soundRef.current.getStatusAsync();
         if (st.isLoaded && st.isPlaying) {
+          console.log('⏸️ Pausing audio');
           await soundRef.current.pauseAsync();
           setPlaying(false);
+          setLoading(false);
           return;
         }
         if (st.isLoaded) {
+          console.log('▶️ Resuming audio');
           await soundRef.current.playAsync();
           setPlaying(true);
+          setLoading(false);
           return;
         }
       }
 
       // Fresh load (STREAM ONLY)
+      console.log('🔄 Loading fresh audio...');
       const { sound } = await Audio.Sound.createAsync(
         { uri: audioUrl },
         { shouldPlay: true, progressUpdateIntervalMillis: 250 },
@@ -83,8 +106,9 @@ export const useAudioPlayer = ({ audioUrl, onPlaybackEnd }: UseAudioPlayerOption
       );
       soundRef.current = sound;
       setPlaying(true);
+      console.log('✅ Audio playback started');
     } catch (e: any) {
-      console.error('Audio playback error:', e);
+      console.error('❌ Audio playback error:', e.message, e);
       setPlaying(false);
     } finally {
       setLoading(false);

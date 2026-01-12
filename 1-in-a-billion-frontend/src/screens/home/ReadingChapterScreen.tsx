@@ -39,8 +39,16 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
   const [songLyrics, setSongLyrics] = useState<string>('');
   const [loadingSongLyrics, setLoadingSongLyrics] = useState<boolean>(true);
 
-  const narrationUrl = useMemo(() => `${env.CORE_API_URL}/api/jobs/v2/${jobId}/audio/${docNum}`, [jobId, docNum]);
-  const songUrl = useMemo(() => `${env.CORE_API_URL}/api/jobs/v2/${jobId}/song/${docNum}`, [jobId, docNum]);
+  const narrationUrl = useMemo(() => {
+    const url = `${env.CORE_API_URL}/api/jobs/v2/${jobId}/audio/${docNum}`;
+    console.log(`🎙️ Narration URL: ${url}`);
+    return url;
+  }, [jobId, docNum]);
+  const songUrl = useMemo(() => {
+    const url = `${env.CORE_API_URL}/api/jobs/v2/${jobId}/song/${docNum}`;
+    console.log(`🎵 Song URL: ${url}`);
+    return url;
+  }, [jobId, docNum]);
 
   const cleanupLyricsForDisplay = (raw: string) => {
     return (raw || '')
@@ -63,18 +71,26 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     (async () => {
       try {
         setLoadingText(true);
+        console.log(`📖 Loading text for jobId=${jobId}, systemId=${systemId}, docNum=${docNum}`);
         const artifacts = await fetchJobArtifacts(jobId, ['text']);
+        console.log(`📚 Found ${artifacts.length} text artifacts`);
         const textArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
-          return meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
+          const matches = meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
+          if (matches) console.log(`✅ Found matching artifact: ${a.storage_path}`);
+          return matches;
         });
         if (!textArtifact?.storage_path) {
+          console.warn(`⚠️ No text artifact found for systemId=${systemId}, docNum=${docNum}`);
           if (mounted) setText('');
           return;
         }
+        console.log(`📥 Downloading text from: ${textArtifact.storage_path}`);
         const content = await downloadTextContent(textArtifact.storage_path);
+        console.log(`✅ Text loaded: ${content?.length || 0} chars`);
         if (mounted) setText(content || '');
-      } catch {
+      } catch (error: any) {
+        console.error(`❌ Failed to load text:`, error.message);
         if (mounted) setText('');
       } finally {
         if (mounted) setLoadingText(false);
@@ -89,14 +105,23 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     (async () => {
       try {
         setLoadingSongLyrics(true);
+        console.log(`🎵 Loading song lyrics for jobId=${jobId}, systemId=${systemId}, docNum=${docNum}`);
         const artifacts = await fetchJobArtifacts(jobId, ['audio_song']);
+        console.log(`🎶 Found ${artifacts.length} song artifacts`);
         const songArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
-          return meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
+          const matches = meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
+          if (matches) console.log(`✅ Found matching song artifact`);
+          return matches;
         });
         const lyrics = (songArtifact?.metadata as any)?.lyrics;
-        if (mounted) setSongLyrics(typeof lyrics === 'string' ? cleanupLyricsForDisplay(lyrics) : '');
-      } catch {
+        if (mounted) {
+          const cleaned = typeof lyrics === 'string' ? cleanupLyricsForDisplay(lyrics) : '';
+          console.log(`✅ Song lyrics loaded: ${cleaned.length} chars`);
+          setSongLyrics(cleaned);
+        }
+      } catch (error: any) {
+        console.error(`❌ Failed to load song lyrics:`, error.message);
         if (mounted) setSongLyrics('');
       } finally {
         if (mounted) setLoadingSongLyrics(false);
