@@ -9,6 +9,7 @@ import { downloadTextContent, fetchJobArtifacts } from '@/services/nuclearReadin
 import { BackButton } from '@/components/BackButton';
 import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
 import { AudioPlayerSection } from '@/components/AudioPlayerSection';
+import { SystemEssence } from '@/components/SystemEssence';
 import { colors, layout, radii, spacing, typography } from '@/theme/tokens';
 import { useProfileStore } from '@/store/profileStore';
 
@@ -149,15 +150,13 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
           <View style={styles.titleBlock}>
             <Text style={styles.title}>{personName}</Text>
             <Text style={styles.systemNameCentered}>{systemName}</Text>
-            {systemId === 'western' && person?.placements ? (
-              <View style={styles.chipsRow}>
-                <View style={styles.chip}><Text style={styles.chipText}>☉ {person.placements.sunSign}</Text></View>
-                <View style={styles.chip}><Text style={styles.chipText}>☽ {person.placements.moonSign}</Text></View>
-                <View style={styles.chip}><Text style={styles.chipText}>↑ {person.placements.risingSign}</Text></View>
-              </View>
-            ) : null}
+            {/* Display system essences (works for all systems) */}
+            <SystemEssence
+              systemId={systemId}
+              essences={person?.essences}
+              placements={person?.placements}
+            />
           </View>
-
           <View style={styles.titleRightSpacer} />
         </View>
 
@@ -262,16 +261,6 @@ const styles = StyleSheet.create({
     color: colors.primary,
     textAlign: 'center',
   },
-  chipsRow: { flexDirection: 'row', gap: 6, justifyContent: 'center', flexWrap: 'wrap' },
-  chip: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  chipText: { fontFamily: typography.sansRegular, fontSize: 11, color: colors.text },
   titleRightSpacer: { width: 40 },
 
   card: { backgroundColor: 'transparent', borderRadius: 16, padding: 16, marginBottom: 16 },

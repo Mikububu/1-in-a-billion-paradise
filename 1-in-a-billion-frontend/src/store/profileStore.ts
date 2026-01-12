@@ -108,6 +108,7 @@ export type Person = {
   gender?: 'male' | 'female'; // For UI color coding
   birthData: BirthData;
   placements?: Placements;
+  essences?: any; // System essences (JSONB) - key identifiers for each astrological system
   hookReadings?: HookReading[]; // Sun/Moon/Rising free preview readings
   hookAudioPaths?: Partial<Record<HookReading['type'], string>>; // Supabase Storage paths for hook audios (optional)
   readings: Reading[];
