@@ -68,14 +68,15 @@ export const PersonReadingChaptersFlowScreen = ({ navigation, route }: Props) =>
           return (desiredDocTypes || []).includes(docType);
         });
 
-        // Build exactly 5 or 6, in fixed order.
+        // Build exactly 5 or 6, in fixed order. ALWAYS include all systems for navigation.
         const orderedSystems = effectiveViewType === 'overlay'
           ? SYSTEMS
           : SYSTEMS.filter((s) => s.id !== 'verdict');
 
-        const built: Chapter[] = orderedSystems.map((sys) => {
+        const built: Chapter[] = orderedSystems.map((sys, index) => {
           const match = chapterDocs.find((d) => String(d?.system || '') === sys.id) || null;
-          const docNum = Number(match?.docNum) || 0;
+          // Use docNum from data, or fallback to sequential index for old job format
+          const docNum = Number(match?.docNum) || (index + 1);
           return {
             personName,
             personId,
@@ -85,7 +86,7 @@ export const PersonReadingChaptersFlowScreen = ({ navigation, route }: Props) =>
             docNum,
             timestamp: createdAt,
           };
-        }).filter((c) => c.docNum > 0);
+        }); // Don't filter - always include all systems so navigation buttons work
 
         if (!mounted) return;
         // Attach next pointers for navigation
