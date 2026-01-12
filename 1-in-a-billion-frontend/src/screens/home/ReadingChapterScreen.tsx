@@ -72,23 +72,38 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
       try {
         setLoadingText(true);
         console.log(`📖 Loading text for jobId=${jobId}, systemId=${systemId}, docNum=${docNum}`);
+        
+        // Try new artifact system first
         const artifacts = await fetchJobArtifacts(jobId, ['text']);
-        console.log(`📚 Found ${artifacts.length} text artifacts`);
+        console.log(`📚 Found ${artifacts.length} text artifacts in job_artifacts table`);
+        
         const textArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
           const matches = meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
           if (matches) console.log(`✅ Found matching artifact: ${a.storage_path}`);
           return matches;
         });
-        if (!textArtifact?.storage_path) {
-          console.warn(`⚠️ No text artifact found for systemId=${systemId}, docNum=${docNum}`);
-          if (mounted) setText('');
-          return;
+        
+        if (textArtifact?.storage_path) {
+          console.log(`📥 Downloading text from: ${textArtifact.storage_path}`);
+          const content = await downloadTextContent(textArtifact.storage_path);
+          console.log(`✅ Text loaded: ${content?.length || 0} chars`);
+          if (mounted) setText(content || '');
+        } else {
+          // FALLBACK: Try loading from job.results.documents (old format)
+          console.log(`🔄 No artifact found, trying job.results.documents fallback...`);
+          const res = await fetch(`${env.CORE_API_URL}/api/jobs/v2/${jobId}`);
+          const payload = await res.json();
+          const docs = payload?.job?.results?.documents || [];
+          const matchingDoc = docs.find((d: any) => d.system === systemId && Number(d.docNum) === Number(docNum));
+          if (matchingDoc?.text) {
+            console.log(`✅ Found text in job.results.documents: ${matchingDoc.text.length} chars`);
+            if (mounted) setText(matchingDoc.text);
+          } else {
+            console.warn(`⚠️ No text found in either artifacts or job.results`);
+            if (mounted) setText('');
+          }
         }
-        console.log(`📥 Downloading text from: ${textArtifact.storage_path}`);
-        const content = await downloadTextContent(textArtifact.storage_path);
-        console.log(`✅ Text loaded: ${content?.length || 0} chars`);
-        if (mounted) setText(content || '');
       } catch (error: any) {
         console.error(`❌ Failed to load text:`, error.message);
         if (mounted) setText('');
@@ -122,6 +137,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         }
       } catch (error: any) {
         console.error(`❌ Failed to load song lyrics:`, error.message);
+        // Fallback: Leave empty for now (song lyrics are less critical than main text)
         if (mounted) setSongLyrics('');
       } finally {
         if (mounted) setLoadingSongLyrics(false);
