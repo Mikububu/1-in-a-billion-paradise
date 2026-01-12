@@ -52,6 +52,8 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
   const [songPos, setSongPos] = useState(0);
   const [songDur, setSongDur] = useState(0);
 
+  const controlsDisabled = loadingAudio || loadingSong;
+
   const narrationRef = useRef<Audio.Sound | null>(null);
   const songRef = useRef<Audio.Sound | null>(null);
 
@@ -314,7 +316,11 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
 
         <View style={styles.card}>
           <View style={styles.mediaBlock}>
-            <TouchableOpacity style={[styles.playButton, playing && styles.playButtonActive]} onPress={toggleNarration}>
+            <TouchableOpacity
+              style={[styles.playButton, playing && styles.playButtonActive, controlsDisabled && styles.controlDisabled]}
+              onPress={toggleNarration}
+              disabled={controlsDisabled}
+            >
               {loadingAudio ? (
                 <ActivityIndicator color={colors.primary} />
               ) : (
@@ -360,7 +366,11 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
           <View style={styles.musicSpacer} />
 
           <View style={styles.mediaBlock}>
-            <TouchableOpacity style={[styles.songButton, playingSong && styles.songButtonActive]} onPress={toggleSong}>
+            <TouchableOpacity
+              style={[styles.songButton, playingSong && styles.songButtonActive, controlsDisabled && styles.controlDisabled]}
+              onPress={toggleSong}
+              disabled={controlsDisabled}
+            >
               {loadingSong ? (
                 <ActivityIndicator color="#2E7D32" />
               ) : (
@@ -414,7 +424,6 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
               <AnimatedSystemIcon icon={nextSystemIcon} size={24} />
               <View style={styles.nextChapterInfo}>
                 <Text style={styles.nextChapterName}>{nextChapter.systemName}</Text>
-                <Text style={styles.nextChapterTagline}>Next Chapter</Text>
               </View>
               <Text style={styles.nextChapterArrow}>→</Text>
             </TouchableOpacity>
@@ -433,7 +442,7 @@ const styles = StyleSheet.create({
 
   titleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   // Inset a bit so the buttons sit inside the safe margin
-  titleButtonsCol: { width: 40, gap: 6, marginLeft: 18 },
+  titleButtonsCol: { width: 40, gap: 6, marginLeft: 24 },
   headerYellowButton: {
     // Coated white (standard) inside, not yellow
     backgroundColor: colors.surface,
@@ -462,6 +471,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   mediaBlock: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 },
+  controlDisabled: { opacity: 0.6 },
   // Match the avatar circle style from the previous screen (e.g. "C" / "M" circles)
   playButton: {
     width: 50,
@@ -540,14 +550,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderRadius: radii.card,
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
   },
   nextChapterInfo: { flex: 1, marginLeft: spacing.sm },
   nextChapterName: { fontFamily: typography.sansSemiBold, fontSize: 14, color: colors.text },
-  nextChapterTagline: { fontFamily: typography.sansRegular, fontSize: 12, color: colors.primary, marginTop: 1 },
   nextChapterArrow: { fontFamily: typography.sansBold, fontSize: 18, color: colors.primary, marginLeft: spacing.sm },
 });
 
