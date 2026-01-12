@@ -55,6 +55,11 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
   const [songDur, setSongDur] = useState(0);
   const [seekingSong, setSeekingSong] = useState(false);
 
+  // Auto-scroll song lyrics as the song progresses (matches reading behavior)
+  const songTextScrollRef = useRef<ScrollView | null>(null);
+  const [songTextViewportH, setSongTextViewportH] = useState(0);
+  const [songTextContentH, setSongTextContentH] = useState(0);
+
   const controlsDisabled = loadingAudio || loadingSong;
 
   const narrationRef = useRef<Audio.Sound | null>(null);
@@ -308,6 +313,21 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     textScrollRef.current.scrollTo({ y, animated: false });
   }, [playing, pos, dur, textViewportH, textContentH]);
 
+  useEffect(() => {
+    if (!songTextScrollRef.current) return;
+    if (!songTextViewportH || !songTextContentH) return;
+
+    if (!playingSong || !songDur) {
+      songTextScrollRef.current.scrollTo({ y: 0, animated: false });
+      return;
+    }
+
+    const progress = Math.max(0, Math.min(1, songPos / songDur));
+    const maxScrollY = Math.max(0, songTextContentH - songTextViewportH);
+    const y = maxScrollY * progress;
+    songTextScrollRef.current.scrollTo({ y, animated: false });
+  }, [playingSong, songPos, songDur, songTextViewportH, songTextContentH]);
+
   return (
     <SafeAreaView style={styles.container}>
       <BackButton onPress={() => navigation.goBack()} />
@@ -347,24 +367,28 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
               )}
             </TouchableOpacity>
             <View style={[styles.sliderFrame, styles.sliderFrameRed]}>
-              <Text pointerEvents="none" style={styles.sliderDurationInTrack}>
-                {dur ? fmt(dur) : '--:--'}
-              </Text>
-              <Slider
-                style={styles.sliderInner}
-                value={dur > 0 ? Math.min(pos, dur) : 0}
-                minimumValue={0}
-                maximumValue={dur || 1}
-                minimumTrackTintColor={colors.primary}
-                maximumTrackTintColor="transparent"
-                thumbTintColor={colors.primary}
-                onSlidingStart={() => setSeekingNarration(true)}
-                onSlidingComplete={async (v) => {
-                  setSeekingNarration(false);
-                  setPos(v);
-                  await narrationRef.current?.setPositionAsync(v * 1000).catch(() => {});
-                }}
-              />
+              <View style={styles.sliderRow}>
+                <View style={styles.sliderControl}>
+                  <Slider
+                    style={styles.sliderInner}
+                    value={dur > 0 ? Math.min(pos, dur) : 0}
+                    minimumValue={0}
+                    maximumValue={dur || 1}
+                    minimumTrackTintColor={colors.primary}
+                    maximumTrackTintColor="transparent"
+                    thumbTintColor={colors.primary}
+                    onSlidingStart={() => setSeekingNarration(true)}
+                    onSlidingComplete={async (v) => {
+                      setSeekingNarration(false);
+                      setPos(v);
+                      await narrationRef.current?.setPositionAsync(v * 1000).catch(() => {});
+                    }}
+                  />
+                </View>
+                <View style={styles.sliderDurationBox}>
+                  <Text style={styles.sliderDurationText}>{dur ? fmt(dur) : '--:--'}</Text>
+                </View>
+              </View>
             </View>
           </View>
 
@@ -404,24 +428,28 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
               )}
             </TouchableOpacity>
             <View style={[styles.sliderFrame, styles.sliderFrameGreen]}>
-              <Text pointerEvents="none" style={styles.sliderDurationInTrack}>
-                {songDur ? fmt(songDur) : '--:--'}
-              </Text>
-              <Slider
-                style={styles.sliderInner}
-                value={songDur > 0 ? Math.min(songPos, songDur) : 0}
-                minimumValue={0}
-                maximumValue={songDur || 1}
-                minimumTrackTintColor="#2E7D32"
-                maximumTrackTintColor="transparent"
-                thumbTintColor="#2E7D32"
-                onSlidingStart={() => setSeekingSong(true)}
-                onSlidingComplete={async (v) => {
-                  setSeekingSong(false);
-                  setSongPos(v);
-                  await songRef.current?.setPositionAsync(v * 1000).catch(() => {});
-                }}
-              />
+              <View style={styles.sliderRow}>
+                <View style={styles.sliderControl}>
+                  <Slider
+                    style={styles.sliderInner}
+                    value={songDur > 0 ? Math.min(songPos, songDur) : 0}
+                    minimumValue={0}
+                    maximumValue={songDur || 1}
+                    minimumTrackTintColor="#2E7D32"
+                    maximumTrackTintColor="transparent"
+                    thumbTintColor="#2E7D32"
+                    onSlidingStart={() => setSeekingSong(true)}
+                    onSlidingComplete={async (v) => {
+                      setSeekingSong(false);
+                      setSongPos(v);
+                      await songRef.current?.setPositionAsync(v * 1000).catch(() => {});
+                    }}
+                  />
+                </View>
+                <View style={styles.sliderDurationBox}>
+                  <Text style={styles.sliderDurationText}>{songDur ? fmt(songDur) : '--:--'}</Text>
+                </View>
+              </View>
             </View>
           </View>
 
@@ -431,9 +459,16 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
               {loadingSongLyrics ? (
                 <ActivityIndicator />
               ) : (
-                <Text style={styles.songTextBody} numberOfLines={5} ellipsizeMode="tail">
-                  {songLyrics || ''}
-                </Text>
+                <ScrollView
+                  ref={songTextScrollRef as any}
+                  style={styles.textWindow}
+                  showsVerticalScrollIndicator={false}
+                  scrollEnabled={false}
+                  onLayout={(e) => setSongTextViewportH(e.nativeEvent.layout.height)}
+                  onContentSizeChange={(_, h) => setSongTextContentH(h)}
+                >
+                  <Text style={styles.songTextBody}>{songLyrics || ''}</Text>
+                </ScrollView>
               )}
             </View>
           </View>
@@ -530,24 +565,16 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 999,
     justifyContent: 'center',
-    paddingLeft: 8,
-    paddingRight: 58, // reserve space for duration inside the track
+    paddingHorizontal: 8,
   },
+  sliderRow: { flexDirection: 'row', alignItems: 'center' },
+  sliderControl: { flex: 1, minWidth: 0 },
+  sliderDurationBox: { width: 54, alignItems: 'flex-end', justifyContent: 'center' },
   sliderInner: { flex: 1 },
   sliderFrameRed: { borderWidth: 2, borderColor: colors.primary, backgroundColor: colors.primary + '15' },
   sliderFrameGreen: { borderWidth: 2, borderColor: '#2E7D32', backgroundColor: '#2E7D3215' },
   // Same bold black typography as "PDF"
-  sliderDurationInTrack: {
-    position: 'absolute',
-    right: 12,
-    top: 0,
-    bottom: 0,
-    textAlignVertical: 'center',
-    includeFontPadding: false,
-    fontFamily: typography.sansSemiBold,
-    fontSize: 14,
-    color: '#111827',
-  },
+  sliderDurationText: { fontFamily: typography.sansSemiBold, fontSize: 14, color: '#111827' },
 
   // Keep text closer to audio to save estate
   textArea: { marginTop: 10 },

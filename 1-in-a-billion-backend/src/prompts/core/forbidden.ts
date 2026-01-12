@@ -57,6 +57,7 @@ export const FORBIDDEN_PHRASES_SPICY = [
  */
 export function buildForbiddenSection(style: 'production' | 'spicy_surreal'): string {
   const base = FORBIDDEN_PHRASES.map(p => `❌ "${p}..."`).join('\n');
+  const symbols = `❌ Any decorative symbols / glyphs / emojis (examples: ★ ✦ ✨ • → ✓ ✧ ☉ ॐ). Use plain ASCII punctuation only.`;
   
   if (style === 'spicy_surreal') {
     const extra = FORBIDDEN_PHRASES_SPICY.map(p => `❌ "${p}" (be direct)`).join('\n');
@@ -65,11 +66,13 @@ FORBIDDEN PHRASES (NEVER USE THESE):
 ${base}
 ${extra}
 ❌ Any corporate/safe/sanitized language
+${symbols}
 `;
   }
   
   return `
 FORBIDDEN PHRASES (NEVER USE THESE):
 ${base}
+${symbols}
 `;
 }
