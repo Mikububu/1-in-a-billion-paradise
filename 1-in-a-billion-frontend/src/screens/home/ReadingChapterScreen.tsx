@@ -429,16 +429,19 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             <View style={styles.sliderOuter}>
               <View pointerEvents="none" style={[styles.sliderPill, styles.sliderPillRed]} />
               <View pointerEvents="none" style={styles.sliderDurationOverlay}>
-                <Text style={styles.sliderDurationText}>{dur ? fmt(dur) : '--:--'}</Text>
+                <Text style={styles.sliderDurationText}>
+                  {playing || seekingNarration ? fmt(pos) : (dur ? fmt(dur) : '--:--')}
+                </Text>
               </View>
               <Slider
-                style={[styles.sliderAbsolute]}
+                style={styles.sliderAbsolute}
                 value={dur > 0 ? Math.min(pos, dur) : 0}
                 minimumValue={0}
                 maximumValue={dur || 1}
                 minimumTrackTintColor={colors.primary}
                 maximumTrackTintColor="transparent"
                 thumbTintColor={colors.primary}
+                thumbStyle={{ width: 20, height: 20 }}
                 onSlidingStart={() => {
                   seekingNarrationRef.current = true;
                   setSeekingNarration(true);
@@ -492,16 +495,19 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             <View style={styles.sliderOuter}>
               <View pointerEvents="none" style={[styles.sliderPill, styles.sliderPillGreen]} />
               <View pointerEvents="none" style={styles.sliderDurationOverlay}>
-                <Text style={styles.sliderDurationText}>{songDur ? fmt(songDur) : '--:--'}</Text>
+                <Text style={styles.sliderDurationText}>
+                  {playingSong || seekingSong ? fmt(songPos) : (songDur ? fmt(songDur) : '--:--')}
+                </Text>
               </View>
               <Slider
-                style={[styles.sliderAbsolute, styles.sliderAbsoluteGreen]}
+                style={styles.sliderAbsolute}
                 value={songDur > 0 ? Math.min(songPos, songDur) : 0}
                 minimumValue={0}
                 maximumValue={songDur || 1}
                 minimumTrackTintColor="#2E7D32"
                 maximumTrackTintColor="transparent"
                 thumbTintColor="#2E7D32"
+                thumbStyle={{ width: 20, height: 20 }}
                 onSlidingStart={() => {
                   console.log('Song: onSlidingStart');
                   seekingSongRef.current = true;
@@ -656,9 +662,8 @@ const styles = StyleSheet.create({
   sliderPillRed: { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
   sliderPillGreen: { borderColor: '#2E7D32', backgroundColor: '#2E7D3215' },
   sliderDurationOverlay: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center', zIndex: 2 },
-  // Align slider with pill dimensions for perfect centering
-  sliderAbsolute: { position: 'absolute', left: 0, right: 54, height: 28, top: 8, zIndex: 10 },
-  sliderAbsoluteGreen: { position: 'absolute', left: 0, right: 54, height: 28, top: 8, zIndex: 10 },
+  // Align slider with pill dimensions for perfect centering (slider thumb renders on top with zIndex)
+  sliderAbsolute: { position: 'absolute', left: 0, right: 54, height: 28, top: 8, zIndex: 10, overflow: 'visible' },
   // Same bold black typography as "PDF"
   sliderDurationText: { fontFamily: typography.sansSemiBold, fontSize: 14, color: '#111827', includeFontPadding: false, textAlignVertical: 'center' },
 
