@@ -44,7 +44,7 @@ Surname: _____________
 Single free-text input field. User writes everything in one message.
 
 **Prompt text:**
-> Please share the most beautiful or most horrible events in your life - moments of great happiness, love, loss, or death of someone close. Partnerships, separations, turning points, or periods that changed everything. You may also include the names of people who played an important role. Write everything in one message.
+> Please share the most beautiful or most horrible events in your life - moments of great happiness, love, loss, or death of someone close. Partnerships, separations, turning points, or periods that changed everything. **The exact dates and locations are very important** - birthdays, death days, where it happened. You may also include the names of people who played an important role. Write everything in one message.
 
 **What NOT to do:**
 - ❌ No menus
@@ -75,10 +75,10 @@ When Kabbalah is part of a nuclear reading:
 2. **Do NOT mention Kabbalah specifically**
 3. Use this generic prompt:
 
-> The more you can tell us about the most beautiful or most horrible events in your life - great happiness, deep love, painful loss, or the death of someone close - the richer your reading will be. This is very important for some of our systems to understand you more deeply.
+> The more you can tell us about the most beautiful or most horrible events in your life - great happiness, deep love, painful loss, or the death of someone close - the richer your reading will be. **The exact dates and locations are very important** - birthdays, death days, where it happened. This is analyzed with surgical precision by some of our systems.
 
 For overlay readings (two people):
-> The more you can tell us about the most beautiful or most horrible events - in your life, in the other person's life, or in your life together - the richer your reading will be. Moments of great happiness, love, loss, or death of someone close. This is very important for some of our systems.
+> The more you can tell us about the most beautiful or most horrible events - in your life, in the other person's life, or in your life together - the richer your reading will be. Moments of great happiness, love, loss, or death of someone close. **The exact dates and locations are very important** - birthdays, death days, where it happened. This is analyzed with surgical precision by some of our systems.
 
 ---
 
@@ -174,13 +174,28 @@ interface KabbalahPayload {
   // Optional
   previousSurnames?: string[];
   
-  // From user free text (passed as-is)
+  // From user free text - names extracted
   relatedPeople?: {
     name: string;
+    hebrewName?: string;      // Transliterated
+    gematria?: number;
     relationship?: string;
+    birthDate?: string;       // If provided
+    hebrewBirthDate?: string; // Converted
+    deathDate?: string;       // If provided
+    hebrewDeathDate?: string; // Converted
   }[];
   
-  lifeEvents?: string;  // Raw user text, unprocessed
+  // Life events - dates extracted and converted to Hebrew calendar
+  lifeEvents?: {
+    rawText: string;          // Original user text
+    extractedDates: {
+      gregorian: string;
+      hebrew: string;         // Converted to Hebrew date
+      location?: string;
+      eventType?: 'birth' | 'death' | 'marriage' | 'separation' | 'turning_point' | 'other';
+    }[];
+  };
 }
 ```
 
