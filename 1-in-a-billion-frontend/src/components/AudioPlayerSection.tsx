@@ -30,7 +30,6 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
 
   const isNarration = type === 'narration';
   const primaryColor = isNarration ? colors.primary : '#2E7D32';
-  const disabledColor = '#CCCCCC';
   
   // Disable controls if audio not available yet (null = checking, false = not ready)
   const isDisabled = controlsDisabled || audio.available !== true;
@@ -50,14 +49,13 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
         <TouchableOpacity
           style={[
             styles.playButton,
-            { borderColor: primaryColor, backgroundColor: primaryColor + '20' },
+            { borderColor: isDisabled ? '#999' : primaryColor, backgroundColor: isDisabled ? '#f5f5f5' : primaryColor + '20' },
             audio.playing && { backgroundColor: primaryColor + '30' },
-            isDisabled && styles.controlDisabled,
           ]}
           onPress={audio.togglePlayback}
-          disabled={isDisabled || isChecking}
+          disabled={isDisabled}
         >
-          {audio.loading || audio.buffering || isChecking ? (
+          {audio.loading || audio.buffering ? (
             <ActivityIndicator color={isDisabled ? '#999' : primaryColor} />
           ) : (
             <Text style={[styles.playIcon, { color: isDisabled ? '#999' : primaryColor }]}>{icon}</Text>
@@ -77,7 +75,7 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
           />
           <View pointerEvents="none" style={styles.sliderDurationOverlay}>
             <Text style={[styles.sliderDurationText, isDisabled && { color: '#999' }]}>
-              {isChecking ? '...' : audio.playing || audio.seeking ? fmt(audio.pos) : (audio.dur ? fmt(audio.dur) : '--:--')}
+              {audio.playing || audio.seeking ? fmt(audio.pos) : (audio.dur ? fmt(audio.dur) : '--:--')}
             </Text>
           </View>
           <Slider
