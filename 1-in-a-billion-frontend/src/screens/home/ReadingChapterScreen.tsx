@@ -320,6 +320,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     const progress = Math.max(0, Math.min(1, pos / dur));
     const maxScrollY = Math.max(0, textContentH - textViewportH);
     const y = maxScrollY * progress;
+    console.log('Narration scroll:', { seekingNarration, playing, pos, dur, progress, y });
     textScrollRef.current.scrollTo({ y, animated: false });
   }, [playing, seekingNarration, pos, dur, textViewportH, textContentH]);
 
@@ -327,7 +328,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     if (!songTextScrollRef.current) return;
     if (!songTextViewportH || !songTextContentH) return;
 
-    // Also scroll while scrubbing (seeking), not only while actively playing.
+    // Scroll while playing OR scrubbing (seeking). Only reset when idle.
     if (!songDur || (!playingSong && !seekingSong)) {
       songTextScrollRef.current.scrollTo({ y: 0, animated: false });
       return;
@@ -336,6 +337,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     const progress = Math.max(0, Math.min(1, songPos / songDur));
     const maxScrollY = Math.max(0, songTextContentH - songTextViewportH);
     const y = maxScrollY * progress;
+    console.log('Song scroll:', { seekingSong, playingSong, songPos, songDur, progress, y });
     songTextScrollRef.current.scrollTo({ y, animated: false });
   }, [playingSong, seekingSong, songPos, songDur, songTextViewportH, songTextContentH]);
 
@@ -466,11 +468,16 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
                 maximumTrackTintColor="transparent"
                 thumbTintColor="#2E7D32"
                 onSlidingStart={() => {
+                  console.log('Song: onSlidingStart');
                   seekingSongRef.current = true;
                   setSeekingSong(true);
                 }}
-                onValueChange={(v) => setSongPos(v)}
+                onValueChange={(v) => {
+                  console.log('Song: onValueChange', v);
+                  setSongPos(v);
+                }}
                 onSlidingComplete={async (v) => {
+                  console.log('Song: onSlidingComplete');
                   seekingSongRef.current = false;
                   setSeekingSong(false);
                   setSongPos(v);
@@ -600,7 +607,7 @@ const styles = StyleSheet.create({
 
   // Slider visuals are drawn as a pill behind an absolutely-positioned Slider,
   // so the thumb can never be clipped by rounded borders.
-  sliderOuter: { flex: 1, height: 44, position: 'relative' },
+  sliderOuter: { flex: 1, height: 44, position: 'relative', overflow: 'visible' },
   sliderPill: {
     position: 'absolute',
     left: 0,
