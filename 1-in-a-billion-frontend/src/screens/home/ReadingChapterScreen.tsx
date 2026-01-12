@@ -228,7 +228,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
   scroll: { flex: 1 },
-  scrollContent: { padding: 18, paddingTop: 80, paddingBottom: 24 },
+  scrollContent: { padding: 18, paddingTop: 90, paddingBottom: 30 },
 
   headerTimestamp: {
     position: 'absolute',
@@ -239,20 +239,23 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
 
-  titleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  titleButtonsCol: { marginRight: 8, gap: 4 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  titleButtonsCol: { width: 40, gap: 6, marginLeft: 24 },
   headerYellowButton: {
-    width: 36,
-    height: 28,
+    backgroundColor: colors.surface,
     borderRadius: 8,
-    backgroundColor: '#FFF8DC',
+    paddingVertical: 4,
     alignItems: 'center',
     justifyContent: 'center',
+    height: 28,
+    width: 36,
+    borderWidth: 2,
+    borderColor: '#111827',
   },
-  headerYellowText: { fontFamily: typography.sansSemiBold, fontSize: 14, color: '#111827' },
+  headerYellowText: { fontFamily: typography.sansSemiBold, color: '#111827', fontSize: 12 },
 
   titleBlock: { flex: 1, alignItems: 'center' },
-  title: { fontFamily: typography.sansSemiBold, fontSize: 18, color: colors.text, textAlign: 'center', marginBottom: 2 },
+  title: { fontFamily: typography.headline, fontSize: 34, color: colors.text, textAlign: 'center' },
   systemNameCentered: {
     fontFamily: typography.sansRegular,
     fontSize: 13,
@@ -270,12 +273,12 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   chipText: { fontFamily: typography.sansRegular, fontSize: 11, color: colors.text },
-  titleRightSpacer: { width: 44 },
+  titleRightSpacer: { width: 40 },
 
-  card: { backgroundColor: 'transparent', marginBottom: 16 },
-  musicSpacer: { height: 14 },
+  card: { backgroundColor: 'transparent', borderRadius: 16, padding: 16, marginBottom: 16 },
+  musicSpacer: { height: 18 },
 
-  bottomCtasRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, width: '100%' },
+  bottomCtasRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, width: '100%' },
   ctaButtonBase: {
     height: 54,
     backgroundColor: colors.surface,
