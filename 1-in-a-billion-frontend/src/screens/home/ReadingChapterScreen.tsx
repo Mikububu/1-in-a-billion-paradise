@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
   },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   systemName: { fontFamily: 'System', fontSize: 20, fontWeight: '700', color: '#111827' },
-  timestamp: { fontFamily: 'System', fontSize: 12, color: '#6B7280' },
+  timestamp: { fontFamily: 'System', fontSize: 10, color: '#6B7280' },
   actionsRow: { flexDirection: 'row', gap: 10, marginTop: 10, marginBottom: 14 },
   pdfButton: { backgroundColor: '#F3F4F6', paddingVertical: 10, paddingHorizontal: 18, borderRadius: 10 },
   pdfText: { fontFamily: 'System', fontWeight: '700', color: '#111827' },
@@ -412,10 +412,10 @@ const styles = StyleSheet.create({
   sliderFrameGreen: { borderWidth: 2, borderColor: '#2E7D32', backgroundColor: '#2E7D3215' },
 
   // Align time text under the slider start (circle width 50 + row gap 12 = 62)
-  timeTextRow: { marginTop: 4, marginLeft: 62, fontFamily: 'System', fontSize: 12, color: '#6B7280' },
+  timeTextRow: { marginTop: 4, marginLeft: 62, fontFamily: 'System', fontSize: 10, color: '#6B7280' },
   textArea: { marginTop: 16 },
   // Use a standard body size and show a short preview
-  textBody: { fontFamily: typography.sansRegular, fontSize: 14, lineHeight: 22, color: colors.text },
+  textBody: { fontFamily: typography.sansRegular, fontSize: 11, lineHeight: 16, color: colors.text },
   musicSpacer: { height: 26 },
   songButton: {
     width: 50,
@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
   songButtonActive: { backgroundColor: '#DDF2DD' },
   songIcon: { fontFamily: 'System', fontSize: 18, fontWeight: '700', color: '#2E7D32' },
   songTextArea: { marginTop: 14 },
-  songTextBody: { fontFamily: typography.sansRegular, fontSize: 14, lineHeight: 22, color: colors.text },
+  songTextBody: { fontFamily: typography.sansRegular, fontSize: 11, lineHeight: 16, color: colors.text },
 
   // Next Chapter row: match SystemsOverviewScreen / system list row 1:1
   nextChapterRow: {
