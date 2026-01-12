@@ -17,8 +17,9 @@ The error `Could not find the 'personal_context' column of 'library_people'` occ
 
 ```sql
 -- Migration 020: Add personal_context field to library_people table
--- Purpose: Store user's personal context/life events for Kabbalah and other readings
--- This is the text they enter in PersonalContextScreen (up to 600 chars for Kabbalah)
+-- Purpose: Store user's personal context/life events for ANY reading system
+-- This is a universal field used by all systems (Western, Vedic, Human Design, Gene Keys, Kabbalah, etc.)
+-- Kabbalah uses it more extensively, but it's the same single variable for all readings
 
 -- Add personal_context column as TEXT
 ALTER TABLE library_people 
