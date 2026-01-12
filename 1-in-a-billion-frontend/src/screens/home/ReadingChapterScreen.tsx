@@ -39,6 +39,9 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
   const [textViewportH, setTextViewportH] = useState(0);
   const [textContentH, setTextContentH] = useState(0);
 
+  // Prevent race conditions when user taps narration + song quickly
+  const actionLock = useRef(false);
+
   const [playing, setPlaying] = useState(false);
   const [loadingAudio, setLoadingAudio] = useState(false);
   const [pos, setPos] = useState(0);
@@ -116,8 +119,10 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
   }, []);
 
   const toggleNarration = async () => {
+    if (actionLock.current) return;
     if (loadingAudio) return;
     try {
+      actionLock.current = true;
       setLoadingAudio(true);
 
       // Stop song if playing
@@ -167,12 +172,15 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
       setPlaying(false);
     } finally {
       setLoadingAudio(false);
+      actionLock.current = false;
     }
   };
 
   const toggleSong = async () => {
+    if (actionLock.current) return;
     if (loadingSong) return;
     try {
+      actionLock.current = true;
       setLoadingSong(true);
 
       // Quick preflight to fail fast on bad links/timeouts (helps avoid iOS AVPlayer -1001 with no context)
@@ -237,6 +245,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
       setPlayingSong(false);
     } finally {
       setLoadingSong(false);
+      actionLock.current = false;
     }
   };
 
@@ -281,31 +290,36 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
   return (
     <SafeAreaView style={styles.container}>
       <BackButton onPress={() => navigation.goBack()} />
-      {/* Push content down so the headline sits where it does in other screens */}
-      <View style={styles.topSpacer} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.titleContainer}>
-          <Text style={styles.title}>{personName}</Text>
-        </View>
-
-        <View style={styles.centerHeader}>
-          <Text style={styles.systemNameCentered}>{systemName}</Text>
-          {!!niceTimestamp && <Text style={styles.timestampCentered}>{niceTimestamp}</Text>}
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.pdfButton} onPress={() => {}}>
-              <Text style={styles.pdfText}>PDF</Text>
+        {/* Top title row: yellow buttons stacked on the LEFT, title centered */}
+        <View style={styles.titleRow}>
+          <View style={styles.titleButtonsCol}>
+            <TouchableOpacity style={styles.headerYellowButton} onPress={() => {}}>
+              <Text style={styles.headerYellowText}>PDF</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.downloadButton} onPress={() => {}}>
-              <Text style={styles.downloadText}>↓</Text>
+            <TouchableOpacity style={styles.headerYellowButton} onPress={() => {}}>
+              <Text style={styles.headerYellowText}>↓</Text>
             </TouchableOpacity>
           </View>
 
+          <View style={styles.titleBlock}>
+            <Text style={styles.title}>{personName}</Text>
+            <Text style={styles.systemNameCentered}>{systemName}</Text>
+            {!!niceTimestamp && <Text style={styles.timestampCentered}>{niceTimestamp}</Text>}
+          </View>
+
+          {/* Right spacer keeps the title centered */}
+          <View style={styles.titleRightSpacer} />
+        </View>
+
+        <View style={styles.card}>
           <View style={styles.mediaBlock}>
             <TouchableOpacity style={[styles.playButton, playing && styles.playButtonActive]} onPress={toggleNarration}>
-              <Text style={styles.playIcon}>{loadingAudio ? '…' : playing ? '❚❚' : '▶'}</Text>
+              {loadingAudio ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <Text style={styles.playIcon}>{playing ? '❚❚' : '▶'}</Text>
+              )}
             </TouchableOpacity>
             <View style={[styles.sliderFrame, styles.sliderFrameRed]}>
               <Slider
@@ -319,8 +333,8 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
                 onSlidingComplete={async (v) => narrationRef.current?.setPositionAsync(v * 1000).catch(() => {})}
               />
             </View>
+            <Text style={styles.sliderDuration}>{dur ? fmt(dur) : '--:--'}</Text>
           </View>
-          <Text style={styles.timeTextRow}>{dur ? `${fmt(pos)} / ${fmt(dur)}` : '--:--'}</Text>
 
           {/* Reading text with standard white background (5-line window) */}
           <View style={styles.textArea}>
@@ -347,7 +361,11 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
 
           <View style={styles.mediaBlock}>
             <TouchableOpacity style={[styles.songButton, playingSong && styles.songButtonActive]} onPress={toggleSong}>
-              <Text style={styles.songIcon}>{loadingSong ? '…' : '♪'}</Text>
+              {loadingSong ? (
+                <ActivityIndicator color="#2E7D32" />
+              ) : (
+                <Text style={styles.songIcon}>♪</Text>
+              )}
             </TouchableOpacity>
             <View style={[styles.sliderFrame, styles.sliderFrameGreen]}>
               <Slider
@@ -361,8 +379,8 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
                 onSlidingComplete={async (v) => songRef.current?.setPositionAsync(v * 1000).catch(() => {})}
               />
             </View>
+            <Text style={styles.sliderDuration}>{songDur ? fmt(songDur) : '--:--'}</Text>
           </View>
-          <Text style={styles.timeTextRow}>{songDur ? `${fmt(songPos)} / ${fmt(songDur)}` : '--:--'}</Text>
 
           {/* Song lyrics with same white background (5-line window) */}
           <View style={styles.songTextArea}>
@@ -370,9 +388,9 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
               {loadingSongLyrics ? (
                 <ActivityIndicator />
               ) : (
-                <ScrollView style={styles.textWindow} showsVerticalScrollIndicator={false} scrollEnabled={false}>
-                  <Text style={styles.songTextBody}>{songLyrics || ''}</Text>
-                </ScrollView>
+                <Text style={styles.songTextBody} numberOfLines={5} ellipsizeMode="tail">
+                  {songLyrics || ''}
+                </Text>
               )}
             </View>
           </View>
@@ -400,12 +418,26 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
   scroll: { flex: 1 },
-  scrollContent: { padding: 18, paddingBottom: 30 },
-  topSpacer: { height: 72 },
-  titleContainer: { alignItems: 'center', marginBottom: 6 },
+  // Offset is inside the scroll content (no "header" placeholder outside the ScrollView)
+  scrollContent: { padding: 18, paddingTop: 90, paddingBottom: 30 },
+
+  titleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  titleButtonsCol: { width: 54, gap: 8 },
+  headerYellowButton: {
+    backgroundColor: colors.highlightYellow,
+    borderRadius: 12,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#111827',
+  },
+  headerYellowText: { fontFamily: typography.sansSemiBold, color: '#111827' },
+  titleBlock: { flex: 1, alignItems: 'center' },
+  titleRightSpacer: { width: 54 },
+
   // Headline typography (same font family used elsewhere)
   title: { fontFamily: typography.headline, fontSize: 34, color: colors.text, textAlign: 'center' },
-  centerHeader: { alignItems: 'center', marginBottom: 10 },
   systemNameCentered: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text, textAlign: 'center' },
   timestampCentered: { fontFamily: typography.sansRegular, fontSize: 10, color: colors.mutedText, textAlign: 'center', marginTop: 2 },
   card: {
@@ -415,12 +447,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  actionsRow: { flexDirection: 'row', gap: 10, marginTop: 10, marginBottom: 14 },
-  // Same yellow as Screen 1
-  pdfButton: { backgroundColor: colors.highlightYellow, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 12 },
-  pdfText: { fontFamily: typography.sansSemiBold, color: '#111827' },
-  downloadButton: { backgroundColor: colors.highlightYellow, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12 },
-  downloadText: { fontFamily: typography.sansSemiBold, color: '#111827' },
   mediaBlock: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 },
   // Match the avatar circle style from the previous screen (e.g. "C" / "M" circles)
   playButton: {
@@ -448,10 +474,10 @@ const styles = StyleSheet.create({
   sliderInner: { flex: 1 },
   sliderFrameRed: { borderWidth: 2, borderColor: colors.primary, backgroundColor: colors.primary + '15' },
   sliderFrameGreen: { borderWidth: 2, borderColor: '#2E7D32', backgroundColor: '#2E7D3215' },
+  sliderDuration: { width: 48, textAlign: 'right', fontFamily: typography.sansRegular, fontSize: 12, color: colors.mutedText },
 
-  // Align time text under the slider start (circle width 50 + row gap 12 = 62)
-  timeTextRow: { marginTop: 4, marginLeft: 62, fontFamily: 'System', fontSize: 10, color: '#6B7280' },
-  textArea: { marginTop: 16 },
+  // Keep text closer to audio to save estate
+  textArea: { marginTop: 10 },
   // Standard white background behind text, with a 5-line viewing window
   textBox: {
     backgroundColor: colors.surface,
@@ -462,7 +488,7 @@ const styles = StyleSheet.create({
   },
   textWindow: { height: 134 }, // 5 lines @ lineHeight 22 + 24px padding
   textBody: { fontFamily: typography.sansRegular, fontSize: 14, lineHeight: 22, color: colors.text },
-  musicSpacer: { height: 26 },
+  musicSpacer: { height: 18 },
   songButton: {
     width: 50,
     height: 50,
@@ -476,7 +502,7 @@ const styles = StyleSheet.create({
   songButtonActive: { backgroundColor: '#DDF2DD' },
   // Bigger note icon, same circle size
   songIcon: { fontFamily: 'System', fontSize: 22, fontWeight: '700', color: '#2E7D32' },
-  songTextArea: { marginTop: 14 },
+  songTextArea: { marginTop: 10 },
   songTextBody: { fontFamily: typography.sansRegular, fontSize: 14, lineHeight: 22, color: colors.text },
 
   // Next Chapter row: match SystemsOverviewScreen / system list row 1:1
