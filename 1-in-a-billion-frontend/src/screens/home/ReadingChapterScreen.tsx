@@ -378,6 +378,10 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
                     maximumTrackTintColor="transparent"
                     thumbTintColor={colors.primary}
                     onSlidingStart={() => setSeekingNarration(true)}
+                    onValueChange={(v) => {
+                      // Keep thumb "alive" during drag (controlled slider)
+                      if (seekingNarration) setPos(v);
+                    }}
                     onSlidingComplete={async (v) => {
                       setSeekingNarration(false);
                       setPos(v);
@@ -439,6 +443,9 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
                     maximumTrackTintColor="transparent"
                     thumbTintColor="#2E7D32"
                     onSlidingStart={() => setSeekingSong(true)}
+                    onValueChange={(v) => {
+                      if (seekingSong) setSongPos(v);
+                    }}
                     onSlidingComplete={async (v) => {
                       setSeekingSong(false);
                       setSongPos(v);
