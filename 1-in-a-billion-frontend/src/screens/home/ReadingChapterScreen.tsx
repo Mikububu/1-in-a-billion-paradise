@@ -45,15 +45,19 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
 
   const [playing, setPlaying] = useState(false);
   const [loadingAudio, setLoadingAudio] = useState(false);
+  const [bufferingAudio, setBufferingAudio] = useState(false);
   const [pos, setPos] = useState(0);
   const [dur, setDur] = useState(0);
   const [seekingNarration, setSeekingNarration] = useState(false);
+  const seekingNarrationRef = useRef(false);
 
   const [playingSong, setPlayingSong] = useState(false);
   const [loadingSong, setLoadingSong] = useState(false);
+  const [bufferingSong, setBufferingSong] = useState(false);
   const [songPos, setSongPos] = useState(0);
   const [songDur, setSongDur] = useState(0);
   const [seekingSong, setSeekingSong] = useState(false);
+  const seekingSongRef = useRef(false);
 
   // Auto-scroll song lyrics as the song progresses (matches reading behavior)
   const songTextScrollRef = useRef<ScrollView | null>(null);
@@ -184,7 +188,8 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         (st) => {
           if (!st.isLoaded) return;
           setPlaying(st.isPlaying);
-          if (!seekingNarration) setPos(st.positionMillis / 1000);
+          setBufferingAudio(!!(st as any).isBuffering);
+          if (!seekingNarrationRef.current) setPos(st.positionMillis / 1000);
           setDur(st.durationMillis ? st.durationMillis / 1000 : 0);
           if (st.didJustFinish) {
             setPlaying(false);
@@ -245,7 +250,8 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         (st) => {
           if (!st.isLoaded) return;
           setPlayingSong(st.isPlaying);
-          if (!seekingSong) setSongPos(st.positionMillis / 1000);
+          setBufferingSong(!!(st as any).isBuffering);
+          if (!seekingSongRef.current) setSongPos(st.positionMillis / 1000);
           setSongDur(st.durationMillis ? st.durationMillis / 1000 : 0);
           if (st.didJustFinish) {
             setPlayingSong(false);
@@ -317,7 +323,8 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     if (!songTextScrollRef.current) return;
     if (!songTextViewportH || !songTextContentH) return;
 
-    if (!playingSong || !songDur) {
+    // Also scroll while scrubbing (seeking), not only while actively playing.
+    if (!songDur || (!playingSong && !seekingSong)) {
       songTextScrollRef.current.scrollTo({ y: 0, animated: false });
       return;
     }
@@ -360,7 +367,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
               onPress={toggleNarration}
               disabled={controlsDisabled}
             >
-              {loadingAudio ? (
+              {loadingAudio || bufferingAudio ? (
                 <ActivityIndicator color={colors.primary} />
               ) : (
                 <Text style={styles.playIcon}>{playing ? '❚❚' : '▶'}</Text>
@@ -377,12 +384,16 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
                     minimumTrackTintColor={colors.primary}
                     maximumTrackTintColor="transparent"
                     thumbTintColor={colors.primary}
-                    onSlidingStart={() => setSeekingNarration(true)}
+                    onSlidingStart={() => {
+                      seekingNarrationRef.current = true;
+                      setSeekingNarration(true);
+                    }}
                     onValueChange={(v) => {
                       // Keep thumb "alive" during drag (controlled slider)
-                      if (seekingNarration) setPos(v);
+                      setPos(v);
                     }}
                     onSlidingComplete={async (v) => {
+                      seekingNarrationRef.current = false;
                       setSeekingNarration(false);
                       setPos(v);
                       await narrationRef.current?.setPositionAsync(v * 1000).catch(() => {});
@@ -425,7 +436,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
               onPress={toggleSong}
               disabled={controlsDisabled}
             >
-              {loadingSong ? (
+              {loadingSong || bufferingSong ? (
                 <ActivityIndicator color="#2E7D32" />
               ) : (
                 <Text style={styles.songIcon}>♪</Text>
@@ -442,11 +453,15 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
                     minimumTrackTintColor="#2E7D32"
                     maximumTrackTintColor="transparent"
                     thumbTintColor="#2E7D32"
-                    onSlidingStart={() => setSeekingSong(true)}
+                    onSlidingStart={() => {
+                      seekingSongRef.current = true;
+                      setSeekingSong(true);
+                    }}
                     onValueChange={(v) => {
-                      if (seekingSong) setSongPos(v);
+                      setSongPos(v);
                     }}
                     onSlidingComplete={async (v) => {
+                      seekingSongRef.current = false;
                       setSeekingSong(false);
                       setSongPos(v);
                       await songRef.current?.setPositionAsync(v * 1000).catch(() => {});
@@ -569,19 +584,20 @@ const styles = StyleSheet.create({
   // Slider capsule with colored stroke (matches the circle stroke)
   sliderFrame: {
     flex: 1,
-    height: 28,
+    height: 34,
     borderRadius: 999,
     justifyContent: 'center',
     paddingHorizontal: 8,
+    overflow: 'visible', // help prevent iOS thumb clipping
   },
   sliderRow: { flexDirection: 'row', alignItems: 'center' },
-  sliderControl: { flex: 1, minWidth: 0 },
+  sliderControl: { flex: 1, minWidth: 0, justifyContent: 'center' },
   sliderDurationBox: { width: 54, alignItems: 'flex-end', justifyContent: 'center' },
-  sliderInner: { flex: 1 },
+  sliderInner: { flex: 1, height: 34 },
   sliderFrameRed: { borderWidth: 2, borderColor: colors.primary, backgroundColor: colors.primary + '15' },
   sliderFrameGreen: { borderWidth: 2, borderColor: '#2E7D32', backgroundColor: '#2E7D3215' },
   // Same bold black typography as "PDF"
-  sliderDurationText: { fontFamily: typography.sansSemiBold, fontSize: 14, color: '#111827' },
+  sliderDurationText: { fontFamily: typography.sansSemiBold, fontSize: 14, color: '#111827', includeFontPadding: false, textAlignVertical: 'center' },
 
   // Keep text closer to audio to save estate
   textArea: { marginTop: 10 },
