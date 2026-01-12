@@ -1,0 +1,159 @@
+import React from 'react';
+import { View, TouchableOpacity, Text, ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
+import Slider from '@react-native-community/slider';
+import { useAudioPlayer } from '../hooks/useAudioPlayer';
+import { useTextAutoScroll } from '../hooks/useTextAutoScroll';
+import { colors, typography, radii } from '../theme';
+
+interface AudioPlayerSectionProps {
+  audioUrl: string;
+  text: string;
+  loadingText: boolean;
+  type: 'narration' | 'song';
+  controlsDisabled?: boolean;
+}
+
+export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
+  audioUrl,
+  text,
+  loadingText,
+  type,
+  controlsDisabled = false,
+}) => {
+  const audio = useAudioPlayer({ audioUrl });
+  const textScroll = useTextAutoScroll({
+    playing: audio.playing,
+    seeking: audio.seeking,
+    pos: audio.pos,
+    dur: audio.dur,
+  });
+
+  const isNarration = type === 'narration';
+  const primaryColor = isNarration ? colors.primary : '#2E7D32';
+  const icon = isNarration ? (audio.playing ? '❚❚' : '▶') : '♪';
+
+  const fmt = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${String(sec).padStart(2, '0')}`;
+  };
+
+  return (
+    <>
+      <View style={styles.mediaBlock}>
+        <TouchableOpacity
+          style={[
+            styles.playButton,
+            { borderColor: primaryColor, backgroundColor: primaryColor + '20' },
+            audio.playing && { backgroundColor: primaryColor + '30' },
+            controlsDisabled && styles.controlDisabled,
+          ]}
+          onPress={audio.togglePlayback}
+          disabled={controlsDisabled}
+        >
+          {audio.loading || audio.buffering ? (
+            <ActivityIndicator color={primaryColor} />
+          ) : (
+            <Text style={[styles.playIcon, { color: primaryColor }]}>{icon}</Text>
+          )}
+        </TouchableOpacity>
+
+        <View style={styles.sliderOuter}>
+          <View
+            pointerEvents="none"
+            style={[
+              styles.sliderPill,
+              {
+                borderColor: primaryColor,
+                backgroundColor: primaryColor + '15',
+              },
+            ]}
+          />
+          <View pointerEvents="none" style={styles.sliderDurationOverlay}>
+            <Text style={styles.sliderDurationText}>
+              {audio.playing || audio.seeking ? fmt(audio.pos) : (audio.dur ? fmt(audio.dur) : '--:--')}
+            </Text>
+          </View>
+          <Slider
+            style={styles.sliderAbsolute}
+            value={audio.dur > 0 ? Math.min(audio.pos, audio.dur) : 0}
+            minimumValue={0}
+            maximumValue={audio.dur || 1}
+            minimumTrackTintColor={primaryColor}
+            maximumTrackTintColor="transparent"
+            thumbTintColor={primaryColor}
+            thumbStyle={{ width: 20, height: 20 }}
+            onSlidingStart={audio.handleSlidingStart}
+            onValueChange={audio.handleValueChange}
+            onSlidingComplete={audio.handleSlidingComplete}
+          />
+        </View>
+      </View>
+
+      <View style={styles.textArea}>
+        <View style={styles.textBox}>
+          {loadingText ? (
+            <ActivityIndicator />
+          ) : (
+            <ScrollView
+              ref={textScroll.scrollRef as any}
+              style={styles.textWindow}
+              showsVerticalScrollIndicator={false}
+              scrollEnabled={false}
+              onLayout={(e) => textScroll.setViewportH(e.nativeEvent.layout.height)}
+              onContentSizeChange={(_, h) => textScroll.setContentH(h)}
+            >
+              <Text style={styles.textBody}>{text || ''}</Text>
+            </ScrollView>
+          )}
+        </View>
+      </View>
+    </>
+  );
+};
+
+const styles = StyleSheet.create({
+  mediaBlock: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  playButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  controlDisabled: { opacity: 0.5 },
+  playIcon: { fontFamily: 'System', fontSize: 18, fontWeight: '700' },
+
+  sliderOuter: { flex: 1, height: 44, position: 'relative', overflow: 'visible' },
+  sliderPill: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 8,
+    height: 28,
+    borderRadius: 999,
+    borderWidth: 2,
+    zIndex: 1,
+  },
+  sliderDurationOverlay: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center', zIndex: 2 },
+  sliderAbsolute: { position: 'absolute', left: 0, right: 54, height: 28, top: 8, zIndex: 10, overflow: 'visible' },
+  sliderDurationText: {
+    fontFamily: typography.sansSemiBold,
+    fontSize: 14,
+    color: '#111827',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
+  },
+
+  textArea: { marginTop: 10 },
+  textBox: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  textWindow: { maxHeight: 110 },
+  textBody: { fontFamily: typography.sansRegular, fontSize: 14, lineHeight: 22, color: colors.text },
+});
