@@ -188,7 +188,97 @@ export class JobQueueV2 {
     }
 
     console.log(`✅ Job complete: ${jobId}`);
+
+    // Auto-extract essences (fire and forget - don't block completion)
+    this.extractEssencesAsync(jobId).catch((err) => {
+      console.warn(`⚠️  Essence extraction failed for job ${jobId}:`, err.message);
+      // Don't fail the job - essences are optional
+    });
+
     return true;
+  }
+
+  /**
+   * Extract and save system essences from completed job readings (async)
+   */
+  private async extractEssencesAsync(jobId: string): Promise<void> {
+    if (!supabase) return;
+
+    console.log(`🔍 Extracting essences for job ${jobId}...`);
+
+    // Import dynamically to avoid circular deps
+    const { extractAllEssences } = await import('../services/essenceExtractionService');
+
+    // Get job to find person IDs
+    const { data: job, error: jobError } = await supabase
+      .from('jobs')
+      .select('params')
+      .eq('id', jobId)
+      .single();
+
+    if (jobError || !job) return;
+
+    const params: any = job.params || {};
+    const person1Id = params.person1?.id || params.person1_id;
+    const person2Id = params.person2?.id || params.person2_id;
+
+    if (!person1Id) return;
+
+    // Get text artifacts
+    const { data: artifacts } = await supabase
+      .from('job_artifacts')
+      .select('*')
+      .eq('job_id', jobId)
+      .eq('artifact_type', 'text');
+
+    if (!artifacts || artifacts.length === 0) return;
+
+    // Organize readings by person and system
+    const person1Readings: Record<string, string> = {};
+    const person2Readings: Record<string, string> = {};
+
+    for (const artifact of artifacts) {
+      const meta: any = artifact.metadata || {};
+      const docType = meta.docType;
+      const system = meta.system;
+
+      if (!system) continue;
+
+      // Download text
+      let text = '';
+      if (artifact.storage_path) {
+        const { data } = await supabase.storage
+          .from('job-artifacts')
+          .download(artifact.storage_path);
+        if (data) text = await data.text();
+      }
+
+      if (!text) continue;
+
+      if (docType === 'person1' || docType === 'individual') {
+        person1Readings[system] = text;
+      } else if (docType === 'person2') {
+        person2Readings[system] = text;
+      }
+    }
+
+    // Extract and save essences for person1
+    if (Object.keys(person1Readings).length > 0) {
+      const essences = extractAllEssences(person1Readings);
+      if (Object.keys(essences).length > 0) {
+        await supabase.from('people').update({ essences }).eq('id', person1Id);
+        console.log(`   ✓ Person 1 essences saved`);
+      }
+    }
+
+    // Extract and save essences for person2
+    if (person2Id && Object.keys(person2Readings).length > 0) {
+      const essences = extractAllEssences(person2Readings);
+      if (Object.keys(essences).length > 0) {
+        await supabase.from('people').update({ essences }).eq('id', person2Id);
+        console.log(`   ✓ Person 2 essences saved`);
+      }
+    }
   }
 
   /**
