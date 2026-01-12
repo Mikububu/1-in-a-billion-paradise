@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { env } from '@/config/env';
-import { downloadTextContent } from '@/services/nuclearReadingsService';
+import { downloadTextContent, fetchJobArtifacts } from '@/services/nuclearReadingsService';
 import { BackButton } from '@/components/BackButton';
 import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
 import { AudioPlayerSection } from '@/components/AudioPlayerSection';
@@ -61,35 +61,48 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     let mounted = true;
     (async () => {
       try {
-        const t = await downloadTextContent(jobId, docNum);
-        if (mounted) setText(t);
-      } catch (e) {
-        if (mounted) setText('Could not load reading text.');
+        setLoadingText(true);
+        const artifacts = await fetchJobArtifacts(jobId, ['text']);
+        const textArtifact = artifacts.find((a) => {
+          const meta = (a.metadata as any) || {};
+          return meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
+        });
+        if (!textArtifact?.storage_path) {
+          if (mounted) setText('');
+          return;
+        }
+        const content = await downloadTextContent(textArtifact.storage_path);
+        if (mounted) setText(content || '');
+      } catch {
+        if (mounted) setText('');
       } finally {
         if (mounted) setLoadingText(false);
       }
     })();
     return () => { mounted = false; };
-  }, [jobId, docNum]);
+  }, [jobId, systemId, docNum]);
 
-  // Load song lyrics
+  // Load song lyrics from artifact metadata
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        const url = `${env.CORE_API_URL}/api/jobs/v2/${jobId}/song/${docNum}/lyrics`;
-        const resp = await fetch(url);
-        if (!resp.ok) throw new Error('No lyrics');
-        const raw = await resp.text();
-        if (mounted) setSongLyrics(cleanupLyricsForDisplay(raw));
-      } catch (e) {
+        setLoadingSongLyrics(true);
+        const artifacts = await fetchJobArtifacts(jobId, ['audio_song']);
+        const songArtifact = artifacts.find((a) => {
+          const meta = (a.metadata as any) || {};
+          return meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
+        });
+        const lyrics = (songArtifact?.metadata as any)?.lyrics;
+        if (mounted) setSongLyrics(typeof lyrics === 'string' ? cleanupLyricsForDisplay(lyrics) : '');
+      } catch {
         if (mounted) setSongLyrics('');
       } finally {
         if (mounted) setLoadingSongLyrics(false);
       }
     })();
     return () => { mounted = false; };
-  }, [jobId, docNum]);
+  }, [jobId, systemId, docNum]);
 
   const niceTimestamp = useMemo(() => {
     if (!timestamp) return '';
