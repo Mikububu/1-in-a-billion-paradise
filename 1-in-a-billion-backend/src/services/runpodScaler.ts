@@ -78,6 +78,40 @@ async function scaleWorkers(config: ScalingConfig): Promise<boolean> {
   }
 
   try {
+    // Guard rail: refuse to touch the wrong endpoint if env guards are configured.
+    const guardNameContains = (env as any).RUNPOD_ENDPOINT_GUARD_NAME_CONTAINS || process.env.RUNPOD_ENDPOINT_GUARD_NAME_CONTAINS || '';
+    const guardTemplateId = (env as any).RUNPOD_ENDPOINT_GUARD_TEMPLATE_ID || process.env.RUNPOD_ENDPOINT_GUARD_TEMPLATE_ID || '';
+    if (guardNameContains || guardTemplateId) {
+      try {
+        const infoRes = await axios.get(`${RUNPOD_API_URL}/serverless/${runpodEndpoint}`, {
+          headers: {
+            'Authorization': `Bearer ${runpodKey}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        const endpointInfo = infoRes.data || {};
+        const endpointName = String(endpointInfo?.name || endpointInfo?.endpointName || endpointInfo?.endpoint_name || '');
+        const templateId = String(endpointInfo?.templateId || endpointInfo?.template_id || '');
+
+        if (guardNameContains && !endpointName.toLowerCase().includes(String(guardNameContains).toLowerCase())) {
+          console.error(
+            `🛑 RunPod guard blocked scaling: endpoint "${endpointName}" does not include "${guardNameContains}". Check RUNPOD_ENDPOINT_ID.`
+          );
+          return false;
+        }
+
+        if (guardTemplateId && templateId !== String(guardTemplateId)) {
+          console.error(
+            `🛑 RunPod guard blocked scaling: endpoint templateId "${templateId}" !== expected "${guardTemplateId}". Check RUNPOD_ENDPOINT_ID.`
+          );
+          return false;
+        }
+      } catch (guardErr: any) {
+        console.warn('⚠️ RunPod guard check failed (continuing to avoid outages):', guardErr?.message || String(guardErr));
+      }
+    }
+
     const response = await axios.put(
       `${RUNPOD_API_URL}/serverless/${runpodEndpoint}`,
       {

@@ -38,6 +38,10 @@ export const env = {
   // These will be loaded from Supabase via getApiKey()
   RUNPOD_API_KEY: process.env.RUNPOD_API_KEY ?? '',
   RUNPOD_ENDPOINT_ID: process.env.RUNPOD_ENDPOINT_ID ?? '',
+  // Safety guard: prevent this backend from scaling the wrong RunPod endpoint if misconfigured.
+  // If set, autoscaler will do a GET on the endpoint and refuse to scale unless it matches.
+  RUNPOD_ENDPOINT_GUARD_NAME_CONTAINS: process.env.RUNPOD_ENDPOINT_GUARD_NAME_CONTAINS ?? '',
+  RUNPOD_ENDPOINT_GUARD_TEMPLATE_ID: process.env.RUNPOD_ENDPOINT_GUARD_TEMPLATE_ID ?? '',
   VOICE_SAMPLE_URL: process.env.VOICE_SAMPLE_URL ?? '',
 
   

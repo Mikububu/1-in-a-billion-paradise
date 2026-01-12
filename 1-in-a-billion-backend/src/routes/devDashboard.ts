@@ -12,8 +12,17 @@ import { Hono } from 'hono';
 import { jobQueue } from '../services/jobQueue';
 import { createSupabaseServiceClient } from '../services/supabaseClient';
 import { getSignedArtifactUrl } from '../services/supabaseClient';
+import axios from 'axios';
+import { apiKeys } from '../services/apiKeysHelper';
 
 const router = new Hono();
+
+function getBearerTokenFromReq(c: any): string | null {
+  const auth = c.req.header('Authorization') || c.req.header('authorization');
+  if (!auth) return null;
+  const m = auth.match(/^Bearer\s+(.+)$/i);
+  return m ? m[1] : null;
+}
 
 // List all jobs (both legacy queue and Supabase queue)
 router.get('/dashboard', async (c) => {
@@ -197,6 +206,96 @@ router.get('/stats', async (c) => {
     });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+/**
+ * DEV: List RunPod serverless endpoints (to recover endpoint IDs when UI hides them)
+ *
+ * GET /api/dev/runpod/endpoints
+ * Auth: requires a valid Supabase access token in Authorization: Bearer <token>
+ *
+ * Returns: { endpoints: [{ id, name, ... }] }
+ */
+router.get('/runpod/endpoints', async (c) => {
+  try {
+    const supabase = createSupabaseServiceClient();
+    if (!supabase) {
+      return c.json({ success: false, error: 'Supabase service client not configured' }, 500);
+    }
+
+    const token = getBearerTokenFromReq(c);
+    if (!token) {
+      return c.json({ success: false, error: 'Missing Authorization bearer token' }, 401);
+    }
+
+    const { data: authData, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !authData?.user) {
+      return c.json({ success: false, error: 'Invalid or expired token' }, 401);
+    }
+
+    const runpodKey = await apiKeys.runpod();
+    const RUNPOD_API_URL = 'https://api.runpod.ai/v2';
+
+    const headers = {
+      Authorization: `Bearer ${runpodKey}`,
+      'Content-Type': 'application/json',
+    };
+
+    // RunPod has multiple API shapes; try the most likely ones.
+    let data: any = null;
+    const attempts: Array<{ url: string; label: string }> = [
+      { url: `${RUNPOD_API_URL}/serverless`, label: 'v2/serverless' },
+      { url: `${RUNPOD_API_URL}/endpoints`, label: 'v2/endpoints' },
+    ];
+
+    let lastErr: any = null;
+    for (const a of attempts) {
+      try {
+        const res = await axios.get(a.url, { headers });
+        data = res.data;
+        lastErr = null;
+        break;
+      } catch (err: any) {
+        lastErr = err;
+      }
+    }
+
+    if (lastErr && !data) {
+      return c.json(
+        {
+          success: false,
+          error: 'Failed to fetch endpoints from RunPod API',
+          details: lastErr?.response?.data || lastErr?.message || String(lastErr),
+        },
+        502
+      );
+    }
+
+    const raw =
+      (Array.isArray(data) ? data : null) ||
+      data?.serverless ||
+      data?.endpoints ||
+      data?.data ||
+      [];
+
+    const endpoints = (Array.isArray(raw) ? raw : []).map((e: any) => ({
+      id: e?.id || e?.endpointId || e?.endpoint_id || null,
+      name: e?.name || e?.endpointName || e?.endpoint_name || null,
+      // Keep a small amount of extra context for picking the right one:
+      templateId: e?.templateId || e?.template_id || null,
+      gpuType: e?.gpuType || e?.gpu_type || null,
+      idleTimeout: e?.idleTimeout || e?.idle_timeout || null,
+    }));
+
+    return c.json({
+      success: true,
+      total: endpoints.length,
+      endpoints,
+    });
+  } catch (error: any) {
+    console.error('❌ Error listing RunPod endpoints:', error);
+    return c.json({ success: false, error: error?.message || 'Unknown error' }, 500);
   }
 });
 

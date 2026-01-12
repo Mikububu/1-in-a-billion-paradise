@@ -20,6 +20,8 @@ import { env } from '../config/env';
 import axios from 'axios';
 import { llm } from '../services/llm'; // Centralized LLM service
 import { SYSTEMS as NUCLEAR_V2_SYSTEMS, SYSTEM_DISPLAY_NAMES as NUCLEAR_V2_SYSTEM_NAMES, type SystemName as NuclearV2SystemName, NUCLEAR_DOCS, VERDICT_DOC, buildPersonPrompt, buildOverlayPrompt as buildNuclearV2OverlayPrompt, buildVerdictPrompt } from '../prompts/structures/nuclearV2';
+import archiver from 'archiver';
+import { PassThrough, Readable } from 'node:stream';
 import {
   buildIndividualPrompt,
   buildOverlayPrompt,
@@ -198,6 +200,176 @@ router.get('/:jobId', getJobHandler);
 
 // V2 endpoint
 router.get('/v2/:jobId', getJobHandler);
+
+// Export a ZIP for a subset of docs within a job (PDF + narration audio + song audio)
+// Requires Authorization: Bearer <supabase access token>
+router.get('/v2/:jobId/export', async (c) => {
+  const accessToken = getBearerToken(c);
+  if (!accessToken) {
+    return c.json({ success: false, error: 'Missing authorization token' }, 401);
+  }
+
+  const jobId = c.req.param('jobId');
+  const docsParam = (c.req.query('docs') || '').trim(); // e.g. "1,2,3,4,5"
+  const includeParam = (c.req.query('include') || 'pdf,audio,song').trim(); // default: all media
+
+  const docs = Array.from(
+    new Set(
+      docsParam
+        .split(',')
+        .map((s) => Number(String(s).trim()))
+        .filter((n) => Number.isFinite(n) && n >= 1 && n <= 16)
+    )
+  ).sort((a, b) => a - b);
+
+  if (docs.length === 0) {
+    return c.json({ success: false, error: 'Missing docs query param (e.g. ?docs=1,2,3,4,5)' }, 400);
+  }
+
+  const includeSet = new Set(
+    includeParam
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean)
+  );
+
+  const includePdf = includeSet.has('pdf');
+  const includeAudio = includeSet.has('audio');
+  const includeSong = includeSet.has('song');
+
+  // Verify job belongs to the authenticated user (RLS)
+  const userClient = createSupabaseUserClientFromAccessToken(accessToken);
+  if (!userClient) return c.json({ success: false, error: 'Supabase user client not configured' }, 500);
+
+  const { data: jobRow, error: jobErr } = await userClient
+    .from('jobs')
+    .select('id,user_id,status,type,created_at,params')
+    .eq('id', jobId)
+    .single();
+
+  if (jobErr || !jobRow) {
+    return c.json({ success: false, error: 'Job not found' }, 404);
+  }
+
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+    return c.json({ success: false, error: 'Supabase not configured' }, 500);
+  }
+
+  // Use service role for storage signed URLs (RLS-safe, avoids failures)
+  const { createClient } = await import('@supabase/supabase-js');
+  const serviceClient = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+
+  const { data: artifacts, error: artErr } = await serviceClient
+    .from('job_artifacts')
+    .select('*')
+    .eq('job_id', jobId)
+    .in('artifact_type', [
+      ...(includePdf ? (['pdf'] as const) : []),
+      ...(includeAudio ? (['audio_mp3', 'audio_m4a'] as const) : []),
+      ...(includeSong ? (['audio_song'] as const) : []),
+    ])
+    .order('created_at', { ascending: true });
+
+  if (artErr) {
+    return c.json({ success: false, error: `Failed to fetch artifacts: ${artErr.message}` }, 500);
+  }
+
+  // Map task_id → sequence to derive docNum when metadata is missing (same logic as /v2/:jobId handler)
+  const tasks = await jobQueueV2.getJobTasks(jobId);
+  const taskIdToSequence: Record<string, number> = {};
+  for (const t of tasks) taskIdToSequence[t.id] = t.sequence;
+
+  const docKey = (docNum: number) => (docs.includes(docNum) ? docNum : null);
+
+  const byDoc: Record<number, { pdf?: any; audio?: any; song?: any; meta?: any }> = {};
+  for (const a of artifacts || []) {
+    let docNum = a.metadata?.docNum;
+    if (typeof docNum !== 'number' && a.task_id) {
+      const seq = taskIdToSequence[a.task_id];
+      if (typeof seq === 'number') {
+        if (seq >= 300) docNum = seq - 299; // songs
+        else if (seq >= 200) docNum = seq - 199; // audio
+        else if (seq >= 100) docNum = seq - 99; // pdf
+        else docNum = seq + 1; // text
+      }
+    }
+    if (typeof docNum !== 'number') continue;
+    if (!docKey(docNum)) continue;
+    if (!byDoc[docNum]) byDoc[docNum] = {};
+
+    if (a.artifact_type === 'pdf') byDoc[docNum].pdf = a;
+    if (a.artifact_type === 'audio_song') byDoc[docNum].song = a;
+    if (a.artifact_type === 'audio_mp3' || a.artifact_type === 'audio_m4a') byDoc[docNum].audio = a;
+    byDoc[docNum].meta = byDoc[docNum].meta || a.metadata || {};
+  }
+
+  // Strict readiness: if requested include types are missing for any doc, return 409
+  const missing: Array<{ docNum: number; missing: string[] }> = [];
+  for (const d of docs) {
+    const row = byDoc[d] || {};
+    const m: string[] = [];
+    if (includePdf && !row.pdf?.storage_path) m.push('pdf');
+    if (includeAudio && !row.audio?.storage_path) m.push('audio');
+    if (includeSong && !row.song?.storage_path) m.push('song');
+    if (m.length) missing.push({ docNum: d, missing: m });
+  }
+  if (missing.length) {
+    return c.json({ success: false, error: 'Artifacts not ready', missing }, 409);
+  }
+
+  const safe = (s: string) => String(s).replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 80);
+  const baseName = safe(
+    String(
+      (jobRow.params as any)?.person1?.name && (jobRow.params as any)?.person2?.name
+        ? `${(jobRow.params as any)?.person1?.name}_${(jobRow.params as any)?.person2?.name}`
+        : (jobRow.params as any)?.person?.name || 'reading'
+    )
+  );
+  const zipName = `${baseName}_${jobId.slice(0, 8)}.zip`;
+
+  const out = new PassThrough();
+  const archive = archiver('zip', { zlib: { level: 9 } });
+  archive.on('error', (err) => {
+    console.error('❌ ZIP archive error:', err);
+    out.destroy(err);
+  });
+  archive.pipe(out);
+
+  // Build and append each file stream
+  for (const d of docs) {
+    const row = byDoc[d]!;
+    const meta = row.meta || {};
+    const system = safe(meta.system || `doc_${d}`);
+    const docType = safe(meta.docType || '');
+
+    const prefix = `${String(d).padStart(2, '0')}_${system}${docType ? `_${docType}` : ''}`;
+
+    const add = async (storagePath: string, name: string) => {
+      const signed = await getSignedArtifactUrl(storagePath, 60 * 60);
+      if (!signed) throw new Error(`Failed to sign ${storagePath}`);
+      const resp = await axios.get(signed, { responseType: 'stream' });
+      archive.append(resp.data, { name });
+    };
+
+    if (includePdf) await add(row.pdf.storage_path, `${prefix}.pdf`);
+    if (includeAudio) {
+      const ext = row.audio?.artifact_type === 'audio_m4a' ? 'm4a' : 'mp3';
+      await add(row.audio.storage_path, `${prefix}_narration.${ext}`);
+    }
+    if (includeSong) await add(row.song.storage_path, `${prefix}_song.mp3`);
+  }
+
+  archive.finalize().catch(() => {});
+
+  const headers = new Headers();
+  headers.set('content-type', 'application/zip');
+  headers.set('content-disposition', `attachment; filename="${zipName}"`);
+  headers.set('cache-control', 'no-store');
+
+  // Convert Node stream to Web stream for Response
+  const body = Readable.toWeb(out) as any;
+  return new Response(body, { status: 200, headers });
+});
 
 // DEBUG: Get all tasks for a job
 router.get('/v2/:jobId/tasks', async (c) => {

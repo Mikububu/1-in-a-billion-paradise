@@ -33,6 +33,7 @@
     "@types/pdfkit": "^0.17.4",
     "@types/uuid": "^10.0.0",
     "anthropic": "^0.0.0",
+    "archiver": "^7.0.1",
     "axios": "^1.13.2",
     "dotenv": "^17.2.3",
     "hono": "^4.10.7",
@@ -47,6 +48,7 @@
     "zod": "^4.1.13"
   },
   "devDependencies": {
+    "@types/archiver": "^6.0.3",
     "@types/luxon": "^3.7.1",
     "@types/node": "^24.10.1",
     "@types/pg": "^8.16.0",
