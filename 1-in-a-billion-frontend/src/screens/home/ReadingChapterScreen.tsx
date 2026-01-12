@@ -283,13 +283,14 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             <TouchableOpacity style={[styles.playButton, playing && styles.playButtonActive]} onPress={toggleNarration}>
               <Text style={styles.playIcon}>{loadingAudio ? '…' : playing ? '❚❚' : '▶'}</Text>
             </TouchableOpacity>
-            <View style={styles.sliderOnly}>
+            <View style={[styles.sliderFrame, styles.sliderFrameRed]}>
               <Slider
+                style={styles.sliderInner}
                 value={dur > 0 ? Math.min(pos, dur) : 0}
                 minimumValue={0}
                 maximumValue={dur || 1}
                 minimumTrackTintColor={colors.primary}
-                maximumTrackTintColor="#E5E7EB"
+                maximumTrackTintColor="transparent"
                 thumbTintColor={colors.primary}
                 onSlidingComplete={async (v) => narrationRef.current?.setPositionAsync(v * 1000).catch(() => {})}
               />
@@ -315,13 +316,14 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             <TouchableOpacity style={[styles.songButton, playingSong && styles.songButtonActive]} onPress={toggleSong}>
               <Text style={styles.songIcon}>{loadingSong ? '…' : '♪'}</Text>
             </TouchableOpacity>
-            <View style={styles.sliderOnly}>
+            <View style={[styles.sliderFrame, styles.sliderFrameGreen]}>
               <Slider
+                style={styles.sliderInner}
                 value={songDur > 0 ? Math.min(songPos, songDur) : 0}
                 minimumValue={0}
                 maximumValue={songDur || 1}
                 minimumTrackTintColor="#2E7D32"
-                maximumTrackTintColor="#E5E7EB"
+                maximumTrackTintColor="transparent"
                 thumbTintColor="#2E7D32"
                 onSlidingComplete={async (v) => songRef.current?.setPositionAsync(v * 1000).catch(() => {})}
               />
@@ -388,12 +390,27 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 25,
     backgroundColor: colors.primary + '20',
+    borderWidth: 2,
+    borderColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  playButtonActive: { backgroundColor: '#9B0C1F' },
-  playIcon: { fontFamily: typography.headline, fontSize: 22, color: colors.primary },
-  sliderOnly: { flex: 1, justifyContent: 'center' },
+  playButtonActive: { backgroundColor: colors.primary + '30' },
+  // Keep icon "pure" (triangle/bars), no fancy font styling
+  playIcon: { fontFamily: 'System', fontSize: 18, fontWeight: '700', color: colors.primary },
+
+  // Slider capsule with colored stroke (matches the circle stroke)
+  sliderFrame: {
+    flex: 1,
+    height: 28,
+    borderRadius: 999,
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  sliderInner: { flex: 1 },
+  sliderFrameRed: { borderWidth: 2, borderColor: colors.primary, backgroundColor: colors.primary + '15' },
+  sliderFrameGreen: { borderWidth: 2, borderColor: '#2E7D32', backgroundColor: '#2E7D3215' },
+
   // Align time text under the slider start (circle width 50 + row gap 12 = 62)
   timeTextRow: { marginTop: 4, marginLeft: 62, fontFamily: 'System', fontSize: 12, color: '#6B7280' },
   textArea: { marginTop: 16 },
@@ -405,11 +422,13 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 25,
     backgroundColor: '#E8F4E8',
+    borderWidth: 2,
+    borderColor: '#2E7D32',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  songButtonActive: { backgroundColor: '#374151' },
-  songIcon: { fontFamily: typography.headline, fontSize: 22, color: '#2E7D32' },
+  songButtonActive: { backgroundColor: '#DDF2DD' },
+  songIcon: { fontFamily: 'System', fontSize: 18, fontWeight: '700', color: '#2E7D32' },
   songTextArea: { marginTop: 14 },
   songTextBody: { fontFamily: typography.sansRegular, fontSize: 14, lineHeight: 22, color: colors.text },
 
