@@ -321,7 +321,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     const maxScrollY = Math.max(0, textContentH - textViewportH);
     const y = maxScrollY * progress;
     textScrollRef.current.scrollTo({ y, animated: false });
-  }, [playing, pos, dur, textViewportH, textContentH]);
+  }, [playing, seekingNarration, pos, dur, textViewportH, textContentH]);
 
   useEffect(() => {
     if (!songTextScrollRef.current) return;
@@ -337,7 +337,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     const maxScrollY = Math.max(0, songTextContentH - songTextViewportH);
     const y = maxScrollY * progress;
     songTextScrollRef.current.scrollTo({ y, animated: false });
-  }, [playingSong, songPos, songDur, songTextViewportH, songTextContentH]);
+  }, [playingSong, seekingSong, songPos, songDur, songTextViewportH, songTextContentH]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -406,7 +406,14 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
                   seekingNarrationRef.current = true;
                   setSeekingNarration(true);
                 }}
-                onValueChange={(v) => setPos(v)}
+                onValueChange={(v) => {
+                  // Some devices don't reliably fire onSlidingStart; ensure scrubbing always enables seek-mode
+                  if (!seekingNarrationRef.current) {
+                    seekingNarrationRef.current = true;
+                    setSeekingNarration(true);
+                  }
+                  setPos(v);
+                }}
                 onSlidingComplete={async (v) => {
                   seekingNarrationRef.current = false;
                   setSeekingNarration(false);
@@ -469,7 +476,13 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
                   seekingSongRef.current = true;
                   setSeekingSong(true);
                 }}
-                onValueChange={(v) => setSongPos(v)}
+                onValueChange={(v) => {
+                  if (!seekingSongRef.current) {
+                    seekingSongRef.current = true;
+                    setSeekingSong(true);
+                  }
+                  setSongPos(v);
+                }}
                 onSlidingComplete={async (v) => {
                   seekingSongRef.current = false;
                   setSeekingSong(false);
@@ -613,8 +626,9 @@ const styles = StyleSheet.create({
   sliderPillRed: { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
   sliderPillGreen: { borderColor: '#2E7D32', backgroundColor: '#2E7D3215' },
   sliderDurationOverlay: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' },
-  sliderAbsolute: { position: 'absolute', left: 0, right: 54, top: 0, bottom: 0 },
-  sliderAbsoluteGreen: { position: 'absolute', left: 0, right: 54, top: 0, bottom: 0 },
+  // Nudge the interactive slider down so the thumb sits visually centered in the pill
+  sliderAbsolute: { position: 'absolute', left: 0, right: 54, top: 6, bottom: 6 },
+  sliderAbsoluteGreen: { position: 'absolute', left: 0, right: 54, top: 6, bottom: 6 },
   // Same bold black typography as "PDF"
   sliderDurationText: { fontFamily: typography.sansSemiBold, fontSize: 14, color: '#111827', includeFontPadding: false, textAlignVertical: 'center' },
 
