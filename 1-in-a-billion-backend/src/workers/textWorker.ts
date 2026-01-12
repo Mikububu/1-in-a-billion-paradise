@@ -19,6 +19,8 @@ import {
 } from '../prompts/structures/nuclearV2';
 import { buildIndividualPrompt } from '../prompts';
 import { SpiceLevel } from '../prompts/spice/levels';
+import { kabbalahPreprocessor } from '../services/kabbalah/KabbalahPreprocessor';
+import { kabbalahPromptBuilder } from '../services/kabbalah/KabbalahPromptBuilder';
 
 function clampSpice(level: number): SpiceLevel {
   const clamped = Math.min(10, Math.max(1, Math.round(level)));
@@ -61,14 +63,16 @@ function buildChartDataForSystem(
       'Mula', 'Purva Ashadha', 'Uttara Ashadha', 'Shravana', 'Dhanishtha', 'Shatabhisha',
       'Purva Bhadrapada', 'Uttara Bhadrapada', 'Revati'
     ];
-    return nakshatras[Math.floor(degree / 13.333) % 27];
+    // Exact division: 360 / 27 = 13.333333333333334
+    return nakshatras[Math.floor((degree % 360) / (360 / 27)) % 27];
   };
 
   // Calculate Human Design gates from Sun position
   const getHDGate = (degree: number): number => {
-    // Human Design uses a specific mapping of degrees to I Ching gates
+    // Human Design uses a specific mapping of 64 I Ching gates
     const gateMap = [41, 19, 13, 49, 30, 55, 37, 63, 22, 36, 25, 17, 21, 51, 42, 3, 27, 24, 2, 23, 8, 20, 16, 35, 45, 12, 15, 52, 39, 53, 62, 56, 31, 33, 7, 4, 29, 59, 40, 64, 47, 6, 46, 18, 48, 57, 32, 50, 28, 44, 1, 43, 14, 34, 9, 5, 26, 11, 10, 58, 38, 54, 61, 60];
-    return gateMap[Math.floor(degree / 5.625) % 64];
+    // Exact division: 360 / 64 = 5.625
+    return gateMap[Math.floor((degree % 360) / 5.625) % 64];
   };
 
   // Calculate Life Path number for Kabbalah
@@ -158,34 +162,42 @@ ${person2Name!.toUpperCase()} WESTERN (TROPICAL) CHART:
       const p1Sid = p1Placements?.sidereal;
       const p2Sid = hasP2 ? p2Placements?.sidereal : null;
 
-      const p1SunSidereal = Number.isFinite(p1Sid?.sunLongitude) ? (p1Sid.sunLongitude as number) : 0;
-      const p1MoonSidereal = Number.isFinite(p1Sid?.moonLongitude) ? (p1Sid.moonLongitude as number) : 0;
-      const p1AscSidereal = Number.isFinite(p1Sid?.ascendantLongitude) ? (p1Sid.ascendantLongitude as number) : 0;
+      if (!p1Sid || !Number.isFinite(p1Sid.sunLongitude)) {
+        console.error('❌ [Vedic] Sidereal data missing for P1:', p1Placements);
+        throw new Error(`Sidereal (Vedic) data missing for ${person1Name}. Please check Swiss Ephemeris configuration.`);
+      }
+
+      if (hasP2 && (!p2Sid || !Number.isFinite(p2Sid.sunLongitude))) {
+        console.error('❌ [Vedic] Sidereal data missing for P2:', p2Placements);
+        throw new Error(`Sidereal (Vedic) data missing for ${person2Name}. Please check Swiss Ephemeris configuration.`);
+      }
+
+      const p1SunSidereal = p1Sid.sunLongitude as number;
+      const p1MoonSidereal = p1Sid.moonLongitude as number;
+      const p1AscSidereal = p1Sid.ascendantLongitude as number;
       const p1RahuSidereal = Number.isFinite(p1Sid?.rahuLongitude) ? (p1Sid.rahuLongitude as number) : null;
       const p1KetuSidereal = Number.isFinite(p1Sid?.ketuLongitude) ? (p1Sid.ketuLongitude as number) : null;
 
-      const p1LagnaSign = p1AscSidereal > 0 ? getZodiacSign(p1AscSidereal) : 'Unknown';
+      const p1LagnaSign = getZodiacSign(p1AscSidereal);
       const p1LagnaLord =
-        p1AscSidereal > 0
-          ? ['Mars', 'Venus', 'Mercury', 'Moon', 'Sun', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Saturn', 'Jupiter'][
-              Math.floor(p1AscSidereal / 30) % 12
-            ]
-          : 'Unknown';
+        ['Mars', 'Venus', 'Mercury', 'Moon', 'Sun', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Saturn', 'Jupiter'][
+          Math.floor(p1AscSidereal / 30) % 12
+        ];
       
       const p1MoonNakshatra = p1Sid?.janmaNakshatra || getNakshatra(p1MoonSidereal);
-      const p1MoonPada = (p1Sid?.janmaPada || (Math.floor((p1MoonSidereal % 13.333) / 3.333) + 1)) as number;
-      const p1MoonNakshatraLord = ['Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'][Math.floor(p1MoonSidereal / 13.333) % 9];
+      const p1MoonPada = (p1Sid?.janmaPada || (Math.floor((p1MoonSidereal % (360/27)) / (360/108)) + 1)) as number;
+      const p1MoonNakshatraLord = ['Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'][Math.floor(p1MoonSidereal / (360/27)) % 9];
       
-      const p2SunSidereal = hasP2 && Number.isFinite(p2Sid?.sunLongitude) ? (p2Sid!.sunLongitude as number) : 0;
-      const p2MoonSidereal = hasP2 && Number.isFinite(p2Sid?.moonLongitude) ? (p2Sid!.moonLongitude as number) : 0;
-      const p2AscSidereal = hasP2 && Number.isFinite(p2Sid?.ascendantLongitude) ? (p2Sid!.ascendantLongitude as number) : 0;
+      const p2SunSidereal = hasP2 ? (p2Sid!.sunLongitude as number) : 0;
+      const p2MoonSidereal = hasP2 ? (p2Sid!.moonLongitude as number) : 0;
+      const p2AscSidereal = hasP2 ? (p2Sid!.ascendantLongitude as number) : 0;
       const p2RahuSidereal = hasP2 && Number.isFinite(p2Sid?.rahuLongitude) ? (p2Sid!.rahuLongitude as number) : null;
       const p2KetuSidereal = hasP2 && Number.isFinite(p2Sid?.ketuLongitude) ? (p2Sid!.ketuLongitude as number) : null;
-      const p2LagnaSign = p2AscSidereal > 0 ? getZodiacSign(p2AscSidereal) : 'Unknown';
-      const p2LagnaLord = p2AscSidereal > 0 ? ['Mars', 'Venus', 'Mercury', 'Moon', 'Sun', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Saturn', 'Jupiter'][Math.floor(p2AscSidereal / 30) % 12] : 'Unknown';
+      const p2LagnaSign = hasP2 ? getZodiacSign(p2AscSidereal) : 'Unknown';
+      const p2LagnaLord = hasP2 ? ['Mars', 'Venus', 'Mercury', 'Moon', 'Sun', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Saturn', 'Jupiter'][Math.floor(p2AscSidereal / 30) % 12] : 'Unknown';
       const p2MoonNakshatra = hasP2 ? (p2Sid?.janmaNakshatra || getNakshatra(p2MoonSidereal)) : '';
-      const p2MoonNakshatraLord = hasP2 ? ['Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'][Math.floor(p2MoonSidereal / 13.333) % 9] : '';
-      const p2MoonPada = hasP2 ? ((p2Sid?.janmaPada || (Math.floor((p2MoonSidereal % 13.333) / 3.333) + 1)) as number) : 0;
+      const p2MoonNakshatraLord = hasP2 ? ['Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'][Math.floor(p2MoonSidereal / (360/27)) % 9] : '';
+      const p2MoonPada = hasP2 ? ((p2Sid?.janmaPada || (Math.floor((p2MoonSidereal % (360/27)) / (360/108)) + 1)) as number) : 0;
 
       const formatGrahas = (sid: any) => {
         const grahas: any[] = Array.isArray(sid?.grahas) ? sid.grahas : [];
@@ -219,7 +231,9 @@ ${person2Name!.toUpperCase()} WESTERN (TROPICAL) CHART:
         return `${person1Name.toUpperCase()} VEDIC JYOTISH CHART (SIDEREAL ONLY):
 
 ═══════════════════════════════════════════════════════════════════════════════
-CRITICAL: THIS IS PURE VEDIC ASTROLOGY - ZERO WESTERN CONCEPTS ALLOWED
+CRITICAL: THIS IS PURE VEDIC ASTROLOGY (JYOTISH)
+THIS CHART USES THE SIDEREAL ZODIAC (LAHIRI AYANAMSA).
+DO NOT USE ANY WESTERN TROPICAL DATA.
 ═══════════════════════════════════════════════════════════════════════════════
 
 FORBIDDEN TERMINOLOGY:
@@ -233,7 +247,7 @@ REQUIRED VEDIC TERMINOLOGY ONLY:
 - Use "Lagna" for Ascendant (not "Ascendant" or "Rising")
 - Use "Graha" for planets (Surya, Chandra, Mangal, Budha, Guru, Shukra, Shani, Rahu, Ketu)
 - Use "Bhava" for houses (not "house")
-- Use "Nakshatra" (27 lunar mansions, not zodiac signs)
+- Use "Nakshatra" (27 lunar mansions)
 - Use "Dasha" for planetary periods (Vimshottari system)
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -252,7 +266,7 @@ CHANDRA (MOON) - THE MIND ITSELF:
 - Chandra Rashi: ${getZodiacSign(p1MoonSidereal)} ${Math.floor(p1MoonSidereal % 30)}° ${Math.floor((p1MoonSidereal % 1) * 60)}'
 - Janma Nakshatra: ${p1MoonNakshatra} (Pada ${p1MoonPada}/4)
 - Nakshatra Lord: ${p1MoonNakshatraLord}
-- CRITICAL: In Jyotish, the Moon Rashi IS the mind. The Janma Nakshatra is MORE IMPORTANT than the Rashi - it reveals the soul's emotional nature, ruling deity, animal symbol, guna quality (sattva/rajas/tamas), and karmic patterns.
+- CRITICAL: In Jyotish, the Moon Rashi IS the mind. The Janma Nakshatra is MORE IMPORTANT than the Rashi.
 
 SURYA (SUN) - SOUL PURPOSE:
 - Surya Rashi: ${getZodiacSign(p1SunSidereal)} ${Math.floor(p1SunSidereal % 30)}° ${Math.floor((p1SunSidereal % 1) * 60)}'
@@ -260,65 +274,36 @@ SURYA (SUN) - SOUL PURPOSE:
 - Represents the soul's purpose, dharma, and essential nature.
 
 RAHU-KETU AXIS (KARMIC NODES):
-- Rahu: ${p1RahuSidereal != null ? `${getZodiacSign(p1RahuSidereal)} ${Math.floor(p1RahuSidereal % 30)}°` : '[not available]'} - Where the soul is HUNGRY, overcompensating, obsessed this lifetime (material desires, worldly attachments)
-- Ketu: ${p1KetuSidereal != null ? `${getZodiacSign(p1KetuSidereal)} ${Math.floor(p1KetuSidereal % 30)}°` : '[not available]'} - Where the soul is EXHAUSTED, done, cutting loose (past life mastery, spiritual detachment)
+- Rahu: ${p1RahuSidereal != null ? `${getZodiacSign(p1RahuSidereal)} ${Math.floor(p1RahuSidereal % 30)}°` : '[not available]'} - Material desires, worldly attachments
+- Ketu: ${p1KetuSidereal != null ? `${getZodiacSign(p1KetuSidereal)} ${Math.floor(p1KetuSidereal % 30)}°` : '[not available]'} - Spiritual detachment, past life mastery
 
 ═══════════════════════════════════════════════════════════════════════════════
 VEDIC ANALYSIS REQUIREMENTS (PURE JYOTISH ONLY):
 ═══════════════════════════════════════════════════════════════════════════════
 
-1. LAGNA ANALYSIS:
-   - Lagna lord strength (exaltation, debilitation, own sign, friend/enemy)
-   - Lagna lord placement and aspects
-   - Benefic vs malefic nature for this specific Lagna
+1. NAKSHATRA ANALYSIS (MOST CRITICAL):
+   - Janma Nakshatra deity and what the deity WANTS from this person.
+   - Nakshatra is MORE IMPORTANT than Rashi in Jyotish.
 
-2. NAKSHATRA ANALYSIS (MOST CRITICAL):
-   - Janma Nakshatra deity and what the deity WANTS from this person
-   - Nakshatra planetary ruler (links to Dasha system)
-   - Pada (quarter) analysis - each pada has different flavor
-   - Animal symbol (instinctual nature)
-   - Guna quality (sattva/rajas/tamas)
-   - Nakshatra is MORE IMPORTANT than Rashi in Jyotish
+2. LAGNA ANALYSIS:
+   - Lagna lord strength (exaltation, debilitation, own sign, friend/enemy).
+   - Lagna lord placement and aspects.
 
 3. PLANETARY ANALYSIS:
-   - All Grahas in sidereal positions only
-   - Planetary strengths: exaltation (Uccha), debilitation (Neecha), own sign (Swakshetra)
-   - Friend/enemy relationships between planets
-   - Key house lords: 1st (Lagna), 4th, 7th, 9th, 10th Bhava lords
+   - All Grahas in sidereal positions only.
+   - Key house lords: 1st (Lagna), 4th, 7th, 9th, 10th Bhava lords.
 
 4. DASHA SYSTEM (VIMSHOTTARI):
-   - Current Mahadasha (based on Moon Nakshatra lord)
-   - Current Antardasha (sub-period)
-   - Upcoming periods and their implications
-   - Dasha activation of Yogas and Doshas
+   - Current Mahadasha (based on Moon Nakshatra lord).
+   - Upcoming periods and their implications.
 
 5. YOGAS (PLANETARY COMBINATIONS):
-   - Raja Yoga (power, success, authority)
-   - Dhana Yoga (wealth, prosperity)
-   - Difficult yogas if present (Kemadruma, etc.)
-   - Yogas must be analyzed in sidereal positions only
+   - Raja Yoga, Dhana Yoga, etc.
 
-6. KARMIC INDICATORS:
-   - Rahu-Ketu axis (past life patterns, current lessons)
-   - 8th Bhava (longevity, transformation, hidden matters)
-   - 12th Bhava (spiritual liberation, losses, moksha)
-   - Atmakaraka (soul significator - planet with highest degree)
-
-7. HOUSE SYSTEM:
-   - Use Vedic Bhava system (not Western house meanings)
-   - Each Bhava has specific Vedic significations
-   - Bhava lords and their condition
-
-═══════════════════════════════════════════════════════════════════════════════
 ABSOLUTE REQUIREMENTS:
-═══════════════════════════════════════════════════════════════════════════════
-
-- Use ONLY sidereal positions (Lahiri ayanamsa)
-- Use ONLY Vedic terminology (Rashi, Lagna, Nakshatra, Graha, Bhava, Dasha)
-- Focus on Nakshatras, Dashas, and Vedic house system
-- DO NOT reference tropical zodiac, Western astrology, or Western house meanings
-- DO NOT use "Sun sign", "Moon sign", "Ascendant" - use Vedic terms only
-- This is PURE JYOTISH - zero mixing with Western concepts`;
+- Use ONLY sidereal positions (Lahiri ayanamsa).
+- Use ONLY Vedic terminology (Rashi, Lagna, Nakshatra, Graha, Bhava, Dasha).
+- DO NOT reference tropical zodiac, Western astrology, or Western house meanings.`;
       }
 
       return `${person1Name.toUpperCase()} VEDIC JYOTISH CHART (SIDEREAL ONLY):
@@ -645,7 +630,7 @@ export class TextWorker extends BaseWorker {
     let label = `job:${jobId}:doc:${docNum}`;
 
     if (docType === 'verdict') {
-      // Build summary from completed text tasks
+      // ... existing verdict logic ...
       const { data: tasks, error: tasksErr } = await supabase
         .from('job_tasks')
         .select('sequence, output')
@@ -674,6 +659,28 @@ export class TextWorker extends BaseWorker {
       });
       label += ':verdict';
 
+    } else if (system === 'kabbalah') {
+      // ═══════════════════════════════════════════════════════════════════════════
+      // KABBALAH INFUSION PIPELINE
+      // ═══════════════════════════════════════════════════════════════════════════
+      console.log(`🔯 [TextWorker] Running Kabbalah infusion for ${docType}...`);
+      
+      const targetPerson = docType === 'person2' ? person2 : person1;
+      const firstName = targetPerson.firstName || targetPerson.name.split(' ')[0] || 'Unknown';
+      const surname = targetPerson.surname || targetPerson.name.split(' ').slice(1).join(' ') || 'Unknown';
+      
+      const kabPayload = await kabbalahPreprocessor.preprocess({
+        birthDate: targetPerson.birthDate,
+        birthTime: targetPerson.birthTime,
+        timezone: targetPerson.timezone,
+        firstName,
+        surname,
+        lifeEvents: params.lifeEvents || params.personalContext,
+      });
+      
+      prompt = kabbalahPromptBuilder.buildPrompt(kabPayload, targetPerson.name);
+      label += `:kabbalah:${docType}`;
+      
     } else {
       if (!system || !(NUCLEAR_V2_SYSTEMS as readonly string[]).includes(system)) {
         throw new Error(`Invalid or missing system for doc ${docNum}: ${system}`);
@@ -755,7 +762,13 @@ export class TextWorker extends BaseWorker {
     }
 
     // Use centralized LLM service (provider set by LLM_PROVIDER env)
-    const text = await llm.generate(prompt, label, { maxTokens: 8192, temperature: 0.8 });
+    // POLICY: Kabbalah system ALWAYS uses OpenAI as per KABBALAH_SYSTEM.md
+    const provider = system === 'kabbalah' ? 'openai' : undefined;
+    const text = await llm.generate(prompt, label, { 
+      maxTokens: 8192, 
+      temperature: 0.8,
+      provider 
+    });
     const wordCount = text.split(/\s+/).filter(Boolean).length;
 
     if (wordCount < 200) {

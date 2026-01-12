@@ -47,32 +47,33 @@ export function extractVedicEssences(readingText: string): SystemEssences['vedic
 
   // Extract Nakshatra - patterns like "Magha Nakshatra", "in Ashwini", "Moon dwells in Bharani"
   const nakshatraMatch = readingText.match(
-    /(?:in |dwells in |Moon.*?in )?([A-Z][a-z]+)\s*Nakshatra/i
-  ) || readingText.match(
-    /Nakshatra[:\s]+([A-Z][a-z]+)/i
+    /(?:in |dwells in |Moon.*?in |Nakshatra[:\s]+)([A-Z][a-z]+)\s*(?:Nakshatra)?/i
   );
-  if (nakshatraMatch) {
+  if (nakshatraMatch && !['The', 'Your', 'This', 'In', 'A', 'An'].includes(nakshatraMatch[1])) {
     result.nakshatra = nakshatraMatch[1];
   }
 
   // Extract Pada - patterns like "Pada 2", "second pada", "pada 1"
   const padaMatch = readingText.match(/pada\s+(\d)/i) || 
-                    readingText.match(/(\d)(?:st|nd|rd|th)\s+pada/i);
+                    readingText.match(/(\d)(?:st|nd|rd|th)\s+pada/i) ||
+                    readingText.match(/pada\s+(one|two|three|four)/i);
   if (padaMatch) {
-    result.pada = parseInt(padaMatch[1], 10);
+    const padaStr = padaMatch[1].toLowerCase();
+    const padaMap: Record<string, number> = { '1': 1, '2': 2, '3': 3, '4': 4, 'one': 1, 'two': 2, 'three': 3, 'four': 4 };
+    result.pada = padaMap[padaStr] || parseInt(padaStr, 10);
   }
 
   // Extract Lagna - patterns like "Lagna in Scorpio", "Scorpio Lagna", "Ascendant in Cancer"
-  const lagnaMatch = readingText.match(/Lagna\s+(?:in\s+)?([A-Z][a-z]+)/i) ||
+  const lagnaMatch = readingText.match(/Lagna\s+(?:is |in\s+)?([A-Z][a-z]+)/i) ||
                      readingText.match(/([A-Z][a-z]+)\s+Lagna/i) ||
-                     readingText.match(/Ascendant\s+in\s+([A-Z][a-z]+)/i);
-  if (lagnaMatch) {
+                     readingText.match(/Ascendant\s+is\s+(?:in\s+)?([A-Z][a-z]+)/i);
+  if (lagnaMatch && !['The', 'Your', 'This'].includes(lagnaMatch[1])) {
     result.lagna = lagnaMatch[1];
   }
 
   // Extract Moon sign (Chandra) - patterns like "Moon in Leo", "Chandra in Taurus"
-  const moonMatch = readingText.match(/(?:Moon|Chandra)\s+(?:in\s+|sign[:\s]+)?([A-Z][a-z]+)/i);
-  if (moonMatch) {
+  const moonMatch = readingText.match(/(?:Moon|Chandra)\s+(?:is |in\s+|sign[:\s]+)?([A-Z][a-z]+)/i);
+  if (moonMatch && !['The', 'Your', 'This'].includes(moonMatch[1])) {
     result.moonSign = moonMatch[1];
   }
 
@@ -150,6 +151,13 @@ export function extractKabbalahlahEssences(readingText: string): SystemEssences[
     result.primarySephirah = sephirahMatch[1];
   }
 
+  // Extract Gematria - patterns like "Gematria is 456", "Value: 456"
+  const gematriaMatch = readingText.match(/Gematria.*?(?:is |: )(\d+)/i) ||
+                        readingText.match(/Value: (\d+)/i);
+  if (gematriaMatch) {
+    result.gematria = parseInt(gematriaMatch[1], 10);
+  }
+
   return Object.keys(result).length > 0 ? result : null;
 }
 
@@ -184,6 +192,40 @@ export function extractAllEssences(readingsBySystem: Record<string, string>): Sy
 
   // Western essences should already be in person.placements, no need to extract
   // Verdict has no essences by design
+
+  return essences;
+}
+
+/**
+ * Generate essences directly from deterministic placements
+ * This is the MOST RELIABLE source for essences.
+ */
+export function generateEssencesFromPlacements(placements: any): SystemEssences {
+  const essences: SystemEssences = {};
+
+  // Western
+  if (placements.sunSign && placements.moonSign && placements.risingSign) {
+    essences.western = {
+      sunSign: placements.sunSign,
+      moonSign: placements.moonSign,
+      risingSign: placements.risingSign,
+    };
+  }
+
+  // Vedic
+  if (placements.sidereal) {
+    const sid = placements.sidereal;
+    essences.vedic = {
+      nakshatra: sid.janmaNakshatra,
+      pada: sid.janmaPada,
+      lagna: sid.lagnaSign,
+      moonSign: sid.chandraRashi,
+    };
+  }
+
+  // Human Design / Gene Keys
+  // Note: These currently require the specific HD/GK calculation logic.
+  // For now, extraction from text is okay for these as they are less prone to basic sign errors.
 
   return essences;
 }

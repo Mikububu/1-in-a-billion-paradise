@@ -115,9 +115,15 @@ The same numeric output may produce different text depending on mode.
 - The same two charts must always produce **identical numeric outputs** regardless of mode.
 - Only interpretation may differ.
 
+### Deterministic Truth Guard (V2)
+- **Sidereal Robustness:** If the Swiss Ephemeris library's sidereal flag (`SEFLG_SIDEREAL`) fails to return house data (e.g., `swe_houses_ex` error), the system MUST perform a **manual sidereal adjustment**.
+- **The Formula:** `Sidereal = Tropical - Lahiri Ayanamsa`.
+- **Hallucination Prevention:** The `textWorker` MUST NEVER fall back to `0°` longitude if calculation data is missing. If calculation fails, the task must **fail loudly**. Fallback to zero is a **fatal error** as it causes LLM hallucinations (e.g., "Pisces/Revati" for an October birth).
+
 **Fatal errors:**
 - Any leakage of partner logic into single reading is a **fatal error**.
 - Any narrative text in the core layer is a **fatal error**.
+- **Hallucination on missing data (falling back to 0) is a fatal error.**
 
 ---
 

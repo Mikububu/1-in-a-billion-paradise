@@ -84,17 +84,25 @@ const SIGNS = [
 
 // Default flags for tropical calculations.
 const flags = swe.SEFLG_SWIEPH | swe.SEFLG_SPEED;
-// Default flags for sidereal (Jyotish) calculations. Sidereal mode is configured below.
+// Default flags for sidereal (Jyotish) calculations.
+// SEFLG_SIDEREAL tells Swiss Ephemeris to use sidereal zodiac.
 const siderealFlags = flags | swe.SEFLG_SIDEREAL;
 
-// Configure sidereal mode globally (only impacts calculations when SEFLG_SIDEREAL is used).
-// Lahiri ayanamsa is the most common "Kundli app" default.
-try {
-  swe.swe_set_sid_mode(swe.SE_SIDM_LAHIRI, 0, 0);
-} catch (e) {
-  // Non-fatal: tropical still works; sidereal would be wrong without this.
-  console.warn('[Swiss Ephemeris] Failed to set sidereal mode (Lahiri):', e);
+/**
+ * Ensure sidereal mode is set to Lahiri.
+ * This should be called before any sidereal calculations.
+ */
+function ensureSiderealMode() {
+  try {
+    // Lahiri ayanamsa is the most common "Kundli app" default.
+    swe.swe_set_sid_mode(swe.SE_SIDM_LAHIRI, 0, 0);
+  } catch (e) {
+    console.warn('[Swiss Ephemeris] Failed to set sidereal mode (Lahiri):', e);
+  }
 }
+
+// Initial configuration
+ensureSiderealMode();
 
 const toSign = (longitude: number): string => {
   const normalized = (longitude % 360 + 360) % 360;
@@ -305,33 +313,56 @@ export class SwissEphemerisEngine {
     // Sidereal (Vedic) extras: compute sidereal longitudes + sidereal houses/ascendant.
     // NOTE: We keep these attached so the LLM never "guesses" sidereal math.
     try {
+      console.log(`[Swiss Ephemeris] Starting sidereal computation for JD ${jdUt}...`);
+      
+      // Ensure Lahiri ayanamsha is active
+      ensureSiderealMode();
+
       const ayanamsaUt = swe.swe_get_ayanamsa_ut(jdUt);
+      console.log(`[Swiss Ephemeris] Current Ayanamsa: ${ayanamsaUt}°`);
+      
       const ayanamsaName = swe.swe_get_ayanamsa_name(swe.SE_SIDM_LAHIRI);
 
       const sunSid = swe.swe_calc_ut(jdUt, swe.SE_SUN, siderealFlags);
-      if ('error' in sunSid) throw new Error(sunSid.error);
+      if ('error' in sunSid) throw new Error(`Sun Sidereal: ${sunSid.error}`);
+      
       const moonSid = swe.swe_calc_ut(jdUt, swe.SE_MOON, siderealFlags);
-      if ('error' in moonSid) throw new Error(moonSid.error);
+      if ('error' in moonSid) throw new Error(`Moon Sidereal: ${moonSid.error}`);
+      
       const rahuSid = swe.swe_calc_ut(jdUt, swe.SE_MEAN_NODE, siderealFlags);
-      if ('error' in rahuSid) throw new Error(rahuSid.error);
+      if ('error' in rahuSid) throw new Error(`Rahu Sidereal: ${rahuSid.error}`);
+      
       const rahuTrueSid = swe.swe_calc_ut(jdUt, swe.SE_TRUE_NODE, siderealFlags);
-      if ('error' in rahuTrueSid) throw new Error(rahuTrueSid.error);
+      if ('error' in rahuTrueSid) throw new Error(`Rahu True Sidereal: ${rahuTrueSid.error}`);
 
       const mercurySid = swe.swe_calc_ut(jdUt, swe.SE_MERCURY, siderealFlags);
-      if ('error' in mercurySid) throw new Error(mercurySid.error);
+      if ('error' in mercurySid) throw new Error(`Mercury Sidereal: ${mercurySid.error}`);
+      
       const venusSid = swe.swe_calc_ut(jdUt, swe.SE_VENUS, siderealFlags);
-      if ('error' in venusSid) throw new Error(venusSid.error);
+      if ('error' in venusSid) throw new Error(`Venus Sidereal: ${venusSid.error}`);
+      
       const marsSid = swe.swe_calc_ut(jdUt, swe.SE_MARS, siderealFlags);
-      if ('error' in marsSid) throw new Error(marsSid.error);
+      if ('error' in marsSid) throw new Error(`Mars Sidereal: ${marsSid.error}`);
+      
       const jupiterSid = swe.swe_calc_ut(jdUt, swe.SE_JUPITER, siderealFlags);
-      if ('error' in jupiterSid) throw new Error(jupiterSid.error);
+      if ('error' in jupiterSid) throw new Error(`Jupiter Sidereal: ${jupiterSid.error}`);
+      
       const saturnSid = swe.swe_calc_ut(jdUt, swe.SE_SATURN, siderealFlags);
-      if ('error' in saturnSid) throw new Error(saturnSid.error);
+      if ('error' in saturnSid) throw new Error(`Saturn Sidereal: ${saturnSid.error}`);
 
       // Vedic charts are commonly presented as whole-sign houses (Rashi chart).
       // Using swe_houses_ex with SEFLG_SIDEREAL returns a sidereal ascendant longitude.
-      const housesSid = swe.swe_houses_ex(jdUt, swe.SEFLG_SIDEREAL, payload.latitude, payload.longitude, 'W');
-      if ('error' in housesSid) throw new Error(housesSid.error);
+      const housesSid = swe.swe_houses_ex(jdUt, siderealFlags, payload.latitude, payload.longitude, 'W');
+      if ('error' in housesSid) {
+        console.warn(`[Swiss Ephemeris] Sidereal houses failed, falling back to Tropical - Ayanamsa math: ${housesSid.error}`);
+        // Manual fallback for houses if swe_houses_ex fails with sidereal flag
+        const housesTrop = swe.swe_houses(jdUt, payload.latitude, payload.longitude, 'W');
+        if ('error' in housesTrop) throw new Error(`House calculation failed: ${housesTrop.error}`);
+        
+        // Manual sidereal adjustment
+        (housesSid as any).ascendant = (housesTrop.ascendant - ayanamsaUt + 360) % 360;
+        (housesSid as any).house = housesTrop.house.map(h => (h - ayanamsaUt + 360) % 360);
+      }
 
       const sunSidLon = ((sunSid as any).longitude % 360 + 360) % 360;
       const moonSidLon = ((moonSid as any).longitude % 360 + 360) % 360;
@@ -345,6 +376,8 @@ export class SwissEphemerisEngine {
       const marsSidLon = (((marsSid as any).longitude as number) % 360 + 360) % 360;
       const jupiterSidLon = (((jupiterSid as any).longitude as number) % 360 + 360) % 360;
       const saturnSidLon = (((saturnSid as any).longitude as number) % 360 + 360) % 360;
+
+      console.log(`[Swiss Ephemeris] Sidereal positions calculated: Lagna=${toSign(ascSidLon)} ${ascSidLon % 30}°, Sun=${toSign(sunSidLon)} ${sunSidLon % 30}°`);
 
       // Nakshatra math: 27 nakshatras × 13°20' each; 4 padas × 3°20' each.
       const NAK_LEN = 360 / 27; // 13.3333333333...

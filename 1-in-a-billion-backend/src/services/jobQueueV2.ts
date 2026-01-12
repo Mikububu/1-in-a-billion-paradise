@@ -207,7 +207,8 @@ export class JobQueueV2 {
     console.log(`🔍 Extracting essences for job ${jobId}...`);
 
     // Import dynamically to avoid circular deps
-    const { extractAllEssences } = await import('../services/essenceExtractionService');
+    const { extractAllEssences, generateEssencesFromPlacements } = await import('../services/essenceExtractionService');
+    const { swissEngine } = await import('../services/swissEphemeris');
 
     // Get job to find person IDs
     const { data: job, error: jobError } = await supabase
@@ -264,7 +265,29 @@ export class JobQueueV2 {
 
     // Extract and save essences for person1
     if (Object.keys(person1Readings).length > 0) {
-      const essences = extractAllEssences(person1Readings);
+      let essences = extractAllEssences(person1Readings);
+      
+      // DETERMINISTIC FALLBACK: If we have params, generate reliable essences from placements
+      if (params.person1) {
+        try {
+          const placements = await swissEngine.computePlacements({
+            birthDate: params.person1.birthDate,
+            birthTime: params.person1.birthTime,
+            timezone: params.person1.timezone,
+            latitude: params.person1.latitude,
+            longitude: params.person1.longitude,
+            relationshipIntensity: params.relationshipIntensity || 5,
+            relationshipMode: 'sensual',
+            primaryLanguage: 'en',
+          });
+          const deterministic = generateEssencesFromPlacements(placements);
+          essences = { ...essences, ...deterministic };
+          console.log(`   ✓ Person 1 essences supplemented with deterministic data`);
+        } catch (err) {
+          console.warn(`   ⚠️  Failed to generate deterministic essences for P1:`, err);
+        }
+      }
+
       if (Object.keys(essences).length > 0) {
         await supabase.from('people').update({ essences }).eq('id', person1Id);
         console.log(`   ✓ Person 1 essences saved`);
@@ -273,7 +296,29 @@ export class JobQueueV2 {
 
     // Extract and save essences for person2
     if (person2Id && Object.keys(person2Readings).length > 0) {
-      const essences = extractAllEssences(person2Readings);
+      let essences = extractAllEssences(person2Readings);
+
+      // DETERMINISTIC FALLBACK: If we have params, generate reliable essences from placements
+      if (params.person2) {
+        try {
+          const placements = await swissEngine.computePlacements({
+            birthDate: params.person2.birthDate,
+            birthTime: params.person2.birthTime,
+            timezone: params.person2.timezone,
+            latitude: params.person2.latitude,
+            longitude: params.person2.longitude,
+            relationshipIntensity: params.relationshipIntensity || 5,
+            relationshipMode: 'sensual',
+            primaryLanguage: 'en',
+          });
+          const deterministic = generateEssencesFromPlacements(placements);
+          essences = { ...essences, ...deterministic };
+          console.log(`   ✓ Person 2 essences supplemented with deterministic data`);
+        } catch (err) {
+          console.warn(`   ⚠️  Failed to generate deterministic essences for P2:`, err);
+        }
+      }
+
       if (Object.keys(essences).length > 0) {
         await supabase.from('people').update({ essences }).eq('id', person2Id);
         console.log(`   ✓ Person 2 essences saved`);

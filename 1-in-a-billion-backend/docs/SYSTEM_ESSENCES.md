@@ -165,53 +165,22 @@ From PROMPT_SYSTEM_ARCHITECTURE.md - Gene Keys section:
 5. ⏳ Kabbalah: Need to review actual readings
 6. ⏳ Verdict: Defer decision (likely no chips)
 
-### Phase 2: Data Extraction
+### Phase 2: Data Extraction ✅ IMPLEMENTED
 - Determine how to extract/compute essence data for each system
-- Options:
-  1. Extract from existing reading text using LLM
-  2. Store in job metadata during generation
-  3. Compute from birth data during display
-  4. Hybrid approach
+- **Deterministic Strategy (V2):**
+  1. **Deterministic Placements:** Western and Vedic essences are now generated directly from Swiss Ephemeris data during job completion. This prevents "LLM Hallucinations" where the reading text might be poetic/wrong.
+  2. **Extraction Fallback:** If deterministic data is unavailable, the system extracts essences from the reading text using pattern matching.
+  3. **Hybrid Storage:** Both sources are merged to ensure the most accurate display.
 
-### Phase 3: Data Storage
-- Extend person profile schema to include essences for each system
-- Schema suggestion:
-```typescript
-interface PersonEssences {
-  western?: {
-    sunSign: string;
-    moonSign: string;
-    risingSign: string;
-  };
-  vedic?: {
-    // TBD based on research
-    moonSign?: string;
-    nakshatra?: string;
-    lagna?: string;
-  };
-  humanDesign?: {
-    type: string;  // "Manifestor" | "Generator" | "Manifesting Generator" | "Projector" | "Reflector"
-    profile?: string;  // e.g., "3/5"
-    authority?: string;
-  };
-  geneKeys?: {
-    // TBD based on research
-  };
-  kabbalah?: {
-    // TBD based on research
-  };
-  verdict?: {
-    // TBD based on research
-  };
-}
-```
+### Phase 3: Data Storage ✅ IMPLEMENTED
+- Extended `people` table in Supabase with `essences` JSONB column.
+- GIN index added for efficient querying.
+- Backfill logic implemented for existing Western placements.
 
-### Phase 4: UI Component
-- Make the essence display modular:
-```tsx
-<SystemEssence systemId={systemId} essences={person.essences} />
-```
-- Component handles different display formats for each system
+### Phase 4: UI Component ✅ IMPLEMENTED
+- Modular `SystemEssence` component created.
+- Conditionally renders chips based on `systemId` and available `essences` data.
+- Styling aligned with the 1inB design system.
 
 ---
 
