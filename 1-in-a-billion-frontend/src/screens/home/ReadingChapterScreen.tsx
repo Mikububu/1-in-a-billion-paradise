@@ -321,7 +321,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     const maxScrollY = Math.max(0, textContentH - textViewportH);
     const y = maxScrollY * progress;
     textScrollRef.current.scrollTo({ y, animated: false });
-  }, [playing, pos, dur, textViewportH, textContentH]);
+  }, [playing, seekingNarration, pos, dur, textViewportH, textContentH]);
 
   useEffect(() => {
     if (!songTextScrollRef.current) return;
@@ -337,7 +337,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     const maxScrollY = Math.max(0, songTextContentH - songTextViewportH);
     const y = maxScrollY * progress;
     songTextScrollRef.current.scrollTo({ y, animated: false });
-  }, [playingSong, songPos, songDur, songTextViewportH, songTextContentH]);
+  }, [playingSong, seekingSong, songPos, songDur, songTextViewportH, songTextContentH]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -537,9 +537,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
   scroll: { flex: 1 },
   // Offset is inside the scroll content (no "header" placeholder outside the ScrollView)
-  scrollContent: { padding: 18, paddingTop: 90, paddingBottom: 30 },
+  scrollContent: { padding: 18, paddingTop: 80, paddingBottom: 24 },
 
-  titleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   // Inset a bit so the buttons sit inside the safe margin
   titleButtonsCol: { width: 40, gap: 6, marginLeft: 24 },
   headerYellowButton: {
@@ -613,8 +613,9 @@ const styles = StyleSheet.create({
   sliderPillRed: { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
   sliderPillGreen: { borderColor: '#2E7D32', backgroundColor: '#2E7D3215' },
   sliderDurationOverlay: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' },
-  sliderAbsolute: { position: 'absolute', left: 0, right: 54, top: 0, bottom: 0 },
-  sliderAbsoluteGreen: { position: 'absolute', left: 0, right: 54, top: 0, bottom: 0 },
+  // Align slider with pill dimensions for perfect centering
+  sliderAbsolute: { position: 'absolute', left: 0, right: 54, height: 28, top: 8 },
+  sliderAbsoluteGreen: { position: 'absolute', left: 0, right: 54, height: 28, top: 8 },
   // Same bold black typography as "PDF"
   sliderDurationText: { fontFamily: typography.sansSemiBold, fontSize: 14, color: '#111827', includeFontPadding: false, textAlignVertical: 'center' },
 
@@ -630,7 +631,7 @@ const styles = StyleSheet.create({
   },
   textWindow: { height: 134 }, // 5 lines @ lineHeight 22 + 24px padding
   textBody: { fontFamily: typography.sansRegular, fontSize: 14, lineHeight: 22, color: colors.text },
-  musicSpacer: { height: 18 },
+  musicSpacer: { height: 14 },
   songButton: {
     width: 50,
     height: 50,
@@ -648,8 +649,7 @@ const styles = StyleSheet.create({
   songTextBody: { fontFamily: typography.sansRegular, fontSize: 14, lineHeight: 22, color: colors.text },
 
   // Next Chapter row: match SystemsOverviewScreen / system list row 1:1
-  bottomCtasRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
-  bottomCtasRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, width: '100%' },
+  bottomCtasRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, width: '100%' },
 
   // Both CTAs: same dimensions + aligned to margins + dashed red stroke on coated white
   ctaButtonBase: {
