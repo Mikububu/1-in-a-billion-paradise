@@ -555,6 +555,7 @@ const styles = StyleSheet.create({
   },
   nextChapterInfo: { flex: 1, marginLeft: spacing.sm },
   nextChapterName: { fontFamily: typography.sansSemiBold, fontSize: 14, color: colors.text },
-  nextChapterArrow: { fontFamily: typography.sansBold, fontSize: 18, color: colors.primary, marginLeft: spacing.sm },
+  // Nudge arrow left a bit so the two CTAs feel visually balanced while staying equal width
+  nextChapterArrow: { fontFamily: typography.sansBold, fontSize: 18, color: colors.primary, marginLeft: 6, marginRight: 6 },
 });
 
