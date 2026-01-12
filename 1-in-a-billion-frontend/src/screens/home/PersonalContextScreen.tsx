@@ -30,10 +30,6 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
     const MAX_CHARS = isKabbalahActive ? MAX_CHARS_KABBALAH : MAX_CHARS_DEFAULT;
 
     const [context, setContext] = useState('');
-    const [firstName, setFirstName] = useState(isSelf ? '' : personName?.split(' ')[0] || '');
-    const [surname, setSurname] = useState(isSelf ? '' : personName?.split(' ').slice(1).join(' ') || '');
-    const [partnerFirstName, setPartnerFirstName] = useState(partnerName?.split(' ')[0] || '');
-    const [partnerSurname, setPartnerSurname] = useState(partnerName?.split(' ').slice(1).join(' ') || '');
 
     const pulseAnim1 = useRef(new Animated.Value(1)).current;
     const pulseAnim2 = useRef(new Animated.Value(1)).current;
@@ -131,11 +127,6 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                 productType,
                 systems,
                 readingType: 'individual',
-                // Kabbalah names (even on skip, we might have them)
-                firstName: firstName.trim() || undefined,
-                surname: surname.trim() || undefined,
-                partnerFirstName: partnerFirstName.trim() || undefined,
-                partnerSurname: partnerSurname.trim() || undefined,
             } as any);
         } else {
             // Normal flow → SystemSelection (where user picks system or bundle)
@@ -157,11 +148,6 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                 productType,
                 systems,
                 readingType: 'individual',
-                // Kabbalah names
-                firstName: firstName.trim() || undefined,
-                surname: surname.trim() || undefined,
-                partnerFirstName: partnerFirstName.trim() || undefined,
-                partnerSurname: partnerSurname.trim() || undefined,
             } as any);
         } else {
             // Normal flow → SystemSelection (where user picks system or bundle)
@@ -193,10 +179,7 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                         </Text>
                         <Text style={styles.subheadline}>
                             {isKabbalahActive ? (
-                                <Text>
-                                    The more you can tell us about the most beautiful or most horrible events in your life - moments of great happiness, love, loss, or death - the richer your reading will be. {'\n\n'}
-                                    <Text style={{ fontFamily: typography.sansBold }}>The exact dates and locations are very important.</Text>
-                                </Text>
+                                "Please include your full first and second name. The more you can tell us about the most beautiful or most horrible events in your life - moments of great happiness, love, loss, or death - the richer your reading will be. The exact dates and locations are very important."
                             ) : (
                                 "Please feel free to share any questions, feelings, or areas of life you'd like the reading to address."
                             )}
@@ -209,50 +192,6 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                         contentContainerStyle={styles.scrollContent}
                         showsVerticalScrollIndicator={false}
                     >
-                        {isKabbalahActive && (
-                            <View style={styles.nameContainer}>
-                                <Text style={styles.inputLabel}>Your Sacred Name (for Kabbalah)</Text>
-                                <View style={styles.nameRow}>
-                                    <TextInput
-                                        style={styles.nameInput}
-                                        placeholder="First Name"
-                                        placeholderTextColor={colors.mutedText}
-                                        value={firstName}
-                                        onChangeText={setFirstName}
-                                    />
-                                    <TextInput
-                                        style={styles.nameInput}
-                                        placeholder="Surname"
-                                        placeholderTextColor={colors.mutedText}
-                                        value={surname}
-                                        onChangeText={setSurname}
-                                    />
-                                </View>
-
-                                {partnerName && (
-                                    <>
-                                        <Text style={[styles.inputLabel, { marginTop: spacing.md }]}>{partnerName}'s Sacred Name</Text>
-                                        <View style={styles.nameRow}>
-                                            <TextInput
-                                                style={styles.nameInput}
-                                                placeholder="First Name"
-                                                placeholderTextColor={colors.mutedText}
-                                                value={partnerFirstName}
-                                                onChangeText={setPartnerFirstName}
-                                            />
-                                            <TextInput
-                                                style={styles.nameInput}
-                                                placeholder="Surname"
-                                                placeholderTextColor={colors.mutedText}
-                                                value={partnerSurname}
-                                                onChangeText={setPartnerSurname}
-                                            />
-                                        </View>
-                                    </>
-                                )}
-                            </View>
-                        )}
-
                         <View style={styles.circleWrapper}>
                             {/* ... animated circles ... */}
                             <Animated.View
@@ -289,23 +228,18 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                                     },
                                 ]}
                             />
-                            <View style={styles.circleContainer}>
-                                <TextInput
-                                    style={[
-                                        styles.circleInput,
-                                        isKabbalahActive && { fontSize: 13, paddingHorizontal: spacing.lg }
-                                    ]}
-                                    multiline
-                                    placeholder={isKabbalahActive ? "I will share my life events..." : "I will speak the truth"}
-                                    placeholderTextColor={colors.mutedText}
-                                    value={context}
-                                    onChangeText={setContext}
-                                    maxLength={MAX_CHARS}
-                                    autoFocus={!isKabbalahActive} // Only autofocus if not showing name inputs
-                                    textAlignVertical="center"
-                                    textAlign="center"
-                                />
-                            </View>
+                            <TextInput
+                                style={styles.circleInput}
+                                multiline
+                                placeholder={isKabbalahActive ? "I will share my life events..." : "I will speak the truth"}
+                                placeholderTextColor={colors.mutedText}
+                                value={context}
+                                onChangeText={setContext}
+                                maxLength={MAX_CHARS}
+                                autoFocus
+                                textAlignVertical="center"
+                                textAlign="center"
+                            />
                             {isKabbalahActive && (
                                 <Text style={styles.charCounter}>
                                     {context.length} / {MAX_CHARS}
@@ -359,49 +293,21 @@ const styles = StyleSheet.create({
         fontFamily: typography.headline,
         fontSize: 24,
         color: colors.text,
-        marginBottom: spacing.md,
+        marginBottom: spacing.xs,
         lineHeight: 30,
         fontStyle: 'italic',
-        textAlign: 'center',
+        textAlign: 'left',
     },
     subheadline: {
         fontFamily: typography.sansRegular,
-        fontSize: 16,
+        fontSize: 13,
         color: colors.mutedText,
-        lineHeight: 22,
-        textAlign: 'center',
+        lineHeight: 18,
+        textAlign: 'left',
     },
     scrollContent: {
         alignItems: 'center',
         paddingBottom: spacing.xl,
-    },
-    nameContainer: {
-        width: '100%',
-        marginBottom: spacing.xl,
-    },
-    inputLabel: {
-        fontFamily: typography.sansSemiBold,
-        fontSize: 14,
-        color: colors.text,
-        marginBottom: spacing.sm,
-        textAlign: 'center',
-    },
-    nameRow: {
-        flexDirection: 'row',
-        gap: spacing.sm,
-    },
-    nameInput: {
-        flex: 1,
-        backgroundColor: colors.inputBg,
-        borderWidth: 1,
-        borderColor: colors.inputStroke,
-        borderRadius: radii.button,
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.md,
-        fontSize: 16,
-        fontFamily: typography.sansRegular,
-        color: colors.text,
-        textAlign: 'center',
     },
     circleWrapper: {
         width: CIRCLE_SIZE,
@@ -438,12 +344,6 @@ const styles = StyleSheet.create({
         height: CIRCLE_SIZE_3,
         borderRadius: CIRCLE_SIZE_3 / 2,
     },
-    circleContainer: {
-        width: CIRCLE_SIZE,
-        height: CIRCLE_SIZE,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
     circleInput: {
         width: CIRCLE_SIZE,
         height: CIRCLE_SIZE,
@@ -451,12 +351,11 @@ const styles = StyleSheet.create({
         fontFamily: typography.sansRegular,
         fontSize: 15,
         color: colors.text,
-        backgroundColor: colors.buttonBg,
-        borderWidth: 2,
-        borderColor: colors.primary,
+        backgroundColor: 'transparent',
         paddingHorizontal: spacing.xl,
         textAlignVertical: 'center',
         textAlign: 'center',
+        zIndex: 10,
     },
     buttonContainer: {
         flexDirection: 'row',

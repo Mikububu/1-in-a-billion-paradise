@@ -37,10 +37,6 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
         readingType, 
         personalContext, 
         relationshipContext,
-        firstName,
-        surname,
-        partnerFirstName,
-        partnerSurname,
         ...restParams 
     } = route.params as any;
 
@@ -223,8 +219,6 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
             const person1 = (restParams as any).person1Override || {
                 id: user?.id || userId,
                 name: (restParams as any).userName || (restParams as any).personName || user?.name || authStore.displayName || 'You',
-                firstName: firstName || undefined, // Kabbalah specific
-                surname: surname || undefined,     // Kabbalah specific
                 birthDate: (restParams as any).personBirthDate || onboardingStore.birthDate || user?.birthData?.birthDate,
                 birthTime: (restParams as any).personBirthTime || onboardingStore.birthTime || user?.birthData?.birthTime,
                 timezone: (restParams as any).personBirthCity?.timezone || onboardingStore.birthCity?.timezone || user?.birthData?.timezone,
@@ -242,8 +236,6 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
                 person2 = (restParams as any).person2Override || {
                     id: partnerId,
                     name: (restParams as any).partnerName || partner?.name || 'Partner',
-                    firstName: partnerFirstName || undefined, // Kabbalah specific
-                    surname: partnerSurname || undefined,     // Kabbalah specific
                     birthDate: (restParams as any).partnerBirthDate || partner?.birthData?.birthDate,
                     birthTime: (restParams as any).partnerBirthTime || partner?.birthData?.birthTime,
                     timezone: (restParams as any).partnerBirthCity?.timezone || partner?.birthData?.timezone,

@@ -1,4 +1,3 @@
-import { HDate, HebrewCalendar, Event } from '@hebcal/core';
 import { DateTime } from 'luxon';
 
 export interface HebrewDateInfo {
@@ -13,7 +12,8 @@ export class HebrewCalendarService {
   /**
    * Convert Gregorian date to Hebrew date info
    */
-  getHebrewDate(date: Date | string, timezone: string = 'UTC'): HebrewDateInfo {
+  async getHebrewDate(date: Date | string, timezone: string = 'UTC'): Promise<HebrewDateInfo> {
+    const { HDate, HebrewCalendar } = await import('@hebcal/core');
     const dt = typeof date === 'string' ? DateTime.fromISO(date, { zone: timezone }) : DateTime.fromJSDate(date, { zone: timezone });
     
     const hdate = new HDate(dt.toJSDate());

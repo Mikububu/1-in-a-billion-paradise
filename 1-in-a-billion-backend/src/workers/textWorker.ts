@@ -19,8 +19,6 @@ import {
 } from '../prompts/structures/nuclearV2';
 import { buildIndividualPrompt } from '../prompts';
 import { SpiceLevel } from '../prompts/spice/levels';
-import { kabbalahPreprocessor } from '../services/kabbalah/KabbalahPreprocessor';
-import { kabbalahPromptBuilder } from '../services/kabbalah/KabbalahPromptBuilder';
 
 function clampSpice(level: number): SpiceLevel {
   const clamped = Math.min(10, Math.max(1, Math.round(level)));
@@ -661,24 +659,41 @@ export class TextWorker extends BaseWorker {
 
     } else if (system === 'kabbalah') {
       // ═══════════════════════════════════════════════════════════════════════════
-      // KABBALAH INFUSION PIPELINE
+      // KABBALAH SIMPLIFIED PIPELINE
       // ═══════════════════════════════════════════════════════════════════════════
-      console.log(`🔯 [TextWorker] Running Kabbalah infusion for ${docType}...`);
+      // Just send the raw personalContext to OpenAI - it will figure out names and events
+      console.log(`🔯 [TextWorker] Running Kabbalah reading for ${docType}...`);
       
       const targetPerson = docType === 'person2' ? person2 : person1;
-      const firstName = targetPerson.firstName || targetPerson.name.split(' ')[0] || 'Unknown';
-      const surname = targetPerson.surname || targetPerson.name.split(' ').slice(1).join(' ') || 'Unknown';
+      const chartData = buildChartDataForSystem(
+        system,
+        person1.name,
+        p1Placements,
+        person2?.name || null,
+        p2Placements,
+        p1BirthData,
+        p2BirthData
+      );
       
-      const kabPayload = await kabbalahPreprocessor.preprocess({
-        birthDate: targetPerson.birthDate,
-        birthTime: targetPerson.birthTime,
-        timezone: targetPerson.timezone,
-        firstName,
-        surname,
-        lifeEvents: params.lifeEvents || params.personalContext,
-      });
+      // Build a simple prompt with chart data + personalContext
+      const contextText = params.personalContext || params.lifeEvents || '';
       
-      prompt = kabbalahPromptBuilder.buildPrompt(kabPayload, targetPerson.name);
+      prompt = `You are a master Kabbalist. Analyze ${targetPerson.name}'s life through the lens of Kabbalah and the Tree of Life.
+
+${chartData}
+
+PERSONAL CONTEXT FROM USER:
+${contextText || 'No additional context provided.'}
+
+Write a deep, mystical reading exploring:
+- The soul's journey through the Sephirot
+- Life path and destiny from a Kabbalistic perspective
+- Sacred meaning in key life events
+- Spiritual lessons and soul evolution
+
+Style: Mystical, profound, personal. ${spiceLevel >= 7 ? 'Be bold and direct.' : 'Be gentle and uplifting.'}
+Length: ~2000 words.`;
+
       label += `:kabbalah:${docType}`;
       
     } else {

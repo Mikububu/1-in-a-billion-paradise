@@ -34,7 +34,7 @@ export class KabbalahPreprocessor {
     const { birthDate, birthTime, timezone, firstName, surname, lifeEvents } = params;
     
     // 1. Hebrew Date
-    const hDate = hebrewCalendarService.getHebrewDate(`${birthDate}T${birthTime}`, timezone);
+    const hDate = await hebrewCalendarService.getHebrewDate(`${birthDate}T${birthTime}`, timezone);
     
     // 2. Time Context
     const dt = DateTime.fromISO(`${birthDate}T${birthTime}`, { zone: timezone });
