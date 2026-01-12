@@ -21,7 +21,7 @@ export type LibraryPerson = {
   placements?: Placements;
   relationship_intensity?: number;
   has_paid_reading?: boolean; // True if involved in at least one paid job
-  personal_context?: string; // User-provided context for readings (up to 600 chars for Kabbalah)
+  personal_context?: string; // User-provided context for all reading systems (universal field)
   created_at?: string;
   updated_at?: string;
 };
