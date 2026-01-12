@@ -19,6 +19,7 @@ const SYSTEMS = [
 
 type Chapter = {
   personName: string;
+  personId?: string;
   jobId: string;
   systemId: string;
   systemName: string;
@@ -28,7 +29,7 @@ type Chapter = {
 };
 
 export const PersonReadingChaptersFlowScreen = ({ navigation, route }: Props) => {
-  const { personName, personType, jobId } = route.params;
+  const { personName, personType, jobId, personId } = route.params;
   const [loading, setLoading] = useState(true);
   const [chapters, setChapters] = useState<Chapter[]>([]);
 
@@ -77,6 +78,7 @@ export const PersonReadingChaptersFlowScreen = ({ navigation, route }: Props) =>
           const docNum = Number(match?.docNum) || 0;
           return {
             personName,
+            personId,
             jobId,
             systemId: sys.id,
             systemName: sys.name,

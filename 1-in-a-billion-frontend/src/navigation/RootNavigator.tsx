@@ -321,6 +321,7 @@ export type MainStackParamList = {
   PersonReadings: { personName: string; personId: string; personType: 'person1' | 'person2' | 'overlay' | 'individual'; jobId?: string };
   ReadingChapter: {
     personName: string;
+    personId?: string;
     jobId: string;
     systemId: string;
     systemName: string;

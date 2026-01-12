@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Audio } from 'expo-av';
 import Slider from '@react-native-community/slider';
@@ -9,13 +10,16 @@ import { env } from '@/config/env';
 import { downloadTextContent, fetchJobArtifacts } from '@/services/nuclearReadingsService';
 import { BackButton } from '@/components/BackButton';
 import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
-import { colors, radii, spacing, typography } from '@/theme/tokens';
+import { colors, layout, radii, spacing, typography } from '@/theme/tokens';
+import { useProfileStore } from '@/store/profileStore';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ReadingChapter'>;
 
 export const ReadingChapterScreen = ({ navigation, route }: Props) => {
-  const { personName, jobId, systemId, systemName, docNum, timestamp, nextChapter } = route.params;
+  const { personName, personId, jobId, systemId, systemName, docNum, timestamp, nextChapter } = route.params;
   const { width: windowW } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const person = useProfileStore((s) => (personId ? s.getPerson(personId) : undefined));
 
   const nextSystemIcon = useMemo(() => {
     const sid = String(nextChapter?.systemId || '');
@@ -307,8 +311,8 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     if (!textScrollRef.current) return;
     if (!textViewportH || !textContentH) return;
 
-    // Reset to top when not playing
-    if (!playing || !dur) {
+    // Scroll while playing OR scrubbing (seeking). Only reset when idle.
+    if (!dur || (!playing && !seekingNarration)) {
       textScrollRef.current.scrollTo({ y: 0, animated: false });
       return;
     }
@@ -338,6 +342,11 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
   return (
     <SafeAreaView style={styles.container}>
       <BackButton onPress={() => navigation.goBack()} />
+      {!!niceTimestamp && (
+        <Text style={[styles.headerTimestamp, { top: insets.top + layout.backButtonOffsetTop + 2 }]}>
+          {niceTimestamp}
+        </Text>
+      )}
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         {/* Top title row: yellow buttons stacked on the LEFT, title centered */}
         <View style={styles.titleRow}>
@@ -353,7 +362,14 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
           <View style={styles.titleBlock}>
             <Text style={styles.title}>{personName}</Text>
             <Text style={styles.systemNameCentered}>{systemName}</Text>
-            {!!niceTimestamp && <Text style={styles.timestampCentered}>{niceTimestamp}</Text>}
+            {/* Third headline row: Western shows 3 signs, others show "essence" if we can infer it */}
+            {systemId === 'western' && person?.placements ? (
+              <View style={styles.chipsRow}>
+                <View style={styles.chip}><Text style={styles.chipText}>☉ {person.placements.sunSign}</Text></View>
+                <View style={styles.chip}><Text style={styles.chipText}>☽ {person.placements.moonSign}</Text></View>
+                <View style={styles.chip}><Text style={styles.chipText}>↑ {person.placements.risingSign}</Text></View>
+              </View>
+            ) : null}
           </View>
 
           {/* Right spacer keeps the title centered */}
@@ -373,37 +389,31 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
                 <Text style={styles.playIcon}>{playing ? '❚❚' : '▶'}</Text>
               )}
             </TouchableOpacity>
-            <View style={[styles.sliderFrame, styles.sliderFrameRed]}>
-              <View style={styles.sliderRow}>
-                <View style={styles.sliderControl}>
-                  <Slider
-                    style={styles.sliderInner}
-                    value={dur > 0 ? Math.min(pos, dur) : 0}
-                    minimumValue={0}
-                    maximumValue={dur || 1}
-                    minimumTrackTintColor={colors.primary}
-                    maximumTrackTintColor="transparent"
-                    thumbTintColor={colors.primary}
-                    onSlidingStart={() => {
-                      seekingNarrationRef.current = true;
-                      setSeekingNarration(true);
-                    }}
-                    onValueChange={(v) => {
-                      // Keep thumb "alive" during drag (controlled slider)
-                      setPos(v);
-                    }}
-                    onSlidingComplete={async (v) => {
-                      seekingNarrationRef.current = false;
-                      setSeekingNarration(false);
-                      setPos(v);
-                      await narrationRef.current?.setPositionAsync(v * 1000).catch(() => {});
-                    }}
-                  />
-                </View>
-                <View style={styles.sliderDurationBox}>
-                  <Text style={styles.sliderDurationText}>{dur ? fmt(dur) : '--:--'}</Text>
-                </View>
+            <View style={styles.sliderOuter}>
+              <View pointerEvents="none" style={[styles.sliderPill, styles.sliderPillRed]} />
+              <View pointerEvents="none" style={styles.sliderDurationOverlay}>
+                <Text style={styles.sliderDurationText}>{dur ? fmt(dur) : '--:--'}</Text>
               </View>
+              <Slider
+                style={styles.sliderAbsolute}
+                value={dur > 0 ? Math.min(pos, dur) : 0}
+                minimumValue={0}
+                maximumValue={dur || 1}
+                minimumTrackTintColor={colors.primary}
+                maximumTrackTintColor="transparent"
+                thumbTintColor={colors.primary}
+                onSlidingStart={() => {
+                  seekingNarrationRef.current = true;
+                  setSeekingNarration(true);
+                }}
+                onValueChange={(v) => setPos(v)}
+                onSlidingComplete={async (v) => {
+                  seekingNarrationRef.current = false;
+                  setSeekingNarration(false);
+                  setPos(v);
+                  await narrationRef.current?.setPositionAsync(v * 1000).catch(() => {});
+                }}
+              />
             </View>
           </View>
 
@@ -442,36 +452,31 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
                 <Text style={styles.songIcon}>♪</Text>
               )}
             </TouchableOpacity>
-            <View style={[styles.sliderFrame, styles.sliderFrameGreen]}>
-              <View style={styles.sliderRow}>
-                <View style={styles.sliderControl}>
-                  <Slider
-                    style={styles.sliderInner}
-                    value={songDur > 0 ? Math.min(songPos, songDur) : 0}
-                    minimumValue={0}
-                    maximumValue={songDur || 1}
-                    minimumTrackTintColor="#2E7D32"
-                    maximumTrackTintColor="transparent"
-                    thumbTintColor="#2E7D32"
-                    onSlidingStart={() => {
-                      seekingSongRef.current = true;
-                      setSeekingSong(true);
-                    }}
-                    onValueChange={(v) => {
-                      setSongPos(v);
-                    }}
-                    onSlidingComplete={async (v) => {
-                      seekingSongRef.current = false;
-                      setSeekingSong(false);
-                      setSongPos(v);
-                      await songRef.current?.setPositionAsync(v * 1000).catch(() => {});
-                    }}
-                  />
-                </View>
-                <View style={styles.sliderDurationBox}>
-                  <Text style={styles.sliderDurationText}>{songDur ? fmt(songDur) : '--:--'}</Text>
-                </View>
+            <View style={styles.sliderOuter}>
+              <View pointerEvents="none" style={[styles.sliderPill, styles.sliderPillGreen]} />
+              <View pointerEvents="none" style={styles.sliderDurationOverlay}>
+                <Text style={styles.sliderDurationText}>{songDur ? fmt(songDur) : '--:--'}</Text>
               </View>
+              <Slider
+                style={[styles.sliderAbsolute, styles.sliderAbsoluteGreen]}
+                value={songDur > 0 ? Math.min(songPos, songDur) : 0}
+                minimumValue={0}
+                maximumValue={songDur || 1}
+                minimumTrackTintColor="#2E7D32"
+                maximumTrackTintColor="transparent"
+                thumbTintColor="#2E7D32"
+                onSlidingStart={() => {
+                  seekingSongRef.current = true;
+                  setSeekingSong(true);
+                }}
+                onValueChange={(v) => setSongPos(v)}
+                onSlidingComplete={async (v) => {
+                  seekingSongRef.current = false;
+                  setSeekingSong(false);
+                  setSongPos(v);
+                  await songRef.current?.setPositionAsync(v * 1000).catch(() => {});
+                }}
+              />
             </View>
           </View>
 
@@ -556,7 +561,17 @@ const styles = StyleSheet.create({
   // Headline typography (same font family used elsewhere)
   title: { fontFamily: typography.headline, fontSize: 34, color: colors.text, textAlign: 'center' },
   systemNameCentered: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text, textAlign: 'center' },
-  timestampCentered: { fontFamily: typography.sansRegular, fontSize: 10, color: colors.mutedText, textAlign: 'center', marginTop: 2 },
+  headerTimestamp: {
+    position: 'absolute',
+    right: spacing.page,
+    zIndex: 60,
+    fontFamily: typography.sansRegular,
+    fontSize: 12,
+    color: colors.mutedText,
+  },
+  chipsRow: { flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap', justifyContent: 'center' },
+  chip: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  chipText: { fontFamily: typography.sansRegular, fontSize: 12, color: colors.text },
   card: {
     backgroundColor: 'transparent',
     borderRadius: 16,
@@ -581,21 +596,23 @@ const styles = StyleSheet.create({
   // Keep icon "pure" (triangle/bars), no fancy font styling
   playIcon: { fontFamily: 'System', fontSize: 18, fontWeight: '700', color: colors.primary },
 
-  // Slider capsule with colored stroke (matches the circle stroke)
-  sliderFrame: {
-    flex: 1,
-    height: 34,
+  // Slider visuals are drawn as a pill behind an absolutely-positioned Slider,
+  // so the thumb can never be clipped by rounded borders.
+  sliderOuter: { flex: 1, height: 44, position: 'relative' },
+  sliderPill: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 8,
+    height: 28,
     borderRadius: 999,
-    justifyContent: 'center',
-    paddingHorizontal: 8,
-    overflow: 'visible', // help prevent iOS thumb clipping
+    borderWidth: 2,
   },
-  sliderRow: { flexDirection: 'row', alignItems: 'center' },
-  sliderControl: { flex: 1, minWidth: 0, justifyContent: 'center' },
-  sliderDurationBox: { width: 54, alignItems: 'flex-end', justifyContent: 'center' },
-  sliderInner: { flex: 1, height: 34 },
-  sliderFrameRed: { borderWidth: 2, borderColor: colors.primary, backgroundColor: colors.primary + '15' },
-  sliderFrameGreen: { borderWidth: 2, borderColor: '#2E7D32', backgroundColor: '#2E7D3215' },
+  sliderPillRed: { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
+  sliderPillGreen: { borderColor: '#2E7D32', backgroundColor: '#2E7D3215' },
+  sliderDurationOverlay: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' },
+  sliderAbsolute: { position: 'absolute', left: 0, right: 54, top: 0, bottom: 0 },
+  sliderAbsoluteGreen: { position: 'absolute', left: 0, right: 54, top: 0, bottom: 0 },
   // Same bold black typography as "PDF"
   sliderDurationText: { fontFamily: typography.sansSemiBold, fontSize: 14, color: '#111827', includeFontPadding: false, textAlignVertical: 'center' },
 
