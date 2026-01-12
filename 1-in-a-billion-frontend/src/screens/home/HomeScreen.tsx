@@ -191,17 +191,24 @@ export const HomeScreen = ({ navigation }: Props) => {
       });
     }
 
-    const partnersWithPlacements = partners.filter(
-      (p: any) => p?.placements?.sunSign && p?.placements?.moonSign && p?.placements?.risingSign
-    );
-    partnersWithPlacements.forEach((p: any) => {
-      const sun = p.hookReadings?.find((r: any) => r.type === 'sun');
-      const moon = p.hookReadings?.find((r: any) => r.type === 'moon');
-      const rising = p.hookReadings?.find((r: any) => r.type === 'rising');
+    // Only include partners who have ALL THREE hook readings (from free onboarding)
+    const partnersWithHookReadings = partners.filter((p: any) => {
+      if (!p.hookReadings || !Array.isArray(p.hookReadings)) return false;
+      const sun = p.hookReadings.find((r: any) => r.type === 'sun');
+      const moon = p.hookReadings.find((r: any) => r.type === 'moon');
+      const rising = p.hookReadings.find((r: any) => r.type === 'rising');
+      return sun && moon && rising;
+    });
+    
+    partnersWithHookReadings.forEach((p: any) => {
+      const sun = p.hookReadings.find((r: any) => r.type === 'sun');
+      const moon = p.hookReadings.find((r: any) => r.type === 'moon');
+      const rising = p.hookReadings.find((r: any) => r.type === 'rising');
+      
       allPeople.push({
         person: p,
         placements: p.placements,
-        hookReadings: sun && moon && rising ? { sun, moon, rising } : undefined,
+        hookReadings: { sun, moon, rising }, // Guaranteed to exist
       });
     });
 

@@ -2205,7 +2205,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                         minute: '2-digit'
                       });
                       return (
-                        <Text style={[styles.personDate, { color: colors.primary, fontFamily: typography.sansSemiBold }]}>
+                        <Text style={[styles.personDate, { color: colors.primary, fontSize: 9 }]}>
                           Reading from {formatted}
                         </Text>
                       );
@@ -2373,6 +2373,27 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                 <View style={styles.personInfo}>
                   <Text style={styles.personName}>{card.person1} and {card.person2}</Text>
                   <Text style={styles.personDate}>Shared Karma</Text>
+                  {/* Timestamp for couple reading */}
+                  {(() => {
+                    const coupleJobForTimestamp = queueJobs.find((j: any) => j.id === card.jobId);
+                    const jobCreatedAt = (coupleJobForTimestamp as any)?.created_at || (coupleJobForTimestamp as any)?.createdAt;
+                    if (jobCreatedAt) {
+                      const date = new Date(jobCreatedAt);
+                      const formatted = date.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric', 
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      });
+                      return (
+                        <Text style={[styles.personDate, { color: colors.primary, fontSize: 9 }]}>
+                          Reading from {formatted}
+                        </Text>
+                      );
+                    }
+                    return null;
+                  })()}
                   {/* Reading badges for overlay - show which systems have readings */}
                   {(() => {
                     // Find completed job for this couple and purchase type
