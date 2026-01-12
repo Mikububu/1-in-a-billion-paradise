@@ -13,6 +13,7 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { colors, spacing, typography } from '@/theme/tokens';
 import { useProfileStore } from '@/store/profileStore';
 import { BackButton } from '@/components/BackButton';
+import { SystemEssence } from '@/components/SystemEssence';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SavedReading'>;
 
@@ -101,6 +102,13 @@ export const SavedReadingScreen = ({ navigation, route }: Props) => {
         <Text style={styles.title} selectable>
           {person.name}
         </Text>
+
+        {/* Display system essences */}
+        <SystemEssence
+          systemId={reading.system}
+          essences={person.essences}
+          placements={person.placements}
+        />
 
         <View style={styles.metaRow}>
           <Text style={styles.metaText} selectable>
