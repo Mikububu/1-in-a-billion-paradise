@@ -407,11 +407,9 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
                   setSeekingNarration(true);
                 }}
                 onValueChange={(v) => {
-                  // Some devices don't reliably fire onSlidingStart; ensure scrubbing always enables seek-mode
-                  if (!seekingNarrationRef.current) {
-                    seekingNarrationRef.current = true;
-                    setSeekingNarration(true);
-                  }
+                  // Ensure scrubbing always enables seek-mode (some devices don't fire onSlidingStart reliably)
+                  seekingNarrationRef.current = true;
+                  if (!seekingNarration) setSeekingNarration(true);
                   setPos(v);
                 }}
                 onSlidingComplete={async (v) => {
@@ -477,10 +475,9 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
                   setSeekingSong(true);
                 }}
                 onValueChange={(v) => {
-                  if (!seekingSongRef.current) {
-                    seekingSongRef.current = true;
-                    setSeekingSong(true);
-                  }
+                  // Ensure scrubbing always enables seek-mode (some devices don't fire onSlidingStart reliably)
+                  seekingSongRef.current = true;
+                  if (!seekingSong) setSeekingSong(true);
                   setSongPos(v);
                 }}
                 onSlidingComplete={async (v) => {
@@ -626,9 +623,9 @@ const styles = StyleSheet.create({
   sliderPillRed: { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
   sliderPillGreen: { borderColor: '#2E7D32', backgroundColor: '#2E7D3215' },
   sliderDurationOverlay: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' },
-  // Nudge the interactive slider down so the thumb sits visually centered in the pill
-  sliderAbsolute: { position: 'absolute', left: 0, right: 54, top: 6, bottom: 6 },
-  sliderAbsoluteGreen: { position: 'absolute', left: 0, right: 54, top: 6, bottom: 6 },
+  // Align slider vertically with pill for perfect thumb centering
+  sliderAbsolute: { position: 'absolute', left: 0, right: 54, top: 8, bottom: 8 },
+  sliderAbsoluteGreen: { position: 'absolute', left: 0, right: 54, top: 8, bottom: 8 },
   // Same bold black typography as "PDF"
   sliderDurationText: { fontFamily: typography.sansSemiBold, fontSize: 14, color: '#111827', includeFontPadding: false, textAlignVertical: 'center' },
 
