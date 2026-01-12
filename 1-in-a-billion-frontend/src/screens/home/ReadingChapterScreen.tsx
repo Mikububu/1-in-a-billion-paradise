@@ -63,6 +63,23 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
   const narrationUrl = useMemo(() => `${env.CORE_API_URL}/api/jobs/v2/${jobId}/audio/${docNum}`, [jobId, docNum]);
   const songUrl = useMemo(() => `${env.CORE_API_URL}/api/jobs/v2/${jobId}/song/${docNum}`, [jobId, docNum]);
 
+  const cleanupLyricsForDisplay = (raw: string) => {
+    // Old songs may contain labels like "[Verse 1]" / "Chorus:" etc.
+    // We keep the actual lines but remove section markers for a cleaner UX.
+    return (raw || '')
+      .split('\n')
+      .filter((line) => {
+        const t = line.trim();
+        if (!t) return true; // keep blank lines
+        if (/^\[[^\]]+\]$/.test(t)) return false; // [Verse 1], [Chorus], etc.
+        if (/^(verse|chorus|bridge|intro|outro)\s*\d*\s*:?\s*$/i.test(t)) return false;
+        return true;
+      })
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  };
+
   // Load text immediately (visible on screen load). No auto-scroll.
   useEffect(() => {
     let mounted = true;
@@ -104,7 +121,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
           return meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
         });
         const lyrics = (songArtifact?.metadata as any)?.lyrics;
-        if (mounted) setSongLyrics(typeof lyrics === 'string' ? lyrics : '');
+        if (mounted) setSongLyrics(typeof lyrics === 'string' ? cleanupLyricsForDisplay(lyrics) : '');
       } catch {
         if (mounted) setSongLyrics('');
       } finally {
@@ -188,19 +205,8 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
       actionLock.current = true;
       setLoadingSong(true);
 
-      // Quick preflight to fail fast on bad links/timeouts (helps avoid iOS AVPlayer -1001 with no context)
-      try {
-        const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 7000);
-        const head = await fetch(songUrl, { method: 'HEAD', signal: ctrl.signal });
-        clearTimeout(t);
-        if (!head.ok) {
-          throw new Error(`Song not available (${head.status})`);
-        }
-      } catch (pre: any) {
-        const msg = pre?.name === 'AbortError' ? 'Song timed out (try again)' : (pre?.message || 'Song not available');
-        throw new Error(msg);
-      }
+      // Preflight was causing false timeouts (HEAD can be blocked / slow). We'll be optimistic:
+      // try to play; if iOS times out we show a clear error.
 
       // Stop narration if playing
       if (narrationRef.current) {
