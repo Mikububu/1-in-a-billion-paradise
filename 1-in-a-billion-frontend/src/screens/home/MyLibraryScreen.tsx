@@ -2003,48 +2003,56 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   }, [queueJobs]);
 
   // Chronological feed rule: newest card first, regardless of person/system.
+  // CRITICAL: Each job = separate card (Audible Principle)
   const timelineItems = useMemo(() => {
     const toTime = (iso?: string | null) => {
       const t = iso ? new Date(iso).getTime() : 0;
       return Number.isFinite(t) ? t : 0;
     };
 
+    // FIXED: Create one card per job, not per person
+    // If a person has 3 jobs, show 3 separate cards
     const personItems = allPeopleWithReadings
-      .map((person) => {
-        const primaryJobId = person.jobIds?.[0];
-        if (!primaryJobId) return null;
+      .flatMap((person) => {
+        // For each job this person is in, create a separate timeline item
+        const jobIds = person.jobIds || [];
+        if (jobIds.length === 0) return [];
 
-        const primaryJob = queueJobs.find((j: any) => j.id === primaryJobId);
-        const jobType = primaryJob?.type;
-        const isExtendedJob = jobType === 'extended' || jobType === 'single_system';
+        return jobIds.map((jobId) => {
+          const job = queueJobs.find((j: any) => j.id === jobId);
+          if (!job) return null;
 
-        let personType: 'individual' | 'person1' | 'person2' = 'person1';
-        if (isExtendedJob) {
-          personType = 'individual';
-        } else {
-          const p = jobIdToParams.get(primaryJobId) || null;
-          const fromJob =
-            (p?.person1?.id && p.person1.id === person.id)
-              ? 'person1'
-              : (p?.person2?.id && p.person2.id === person.id)
-                ? 'person2'
-                : (p?.person1?.name === person.name)
-                  ? 'person1'
-                  : (p?.person2?.name === person.name)
-                    ? 'person2'
-                    : null;
-          personType = fromJob || 'person1';
-        }
+          const jobType = job?.type;
+          const isExtendedJob = jobType === 'extended' || jobType === 'single_system';
 
-        const createdAt = (primaryJob as any)?.created_at || (primaryJob as any)?.createdAt || person.createdAt;
-        return {
-          kind: 'person' as const,
-          key: `person-${person.id}-${primaryJobId}`,
-          createdAt,
-          person,
-          personType,
-          primaryJobId,
-        };
+          let personType: 'individual' | 'person1' | 'person2' = 'person1';
+          if (isExtendedJob) {
+            personType = 'individual';
+          } else {
+            const p = jobIdToParams.get(jobId) || null;
+            const fromJob =
+              (p?.person1?.id && p.person1.id === person.id)
+                ? 'person1'
+                : (p?.person2?.id && p.person2.id === person.id)
+                  ? 'person2'
+                  : (p?.person1?.name === person.name)
+                    ? 'person1'
+                    : (p?.person2?.name === person.name)
+                      ? 'person2'
+                      : null;
+            personType = fromJob || 'person1';
+          }
+
+          const createdAt = (job as any)?.created_at || (job as any)?.createdAt || person.createdAt;
+          return {
+            kind: 'person' as const,
+            key: `person-${person.id}-${jobId}`, // Unique key per job
+            createdAt,
+            person,
+            personType,
+            primaryJobId: jobId, // This job's ID
+          };
+        });
       })
       .filter(Boolean) as Array<{
       kind: 'person';
@@ -2183,6 +2191,27 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                 </View>
                 <View style={styles.personInfo}>
                   <Text style={styles.personName}>{person.name}</Text>
+                  {/* Job creation date - helps distinguish multiple jobs for same person */}
+                  {(() => {
+                    const job = queueJobs.find((j: any) => j.id === primaryJobId);
+                    const jobCreatedAt = (job as any)?.created_at || (job as any)?.createdAt;
+                    if (jobCreatedAt) {
+                      const date = new Date(jobCreatedAt);
+                      const formatted = date.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric', 
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      });
+                      return (
+                        <Text style={[styles.personDate, { color: colors.primary, fontFamily: typography.sansSemiBold }]}>
+                          Reading from {formatted}
+                        </Text>
+                      );
+                    }
+                    return null;
+                  })()}
                   {(() => {
                     const knownData = getKnownUserData(person.name);
                     const birthData = person.birthData || {};

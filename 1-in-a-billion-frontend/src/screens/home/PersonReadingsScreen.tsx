@@ -89,16 +89,19 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   
   const personId = person?.id;
 
-  // FALLBACK: If no jobId from route, use first jobId from person's store
-  const jobId = routeJobId || person?.jobIds?.[0] || undefined;
+  // CRITICAL: jobId must be provided in route params (Audible Principle)
+  // Each job = separate receipt. Never use fallback to person.jobIds[0]
+  // as this causes old readings to show for new jobs.
+  const jobId = routeJobId;
 
+  if (!jobId) {
+    console.error('❌ PersonReadingsScreen: No jobId provided in route params');
+  }
 
   // Get readings from store (SINGLE SOURCE OF TRUTH - Audible style)
-  // If jobId provided, use it. Otherwise, get readings from ALL jobs for this person
-  const storedReadings = personId 
-    ? (jobId 
-        ? getReadingsByJobId(personId, jobId)
-        : (person?.readings || [])) // Show all readings if no specific jobId
+  // Always require explicit jobId - never aggregate across jobs
+  const storedReadings = personId && jobId
+    ? getReadingsByJobId(personId, jobId)
     : [];
   
   
