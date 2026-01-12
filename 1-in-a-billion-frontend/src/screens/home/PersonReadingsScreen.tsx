@@ -9,6 +9,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   GestureResponderEvent,
   LayoutChangeEvent,
   Linking,
@@ -32,7 +33,7 @@ import * as Sharing from 'expo-sharing';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
-import { createArtifactSignedUrl } from '@/services/nuclearReadingsService';
+import { createArtifactSignedUrl, downloadTextContent, fetchJobArtifacts } from '@/services/nuclearReadingsService';
 import { colors } from '@/theme/tokens';
 import { useProfileStore } from '@/store/profileStore';
 import { BackButton } from '@/components/BackButton';
@@ -145,6 +146,19 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   
   // Song playback state (separate from narration)
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
+  
+  // Text display state (for subtitles/reading along)
+  const [expandedTextIds, setExpandedTextIds] = useState<Set<string>>(new Set());
+  const [readingTexts, setReadingTexts] = useState<Record<string, string>>({});
+  const [readingHeadlines, setReadingHeadlines] = useState<Record<string, string>>({});
+  const [songTitles, setSongTitles] = useState<Record<string, string>>({});
+  const [loadingTextIds, setLoadingTextIds] = useState<Set<string>>(new Set());
+  const textScrollRefs = useRef<Record<string, ScrollView | null>>({});
+  const [manuallyScrolling, setManuallyScrolling] = useState<Record<string, boolean>>({});
+
+  
+  // Pulsating animation for generating items (0 to 1 range for interpolation)
+  const pulseAnim = useRef(new Animated.Value(0)).current;
   const [loadingSongId, setLoadingSongId] = useState<string | null>(null);
   const [songPosition, setSongPosition] = useState(0);
   const [songDuration, setSongDuration] = useState(0);
@@ -1153,6 +1167,121 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     };
   }, [jobId, jobStatus, loading, playingId, isScrubbing, isSongScrubbing, loadV2]);
 
+  // Initialize headlines immediately with fallbacks, then load real ones
+  useEffect(() => {
+    if (readings.length === 0) return;
+    
+    readings.forEach(reading => {
+      // Set immediate placeholder if not already set
+      if (!readingHeadlines[reading.id]) {
+        setReadingHeadlines(prev => ({
+          ...prev,
+          [reading.id]: reading.name // Temporary: system name
+        }));
+      }
+      
+      if (!songTitles[reading.id]) {
+        setSongTitles(prev => ({
+          ...prev,
+          [reading.id]: reading.name // Temporary: system name
+        }));
+      }
+      
+      // Then load real headlines asynchronously
+      ensureTextLoaded(reading);
+      ensureSongTitleLoaded(reading);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readings.length]); // Only when number of readings changes
+
+  // Pulsating animation for generating items
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: false, // Must be false for color animation
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 800,
+          useNativeDriver: false,
+        }),
+      ])
+    );
+    
+    // Only animate if there are generating items
+    const hasGeneratingItems = readings.some(r => 
+      !r.pdfPath || !r.audioPath || !r.songPath
+    );
+    
+    if (hasGeneratingItems) {
+      animation.start();
+    }
+    
+    return () => animation.stop();
+  }, [readings, pulseAnim]);
+
+  // Interpolate scale and colors from pulseAnim
+  const animatedScale = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.15],
+  });
+
+  const pdfColor = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#FFFFFF', '#FEE2E2'], // White to light red
+  });
+
+  const audioColor = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#FFFFFF', '#DBEAFE'], // White to light blue
+  });
+
+  const songColor = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#FFFFFF', '#FCE7F3'], // White to light pink
+  });
+
+  // Auto-expand/collapse text when audio or song plays
+  useEffect(() => {
+    const currentPlayingReadingId = playingId || playingSongId;
+    
+    if (currentPlayingReadingId) {
+      // Auto-expand text when audio/song starts
+      setExpandedTextIds(prev => new Set(prev).add(currentPlayingReadingId));
+    } else {
+      // Auto-collapse all text when nothing is playing
+      setExpandedTextIds(new Set());
+    }
+  }, [playingId, playingSongId]);
+
+  // Auto-scroll text based on audio playback position
+  useEffect(() => {
+    const activePlayingId = playingId || playingSongId;
+    const activeDuration = playingId ? playbackDuration : songDuration;
+    const activePosition = playingId ? playbackPosition : songPosition;
+    
+    if (!activePlayingId || !activeDuration || activeDuration === 0) return;
+    if (!expandedTextIds.has(activePlayingId)) return;
+    if (isScrubbing || isSongScrubbing) return; // Don't auto-scroll while user is scrubbing
+    if (manuallyScrolling[activePlayingId]) return; // Don't auto-scroll while user is manually scrolling
+    
+    const scrollRef = textScrollRefs.current[activePlayingId];
+    if (!scrollRef) return;
+
+    // Calculate scroll position based on playback percentage
+    const playbackPercentage = activePosition / activeDuration;
+    
+    // Estimate scroll height (assumes text is roughly 300px max height)
+    const estimatedScrollHeight = 300; // matches maxHeight in styles
+    const scrollY = Math.max(0, playbackPercentage * estimatedScrollHeight);
+    
+    // Smooth scroll to position
+    scrollRef.scrollTo({ y: scrollY, animated: true });
+  }, [playbackPosition, playbackDuration, songPosition, songDuration, playingId, playingSongId, expandedTextIds, isScrubbing, isSongScrubbing, manuallyScrolling]);
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -1295,6 +1424,10 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       Alert.alert('Song not ready', 'Still generating...');
       return;
     }
+
+    // Auto-load text and song title when song starts
+    ensureTextLoaded(reading);
+    ensureSongTitleLoaded(reading);
 
     if (isSongPlayingMutex.current) return;
     isSongPlayingMutex.current = true;
@@ -1641,6 +1774,9 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   const handlePlayPress = useCallback(
     async (reading: Reading) => {
       try {
+        // Auto-load text when audio starts
+        ensureTextLoaded(reading);
+        
         // STREAM first (don't wait for download) - use local if available
         if (reading.localAudioPath) {
           await togglePlay({ ...reading, audioPath: reading.localAudioPath });
@@ -1654,7 +1790,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         Alert.alert('Audio', e?.message || 'Could not play audio');
       }
     },
-    [togglePlay]
+    [togglePlay, ensureTextLoaded]
   );
 
   const handleDownloadAllPress = useCallback(
@@ -1668,6 +1804,181 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       }
     },
     [ensureLocalAudio, ensureLocalPdf, ensureLocalSong]
+  );
+
+  // Extract headline from reading text (markdown heading or first meaningful line)
+  const extractHeadline = useCallback((text: string): string => {
+    if (!text) return '';
+    
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length === 0) return '';
+    
+    // Priority 1: First line if it looks like a headline (NEW prompts format)
+    const firstLine = lines[0];
+    if (firstLine && firstLine.length >= 5 && firstLine.length <= 150) {
+      // Check if it's NOT a full paragraph (ends with period and too long)
+      const isShortAndCapitalized = 
+        firstLine.length < 100 && 
+        !firstLine.match(/^[a-z]/) && // Doesn't start lowercase
+        !firstLine.includes('═'); // Not a separator
+      
+      if (isShortAndCapitalized) {
+        return firstLine.length > 70 ? firstLine.substring(0, 67) + '...' : firstLine;
+      }
+    }
+    
+    // Priority 2: Markdown headings (## or ###)
+    for (const line of lines) {
+      if (line.startsWith('## ') || line.startsWith('### ')) {
+        const title = line.replace(/^#+\s*/, '').trim();
+        if (title.length > 0) {
+          return title.length > 70 ? title.substring(0, 67) + '...' : title;
+        }
+      }
+    }
+    
+    // Priority 3: ALL CAPS headings
+    for (const line of lines) {
+      if (line === line.toUpperCase() && line.length >= 10 && line.length < 100 && !line.includes('═')) {
+        return line;
+      }
+    }
+    
+    // Priority 4: First substantial line (not too long, not a separator)
+    for (const line of lines) {
+      if (line.length >= 20 && line.length < 150 && !line.includes('═') && !line.startsWith('#')) {
+        return line.length > 70 ? line.substring(0, 67) + '...' : line;
+      }
+    }
+    
+    // Ultimate fallback: just use first line trimmed
+    return firstLine.length > 70 ? firstLine.substring(0, 67) + '...' : firstLine;
+  }, []);
+
+  // Load song title from artifacts
+  const ensureSongTitleLoaded = useCallback(
+    async (reading: Reading) => {
+      // If song title already loaded, nothing to do
+      if (songTitles[reading.id]) {
+        return;
+      }
+      
+      try {
+        if (!jobId) {
+          return;
+        }
+
+        const artifacts = await fetchJobArtifacts(jobId, ['audio_song']);
+        
+        // Find song artifact matching this reading's system
+        const songArtifact = artifacts.find(a => {
+          const meta = a.metadata as any;
+          return meta?.system === reading.system;
+        });
+
+        // Try to get dramatic song title from TEXT artifact first (NEW)
+        const textArtifacts = await fetchJobArtifacts(jobId, ['text']);
+        const textArtifact = textArtifacts.find(a => {
+          const meta = a.metadata as any;
+          return meta?.system === reading.system;
+        });
+        
+        const dramaticSongTitle = textArtifact?.metadata?.songTitle; // NEW: Dramatic LLM-generated song title
+        
+        // Fallback to song artifact metadata title (OLD)
+        const fallbackSongTitle = songArtifact?.metadata?.title;
+        
+        const songTitle = dramaticSongTitle || fallbackSongTitle || reading.name;
+        
+        setSongTitles(prev => ({ ...prev, [reading.id]: songTitle }));
+      } catch (error: any) {
+        // Keep fallback on error
+      }
+    },
+    [songTitles, jobId]
+  );
+
+  // Auto-load text when audio/song starts playing
+  const ensureTextLoaded = useCallback(
+    async (reading: Reading) => {
+      // If text already loaded AND headline is not just the placeholder, we're done
+      if (readingTexts[reading.id] && readingHeadlines[reading.id] && readingHeadlines[reading.id] !== reading.name) {
+        return;
+      }
+      
+      // If we have text but no real headline yet, extract it now
+      if (readingTexts[reading.id] && (!readingHeadlines[reading.id] || readingHeadlines[reading.id] === reading.name)) {
+        const headline = extractHeadline(readingTexts[reading.id]);
+        if (headline && headline !== reading.name) {
+          setReadingHeadlines(prev => ({ ...prev, [reading.id]: headline }));
+        }
+        return;
+      }
+      
+      // If already loading, don't start another request
+      if (loadingTextIds.has(reading.id)) {
+        return;
+      }
+
+      setLoadingTextIds(prev => new Set(prev).add(reading.id));
+      
+      try {
+        // Fetch text artifact for this reading
+        if (!jobId) {
+          return;
+        }
+
+        const artifacts = await fetchJobArtifacts(jobId, ['text']);
+        
+        // Find text artifact matching this reading's system/docNum
+        const textArtifact = artifacts.find(a => {
+          const meta = a.metadata as any;
+          return meta?.docType && meta?.system === reading.system;
+        });
+
+        if (!textArtifact) {
+          return;
+        }
+
+        // First, check metadata for dramatic titles (NEW) or headlines (OLD)
+        const meta = textArtifact.metadata as any;
+        const dramaticTitle = meta?.readingTitle; // NEW: Dramatic LLM-generated title
+        const fallbackHeadline = meta?.headline; // OLD: Extracted headline from first line
+        const headlineFromMeta = dramaticTitle || fallbackHeadline;
+        
+        if (headlineFromMeta && headlineFromMeta !== reading.name) {
+          setReadingHeadlines(prev => ({ ...prev, [reading.id]: headlineFromMeta }));
+        }
+
+        const textContent = await downloadTextContent(textArtifact.storage_path);
+        
+        if (!textContent) {
+          return; // Keep placeholder headline
+        }
+        
+        // Store the text content
+        setReadingTexts(prev => ({ ...prev, [reading.id]: textContent }));
+        
+        // If no headline from metadata, extract from text (for OLD readings)
+        if (!headlineFromMeta || headlineFromMeta === reading.name) {
+          const extractedHeadline = extractHeadline(textContent);
+          
+          // Only update if we found a real headline (not empty, not same as system name)
+          if (extractedHeadline && extractedHeadline !== reading.name) {
+            setReadingHeadlines(prev => ({ ...prev, [reading.id]: extractedHeadline }));
+          }
+        }
+      } catch (error: any) {
+        // Keep fallback headline on error
+      } finally {
+        setLoadingTextIds(prev => {
+          const next = new Set(prev);
+          next.delete(reading.id);
+          return next;
+        });
+      }
+    },
+    [readingTexts, readingHeadlines, loadingTextIds, jobId, extractHeadline]
   );
 
   // NOTE: PDF/audio/song are gated by local download+verification (A2 + 2B).
@@ -1789,14 +2100,31 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                   
                   {/* Action Buttons: PDF + Download All (black arrow) */}
                   <View style={styles.actionButtons}>
-                    <TouchableOpacity
-                      onPress={() => handlePdfPress(reading)}
-                      onLongPress={() => handlePdfShare(reading)}
-                      style={[styles.pdfButton, !hasPdfRemote && styles.disabledButton]}
-                      disabled={!hasPdfRemote}
-                    >
-                      <Text style={[styles.pdfText, !hasPdfRemote && styles.disabledText]}>PDF</Text>
-                    </TouchableOpacity>
+                    <Animated.View style={[
+                      !hasPdfRemote && isGenerating && { 
+                        transform: [{ scale: animatedScale }],
+                        backgroundColor: pdfColor,
+                        borderRadius: 8,
+                        padding: 2,
+                      }
+                    ]}>
+                      <TouchableOpacity
+                        onPress={() => handlePdfPress(reading)}
+                        onLongPress={() => handlePdfShare(reading)}
+                        style={[
+                          styles.pdfButton,
+                          !hasPdfRemote && styles.disabledButton,
+                          !hasPdfRemote && isGenerating && styles.generatingButton
+                        ]}
+                        disabled={!hasPdfRemote}
+                      >
+                        <Text style={[
+                          styles.pdfText,
+                          !hasPdfRemote && styles.disabledText,
+                          !hasPdfRemote && isGenerating && styles.generatingText
+                        ]}>PDF</Text>
+                      </TouchableOpacity>
+                    </Animated.View>
                     
                     {/* Download All - black down-arrow icon, only when all files ready */}
                     {allRemoteReady ? (
@@ -1810,19 +2138,35 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                     ) : null}
                   </View>
 
-                  {/* Narration Audio Bar (pink/red) */}
+                  {/* Narration Audio Section */}
+                  <Text style={styles.audioHeadline} numberOfLines={2}>
+                    {readingHeadlines[reading.id] || reading.name}
+                  </Text>
                   <View style={styles.audioBar}>
-                    <TouchableOpacity
-                      onPress={() => handlePlayPress(reading)}
-                      style={[styles.playButton, !hasAudioRemote && styles.disabledButton]}
-                      disabled={!hasAudioRemote}
-                    >
-                      {loadingAudioId === reading.id ? (
-                        <ActivityIndicator size="small" color="#FFF" />
-                      ) : (
-                        <Text style={styles.playIcon}>{isPlaying ? '❚❚' : '▶'}</Text>
-                      )}
-                    </TouchableOpacity>
+                    <Animated.View style={[
+                      !hasAudioRemote && isGenerating && { 
+                        transform: [{ scale: animatedScale }],
+                        backgroundColor: audioColor,
+                        borderRadius: 20,
+                        padding: 2,
+                      }
+                    ]}>
+                      <TouchableOpacity
+                        onPress={() => handlePlayPress(reading)}
+                        style={[
+                          styles.playButton,
+                          !hasAudioRemote && styles.disabledButton,
+                          !hasAudioRemote && isGenerating && styles.generatingPlayButton
+                        ]}
+                        disabled={!hasAudioRemote}
+                      >
+                        {loadingAudioId === reading.id ? (
+                          <ActivityIndicator size="small" color="#FFF" />
+                        ) : (
+                          <Text style={styles.playIcon}>{isPlaying ? '❚❚' : '▶'}</Text>
+                        )}
+                      </TouchableOpacity>
+                    </Animated.View>
 
                     <View style={styles.progressContainer}>
                       <Slider
@@ -1865,19 +2209,35 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                     </Text>
                   </View>
 
-                  {/* Song Audio Bar (black) */}
+                  {/* Song Audio Section */}
+                  <Text style={styles.audioHeadline} numberOfLines={2}>
+                    {songTitles[reading.id] || reading.name}
+                  </Text>
                   <View style={styles.songAudioBar}>
-                    <TouchableOpacity
-                      onPress={() => toggleSongPlay(reading)}
-                      style={[styles.songPlayButton, !hasSongRemote && styles.songDisabledButton]}
-                      disabled={!hasSongRemote}
-                    >
-                      {loadingSongId === reading.id ? (
-                        <ActivityIndicator size="small" color="#FFF" />
-                      ) : (
-                        <Text style={styles.songPlayIcon}>{isSongPlaying ? '❚❚' : '♪'}</Text>
-                      )}
-                    </TouchableOpacity>
+                    <Animated.View style={[
+                      !hasSongRemote && isGenerating && { 
+                        transform: [{ scale: animatedScale }],
+                        backgroundColor: songColor,
+                        borderRadius: 20,
+                        padding: 2,
+                      }
+                    ]}>
+                      <TouchableOpacity
+                        onPress={() => toggleSongPlay(reading)}
+                        style={[
+                          styles.songPlayButton,
+                          !hasSongRemote && styles.songDisabledButton,
+                          !hasSongRemote && isGenerating && styles.generatingSongButton
+                        ]}
+                        disabled={!hasSongRemote}
+                      >
+                        {loadingSongId === reading.id ? (
+                          <ActivityIndicator size="small" color="#FFF" />
+                        ) : (
+                          <Text style={styles.songPlayIcon}>{isSongPlaying ? '❚❚' : '♪'}</Text>
+                        )}
+                      </TouchableOpacity>
+                    </Animated.View>
 
                     <View style={styles.songProgressContainer}>
                       <Slider
@@ -1919,6 +2279,35 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                       }
                     </Text>
                   </View>
+
+                  {/* Auto-expanding Text Display (opens when audio/music plays) */}
+                  {expandedTextIds.has(reading.id) && readingTexts[reading.id] && (
+                    <View style={styles.textDisplayArea}>
+                      <ScrollView 
+                        ref={(ref) => {
+                          textScrollRefs.current[reading.id] = ref;
+                        }}
+                        style={styles.textScroll} 
+                        contentContainerStyle={styles.textScrollContent}
+                        showsVerticalScrollIndicator={true}
+                        nestedScrollEnabled={true}
+                        onScrollBeginDrag={() => {
+                          // User started manual scroll - disable auto-scroll
+                          setManuallyScrolling(prev => ({ ...prev, [reading.id]: true }));
+                        }}
+                        onScrollEndDrag={() => {
+                          // Wait 3 seconds after manual scroll before re-enabling auto-scroll
+                          setTimeout(() => {
+                            setManuallyScrolling(prev => ({ ...prev, [reading.id]: false }));
+                          }, 3000);
+                        }}
+                      >
+                        <Text style={styles.textContent} selectable>
+                          {readingTexts[reading.id]}
+                        </Text>
+                      </ScrollView>
+                    </View>
+                  )}
                 </View>
               );
             })}
@@ -2172,6 +2561,33 @@ const styles = StyleSheet.create({
   disabledText: {
     color: '#AAA', // Lighter grey for disabled text
   },
+  generatingButton: {
+    backgroundColor: '#FFE5E5',
+    borderColor: '#FFB3B3',
+    opacity: 1,
+  },
+  generatingText: {
+    color: '#C41E3A',
+  },
+  generatingPlayButton: {
+    backgroundColor: '#FFB3B3',
+    opacity: 1,
+  },
+  generatingSongButton: {
+    backgroundColor: '#E5E5E5',
+    borderColor: '#999999',
+    opacity: 1,
+  },
+  audioHeadline: {
+    fontFamily: 'System',
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 14,
+    marginBottom: 6,
+    letterSpacing: 0.3,
+    lineHeight: 18,
+  },
   audioBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2356,5 +2772,31 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
     fontSize: 12,
     color: '#856404',
+  },
+  // Text Display (Auto-expanding, Subtitles/Read-Along)
+  textDisplayArea: {
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 16,
+    backgroundColor: '#FAFAFA',
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  textScroll: {
+    maxHeight: 300,
+  },
+  textScrollContent: {
+    paddingBottom: 8,
+  },
+  textContent: {
+    fontFamily: 'System',
+    fontSize: 14,
+    lineHeight: 24,
+    color: '#374151',
+    letterSpacing: 0.2,
   },
 });

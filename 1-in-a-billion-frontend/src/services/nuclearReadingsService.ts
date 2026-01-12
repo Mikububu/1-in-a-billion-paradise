@@ -210,7 +210,24 @@ export const downloadTextContent = async (storagePath: string): Promise<string |
       return null;
     }
 
-    return await data.text();
+    if (!data) {
+      console.error('No data returned from download');
+      return null;
+    }
+
+    // Convert Blob to text using FileReader (React Native compatible)
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new Error('Failed to read text'));
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsText(data);
+    });
   } catch (err) {
     console.error('Error in downloadTextContent:', err);
     return null;

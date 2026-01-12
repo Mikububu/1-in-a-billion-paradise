@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -520,70 +521,75 @@ export const AudioPlayerScreen = ({ navigation, route }: Props) => {
     <SafeAreaView style={styles.container}>
       <BackButton onPress={() => navigation.goBack()} />
 
-      <View style={styles.content}>
-        {/* Title */}
-        <Text style={styles.title}>{title}</Text>
+      <ScrollView 
+        style={styles.scrollContainer} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.content}>
+          {/* Title */}
+          <Text style={styles.title}>{title}</Text>
 
-        {/* Queue header */}
-        {queue.length > 1 && (
-          <View style={{ alignItems: 'center', marginTop: -spacing.lg, marginBottom: spacing.lg }}>
-            <Text style={{ fontFamily: typography.sansRegular, fontSize: 13, color: colors.mutedText }}>
-              Chapter {currentIndex + 1} of {queue.length}
-            </Text>
-            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm }}>
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={() => setCurrentIndex((i) => Math.max(0, i - 1))}
-                disabled={isLoading || currentIndex === 0}
-              >
-                <Text style={styles.secondaryButtonText}>Prev</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={() => setCurrentIndex((i) => Math.min(queue.length - 1, i + 1))}
-                disabled={isLoading || currentIndex >= queue.length - 1}
-              >
-                <Text style={styles.secondaryButtonText}>Next</Text>
-              </TouchableOpacity>
+          {/* Queue header */}
+          {queue.length > 1 && (
+            <View style={{ alignItems: 'center', marginTop: -spacing.lg, marginBottom: spacing.lg }}>
+              <Text style={{ fontFamily: typography.sansRegular, fontSize: 13, color: colors.mutedText }}>
+                Chapter {currentIndex + 1} of {queue.length}
+              </Text>
+              <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm }}>
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={() => setCurrentIndex((i) => Math.max(0, i - 1))}
+                  disabled={isLoading || currentIndex === 0}
+                >
+                  <Text style={styles.secondaryButtonText}>Prev</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={() => setCurrentIndex((i) => Math.min(queue.length - 1, i + 1))}
+                  disabled={isLoading || currentIndex >= queue.length - 1}
+                >
+                  <Text style={styles.secondaryButtonText}>Next</Text>
+                </TouchableOpacity>
+              </View>
             </View>
+          )}
+
+          {/* Progress Bar */}
+          <View style={styles.progressContainer}>
+            <Slider
+              minimumValue={0}
+              maximumValue={duration}
+              value={isScrubbing ? scrubPosition : position}
+              // minimumTrackTintColor={colors.primary}
+              // maximumTrackTintColor={colors.cardStroke}
+              // thumbTintColor={colors.primary}
+              onSlidingStart={onScrubStart}
+              onValueChange={(v) => setScrubPosition(v)}
+              onSlidingComplete={onScrubComplete}
+              minimumTrackTintColor={colors.primary}
+              maximumTrackTintColor={colors.cardStroke}
+              thumbTintColor={colors.primary}
+              disabled={!soundRef.current || duration <= 0}
+            />
+            <Text style={styles.timeText}>{formatTime(isScrubbing ? scrubPosition : position)}</Text>
+            <Text style={styles.timeText}>{formatTime(duration)}</Text>
+          </View>
+        </View>
+
+        {/* Generating State - with background info (centralized config) */}
+        {isGenerating && (
+          <View style={styles.generatingContainer}>
+            <Text style={styles.generatingSymbol}>♬</Text>
+            <Text style={styles.generatingMessage}>{generatingMessage}</Text>
+            <Text style={styles.generatingHint}>{AUDIO_GENERATION_MESSAGE.hint}</Text>
+            <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: spacing.md }} />
           </View>
         )}
 
-        {/* Progress Bar */}
-        <View style={styles.progressContainer}>
-          <Slider
-            minimumValue={0}
-            maximumValue={duration}
-            value={isScrubbing ? scrubPosition : position}
-            // minimumTrackTintColor={colors.primary}
-            // maximumTrackTintColor={colors.cardStroke}
-            // thumbTintColor={colors.primary}
-            onSlidingStart={onScrubStart}
-            onValueChange={(v) => setScrubPosition(v)}
-            onSlidingComplete={onScrubComplete}
-            minimumTrackTintColor={colors.primary}
-            maximumTrackTintColor={colors.cardStroke}
-            thumbTintColor={colors.primary}
-            disabled={!soundRef.current || duration <= 0}
-          />
-          <Text style={styles.timeText}>{formatTime(isScrubbing ? scrubPosition : position)}</Text>
-          <Text style={styles.timeText}>{formatTime(duration)}</Text>
-        </View>
-      </View>
-
-      {/* Generating State - with background info (centralized config) */}
-      {isGenerating && (
-        <View style={styles.generatingContainer}>
-          <Text style={styles.generatingSymbol}>♬</Text>
-          <Text style={styles.generatingMessage}>{generatingMessage}</Text>
-          <Text style={styles.generatingHint}>{AUDIO_GENERATION_MESSAGE.hint}</Text>
-          <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: spacing.md }} />
-        </View>
-      )}
-
-      {/* Main Controls */}
-      {!isGenerating && (
-        <View style={styles.mainControls}>
+        {/* Main Controls */}
+        {!isGenerating && (
+          <View style={styles.mainControls}>
           {/* Skip Back 15s */}
           <TouchableOpacity style={styles.skipButton} onPress={skipBackward} disabled={isLoading}>
             <Text style={styles.skipIcon}>⏮</Text>
@@ -601,69 +607,81 @@ export const AudioPlayerScreen = ({ navigation, route }: Props) => {
             </TouchableOpacity>
           )}
 
-          {/* Skip Forward 15s */}
-          <TouchableOpacity style={styles.skipButton} onPress={skipForward} disabled={isLoading}>
-            <Text style={styles.skipLabel}>15</Text>
-            <Text style={styles.skipIcon}>⏭</Text>
+            {/* Skip Forward 15s */}
+            <TouchableOpacity style={styles.skipButton} onPress={skipForward} disabled={isLoading}>
+              <Text style={styles.skipLabel}>15</Text>
+              <Text style={styles.skipIcon}>⏭</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Secondary Controls */}
+        <View style={styles.secondaryControls}>
+          {/* Speed */}
+          <TouchableOpacity style={styles.secondaryButton} onPress={cycleSpeed}>
+            <Text style={styles.secondaryButtonText}>{PLAYBACK_SPEEDS[speedIndex]}x</Text>
+          </TouchableOpacity>
+
+          {/* Download Audio */}
+          <TouchableOpacity
+            style={[styles.secondaryButton, isDownloaded && styles.downloadedButton]}
+            onPress={handleDownload}
+            disabled={isDownloading || isLoading}
+          >
+            {isDownloading ? (
+              <ActivityIndicator size="small" color={colors.text} />
+            ) : (
+              <Text style={styles.secondaryButtonText}>
+                {isDownloaded ? '✓ Saved' : '🎵 Save Audio'}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
-      )}
 
-      {/* Secondary Controls */}
-      <View style={styles.secondaryControls}>
-        {/* Speed */}
-        <TouchableOpacity style={styles.secondaryButton} onPress={cycleSpeed}>
-          <Text style={styles.secondaryButtonText}>{PLAYBACK_SPEEDS[speedIndex]}x</Text>
-        </TouchableOpacity>
-
-        {/* Download Audio */}
-        <TouchableOpacity
-          style={[styles.secondaryButton, isDownloaded && styles.downloadedButton]}
-          onPress={handleDownload}
-          disabled={isDownloading || isLoading}
-        >
-          {isDownloading ? (
-            <ActivityIndicator size="small" color={colors.text} />
-          ) : (
-            <Text style={styles.secondaryButtonText}>
-              {isDownloaded ? '✓ Saved' : '🎵 Save Audio'}
-            </Text>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* PDF Section - only show for deep dive readings with PDF */}
-      {pdfForReading && (
-        <TouchableOpacity
-          style={styles.pdfButton}
-          onPress={() => {
-            Alert.alert(
-              'PDF Available',
-              'Download the full written reading as PDF',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Download PDF',
-                  onPress: () => {
-                    // TODO: Implement PDF download/share
-                    Alert.alert('Coming Soon', 'PDF download will be available soon');
-                  }
-                },
-              ]
-            );
-          }}
-        >
-          <View style={styles.pdfContent}>
-            <Text style={styles.pdfIcon}>📄</Text>
-            <View style={styles.pdfTextContainer}>
-              <Text style={styles.pdfTitle}>Written Reading (PDF)</Text>
-              <Text style={styles.pdfSubtitle}>Download the full text version</Text>
+        {/* Reading Text - Scrollable Subtitles */}
+        {readingText && (
+          <View style={styles.textDisplayContainer}>
+            <Text style={styles.textDisplayTitle}>Reading Text</Text>
+            <View style={styles.textDisplayCard}>
+              <Text style={styles.textDisplayBody} selectable>
+                {readingText}
+              </Text>
             </View>
-            <Text style={styles.pdfArrow}>→</Text>
           </View>
-        </TouchableOpacity>
-      )}
+        )}
 
+        {/* PDF Section - only show for deep dive readings with PDF */}
+        {pdfForReading && (
+          <TouchableOpacity
+            style={styles.pdfButton}
+            onPress={() => {
+              Alert.alert(
+                'PDF Available',
+                'Download the full written reading as PDF',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Download PDF',
+                    onPress: () => {
+                      // TODO: Implement PDF download/share
+                      Alert.alert('Coming Soon', 'PDF download will be available soon');
+                    }
+                  },
+                ]
+              );
+            }}
+          >
+            <View style={styles.pdfContent}>
+              <Text style={styles.pdfIcon}>📄</Text>
+              <View style={styles.pdfTextContainer}>
+                <Text style={styles.pdfTitle}>Written Reading (PDF)</Text>
+                <Text style={styles.pdfSubtitle}>Download the full text version</Text>
+              </View>
+              <Text style={styles.pdfArrow}>→</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
     </SafeAreaView >
   );
 };
@@ -673,11 +691,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
   },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
   // header/close button removed (global BackButton is used instead)
   content: {
-    flex: 1,
-    justifyContent: 'center',
     paddingHorizontal: spacing.page * 2,
+    paddingTop: spacing.xl,
   },
   title: {
     fontFamily: typography.headline,
@@ -833,5 +856,31 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: colors.primary,
     fontFamily: typography.sansBold,
+  },
+  textDisplayContainer: {
+    marginTop: spacing.xl * 2,
+    marginHorizontal: spacing.page,
+    paddingBottom: spacing.xl * 2,
+  },
+  textDisplayTitle: {
+    fontFamily: typography.sansSemiBold,
+    fontSize: 16,
+    color: colors.text,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  textDisplayCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    maxHeight: 400,
+  },
+  textDisplayBody: {
+    fontFamily: typography.sansRegular,
+    fontSize: 15,
+    lineHeight: 24,
+    color: colors.text,
   },
 });

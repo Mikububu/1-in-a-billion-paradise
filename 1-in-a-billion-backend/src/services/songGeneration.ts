@@ -12,12 +12,21 @@ import axios from 'axios';
 // CORRECT API endpoint per MiniMax docs: https://platform.minimax.io/docs/api-reference/music-generation
 const MINIMAX_MUSIC_BASE_URL = 'https://api.minimax.io';
 
+export interface Persona {
+  id: string;
+  name: string;
+  weight: number;
+  style_tags: string[];
+}
+
 export interface SongGenerationInput {
   lyrics: string;
   personName: string;
   style?: string;
   emotion?: string;
   duration?: number; // seconds, default 180 (3 minutes)
+  personas?: Persona[]; // Dynamic mixer configuration
+  customPrompt?: string; // NEW: LLM-generated custom prompt (overrides default)
 }
 
 export interface SongGenerationResult {
@@ -33,14 +42,36 @@ export interface SongGenerationResult {
  * Cost: ~$0.0825 per song (1 credit = 1 song)
  */
 export async function generateSong(input: SongGenerationInput): Promise<SongGenerationResult> {
-  const { lyrics, personName, style = 'dark_poetic', emotion = 'intimate', duration = 180 } = input;
+  const { lyrics, personName, style = 'dark_poetic', emotion = 'intimate', duration = 180, personas, customPrompt } = input;
 
   try {
     // Get API key
     const apiKey = await apiKeys.minimax();
 
-    // Prepare prompt for MiniMax
-    const prompt = `A dark, poetic song with deep male vocals. Style: 70% Leonard Cohen (deep, philosophical, minimal), 20% Paul Simon (melodic, introspective), 10% Tom Waits (raw, intimate). The song should feel dark, beautiful, minimal, and emotionally intimate—NOT pop or commercial. Use sparse instrumentation: piano, acoustic guitar, subtle strings. The vocal should be a deep, resonant male voice with emotional depth and intimacy.`;
+    // Use custom prompt from LLM if provided (NEW: Psychological Pipeline)
+    let prompt: string;
+
+    if (customPrompt) {
+      // LLM decided the perfect style - use it directly!
+      prompt = customPrompt;
+      console.log(`🎵 Using LLM-generated custom prompt for ${personName}`);
+      console.log(`   Prompt: ${prompt.substring(0, 150)}...`);
+    } else if (personas && personas.length > 0) {
+      // Dynamic prompt from mixer (legacy)
+      const mixDesc = personas
+        .filter(p => p.weight > 0)
+        .map(p => `${p.weight}% ${p.name} (${p.style_tags.join(', ')})`)
+        .join(', ');
+
+      const stylePrompt = `Style: ${mixDesc}. The song should feel dark, beautiful, minimal, and emotionally intimate using the specified artist influences.`;
+      prompt = `A dark, poetic song with deep male vocals. ${stylePrompt} Use sparse instrumentation: piano, acoustic guitar, subtle strings. The vocal should be a deep, resonant male voice with emotional depth and intimacy.`;
+      console.log(`🎵 Using persona mixer prompt for ${personName}`);
+    } else {
+      // Fallback hardcoded prompt (if somehow no custom prompt provided)
+      const stylePrompt = `Style: 70% Leonard Cohen (deep, philosophical, minimal), 20% Paul Simon (melodic, introspective), 10% Tom Waits (raw, intimate). The song should feel dark, beautiful, minimal, and emotionally intimate—NOT pop or commercial.`;
+      prompt = `A dark, poetic song with deep male vocals. ${stylePrompt} Use sparse instrumentation: piano, acoustic guitar, subtle strings. The vocal should be a deep, resonant male voice with emotional depth and intimacy.`;
+      console.log(`🎵 Using fallback prompt for ${personName}`);
+    }
 
     console.log(`🎵 Generating song for ${personName} (${duration}s)...`);
 
@@ -113,13 +144,13 @@ export async function generateSong(input: SongGenerationInput): Promise<SongGene
     };
   } catch (error: any) {
     console.error('❌ Song generation failed:', error);
-    
+
     if (error.response) {
       console.error('   Status:', error.response.status);
       console.error('   Data:', JSON.stringify(error.response.data));
       throw new Error(`MiniMax API error: ${error.response.data?.error?.message || error.response.statusText}`);
     }
-    
+
     throw new Error(`Failed to generate song: ${error.message}`);
   }
 }

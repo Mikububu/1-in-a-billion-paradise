@@ -50,38 +50,38 @@ export async function processSongTask(task: { id: string; job_id: string; input:
         .select('*')
         .eq('job_id', job_id)
         .eq('artifact_type', 'text');
-      
+
       if (altError) throw new Error(`Failed to fetch reading documents: ${altError.message}`);
-      
+
       // Find the artifact matching our docNum
-      const matchingArtifact = altArtifacts?.find((a: any) => 
-        a.metadata?.docNum === docNum || 
+      const matchingArtifact = altArtifacts?.find((a: any) =>
+        a.metadata?.docNum === docNum ||
         Number(a.metadata?.docNum) === docNum ||
         a.metadata?.chapter_index === docNum - 1
       );
-      
+
       if (!matchingArtifact) {
         throw new Error(`No reading document found for docNum ${docNum}`);
       }
-      
+
       artifacts.push(matchingArtifact);
     }
 
     // Get text from the document
     const artifact = artifacts[0];
     let readingText = '';
-    
+
     // Try storage_path first (text is stored in Supabase Storage)
     if (artifact.storage_path) {
       const { data: downloadData, error: downloadError } = await supabase!
         .storage
         .from('job-artifacts')
         .download(artifact.storage_path);
-      
+
       if (downloadError) {
         throw new Error(`Failed to download text from storage: ${downloadError.message}`);
       }
-      
+
       readingText = await downloadData.text();
     } else if (artifact.content && typeof artifact.content === 'string') {
       readingText = artifact.content;
@@ -98,7 +98,7 @@ export async function processSongTask(task: { id: string; job_id: string; input:
     // Step 2: Generate lyrics for this specific document
     const systemLabel = system ? system.replace('_', ' ').toUpperCase() : 'FINAL VERDICT';
     console.log(`✍️  Generating lyrics for ${personName}'s ${systemLabel}...`);
-    
+
     const lyricsResult = await generateLyrics({
       personName,
       readingText,
@@ -124,12 +124,30 @@ export async function processSongTask(task: { id: string; job_id: string; input:
     if (personName && !safeLyrics.toLowerCase().includes(personName.toLowerCase())) {
       safeLyrics = `${safeLyrics}\n\n${personName}.`;
     }
+    // Fetched dynamic persona config
+    let personas: any[] = [];
+    try {
+      const { data: configData, error: configError } = await supabase!
+        .from('assistant_config')
+        .select('minimax_personas')
+        .single();
+
+      if (configData?.minimax_personas) {
+        personas = configData.minimax_personas;
+        console.log(`🎛️  Using dynamic persona mix: ${personas.map((p: any) => `${p.name}:${p.weight}%`).join(', ')}`);
+      }
+    } catch (e) {
+      console.warn("Could not fetch assistant_config for personas, using default.");
+    }
+
     const songResult = await generateSong({
       lyrics: safeLyrics,
       personName,
-      style: lyricsResult.style || 'dark_poetic',
-      emotion: 'intimate',
+      style: lyricsResult.style || 'pop',
+      emotion: lyricsResult.emotion || 'emotional',
       duration: 180, // 3 minutes
+      personas,
+      customPrompt: lyricsResult.minimaxPrompt, // NEW: Use LLM's custom prompt!
     });
 
     // Step 4: Get audio data (download if URL, use base64 if available)
@@ -156,7 +174,7 @@ export async function processSongTask(task: { id: string; job_id: string; input:
     }
 
     const params: any = job.params || {};
-    
+
     // Clean function matching frontend cleanForFilename()
     const cleanForFilename = (str: string): string => {
       if (!str || typeof str !== 'string') return 'Unknown';
@@ -171,7 +189,7 @@ export async function processSongTask(task: { id: string; job_id: string; input:
     const person1Name = cleanForFilename(params?.person1?.name || params?.person1Name || 'Person1');
     const person2Name = params?.person2?.name ? cleanForFilename(params.person2.name) : null;
     const systemName = system ? cleanForFilename(system.charAt(0).toUpperCase() + system.slice(1)) : 'Verdict';
-    
+
     // Generate filename matching frontend format:
     // Individual: PersonName_SystemName_song.mp3
     // Synastry/Overlay: Person1_Person2_System_song.mp3
@@ -181,13 +199,13 @@ export async function processSongTask(task: { id: string; job_id: string; input:
     } else {
       fileName = `${person1Name}_${systemName}_song.mp3`;
     }
-    
+
     // Storage path matching baseWorker structure
     const storagePath = `${job.user_id}/${job_id}/song/${fileName}`;
 
     console.log(`📤 Uploading song to storage: ${storagePath}...`);
     const audioBuffer = Buffer.from(audioBase64, 'base64');
-    
+
     const { data: uploadData, error: uploadError } = await supabase!.storage
       .from('job-artifacts')
       .upload(storagePath, audioBuffer, {
@@ -202,7 +220,7 @@ export async function processSongTask(task: { id: string; job_id: string; input:
     const { data: publicUrlData } = supabase!.storage
       .from('job-artifacts')
       .getPublicUrl(storagePath);
-    
+
     const storageUrl = publicUrlData.publicUrl;
     console.log(`✅ Song uploaded: ${storageUrl}`);
 

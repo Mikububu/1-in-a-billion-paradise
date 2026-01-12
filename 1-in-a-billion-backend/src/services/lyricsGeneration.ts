@@ -18,8 +18,13 @@ export interface LyricsGenerationInput {
 
 export interface LyricsResult {
   lyrics: string;
-  title?: string;
-  style?: string;
+  title: string;
+  style: string;
+  // NEW: LLM decides the perfect music style (70s/80s psychological pipeline)
+  musicStyle: string; // "70s piano ballad", "80s power rock", etc.
+  vocalist: string; // "Female (Carole King)", "Male (Bruce Springsteen)", etc.
+  emotion: string; // "melancholic", "triumphant", "chaotic"
+  minimaxPrompt: string; // Custom prompt LLM creates for Minimax
 }
 
 /**
@@ -31,79 +36,114 @@ export async function generateLyrics(input: LyricsGenerationInput): Promise<Lyri
   // Extract key themes from reading (first 5000 chars to avoid token limits)
   const readingExcerpt = readingText.substring(0, 5000);
   
-  const prompt = `You are a masterful songwriter specializing in dark, poetic, intimate songs. Your style blends 70% Leonard Cohen, 20% Paul Simon, and 10% Tom Waits—deep, minimal, emotionally raw, and beautifully haunting.
+  const prompt = `You are a masterful pop songwriter with the lyrical intelligence of Paul Simon and the emotional power of Celine Dion. You write HIT SONGS that capture human struggle, chaos, and transformation.
 
-Generate a personalized song for ${personName} based on their soul reading. The song must:
+Generate a personalized pop song for ${personName} based on their life story extracted from this reading.
 
-1. **Explicitly include their name** in the lyrics (at least once, naturally woven in)
-2. Reflect their core soul themes, emotional patterns, fears, desires, and life direction
-3. Be dark, poetic, and intimate—NOT pop or commercial
-4. Be approximately 3 minutes when sung (roughly 12-16 lines of verse/chorus)
-5. Use minimal instrumentation imagery (piano, guitar, sparse arrangements)
-6. Feel like a personal meditation on their soul's journey
+**CRITICAL RULES:**
+1. ❌ NO ASTROLOGY TERMS - No zodiac signs, planets, constellations, houses, aspects, chart references
+2. ❌ NO "Virgo", "Moon in...", "Rising", "Stars aligned", "Cosmic", "Astrological" etc.
+3. ✅ EXTRACT: Character problems, emotional chaos, life struggles, relationship patterns, fears, desires
+4. ✅ MAKE IT EXPLICIT and DRAMATIC - about their LIFE and EMOTIONS, not astrology
+5. ✅ The person's name (${personName}) must appear naturally in lyrics (at least once)
+6. ✅ POP MUSIC STYLE - radio-ready, emotional, memorable chorus, 70s/80s inspired
+7. ✅ Think: "Bridge Over Troubled Water", "My Heart Will Go On", "Someone Like You"
 
-${systemContext ? `\nThis song is specifically about their ${systemContext} insights. Focus on themes relevant to this system.\n` : ''}
-${relationshipContext ? `\nAdditional context: This is a relationship reading. Incorporate themes of connection, synastry, and partnership dynamics.\n` : ''}
+The reading below is JUST RAW MATERIAL to extract ${personName}'s story:
+- What does ${personName} struggle with emotionally?
+- What chaos do they live through?
+- What relationship patterns destroy them?
+- What do they fear most?
+- What do they hide from others?
+- What makes them feel alive or dead inside?
 
-**Reading Excerpt:**
+**Reading Excerpt (Use as research only, don't quote astrological terms):**
 ${readingExcerpt}
 
-**Instructions:**
-- Write complete lyrics (verse, chorus, verse, chorus, bridge, final chorus)
-- Use poetic, metaphorical language
-- Reference specific themes from the reading (fears, desires, life direction)
-- Make it deeply personal and emotionally resonant
-- Keep it dark and beautiful, not uplifting or commercial
+${relationshipContext ? `\n**Relationship Context:** This is about ${personName}'s relationships and love life. Focus on connection, intimacy, heartbreak, and partnership struggles.\n` : ''}
 
-**Output Format:**
-Return ONLY the lyrics, line by line, with clear verse/chorus markers. Do not include explanations or metadata.
+**STEP 1: ANALYZE THE EMOTIONAL ESSENCE**
+After reading the excerpt, decide:
+- What is the PRIMARY emotion? (sad, chaotic, triumphant, melancholic, hopeful, angry, peaceful)
+- Should this be sung by a MAN, WOMAN, or CHOIR?
+- What 70s/80s artist style fits best?
+  Options: Carole King (70s piano), Paul Simon (70s folk), Celine Dion (80s power ballad), 
+  Bruce Springsteen (80s rock), ABBA (70s disco/pop), Aretha Franklin (70s soul),
+  Fleetwood Mac (70s rock), Billy Joel (70s/80s piano), Joni Mitchell (70s folk),
+  Phil Collins (80s emotional), Whitney Houston (80s R&B), Elton John (70s/80s piano)
 
-Example structure:
-[Verse 1]
-Line 1...
-Line 2...
+**STEP 2: WRITE THE LYRICS**
+Structure:
+[Verse 1] - Set the scene of their emotional struggle (4 lines)
+[Chorus] - The emotional core/hook - MEMORABLE, SINGABLE (4 lines)
+[Verse 2] - Deepen the story, add specific details (4 lines)
+[Chorus] - Repeat (4 lines)
+[Bridge] - The breaking point or revelation (3-4 lines)
+[Final Chorus] - Resolution or acceptance (4 lines)
 
-[Chorus]
-Line 1...
-Line 2...
+Style Guide:
+- Conversational but poetic (Paul Simon)
+- Big emotions, universal themes (Celine Dion)
+- Specific details that feel real and relatable
+- NO clichés, NO astrology jargon
+- Make people FEEL something deep
 
-[Verse 2]
-...
+**OUTPUT FORMAT (JSON ONLY):**
+{
+  "lyrics": "[Verse 1]\\nLyrics here...\\n\\n[Chorus]\\nLyrics here...",
+  "title": "Song Title (2-4 words)",
+  "musicStyle": "70s piano ballad" or "80s power rock" etc,
+  "vocalist": "Female (Carole King style)" or "Male choir (Aretha Franklin style)" etc,
+  "emotion": "melancholic" or "triumphant" or "chaotic" etc,
+  "minimaxPrompt": "A heartbreaking 70s piano ballad sung by a female vocalist with the emotional depth and vulnerability of Carole King. Sparse piano with subtle strings. Intimate, tender vocal delivery that builds to emotional climax in the chorus."
+}
 
-Generate the complete song lyrics now:`;
+The minimaxPrompt should be 1-2 sentences describing the exact musical execution for MiniMax (artist style, instrumentation, vocal approach, emotional tone). Be specific about 70s/80s era and artist influences.
+
+Generate the complete song now:`;
 
   try {
     const response = await llm.generate(prompt, 'lyrics-generation', {
-      maxTokens: 1500,
-      temperature: 0.8, // Creative but focused
+      maxTokens: 2000, // Increased for JSON + detailed prompt
+      temperature: 0.85, // Creative for music style decision
     });
 
     if (!response) {
       throw new Error('No lyrics generated');
     }
 
-    // Extract lyrics (remove any markdown formatting)
-    let lyrics = response.trim();
-    
-    // Remove markdown code blocks if present
-    lyrics = lyrics.replace(/```[\s\S]*?```/g, '');
-    lyrics = lyrics.replace(/^#+\s*/gm, '');
-    
-    // Clean up
-    lyrics = lyrics.trim();
+    console.log('🎵 LLM Response (first 300 chars):', response.substring(0, 300));
 
-    // Extract title if present (first line in quotes or after "Title:")
-    let title: string | undefined;
-    const titleMatch = lyrics.match(/(?:Title|Song):\s*["']?([^"'\n]+)["']?/i);
-    if (titleMatch) {
-      title = titleMatch[1].trim();
-      lyrics = lyrics.replace(/^(?:Title|Song):\s*["']?[^"'\n]+["']?\s*\n?/i, '');
+    // Extract JSON from response
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('❌ No JSON found in LLM response');
+      throw new Error('LLM did not return valid JSON');
     }
 
+    const result = JSON.parse(jsonMatch[0]);
+
+    // Validate required fields
+    if (!result.lyrics || !result.minimaxPrompt) {
+      console.error('❌ Missing required fields in JSON:', result);
+      throw new Error('LLM response missing required fields (lyrics or minimaxPrompt)');
+    }
+
+    console.log('✅ Lyrics generated successfully:');
+    console.log(`   Title: ${result.title || 'Untitled'}`);
+    console.log(`   Music Style: ${result.musicStyle || 'unknown'}`);
+    console.log(`   Vocalist: ${result.vocalist || 'unknown'}`);
+    console.log(`   Emotion: ${result.emotion || 'unknown'}`);
+    console.log(`   Minimax Prompt: ${result.minimaxPrompt?.substring(0, 100)}...`);
+
     return {
-      lyrics,
-      title,
-      style: 'dark_poetic_intimate',
+      lyrics: String(result.lyrics).trim(),
+      title: String(result.title || `${personName}'s Song`).trim(),
+      style: String(result.musicStyle || 'pop').trim(),
+      musicStyle: String(result.musicStyle || '70s pop').trim(),
+      vocalist: String(result.vocalist || 'Female').trim(),
+      emotion: String(result.emotion || 'emotional').trim(),
+      minimaxPrompt: String(result.minimaxPrompt).trim(),
     };
   } catch (error: any) {
     console.error('❌ Lyrics generation failed:', error);

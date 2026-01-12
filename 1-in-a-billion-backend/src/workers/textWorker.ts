@@ -9,6 +9,7 @@ import { BaseWorker, TaskResult } from './baseWorker';
 import { JobTask, supabase } from '../services/supabaseClient';
 import { ephemerisIsolation } from '../services/ephemerisIsolation'; // Isolated process (crash-safe)
 import { llm } from '../services/llm'; // Centralized LLM service
+import { generateDramaticTitles } from '../services/titleGenerator'; // Dramatic title generation
 import {
   SYSTEMS as NUCLEAR_V2_SYSTEMS,
   SYSTEM_DISPLAY_NAMES as NUCLEAR_V2_SYSTEM_NAMES,
@@ -761,7 +762,28 @@ export class TextWorker extends BaseWorker {
       throw new Error(`LLM returned too little text (${wordCount} words)`);
     }
 
+    // Extract headline from first line of text
+    const lines = text.split('\n').filter(line => line.trim());
+    const headline = lines[0]?.trim() || '';
+    console.log(`📰 Extracted headline: "${headline}"`);
+
     const excerpt = text.slice(0, 600);
+
+    // Generate dramatic titles (separate LLM call for evocative titles)
+    const personName = docType === 'person2' && person2?.name ? person2.name : person1?.name || 'User';
+    console.log(`🎭 Generating dramatic titles for ${personName}/${system}...`);
+    
+    const dramaticTitles = await generateDramaticTitles({
+      system: system || 'western',
+      personName,
+      textExcerpt: excerpt,
+      docType: docType as 'person1' | 'person2' | 'overlay' | 'verdict',
+      spiceLevel,
+    });
+    
+    console.log(`✅ Dramatic titles generated:`);
+    console.log(`   📖 Reading: "${dramaticTitles.readingTitle}"`);
+    console.log(`   🎵 Song: "${dramaticTitles.songTitle}"`);
 
     // Match BaseWorker storage path logic for output (so SQL trigger can enqueue audio tasks)
     const artifactType = 'text' as const;
@@ -778,6 +800,7 @@ export class TextWorker extends BaseWorker {
         wordCount,
         excerpt,
         textArtifactPath,
+        headline, // Add headline to output
       },
       artifacts: [
         {
@@ -790,6 +813,9 @@ export class TextWorker extends BaseWorker {
             docType,
             system: system || null,
             title,
+            headline, // LLM-generated headline from first line
+            readingTitle: dramaticTitles.readingTitle, // Dramatic title for reading
+            songTitle: dramaticTitles.songTitle, // Dramatic title for song
             wordCount,
           },
         },

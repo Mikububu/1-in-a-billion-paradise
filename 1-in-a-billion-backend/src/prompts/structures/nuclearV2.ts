@@ -215,11 +215,18 @@ STRUCTURE (1500-1800 words total):
 WORD COUNT CHECK: Count your words. If under 2000, ADD MORE DEPTH.
 
 OUTPUT RULES:
+- **FIRST LINE MUST BE A HEADLINE** (5-8 words max, capturing the essence of ${personName}'s reading)
+- After headline, add a blank line, then begin the reading
 - Use 3RD PERSON with ${personName}'s name (never "you/your")
-- Pure prose, NO markdown or bullets
+- Pure prose, NO markdown or bullets (except the required headline)
 - Audio-ready: spell out numbers ("twenty-three degrees" not "23°")
 - NO em-dashes (—), use commas or periods
 - NO phrases like "This is not just...", "Here's the thing...", "Let me show you..."
+
+EXAMPLE FORMAT:
+The Warrior's Tender Heart
+
+[Reading begins here with opening section...]
 
 Write the reading now:
 `.trim();
@@ -316,10 +323,17 @@ STRUCTURE (2200+ words total):
 WORD COUNT CHECK: Count your words. If under 2200, ADD MORE DEPTH.
 
 OUTPUT RULES:
+- **FIRST LINE MUST BE A HEADLINE** (5-8 words max, capturing the essence of their dynamic)
+- After headline, add a blank line, then begin the reading
 - Use both names, never "you/your"
-- Pure prose, NO markdown
+- Pure prose, NO markdown (except the required headline)
 - Audio-ready formatting
 - NO em-dashes, NO AI phrases
+
+EXAMPLE FORMAT:
+Fire Meets Water, Chaos Meets Peace
+
+[Reading begins here with opening section...]
 
 Write the synastry reading now:
 `.trim();
