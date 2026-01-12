@@ -44,7 +44,7 @@ Surname: _____________
 Single free-text input field. User writes everything in one message.
 
 **Prompt text:**
-> Please share any meaningful moments from your life - both beautiful and difficult. This might include partnerships, separations, losses, turning points, or periods that felt defining. You may also include the names of people who played an important role in your life. Write everything in one message.
+> Please share the most beautiful or most horrible events in your life - moments of great happiness, love, loss, or death of someone close. Partnerships, separations, turning points, or periods that changed everything. You may also include the names of people who played an important role. Write everything in one message.
 
 **What NOT to do:**
 - ❌ No menus
@@ -75,10 +75,10 @@ When Kabbalah is part of a nuclear reading:
 2. **Do NOT mention Kabbalah specifically**
 3. Use this generic prompt:
 
-> The more you can tell us about meaningful moments in your life - the beautiful and the difficult - the richer your reading will be. This helps some of our systems understand you more deeply. Write anything that comes to mind.
+> The more you can tell us about the most beautiful or most horrible events in your life - great happiness, deep love, painful loss, or the death of someone close - the richer your reading will be. This is very important for some of our systems to understand you more deeply.
 
 For overlay readings (two people):
-> You may also share meaningful moments from your life together, or from each person's individual journey. Include names if helpful.
+> The more you can tell us about the most beautiful or most horrible events - in your life, in the other person's life, or in your life together - the richer your reading will be. Moments of great happiness, love, loss, or death of someone close. This is very important for some of our systems.
 
 ---
 
