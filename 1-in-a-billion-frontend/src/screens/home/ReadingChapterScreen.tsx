@@ -189,7 +189,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
           </View>
 
           <View style={styles.titleBlock}>
-            <Text style={styles.title}>{personName}</Text>
+            <Text style={styles.title} numberOfLines={2}>{personName}</Text>
             <Text style={styles.systemNameCentered}>{systemName}</Text>
             {/* Display system essences (works for all systems) */}
             <SystemEssence
@@ -268,7 +268,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
   scroll: { flex: 1 },
-  scrollContent: { padding: 18, paddingTop: 90, paddingBottom: 30 },
+  scrollContent: { padding: 18, paddingTop: 50, paddingBottom: 30 },
 
   headerTimestamp: {
     position: 'absolute',
@@ -294,13 +294,14 @@ const styles = StyleSheet.create({
   },
   headerYellowText: { fontFamily: typography.sansSemiBold, color: '#111827', fontSize: 12 },
 
-  titleBlock: { flex: 1, alignItems: 'center' },
+  titleBlock: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
   title: { fontFamily: typography.headline, fontSize: 34, color: colors.text, textAlign: 'center' },
   systemNameCentered: {
     fontFamily: typography.sansSemiBold,
-    fontSize: 16,
+    fontSize: 24,
     color: colors.primary,
     textAlign: 'center',
+    marginTop: 4,
   },
   titleRightSpacer: { width: 40 },
 

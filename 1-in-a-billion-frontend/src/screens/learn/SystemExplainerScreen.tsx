@@ -462,33 +462,32 @@ const styles = StyleSheet.create({
   
   // What you'll discover - centered with symbols
   discoverSection: {
-    marginTop: spacing.lg,
-    marginBottom: spacing.md,
+    marginTop: 56, // Matches icon height (48px) + icon marginBottom (spacing.sm ≈ 8px)
+    marginBottom: spacing.sm,
     alignItems: 'center',
   },
   discoverTitle: {
     fontFamily: typography.headline,
-    fontSize: 22,
+    fontSize: 28,
     color: colors.text,
     textAlign: 'center',
-    marginBottom: spacing.lg,
-    letterSpacing: 0.5,
+    marginBottom: spacing.md,
   },
   discoverItem: {
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   discoverSymbol: {
     fontSize: 24,
     color: colors.primary,
-    marginBottom: spacing.xs,
+    marginBottom: 2,
   },
   discoverText: {
     fontFamily: typography.sansRegular,
     fontSize: 16,
     color: colors.text,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 22,
     paddingHorizontal: spacing.md,
   },
   

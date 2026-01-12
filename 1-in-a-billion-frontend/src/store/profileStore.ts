@@ -109,6 +109,7 @@ export type Person = {
   birthData: BirthData;
   placements?: Placements;
   essences?: any; // System essences (JSONB) - key identifiers for each astrological system
+  personalContext?: string; // User-provided context for readings (up to 600 chars for Kabbalah)
   hookReadings?: HookReading[]; // Sun/Moon/Rising free preview readings
   hookAudioPaths?: Partial<Record<HookReading['type'], string>>; // Supabase Storage paths for hook audios (optional)
   readings: Reading[];

@@ -21,6 +21,7 @@ export type LibraryPerson = {
   placements?: Placements;
   relationship_intensity?: number;
   has_paid_reading?: boolean; // True if involved in at least one paid job
+  personal_context?: string; // User-provided context for readings (up to 600 chars for Kabbalah)
   created_at?: string;
   updated_at?: string;
 };
@@ -64,6 +65,7 @@ export async function fetchPeopleFromSupabase(userId: string): Promise<Person[]>
       gender: row.gender,
       birthData: row.birth_data,
       placements: row.placements,
+      personalContext: row.personal_context,
       readings: [], // Readings loaded separately
       jobIds: [], // Job IDs loaded separately
       createdAt: row.created_at,
@@ -226,6 +228,45 @@ export async function deletePersonFromSupabase(
 }
 
 /**
+ * Save personal context for a person
+ * Called when user enters context in PersonalContextScreen
+ */
+export async function savePersonalContext(
+  userId: string,
+  personName: string,
+  personalContext: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) {
+    console.warn('⚠️ Supabase not configured - skipping savePersonalContext');
+    return { success: false, error: 'Supabase not configured' };
+  }
+
+  try {
+    console.log(`💾 Saving personal context for "${personName}"...`);
+
+    const { error } = await supabase
+      .from('library_people')
+      .update({ 
+        personal_context: personalContext.trim() || null,
+        updated_at: new Date().toISOString() 
+      })
+      .eq('user_id', userId)
+      .eq('name', personName);
+
+    if (error) {
+      console.error('❌ Supabase savePersonalContext error:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log(`✅ Personal context saved for "${personName}"`);
+    return { success: true };
+  } catch (err: any) {
+    console.error('❌ savePersonalContext error:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
  * Mark a person as having a paid reading
  * Called when a job is created with this person
  */
@@ -302,6 +343,7 @@ export async function fetchPeopleWithPaidReadings(userId: string): Promise<Perso
       birthData: row.birth_data,
       placements: row.placements,
       hasPaidReading: row.has_paid_reading,
+      personalContext: row.personal_context,
       readings: [],
       jobIds: [],
       createdAt: row.created_at,

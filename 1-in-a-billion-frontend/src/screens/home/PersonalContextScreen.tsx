@@ -14,11 +14,13 @@ import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { TexturedBackground } from '@/components/TexturedBackground';
 import { BackButton } from '@/components/BackButton';
+import { savePersonalContext } from '@/services/peopleService';
+import { supabase, isSupabaseConfigured } from '@/services/supabase';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonalContext'>;
 
 const MAX_CHARS_DEFAULT = 100;
-const MAX_CHARS_KABBALAH = 300;
+const MAX_CHARS_KABBALAH = 600;
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CIRCLE_SIZE = Math.min(SCREEN_WIDTH * 0.7, SCREEN_HEIGHT * 0.4);
 const CIRCLE_SIZE_2 = CIRCLE_SIZE * 1.1;
@@ -137,8 +139,22 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
         }
     };
 
-    const handleContinue = () => {
+    const handleContinue = async () => {
         const personalContext = context.trim() || undefined;
+        
+        // Save personal context to Supabase if we have a person name and context
+        if (personalContext && personName && isSupabaseConfigured) {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                const userId = session?.user?.id;
+                if (userId) {
+                    await savePersonalContext(userId, personName, personalContext);
+                }
+            } catch (err) {
+                console.warn('⚠️ Failed to save personal context to Supabase:', err);
+                // Continue anyway - don't block navigation
+            }
+        }
         
         // If productType and systems are passed, go directly to VoiceSelection (skip SystemSelection)
         if (productType && systems && systems.length > 0) {
@@ -179,7 +195,7 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                         </Text>
                         <Text style={styles.subheadline}>
                             {isKabbalahActive ? (
-                                "Please include your full first and second name. The more you can tell us about the most beautiful or most horrible events in your life - moments of great happiness, love, loss, or death - the richer your reading will be. The exact dates and locations are very important."
+                                "Please include your surname. The more you can tell us about the most beautiful or most horrible events in your life - moments of great happiness, love, loss, or death - the richer your reading will be. The exact dates and locations are very important. We will analyze your first and second name and transliterate it into Hebrew for Gematria calculation."
                             ) : (
                                 "Please feel free to share any questions, feelings, or areas of life you'd like the reading to address."
                             )}
@@ -187,49 +203,46 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                     </View>
 
                     {/* Circular Text Input - Centered */}
-                    <ScrollView 
-                        style={{ width: '100%' }} 
-                        contentContainerStyle={styles.scrollContent}
-                        showsVerticalScrollIndicator={false}
-                    >
-                        <View style={styles.circleWrapper}>
-                            {/* ... animated circles ... */}
-                            <Animated.View
-                                style={[
-                                    styles.animatedCircle,
-                                    styles.animatedCircle1,
-                                    {
-                                        transform: [{ scale: pulseAnim1 }],
-                                        opacity: opacityAnim1,
-                                        borderColor: '#FF1744',
-                                    },
-                                ]}
-                            />
-                            {/* ... more circles ... */}
-                            <Animated.View
-                                style={[
-                                    styles.animatedCircle,
-                                    styles.animatedCircle2,
-                                    {
-                                        transform: [{ scale: pulseAnim2 }],
-                                        opacity: opacityAnim2,
-                                        borderColor: '#FF6B9D',
-                                    },
-                                ]}
-                            />
-                            <Animated.View
-                                style={[
-                                    styles.animatedCircle,
-                                    styles.animatedCircle3,
-                                    {
-                                        transform: [{ scale: pulseAnim3 }],
-                                        opacity: opacityAnim3,
-                                        borderColor: '#FFB3D1',
-                                    },
-                                ]}
-                            />
+                    <View style={styles.circleWrapper}>
+                        <Animated.View
+                            style={[
+                                styles.animatedCircle,
+                                styles.animatedCircle1,
+                                {
+                                    transform: [{ scale: pulseAnim1 }],
+                                    opacity: opacityAnim1,
+                                    borderColor: '#FF1744',
+                                },
+                            ]}
+                        />
+                        <Animated.View
+                            style={[
+                                styles.animatedCircle,
+                                styles.animatedCircle2,
+                                {
+                                    transform: [{ scale: pulseAnim2 }],
+                                    opacity: opacityAnim2,
+                                    borderColor: '#FF6B9D',
+                                },
+                            ]}
+                        />
+                        <Animated.View
+                            style={[
+                                styles.animatedCircle,
+                                styles.animatedCircle3,
+                                {
+                                    transform: [{ scale: pulseAnim3 }],
+                                    opacity: opacityAnim3,
+                                    borderColor: '#FFB3D1',
+                                },
+                            ]}
+                        />
+                        <View style={styles.circleContainer}>
                             <TextInput
-                                style={styles.circleInput}
+                                style={[
+                                    styles.circleInput,
+                                    isKabbalahActive && { fontSize: 12 }
+                                ]}
                                 multiline
                                 placeholder={isKabbalahActive ? "I will share my life events..." : "I will speak the truth"}
                                 placeholderTextColor={colors.mutedText}
@@ -240,13 +253,8 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                                 textAlignVertical="center"
                                 textAlign="center"
                             />
-                            {isKabbalahActive && (
-                                <Text style={styles.charCounter}>
-                                    {context.length} / {MAX_CHARS}
-                                </Text>
-                            )}
                         </View>
-                    </ScrollView>
+                    </View>
                 </View>
 
                 {/* Bottom Buttons */}
@@ -287,42 +295,32 @@ const styles = StyleSheet.create({
     },
     header: {
         width: '100%',
-        marginBottom: spacing.xl * 2,
+        marginBottom: spacing.lg,
     },
     headline: {
         fontFamily: typography.headline,
         fontSize: 24,
         color: colors.text,
-        marginBottom: spacing.xs,
+        marginBottom: spacing.md,
         lineHeight: 30,
         fontStyle: 'italic',
-        textAlign: 'left',
+        textAlign: 'center',
     },
     subheadline: {
         fontFamily: typography.sansRegular,
-        fontSize: 13,
+        fontSize: 15,
         color: colors.mutedText,
-        lineHeight: 18,
+        lineHeight: 20,
         textAlign: 'left',
-    },
-    scrollContent: {
-        alignItems: 'center',
-        paddingBottom: spacing.xl,
+        marginTop: spacing.sm,
     },
     circleWrapper: {
         width: CIRCLE_SIZE,
         height: CIRCLE_SIZE,
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: spacing.xl,
+        marginTop: 0,
         position: 'relative',
-    },
-    charCounter: {
-        position: 'absolute',
-        bottom: -30,
-        fontFamily: typography.sansMedium,
-        fontSize: 12,
-        color: colors.mutedText,
     },
     animatedCircle: {
         position: 'absolute',
@@ -344,6 +342,12 @@ const styles = StyleSheet.create({
         height: CIRCLE_SIZE_3,
         borderRadius: CIRCLE_SIZE_3 / 2,
     },
+    circleContainer: {
+        width: CIRCLE_SIZE,
+        height: CIRCLE_SIZE,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     circleInput: {
         width: CIRCLE_SIZE,
         height: CIRCLE_SIZE,
@@ -353,9 +357,9 @@ const styles = StyleSheet.create({
         color: colors.text,
         backgroundColor: 'transparent',
         paddingHorizontal: spacing.xl,
+        paddingVertical: spacing.xl,
         textAlignVertical: 'center',
         textAlign: 'center',
-        zIndex: 10,
     },
     buttonContainer: {
         flexDirection: 'row',
