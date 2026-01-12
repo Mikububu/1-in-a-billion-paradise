@@ -629,7 +629,7 @@ router.get('/v2/:jobId/song/:docNum', async (c) => {
       return c.json({ success: false, error: 'No song artifacts found' }, 404);
     }
 
-    // Find artifact matching docNum (from metadata or derive from task sequence)
+    // Find artifact matching docNum exactly (from metadata or derive from task sequence)
     let songArtifact = artifacts.find(a => a.metadata?.docNum === docNum);
     
     // If not found by metadata, try to match by task sequence
@@ -655,17 +655,7 @@ router.get('/v2/:jobId/song/:docNum', async (c) => {
       }
     }
 
-    // Fallback: if only one song artifact, use it
-    if (!songArtifact && artifacts.length === 1) {
-      console.log(`📦 Using single song artifact as fallback for docNum ${docNum}`);
-      songArtifact = artifacts[0];
-    }
-
-    // If still not found and docNum is 1, try first artifact (most common case)
-    if (!songArtifact && docNum === 1 && artifacts.length > 0) {
-      console.log(`📦 Using first song artifact for docNum 1`);
-      songArtifact = artifacts[0];
-    }
+    // NO FALLBACKS - Only return exact matches
 
     if (!songArtifact || !songArtifact.storage_path) {
       console.error(`❌ Song artifact not found for job ${jobId}, docNum ${docNum}. Available artifacts: ${artifacts.length}`);
