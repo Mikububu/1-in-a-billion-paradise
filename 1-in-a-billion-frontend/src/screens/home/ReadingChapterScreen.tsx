@@ -248,15 +248,19 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
       }
 
       // Fresh load (STREAM ONLY)
+      console.log('Loading song from:', songUrl);
       const { sound } = await Audio.Sound.createAsync(
         { uri: songUrl },
         { shouldPlay: true, progressUpdateIntervalMillis: 250 },
         (st) => {
+          console.log('Song callback:', { isLoaded: st.isLoaded, durationMillis: st.durationMillis });
           if (!st.isLoaded) return;
           setPlayingSong(st.isPlaying);
           setBufferingSong(!!(st as any).isBuffering);
           if (!seekingSongRef.current) setSongPos(st.positionMillis / 1000);
-          setSongDur(st.durationMillis ? st.durationMillis / 1000 : 0);
+          const dur = st.durationMillis ? st.durationMillis / 1000 : 0;
+          console.log('Song status update:', { pos: st.positionMillis / 1000, dur, durationMillis: st.durationMillis });
+          setSongDur(dur);
           if (st.didJustFinish) {
             setPlayingSong(false);
           }
@@ -265,6 +269,9 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
       );
       songRef.current = sound;
       setPlayingSong(true);
+      console.log('Song loaded, checking initial status...');
+      const initialStatus = await sound.getStatusAsync();
+      console.log('Initial song status:', initialStatus);
     } catch (e: any) {
       // Common iOS timeout comes through as NSURLErrorDomain -1001
       Alert.alert('Song Error', e?.message || 'Could not play song');
