@@ -1,11 +1,19 @@
 # 1-in-a-Billion: Complete UX System Documentation
 
-**Version:** 1.5  
+**Version:** 1.6  
 **Date:** January 2025  
-**Last Updated:** January 11, 2026  
+**Last Updated:** January 12, 2026  
 **Purpose:** Complete mapping of all screens, navigation flows, and backend interactions
 
-**Recent Changes (v1.5):**
+**Recent Changes (v1.6):**
+- **CRITICAL ARCHITECTURE CLARIFICATION:** My Souls Library (S12) and PersonReadingsScreen (S19) **MUST show each job as a separate receipt**
+  - ❌ NEVER aggregate multiple jobs into one person card
+  - ✅ Each job = separate card (even for same person)
+  - ✅ New jobs NEVER replace/overwrite old readings
+  - ✅ Works like Audible purchase history (chronological log)
+  - See: `DEVELOPMENT_PRINCIPLES.md` "The Audible Principle"
+
+**Previous Changes (v1.5):**
 - **Global TexturedBackground:** All screens now use transparent containers so the global leather texture shows through. Change texture by editing ONE file: `src/components/TexturedBackground.tsx` (line 29 for image, line 57 for opacity)
 - **Delete Person Button:** Visible × button on person cards in MyLibraryScreen (non-user people only). Triggers cascade delete: removes all jobs, storage files (PDFs/audio), and person record
 - **Existing User Login Fix:** Bootstrap now properly hydrates birth_data from Supabase and calls `completeOnboarding()` for returning users
@@ -327,6 +335,16 @@
   - Queries `jobs` table
   - Reads PDF/audio artifacts from Storage buckets
 - **PDF Impact:** Displays PDF download links from Storage
+- **CRITICAL DISPLAY RULES - EACH JOB = SEPARATE RECEIPT:**
+  - ✅ **Each job must be a separate card** (even if same person/people)
+  - ✅ **Jobs are NEVER merged or aggregated**
+  - ✅ **Chronological order** (newest first)
+  - ❌ **NEVER show one card per person with mixed data from multiple jobs**
+  - **Example:** If user generates "Michael (Nuclear)" on Jan 10 and again on Jan 12:
+    - Card 1: "Michael - Jan 12, 2026" (newest job)
+    - Card 2: "Michael - Jan 10, 2026" (older job)
+    - NOT: One "Michael" card showing mixed artifacts from both jobs
+  - **Why:** Users may want to compare readings over time, old readings have value (like Audible purchases), new jobs should never "overwrite" old ones
 
 **Screen 13: Matches** (`MatchesScreen`)
 - **Handler:** `S13_MATCHES`
@@ -449,10 +467,10 @@
 
 **Screen 19: Person Readings** (`PersonReadingsScreen`)
 - **Handler:** `S19_PERSON_READINGS`
-- **Purpose:** View all readings for a person (individual or overlay)
+- **Purpose:** View all readings for a person (individual or overlay) **FOR A SPECIFIC JOB**
 - **Navigation From:** 
   - `S15_PERSON_PROFILE` (View Readings)
-  - `S12_MY_LIBRARY` (tap person)
+  - `S12_MY_LIBRARY` (tap person card - **MUST pass jobId in route params**)
 - **Navigation To:** 
   - `S35_DEEP_READING_READER` (tap on reading)
   - `S20_OVERLAY_READER` (tap on overlay)
@@ -467,6 +485,10 @@
   - Queries `jobs` and `job_tasks` tables
   - Reads artifacts from Storage
 - **PDF Impact:** Displays PDF download links
+- **CRITICAL: jobId must be passed in route params**
+  - ❌ **NEVER use fallback to `person.jobIds[0]`** - this causes old readings to show for new jobs
+  - ✅ **Always require explicit jobId from navigation**
+  - ✅ **Each job = separate receipt** - user taps a specific job card, sees that job's readings
 - **Display Rules:**
   - Only shows readings that have at least one artifact (PDF, audio, or song)
   - Placeholder entries without actual data are hidden

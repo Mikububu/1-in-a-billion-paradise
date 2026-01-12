@@ -17,6 +17,34 @@ The app should work like Audible:
 - **Always Available**: UI always shows what's in the persistent store, even offline
 - **Never Delete**: When you buy a new book in Audible, it doesn't delete your entire library
 
+#### Critical: Each Job = Separate Receipt
+
+**My Souls Library must work like a purchase history / log:**
+
+- ✅ **Each job is a separate entry** (even for the same person)
+- ✅ **Jobs are NEVER merged or replaced**
+- ✅ **Chronological order** (newest first)
+- ❌ **NEVER aggregate multiple jobs into one card**
+
+**Example:**
+```
+User generates:
+1. Michael (Nuclear) - Jan 10, 2026
+2. Michael (Nuclear) - Jan 12, 2026
+
+Library must show:
+- Card 1: "Michael - Jan 12, 2026" (newest)
+- Card 2: "Michael - Jan 10, 2026" (older)
+
+NOT: One "Michael" card showing mixed data from both jobs
+```
+
+**Why this matters:**
+- Users may want to compare readings over time
+- Old readings have value (like old Audible purchases)
+- New jobs should never "overwrite" or hide old ones
+- Each job has its own artifacts (PDF, audio, songs)
+
 ### 2. Data Flow
 
 ```
