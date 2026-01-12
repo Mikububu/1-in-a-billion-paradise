@@ -89,11 +89,14 @@ export const PersonReadingChaptersFlowScreen = ({ navigation, route }: Props) =>
         }); // Don't filter - always include all systems so navigation buttons work
 
         if (!mounted) return;
-        // Attach next pointers for navigation
-        const withNext = built.map((c, idx) => ({
-          ...c,
-          nextChapter: idx < built.length - 1 ? built[idx + 1] : undefined,
-        }));
+        // Build nextChapter chain from END to START so each nextChapter has its own nextChapter set
+        let withNext: Chapter[] = [];
+        for (let i = built.length - 1; i >= 0; i--) {
+          withNext.unshift({
+            ...built[i],
+            nextChapter: withNext[0] || undefined, // Points to already-enhanced next chapter
+          });
+        }
         setChapters(withNext);
 
         // Auto-enter the first chapter (so user never sees an intermediate list)
