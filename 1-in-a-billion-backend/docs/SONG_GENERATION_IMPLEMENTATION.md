@@ -2,7 +2,27 @@
 
 ## Overview
 
-Full pipeline implemented for generating personalized songs for paid users who purchase deep soul readings. The system generates lyrics from reading data using DeepSeek, then creates a full song with vocals using MiniMax Music API.
+Full pipeline implemented for generating personalized songs for paid users who purchase deep soul readings. The system analyzes reading text through psychological evaluation to determine mood, extracts lyrics from the long text, and generates a full song with vocals using MiniMax Music API infused with 50 iconic 70s/80s musicians.
+
+## Key Features
+
+### 1. Psychological Evaluation
+- **Mood Analysis**: Analyzes the reading text to determine primary emotion (sad, happy, dark, triumphant, melancholic, chaotic, hopeful, angry, peaceful)
+- **Vocal Style Determination**: Based on psychological analysis, determines:
+  - **Gender**: Man, Woman, or Choir
+  - **Format**: Solo, Duet, or Choir
+  - Can be based on reading content or random selection
+
+### 2. Lyrics Extraction
+- Extracts key themes and emotional essence from the long reading text
+- Removes astrology jargon, focuses on life struggles, emotions, relationships
+- Creates personalized lyrics that capture the person's story
+
+### 3. 50 Musicians from 70s/80s
+The system randomly selects from a pool of 50 iconic artists/groups to infuse into MiniMax:
+- The Who, Rolling Stones, David Bowie, Carole King, Paul Simon, Celine Dion, Bruce Springsteen, ABBA, Aretha Franklin, Fleetwood Mac, Billy Joel, Joni Mitchell, Phil Collins, Whitney Houston, Elton John, Led Zeppelin, Pink Floyd, Queen, The Beatles, The Doors, Stevie Wonder, Marvin Gaye, Donna Summer, Bee Gees, Earth Wind & Fire, Chic, Blondie, Talking Heads, The Clash, The Police, U2, Dire Straits, Genesis, Yes, Rush, Journey, Foreigner, Boston, Kansas, Styx, REO Speedwagon, Heart, Pat Benatar, Cyndi Lauper, Madonna, Prince, Michael Jackson, Tina Turner, Eurythmics, Duran Duran, and more
+
+**Legal Note**: MiniMax generates original music inspired by these styles, not copying. No legal issues as it's creating new compositions in the style of these artists.
 
 ## Cost
 
@@ -21,9 +41,16 @@ Full pipeline implemented for generating personalized songs for paid users who p
 
 2. **Lyrics Generation Service** (`src/services/lyricsGeneration.ts`)
    - Uses DeepSeek to generate personalized lyrics
-   - Includes user's name explicitly
-   - Reflects soul themes, emotional patterns, fears, desires
-   - Style: 70% Leonard Cohen, 20% Paul Simon, 10% Tom Waits
+   - **Psychological Evaluation**: Analyzes the reading text to determine emotional mood (sad, happy, dark, triumphant, melancholic, chaotic, etc.)
+   - **Lyrics Extraction**: Extracts key themes and emotional essence from the long reading text
+   - **Vocal Style Determination**: Based on psychological analysis, determines:
+     - Gender: Man, Woman, or Choir
+     - Format: Solo, Duet, or Choir
+     - This can be based on reading content or random selection
+   - **50 Musicians from 70s/80s**: Randomly selects from a pool of 50 iconic artists/groups:
+     - The Who, Rolling Stones, David Bowie, Carole King, Paul Simon, Celine Dion, Bruce Springsteen, ABBA, Aretha Franklin, Fleetwood Mac, Billy Joel, Joni Mitchell, Phil Collins, Whitney Houston, Elton John, and 35+ more
+   - **MiniMax Infusion**: These artist names are infused into the MiniMax prompt to guide musical style
+   - No legal issues: MiniMax generates original music inspired by these styles, not copying
 
 3. **Song Generation Service** (`src/services/songGeneration.ts`)
    - Uses MiniMax Music API (`https://platform.minimax.io/v1/music_generation`)

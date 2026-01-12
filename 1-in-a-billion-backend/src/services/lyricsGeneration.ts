@@ -62,17 +62,19 @@ ${readingExcerpt}
 
 ${relationshipContext ? `\n**Relationship Context:** This is about ${personName}'s relationships and love life. Focus on connection, intimacy, heartbreak, and partnership struggles.\n` : ''}
 
-**STEP 1: ANALYZE THE EMOTIONAL ESSENCE**
-After reading the excerpt, decide:
-- What is the PRIMARY emotion? (sad, chaotic, triumphant, melancholic, hopeful, angry, peaceful)
+**STEP 1: PSYCHOLOGICAL EVALUATION & MOOD ANALYSIS**
+After reading the excerpt, perform a psychological evaluation:
+- What is the PRIMARY emotion? (sad, happy, dark, chaotic, triumphant, melancholic, hopeful, angry, peaceful)
 - Should this be sung by a MAN, WOMAN, or CHOIR?
-- What 70s/80s artist style fits best?
-  Options: Carole King (70s piano), Paul Simon (70s folk), Celine Dion (80s power ballad), 
-  Bruce Springsteen (80s rock), ABBA (70s disco/pop), Aretha Franklin (70s soul),
-  Fleetwood Mac (70s rock), Billy Joel (70s/80s piano), Joni Mitchell (70s folk),
-  Phil Collins (80s emotional), Whitney Houston (80s R&B), Elton John (70s/80s piano)
+- Should this be a SOLO, DUET, or CHOIR performance? (Based on reading content or random selection)
 
-**STEP 2: WRITE THE LYRICS**
+**STEP 2: SELECT 70s/80s ARTIST STYLE (Randomly from 50 options)**
+Randomly select ONE artist from this pool of 50 iconic 70s/80s musicians:
+The Who, Rolling Stones, David Bowie, Carole King, Paul Simon, Celine Dion, Bruce Springsteen, ABBA, Aretha Franklin, Fleetwood Mac, Billy Joel, Joni Mitchell, Phil Collins, Whitney Houston, Elton John, Led Zeppelin, Pink Floyd, Queen, The Beatles, The Doors, Stevie Wonder, Marvin Gaye, Donna Summer, Bee Gees, Earth Wind & Fire, Chic, Blondie, Talking Heads, The Clash, The Police, U2, Dire Straits, Genesis, Yes, Rush, Journey, Foreigner, Boston, Kansas, Styx, REO Speedwagon, Heart, Pat Benatar, Cyndi Lauper, Madonna, Prince, Michael Jackson, Tina Turner, Eurythmics, Duran Duran
+
+Infuse this artist's name and style into the MiniMax prompt to guide the musical execution.
+
+**STEP 3: EXTRACT & WRITE THE LYRICS**
 Structure (DO NOT label sections in the actual lyrics):
 - Verse 1 (4 lines)
 - Chorus (4 lines)
