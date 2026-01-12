@@ -248,19 +248,15 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
       }
 
       // Fresh load (STREAM ONLY)
-      console.log('Loading song from:', songUrl);
       const { sound } = await Audio.Sound.createAsync(
         { uri: songUrl },
         { shouldPlay: true, progressUpdateIntervalMillis: 250 },
         (st) => {
-          console.log('Song callback:', { isLoaded: st.isLoaded, durationMillis: st.durationMillis });
           if (!st.isLoaded) return;
           setPlayingSong(st.isPlaying);
           setBufferingSong(!!(st as any).isBuffering);
           if (!seekingSongRef.current) setSongPos(st.positionMillis / 1000);
-          const dur = st.durationMillis ? st.durationMillis / 1000 : 0;
-          console.log('Song status update:', { pos: st.positionMillis / 1000, dur, durationMillis: st.durationMillis });
-          setSongDur(dur);
+          setSongDur(st.durationMillis ? st.durationMillis / 1000 : 0);
           if (st.didJustFinish) {
             setPlayingSong(false);
           }
@@ -269,9 +265,6 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
       );
       songRef.current = sound;
       setPlayingSong(true);
-      console.log('Song loaded, checking initial status...');
-      const initialStatus = await sound.getStatusAsync();
-      console.log('Initial song status:', initialStatus);
     } catch (e: any) {
       // Common iOS timeout comes through as NSURLErrorDomain -1001
       Alert.alert('Song Error', e?.message || 'Could not play song');
@@ -285,27 +278,35 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
   // Preload audio durations when screen loads so sliders show correct time immediately
   useEffect(() => {
     const preloadDurations = async () => {
-      try {
-        // Preload narration duration
-        const { sound: narSound } = await Audio.Sound.createAsync({ uri: narrationUrl });
-        const narStatus = await narSound.getStatusAsync();
-        if (narStatus.isLoaded && narStatus.durationMillis) {
-          console.log('Preloaded narration duration:', narStatus.durationMillis / 1000);
-          setDur(narStatus.durationMillis / 1000);
-        }
-        await narSound.unloadAsync();
-
-        // Preload song duration
-        const { sound: sngSound } = await Audio.Sound.createAsync({ uri: songUrl });
-        const sngStatus = await sngSound.getStatusAsync();
-        if (sngStatus.isLoaded && sngStatus.durationMillis) {
-          console.log('Preloaded song duration:', sngStatus.durationMillis / 1000);
-          setSongDur(sngStatus.durationMillis / 1000);
-        }
-        await sngSound.unloadAsync();
-      } catch (e) {
-        console.warn('Could not preload durations:', e);
-      }
+      // Load both audio files in PARALLEL for speed
+      await Promise.all([
+        // Narration
+        (async () => {
+          try {
+            const { sound } = await Audio.Sound.createAsync({ uri: narrationUrl });
+            const status = await sound.getStatusAsync();
+            if (status.isLoaded && status.durationMillis) {
+              setDur(status.durationMillis / 1000);
+            }
+            await sound.unloadAsync();
+          } catch (e) {
+            // Silently fail - user can still play audio normally
+          }
+        })(),
+        // Song
+        (async () => {
+          try {
+            const { sound } = await Audio.Sound.createAsync({ uri: songUrl });
+            const status = await sound.getStatusAsync();
+            if (status.isLoaded && status.durationMillis) {
+              setSongDur(status.durationMillis / 1000);
+            }
+            await sound.unloadAsync();
+          } catch (e) {
+            // Silently fail - user can still play audio normally
+          }
+        })(),
+      ]);
     };
     preloadDurations();
   }, [narrationUrl, songUrl]);
@@ -355,7 +356,6 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     const progress = Math.max(0, Math.min(1, pos / dur));
     const maxScrollY = Math.max(0, textContentH - textViewportH);
     const y = maxScrollY * progress;
-    console.log('Narration scroll:', { seekingNarration, playing, pos, dur, progress, y });
     textScrollRef.current.scrollTo({ y, animated: false });
   }, [playing, seekingNarration, pos, dur, textViewportH, textContentH]);
 
@@ -372,7 +372,6 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     const progress = Math.max(0, Math.min(1, songPos / songDur));
     const maxScrollY = Math.max(0, songTextContentH - songTextViewportH);
     const y = maxScrollY * progress;
-    console.log('Song scroll:', { seekingSong, playingSong, songPos, songDur, progress, y });
     songTextScrollRef.current.scrollTo({ y, animated: false });
   }, [playingSong, seekingSong, songPos, songDur, songTextViewportH, songTextContentH]);
 
@@ -509,16 +508,11 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
                 thumbTintColor="#2E7D32"
                 thumbStyle={{ width: 20, height: 20 }}
                 onSlidingStart={() => {
-                  console.log('Song: onSlidingStart');
                   seekingSongRef.current = true;
                   setSeekingSong(true);
                 }}
-                onValueChange={(v) => {
-                  console.log('Song: onValueChange', v);
-                  setSongPos(v);
-                }}
+                onValueChange={(v) => setSongPos(v)}
                 onSlidingComplete={async (v) => {
-                  console.log('Song: onSlidingComplete');
                   seekingSongRef.current = false;
                   setSeekingSong(false);
                   setSongPos(v);
