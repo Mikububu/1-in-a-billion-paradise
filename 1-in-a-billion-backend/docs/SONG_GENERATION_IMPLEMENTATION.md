@@ -18,9 +18,11 @@ Full pipeline implemented for generating personalized songs for paid users who p
 - Removes astrology jargon, focuses on life struggles, emotions, relationships
 - Creates personalized lyrics that capture the person's story
 
-### 3. 50 Musicians from 70s/80s
+### 3. 50 Musicians from 70s/80s (Quiet Execution)
 The system randomly selects from a pool of 50 iconic artists/groups to infuse into MiniMax:
 - The Who, Rolling Stones, David Bowie, Carole King, Paul Simon, Celine Dion, Bruce Springsteen, ABBA, Aretha Franklin, Fleetwood Mac, Billy Joel, Joni Mitchell, Phil Collins, Whitney Houston, Elton John, Led Zeppelin, Pink Floyd, Queen, The Beatles, The Doors, Stevie Wonder, Marvin Gaye, Donna Summer, Bee Gees, Earth Wind & Fire, Chic, Blondie, Talking Heads, The Clash, The Police, U2, Dire Straits, Genesis, Yes, Rush, Journey, Foreigner, Boston, Kansas, Styx, REO Speedwagon, Heart, Pat Benatar, Cyndi Lauper, Madonna, Prince, Michael Jackson, Tina Turner, Eurythmics, Duran Duran, and more
+
+**CRITICAL STYLE REQUIREMENT**: Even when selecting high-energy artists, the FINAL EXECUTION must always be QUIET and POETIC in the style of Leonard Cohen, Tom Waits, Bob Dylan, or John Prine. This is music to listen to while reading text - never nervous, pop-oriented, or high-energy. The selected artist provides subtle musical influence, but the delivery is always introspective and contemplative.
 
 **Legal Note**: MiniMax generates original music inspired by these styles, not copying. No legal issues as it's creating new compositions in the style of these artists.
 

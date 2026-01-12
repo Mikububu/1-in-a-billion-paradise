@@ -36,18 +36,20 @@ export async function generateLyrics(input: LyricsGenerationInput): Promise<Lyri
   // Extract key themes from reading (first 5000 chars to avoid token limits)
   const readingExcerpt = readingText.substring(0, 5000);
   
-  const prompt = `You are a masterful pop songwriter with the lyrical intelligence of Paul Simon and the emotional power of Celine Dion. You write HIT SONGS that capture human struggle, chaos, and transformation.
+  const prompt = `You are a masterful songwriter in the quiet, poetic tradition of Leonard Cohen, Tom Waits, Bob Dylan, and John Prine. You write INTROSPECTIVE SONGS that capture human struggle, chaos, and transformation - music to listen to while reading, not pop music.
 
-Generate a personalized pop song for ${personName} based on their life story extracted from this reading.
+Generate a personalized song for ${personName} based on their life story extracted from this reading. This must be QUIET, POETIC MUSIC - never nervous or pop-oriented.
 
 **CRITICAL RULES:**
 1. ❌ NO ASTROLOGY TERMS - No zodiac signs, planets, constellations, houses, aspects, chart references
 2. ❌ NO "Virgo", "Moon in...", "Rising", "Stars aligned", "Cosmic", "Astrological" etc.
-3. ✅ EXTRACT: Character problems, emotional chaos, life struggles, relationship patterns, fears, desires
-4. ✅ MAKE IT EXPLICIT and DRAMATIC - about their LIFE and EMOTIONS, not astrology
-5. ✅ The person's name (${personName}) must appear naturally in lyrics (at least once)
-6. ✅ POP MUSIC STYLE - radio-ready, emotional, memorable chorus, 70s/80s inspired
-7. ✅ Think: "Bridge Over Troubled Water", "My Heart Will Go On", "Someone Like You"
+3. ❌ NO POP MUSIC - Never nervous, upbeat, or radio-pop style
+4. ✅ EXTRACT: Character problems, emotional chaos, life struggles, relationship patterns, fears, desires
+5. ✅ MAKE IT EXPLICIT and DRAMATIC - about their LIFE and EMOTIONS, not astrology
+6. ✅ The person's name (${personName}) must appear naturally in lyrics (at least once)
+7. ✅ QUIET, POETIC STYLE - Always in the tradition of Leonard Cohen, Tom Waits, Bob Dylan, John Prine
+8. ✅ MUSIC TO LISTEN TO - Introspective, contemplative, poetry set to music
+9. ✅ Think: "Hallelujah", "Closing Time", "Like a Rolling Stone", "Angel from Montgomery"
 
 The reading below is JUST RAW MATERIAL to extract ${personName}'s story:
 - What does ${personName} struggle with emotionally?
@@ -72,7 +74,7 @@ After reading the excerpt, perform a psychological evaluation:
 Randomly select ONE artist from this pool of 50 iconic 70s/80s musicians:
 The Who, Rolling Stones, David Bowie, Carole King, Paul Simon, Celine Dion, Bruce Springsteen, ABBA, Aretha Franklin, Fleetwood Mac, Billy Joel, Joni Mitchell, Phil Collins, Whitney Houston, Elton John, Led Zeppelin, Pink Floyd, Queen, The Beatles, The Doors, Stevie Wonder, Marvin Gaye, Donna Summer, Bee Gees, Earth Wind & Fire, Chic, Blondie, Talking Heads, The Clash, The Police, U2, Dire Straits, Genesis, Yes, Rush, Journey, Foreigner, Boston, Kansas, Styx, REO Speedwagon, Heart, Pat Benatar, Cyndi Lauper, Madonna, Prince, Michael Jackson, Tina Turner, Eurythmics, Duran Duran
 
-Infuse this artist's name and style into the MiniMax prompt to guide the musical execution.
+**CRITICAL**: Even if you select a high-energy artist (like The Who or Rolling Stones), the FINAL EXECUTION must be QUIET and POETIC in the style of Leonard Cohen, Tom Waits, Bob Dylan, or John Prine. This is music to listen to while reading text - never nervous or pop-oriented. The selected artist is just for subtle musical influence, but the delivery must always be introspective and contemplative.
 
 **STEP 3: EXTRACT & WRITE THE LYRICS**
 Structure (DO NOT label sections in the actual lyrics):
@@ -88,11 +90,12 @@ CRITICAL FORMAT RULE:
 - ✅ Use blank lines to separate sections instead.
 
 Style Guide:
-- Conversational but poetic (Paul Simon)
-- Big emotions, universal themes (Celine Dion)
+- Quiet, introspective, poetic (Leonard Cohen, Tom Waits, Bob Dylan, John Prine)
+- Contemplative, not nervous or pop-oriented
+- Music to listen to while reading - background, not foreground
 - Specific details that feel real and relatable
-- NO clichés, NO astrology jargon
-- Make people FEEL something deep
+- NO clichés, NO astrology jargon, NO pop hooks
+- Make people FEEL something deep through poetry, not through catchy melodies
 
 **OUTPUT FORMAT (JSON ONLY):**
 {
@@ -101,10 +104,16 @@ Style Guide:
   "musicStyle": "70s piano ballad" or "80s power rock" etc,
   "vocalist": "Female (Carole King style)" or "Male choir (Aretha Franklin style)" etc,
   "emotion": "melancholic" or "triumphant" or "chaotic" etc,
-  "minimaxPrompt": "A heartbreaking 70s piano ballad sung by a female vocalist with the emotional depth and vulnerability of Carole King. Sparse piano with subtle strings. Intimate, tender vocal delivery that builds to emotional climax in the chorus."
+  "minimaxPrompt": "A quiet, introspective song in the poetic style of Leonard Cohen or Tom Waits. Sparse instrumentation - acoustic guitar or minimal piano. Contemplative, low-key vocal delivery. Music to listen to while reading - never nervous or pop-oriented. Subtle influence from [selected artist] but always executed as quiet, poetic background music."
 }
 
-The minimaxPrompt should be 1-2 sentences describing the exact musical execution for MiniMax (artist style, instrumentation, vocal approach, emotional tone). Be specific about 70s/80s era and artist influences.
+The minimaxPrompt must ALWAYS emphasize:
+- QUIET, INTROSPECTIVE style (Leonard Cohen, Tom Waits, Bob Dylan, John Prine)
+- Sparse instrumentation (acoustic guitar, minimal piano)
+- Contemplative, low-key vocals
+- Music to listen to while reading - background, not foreground
+- Never nervous, pop, or high-energy
+- Even if the selected artist is high-energy, execute it quietly and poetically
 
 Generate the complete song now:`;
 
