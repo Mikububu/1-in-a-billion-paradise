@@ -34,6 +34,11 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
   const [songLyrics, setSongLyrics] = useState<string>('');
   const [loadingSongLyrics, setLoadingSongLyrics] = useState<boolean>(true);
 
+  // Auto-scroll the reading text slowly as narration progresses
+  const textScrollRef = useRef<ScrollView | null>(null);
+  const [textViewportH, setTextViewportH] = useState(0);
+  const [textContentH, setTextContentH] = useState(0);
+
   const [playing, setPlaying] = useState(false);
   const [loadingAudio, setLoadingAudio] = useState(false);
   const [pos, setPos] = useState(0);
@@ -256,20 +261,39 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     }
   }, [timestamp]);
 
+  // Keep the text "moving by itself" as audio progresses.
+  useEffect(() => {
+    if (!textScrollRef.current) return;
+    if (!textViewportH || !textContentH) return;
+
+    // Reset to top when not playing
+    if (!playing || !dur) {
+      textScrollRef.current.scrollTo({ y: 0, animated: false });
+      return;
+    }
+
+    const progress = Math.max(0, Math.min(1, pos / dur));
+    const maxScrollY = Math.max(0, textContentH - textViewportH);
+    const y = maxScrollY * progress;
+    textScrollRef.current.scrollTo({ y, animated: false });
+  }, [playing, pos, dur, textViewportH, textContentH]);
+
   return (
     <SafeAreaView style={styles.container}>
       <BackButton onPress={() => navigation.goBack()} />
+      {/* Push content down so the headline sits where it does in other screens */}
+      <View style={styles.topSpacer} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <View style={styles.titleContainer}>
           <Text style={styles.title}>{personName}</Text>
         </View>
 
-        <View style={styles.card}>
-          <View style={styles.headerRow}>
-            <Text style={styles.systemName}>{systemName}</Text>
-            {!!niceTimestamp && <Text style={styles.timestamp}>{niceTimestamp}</Text>}
-          </View>
+        <View style={styles.centerHeader}>
+          <Text style={styles.systemNameCentered}>{systemName}</Text>
+          {!!niceTimestamp && <Text style={styles.timestampCentered}>{niceTimestamp}</Text>}
+        </View>
 
+        <View style={styles.card}>
           <View style={styles.actionsRow}>
             <TouchableOpacity style={styles.pdfButton} onPress={() => {}}>
               <Text style={styles.pdfText}>PDF</Text>
@@ -298,15 +322,24 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
           </View>
           <Text style={styles.timeTextRow}>{dur ? `${fmt(pos)} / ${fmt(dur)}` : '--:--'}</Text>
 
-          {/* Text is visible immediately. No scrolling automation. */}
+          {/* Reading text with standard white background (5-line window) */}
           <View style={styles.textArea}>
-            {loadingText ? (
-              <ActivityIndicator />
-            ) : (
-              <Text style={styles.textBody} numberOfLines={7} ellipsizeMode="tail">
-                {text || ''}
-              </Text>
-            )}
+            <View style={styles.textBox}>
+              {loadingText ? (
+                <ActivityIndicator />
+              ) : (
+                <ScrollView
+                  ref={textScrollRef as any}
+                  style={styles.textWindow}
+                  showsVerticalScrollIndicator={false}
+                  scrollEnabled={false}
+                  onLayout={(e) => setTextViewportH(e.nativeEvent.layout.height)}
+                  onContentSizeChange={(_, h) => setTextContentH(h)}
+                >
+                  <Text style={styles.textBody}>{text || ''}</Text>
+                </ScrollView>
+              )}
+            </View>
           </View>
 
           {/* More vertical space between narration and music as requested */}
@@ -331,15 +364,17 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
           </View>
           <Text style={styles.timeTextRow}>{songDur ? `${fmt(songPos)} / ${fmt(songDur)}` : '--:--'}</Text>
 
-          {/* Song lyrics preview (4 lines + …) */}
+          {/* Song lyrics with same white background (5-line window) */}
           <View style={styles.songTextArea}>
-            {loadingSongLyrics ? (
-              <ActivityIndicator />
-            ) : (
-              <Text style={styles.songTextBody} numberOfLines={7} ellipsizeMode="tail">
-                {songLyrics || ''}
-              </Text>
-            )}
+            <View style={styles.textBox}>
+              {loadingSongLyrics ? (
+                <ActivityIndicator />
+              ) : (
+                <ScrollView style={styles.textWindow} showsVerticalScrollIndicator={false} scrollEnabled={false}>
+                  <Text style={styles.songTextBody}>{songLyrics || ''}</Text>
+                </ScrollView>
+              )}
+            </View>
           </View>
         </View>
 
@@ -366,8 +401,13 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
   scroll: { flex: 1 },
   scrollContent: { padding: 18, paddingBottom: 30 },
-  titleContainer: { alignItems: 'center', marginBottom: 14 },
-  title: { fontFamily: 'System', fontSize: 36, fontWeight: '700', color: '#111827' },
+  topSpacer: { height: 72 },
+  titleContainer: { alignItems: 'center', marginBottom: 6 },
+  // Headline typography (same font family used elsewhere)
+  title: { fontFamily: typography.headline, fontSize: 34, color: colors.text, textAlign: 'center' },
+  centerHeader: { alignItems: 'center', marginBottom: 10 },
+  systemNameCentered: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text, textAlign: 'center' },
+  timestampCentered: { fontFamily: typography.sansRegular, fontSize: 10, color: colors.mutedText, textAlign: 'center', marginTop: 2 },
   card: {
     backgroundColor: 'transparent',
     borderRadius: 16,
@@ -375,14 +415,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  systemName: { fontFamily: 'System', fontSize: 20, fontWeight: '700', color: '#111827' },
-  timestamp: { fontFamily: 'System', fontSize: 10, color: '#6B7280' },
   actionsRow: { flexDirection: 'row', gap: 10, marginTop: 10, marginBottom: 14 },
-  pdfButton: { backgroundColor: '#F3F4F6', paddingVertical: 10, paddingHorizontal: 18, borderRadius: 10 },
-  pdfText: { fontFamily: 'System', fontWeight: '700', color: '#111827' },
-  downloadButton: { backgroundColor: '#F3F4F6', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10 },
-  downloadText: { fontFamily: 'System', fontWeight: '700', color: '#111827' },
+  // Same yellow as Screen 1
+  pdfButton: { backgroundColor: colors.highlightYellow, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 12 },
+  pdfText: { fontFamily: typography.sansSemiBold, color: '#111827' },
+  downloadButton: { backgroundColor: colors.highlightYellow, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12 },
+  downloadText: { fontFamily: typography.sansSemiBold, color: '#111827' },
   mediaBlock: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 },
   // Match the avatar circle style from the previous screen (e.g. "C" / "M" circles)
   playButton: {
@@ -414,8 +452,16 @@ const styles = StyleSheet.create({
   // Align time text under the slider start (circle width 50 + row gap 12 = 62)
   timeTextRow: { marginTop: 4, marginLeft: 62, fontFamily: 'System', fontSize: 10, color: '#6B7280' },
   textArea: { marginTop: 16 },
-  // Use a standard body size and show a short preview
-  textBody: { fontFamily: typography.sansRegular, fontSize: 11, lineHeight: 16, color: colors.text },
+  // Standard white background behind text, with a 5-line viewing window
+  textBox: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  textWindow: { height: 134 }, // 5 lines @ lineHeight 22 + 24px padding
+  textBody: { fontFamily: typography.sansRegular, fontSize: 14, lineHeight: 22, color: colors.text },
   musicSpacer: { height: 26 },
   songButton: {
     width: 50,
@@ -428,9 +474,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   songButtonActive: { backgroundColor: '#DDF2DD' },
-  songIcon: { fontFamily: 'System', fontSize: 18, fontWeight: '700', color: '#2E7D32' },
+  // Bigger note icon, same circle size
+  songIcon: { fontFamily: 'System', fontSize: 22, fontWeight: '700', color: '#2E7D32' },
   songTextArea: { marginTop: 14 },
-  songTextBody: { fontFamily: typography.sansRegular, fontSize: 11, lineHeight: 16, color: colors.text },
+  songTextBody: { fontFamily: typography.sansRegular, fontSize: 14, lineHeight: 22, color: colors.text },
 
   // Next Chapter row: match SystemsOverviewScreen / system list row 1:1
   nextChapterRow: {

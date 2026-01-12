@@ -73,13 +73,17 @@ After reading the excerpt, decide:
   Phil Collins (80s emotional), Whitney Houston (80s R&B), Elton John (70s/80s piano)
 
 **STEP 2: WRITE THE LYRICS**
-Structure:
-[Verse 1] - Set the scene of their emotional struggle (4 lines)
-[Chorus] - The emotional core/hook - MEMORABLE, SINGABLE (4 lines)
-[Verse 2] - Deepen the story, add specific details (4 lines)
-[Chorus] - Repeat (4 lines)
-[Bridge] - The breaking point or revelation (3-4 lines)
-[Final Chorus] - Resolution or acceptance (4 lines)
+Structure (DO NOT label sections in the actual lyrics):
+- Verse 1 (4 lines)
+- Chorus (4 lines)
+- Verse 2 (4 lines)
+- Chorus (4 lines)
+- Bridge (3-4 lines)
+- Final Chorus (4 lines)
+
+CRITICAL FORMAT RULE:
+- ❌ Do NOT write labels like "Verse", "Chorus", "Bridge", "Intro", "Outro" anywhere in the lyrics.
+- ✅ Use blank lines to separate sections instead.
 
 Style Guide:
 - Conversational but poetic (Paul Simon)
@@ -90,7 +94,7 @@ Style Guide:
 
 **OUTPUT FORMAT (JSON ONLY):**
 {
-  "lyrics": "[Verse 1]\\nLyrics here...\\n\\n[Chorus]\\nLyrics here...",
+  "lyrics": "Line 1\\nLine 2\\nLine 3\\nLine 4\\n\\nLine 1\\nLine 2\\nLine 3\\nLine 4\\n\\n...",
   "title": "Song Title (2-4 words)",
   "musicStyle": "70s piano ballad" or "80s power rock" etc,
   "vocalist": "Female (Carole King style)" or "Male choir (Aretha Franklin style)" etc,
