@@ -3,7 +3,7 @@ import { View, TouchableOpacity, Text, ActivityIndicator, ScrollView, StyleSheet
 import Slider from '@react-native-community/slider';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
 import { useTextAutoScroll } from '../hooks/useTextAutoScroll';
-import { colors, typography, radii } from '../theme';
+import { colors, typography, radii } from '@/theme/tokens';
 
 interface AudioPlayerSectionProps {
   audioUrl: string;
