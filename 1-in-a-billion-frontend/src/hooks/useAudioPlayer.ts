@@ -16,32 +16,58 @@ export const useAudioPlayer = ({ audioUrl, onPlaybackEnd }: UseAudioPlayerOption
   const [pos, setPos] = useState(0);
   const [dur, setDur] = useState(0);
   const [seeking, setSeeking] = useState(false);
+  const [available, setAvailable] = useState<boolean | null>(null); // null = checking, true = ready, false = not ready
 
-  // Preload duration when URL changes
+  // Preload duration when URL changes (also checks availability)
+  // Retries every 15 seconds if not available
   useEffect(() => {
-    const preloadDuration = async () => {
+    let cancelled = false;
+    let retryTimer: NodeJS.Timeout | null = null;
+    
+    const checkAvailability = async (isRetry = false) => {
       if (!audioUrl) {
         console.warn('⚠️ useAudioPlayer: No audioUrl provided');
+        setAvailable(false);
         return;
       }
+      if (!isRetry) setAvailable(null); // only show checking on first attempt
       try {
-        console.log(`🎵 Preloading audio duration: ${audioUrl.substring(0, 80)}...`);
+        console.log(`🎵 ${isRetry ? 'Retrying' : 'Checking'} audio availability: ${audioUrl.substring(0, 80)}...`);
         const { sound } = await Audio.Sound.createAsync({ uri: audioUrl });
         const status = await sound.getStatusAsync();
+        if (cancelled) {
+          await sound.unloadAsync();
+          return;
+        }
         if (status.isLoaded && status.durationMillis) {
           const duration = status.durationMillis / 1000;
           setDur(duration);
-          console.log(`✅ Audio duration preloaded: ${duration.toFixed(1)}s`);
+          setAvailable(true);
+          console.log(`✅ Audio available: ${duration.toFixed(1)}s`);
         } else {
-          console.warn('⚠️ Audio loaded but no duration available');
+          console.warn('⚠️ Audio loaded but no duration - marking unavailable');
+          setAvailable(false);
+          // Retry in 15 seconds
+          if (!cancelled) {
+            retryTimer = setTimeout(() => checkAvailability(true), 15000);
+          }
         }
         await sound.unloadAsync();
       } catch (e: any) {
-        console.error(`❌ Failed to preload audio duration:`, e.message);
-        // Silently fail - user can still play audio normally
+        if (cancelled) return;
+        console.log(`⏳ Audio not yet available: ${e.message}`);
+        setAvailable(false);
+        // Retry in 15 seconds
+        if (!cancelled) {
+          retryTimer = setTimeout(() => checkAvailability(true), 15000);
+        }
       }
     };
-    preloadDuration();
+    checkAvailability();
+    return () => { 
+      cancelled = true; 
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, [audioUrl]);
 
   // Cleanup on unmount
@@ -139,6 +165,7 @@ export const useAudioPlayer = ({ audioUrl, onPlaybackEnd }: UseAudioPlayerOption
     pos,
     dur,
     seeking,
+    available, // null = checking, true = ready, false = not ready yet
     // Actions
     togglePlayback,
     handleSlidingStart,
