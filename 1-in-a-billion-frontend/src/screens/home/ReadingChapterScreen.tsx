@@ -397,18 +397,28 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         </View>
 
         {nextChapter ? (
-          <TouchableOpacity
-            style={styles.nextChapterRow}
-            onPress={() => navigation.push('ReadingChapter', nextChapter)}
-            activeOpacity={0.7}
-          >
-            <AnimatedSystemIcon icon={nextSystemIcon} size={28} />
-            <View style={styles.nextChapterInfo}>
-              <Text style={styles.nextChapterName}>{nextChapter.systemName}</Text>
-              <Text style={styles.nextChapterTagline}>Next Chapter</Text>
-            </View>
-            <Text style={styles.nextChapterArrow}>→</Text>
-          </TouchableOpacity>
+          <View style={styles.bottomCtasRow}>
+            <TouchableOpacity
+              style={styles.backToLibraryButton}
+              onPress={() => navigation.navigate('MyLibrary')}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.backToLibraryText}>Back to Soul Library</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.nextChapterRowSmall}
+              onPress={() => navigation.push('ReadingChapter', nextChapter)}
+              activeOpacity={0.7}
+            >
+              <AnimatedSystemIcon icon={nextSystemIcon} size={24} />
+              <View style={styles.nextChapterInfo}>
+                <Text style={styles.nextChapterName}>{nextChapter.systemName}</Text>
+                <Text style={styles.nextChapterTagline}>Next Chapter</Text>
+              </View>
+              <Text style={styles.nextChapterArrow}>→</Text>
+            </TouchableOpacity>
+          </View>
         ) : null}
       </ScrollView>
     </SafeAreaView>
@@ -423,22 +433,22 @@ const styles = StyleSheet.create({
 
   titleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   // Inset a bit so the buttons sit inside the safe margin
-  titleButtonsCol: { width: 46, gap: 8, marginLeft: 8 },
+  titleButtonsCol: { width: 40, gap: 6, marginLeft: 18 },
   headerYellowButton: {
     // Coated white (standard) inside, not yellow
     backgroundColor: colors.surface,
-    borderRadius: 10,
-    paddingVertical: 6,
+    borderRadius: 8,
+    paddingVertical: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    height: 34,
-    width: 44,
+    height: 28,
+    width: 36,
     borderWidth: 2,
     borderColor: '#111827',
   },
-  headerYellowText: { fontFamily: typography.sansSemiBold, color: '#111827' },
+  headerYellowText: { fontFamily: typography.sansSemiBold, color: '#111827', fontSize: 12 },
   titleBlock: { flex: 1, alignItems: 'center' },
-  titleRightSpacer: { width: 46 },
+  titleRightSpacer: { width: 40 },
 
   // Headline typography (same font family used elsewhere)
   title: { fontFamily: typography.headline, fontSize: 34, color: colors.text, textAlign: 'center' },
@@ -510,19 +520,33 @@ const styles = StyleSheet.create({
   songTextBody: { fontFamily: typography.sansRegular, fontSize: 14, lineHeight: 22, color: colors.text },
 
   // Next Chapter row: match SystemsOverviewScreen / system list row 1:1
-  nextChapterRow: {
-    marginTop: 14,
+  bottomCtasRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
+  backToLibraryButton: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radii.card,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backToLibraryText: { fontFamily: typography.sansSemiBold, fontSize: 13, color: colors.text },
+
+  nextChapterRowSmall: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderRadius: radii.card,
-    paddingVertical: spacing.md,
+    paddingVertical: 10,
     paddingHorizontal: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
   },
   nextChapterInfo: { flex: 1, marginLeft: spacing.sm },
-  nextChapterName: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },
+  nextChapterName: { fontFamily: typography.sansSemiBold, fontSize: 14, color: colors.text },
   nextChapterTagline: { fontFamily: typography.sansRegular, fontSize: 12, color: colors.primary, marginTop: 1 },
   nextChapterArrow: { fontFamily: typography.sansBold, fontSize: 18, color: colors.primary, marginLeft: spacing.sm },
 });
