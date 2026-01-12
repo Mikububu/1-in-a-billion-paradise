@@ -422,19 +422,23 @@ const styles = StyleSheet.create({
   scrollContent: { padding: 18, paddingTop: 90, paddingBottom: 30 },
 
   titleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  titleButtonsCol: { width: 54, gap: 8 },
+  // Inset a bit so the buttons sit inside the safe margin
+  titleButtonsCol: { width: 46, gap: 8, marginLeft: 8 },
   headerYellowButton: {
-    backgroundColor: colors.highlightYellow,
-    borderRadius: 12,
-    paddingVertical: 8,
+    // Coated white (standard) inside, not yellow
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    paddingVertical: 6,
     alignItems: 'center',
     justifyContent: 'center',
+    height: 34,
+    width: 44,
     borderWidth: 2,
     borderColor: '#111827',
   },
   headerYellowText: { fontFamily: typography.sansSemiBold, color: '#111827' },
   titleBlock: { flex: 1, alignItems: 'center' },
-  titleRightSpacer: { width: 54 },
+  titleRightSpacer: { width: 46 },
 
   // Headline typography (same font family used elsewhere)
   title: { fontFamily: typography.headline, fontSize: 34, color: colors.text, textAlign: 'center' },
