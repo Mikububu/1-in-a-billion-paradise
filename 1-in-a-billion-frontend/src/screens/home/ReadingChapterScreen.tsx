@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -38,6 +38,14 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
   const [loadingText, setLoadingText] = useState<boolean>(true);
   const [songLyrics, setSongLyrics] = useState<string>('');
   const [loadingSongLyrics, setLoadingSongLyrics] = useState<boolean>(true);
+  const [pdfReady, setPdfReady] = useState<boolean>(false);
+  const [audioReady, setAudioReady] = useState<boolean>(false);
+  const [songReady, setSongReady] = useState<boolean>(false);
+  const [pdfChecked, setPdfChecked] = useState<boolean>(false);
+  const [audioChecked, setAudioChecked] = useState<boolean>(false);
+  const pdfReadyRef = useRef(false);
+  const audioReadyRef = useRef(false);
+  const songReadyRef = useRef(false);
 
   const narrationUrl = useMemo(() => {
     const url = `${env.CORE_API_URL}/api/jobs/v2/${jobId}/audio/${docNum}`;
@@ -146,6 +154,148 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     return () => { mounted = false; };
   }, [jobId, systemId, docNum]);
 
+  // Check if PDF is ready (with polling until ready)
+  useEffect(() => {
+    let mounted = true;
+    let interval: any;
+    
+    const checkPdf = async () => {
+      if (!mounted || pdfReadyRef.current) return;
+      try {
+        const artifacts = await fetchJobArtifacts(jobId, ['pdf']);
+        const pdfArtifact = artifacts.find((a) => {
+          const meta = (a.metadata as any) || {};
+          return meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
+        });
+        if (mounted) {
+          const ready = !!pdfArtifact?.storage_path;
+          if (ready) {
+            console.log(`📄 PDF ready!`);
+            pdfReadyRef.current = true;
+            setPdfReady(true);
+            if (interval) clearInterval(interval);
+          } else {
+            setPdfReady(false);
+          }
+          setPdfChecked(true);
+        }
+      } catch (error: any) {
+        console.error(`❌ Failed to check PDF:`, error.message);
+        if (mounted) setPdfReady(false);
+      }
+    };
+    
+    // Reset ref when job/doc changes
+    pdfReadyRef.current = false;
+    setPdfReady(false);
+    setPdfChecked(false);
+    
+    // Check immediately
+    checkPdf();
+    
+    // Poll every 5 seconds until PDF is ready
+    interval = setInterval(checkPdf, 5000);
+    
+    return () => {
+      mounted = false;
+      if (interval) clearInterval(interval);
+    };
+  }, [jobId, systemId, docNum]);
+
+  // Check if audio is ready (with polling until ready)
+  useEffect(() => {
+    let mounted = true;
+    let interval: any;
+    
+    const checkAudio = async () => {
+      if (!mounted || audioReadyRef.current) return;
+      try {
+        const artifacts = await fetchJobArtifacts(jobId, ['audio_mp3', 'audio_m4a']);
+        const audioArtifact = artifacts.find((a) => {
+          const meta = (a.metadata as any) || {};
+          return meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
+        });
+        if (mounted) {
+          const ready = !!audioArtifact?.storage_path;
+          if (ready) {
+            console.log(`🎙️ Audio ready!`);
+            audioReadyRef.current = true;
+            setAudioReady(true);
+            if (interval) clearInterval(interval);
+          } else {
+            setAudioReady(false);
+          }
+          setAudioChecked(true);
+        }
+      } catch (error: any) {
+        console.error(`❌ Failed to check audio:`, error.message);
+        if (mounted) setAudioReady(false);
+      }
+    };
+    
+    // Reset ref when job/doc changes
+    audioReadyRef.current = false;
+    setAudioReady(false);
+    setAudioChecked(false);
+    
+    // Check immediately
+    checkAudio();
+    
+    // Poll every 5 seconds until audio is ready
+    interval = setInterval(checkAudio, 5000);
+    
+    return () => {
+      mounted = false;
+      if (interval) clearInterval(interval);
+    };
+  }, [jobId, systemId, docNum]);
+
+  // Check if song is ready (with polling until ready)
+  useEffect(() => {
+    let mounted = true;
+    let interval: any;
+    
+    const checkSong = async () => {
+      if (!mounted || songReadyRef.current) return;
+      try {
+        const artifacts = await fetchJobArtifacts(jobId, ['audio_song']);
+        const songArtifact = artifacts.find((a) => {
+          const meta = (a.metadata as any) || {};
+          return meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
+        });
+        if (mounted) {
+          const ready = !!songArtifact?.storage_path;
+          if (ready) {
+            console.log(`🎵 Song ready!`);
+            songReadyRef.current = true;
+            setSongReady(true);
+            if (interval) clearInterval(interval);
+          } else {
+            setSongReady(false);
+          }
+        }
+      } catch (error: any) {
+        console.error(`❌ Failed to check song:`, error.message);
+        if (mounted) setSongReady(false);
+      }
+    };
+    
+    // Reset ref when job/doc changes
+    songReadyRef.current = false;
+    setSongReady(false);
+    
+    // Check immediately
+    checkSong();
+    
+    // Poll every 5 seconds until song is ready
+    interval = setInterval(checkSong, 5000);
+    
+    return () => {
+      mounted = false;
+      if (interval) clearInterval(interval);
+    };
+  }, [jobId, systemId, docNum]);
+
   const niceTimestamp = useMemo(() => {
     if (!timestamp) return '';
     try {
@@ -176,15 +326,28 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
           {niceTimestamp}
         </Text>
       )}
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        {/* Title row */}
-        <View style={styles.titleRow}>
+      <ScrollView 
+        style={styles.scroll} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.contentWrapper}>
+          {/* Title row */}
+          <View style={styles.titleRow}>
           <View style={styles.titleButtonsCol}>
-            <TouchableOpacity style={styles.headerYellowButton} onPress={() => {}}>
-              <Text style={styles.headerYellowText}>PDF</Text>
+            <TouchableOpacity 
+              style={[styles.headerYellowButton, !pdfReady && styles.headerYellowButtonDisabled]} 
+              onPress={() => {}}
+              disabled={!pdfReady}
+            >
+              <Text style={[styles.headerYellowText, !pdfReady && styles.headerYellowTextDisabled]}>PDF</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.headerYellowButton} onPress={() => {}}>
-              <Text style={styles.headerYellowText}>↓</Text>
+            <TouchableOpacity 
+              style={[styles.headerYellowButton, !pdfReady && styles.headerYellowButtonDisabled]} 
+              onPress={() => {}}
+              disabled={!pdfReady}
+            >
+              <Text style={[styles.headerYellowText, !pdfReady && styles.headerYellowTextDisabled]}>↓</Text>
             </TouchableOpacity>
           </View>
 
@@ -208,6 +371,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             text={text}
             loadingText={loadingText}
             type="narration"
+            textNotReady={!!text && !loadingText && (!pdfChecked || !audioChecked || !pdfReady || !audioReady)}
           />
 
           <View style={styles.musicSpacer} />
@@ -217,6 +381,8 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             text={songLyrics}
             loadingText={loadingSongLyrics}
             type="song"
+            controlsDisabled={!songReady}
+            textNotReady={!!songLyrics && !loadingSongLyrics && (!songReady || !pdfReady || !audioReady)}
           />
         </View>
 
@@ -259,7 +425,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
               </Text>
             </TouchableOpacity>
           </View>
-        )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -268,7 +434,17 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
   scroll: { flex: 1 },
-  scrollContent: { padding: 18, paddingTop: 50, paddingBottom: 30 },
+  scrollContent: { 
+    padding: 18, 
+    paddingTop: 70, 
+    paddingBottom: 30,
+    flexGrow: 1,
+  },
+  contentWrapper: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    minHeight: 400, // Minimum height to ensure content doesn't get too cramped
+  },
 
   headerTimestamp: {
     position: 'absolute',
@@ -293,6 +469,12 @@ const styles = StyleSheet.create({
     borderColor: '#111827',
   },
   headerYellowText: { fontFamily: typography.sansSemiBold, color: '#111827', fontSize: 12 },
+  headerYellowButtonDisabled: {
+    backgroundColor: '#f5f5f5',
+    borderColor: '#d0d0d0',
+    opacity: 0.5,
+  },
+  headerYellowTextDisabled: { color: '#999999' },
 
   titleBlock: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
   title: { fontFamily: typography.headline, fontSize: 34, color: colors.text, textAlign: 'center' },

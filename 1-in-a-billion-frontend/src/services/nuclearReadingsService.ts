@@ -108,10 +108,11 @@ export const fetchJobArtifacts = async (
     const { data, error } = await q;
 
     if (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'nuclearReadingsService.ts:110',message:'Error fetching artifacts',data:{jobId,artifactTypes,error:error.message,errorCode:error.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
-      console.error('Error fetching artifacts:', error);
+      // Silently handle errors - don't show to user, just return empty array
+      // Only log in dev mode for debugging
+      if (__DEV__) {
+        console.warn('Error fetching artifacts (silent):', error.message);
+      }
       return [];
     }
 

@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
         height: CIRCLE_SIZE,
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 0,
+        marginTop: spacing.xl,
         position: 'relative',
     },
     animatedCircle: {
@@ -357,8 +357,8 @@ const styles = StyleSheet.create({
         color: colors.text,
         backgroundColor: 'transparent',
         paddingHorizontal: spacing.xl,
-        paddingVertical: spacing.xl,
-        textAlignVertical: 'center',
+        paddingTop: CIRCLE_SIZE / 2 - 20,
+        textAlignVertical: 'top',
         textAlign: 'center',
     },
     buttonContainer: {

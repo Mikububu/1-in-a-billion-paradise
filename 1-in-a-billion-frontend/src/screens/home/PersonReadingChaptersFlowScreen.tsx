@@ -68,15 +68,38 @@ export const PersonReadingChaptersFlowScreen = ({ navigation, route }: Props) =>
           return (desiredDocTypes || []).includes(docType);
         });
 
-        // Build exactly 5 or 6, in fixed order. ALWAYS include all systems for navigation.
-        const orderedSystems = effectiveViewType === 'overlay'
+        // Build chapters ONLY for systems that actually exist in the job documents
+        // This ensures we don't show wrong content (e.g., Gene Keys reading showing Western content)
+        const systemsInJob = new Set(chapterDocs.map((d) => String(d?.system || '').toLowerCase()));
+        
+        // Filter ordered systems to only include those that exist in the job
+        const orderedSystems = (effectiveViewType === 'overlay'
           ? SYSTEMS
-          : SYSTEMS.filter((s) => s.id !== 'verdict');
+          : SYSTEMS.filter((s) => s.id !== 'verdict')
+        ).filter((sys) => systemsInJob.has(sys.id.toLowerCase()));
+
+        // If no systems found, that's okay - the screen will show empty/gray content
+        // This happens when the job is still processing and documents aren't ready yet
+        if (orderedSystems.length === 0) {
+          console.log(`ℹ️ No documents ready yet for job ${jobId}. Screen will show empty content.`);
+          // Still create a placeholder chapter so the screen can load and show gray/empty state
+          const requestedSystems = job?.params?.systems || [];
+          if (requestedSystems.length > 0) {
+            const firstSystemId = String(requestedSystems[0] || '').toLowerCase();
+            const firstSystem = SYSTEMS.find(s => s.id.toLowerCase() === firstSystemId);
+            if (firstSystem) {
+              orderedSystems.push(firstSystem);
+            }
+          }
+        }
 
         const built: Chapter[] = orderedSystems.map((sys, index) => {
-          const match = chapterDocs.find((d) => String(d?.system || '') === sys.id) || null;
-          // Use docNum from data, or fallback to sequential index for old job format
-          const docNum = Number(match?.docNum) || (index + 1);
+          const match = chapterDocs.find((d) => String(d?.system || '').toLowerCase() === sys.id.toLowerCase());
+          
+          // Use docNum from document if available, otherwise use sequential index
+          // If document isn't ready yet, the screen will show empty/gray content (which is fine)
+          const docNum = match ? Number(match?.docNum) || (index + 1) : (index + 1);
+          
           return {
             personName,
             personId,
@@ -86,7 +109,7 @@ export const PersonReadingChaptersFlowScreen = ({ navigation, route }: Props) =>
             docNum,
             timestamp: createdAt,
           };
-        }); // Don't filter - always include all systems so navigation buttons work
+        });
 
         if (!mounted) return;
         // Build nextChapter chain from END to START so each nextChapter has its own nextChapter set

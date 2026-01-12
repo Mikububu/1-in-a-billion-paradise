@@ -11,6 +11,7 @@ interface AudioPlayerSectionProps {
   loadingText: boolean;
   type: 'narration' | 'song';
   controlsDisabled?: boolean;
+  textNotReady?: boolean; // True when text exists but audio/PDF aren't ready yet
 }
 
 export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
@@ -19,6 +20,7 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
   loadingText,
   type,
   controlsDisabled = false,
+  textNotReady = false,
 }) => {
   const audio = useAudioPlayer({ audioUrl });
   const textScroll = useTextAutoScroll({
@@ -108,7 +110,7 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
               onLayout={(e) => textScroll.setViewportH(e.nativeEvent.layout.height)}
               onContentSizeChange={(_, h) => textScroll.setContentH(h)}
             >
-              <Text style={styles.textBody}>{text || ''}</Text>
+              <Text style={[styles.textBody, textNotReady && styles.textBodyNotReady]}>{text || ''}</Text>
             </ScrollView>
           )}
         </View>
@@ -161,4 +163,5 @@ const styles = StyleSheet.create({
   },
   textWindow: { maxHeight: 110 },
   textBody: { fontFamily: typography.sansRegular, fontSize: 14, lineHeight: 22, color: colors.text },
+  textBodyNotReady: { color: colors.mutedText, opacity: 0.6 },
 });

@@ -37,7 +37,7 @@ import { useProfileStore, Reading, Person, CompatibilityReading, ReadingSystem, 
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { shareAudioFile, downloadAudioFromUrl, generateAudioFileName } from '@/services/audioDownload';
 import { useAuthStore } from '@/store/authStore';
-import { deletePersonFromSupabase, fetchPeopleWithPaidReadings } from '@/services/peopleService';
+import { fetchPeopleWithPaidReadings } from '@/services/peopleService';
 import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { fetchNuclearJobs, fetchJobArtifacts } from '@/services/nuclearReadingsService';
@@ -176,7 +176,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   const upsertSavedAudioById = useProfileStore((state) => state.upsertSavedAudioById);
   const addPerson = useProfileStore((state) => state.addPerson);
   const updatePerson = useProfileStore((state) => state.updatePerson);
-  const deletePerson = useProfileStore((state) => state.deletePerson);
   const repairPeople = useProfileStore((state) => state.repairPeople);
   const repairReadings = useProfileStore((state) => state.repairReadings);
   const fixDuplicateIds = useProfileStore((state) => state.fixDuplicateIds);
@@ -2294,52 +2293,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                   });
                 }}
               >
-                {/* Delete button - only show for non-user people */}
-                {!person.isUser && (
-                  <TouchableOpacity
-                    style={styles.personDeleteButton}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    onPress={() => {
-                      // CRITICAL: Cannot delete your own profile
-                      if (person.isUser) {
-                        Alert.alert('Cannot Delete', 'You cannot delete your own profile.');
-                        return;
-                      }
-                      
-                      Alert.alert(
-                        'Delete ' + person.name + '?',
-                        'This will permanently remove this person and all their readings.',
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          {
-                            text: 'Delete',
-                            style: 'destructive',
-                            onPress: async () => {
-                              if (!authUser?.id) {
-                                Alert.alert('Delete Failed', 'You must be signed in to delete people.');
-                                return;
-                              }
-
-                              // CLOUD-FIRST deletion:
-                              // Only delete locally after the backend confirms full purge.
-                              const result = await deletePersonFromSupabase(authUser.id, person.id);
-                              if (!result.success) {
-                                Alert.alert('Delete Failed', result.error || 'Could not delete from cloud.');
-                                return;
-                              }
-
-                              deletePerson(person.id);
-                              console.log(`✅ Deleted "${person.name}" from Supabase`);
-                              Alert.alert('Deleted', person.name + ' has been removed');
-                            }
-                          }
-                        ]
-                      );
-                    }}
-                  >
-                    <Text style={styles.personDeleteIcon}>×</Text>
-                  </TouchableOpacity>
-                )}
                 <View style={[styles.personAvatar, {
                   backgroundColor: person.isUser ? '#E8F4E4' : '#FFE4E4'
                 }]}>
@@ -3110,25 +3063,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
-    position: 'relative', // For absolute positioning of delete button
-  },
-  personDeleteButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.mutedText + '20',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  personDeleteIcon: {
-    fontSize: 16,
-    color: colors.mutedText,
-    fontWeight: '300',
-    marginTop: -1, // Visual centering adjustment
   },
   personAvatar: {
     width: 50,
