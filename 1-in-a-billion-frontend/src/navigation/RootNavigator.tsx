@@ -72,6 +72,8 @@ import { PeopleListScreen } from '@/screens/home/PeopleListScreen';
 import { PersonProfileScreen } from '@/screens/home/PersonProfileScreen';
 import { PersonJobsListScreen } from '@/screens/home/PersonJobsListScreen';
 import { PersonReadingsScreen } from '@/screens/home/PersonReadingsScreen';
+import { PersonReadingChaptersFlowScreen } from '@/screens/home/PersonReadingChaptersFlowScreen';
+import { ReadingChapterScreen } from '@/screens/home/ReadingChapterScreen';
 import { MyLibraryScreen } from '@/screens/home/MyLibraryScreen';
 import { NextStepScreen } from '@/screens/home/NextStepScreen';
 import { ComparePeopleScreen } from '@/screens/home/ComparePeopleScreen';
@@ -317,6 +319,15 @@ export type MainStackParamList = {
   PersonProfile: { personId: string };
   PersonJobsList: { personName: string; personId: string };
   PersonReadings: { personName: string; personId: string; personType: 'person1' | 'person2' | 'overlay' | 'individual'; jobId?: string };
+  ReadingChapter: {
+    personName: string;
+    jobId: string;
+    systemId: string;
+    systemName: string;
+    docNum: number;
+    timestamp?: string;
+    nextChapter?: any;
+  };
   SynastryOverlay: {
     userId: string;
     user1: { name: string; birthChart: BirthChart };
@@ -653,7 +664,9 @@ const MainNavigator = () => {
       <MainStack.Screen name="PeopleList" component={PeopleListScreen} />
       <MainStack.Screen name="PersonProfile" component={PersonProfileScreen} />
       <MainStack.Screen name="PersonJobsList" component={PersonJobsListScreen} />
-      <MainStack.Screen name="PersonReadings" component={PersonReadingsScreen} />
+      {/* Keep route name the same so MyLibrary/MySourceLibrary stays untouched */}
+      <MainStack.Screen name="PersonReadings" component={PersonReadingChaptersFlowScreen} />
+      <MainStack.Screen name="ReadingChapter" component={ReadingChapterScreen} />
       <MainStack.Screen name="SynastryOverlay" component={SynastryOverlayScreen} />
       <MainStack.Screen name="Purchase" component={PurchaseScreen} />
       {/* KYC Screens */}

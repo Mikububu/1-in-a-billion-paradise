@@ -2025,11 +2025,127 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           const jobType = job?.type;
           const isExtendedJob = jobType === 'extended' || jobType === 'single_system';
 
+          // Get job params once (used in multiple places)
+          // Try jobIdToParams first, then fallback to job.params or job.input
+          let p = jobIdToParams.get(jobId) || null;
+          if (!p && job) {
+            p = (job as any).params || (job as any).input || null;
+            if (typeof p === 'string') {
+              try {
+                p = JSON.parse(p);
+              } catch {
+                p = null;
+              }
+            }
+          }
+
           let personType: 'individual' | 'person1' | 'person2' = 'person1';
           if (isExtendedJob) {
             personType = 'individual';
+          } else if (job?.type === 'nuclear_v2') {
+            // Nuclear_v2 jobs have both person1 AND person2
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:2048',message:'PersonType calculation start',data:{personName:person.name,personId:person.id,jobId,hasParams:!!p,person1Name:p?.person1?.name,person2Name:p?.person2?.name,person1Id:p?.person1?.id,person2Id:p?.person2?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+            
+            console.log('🔍 [PersonType Calculation] Starting for nuclear_v2:', {
+              personName: person.name,
+              personId: person.id,
+              jobId,
+              hasParams: !!p,
+              person1Name: p?.person1?.name,
+              person2Name: p?.person2?.name,
+              person1Id: p?.person1?.id,
+              person2Id: p?.person2?.id
+            });
+            
+            // Try ID matching first
+            if (p?.person1?.id && p.person1.id === person.id) {
+              personType = 'person1';
+              console.log('  ✅ Matched by person1 ID');
+            } else if (p?.person2?.id && p.person2.id === person.id) {
+              personType = 'person2';
+              console.log('  ✅ Matched by person2 ID');
+            }
+            // Try name matching (MORE ROBUST) - exact match
+            else if (p?.person1?.name && p.person1.name.toLowerCase().trim() === person.name.toLowerCase().trim()) {
+              personType = 'person1';
+              console.log('  ✅ Matched by person1 name (exact)');
+            } else if (p?.person2?.name && p.person2.name.toLowerCase().trim() === person.name.toLowerCase().trim()) {
+              personType = 'person2';
+              console.log('  ✅ Matched by person2 name (exact)');
+            }
+            // Try partial name matching
+            else if (person.name && p?.person2?.name && person.name.toLowerCase().includes(p.person2.name.toLowerCase())) {
+              personType = 'person2';
+              console.log('  ✅ Matched by person2 name (partial)');
+            } else if (person.name && p?.person1?.name && person.name.toLowerCase().includes(p.person1.name.toLowerCase())) {
+              personType = 'person1';
+              console.log('  ✅ Matched by person1 name (partial)');
+            }
+            // Try reverse partial matching (job name in person name)
+            else if (p?.person2?.name && person.name.toLowerCase().includes(p.person2.name.toLowerCase())) {
+              personType = 'person2';
+              console.log('  ✅ Matched by person2 name (reverse partial)');
+            } else if (p?.person1?.name && person.name.toLowerCase().includes(p.person1.name.toLowerCase())) {
+              personType = 'person1';
+              console.log('  ✅ Matched by person1 name (reverse partial)');
+            }
+            // Final fallback with logging
+            else {
+              // SMART FALLBACK: If we have both person1 and person2, and person name doesn't match person1, it must be person2
+              if (p?.person1?.name && p?.person2?.name) {
+                const personNameLower = person.name.toLowerCase().trim();
+                const person1NameLower = p.person1.name.toLowerCase().trim();
+                const person2NameLower = p.person2.name.toLowerCase().trim();
+                
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:2091',message:'Smart fallback check',data:{personName:person.name,personNameLower,person1NameLower,person2NameLower,matchesPerson1:personNameLower===person1NameLower,matchesPerson2:personNameLower===person2NameLower},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                // #endregion
+                
+                // If name doesn't match person1, assume person2
+                if (personNameLower !== person1NameLower) {
+                  personType = 'person2';
+                  console.log('  ✅ Smart fallback: Name does not match person1, defaulting to person2');
+                  
+                  // #region agent log
+                  fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:2097',message:'Smart fallback result',data:{personType:'person2',reason:'nameDoesNotMatchPerson1'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                  // #endregion
+                } else {
+                  personType = 'person1';
+                  console.log('  ✅ Smart fallback: Name matches person1');
+                  
+                  // #region agent log
+                  fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:2102',message:'Smart fallback result',data:{personType:'person1',reason:'nameMatchesPerson1'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                  // #endregion
+                }
+              } else {
+                console.warn('⚠️ [PersonType Calculation] Could not determine personType:', {
+                  personName: person.name,
+                  personId: person.id,
+                  jobId,
+                  jobPerson1Name: p?.person1?.name,
+                  jobPerson2Name: p?.person2?.name,
+                  jobType: job.type,
+                  willDefaultTo: 'person1 (no smart fallback possible)'
+                });
+                
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:2110',message:'Smart fallback failed',data:{personName:person.name,hasPerson1Name:!!p?.person1?.name,hasPerson2Name:!!p?.person2?.name,willDefaultTo:'person1'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                // #endregion
+                
+                personType = 'person1';
+              }
+            }
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyLibraryScreen.tsx:2118',message:'Final personType determined',data:{personName:person.name,personType,jobId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+            
+            console.log('  📌 Final personType:', personType);
           } else {
-            const p = jobIdToParams.get(jobId) || null;
+            // Other job types - use original logic
             const fromJob =
               (p?.person1?.id && p.person1.id === person.id)
                 ? 'person1'
@@ -2044,6 +2160,18 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           }
 
           const createdAt = (job as any)?.created_at || (job as any)?.createdAt || person.createdAt;
+          console.log('🔍 [MyLibrary] Building timeline item for:', {
+            personName: person.name,
+            personId: person.id,
+            jobId,
+            jobType,
+            calculatedPersonType: personType,
+            person1Name: p?.person1?.name,
+            person2Name: p?.person2?.name,
+            person1Id: p?.person1?.id,
+            person2Id: p?.person2?.id,
+            personJobIds: person.jobIds
+          });
           return {
             kind: 'person' as const,
             key: `person-${person.id}-${jobId}`, // Unique key per job
@@ -2070,7 +2198,24 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
       card,
     }));
 
-    return [...personItems, ...coupleItems].sort((a, b) => toTime(b.createdAt) - toTime(a.createdAt));
+    const allItems = [...personItems, ...coupleItems].sort((a, b) => toTime(b.createdAt) - toTime(a.createdAt));
+    
+    console.log('📋 [MyLibrary] Timeline items created:', {
+      personItems: personItems.length,
+      coupleItems: coupleItems.length,
+      total: allItems.length,
+      personItemsDetails: personItems.map(p => ({
+        name: p.person.name,
+        personType: p.personType,
+        jobId: p.primaryJobId
+      })),
+      coupleItemsDetails: coupleItems.map(c => ({
+        name: `${c.card.person1} & ${c.card.person2}`,
+        jobId: c.card.jobId
+      }))
+    });
+    
+    return allItems;
   }, [allPeopleWithReadings, cloudPeopleCards, queueJobs, jobIdToParams]);
 
   return (
@@ -2117,6 +2262,12 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
           {/* Chronological feed: newest first (across people + couples) */}
           {timelineItems.map((item: any) => {
+            console.log('🎴 [MyLibrary] Rendering timeline item:', {
+              kind: item.kind,
+              key: item.key,
+              personName: item.kind === 'person' ? item.person?.name : `${item.card?.person1} & ${item.card?.person2}`,
+              personType: item.kind === 'person' ? item.personType : 'overlay'
+            });
             if (item.kind === 'person') {
               const person = item.person;
               const personType = item.personType as 'individual' | 'person1' | 'person2';
@@ -2126,6 +2277,13 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                 key={item.key}
                 style={styles.personCard}
                 onPress={() => {
+                  console.log('🔥 [MyLibrary] Navigating to PersonReadings:', {
+                    personName: person.name,
+                    personId: person.id,
+                    personType: personType,
+                    jobId: primaryJobId,
+                    jobIds: person.jobIds
+                  });
                   navigation.navigate('PersonReadings', {
                     personName: person.name,
                     personId: person.id,

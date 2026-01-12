@@ -69,6 +69,16 @@ type Reading = {
 
 export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   const { personName, personType, jobId: routeJobId } = route.params;
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:71',message:'Screen mounted with params',data:{personName,personType,jobId:routeJobId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+  
+  console.log('🔥 [PersonReadingsScreen] MOUNTED with:', {
+    personName,
+    personType,
+    jobId: routeJobId
+  });
   const routePersonId = (route.params as any).personId; // May not exist in older nav calls
 
 
@@ -133,6 +143,10 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  
+  // CRITICAL: Correct personType if it's wrong (workaround for MyLibraryScreen bug)
+  const [correctedPersonType, setCorrectedPersonType] = useState<'individual' | 'person1' | 'person2' | 'overlay'>(personType);
+  const personTypeCorrectedRef = useRef(false); // Prevent infinite reload loops
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [loadingAudioId, setLoadingAudioId] = useState<string | null>(null);
   const [audioLoadProgress, setAudioLoadProgress] = useState<Record<string, number>>({});
@@ -155,10 +169,12 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   const [loadingTextIds, setLoadingTextIds] = useState<Set<string>>(new Set());
   const textScrollRefs = useRef<Record<string, ScrollView | null>>({});
   const [manuallyScrolling, setManuallyScrolling] = useState<Record<string, boolean>>({});
+  const [songLyrics, setSongLyrics] = useState<Record<string, string>>({});
 
   
   // Pulsating animation for generating items (0 to 1 range for interpolation)
   const pulseAnim = useRef(new Animated.Value(0)).current;
+  const blinkAnim = useRef(new Animated.Value(1)).current; // For blinking effect
   const [loadingSongId, setLoadingSongId] = useState<string | null>(null);
   const [songPosition, setSongPosition] = useState(0);
   const [songDuration, setSongDuration] = useState(0);
@@ -269,21 +285,31 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
   // Document ranges per person type
   // - Nuclear Package: person1=[1-5], person2=[6-10], overlay=[11-16]
   // - Extended/Combined: individual=[1-5] (or fewer, based on actual systems)
-  const getDocRange = (jobType?: string, systemCount?: number) => {
+  const getDocRange = useCallback((jobType?: string, systemCount?: number) => {
+    // Use corrected personType if available, otherwise fallback to original
+    const effectivePersonType = correctedPersonType || personType;
+    
     // For extended jobs, docs are always 1-N where N = number of systems
-    if (personType === 'individual' || jobType === 'extended') {
+    if (effectivePersonType === 'individual' || jobType === 'extended') {
       const count = systemCount || 5;
       return Array.from({ length: count }, (_, i) => i + 1);
     }
     
     // Nuclear Package ranges
-    switch (personType) {
-      case 'person1': return [1, 2, 3, 4, 5];
-      case 'person2': return [6, 7, 8, 9, 10];
-      case 'overlay': return [11, 12, 13, 14, 15, 16];
-      default: return [1, 2, 3, 4, 5];
+    let docRange: number[];
+    switch (effectivePersonType) {
+      case 'person1': docRange = [1, 2, 3, 4, 5]; break;
+      case 'person2': docRange = [6, 7, 8, 9, 10]; break;
+      case 'overlay': docRange = [11, 12, 13, 14, 15, 16]; break;
+      default: docRange = [1, 2, 3, 4, 5];
     }
-  };
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:284',message:'docRange calculated',data:{originalPersonType:personType,correctedPersonType,effectivePersonType,jobType,systemCount,docRange},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    
+    return docRange;
+  }, [personType, correctedPersonType]);
 
   const isZipReady = useCallback(() => {
     if (!FEATURES.ZIP_EXPORT_ENABLED) return false;
@@ -416,6 +442,29 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       }
       if (!jobData) throw lastErr || new Error('Failed to load job');
 
+      // CRITICAL: Correct personType if wrong (workaround for MyLibraryScreen bug)
+      const jobParams = jobData.job?.params || jobData.job?.input || {};
+      const person1Name = jobParams?.person1?.name;
+      const person2Name = jobParams?.person2?.name;
+      if (jobData.job?.type === 'nuclear_v2' && person1Name && person2Name) {
+        const personNameLower = personName.toLowerCase().trim();
+        const person1NameLower = person1Name.toLowerCase().trim();
+        const person2NameLower = person2Name.toLowerCase().trim();
+        
+        // If personName doesn't match person1, it must be person2
+        if (personNameLower !== person1NameLower && personNameLower === person2NameLower) {
+          if (correctedPersonType !== 'person2' && !personTypeCorrectedRef.current) {
+            console.log('🔧 [PersonReadings] Correcting personType: person1 → person2 for', personName);
+            personTypeCorrectedRef.current = true; // Prevent infinite loops
+            setCorrectedPersonType('person2');
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:442',message:'personType corrected',data:{originalPersonType:personType,correctedPersonType:'person2',personName,person1Name,person2Name},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+          }
+        }
+      }
+
       // NEW: Extract and set job status and progress
       const status = jobData.job?.status || 'pending';
       const progress = jobData.job?.progress || null;
@@ -435,6 +484,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       
       
       const docRange = getDocRange(jobType, systemCount);
+      console.log('🔥 [PersonReadings] DocRange for personType =', personType, ':', docRange);
       
       // Get documents from current job first
       const documents = jobData.job?.results?.documents || [];
@@ -481,10 +531,12 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         
         // For aggregated jobs, skip docRange check (we want all systems)
         if (!shouldAggregateJobs) {
-          console.log(`🔍 [PersonReadings] Processing doc: docNum=${docNum} (type=${typeof doc.docNum}), docRange=${JSON.stringify(docRange)}, includes=${docRange.includes(docNum)}`);
+          console.log(`🔍 [PersonReadings] Processing doc: docNum=${docNum}, docRange=${JSON.stringify(docRange)}, includes=${docRange.includes(docNum)}, personType=${personType}`);
           if (!docNum || !docRange.includes(docNum)) {
-            console.log(`⚠️ [PersonReadings] Skipping doc ${docNum}: !docNum=${!docNum}, !includes=${!docRange.includes(docNum)}`);
+            console.log(`❌ [PersonReadings] SKIPPING doc ${docNum} - not in range ${JSON.stringify(docRange)} for personType=${personType}`);
             continue;
+          } else {
+            console.log(`✅ [PersonReadings] KEEPING doc ${docNum} - in range for personType=${personType}`);
           }
         }
 
@@ -534,18 +586,25 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         
         // If reading already exists (from another job), merge artifacts (keep best)
         const existing = readingsMap[mapKey];
-        readingsMap[mapKey] = {
+        const reading = {
           id: existing?.id || `reading-${docNum}-${docJobId}`,
           system: system.id,
           name: system.name,
+          docNum: existing?.docNum || docNum, // CRITICAL: Store docNum for artifact matching
+          jobId: existing?.jobId || docJobId, // CRITICAL: Store jobId for artifact fetching
           pdfPath: existing?.pdfPath || doc.pdfUrl || undefined,
           // Use backend proxy URLs (streams bytes directly, iOS compatible)
           audioPath: existing?.audioPath || (doc.audioUrl ? `${env.CORE_API_URL}/api/jobs/v2/${docJobId}/audio/${docNum}` : undefined),
           songPath: existing?.songPath || (doc.songUrl ? `${env.CORE_API_URL}/api/jobs/v2/${docJobId}/song/${docNum}` : undefined),
           timestamp: existing?.timestamp || doc.created_at || jobData?.job?.created_at || new Date().toISOString(),
         };
+        readingsMap[mapKey] = reading;
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:559',message:'Reading created with docNum',data:{readingId:reading.id,system:reading.system,docNum:reading.docNum,jobId:reading.jobId,docNumFromDoc:docNum},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
 
-        console.log(`📄 Doc ${docNum} (${system.name}): pdf=${!!doc.pdfUrl} audio=${!!doc.audioUrl} song=${!!doc.songUrl}`);
+        console.log(`📄 Doc ${docNum} (${system.name}): pdf=${!!doc.pdfUrl} audio=${!!doc.audioUrl} song=${!!doc.songUrl}, docNum=${reading.docNum}, jobId=${reading.jobId}`);
         if (doc.audioUrl) {
           console.log(`   🎵 Audio URL: ${doc.audioUrl.substring(0, 80)}...`);
         }
@@ -682,9 +741,26 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
             // Map key to docNum for proxy URL (key is docNum string or system ID)
             const docNumFromKey = !isNaN(parseInt(s.key, 10)) ? parseInt(s.key, 10) : 
               (SYSTEMS.findIndex(sys => sys.id === s.key) + 1) || 1;
+            
+            console.log('🔍 [Supabase Artifact Sync] Processing artifact:', {
+              key: s.key,
+              docNumFromKey,
+              hasExistingReading: !!r,
+              existingDocNum: r?.docNum,
+              jobId: s.jobId
+            });
+            
             if (r) {
               // Update existing reading - fill gaps, prefer Supabase if API didn't provide
               // Use backend proxy URLs for iOS compatibility
+              if (!r.docNum) {
+                r.docNum = docNumFromKey; // Ensure docNum is set
+                console.log(`  ✅ Set docNum=${docNumFromKey} for reading ${r.id}`);
+              }
+              if (!r.jobId) {
+                r.jobId = s.jobId; // Ensure jobId is set
+                console.log(`  ✅ Set jobId=${s.jobId} for reading ${r.id}`);
+              }
               if (!r.pdfPath && s.pdfUrl) r.pdfPath = s.pdfUrl;
               if (!r.audioPath && s.audioUrl) r.audioPath = `${env.CORE_API_URL}/api/jobs/v2/${s.jobId}/audio/${docNumFromKey}`;
               if (!r.songPath && s.songUrl) r.songPath = `${env.CORE_API_URL}/api/jobs/v2/${s.jobId}/song/${docNumFromKey}`;
@@ -696,6 +772,8 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                   id: `reading-${s.key}-${s.jobId}`,
                   system: system.id,
                   name: system.name,
+                  docNum: docNumFromKey, // CRITICAL: Store docNum
+                  jobId: s.jobId, // CRITICAL: Store jobId
                   pdfPath: s.pdfUrl || undefined,
                   audioPath: s.audioUrl ? `${env.CORE_API_URL}/api/jobs/v2/${s.jobId}/audio/${docNumFromKey}` : undefined,
                   songPath: s.songUrl ? `${env.CORE_API_URL}/api/jobs/v2/${s.jobId}/song/${docNumFromKey}` : undefined,
@@ -809,6 +887,19 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
 
       // If no real readings exist, show nothing (empty state)
       // Don't show placeholders for incomplete/failed jobs
+      
+      // Debug: Log all readings with their docNum values
+      console.log('📋 [PersonReadings] Final readings array:', realReadings.map(r => ({
+        id: r.id,
+        system: r.system,
+        name: r.name,
+        docNum: r.docNum,
+        jobId: r.jobId,
+        hasAudio: !!r.audioPath,
+        hasPdf: !!r.pdfPath,
+        hasSong: !!r.songPath
+      })));
+      
       setReadings(realReadings);
 
       // AUDIBLE-STYLE PERSISTENCE: Sync to store for persistent library
@@ -885,9 +976,9 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     const REQUEST_TIMEOUT_MS = 30000;
     const MAX_ATTEMPTS = 2;
 
-    const uniqueJobIds = Array.from(
-      new Set<string>([...(person?.jobIds || []), ...(jobId ? [jobId] : [])].filter(Boolean) as string[])
-    );
+    // STABILITY RULE: This screen renders a single "receipt" (one job) only.
+    // Never aggregate across person.jobIds here — it causes mixing + thrash and makes the UI hard to test.
+    const uniqueJobIds = (jobId ? [jobId] : []) as string[];
 
     if (uniqueJobIds.length === 0) {
       setReadings([]);
@@ -931,22 +1022,40 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         })
       )).filter(Boolean) as Array<{ jid: string; payload: any }>;
 
-      const jobs = jobPayloads
-        .map(({ payload }) => payload.job)
-        .filter(Boolean)
-        .sort((a: any, b: any) => (Date.parse(b?.created_at) || 0) - (Date.parse(a?.created_at) || 0));
-
-      const primaryJob = jobs.find((j: any) => j?.id === jobId) || jobs[0];
+      const jobs = jobPayloads.map(({ payload }) => payload.job).filter(Boolean);
+      const primaryJob = jobs[0];
       if (primaryJob) {
         setJobStatus(primaryJob.status || 'pending');
         setJobProgress(primaryJob.progress || null);
       }
+
+      // Determine the effective view type for nuclear_v2 based on job params + personName.
+      // This avoids relying on docNum ranges (which are NOT grouped by person in our DB schema),
+      // and also protects against wrong personType being passed from navigation.
+      const normalizeName = (v: any) => String(v || '').toLowerCase().trim();
+      const effectiveViewType: 'individual' | 'person1' | 'person2' | 'overlay' = (() => {
+        if (personType === 'overlay') return 'overlay';
+        // If title includes "&", treat as overlay view.
+        if (String(personName || '').includes('&')) return 'overlay';
+        const jt = String(primaryJob?.type || '');
+        if (jt === 'nuclear_v2') {
+          const p = (primaryJob?.params || primaryJob?.input || {}) as any;
+          const p1 = normalizeName(p?.person1?.name);
+          const p2 = normalizeName(p?.person2?.name);
+          const pn = normalizeName(personName);
+          if (pn && p2 && pn === p2) return 'person2';
+          if (pn && p1 && pn === p1) return 'person1';
+        }
+        return (personType as any) || 'person1';
+      })();
 
       const systemIdForDoc = (jobType: string, systems: string[], docNum: number) => {
         if (jobType === 'extended' || jobType === 'single_system' || personType === 'individual') {
           const idx = Math.max(0, docNum - 1);
           return systems[idx] || SYSTEMS[idx]?.id || 'western';
         }
+        // NOTE: For nuclear_v2 we do NOT rely on docNum ranges to map system.
+        // We prefer doc.system from API; fallback handled below.
         if (personType === 'person1') return SYSTEMS[Math.max(0, docNum - 1)]?.id || 'western';
         if (personType === 'person2') return SYSTEMS[Math.max(0, docNum - 6)]?.id || 'western';
         if (personType === 'overlay') {
@@ -970,11 +1079,31 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         return null;
       };
       const pair = parsePair(personName);
-      const labelForDocNum = (docNum: number) => {
+      const nuclearV2DocTypeForDocNum = (docNum: number): 'person1' | 'person2' | 'overlay' | 'verdict' => {
+        if (docNum === 16) return 'verdict';
+        const mod = (docNum - 1) % 3;
+        return mod === 0 ? 'person1' : mod === 1 ? 'person2' : 'overlay';
+      };
+      const nuclearV2SystemForDocNum = (docNum: number): string => {
+        if (docNum === 16) return 'verdict';
+        const systemOrder = ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'];
+        const idx = Math.floor((docNum - 1) / 3);
+        return systemOrder[idx] || 'western';
+      };
+      const nuclearV2DocNumFor = (systemId: string, docType: 'person1' | 'person2' | 'overlay'): number => {
+        const systemOrder = ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'];
+        const idx = Math.max(0, systemOrder.indexOf(systemId));
+        const base = idx * 3;
+        if (docType === 'person1') return base + 1;
+        if (docType === 'person2') return base + 2;
+        return base + 3;
+      };
+      const labelForDoc = (docType: string) => {
         if (!pair) return null;
-        if (docNum >= 1 && docNum <= 5) return pair.a;
-        if (docNum >= 6 && docNum <= 10) return pair.b;
-        if (docNum >= 11 && docNum <= 16) return `${pair.a} & ${pair.b}`;
+        if (docType === 'person1') return pair.a;
+        if (docType === 'person2') return pair.b;
+        if (docType === 'overlay') return `${pair.a} & ${pair.b}`;
+        if (docType === 'verdict') return 'Final Verdict';
         return null;
       };
 
@@ -989,14 +1118,38 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         const systemCount = systems.length || 5;
         const docRange = getDocRange(jt, systemCount);
 
+        const desiredDocTypesForJob = (() => {
+          if (jt !== 'nuclear_v2') return null as null | string[];
+          if (effectiveViewType === 'overlay') return ['overlay', 'verdict'];
+          if (effectiveViewType === 'person1') return ['person1'];
+          if (effectiveViewType === 'person2') return ['person2'];
+          return ['person1'];
+        })();
+
         if (docs.length > 0) {
           for (const doc of docs) {
             const docNum = Number(doc?.docNum);
-            if (!docNum || !docRange.includes(docNum)) continue;
+            if (!docNum) continue;
 
-            const systemId = String(doc?.system || systemIdForDoc(jt, systems, docNum));
+            // For nuclear_v2: filter by docType, NOT docNum range
+            const docTypeFromApi = String(doc?.docType || doc?.doc_type || '');
+            const docType = jt === 'nuclear_v2'
+              ? (docTypeFromApi || nuclearV2DocTypeForDocNum(docNum))
+              : docTypeFromApi;
+
+            if (jt === 'nuclear_v2' && desiredDocTypesForJob) {
+              if (!desiredDocTypesForJob.includes(docType)) continue;
+            } else {
+              // Legacy path: use docRange
+              if (!docRange.includes(docNum)) continue;
+            }
+
+            const systemId = String(
+              doc?.system ||
+              (jt === 'nuclear_v2' ? nuclearV2SystemForDocNum(docNum) : systemIdForDoc(jt, systems, docNum))
+            );
             const systemName = SYSTEMS.find((s) => s.id === systemId)?.name || systemId;
-            const who = labelForDocNum(docNum);
+            const who = labelForDoc(docType);
             const displayName = who ? `${systemName} — ${who}` : systemName;
             const rowId = `row-${j.id}-${docNum}`;
 
@@ -1021,10 +1174,55 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
             });
           }
         } else if (systems.length > 0) {
+          // Placeholder generation (e.g. processing jobs with no documents yet)
+          if (jt === 'nuclear_v2') {
+            const sysOrder = ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'];
+            const desired = desiredDocTypesForJob || ['person1'];
+            const wantedDocType = desired.includes('person2') ? 'person2' : desired.includes('overlay') ? 'overlay' : 'person1';
+
+            for (const sysId of sysOrder) {
+              const docNum = wantedDocType === 'verdict' ? 16 : nuclearV2DocNumFor(sysId, wantedDocType as any);
+              const sysName = SYSTEMS.find((s) => s.id === sysId)?.name || sysId;
+              const who = labelForDoc(wantedDocType);
+              const displayName = who ? `${sysName} — ${who}` : sysName;
+              const rowId = `row-${j.id}-${docNum}`;
+
+              const localPdf = savedPDFs.find((p) => p.readingId === `${rowId}:pdf`)?.filePath;
+              const localAudio = savedAudios.find((a) => a.readingId === `${rowId}:audio`)?.filePath;
+              const localSong = savedAudios.find((a) => a.readingId === `${rowId}:song`)?.filePath;
+
+              rows.push({
+                id: rowId,
+                jobId: j.id,
+                docNum,
+                system: sysId,
+                name: displayName,
+                timestamp: createdAt,
+                localPdfPath: localPdf,
+                localAudioPath: localAudio,
+                localSongPath: localSong,
+              });
+            }
+
+            if (effectiveViewType === 'overlay') {
+              // Verdict placeholder
+              const rowId = `row-${j.id}-16`;
+              rows.push({
+                id: rowId,
+                jobId: j.id,
+                docNum: 16,
+                system: 'verdict',
+                name: 'Final Verdict',
+                timestamp: createdAt,
+              });
+            }
+            continue;
+          }
+
           for (const docNum of docRange) {
             const sysId = systemIdForDoc(jt, systems, docNum);
             const sysName = SYSTEMS.find((s) => s.id === sysId)?.name || sysId;
-            const who = labelForDocNum(docNum);
+            const who = labelForDoc(String(docNum));
             const displayName = who ? `${sysName} — ${who}` : sysName;
             const rowId = `row-${j.id}-${docNum}`;
 
@@ -1062,7 +1260,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           .sort((a, b) => tsValue(b) - tsValue(a) || (b.docNum || 0) - (a.docNum || 0))[0];
 
       const makePlaceholder = (systemId: string, systemName: string): Reading => ({
-        id: `placeholder-${jobId || 'job'}-${personType}-${systemId}`,
+        id: `placeholder-${jobId || 'job'}-${effectiveViewType}-${systemId}`,
         jobId: jobId || undefined,
         system: systemId,
         name: systemName,
@@ -1070,7 +1268,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       });
 
       const orderedSystemIds =
-        personType === 'overlay'
+        effectiveViewType === 'overlay'
           ? (['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah', 'verdict'] as const)
           : (['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'] as const);
 
@@ -1095,6 +1293,16 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       setIsRefreshing(false);
     }
   }, [jobId, person?.jobIds, personType, savedAudios, savedPDFs]);
+
+  // Reload when personType is corrected (workaround for MyLibraryScreen bug) - only once
+  const hasReloadedAfterCorrectionRef = useRef(false);
+  useEffect(() => {
+    if (correctedPersonType !== personType && correctedPersonType === 'person2' && !hasReloadedAfterCorrectionRef.current) {
+      console.log('🔄 [PersonReadings] Reloading due to personType correction');
+      hasReloadedAfterCorrectionRef.current = true; // Only reload once
+      loadV2();
+    }
+  }, [correctedPersonType, personType, loadV2]);
 
   useFocusEffect(
     useCallback(() => {
@@ -1134,6 +1342,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     if (!jobId) return;
     if (loading) return;
     if (playingId) return; // don't disrupt active playback
+    if (playingSongId) return; // don't disrupt active playback
 
     // STOP polling if job is complete or failed
     const jobIsActive = jobStatus === 'processing' || jobStatus === 'pending' || jobStatus === 'queued';
@@ -1146,16 +1355,19 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       return;
     }
 
-    // Only poll if job is still generating
+    // Only poll if job is still generating.
+    // IMPORTANT: Polling causes UI churn; keep it extremely conservative.
     if (pollTimerRef.current) return; // already polling
 
     const pollInterval = 15000; // Poll every 15s while generating
     console.log(`🔄 Starting poll (job ${jobStatus}) every ${pollInterval}ms`);
 
     pollTimerRef.current = setInterval(() => {
+      // If the user is interacting or any audio is active, don't poll.
       if (isScrubbing || isSongScrubbing) return;
-      if (isPlayingMutex.current) return;
-      if (soundRef.current) return;
+      if (playingId || playingSongId) return;
+      if (isPlayingMutex.current || isSongPlayingMutex.current) return;
+      if (soundRef.current || songSoundRef.current) return;
       loadV2();
     }, pollInterval);
 
@@ -1167,36 +1379,24 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     };
   }, [jobId, jobStatus, loading, playingId, isScrubbing, isSongScrubbing, loadV2]);
 
-  // Initialize headlines immediately with fallbacks, then load real ones
+  // Initialize headlines immediately with fallbacks.
+  // IMPORTANT: do NOT preload all texts/titles; fetch on-demand when the user presses play.
   useEffect(() => {
     if (readings.length === 0) return;
-    
-    readings.forEach(reading => {
-      // Set immediate placeholder if not already set
+    for (const reading of readings) {
       if (!readingHeadlines[reading.id]) {
-        setReadingHeadlines(prev => ({
-          ...prev,
-          [reading.id]: reading.name // Temporary: system name
-        }));
+        setReadingHeadlines((prev) => ({ ...prev, [reading.id]: reading.name }));
       }
-      
       if (!songTitles[reading.id]) {
-        setSongTitles(prev => ({
-          ...prev,
-          [reading.id]: reading.name // Temporary: system name
-        }));
+        setSongTitles((prev) => ({ ...prev, [reading.id]: reading.name }));
       }
-      
-      // Then load real headlines asynchronously
-      ensureTextLoaded(reading);
-      ensureSongTitleLoaded(reading);
-    });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [readings.length]); // Only when number of readings changes
+  }, [readings.length]);
 
   // Pulsating animation for generating items
   useEffect(() => {
-    const animation = Animated.loop(
+    const pulseAnimation = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
           toValue: 1,
@@ -1211,17 +1411,37 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       ])
     );
     
+    // Blinking animation for generating cards (opacity)
+    const blinkAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(blinkAnim, {
+          toValue: 0.5,
+          duration: 600,
+          useNativeDriver: false, // Must match pulseAnim to avoid conflicts
+        }),
+        Animated.timing(blinkAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: false, // Must match pulseAnim to avoid conflicts
+        }),
+      ])
+    );
+    
     // Only animate if there are generating items
     const hasGeneratingItems = readings.some(r => 
       !r.pdfPath || !r.audioPath || !r.songPath
     );
     
     if (hasGeneratingItems) {
-      animation.start();
+      pulseAnimation.start();
+      blinkAnimation.start();
     }
     
-    return () => animation.stop();
-  }, [readings, pulseAnim]);
+    return () => {
+      pulseAnimation.stop();
+      blinkAnimation.stop();
+    };
+  }, [readings, pulseAnim, blinkAnim]);
 
   // Interpolate scale and colors from pulseAnim
   const animatedScale = pulseAnim.interpolate({
@@ -1263,20 +1483,39 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     const activeDuration = playingId ? playbackDuration : songDuration;
     const activePosition = playingId ? playbackPosition : songPosition;
     
-    if (!activePlayingId || !activeDuration || activeDuration === 0) return;
-    if (!expandedTextIds.has(activePlayingId)) return;
+    if (!activePlayingId || !activeDuration || activeDuration === 0) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:1341',message:'Auto-scroll skipped - no active playback',data:{activePlayingId,activeDuration,activePosition},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+      // #endregion
+      return;
+    }
+    if (!expandedTextIds.has(activePlayingId)) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:1341',message:'Auto-scroll skipped - text not expanded',data:{activePlayingId,expandedTextIds:Array.from(expandedTextIds)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+      // #endregion
+      return;
+    }
     if (isScrubbing || isSongScrubbing) return; // Don't auto-scroll while user is scrubbing
     if (manuallyScrolling[activePlayingId]) return; // Don't auto-scroll while user is manually scrolling
     
     const scrollRef = textScrollRefs.current[activePlayingId];
-    if (!scrollRef) return;
+    if (!scrollRef) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:1341',message:'Auto-scroll skipped - no scrollRef',data:{activePlayingId,availableRefs:Object.keys(textScrollRefs.current)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+      // #endregion
+      return;
+    }
 
     // Calculate scroll position based on playback percentage
     const playbackPercentage = activePosition / activeDuration;
     
-    // Estimate scroll height (assumes text is roughly 300px max height)
-    const estimatedScrollHeight = 300; // matches maxHeight in styles
+    // Estimate scroll height (assumes text is roughly 200px max height)
+    const estimatedScrollHeight = 200; // matches maxHeight in styles
     const scrollY = Math.max(0, playbackPercentage * estimatedScrollHeight);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:1341',message:'Auto-scroll executing',data:{activePlayingId,playbackPercentage,scrollY,activePosition,activeDuration},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
     
     // Smooth scroll to position
     scrollRef.scrollTo({ y: scrollY, animated: true });
@@ -1425,9 +1664,10 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       return;
     }
 
-    // Auto-load text and song title when song starts
+    // Auto-load text, song title, and lyrics when song starts
     ensureTextLoaded(reading);
     ensureSongTitleLoaded(reading);
+    ensureSongLyricsLoaded(reading);
 
     if (isSongPlayingMutex.current) return;
     isSongPlayingMutex.current = true;
@@ -1855,6 +2095,43 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     return firstLine.length > 70 ? firstLine.substring(0, 67) + '...' : firstLine;
   }, []);
 
+  // Load song lyrics from artifacts
+  const ensureSongLyricsLoaded = useCallback(
+    async (reading: Reading) => {
+      // If lyrics already loaded, nothing to do
+      if (songLyrics[reading.id]) {
+        return;
+      }
+      
+      try {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:1949',message:'Fetching song artifacts',data:{readingId:reading.id,artifactTypes:['audio_song'],jobId:reading.jobId||jobId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
+        
+        const artifacts = await fetchJobArtifacts(reading.jobId || jobId, ['audio_song']); // FIX: Remove 'song' - enum only accepts 'audio_song'
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:1950',message:'Song artifacts fetched',data:{readingId:reading.id,artifactCount:artifacts.length,error:null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
+        
+        // Find song artifact matching this reading's system AND docNum (CRITICAL for nuclear_v2)
+        const songArtifact = artifacts.find(a => {
+          const meta = a.metadata as any;
+          const artifactDocNum = meta?.docNum ?? meta?.chapter_index;
+          return meta?.system === reading.system && 
+                 artifactDocNum === reading.docNum; // CRITICAL: Match by docNum too!
+        });
+
+        if (songArtifact?.metadata?.lyrics) {
+          setSongLyrics(prev => ({ ...prev, [reading.id]: songArtifact.metadata.lyrics }));
+        }
+      } catch (error: any) {
+        console.error('Failed to load song lyrics:', error);
+      }
+    },
+    [songLyrics, jobId]
+  );
+
   // Load song title from artifacts
   const ensureSongTitleLoaded = useCallback(
     async (reading: Reading) => {
@@ -1868,19 +2145,23 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           return;
         }
 
-        const artifacts = await fetchJobArtifacts(jobId, ['audio_song']);
+        const artifacts = await fetchJobArtifacts(reading.jobId || jobId, ['audio_song']);
         
-        // Find song artifact matching this reading's system
+        // Find song artifact matching this reading's system AND docNum (CRITICAL for nuclear_v2)
         const songArtifact = artifacts.find(a => {
           const meta = a.metadata as any;
-          return meta?.system === reading.system;
+          const artifactDocNum = meta?.docNum ?? meta?.chapter_index;
+          return meta?.system === reading.system && 
+                 artifactDocNum === reading.docNum; // CRITICAL: Match by docNum too!
         });
 
         // Try to get dramatic song title from TEXT artifact first (NEW)
-        const textArtifacts = await fetchJobArtifacts(jobId, ['text']);
+        const textArtifacts = await fetchJobArtifacts(reading.jobId || jobId, ['text']);
         const textArtifact = textArtifacts.find(a => {
           const meta = a.metadata as any;
-          return meta?.system === reading.system;
+          const artifactDocNum = meta?.docNum ?? meta?.chapter_index;
+          return meta?.system === reading.system && 
+                 artifactDocNum === reading.docNum; // CRITICAL: Match by docNum too!
         });
         
         const dramaticSongTitle = textArtifact?.metadata?.songTitle; // NEW: Dramatic LLM-generated song title
@@ -1928,17 +2209,126 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           return;
         }
 
-        const artifacts = await fetchJobArtifacts(jobId, ['text']);
+        const artifacts = await fetchJobArtifacts(reading.jobId || jobId, ['text']);
         
-        // Find text artifact matching this reading's system/docNum
+        // CRITICAL: Derive docNum from task sequence if missing (like we do in load function)
+        const taskIdToSequence: Record<string, number> = {};
+        try {
+          const { data: tasks } = await supabase
+            .from('job_tasks')
+            .select('id, sequence')
+            .eq('job_id', reading.jobId || jobId);
+          
+          if (tasks) {
+            tasks.forEach((t: any) => {
+              taskIdToSequence[t.id] = t.sequence;
+            });
+          }
+        } catch (e) {
+          console.warn('⚠️ [ensureTextLoaded] Failed to fetch tasks for docNum derivation:', e);
+        }
+        
+        // Debug logging
+        console.log('🔍 [ensureTextLoaded] Matching text for reading:', {
+          readingId: reading.id,
+          readingSystem: reading.system,
+          readingDocNum: reading.docNum,
+          readingJobId: reading.jobId || jobId,
+          totalArtifacts: artifacts.length
+        });
+        
+        // Log all artifacts for debugging (with derived docNum)
+        artifacts.forEach((a, idx) => {
+          const meta = a.metadata as any;
+          let artifactDocNum = meta?.docNum ?? meta?.chapter_index;
+          
+          // Derive docNum from task sequence if missing (like backend does)
+          if ((typeof artifactDocNum !== 'number' || isNaN(artifactDocNum)) && (a as any).task_id) {
+            const seq = taskIdToSequence[(a as any).task_id];
+            if (typeof seq === 'number') {
+              if (seq >= 200) {
+                artifactDocNum = seq - 199; // Audio: 200→1, 201→2, etc.
+              } else if (seq >= 100) {
+                artifactDocNum = seq - 99; // PDF: 100→1, 101→2, etc.
+              } else {
+                artifactDocNum = seq + 1; // Text: 0→1, 1→2, etc.
+              }
+            }
+          }
+          
+          console.log(`  Artifact ${idx}:`, {
+            system: meta?.system,
+            docNum: artifactDocNum,
+            chapter_index: meta?.chapter_index,
+            docType: meta?.docType,
+            taskId: (a as any).task_id,
+            taskSequence: taskIdToSequence[(a as any).task_id]
+          });
+        });
+        
+        // Find text artifact matching this reading's system AND docNum (CRITICAL for nuclear_v2)
         const textArtifact = artifacts.find(a => {
           const meta = a.metadata as any;
-          return meta?.docType && meta?.system === reading.system;
+          let artifactDocNum = meta?.docNum ?? meta?.chapter_index;
+          
+          // Derive docNum from task sequence if missing (like backend does)
+          if ((typeof artifactDocNum !== 'number' || isNaN(artifactDocNum)) && (a as any).task_id) {
+            const seq = taskIdToSequence[(a as any).task_id];
+            if (typeof seq === 'number') {
+              if (seq >= 200) {
+                artifactDocNum = seq - 199; // Audio: 200→1, 201→2, etc.
+              } else if (seq >= 100) {
+                artifactDocNum = seq - 99; // PDF: 100→1, 101→2, etc.
+              } else {
+                artifactDocNum = seq + 1; // Text: 0→1, 1→2, etc.
+              }
+            }
+          }
+          
+          if (meta?.system === reading.system) {
+            console.log('🔍 [ensureTextLoaded] Candidate artifact with matching system:', {
+              artifactDocNum,
+              readingDocNum: reading.docNum,
+              matches: artifactDocNum === reading.docNum,
+              systemMatch: meta?.system === reading.system,
+              derivedFromSequence: !meta?.docNum && !meta?.chapter_index
+            });
+          }
+          
+          const matches = meta?.system === reading.system && 
+                 artifactDocNum === reading.docNum; // CRITICAL: Match by docNum too!
+          
+          // #region agent log
+          if (meta?.system === reading.system) {
+            fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:2104',message:'Artifact matching check',data:{readingId:reading.id,readingSystem:reading.system,readingDocNum:reading.docNum,artifactDocNum,artifactSystem:meta?.system,matches,derivedFromSequence:!meta?.docNum&&!meta?.chapter_index},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          }
+          // #endregion
+          
+          return matches;
         });
 
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:2130',message:'Text artifact match result',data:{readingId:reading.id,readingSystem:reading.system,readingDocNum:reading.docNum,found:!!textArtifact,artifactDocNum:textArtifact?(textArtifact.metadata as any)?.docNum:null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
+
         if (!textArtifact) {
+          console.warn('⚠️ [ensureTextLoaded] No text artifact found for:', {
+            readingId: reading.id,
+            readingSystem: reading.system,
+            readingDocNum: reading.docNum,
+            availableArtifacts: artifacts.map(a => ({
+              system: (a.metadata as any)?.system,
+              docNum: (a.metadata as any)?.docNum ?? (a.metadata as any)?.chapter_index,
+              docType: (a.metadata as any)?.docType
+            }))
+          });
           return;
         }
+        
+        console.log('✅ [ensureTextLoaded] Found matching text artifact:', {
+          artifactDocNum: (textArtifact.metadata as any)?.docNum ?? (textArtifact.metadata as any)?.chapter_index,
+          readingDocNum: reading.docNum
+        });
 
         // First, check metadata for dramatic titles (NEW) or headlines (OLD)
         const meta = textArtifact.metadata as any;
@@ -1955,6 +2345,10 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         if (!textContent) {
           return; // Keep placeholder headline
         }
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:2185',message:'Text content loaded',data:{readingId:reading.id,readingSystem:reading.system,readingDocNum:reading.docNum,textPreview:textContent.substring(0,150),isOverlayText:textContent.toLowerCase().includes('two distinct ecosystems')||textContent.toLowerCase().includes('collide')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
         
         // Store the text content
         setReadingTexts(prev => ({ ...prev, [reading.id]: textContent }));
@@ -2106,6 +2500,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                         backgroundColor: pdfColor,
                         borderRadius: 8,
                         padding: 2,
+                        opacity: blinkAnim,
                       }
                     ]}>
                       <TouchableOpacity
@@ -2149,6 +2544,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                         backgroundColor: audioColor,
                         borderRadius: 20,
                         padding: 2,
+                        opacity: blinkAnim,
                       }
                     ]}>
                       <TouchableOpacity
@@ -2220,6 +2616,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                         backgroundColor: songColor,
                         borderRadius: 20,
                         padding: 2,
+                        opacity: blinkAnim,
                       }
                     ]}>
                       <TouchableOpacity
@@ -2281,7 +2678,10 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                   </View>
 
                   {/* Auto-expanding Text Display (opens when audio/music plays) */}
-                  {expandedTextIds.has(reading.id) && readingTexts[reading.id] && (
+                  {expandedTextIds.has(reading.id) && (
+                    (playingId === reading.id && readingTexts[reading.id]) || 
+                    (playingSongId === reading.id && songLyrics[reading.id])
+                  ) && (
                     <View style={styles.textDisplayArea}>
                       <ScrollView 
                         ref={(ref) => {
@@ -2302,8 +2702,11 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                           }, 3000);
                         }}
                       >
-                        <Text style={styles.textContent} selectable>
-                          {readingTexts[reading.id]}
+                        <Text style={styles.textContentBigger} selectable>
+                          {playingId === reading.id 
+                            ? readingTexts[reading.id]  // Narration shows reading text
+                            : songLyrics[reading.id]    // Song shows lyrics
+                          }
                         </Text>
                       </ScrollView>
                     </View>
@@ -2490,6 +2893,7 @@ const styles = StyleSheet.create({
   systemNameContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
+    justifyContent: 'space-between',
     marginBottom: 12,
   },
   systemName: {
@@ -2509,7 +2913,6 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
     fontSize: 12,
     color: '#888',
-    marginLeft: 8,
     fontStyle: 'italic',
   },
   // Action buttons row - LEFT ALIGNED
@@ -2556,27 +2959,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   disabledButton: {
-    opacity: 0.4,
+    backgroundColor: '#E0E0E0',
+    borderColor: '#CCCCCC',
   },
   disabledText: {
-    color: '#AAA', // Lighter grey for disabled text
+    color: '#999999',
   },
   generatingButton: {
-    backgroundColor: '#FFE5E5',
-    borderColor: '#FFB3B3',
-    opacity: 1,
+    backgroundColor: '#E0E0E0',
+    borderColor: '#CCCCCC',
   },
   generatingText: {
-    color: '#C41E3A',
+    color: '#666666',
   },
   generatingPlayButton: {
-    backgroundColor: '#FFB3B3',
-    opacity: 1,
+    backgroundColor: '#E0E0E0',
   },
   generatingSongButton: {
-    backgroundColor: '#E5E5E5',
-    borderColor: '#999999',
-    opacity: 1,
+    backgroundColor: '#E0E0E0',
+    borderColor: '#CCCCCC',
   },
   audioHeadline: {
     fontFamily: 'System',
@@ -2787,7 +3188,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   textScroll: {
-    maxHeight: 300,
+    maxHeight: 200,
   },
   textScrollContent: {
     paddingBottom: 8,
@@ -2798,5 +3199,12 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: '#374151',
     letterSpacing: 0.2,
+  },
+  textContentBigger: {
+    fontFamily: 'System',
+    fontSize: 18,
+    lineHeight: 32,
+    color: '#1F2937',
+    letterSpacing: 0.3,
   },
 });
