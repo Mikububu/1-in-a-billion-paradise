@@ -8,12 +8,26 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { env } from '@/config/env';
 import { downloadTextContent, fetchJobArtifacts } from '@/services/nuclearReadingsService';
 import { BackButton } from '@/components/BackButton';
+import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
 import { colors, radii, spacing, typography } from '@/theme/tokens';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ReadingChapter'>;
 
 export const ReadingChapterScreen = ({ navigation, route }: Props) => {
   const { personName, jobId, systemId, systemName, docNum, timestamp, nextChapter } = route.params;
+
+  const nextSystemIcon = useMemo(() => {
+    const sid = String(nextChapter?.systemId || '');
+    const map: Record<string, string> = {
+      western: '☉',
+      vedic: 'ॐ',
+      human_design: '◬',
+      gene_keys: '❋',
+      kabbalah: '✧',
+      verdict: '✶',
+    };
+    return map[sid] || '→';
+  }, [nextChapter?.systemId]);
 
   const [text, setText] = useState<string>('');
   const [loadingText, setLoadingText] = useState<boolean>(true);
@@ -329,11 +343,16 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
 
         {nextChapter ? (
           <TouchableOpacity
-            style={styles.nextChapter}
+            style={styles.nextChapterRow}
             onPress={() => navigation.push('ReadingChapter', nextChapter)}
-            activeOpacity={0.85}
+            activeOpacity={0.7}
           >
-            <Text style={styles.nextChapterText}>Next Chapter · {nextChapter.systemName}</Text>
+            <AnimatedSystemIcon icon={nextSystemIcon} size={28} />
+            <View style={styles.nextChapterInfo}>
+              <Text style={styles.nextChapterName}>{nextChapter.systemName}</Text>
+              <Text style={styles.nextChapterTagline}>Next Chapter</Text>
+            </View>
+            <Text style={styles.nextChapterArrow}>→</Text>
           </TouchableOpacity>
         ) : null}
       </ScrollView>
@@ -378,15 +397,21 @@ const styles = StyleSheet.create({
   songTextArea: { marginTop: 14 },
   songTextBody: { fontFamily: typography.sansRegular, fontSize: 14, lineHeight: 22, color: colors.text },
 
-  // Match the "overview" CTA button styling used elsewhere (e.g. SystemOverviewScreen)
-  nextChapter: {
+  // Next Chapter row: match SystemsOverviewScreen / system list row 1:1
+  nextChapterRow: {
     marginTop: 14,
-    width: '100%',
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.md,
-    borderRadius: radii.button,
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radii.card,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  nextChapterText: { fontFamily: typography.sansSemiBold, fontSize: 16, color: '#FFFFFF', textAlign: 'center' },
+  nextChapterInfo: { flex: 1, marginLeft: spacing.sm },
+  nextChapterName: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },
+  nextChapterTagline: { fontFamily: typography.sansRegular, fontSize: 12, color: colors.primary, marginTop: 1 },
+  nextChapterArrow: { fontFamily: typography.sansBold, fontSize: 18, color: colors.primary, marginLeft: spacing.sm },
 });
 
