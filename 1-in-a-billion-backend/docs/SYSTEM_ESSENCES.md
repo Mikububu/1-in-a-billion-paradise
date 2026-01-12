@@ -1,5 +1,16 @@
 # System Essences - Key Identifiers for Each Astrological System
 
+## Quick Reference Summary
+
+| System | Essences | Example Display |
+|--------|----------|----------------|
+| Western | ☉ Sun / ☽ Moon / ↑ Rising | `☉ Sagittarius` `☽ Cancer` `↑ Scorpio` |
+| Vedic | Nakshatra + Lagna | `Magha` `Scorpio Lagna` |
+| Human Design | Type + Profile | `Manifesting Generator 3/5` |
+| Gene Keys | Life's Work (+ Evolution) | `Gene Key 25` or `GK 25/46` |
+| Kabbalah | TBD | TBD |
+| Verdict | None (or synthesis) | (no chips) |
+
 ## Overview
 Each astrological system has an "essence" - a set of key identifiers that summarize the most important aspects of a person's chart in that system. These should be displayed as chips under the system name in the reading interface.
 
@@ -18,84 +29,141 @@ Each astrological system has an "essence" - a set of key identifiers that summar
 
 ## To Be Defined
 
-### Vedic Astrology (Jyotish) 🔍 RESEARCH NEEDED
-**Possible essence components:**
-- Rashi (Moon sign in Vedic system)
-- Nakshatra (Lunar mansion - 27 divisions)
-- Lagna (Ascendant/Rising sign)
-- Sun sign (Rasi)
+### Vedic Astrology (Jyotish) ✅ DEFINED
+**The Essential Trinity:**
+From VEDIC_HOROSCOPE_WRITING_GUIDE.md and PROMPT_SYSTEM_ARCHITECTURE.md:
 
-**Question:** What are the 2-3 most important identifiers in Vedic astrology that a person would recognize themselves by?
+1. **Moon Nakshatra** (MOST IMPORTANT - "Soul of Jyotish")
+   - Example: "Magha", "Ashwini", "Bharani"
+   - 27 lunar mansions, each with deity, planetary ruler, pada
+   - This is MORE important than Moon sign in Vedic
 
-**Data source:** TBD - Extract from Vedic calculations or reading text
-**Display format:** TBD
+2. **Lagna** (Ascendant/Rising Sign)
+   - Example: "Scorpio", "Cancer", "Aries"
+   - The "cosmic doorway you entered through"
 
----
+3. **Chandra Rashi** (Moon Sign, sidereal)
+   - Example: "Leo", "Taurus", "Gemini"
+   - "The mind itself, the emotional landscape"
 
-### Human Design 🔍 RESEARCH NEEDED
-**Known essence components:**
-- **Type:** Manifestor, Generator, Manifesting Generator, Projector, Reflector
-- **Profile:** e.g., 1/3, 2/4, 3/5, etc. (12 possible combinations)
-- **Authority:** e.g., Emotional, Sacral, Splenic, Ego, Self-Projected, Mental, Lunar
+**Alternative (simpler):** Just show Nakshatra + Lagna (2 chips)
 
-**Question:** Which 2-3 of these should we show as the "essence"? 
-- Most likely: Type + Profile (e.g., "Manifesting Generator 3/5")
-- Or: Type + Authority?
+**Data source:** 
+- Already computed and stored in jyotish_profiles/jyotish_calculations tables
+- Fields: `nakshatra`, `pada`, `moon_sign`, `lagna_sign`
 
-**Data source:** TBD - Extract from Human Design calculations or reading text
-**Display format:** TBD (chips or text)
-
----
-
-### Gene Keys 🔍 RESEARCH NEEDED
-**Possible essence components:**
-- Life's Work (Gene Key from Sun)
-- Evolution (Gene Key from Earth)
-- Radiance (Gene Key from Venus)
-- Purpose (Gene Key from South Node)
-
-**Question:** What are the key identifiers in Gene Keys? Is there a "profile" or "type"?
-
-**Data source:** TBD - Extract from Gene Keys calculations or reading text
-**Display format:** TBD
+**Display format:** 2-3 chips with Sanskrit terms
+- Example: `Magha | Scorpio Lagna | Leo Chandra`
 
 ---
 
-### Kabbalah (Tree of Life) 🔍 RESEARCH NEEDED
-**Possible essence components:**
-- Life Path Number or equivalent
-- Key Sephirot placements
-- Dominant path or archetype
+### Human Design ✅ DEFINED
+**The Core Identity:**
+From PROMPT_SYSTEM_ARCHITECTURE.md - "Elements to cover" section:
 
-**Question:** What are the key identifiers in Kabbalistic astrology that would be meaningful to show?
+1. **Type** (MOST IMPORTANT)
+   - Generator, Manifesting Generator (MG), Projector, Manifestor, or Reflector
+   - This is THE primary identifier in Human Design
 
-**Data source:** TBD - Extract from Kabbalah calculations or reading text
-**Display format:** TBD
+2. **Profile**
+   - e.g., 1/3, 2/4, 3/5, 4/6, 5/1, 6/2
+   - 12 possible combinations
+   - Describes life theme and role
+
+3. **Authority** (optional, might be too complex)
+   - e.g., Emotional, Sacral, Splenic, Ego
+   - Decision-making strategy
+
+**Recommended display:** Type + Profile
+- Example: "Manifesting Generator 3/5"
+- Example: "Projector 2/4"
+
+**Data source:** Extract from reading text using pattern matching or LLM
+- Patterns: "You are a [Type]", "Your Profile is [X/Y]", "[Type] with a [X/Y] Profile"
+
+**Display format:** 2 chips or combined text
+- Option A: `Manifesting Generator | 3/5 Profile`
+- Option B: `Manifesting Generator 3/5` (combined)
 
 ---
 
-### The Verdict (Synthesis) 🔍 RESEARCH NEEDED
-**Possible essence components:**
-- This is the synthesis/summary reading
-- Might pull key elements from all systems
-- Or have its own unique summary
+### Gene Keys ✅ DEFINED
+**The Four Prime Gifts:**
+From PROMPT_SYSTEM_ARCHITECTURE.md - Gene Keys section:
 
-**Question:** What should be shown as the "essence" for the Verdict?
+1. **Life's Work** (Personality Sun) - MOST IMPORTANT
+   - Example: "Gene Key 25" or "GK 25"
+   - Shadow/Gift/Siddhi triplet
+   - Primary life purpose
 
-**Data source:** TBD - Synthesized from all systems
+2. **Evolution** (Personality Earth)
+   - The grounding force, complementary to Life's Work
+
+3. **Radiance** (Design Sun) OR **Purpose** (Design Earth)
+   - Optional additional identifiers
+
+**Recommended display:** Life's Work + Evolution (the "Golden Path")
+- Example: "Life's Work: GK 25 | Evolution: GK 46"
+- Or simpler: "Gene Key 25/46"
+
+**Alternative (simpler):** Just Life's Work
+- Example: "Gene Key 25"
+
+**Data source:** Extract from reading text
+- Patterns: "Life's Work is Gene Key [number]", "GK [number]", "Your [number] Gene Key"
+
+**Display format:** 1-2 chips
+- Option A: `Gene Key 25 | GK 46` (Life's Work + Evolution)
+- Option B: `GK 25/46` (compact)
+
+---
+
+### Kabbalah (Tree of Life) ⏳ TO BE DEFINED
+**Likely essence components:**
+- Primary Sephirah (e.g., "Chesed", "Gevurah", "Tiferet")
+- Life Path or dominant Tree position
+- Key archetypal energy
+
+**Note:** Need to review Kabbalah readings to identify what's most prominent
+
+**Data source:** Extract from reading text using LLM
+- Look for: "Your primary Sephirah is...", "You embody [Sephirah]"
+
+**Display format:** TBD - likely 1-2 chips with Hebrew/English names
+
+---
+
+### The Verdict (Synthesis) ⏳ TO BE DEFINED
+**Possible approaches:**
+
+**Option A: Pull from all systems**
+- Show 1 key element from each system
+- Example: "Sagittarius ☉ | Magha | Generator 3/5"
+
+**Option B: Synthesis archetype**
+- Create a unique "Verdict archetype" that synthesizes all systems
+- Example: "The Visionary Healer" or "The Grounded Catalyst"
+
+**Option C: No essence (just title)**
+- The Verdict is the final synthesis, might not need chips
+- Just show "The Verdict" as the system name
+
+**Recommendation:** Option C initially (no chips), revisit after seeing Verdict readings
+
+**Data source:** Synthesized or extracted from Verdict reading
 **Display format:** TBD
 
 ---
 
 ## Implementation Plan
 
-### Phase 1: Research & Define
-1. ✅ Document Western (already implemented)
-2. ⏳ Research Vedic essence components → Ask LLM or consult Vedic astrology resources
-3. ⏳ Research Human Design essence → Likely Type + Profile
-4. ⏳ Research Gene Keys essence → Need to understand the system better
-5. ⏳ Research Kabbalah essence → Need to understand the system better
-6. ⏳ Define Verdict essence → Depends on synthesis approach
+### Phase 1: Research & Define ✅ COMPLETE
+1. ✅ Western: Sun/Moon/Rising (already implemented)
+2. ✅ Vedic: Nakshatra + Lagna (+ optionally Moon sign)
+3. ✅ Human Design: Type + Profile
+4. ✅ Gene Keys: Life's Work (+ optionally Evolution)
+5. ⏳ Kabbalah: Need to review actual readings
+6. ⏳ Verdict: Defer decision (likely no chips)
 
 ### Phase 2: Data Extraction
 - Determine how to extract/compute essence data for each system
