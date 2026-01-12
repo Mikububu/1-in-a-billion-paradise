@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Audio } from 'expo-av';
 import Slider from '@react-native-community/slider';
@@ -10,7 +9,7 @@ import { env } from '@/config/env';
 import { downloadTextContent, fetchJobArtifacts } from '@/services/nuclearReadingsService';
 import { BackButton } from '@/components/BackButton';
 import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
-import { colors, layout, radii, spacing, typography } from '@/theme/tokens';
+import { colors, radii, spacing, typography } from '@/theme/tokens';
 import { useProfileStore } from '@/store/profileStore';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ReadingChapter'>;
@@ -18,7 +17,6 @@ type Props = NativeStackScreenProps<MainStackParamList, 'ReadingChapter'>;
 export const ReadingChapterScreen = ({ navigation, route }: Props) => {
   const { personName, personId, jobId, systemId, systemName, docNum, timestamp, nextChapter } = route.params;
   const { width: windowW } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
   const person = useProfileStore((s) => (personId ? s.getPerson(personId) : undefined));
 
   const nextSystemIcon = useMemo(() => {
@@ -321,7 +319,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     const maxScrollY = Math.max(0, textContentH - textViewportH);
     const y = maxScrollY * progress;
     textScrollRef.current.scrollTo({ y, animated: false });
-  }, [playing, pos, dur, textViewportH, textContentH]);
+  }, [playing, seekingNarration, pos, dur, textViewportH, textContentH]);
 
   useEffect(() => {
     if (!songTextScrollRef.current) return;
@@ -337,16 +335,11 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     const maxScrollY = Math.max(0, songTextContentH - songTextViewportH);
     const y = maxScrollY * progress;
     songTextScrollRef.current.scrollTo({ y, animated: false });
-  }, [playingSong, songPos, songDur, songTextViewportH, songTextContentH]);
+  }, [playingSong, seekingSong, songPos, songDur, songTextViewportH, songTextContentH]);
 
   return (
     <SafeAreaView style={styles.container}>
       <BackButton onPress={() => navigation.goBack()} />
-      {!!niceTimestamp && (
-        <Text style={[styles.headerTimestamp, { top: insets.top + layout.backButtonOffsetTop + 2 }]}>
-          {niceTimestamp}
-        </Text>
-      )}
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         {/* Top title row: yellow buttons stacked on the LEFT, title centered */}
         <View style={styles.titleRow}>
@@ -372,8 +365,12 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             ) : null}
           </View>
 
-          {/* Right spacer keeps the title centered */}
-          <View style={styles.titleRightSpacer} />
+          {/* Timestamp goes on the right, aligned with the top row (no floating header) */}
+          <View style={styles.titleRightCol}>
+            {!!niceTimestamp && (
+              <Text style={styles.timestampRight}>{niceTimestamp}</Text>
+            )}
+          </View>
         </View>
 
         <View style={styles.card}>
@@ -556,19 +553,13 @@ const styles = StyleSheet.create({
   },
   headerYellowText: { fontFamily: typography.sansSemiBold, color: '#111827', fontSize: 12 },
   titleBlock: { flex: 1, alignItems: 'center' },
-  titleRightSpacer: { width: 40 },
+  titleRightCol: { width: 120, alignItems: 'flex-end', justifyContent: 'flex-start' },
+  timestampRight: { fontFamily: typography.sansRegular, fontSize: 12, color: colors.mutedText, textAlign: 'right' },
 
   // Headline typography (same font family used elsewhere)
   title: { fontFamily: typography.headline, fontSize: 34, color: colors.text, textAlign: 'center' },
   systemNameCentered: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text, textAlign: 'center' },
-  headerTimestamp: {
-    position: 'absolute',
-    right: spacing.page,
-    zIndex: 60,
-    fontFamily: typography.sansRegular,
-    fontSize: 12,
-    color: colors.mutedText,
-  },
+  // headerTimestamp removed (timestamp is now in titleRow right column)
   chipsRow: { flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap', justifyContent: 'center' },
   chip: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   chipText: { fontFamily: typography.sansRegular, fontSize: 12, color: colors.text },
@@ -603,7 +594,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    top: 8,
+    top: 10,
     height: 28,
     borderRadius: 999,
     borderWidth: 2,
@@ -611,8 +602,9 @@ const styles = StyleSheet.create({
   sliderPillRed: { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
   sliderPillGreen: { borderColor: '#2E7D32', backgroundColor: '#2E7D3215' },
   sliderDurationOverlay: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' },
-  sliderAbsolute: { position: 'absolute', left: 0, right: 54, top: 0, bottom: 0 },
-  sliderAbsoluteGreen: { position: 'absolute', left: 0, right: 54, top: 0, bottom: 0 },
+  // Nudge the interactive slider down into the pill so the thumb sits visually centered
+  sliderAbsolute: { position: 'absolute', left: 0, right: 54, top: 6, bottom: 6 },
+  sliderAbsoluteGreen: { position: 'absolute', left: 0, right: 54, top: 6, bottom: 6 },
   // Same bold black typography as "PDF"
   sliderDurationText: { fontFamily: typography.sansSemiBold, fontSize: 14, color: '#111827', includeFontPadding: false, textAlignVertical: 'center' },
 
