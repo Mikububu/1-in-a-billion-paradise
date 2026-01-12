@@ -257,11 +257,10 @@ const styles = StyleSheet.create({
   titleBlock: { flex: 1, alignItems: 'center' },
   title: { fontFamily: typography.headline, fontSize: 34, color: colors.text, textAlign: 'center' },
   systemNameCentered: {
-    fontFamily: typography.sansRegular,
-    fontSize: 13,
+    fontFamily: typography.sansSemiBold,
+    fontSize: 16,
     color: colors.primary,
     textAlign: 'center',
-    marginBottom: 4,
   },
   chipsRow: { flexDirection: 'row', gap: 6, justifyContent: 'center', flexWrap: 'wrap' },
   chip: {
