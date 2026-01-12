@@ -9,7 +9,7 @@ import { downloadTextContent, fetchJobArtifacts } from '@/services/nuclearReadin
 import { BackButton } from '@/components/BackButton';
 import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
 import { AudioPlayerSection } from '@/components/AudioPlayerSection';
-import { colors, layout, radii, typography } from '@/theme/tokens';
+import { colors, layout, radii, spacing, typography } from '@/theme/tokens';
 import { useProfileStore } from '@/store/profileStore';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ReadingChapter'>;
@@ -232,11 +232,11 @@ const styles = StyleSheet.create({
 
   headerTimestamp: {
     position: 'absolute',
-    left: 18,
+    right: spacing.page,
     fontFamily: typography.sansSemiBold,
     fontSize: 11,
     color: colors.textSecondary,
-    zIndex: 5,
+    zIndex: 60,
   },
 
   titleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
