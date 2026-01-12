@@ -165,6 +165,26 @@ curl http://localhost:8787/api/jobs/v2/<job_id>/song/<docNum>
 
 ---
 
+## 📅 BUG #5: Vedic Calculation Inaccuracy (Hallucination Guard)
+
+### Root Cause
+1. **Sidereal Calculation Failure:** In some environments, the Swiss Ephemeris library's sidereal house calculation was returning errors.
+2. **Zero-Value Fallback:** The `textWorker` was defaulting longitudes to `0` when data was missing.
+3. **LLM Hallucination:** `0°` sidereal is the cusp of **Pisces/Revati**. The LLM interpreted this "fake" zero-data as a real placement, leading to "totally wrong" results (e.g., describing an October birth as a Pisces Sun).
+
+### Fix Applied ✅
+1. **Robust Calculation (`swissEphemeris.ts`):** Implemented a manual fallback: `Sidereal = Tropical - Lahiri Ayanamsa`. If the library flag fails, the system performs the math manually to ensure accurate results.
+2. **Strict Validation (`textWorker.ts`):** Removed the zero-value fallback. The system now throws a hard error if sidereal data is missing, preventing the LLM from hallucinating on bad data.
+3. **Deterministic Essences (`jobQueueV2.ts`):** The system now generates "Essences" (Nakshatra, Lagna) directly from the **verified math** during job completion. The UI chips now reflect the mathematical truth, even if the LLM text is overly poetic.
+
+### Verification
+Akasha's placements (Oct 16, 1982) are now correctly calculated as:
+- **Lagna:** Virgo
+- **Nakshatra:** Hasta
+- **Result:** Matches professional charts exactly. ✅
+
+---
+
 ## 📋 Summary of All Fixes
 
 ### Committed & Pushed ✅

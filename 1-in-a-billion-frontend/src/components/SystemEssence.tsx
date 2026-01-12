@@ -137,18 +137,25 @@ export const SystemEssence: React.FC<SystemEssenceProps> = ({
     );
   }
 
-  // Kabbalah: Primary Sephirah
+  // Kabbalah: Primary Sephirah + Gematria
   if (systemId === 'kabbalah') {
     const kab = essences?.kabbalah;
-    if (!kab || !kab.primarySephirah) {
+    if (!kab || (!kab.primarySephirah && !kab.gematria)) {
       return null;
     }
 
     return (
       <View style={styles.chipsRow}>
-        <View style={styles.chip}>
-          <Text style={styles.chipText}>{kab.primarySephirah}</Text>
-        </View>
+        {kab.primarySephirah && (
+          <View style={styles.chip}>
+            <Text style={styles.chipText}>{kab.primarySephirah}</Text>
+          </View>
+        )}
+        {kab.gematria && (
+          <View style={styles.chip}>
+            <Text style={styles.chipText}>Gematria: {kab.gematria}</Text>
+          </View>
+        )}
       </View>
     );
   }

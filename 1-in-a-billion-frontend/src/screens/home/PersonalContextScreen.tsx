@@ -17,15 +17,24 @@ import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonalContext'>;
 
-const MAX_CHARS = 100;
+const MAX_CHARS_DEFAULT = 100;
+const MAX_CHARS_KABBALAH = 300;
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CIRCLE_SIZE = Math.min(SCREEN_WIDTH * 0.7, SCREEN_HEIGHT * 0.4);
-const CIRCLE_SIZE_2 = CIRCLE_SIZE * 1.1; // Second circle - 10% larger
-const CIRCLE_SIZE_3 = CIRCLE_SIZE * 1.25; // Third circle - 25% larger
+const CIRCLE_SIZE_2 = CIRCLE_SIZE * 1.1;
+const CIRCLE_SIZE_3 = CIRCLE_SIZE * 1.25;
 
 export const PersonalContextScreen = ({ navigation, route }: Props) => {
-    const { personName, isSelf, productType, systems, ...restParams } = route.params as any;
+    const { personName, isSelf, productType, systems, partnerName, ...restParams } = route.params as any;
+    const isKabbalahActive = Array.isArray(systems) && systems.includes('kabbalah');
+    const MAX_CHARS = isKabbalahActive ? MAX_CHARS_KABBALAH : MAX_CHARS_DEFAULT;
+
     const [context, setContext] = useState('');
+    const [firstName, setFirstName] = useState(isSelf ? '' : personName?.split(' ')[0] || '');
+    const [surname, setSurname] = useState(isSelf ? '' : personName?.split(' ').slice(1).join(' ') || '');
+    const [partnerFirstName, setPartnerFirstName] = useState(partnerName?.split(' ')[0] || '');
+    const [partnerSurname, setPartnerSurname] = useState(partnerName?.split(' ').slice(1).join(' ') || '');
+
     const pulseAnim1 = useRef(new Animated.Value(1)).current;
     const pulseAnim2 = useRef(new Animated.Value(1)).current;
     const pulseAnim3 = useRef(new Animated.Value(1)).current;
@@ -122,6 +131,11 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                 productType,
                 systems,
                 readingType: 'individual',
+                // Kabbalah names (even on skip, we might have them)
+                firstName: firstName.trim() || undefined,
+                surname: surname.trim() || undefined,
+                partnerFirstName: partnerFirstName.trim() || undefined,
+                partnerSurname: partnerSurname.trim() || undefined,
             } as any);
         } else {
             // Normal flow → SystemSelection (where user picks system or bundle)
@@ -143,6 +157,11 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                 productType,
                 systems,
                 readingType: 'individual',
+                // Kabbalah names
+                firstName: firstName.trim() || undefined,
+                surname: surname.trim() || undefined,
+                partnerFirstName: partnerFirstName.trim() || undefined,
+                partnerSurname: partnerSurname.trim() || undefined,
             } as any);
         } else {
             // Normal flow → SystemSelection (where user picks system or bundle)
@@ -165,66 +184,135 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                     {/* Header */}
                     <View style={styles.header}>
                         <Text style={styles.headline}>
-                            {isSelf 
-                                ? <>Would you like{'\n'}to focus on something{'\n'}specific in your reading?</>
-                                : <>{personName}, would you like{'\n'}to focus on something{'\n'}specific in your reading?</>
+                            {isKabbalahActive
+                                ? <>Tell us about your life</>
+                                : (isSelf 
+                                    ? <>Would you like{'\n'}to focus on something{'\n'}specific in your reading?</>
+                                    : <>{personName}, would you like{'\n'}to focus on something{'\n'}specific in your reading?</>)
                             }
                         </Text>
                         <Text style={styles.subheadline}>
-                            Please feel free to share any questions, feelings, or areas of life you'd like the reading to address.
+                            {isKabbalahActive ? (
+                                <Text>
+                                    The more you can tell us about the most beautiful or most horrible events in your life - moments of great happiness, love, loss, or death - the richer your reading will be. {'\n\n'}
+                                    <Text style={{ fontFamily: typography.sansBold }}>The exact dates and locations are very important.</Text>
+                                </Text>
+                            ) : (
+                                "Please feel free to share any questions, feelings, or areas of life you'd like the reading to address."
+                            )}
                         </Text>
                     </View>
 
                     {/* Circular Text Input - Centered */}
-                    <View style={styles.circleWrapper}>
-                        <Animated.View
-                            style={[
-                                styles.animatedCircle,
-                                styles.animatedCircle1,
-                                {
-                                    transform: [{ scale: pulseAnim1 }],
-                                    opacity: opacityAnim1,
-                                    borderColor: '#FF1744', // Deep red
-                                },
-                            ]}
-                        />
-                        <Animated.View
-                            style={[
-                                styles.animatedCircle,
-                                styles.animatedCircle2,
-                                {
-                                    transform: [{ scale: pulseAnim2 }],
-                                    opacity: opacityAnim2,
-                                    borderColor: '#FF6B9D', // Medium pink-red
-                                },
-                            ]}
-                        />
-                        <Animated.View
-                            style={[
-                                styles.animatedCircle,
-                                styles.animatedCircle3,
-                                {
-                                    transform: [{ scale: pulseAnim3 }],
-                                    opacity: opacityAnim3,
-                                    borderColor: '#FFB3D1', // Light pink
-                                },
-                            ]}
-                        />
-                        <View style={styles.circleContainer}>
-                            <TextInput
-                                style={styles.circleInput}
-                                multiline
-                                placeholder="I will speak the truth"
-                                placeholderTextColor={colors.mutedText}
-                                value={context}
-                                onChangeText={setContext}
-                                maxLength={MAX_CHARS}
-                                autoFocus
-                                textAlignVertical="center"
-                                textAlign="center"
+                    <ScrollView 
+                        style={{ width: '100%' }} 
+                        contentContainerStyle={styles.scrollContent}
+                        showsVerticalScrollIndicator={false}
+                    >
+                        {isKabbalahActive && (
+                            <View style={styles.nameContainer}>
+                                <Text style={styles.inputLabel}>Your Sacred Name (for Kabbalah)</Text>
+                                <View style={styles.nameRow}>
+                                    <TextInput
+                                        style={styles.nameInput}
+                                        placeholder="First Name"
+                                        placeholderTextColor={colors.mutedText}
+                                        value={firstName}
+                                        onChangeText={setFirstName}
+                                    />
+                                    <TextInput
+                                        style={styles.nameInput}
+                                        placeholder="Surname"
+                                        placeholderTextColor={colors.mutedText}
+                                        value={surname}
+                                        onChangeText={setSurname}
+                                    />
+                                </View>
+
+                                {partnerName && (
+                                    <>
+                                        <Text style={[styles.inputLabel, { marginTop: spacing.md }]}>{partnerName}'s Sacred Name</Text>
+                                        <View style={styles.nameRow}>
+                                            <TextInput
+                                                style={styles.nameInput}
+                                                placeholder="First Name"
+                                                placeholderTextColor={colors.mutedText}
+                                                value={partnerFirstName}
+                                                onChangeText={setPartnerFirstName}
+                                            />
+                                            <TextInput
+                                                style={styles.nameInput}
+                                                placeholder="Surname"
+                                                placeholderTextColor={colors.mutedText}
+                                                value={partnerSurname}
+                                                onChangeText={setPartnerSurname}
+                                            />
+                                        </View>
+                                    </>
+                                )}
+                            </View>
+                        )}
+
+                        <View style={styles.circleWrapper}>
+                            {/* ... animated circles ... */}
+                            <Animated.View
+                                style={[
+                                    styles.animatedCircle,
+                                    styles.animatedCircle1,
+                                    {
+                                        transform: [{ scale: pulseAnim1 }],
+                                        opacity: opacityAnim1,
+                                        borderColor: '#FF1744',
+                                    },
+                                ]}
                             />
+                            {/* ... more circles ... */}
+                            <Animated.View
+                                style={[
+                                    styles.animatedCircle,
+                                    styles.animatedCircle2,
+                                    {
+                                        transform: [{ scale: pulseAnim2 }],
+                                        opacity: opacityAnim2,
+                                        borderColor: '#FF6B9D',
+                                    },
+                                ]}
+                            />
+                            <Animated.View
+                                style={[
+                                    styles.animatedCircle,
+                                    styles.animatedCircle3,
+                                    {
+                                        transform: [{ scale: pulseAnim3 }],
+                                        opacity: opacityAnim3,
+                                        borderColor: '#FFB3D1',
+                                    },
+                                ]}
+                            />
+                            <View style={styles.circleContainer}>
+                                <TextInput
+                                    style={[
+                                        styles.circleInput,
+                                        isKabbalahActive && { fontSize: 13, paddingHorizontal: spacing.lg }
+                                    ]}
+                                    multiline
+                                    placeholder={isKabbalahActive ? "I will share my life events..." : "I will speak the truth"}
+                                    placeholderTextColor={colors.mutedText}
+                                    value={context}
+                                    onChangeText={setContext}
+                                    maxLength={MAX_CHARS}
+                                    autoFocus={!isKabbalahActive} // Only autofocus if not showing name inputs
+                                    textAlignVertical="center"
+                                    textAlign="center"
+                                />
+                            </View>
+                            {isKabbalahActive && (
+                                <Text style={styles.charCounter}>
+                                    {context.length} / {MAX_CHARS}
+                                </Text>
+                            )}
                         </View>
-                    </View>
+                    </ScrollView>
                 </View>
 
                 {/* Bottom Buttons */}
@@ -283,6 +371,38 @@ const styles = StyleSheet.create({
         lineHeight: 22,
         textAlign: 'center',
     },
+    scrollContent: {
+        alignItems: 'center',
+        paddingBottom: spacing.xl,
+    },
+    nameContainer: {
+        width: '100%',
+        marginBottom: spacing.xl,
+    },
+    inputLabel: {
+        fontFamily: typography.sansSemiBold,
+        fontSize: 14,
+        color: colors.text,
+        marginBottom: spacing.sm,
+        textAlign: 'center',
+    },
+    nameRow: {
+        flexDirection: 'row',
+        gap: spacing.sm,
+    },
+    nameInput: {
+        flex: 1,
+        backgroundColor: colors.inputBg,
+        borderWidth: 1,
+        borderColor: colors.inputStroke,
+        borderRadius: radii.button,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        fontSize: 16,
+        fontFamily: typography.sansRegular,
+        color: colors.text,
+        textAlign: 'center',
+    },
     circleWrapper: {
         width: CIRCLE_SIZE,
         height: CIRCLE_SIZE,
@@ -290,6 +410,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: spacing.xl,
         position: 'relative',
+    },
+    charCounter: {
+        position: 'absolute',
+        bottom: -30,
+        fontFamily: typography.sansMedium,
+        fontSize: 12,
+        color: colors.mutedText,
     },
     animatedCircle: {
         position: 'absolute',
@@ -322,14 +449,13 @@ const styles = StyleSheet.create({
         height: CIRCLE_SIZE,
         borderRadius: CIRCLE_SIZE / 2,
         fontFamily: typography.sansRegular,
-        fontSize: 14,
+        fontSize: 15,
         color: colors.text,
         backgroundColor: colors.buttonBg,
         borderWidth: 2,
         borderColor: colors.primary,
-        paddingHorizontal: spacing.lg,
-        paddingTop: CIRCLE_SIZE / 2 - 20, // Center text vertically
-        textAlignVertical: 'top',
+        paddingHorizontal: spacing.xl,
+        textAlignVertical: 'center',
         textAlign: 'center',
     },
     buttonContainer: {
