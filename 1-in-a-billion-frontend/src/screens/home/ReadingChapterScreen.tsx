@@ -283,7 +283,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             <TouchableOpacity style={[styles.playButton, playing && styles.playButtonActive]} onPress={toggleNarration}>
               <Text style={styles.playIcon}>{loadingAudio ? '…' : playing ? '❚❚' : '▶'}</Text>
             </TouchableOpacity>
-            <View style={styles.sliderBlock}>
+            <View style={styles.sliderOnly}>
               <Slider
                 value={dur > 0 ? Math.min(pos, dur) : 0}
                 minimumValue={0}
@@ -293,9 +293,9 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
                 thumbTintColor={colors.primary}
                 onSlidingComplete={async (v) => narrationRef.current?.setPositionAsync(v * 1000).catch(() => {})}
               />
-              <Text style={styles.timeText}>{dur ? `${fmt(pos)} / ${fmt(dur)}` : '--:--'}</Text>
             </View>
           </View>
+          <Text style={styles.timeTextRow}>{dur ? `${fmt(pos)} / ${fmt(dur)}` : '--:--'}</Text>
 
           {/* Text is visible immediately. No scrolling automation. */}
           <View style={styles.textArea}>
@@ -315,7 +315,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             <TouchableOpacity style={[styles.songButton, playingSong && styles.songButtonActive]} onPress={toggleSong}>
               <Text style={styles.songIcon}>{loadingSong ? '…' : '♪'}</Text>
             </TouchableOpacity>
-            <View style={styles.sliderBlock}>
+            <View style={styles.sliderOnly}>
               <Slider
                 value={songDur > 0 ? Math.min(songPos, songDur) : 0}
                 minimumValue={0}
@@ -325,9 +325,9 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
                 thumbTintColor="#111827"
                 onSlidingComplete={async (v) => songRef.current?.setPositionAsync(v * 1000).catch(() => {})}
               />
-              <Text style={styles.timeText}>{songDur ? `${fmt(songPos)} / ${fmt(songDur)}` : '--:--'}</Text>
             </View>
           </View>
+          <Text style={styles.timeTextRow}>{songDur ? `${fmt(songPos)} / ${fmt(songDur)}` : '--:--'}</Text>
 
           {/* Song lyrics preview (4 lines + …) */}
           <View style={styles.songTextArea}>
@@ -382,18 +382,19 @@ const styles = StyleSheet.create({
   downloadButton: { backgroundColor: '#F3F4F6', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10 },
   downloadText: { fontFamily: 'System', fontWeight: '700', color: '#111827' },
   mediaBlock: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 },
-  playButton: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  // Smaller circles + aligned to slider track (time text is rendered below the row)
+  playButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   playButtonActive: { backgroundColor: '#9B0C1F' },
-  playIcon: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  sliderBlock: { flex: 1 },
-  timeText: { marginTop: 4, fontFamily: 'System', fontSize: 12, color: '#6B7280' },
+  playIcon: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  sliderOnly: { flex: 1, justifyContent: 'center' },
+  timeTextRow: { marginTop: 4, marginLeft: 56, fontFamily: 'System', fontSize: 12, color: '#6B7280' },
   textArea: { marginTop: 16 },
   // Use a standard body size and show a short preview
   textBody: { fontFamily: typography.sansRegular, fontSize: 14, lineHeight: 22, color: colors.text },
   musicSpacer: { height: 26 },
-  songButton: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#111827', alignItems: 'center', justifyContent: 'center' },
+  songButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#111827', alignItems: 'center', justifyContent: 'center' },
   songButtonActive: { backgroundColor: '#374151' },
-  songIcon: { color: '#fff', fontSize: 24, fontWeight: '700' },
+  songIcon: { color: '#fff', fontSize: 20, fontWeight: '700' },
   songTextArea: { marginTop: 14 },
   songTextBody: { fontFamily: typography.sansRegular, fontSize: 14, lineHeight: 22, color: colors.text },
 
