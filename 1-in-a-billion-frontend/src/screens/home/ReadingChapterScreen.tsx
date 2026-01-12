@@ -413,7 +413,9 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
               onPress={() => navigation.navigate('MyLibrary')}
               activeOpacity={0.75}
             >
-              <Text style={styles.backToLibraryText}>Back to Soul Library</Text>
+              <Text style={styles.backToLibraryText} numberOfLines={1} ellipsizeMode="tail">
+                Back to Soul Library
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -423,7 +425,9 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             >
               <AnimatedSystemIcon icon={nextSystemIcon} size={24} />
               <View style={styles.nextChapterInfo}>
-                <Text style={styles.nextChapterName}>{nextChapter.systemName}</Text>
+                <Text style={styles.nextChapterName} numberOfLines={1} ellipsizeMode="tail">
+                  {nextChapter.systemName}
+                </Text>
               </View>
               <Text style={styles.nextChapterArrow}>→</Text>
             </TouchableOpacity>
@@ -531,15 +535,16 @@ const styles = StyleSheet.create({
 
   // Next Chapter row: match SystemsOverviewScreen / system list row 1:1
   bottomCtasRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
-  bottomCtasRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, width: '100%' },
+  bottomCtasRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, alignSelf: 'stretch' },
 
   // Both CTAs: same dimensions + aligned to margins + dashed red stroke on coated white
   ctaButtonBase: {
     flex: 1,
+    minWidth: 0, // IMPORTANT: allow children to shrink instead of overflowing screen width
     height: 54,
     backgroundColor: colors.surface,
     borderRadius: radii.card,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     borderWidth: 2,
     borderColor: colors.primary,
     borderStyle: 'dashed',
@@ -547,14 +552,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   backToLibraryButton: {},
-  backToLibraryText: { fontFamily: typography.sansSemiBold, fontSize: 13, color: colors.text },
+  backToLibraryText: { fontFamily: typography.sansSemiBold, fontSize: 13, color: colors.text, flexShrink: 1 },
 
   nextChapterRowSmall: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  nextChapterInfo: { flex: 1, marginLeft: spacing.sm },
-  nextChapterName: { fontFamily: typography.sansSemiBold, fontSize: 14, color: colors.text },
+  nextChapterInfo: { flex: 1, minWidth: 0, marginLeft: 8 },
+  nextChapterName: { fontFamily: typography.sansSemiBold, fontSize: 14, color: colors.text, flexShrink: 1 },
   // Nudge arrow left a bit so the two CTAs feel visually balanced while staying equal width
   nextChapterArrow: { fontFamily: typography.sansBold, fontSize: 18, color: colors.primary, marginLeft: 6, marginRight: 6 },
 });
