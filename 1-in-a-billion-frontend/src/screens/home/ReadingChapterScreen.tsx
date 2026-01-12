@@ -187,18 +187,6 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
 
         {/* Audio players - modular components */}
         <View style={styles.card}>
-          {/* Debug: Show error if no data */}
-          {!loadingText && !text && (
-            <View style={{ padding: 12, backgroundColor: '#FFF3CD', borderRadius: 8, marginBottom: 12 }}>
-              <Text style={{ fontFamily: typography.sansBold, fontSize: 14, color: '#856404' }}>
-                ⚠️ Text not loading
-              </Text>
-              <Text style={{ fontFamily: typography.sansRegular, fontSize: 11, color: '#856404', marginTop: 4 }}>
-                jobId: {jobId}{'\n'}system: {systemId}{'\n'}docNum: {docNum}
-              </Text>
-            </View>
-          )}
-          
           <AudioPlayerSection
             audioUrl={narrationUrl}
             text={text}
