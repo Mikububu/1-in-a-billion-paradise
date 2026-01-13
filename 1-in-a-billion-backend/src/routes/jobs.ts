@@ -467,6 +467,10 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
   const docNum = parseInt(c.req.param('docNum'), 10);
   const rangeHeader = c.req.header('range') || c.req.header('Range') || null;
   
+  // #region agent log
+  import('fs').then(fs=>fs.promises.appendFile('/Users/michaelperinwogenburg/Desktop/big challenge/1 in a Billion/.cursor/debug.log',JSON.stringify({location:'jobs.ts:465',message:'Audio endpoint called',data:{jobId:jobId.substring(0,8),docNum},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})+'\n').catch(()=>{}));
+  // #endregion
+  
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return c.json({ success: false, error: 'Supabase not configured' }, 500);
   }
@@ -505,6 +509,10 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
 
     // Find artifact matching docNum (from metadata or derive from task sequence)
     let audioArtifact = artifacts.find(a => a.metadata?.docNum === docNum);
+    
+    // #region agent log
+    import('fs').then(fs=>fs.promises.appendFile('/Users/michaelperinwogenburg/Desktop/big challenge/1 in a Billion/.cursor/debug.log',JSON.stringify({location:'jobs.ts:507',message:'Audio artifact search',data:{jobId:jobId.substring(0,8),requestedDocNum:docNum,totalArtifacts:artifacts.length,artifactMetadata:artifacts.map(a=>({docNum:a.metadata?.docNum,system:a.metadata?.system,docType:a.metadata?.docType})),foundMatch:!!audioArtifact,matchedDocNum:audioArtifact?.metadata?.docNum},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})+'\n').catch(()=>{}));
+    // #endregion
     
     // If not found by metadata, try to match by task sequence
     if (!audioArtifact) {
@@ -585,6 +593,10 @@ router.get('/v2/:jobId/song/:docNum', async (c) => {
   const jobId = c.req.param('jobId');
   const docNum = parseInt(c.req.param('docNum'), 10);
   const rangeHeader = c.req.header('range') || c.req.header('Range') || null;
+  
+  // #region agent log
+  import('fs').then(fs=>fs.promises.appendFile('/Users/michaelperinwogenburg/Desktop/big challenge/1 in a Billion/.cursor/debug.log',JSON.stringify({location:'jobs.ts:580',message:'Song endpoint called',data:{jobId:jobId.substring(0,8),docNum},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})+'\n').catch(()=>{}));
+  // #endregion
   
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return c.json({ success: false, error: 'Supabase not configured' }, 500);

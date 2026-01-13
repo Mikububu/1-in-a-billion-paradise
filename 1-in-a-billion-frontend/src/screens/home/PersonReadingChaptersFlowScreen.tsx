@@ -104,6 +104,10 @@ export const PersonReadingChaptersFlowScreen = ({ navigation, route }: Props) =>
           // If document isn't ready yet, the screen will show empty/gray content (which is fine)
           const docNum = match ? Number(match?.docNum) || (index + 1) : (index + 1);
           
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingChaptersFlowScreen.tsx:105',message:'Building chapter',data:{system:sys.id,index,foundMatch:!!match,matchDocNum:match?.docNum,calculatedDocNum:docNum,matchDocType:match?.docType},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
+          
           return {
             personName,
             personId,

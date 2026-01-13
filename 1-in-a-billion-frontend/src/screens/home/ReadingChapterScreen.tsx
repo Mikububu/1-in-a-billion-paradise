@@ -22,6 +22,10 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
   const { width: windowW } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const person = useProfileStore((s) => (personId ? s.getPerson(personId) : undefined));
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReadingChapterScreen.tsx:21',message:'Screen initialized',data:{personName,jobId:jobId?.substring(0,8),systemId,docNum,nextChapterSystem:nextChapter?.systemId,nextChapterDocNum:nextChapter?.docNum},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,E'})}).catch(()=>{});
+  // #endregion
 
   const nextSystemIcon = useMemo(() => {
     const sid = String(nextChapter?.systemId || '');
@@ -87,6 +91,9 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         // Try new artifact system first
         const artifacts = await fetchJobArtifacts(jobId, ['text']);
         console.log(`📚 Found ${artifacts.length} text artifacts in job_artifacts table`);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReadingChapterScreen.tsx:91',message:'Text artifacts fetched',data:{jobId,systemId,docNum,artifactsCount:artifacts.length,artifactSystems:artifacts.map(a=>(a.metadata as any)?.system),artifactDocNums:artifacts.map(a=>(a.metadata as any)?.docNum)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         
         const textArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
@@ -138,6 +145,9 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
           const meta = (a.metadata as any) || {};
           const matches = meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
           if (matches) console.log(`✅ Found matching song artifact`);
+          // #region agent log
+          if(matches){fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReadingChapterScreen.tsx:141',message:'Song artifact matched',data:{jobId,requestedSystem:systemId,requestedDocNum:docNum,matchedSystem:meta?.system,matchedDocNum:meta?.docNum,matchedDocType:meta?.docType},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,D'})}).catch(()=>{});}
+          // #endregion
           return matches;
         });
         const lyrics = (songArtifact?.metadata as any)?.lyrics;
