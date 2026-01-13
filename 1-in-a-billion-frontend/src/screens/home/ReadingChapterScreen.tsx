@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { env } from '@/config/env';
 import { downloadTextContent, fetchJobArtifacts } from '@/services/nuclearReadingsService';
+import { downloadAudioFromUrl, shareAudioFile } from '@/services/audioDownload';
 import { BackButton } from '@/components/BackButton';
 import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
 import { AudioPlayerSection } from '@/components/AudioPlayerSection';
@@ -43,6 +44,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
   const [songReady, setSongReady] = useState<boolean>(false);
   const [pdfChecked, setPdfChecked] = useState<boolean>(false);
   const [audioChecked, setAudioChecked] = useState<boolean>(false);
+  const [downloading, setDownloading] = useState<boolean>(false);
   const pdfReadyRef = useRef(false);
   const audioReadyRef = useRef(false);
   const songReadyRef = useRef(false);
@@ -296,6 +298,11 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     };
   }, [jobId, systemId, docNum]);
 
+  // Compute: ALL media ready (PDF + audio + song = ZIP ready)
+  const allMediaReady = useMemo(() => {
+    return pdfChecked && audioChecked && pdfReady && audioReady && songReady;
+  }, [pdfChecked, audioChecked, pdfReady, audioReady, songReady]);
+
   const niceTimestamp = useMemo(() => {
     if (!timestamp) return '';
     try {
@@ -318,6 +325,48 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     return Math.max(130, w);
   }, [windowW]);
 
+  // Download both audio files (narration + song)
+  const handleDownloadAudios = async () => {
+    if (downloading || !allMediaReady) return;
+    
+    setDownloading(true);
+    try {
+      const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+      const baseName = `${sanitize(personName)}_${sanitize(systemName)}_doc${docNum}`;
+      
+      // Download narration audio
+      const narrationFileName = `${baseName}_narration`;
+      console.log(`📥 Downloading narration: ${narrationUrl}`);
+      const narrationPath = await downloadAudioFromUrl(narrationUrl, narrationFileName);
+      console.log(`✅ Narration downloaded: ${narrationPath}`);
+      
+      // Download song audio
+      const songFileName = `${baseName}_song`;
+      console.log(`📥 Downloading song: ${songUrl}`);
+      const songPath = await downloadAudioFromUrl(songUrl, songFileName);
+      console.log(`✅ Song downloaded: ${songPath}`);
+      
+      // Share both files (user can save to Files app, etc.)
+      const shared = await shareAudioFile(narrationPath, `${personName} - ${systemName} - Narration`);
+      if (shared) {
+        // After sharing narration, offer to share song
+        setTimeout(async () => {
+          await shareAudioFile(songPath, `${personName} - ${systemName} - Song`);
+        }, 500);
+      }
+      
+      Alert.alert(
+        'Download Complete',
+        `Both audio files downloaded:\n• Narration\n• Song\n\nYou can find them in your Files app.`
+      );
+    } catch (error: any) {
+      console.error('❌ Download error:', error);
+      Alert.alert('Download Failed', error.message || 'Could not download audio files. Please try again.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <BackButton onPress={() => navigation.goBack()} />
@@ -334,22 +383,30 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         <View style={styles.contentWrapper}>
           {/* Title row */}
           <View style={styles.titleRow}>
-          <View style={styles.titleButtonsCol}>
-            <TouchableOpacity 
-              style={[styles.headerYellowButton, !pdfReady && styles.headerYellowButtonDisabled]} 
-              onPress={() => {}}
-              disabled={!pdfReady}
-            >
-              <Text style={[styles.headerYellowText, !pdfReady && styles.headerYellowTextDisabled]}>PDF</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.headerYellowButton, !pdfReady && styles.headerYellowButtonDisabled]} 
-              onPress={() => {}}
-              disabled={!pdfReady}
-            >
-              <Text style={[styles.headerYellowText, !pdfReady && styles.headerYellowTextDisabled]}>↓</Text>
-            </TouchableOpacity>
-          </View>
+          {/* PDF/Download buttons - ONLY show when ALL media is ready */}
+          {allMediaReady ? (
+            <View style={styles.titleButtonsCol}>
+              <TouchableOpacity 
+                style={styles.headerYellowButton} 
+                onPress={() => {}}
+              >
+                <Text style={styles.headerYellowText}>PDF</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.headerYellowButton, downloading && styles.headerYellowButtonDisabled]} 
+                onPress={handleDownloadAudios}
+                disabled={downloading}
+              >
+                {downloading ? (
+                  <ActivityIndicator size="small" color="#111827" />
+                ) : (
+                  <Text style={styles.headerYellowText}>↓</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.titleButtonsCol} />
+          )}
 
           <View style={styles.titleBlock}>
             <Text style={styles.title} numberOfLines={2}>{personName}</Text>
@@ -371,19 +428,23 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             text={text}
             loadingText={loadingText}
             type="narration"
-            textNotReady={!!text && !loadingText && (!pdfChecked || !audioChecked || !pdfReady || !audioReady)}
+            textNotReady={!!text && !loadingText && !allMediaReady}
           />
 
-          <View style={styles.musicSpacer} />
-
-          <AudioPlayerSection
-            audioUrl={songUrl}
-            text={songLyrics}
-            loadingText={loadingSongLyrics}
-            type="song"
-            controlsDisabled={!songReady}
-            textNotReady={!!songLyrics && !loadingSongLyrics && (!songReady || !pdfReady || !audioReady)}
-          />
+          {/* Song player - ONLY show when ALL media is ready */}
+          {allMediaReady ? (
+            <>
+              <View style={styles.musicSpacer} />
+              <AudioPlayerSection
+                audioUrl={songUrl}
+                text={songLyrics}
+                loadingText={loadingSongLyrics}
+                type="song"
+                textNotReady={!!songLyrics && !loadingSongLyrics && !allMediaReady}
+              />
+            </>
+          ) : null}
+        </View>
         </View>
 
         {/* Bottom navigation buttons */}
@@ -425,7 +486,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
