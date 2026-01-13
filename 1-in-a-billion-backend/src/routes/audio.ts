@@ -390,21 +390,22 @@ router.post('/generate-tts', async (c) => {
       const voiceSampleUrl = parsed.audioUrl || 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/david.wav';
 
       // Sequential processing (RunPod serverless handles one at a time best)
+      // Using /run (async) + polling since endpoint doesn't support /runsync
       const generateChunk = async (chunk: string, index: number, maxRetries = 3): Promise<Buffer> => {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
           try {
             console.log(`Starting chunk ${index + 1}/${chunks.length} (attempt ${attempt})`);
             console.log(`  Chunk ${index + 1} text length: ${chunk.length} chars`);
             console.log(`  Chunk ${index + 1} preview: "${chunk.substring(0, 80)}..."`);
-            console.log(`  Chunk ${index + 1} ends with: "...${chunk.substring(chunk.length - 60)}"`);
 
             // Safety check: if chunk exceeds 350 chars, log warning (shouldn't happen with proper chunking)
             if (chunk.length > 350) {
               console.log(`  ⚠️ WARNING: Chunk ${index + 1} is ${chunk.length} chars (exceeds 350 limit)`);
             }
 
-            const response = await axios.post(
-              `https://api.runpod.ai/v2/${runpodEndpointId}/runsync`,
+            // Submit async job with /run
+            const submitResponse = await axios.post(
+              `https://api.runpod.ai/v2/${runpodEndpointId}/run`,
               {
                 input: {
                   text: chunk,
@@ -418,22 +419,51 @@ router.post('/generate-tts', async (c) => {
                   'Authorization': `Bearer ${runpodApiKey}`,
                   'Content-Type': 'application/json',
                 },
-                timeout: 180000, // 3 min timeout (cold start can take ~30s)
+                timeout: 30000, // 30s timeout for job submission
               }
             );
 
-            const output = response.data?.output;
-            if (!output?.audio_base64) {
-              throw new Error(`No audio_base64 in response for chunk ${index + 1}`);
+            const jobId = submitResponse.data?.id;
+            if (!jobId) {
+              throw new Error(`No job ID returned for chunk ${index + 1}`);
             }
 
-            console.log(`✅ Chunk ${index + 1} done`);
-            return Buffer.from(output.audio_base64, 'base64');
+            console.log(`  ⏳ RunPod async job ${jobId} submitted for chunk ${index + 1}, polling...`);
+
+            // Poll for completion (max 3 minutes, 5s intervals)
+            const maxPolls = 36;
+            const pollInterval = 5000;
+            for (let poll = 1; poll <= maxPolls; poll++) {
+              await new Promise(r => setTimeout(r, pollInterval));
+              
+              const statusResponse = await axios.get(
+                `https://api.runpod.ai/v2/${runpodEndpointId}/status/${jobId}`,
+                {
+                  headers: { 'Authorization': `Bearer ${runpodApiKey}` },
+                  timeout: 10000,
+                }
+              );
+
+              const status = statusResponse.data?.status;
+              
+              if (status === 'COMPLETED') {
+                const output = statusResponse.data?.output;
+                if (!output?.audio_base64) {
+                  throw new Error(`No audio_base64 in completed response for chunk ${index + 1}`);
+                }
+                console.log(`✅ Chunk ${index + 1} done (async, ${poll * 5}s)`);
+                return Buffer.from(output.audio_base64, 'base64');
+              } else if (status === 'FAILED') {
+                throw new Error(`RunPod job ${jobId} failed for chunk ${index + 1}: ${statusResponse.data?.error || 'Unknown error'}`);
+              }
+              // IN_QUEUE or IN_PROGRESS - continue polling
+            }
+            throw new Error(`Chunk ${index + 1} timed out after ${maxPolls * pollInterval / 1000}s polling`);
 
           } catch (error: any) {
             if (attempt < maxRetries) {
               const waitTime = attempt * 5000;
-              console.log(`⚠️ Chunk ${index + 1} failed, retrying in ${waitTime / 1000}s...`);
+              console.log(`⚠️ Chunk ${index + 1} failed: ${error.message}, retrying in ${waitTime / 1000}s...`);
               await new Promise(r => setTimeout(r, waitTime));
             } else {
               throw error;

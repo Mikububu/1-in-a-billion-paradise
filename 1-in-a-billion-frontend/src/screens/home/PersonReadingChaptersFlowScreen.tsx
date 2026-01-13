@@ -68,30 +68,34 @@ export const PersonReadingChaptersFlowScreen = ({ navigation, route }: Props) =>
           return (desiredDocTypes || []).includes(docType);
         });
 
-        // Build chapters ONLY for systems that actually exist in the job documents
-        // This ensures we don't show wrong content (e.g., Gene Keys reading showing Western content)
-        const systemsInJob = new Set(chapterDocs.map((d) => String(d?.system || '').toLowerCase()));
+        // Build chapters for ALL systems requested in job.params.systems
+        // This ensures navigation shows all expected systems even if some documents aren't ready yet
+        // Documents that aren't ready will show gray/empty content (handled by ReadingChapterScreen)
+        const requestedSystems: string[] = (job?.params?.systems || []).map((s: string) => s.toLowerCase());
         
-        // Filter ordered systems to only include those that exist in the job
-        const orderedSystems = (effectiveViewType === 'overlay'
-          ? SYSTEMS
-          : SYSTEMS.filter((s) => s.id !== 'verdict')
-        ).filter((sys) => systemsInJob.has(sys.id.toLowerCase()));
-
-        // If no systems found, that's okay - the screen will show empty/gray content
-        // This happens when the job is still processing and documents aren't ready yet
-        if (orderedSystems.length === 0) {
-          console.log(`ℹ️ No documents ready yet for job ${jobId}. Screen will show empty content.`);
-          // Still create a placeholder chapter so the screen can load and show gray/empty state
-          const requestedSystems = job?.params?.systems || [];
-          if (requestedSystems.length > 0) {
-            const firstSystemId = String(requestedSystems[0] || '').toLowerCase();
-            const firstSystem = SYSTEMS.find(s => s.id.toLowerCase() === firstSystemId);
-            if (firstSystem) {
-              orderedSystems.push(firstSystem);
+        // Use requested systems from job params, falling back to SYSTEMS constant
+        let orderedSystems = (effectiveViewType === 'overlay' ? SYSTEMS : SYSTEMS.filter((s) => s.id !== 'verdict'));
+        
+        // If job has specific systems requested, filter to only those (in the correct order)
+        if (requestedSystems.length > 0) {
+          orderedSystems = requestedSystems
+            .map(sysId => SYSTEMS.find(s => s.id.toLowerCase() === sysId))
+            .filter(Boolean) as typeof SYSTEMS;
+          
+          // For overlays, add verdict at the end if not already included
+          if (effectiveViewType === 'overlay') {
+            const verdictSystem = SYSTEMS.find(s => s.id === 'verdict');
+            if (verdictSystem && !orderedSystems.includes(verdictSystem)) {
+              orderedSystems.push(verdictSystem);
             }
           }
         }
+        
+        console.log(`📚 Building ${orderedSystems.length} chapters for job ${jobId} (${orderedSystems.map(s => s.id).join(', ')})`);
+        console.log(`📚 Documents ready: ${chapterDocs.length} (${chapterDocs.map(d => d.system).join(', ')})`);
+        
+        // Systems with actual documents (for reference, not for filtering)
+        const systemsInJob = new Set(chapterDocs.map((d) => String(d?.system || '').toLowerCase()));
 
         const built: Chapter[] = orderedSystems.map((sys, index) => {
           const match = chapterDocs.find((d) => String(d?.system || '').toLowerCase() === sys.id.toLowerCase());

@@ -44,8 +44,8 @@ function buildChartDataForSystem(
   p1Placements: any,
   person2Name: string | null,
   p2Placements: any | null,
-  p1BirthData: { birthDate: string; birthTime: string },
-  p2BirthData: { birthDate: string; birthTime: string } | null
+  p1BirthData: { birthDate: string; birthTime: string; timezone?: string },
+  p2BirthData: { birthDate: string; birthTime: string; timezone?: string } | null
 ): string {
   const formatDegree = (d: any) => (d ? `${d.degree}° ${d.minute}'` : '');
   const hasP2 = Boolean(person2Name && p2Placements && p2BirthData);
@@ -603,12 +603,14 @@ export class TextWorker extends BaseWorker {
       birthDate: person1.birthDate,
       birthTime: person1.birthTime,
       birthPlace: `${Number(person1.latitude).toFixed(2)}°N, ${Number(person1.longitude).toFixed(2)}°E`,
+      timezone: person1.timezone,
     };
 
     const p2BirthData = person2 ? {
       birthDate: person2.birthDate,
       birthTime: person2.birthTime,
       birthPlace: `${Number(person2.latitude).toFixed(2)}°N, ${Number(person2.longitude).toFixed(2)}°E`,
+      timezone: person2.timezone,
     } : null;
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -710,7 +712,9 @@ export class TextWorker extends BaseWorker {
       const contextText = params.personalContext || params.lifeEvents || '';
       
       // Build comprehensive Kabbalah prompt with Hebrew data
-      prompt = `You are a master Kabbalist interpreting through the Tree of Life.
+      prompt = `CRITICAL FORMATTING WARNING: Do NOT use asterisks (**), markdown, bullet points, or any special formatting. Write pure flowing prose only. No ** around titles or emphasis.
+
+You are a master Kabbalist interpreting through the Tree of Life.
 
 ═══════════════════════════════════════════════════════════════════════════
 PRECOMPUTED KABBALAH DATA (use these exact values):
