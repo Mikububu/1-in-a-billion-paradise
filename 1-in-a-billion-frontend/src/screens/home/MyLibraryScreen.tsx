@@ -2586,7 +2586,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                   })()}
                 </View>
               </TouchableOpacity>
-              {!person.isUser && primaryJobId && (
+              {primaryJobId && (
                 <TouchableOpacity
                   style={styles.personDeleteButton}
                   onPress={(e) => handleDeleteJob(primaryJobId, person.name, e)}
