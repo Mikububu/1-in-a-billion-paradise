@@ -23,6 +23,18 @@ export const NextStepScreen = ({ navigation }: Props) => {
     }
   }, [isFocused]);
 
+  // Handle looping with 1 second pause on last frame
+  const handlePlaybackStatusUpdate = (status: any) => {
+    if (status.isLoaded && status.didJustFinish) {
+      // Hold on last frame for 1 second, then restart
+      setTimeout(() => {
+        videoRef.current?.setPositionAsync(0).then(() => {
+          videoRef.current?.playAsync().catch(() => {});
+        });
+      }, 1000);
+    }
+  };
+
   const buttons = [
     {
       label: 'MY SOULS LIBRARY',
@@ -68,9 +80,11 @@ export const NextStepScreen = ({ navigation }: Props) => {
         style={styles.bottomVideo}
         resizeMode={ResizeMode.COVER}
         shouldPlay={isFocused}
-        isLooping
+        isLooping={false}
         isMuted
         volume={0}
+        progressUpdateIntervalMillis={100}
+        onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
         onReadyForDisplay={() => {
           // Belt + suspenders: ensure autoplay resumes once frames are ready.
           if (isFocused) videoRef.current?.playAsync().catch(() => {});

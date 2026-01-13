@@ -5,8 +5,11 @@
  */
 
 import { supabase } from './supabaseClient';
+import { Resend } from 'resend';
+import { getApiKey } from './apiKeys';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
+const EMAIL_FROM = '1 In A Billion <noreply@oneinabillion.app>';
 
 export interface NotificationPayload {
   title: string;
@@ -61,8 +64,8 @@ export async function sendExpoPushNotifications(
 }
 
 /**
- * Send email notification via Supabase Edge Function or direct SMTP
- * For now, uses Supabase's built-in email (if configured) or logs
+ * Send email notification via Resend
+ * Falls back to logging if Resend is not configured
  */
 export async function sendEmailNotification(
   email: string,
@@ -75,27 +78,42 @@ export async function sendEmailNotification(
     return false;
   }
 
+  // Get Resend API key from Supabase
+  const resendApiKey = await getApiKey('resend');
+  
+  if (!resendApiKey) {
+    console.warn('⚠️ Resend API key not found. Email will not be sent.');
+    console.log(`📧 [EMAIL WOULD BE SENT] To: ${email}, Subject: ${subject}`);
+    return true; // Return true so we don't block the flow
+  }
+
   try {
-    // Option 1: Use Supabase Edge Function (recommended)
-    // This would call a Supabase function that sends email via Resend/SendGrid
-    const { error } = await supabase.functions.invoke('send-email', {
-      body: { to: email, subject, text: body, html: htmlBody },
+    const resend = new Resend(resendApiKey);
+
+    const { data, error } = await resend.emails.send({
+      from: EMAIL_FROM,
+      to: email,
+      subject: subject,
+      text: body,
+      html: htmlBody || body.replace(/\n/g, '<br>'),
     });
 
     if (error) {
-      console.warn('⚠️ Supabase email function failed:', error.message);
-      // Fall through to log
-    } else {
-      console.log(`✅ Email sent to ${email}`);
+      console.error('❌ Resend email error:', error);
+      return false;
+    }
+
+    if (data?.id) {
+      console.log(`✅ Email sent to ${email} (Resend ID: ${data.id})`);
       return true;
     }
-  } catch (err) {
-    console.warn('⚠️ Email function not available');
-  }
 
-  // Fallback: Just log (in production, implement direct SMTP or use a service)
-  console.log(`📧 [EMAIL WOULD BE SENT] To: ${email}, Subject: ${subject}`);
-  return true; // Return true so we don't block the flow
+    console.warn('⚠️ Resend returned no error but no email ID');
+    return false;
+  } catch (err: any) {
+    console.error('❌ Exception sending email via Resend:', err.message);
+    return false;
+  }
 }
 
 /**
@@ -112,16 +130,59 @@ export async function notifyJobComplete(
   console.log(`🔔 Sending notifications for completed job: ${jobId.slice(0, 8)}...`);
 
   // Get pending notifications from Supabase
-  const { data: subscriptions, error } = await supabase
-    .rpc('get_pending_notifications', { p_job_id: jobId });
+  let subscriptions: any[] = [];
+  let error: any = null;
 
-  if (error) {
-    console.error('❌ Failed to get pending notifications:', error.message);
-    return { pushCount: 0, emailCount: 0 };
+  try {
+    const result = await supabase.rpc('get_pending_notifications', { p_job_id: jobId });
+    error = result.error;
+    subscriptions = result.data || [];
+  } catch (e: any) {
+    // Function might not exist - that's OK, we'll use fallback
+    console.warn('⚠️ get_pending_notifications function not available, using fallback');
+  }
+
+  // FALLBACK: If subscription table doesn't exist, get user email directly from job
+  if (error || !subscriptions || subscriptions.length === 0) {
+    console.log('ℹ️ No subscription table or subscriptions found, trying fallback email lookup...');
+    
+    try {
+      // Get job to find user_id
+      const { data: job } = await supabase
+        .from('jobs')
+        .select('user_id, params')
+        .eq('id', jobId)
+        .single();
+
+      if (job?.user_id) {
+        // Get user email from library_people
+        const { data: userProfile } = await supabase
+          .from('library_people')
+          .select('email')
+          .eq('user_id', job.user_id)
+          .eq('is_user', true)
+          .single();
+
+        if (userProfile?.email) {
+          // Create a fallback subscription object
+          subscriptions = [{
+            subscription_id: null,
+            user_id: job.user_id,
+            push_enabled: false,
+            email_enabled: true,
+            email: userProfile.email,
+            push_tokens: [],
+          }];
+          console.log(`✅ Found user email via fallback: ${userProfile.email}`);
+        }
+      }
+    } catch (fallbackError: any) {
+      console.warn('⚠️ Fallback email lookup failed:', fallbackError.message);
+    }
   }
 
   if (!subscriptions || subscriptions.length === 0) {
-    console.log('ℹ️ No pending notification subscriptions for this job');
+    console.log('ℹ️ No way to send notifications for this job');
     return { pushCount: 0, emailCount: 0 };
   }
 
@@ -161,14 +222,22 @@ export async function notifyJobComplete(
       }
     }
 
-    notifiedSubscriptionIds.push(sub.subscription_id);
+    // Only track subscription IDs that exist (fallback subscriptions have null IDs)
+    if (sub.subscription_id) {
+      notifiedSubscriptionIds.push(sub.subscription_id);
+    }
   }
 
-  // Mark notifications as sent
+  // Mark notifications as sent (only if we have real subscription IDs)
   if (notifiedSubscriptionIds.length > 0) {
-    await supabase.rpc('mark_notifications_sent', { 
-      p_subscription_ids: notifiedSubscriptionIds 
-    });
+    try {
+      await supabase.rpc('mark_notifications_sent', { 
+        p_subscription_ids: notifiedSubscriptionIds 
+      });
+    } catch (e) {
+      // Function might not exist - that's OK for fallback mode
+      console.warn('⚠️ Could not mark notifications as sent (non-blocking)');
+    }
   }
 
   console.log(`✅ Notifications sent: ${pushCount} push, ${emailCount} email`);

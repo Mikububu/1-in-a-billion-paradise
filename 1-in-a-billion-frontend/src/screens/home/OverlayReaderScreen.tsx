@@ -18,6 +18,7 @@ import { createArtifactSignedUrl, downloadTextContent } from '@/services/nuclear
 import { splitIntoBlocks } from '@/utils/readingTextFormat';
 import { env } from '@/config/env';
 import { BackButton } from '@/components/BackButton';
+import { CountdownOverlay } from '@/components/CountdownOverlay';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'OverlayReader'>;
 
@@ -90,6 +91,14 @@ export const OverlayReaderScreen = ({ navigation, route }: Props) => {
   }, [job]);
 
   const getFirst = (type: string) => artifacts.find((a) => a.artifact_type === type && a.storage_path);
+
+  // Check if all media is ready (PDF + audio + song)
+  const allMediaReady = useMemo(() => {
+    const hasPdf = !!getFirst('pdf');
+    const hasAudio = !!getFirst('audio_mp3') || !!getFirst('audio_m4a') || !!getFirst('audio');
+    const hasSong = !!getFirst('audio_song');
+    return hasPdf && hasAudio && hasSong;
+  }, [artifacts]);
 
   const canRetry = useMemo(() => job?.status === 'error' && job?.input, [job?.input, job?.status]);
   const retry = useCallback(() => {

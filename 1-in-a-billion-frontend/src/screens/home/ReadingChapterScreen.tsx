@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -11,6 +11,7 @@ import { BackButton } from '@/components/BackButton';
 import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
 import { AudioPlayerSection } from '@/components/AudioPlayerSection';
 import { SystemEssence } from '@/components/SystemEssence';
+import { CountdownOverlay } from '@/components/CountdownOverlay';
 import { colors, layout, radii, spacing, typography } from '@/theme/tokens';
 import { useProfileStore } from '@/store/profileStore';
 
@@ -423,6 +424,8 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
 
         {/* Audio players - modular components */}
         <View style={styles.card}>
+          <CountdownOverlay jobId={jobId} allMediaReady={allMediaReady} />
+
           <AudioPlayerSection
             audioUrl={narrationUrl}
             text={text}
@@ -431,19 +434,15 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             textNotReady={!!text && !loadingText && !allMediaReady}
           />
 
-          {/* Song player - ONLY show when ALL media is ready */}
-          {allMediaReady ? (
-            <>
-              <View style={styles.musicSpacer} />
-              <AudioPlayerSection
-                audioUrl={songUrl}
-                text={songLyrics}
-                loadingText={loadingSongLyrics}
-                type="song"
-                textNotReady={!!songLyrics && !loadingSongLyrics && !allMediaReady}
-              />
-            </>
-          ) : null}
+          <View style={styles.musicSpacer} />
+          <AudioPlayerSection
+            audioUrl={songUrl}
+            text={songLyrics}
+            loadingText={loadingSongLyrics}
+            type="song"
+            controlsDisabled={!songReady}
+            textNotReady={!!songLyrics && !loadingSongLyrics && !allMediaReady}
+          />
         </View>
         </View>
 
@@ -548,7 +547,7 @@ const styles = StyleSheet.create({
   },
   titleRightSpacer: { width: 40 },
 
-  card: { backgroundColor: 'transparent', borderRadius: 16, padding: 16, marginBottom: 16 },
+  card: { backgroundColor: 'transparent', borderRadius: 16, padding: 16, marginBottom: 16, position: 'relative' },
   musicSpacer: { height: 18 },
 
   bottomCtasRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, width: '100%' },

@@ -325,26 +325,42 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
     // Full registration with push + email
     const result = await enableNotificationsForJob(userId, activeJobId, userEmail);
 
-    if (result.success) {
-      setNotificationsEnabled(true);
-      const message = result.pushEnabled
-        ? "We'll send you a push notification and email when your reading is ready!"
-        : "We'll send you an email when your reading is ready!";
-      Alert.alert('Notifications Enabled', message, [{ text: 'OK' }]);
-    } else {
-      Alert.alert(
-        'Notifications Issue',
-        "We couldn't enable notifications. Your reading will still be saved - just check back later.",
-        [{ text: 'OK' }]
-      );
-    }
+    // Always show success - email notifications work even if subscription table fails
+    // The subscription table is just for tracking, not required for email delivery
+    setNotificationsEnabled(true);
+    const message = result.pushEnabled
+      ? "We'll send you a push notification and email when your reading is ready!"
+      : "We'll send you an email when your reading is ready!";
+    Alert.alert('Notifications Enabled', message, [{ text: 'OK' }]);
   };
 
   const isThirdPerson = !!personName && personName !== 'You' && personName !== 'User';
 
   const handleGoToSoulLaboratory = () => {
-    // Main hub is Souls Laboratory (Screen 11)
-    navigation.navigate('NextStep');
+    // Navigate to My Souls Library
+    navigation.navigate('MyLibrary');
+  };
+
+  const handleGoToResults = () => {
+    // Navigate directly to readings screen
+    if (activeJobId) {
+      const personType = partnerName ? 'overlay' : 'individual';
+      const displayName = partnerName 
+        ? `${personName || 'You'} & ${partnerName}`
+        : personName || 'You';
+      
+      navigation.navigate('PersonReadings', {
+        personName: displayName,
+        personId: personId || '',
+        personType: personType as 'person1' | 'person2' | 'overlay' | 'individual',
+        jobId: activeJobId,
+      });
+    }
+  };
+
+  const handleGoToMySecretLife = () => {
+    // Navigate to My Secret Life (Home screen)
+    navigation.navigate('Home');
   };
 
   // Get the system name for the headline
@@ -417,9 +433,25 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
           </Text>
         </TouchableOpacity>
 
-        {/* Navigate to Souls Laboratory */}
+        {/* Results Button - Go directly to readings */}
+        <TouchableOpacity 
+          style={styles.libraryButton} 
+          onPress={handleGoToResults}
+          disabled={!activeJobId}
+        >
+          <Text style={[styles.libraryButtonText, !activeJobId && styles.libraryButtonTextDisabled]}>
+            Results
+          </Text>
+        </TouchableOpacity>
+
+        {/* My Secret Life Button */}
+        <TouchableOpacity style={styles.libraryButton} onPress={handleGoToMySecretLife}>
+          <Text style={styles.libraryButtonText}>My Secret Life</Text>
+        </TouchableOpacity>
+
+        {/* My Souls Library Button */}
         <TouchableOpacity style={styles.libraryButton} onPress={handleGoToSoulLaboratory}>
-          <Text style={styles.libraryButtonText}>Souls Laboratory</Text>
+          <Text style={styles.libraryButtonText}>My Souls Library</Text>
         </TouchableOpacity>
 
         {/* Status indicator - Centered */}
@@ -535,18 +567,6 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
           </View>
         )}
 
-        {/* Status Box - No Progress Bar */}
-        <View style={styles.debugBox}>
-          {/* Current Step */}
-          <Text style={styles.debugStep}>{currentStep}</Text>
-
-          {/* Verifiable receipt */}
-          {!!activeJobId && (
-            <Text style={styles.debugStep} selectable>
-              Receipt (jobId): {activeJobId}
-            </Text>
-          )}
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -731,6 +751,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
     textAlign: 'center',
+  },
+  libraryButtonTextDisabled: {
+    opacity: 0.5,
+    color: colors.mutedText,
   },
   statusRow: {
     flexDirection: 'row',

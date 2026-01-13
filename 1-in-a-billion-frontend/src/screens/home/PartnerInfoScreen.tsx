@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Keyboard, ScrollView, Alert } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, Keyboard, ScrollView, Alert, Image, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -15,6 +15,8 @@ import { calculatePlacements } from '@/services/placementsCalculator';
 import { insertPersonToSupabase } from '@/services/peopleService';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PartnerInfo'>;
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const parseIsoDate = (value?: string): Date | null => {
   if (!value) return null;
@@ -386,6 +388,12 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
         </View>
       </ScrollView>
 
+      {/* 5 Systems Image - Half screen size, behind button */}
+      <Image
+        source={require('../../../assets/images/5_systems_transp.png')}
+        style={styles.bottomImage}
+        resizeMode="contain"
+      />
 
       <View style={styles.footer}>
         <Button
@@ -533,5 +541,15 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: spacing.page,
     paddingBottom: spacing.xl,
+    zIndex: 10,
+  },
+  bottomImage: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: SCREEN_HEIGHT * 0.5, // Half screen size
+    width: '100%',
+    zIndex: 1, // Behind the button
   },
 });

@@ -63,6 +63,7 @@ export async function getApiKey(
         'google_places': 'GOOGLE_PLACES_API_KEY',
         'fly_io': 'FLY_ACCESS_TOKEN', // Fly.io deployment token
         'minimax': 'MINIMAX_API_KEY', // MiniMax API for music generation
+        'resend': 'RESEND_API_KEY', // Resend API for email notifications
         'stripe': 'STRIPE_SECRET_KEY', // Stripe payment processing
         'stripe_publishable': 'STRIPE_PUBLISHABLE_KEY', // Stripe publishable key for mobile SDK
         'stripe_webhook_secret': 'STRIPE_WEBHOOK_SECRET', // Stripe webhook verification

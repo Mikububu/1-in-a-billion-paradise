@@ -37,7 +37,7 @@ import { useProfileStore, Reading, Person, CompatibilityReading, ReadingSystem, 
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { shareAudioFile, downloadAudioFromUrl, generateAudioFileName } from '@/services/audioDownload';
 import { useAuthStore } from '@/store/authStore';
-import { fetchPeopleWithPaidReadings } from '@/services/peopleService';
+import { fetchPeopleWithPaidReadings, deletePersonFromSupabase } from '@/services/peopleService';
 import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { fetchNuclearJobs, fetchJobArtifacts } from '@/services/nuclearReadingsService';
@@ -1601,6 +1601,140 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
     return personAudios.length > 0 ? personAudios[0] : null;
   };
 
+  // Delete person with deep deletion (jobs, tasks, artifacts, storage files)
+  const handleDeletePerson = async (person: Person, event: GestureResponderEvent) => {
+    event.stopPropagation(); // Prevent card navigation
+    
+    // Don't allow deleting the user themselves
+    if (person.isUser) {
+      Alert.alert('Cannot Delete', 'You cannot delete your own profile.');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Person',
+      `Are you sure you want to delete "${person.name}" and all their readings?\n\nThis will permanently delete:\n• All jobs and readings\n• All PDFs and audio files\n• All data from Supabase\n\nThis cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (!authUser?.id) {
+              Alert.alert('Error', 'You must be signed in to delete.');
+              return;
+            }
+
+            try {
+              console.log(`🗑️ Deleting person "${person.name}" (${person.id})...`);
+              
+              // Delete from Supabase (deep deletion via backend)
+              const result = await deletePersonFromSupabase(authUser.id, person.id);
+              
+              if (!result.success) {
+                Alert.alert('Delete Failed', result.error || 'Failed to delete person. Please try again.');
+                return;
+              }
+
+              console.log(`✅ Deleted: ${result.deletedJobs || 0} jobs, ${result.deletedFiles || 0} files`);
+              
+              // Remove from local store
+              deletePerson(person.id);
+              
+              // Refresh data
+              setQueueRefreshKey(prev => prev + 1);
+              
+              // Refresh paid people list
+              if (authUser.id) {
+                fetchPeopleWithPaidReadings(authUser.id).then(paidPeople => {
+                  const names = new Set(paidPeople.map(p => p.name));
+                  setPaidPeopleNames(names);
+                }).catch(() => {});
+              }
+              
+              Alert.alert('Deleted', `"${person.name}" and all their data have been permanently deleted.`);
+            } catch (error: any) {
+              console.error('❌ Delete error:', error);
+              Alert.alert('Error', error.message || 'Failed to delete person. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Delete job (for couple/overlay cards)
+  const handleDeleteJob = async (jobId: string, displayName: string, event: GestureResponderEvent) => {
+    event.stopPropagation(); // Prevent card navigation
+
+    Alert.alert(
+      'Delete Reading',
+      `Are you sure you want to delete this reading for "${displayName}"?\n\nThis will permanently delete:\n• The job and all tasks\n• All PDFs and audio files\n• All artifacts from Supabase\n\nThis cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (!authUser?.id) {
+              Alert.alert('Error', 'You must be signed in to delete.');
+              return;
+            }
+
+            try {
+              console.log(`🗑️ Deleting job "${jobId}"...`);
+              
+              // Get Supabase access token
+              const {
+                data: { session },
+                error: sessionError,
+              } = await supabase.auth.getSession();
+
+              const accessToken = session?.access_token;
+              if (sessionError || !accessToken) {
+                Alert.alert('Error', 'Missing session. Please sign in again.');
+                return;
+              }
+
+              const coreApiUrl = (process.env.EXPO_PUBLIC_CORE_API_URL || env.CORE_API_URL || '').trim();
+              if (!coreApiUrl) {
+                Alert.alert('Error', 'CORE_API_URL not configured');
+                return;
+              }
+
+              // Delete job via backend API
+              const res = await fetch(`${coreApiUrl}/api/jobs/v2/${encodeURIComponent(jobId)}`, {
+                method: 'DELETE',
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  'Content-Type': 'application/json',
+                },
+              });
+
+              const data = await res.json().catch(() => null);
+
+              if (!res.ok || !data?.success) {
+                const errMsg = data?.error || `Delete failed (HTTP ${res.status})`;
+                Alert.alert('Delete Failed', errMsg);
+                return;
+              }
+
+              console.log(`✅ Job "${jobId}" deleted`);
+              
+              // Refresh data
+              setQueueRefreshKey(prev => prev + 1);
+              
+              Alert.alert('Deleted', `Reading for "${displayName}" has been permanently deleted.`);
+            } catch (error: any) {
+              console.error('❌ Delete job error:', error);
+              Alert.alert('Error', error.message || 'Failed to delete job. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // Toggle play/pause for person card audio
   const togglePersonAudio = async (personId: string) => {
     const audio = getPersonAudio(personId);
@@ -2272,8 +2406,8 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
               const personType = item.personType as 'individual' | 'person1' | 'person2';
               const primaryJobId = item.primaryJobId as string;
               return (
+              <View key={item.key} style={styles.personCardContainer}>
               <TouchableOpacity
-                key={item.key}
                 style={styles.personCard}
                 onPress={() => {
                   console.log('🔥 [MyLibrary] Navigating to PersonReadings:', {
@@ -2452,13 +2586,23 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                   })()}
                 </View>
               </TouchableOpacity>
+              {!person.isUser && (
+                <TouchableOpacity
+                  style={styles.personDeleteButton}
+                  onPress={(e) => handleDeletePerson(person, e)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.personDeleteIcon}>✕</Text>
+                </TouchableOpacity>
+              )}
+              </View>
             );
             }
 
             const card = item.card as any;
             return (
+              <View key={item.key} style={styles.personCardContainer}>
               <TouchableOpacity
-                key={item.key}
                 style={styles.personCard}
                 onPress={() => {
                   // Always navigate to PersonReadings with overlay type to show only overlay/verdict readings (6 max)
@@ -2564,6 +2708,17 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                   })()}
                 </View>
               </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.personDeleteButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleDeleteJob(card.jobId, `${card.person1} & ${card.person2}`, e);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.personDeleteIcon}>✕</Text>
+              </TouchableOpacity>
+              </View>
             );
           })}
 
@@ -3054,15 +3209,34 @@ const styles = StyleSheet.create({
   },
 
   // Person Cards
+  personCardContainer: {
+    position: 'relative',
+    marginBottom: spacing.sm,
+  },
   personCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderRadius: RADIUS_CARD,
     padding: spacing.md,
-    marginBottom: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  personDeleteButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  personDeleteIcon: {
+    color: '#d0d0d0',
+    fontSize: 14,
+    fontWeight: '300',
+    lineHeight: 14,
   },
   personAvatar: {
     width: 50,
