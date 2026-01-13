@@ -393,6 +393,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
         source={require('../../../assets/images/5_systems_transp.png')}
         style={styles.bottomImage}
         resizeMode="contain"
+        pointerEvents="none"
       />
 
       <View style={styles.footer}>
@@ -550,6 +551,7 @@ const styles = StyleSheet.create({
     right: 0,
     height: SCREEN_HEIGHT * 0.5, // Half screen size
     width: '100%',
-    zIndex: 1, // Behind the button
+    zIndex: -1, // Behind everything, allows touch through
+    opacity: 0.9,
   },
 });

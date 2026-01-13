@@ -2,13 +2,13 @@
  * RUNPOD AUTO-SCALER
  * 
  * Monitors Supabase queue depth and scales RunPod workers up/down automatically.
+ * Uses RunPod GraphQL API for scaling.
  * 
- * Scaling logic:
- * - 0 pending tasks → 0 workers (save money)
- * - 1-10 pending → 1 worker
- * - 11-50 pending → 2-5 workers
- * - 51-200 pending → 5-20 workers
- * - 201+ pending → 20-50 workers (max)
+ * Scaling logic (limited by account quota of ~10 workers):
+ * - 0 pending tasks → min=0, max=1 (standby)
+ * - 1-5 pending → min=1, max=2
+ * - 6-20 pending → min=1, max=5
+ * - 21+ pending → min=2, max=9 (account max)
  * 
  * Runs every 30 seconds to check queue depth and adjust workers.
  */
@@ -18,45 +18,78 @@ import { env } from '../config/env';
 import axios from 'axios';
 import { apiKeys } from './apiKeysHelper';
 
-const RUNPOD_API_URL = 'https://api.runpod.ai/v2';
+const RUNPOD_GRAPHQL_URL = 'https://api.runpod.io/graphql';
 const SCALING_INTERVAL_MS = 30000; // 30 seconds
-const WORKER_ENDPOINT_ID = process.env.RUNPOD_WORKER_ENDPOINT_ID || process.env.RUNPOD_ENDPOINT_ID || env.RUNPOD_ENDPOINT_ID || '';
+const MAX_ACCOUNT_WORKERS = 9; // Account quota limit
+
+// Endpoint config (fetched once at startup)
+let endpointConfig: { name: string; gpuIds: string } | null = null;
 
 interface ScalingConfig {
   minWorkers: number;
   maxWorkers: number;
-  targetWorkers: number;
 }
 
 /**
  * Calculate target worker count based on pending tasks
+ * Constrained by account quota (~10 workers)
  */
 function calculateWorkers(pendingTasks: number): ScalingConfig {
   if (pendingTasks === 0) {
-    return { minWorkers: 0, maxWorkers: 0, targetWorkers: 0 };
+    return { minWorkers: 0, maxWorkers: 1 }; // Standby mode
   }
   
-  if (pendingTasks <= 10) {
-    return { minWorkers: 1, maxWorkers: 1, targetWorkers: 1 };
+  if (pendingTasks <= 5) {
+    return { minWorkers: 1, maxWorkers: 2 };
   }
   
-  if (pendingTasks <= 50) {
-    const workers = Math.ceil(pendingTasks / 10);
-    return { minWorkers: 2, maxWorkers: 5, targetWorkers: Math.min(workers, 5) };
+  if (pendingTasks <= 20) {
+    return { minWorkers: 1, maxWorkers: 5 };
   }
   
-  if (pendingTasks <= 200) {
-    const workers = Math.ceil(pendingTasks / 10);
-    return { minWorkers: 5, maxWorkers: 20, targetWorkers: Math.min(workers, 20) };
-  }
-  
-  // 201+ pending tasks
-  const workers = Math.ceil(pendingTasks / 10);
-  return { minWorkers: 20, maxWorkers: 50, targetWorkers: Math.min(workers, 50) };
+  // 21+ pending tasks - use maximum available
+  return { minWorkers: 2, maxWorkers: MAX_ACCOUNT_WORKERS };
 }
 
 /**
- * Scale RunPod endpoint workers
+ * Fetch endpoint config (name, gpuIds) - needed for GraphQL mutation
+ */
+async function fetchEndpointConfig(runpodKey: string, endpointId: string): Promise<{ name: string; gpuIds: string } | null> {
+  try {
+    const res = await axios.post(RUNPOD_GRAPHQL_URL, {
+      query: `
+        query {
+          myself {
+            endpoints {
+              id
+              name
+              gpuIds
+            }
+          }
+        }
+      `
+    }, {
+      headers: {
+        'Authorization': `Bearer ${runpodKey}`,
+        'Content-Type': 'application/json',
+      },
+      timeout: 10000,
+    });
+    
+    const endpoints = res.data?.data?.myself?.endpoints || [];
+    const endpoint = endpoints.find((e: any) => e.id === endpointId);
+    
+    if (endpoint) {
+      return { name: endpoint.name, gpuIds: endpoint.gpuIds };
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Scale RunPod endpoint workers using GraphQL API
  */
 async function scaleWorkers(config: ScalingConfig): Promise<boolean> {
   // Fetch RunPod keys from Supabase (with env fallback)
@@ -67,9 +100,8 @@ async function scaleWorkers(config: ScalingConfig): Promise<boolean> {
     runpodKey = await apiKeys.runpod();
     runpodEndpoint = await apiKeys.runpodEndpoint();
   } catch (err) {
-    // Fallback to env vars
     runpodKey = env.RUNPOD_API_KEY || process.env.RUNPOD_API_KEY || '';
-    runpodEndpoint = WORKER_ENDPOINT_ID || env.RUNPOD_ENDPOINT_ID || process.env.RUNPOD_ENDPOINT_ID || '';
+    runpodEndpoint = env.RUNPOD_ENDPOINT_ID || process.env.RUNPOD_ENDPOINT_ID || '';
   }
 
   if (!runpodEndpoint || !runpodKey) {
@@ -78,57 +110,50 @@ async function scaleWorkers(config: ScalingConfig): Promise<boolean> {
   }
 
   try {
-    // Guard rail: refuse to touch the wrong endpoint if env guards are configured.
-    const guardNameContains = (env as any).RUNPOD_ENDPOINT_GUARD_NAME_CONTAINS || process.env.RUNPOD_ENDPOINT_GUARD_NAME_CONTAINS || '';
-    const guardTemplateId = (env as any).RUNPOD_ENDPOINT_GUARD_TEMPLATE_ID || process.env.RUNPOD_ENDPOINT_GUARD_TEMPLATE_ID || '';
-    if (guardNameContains || guardTemplateId) {
-      try {
-        const infoRes = await axios.get(`${RUNPOD_API_URL}/serverless/${runpodEndpoint}`, {
-          headers: {
-            'Authorization': `Bearer ${runpodKey}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        const endpointInfo = infoRes.data || {};
-        const endpointName = String(endpointInfo?.name || endpointInfo?.endpointName || endpointInfo?.endpoint_name || '');
-        const templateId = String(endpointInfo?.templateId || endpointInfo?.template_id || '');
-
-        if (guardNameContains && !endpointName.toLowerCase().includes(String(guardNameContains).toLowerCase())) {
-          console.error(
-            `🛑 RunPod guard blocked scaling: endpoint "${endpointName}" does not include "${guardNameContains}". Check RUNPOD_ENDPOINT_ID.`
-          );
-          return false;
-        }
-
-        if (guardTemplateId && templateId !== String(guardTemplateId)) {
-          console.error(
-            `🛑 RunPod guard blocked scaling: endpoint templateId "${templateId}" !== expected "${guardTemplateId}". Check RUNPOD_ENDPOINT_ID.`
-          );
-          return false;
-        }
-      } catch (guardErr: any) {
-        console.warn('⚠️ RunPod guard check failed (continuing to avoid outages):', guardErr?.message || String(guardErr));
+    // Fetch endpoint config if not cached
+    if (!endpointConfig) {
+      endpointConfig = await fetchEndpointConfig(runpodKey, runpodEndpoint);
+      if (!endpointConfig) {
+        console.error('❌ Could not fetch endpoint config for scaling');
+        return false;
       }
+      console.log(`📋 Endpoint config loaded: ${endpointConfig.name} (${endpointConfig.gpuIds})`);
     }
 
-    const response = await axios.put(
-      `${RUNPOD_API_URL}/serverless/${runpodEndpoint}`,
-      {
-        workersMin: config.minWorkers,
-        workersMax: config.maxWorkers,
-        workersIdle: config.targetWorkers,
+    // Use GraphQL mutation to update endpoint
+    const response = await axios.post(RUNPOD_GRAPHQL_URL, {
+      query: `
+        mutation {
+          saveEndpoint(input: {
+            id: "${runpodEndpoint}"
+            name: "${endpointConfig.name}"
+            gpuIds: "${endpointConfig.gpuIds}"
+            workersMin: ${config.minWorkers}
+            workersMax: ${config.maxWorkers}
+            idleTimeout: 10
+          }) {
+            id
+            workersMin
+            workersMax
+          }
+        }
+      `
+    }, {
+      headers: {
+        'Authorization': `Bearer ${runpodKey}`,
+        'Content-Type': 'application/json',
       },
-      {
-        headers: {
-          'Authorization': `Bearer ${runpodKey}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+      timeout: 15000,
+    });
 
-    if (response.status === 200) {
-      console.log(`📈 Scaled workers: ${config.targetWorkers} (min: ${config.minWorkers}, max: ${config.maxWorkers})`);
+    if (response.data?.errors) {
+      console.error('❌ GraphQL scaling error:', response.data.errors[0]?.message);
+      return false;
+    }
+
+    const result = response.data?.data?.saveEndpoint;
+    if (result) {
+      console.log(`📈 Scaled workers: min=${result.workersMin}, max=${result.workersMax}`);
       return true;
     }
 
@@ -138,6 +163,9 @@ async function scaleWorkers(config: ScalingConfig): Promise<boolean> {
     return false;
   }
 }
+
+// Track last scaling config to avoid redundant API calls
+let lastScalingConfig: ScalingConfig | null = null;
 
 /**
  * Check queue and scale workers
@@ -149,9 +177,20 @@ export async function checkAndScale(): Promise<void> {
     
     const config = calculateWorkers(pendingTasks);
     
-    console.log(`📊 Queue depth: ${pendingTasks} pending tasks → Target workers: ${config.targetWorkers}`);
+    // Only scale if config changed
+    if (lastScalingConfig && 
+        lastScalingConfig.minWorkers === config.minWorkers && 
+        lastScalingConfig.maxWorkers === config.maxWorkers) {
+      // No change needed
+      return;
+    }
     
-    await scaleWorkers(config);
+    console.log(`📊 Queue: ${pendingTasks} tasks → Scaling to min=${config.minWorkers}, max=${config.maxWorkers}`);
+    
+    const success = await scaleWorkers(config);
+    if (success) {
+      lastScalingConfig = config;
+    }
   } catch (error: any) {
     console.error('❌ Auto-scaling check failed:', error.message);
   }
@@ -161,12 +200,11 @@ export async function checkAndScale(): Promise<void> {
  * Start auto-scaling loop
  */
 export async function startAutoScaling(): Promise<void> {
-  // Fetch keys from Supabase (with env fallback)
   let runpodEndpoint: string;
   try {
     runpodEndpoint = await apiKeys.runpodEndpoint();
   } catch (err) {
-    runpodEndpoint = WORKER_ENDPOINT_ID || env.RUNPOD_ENDPOINT_ID || process.env.RUNPOD_ENDPOINT_ID || '';
+    runpodEndpoint = env.RUNPOD_ENDPOINT_ID || process.env.RUNPOD_ENDPOINT_ID || '';
   }
 
   if (!runpodEndpoint) {
@@ -174,12 +212,13 @@ export async function startAutoScaling(): Promise<void> {
     return;
   }
 
-  console.log('🚀 Starting RunPod auto-scaler...');
+  console.log('🚀 Starting RunPod auto-scaler (GraphQL API)...');
   console.log(`   Endpoint: ${runpodEndpoint}`);
   console.log(`   Check interval: ${SCALING_INTERVAL_MS / 1000}s`);
+  console.log(`   Max workers: ${MAX_ACCOUNT_WORKERS} (account limit)`);
 
   // Initial check
-  checkAndScale();
+  await checkAndScale();
 
   // Periodic checks
   setInterval(checkAndScale, SCALING_INTERVAL_MS);

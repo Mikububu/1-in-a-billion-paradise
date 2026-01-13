@@ -46,29 +46,26 @@ router.get('/search', async (c) => {
         }
 
         // Use Google Places Autocomplete API
-        // First try with cities restriction, then fallback to broader search if no results
-        let autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=(cities)&key=${googlePlacesKey}`;
+        // Search without strict (cities) restriction to find towns, communes, districts
+        // This finds places like Meyrin (Switzerland), Wichian Buri (Thailand), etc.
+        const autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=(regions)&key=${googlePlacesKey}`;
         
         let autocompleteResponse = await axios.get(autocompleteUrl);
         let autocompleteData = autocompleteResponse.data;
 
-        // If no results with cities restriction, try without restriction and filter for cities/towns/districts
-        if (autocompleteData.status !== 'OK' || !autocompleteData.predictions || autocompleteData.predictions.length === 0) {
-            console.log('No results with cities restriction, trying broader search...');
-            autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&key=${googlePlacesKey}`;
-            autocompleteResponse = await axios.get(autocompleteUrl);
-            autocompleteData = autocompleteResponse.data;
-
-            // Filter to only include cities, towns, districts (exclude countries, establishments, etc.)
-            if (autocompleteData.status === 'OK' && autocompleteData.predictions) {
-                autocompleteData.predictions = autocompleteData.predictions.filter((pred: any) => {
-                    const types = pred.types || [];
-                    return types.includes('locality') || 
-                           types.includes('administrative_area_level_2') || 
-                           types.includes('administrative_area_level_3') ||
-                           (types.includes('geocode') && !types.includes('country') && !types.includes('establishment'));
-                });
-            }
+        // Filter to only include cities, towns, districts, localities
+        if (autocompleteData.status === 'OK' && autocompleteData.predictions) {
+            autocompleteData.predictions = autocompleteData.predictions.filter((pred: any) => {
+                const types = pred.types || [];
+                // Accept: locality, sublocality, town, city, district, commune
+                return types.includes('locality') || 
+                       types.includes('sublocality') ||
+                       types.includes('administrative_area_level_2') || 
+                       types.includes('administrative_area_level_3') ||
+                       types.includes('administrative_area_level_4') ||
+                       types.includes('colloquial_area') ||
+                       (types.includes('geocode') && !types.includes('country'));
+            });
         }
 
         if (autocompleteData.status !== 'OK' || !autocompleteData.predictions || autocompleteData.predictions.length === 0) {
