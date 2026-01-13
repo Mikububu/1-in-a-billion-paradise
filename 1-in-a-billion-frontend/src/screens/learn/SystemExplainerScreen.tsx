@@ -271,9 +271,10 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
     : (SYSTEM_CONTENT[system] || SYSTEM_CONTENT.western);
   
   // Price: For 'all' bundle, use correct price based on individual vs overlay
+  // For single system overlay (compatibility), use overlay price ($41) not single price ($14)
   const price = system === 'all'
     ? (isOverlay ? PRODUCTS.nuclear_package.priceUSD : PRODUCTS.complete_reading.priceUSD)
-    : (SYSTEM_PRICES[system] || SINGLE_SYSTEM.price);
+    : (isOverlay ? PRODUCTS.compatibility_overlay.priceUSD : (SYSTEM_PRICES[system] || SINGLE_SYSTEM.price));
   
   const [currentPage, setCurrentPage] = useState(0);
   const listRef = useRef<FlatList>(null);

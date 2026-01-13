@@ -19,6 +19,8 @@ import {
 } from '../prompts/structures/nuclearV2';
 import { buildIndividualPrompt } from '../prompts';
 import { SpiceLevel } from '../prompts/spice/levels';
+import { gematriaService } from '../services/kabbalah/GematriaService';
+import { hebrewCalendarService } from '../services/kabbalah/HebrewCalendarService';
 
 function clampSpice(level: number): SpiceLevel {
   const clamped = Math.min(10, Math.max(1, Math.round(level)));
@@ -659,40 +661,102 @@ export class TextWorker extends BaseWorker {
 
     } else if (system === 'kabbalah') {
       // ═══════════════════════════════════════════════════════════════════════════
-      // KABBALAH SIMPLIFIED PIPELINE
+      // KABBALAH FULL PIPELINE - Hebrew Name Conversion + Gematria
       // ═══════════════════════════════════════════════════════════════════════════
-      // Just send the raw personalContext to OpenAI - it will figure out names and events
-      console.log(`🔯 [TextWorker] Running Kabbalah reading for ${docType}...`);
+      // 1. Convert name to Hebrew letters
+      // 2. Calculate Gematria values
+      // 3. Convert birth date to Hebrew calendar
+      // 4. Send structured data to OpenAI (best for Kabbalah interpretation)
+      console.log(`🔯 [TextWorker] Running Kabbalah reading for ${docType} with Hebrew preprocessing...`);
       
       const targetPerson = docType === 'person2' ? person2 : person1;
-      const chartData = buildChartDataForSystem(
-        system,
-        person1.name,
-        p1Placements,
-        person2?.name || null,
-        p2Placements,
-        p1BirthData,
-        p2BirthData
-      );
+      const targetBirthData = docType === 'person2' ? p2BirthData : p1BirthData;
       
-      // Build a simple prompt with chart data + personalContext
+      // Extract name parts (try to split first/last name)
+      const fullName = targetPerson.name || 'Unknown';
+      const nameParts = fullName.trim().split(/\s+/);
+      const firstName = nameParts[0] || fullName;
+      const surname = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+      
+      // Convert name to Hebrew + calculate Gematria
+      console.log(`🔯 [Kabbalah] Converting name "${fullName}" to Hebrew...`);
+      const firstNameInfo = gematriaService.processName(firstName);
+      const surnameInfo = surname ? gematriaService.processName(surname) : null;
+      const totalGematria = firstNameInfo.gematria + (surnameInfo?.gematria || 0);
+      
+      console.log(`🔯 [Kabbalah] Hebrew: ${firstNameInfo.hebrew}${surnameInfo ? ' ' + surnameInfo.hebrew : ''}`);
+      console.log(`🔯 [Kabbalah] Gematria: ${firstNameInfo.gematria}${surnameInfo ? ' + ' + surnameInfo.gematria + ' = ' + totalGematria : ''}`);
+      
+      // Convert birth date to Hebrew calendar
+      let hebrewDateStr = 'Unknown';
+      try {
+        if (targetBirthData?.birthDate && targetBirthData?.timezone) {
+          const hebrewDate = await hebrewCalendarService.getHebrewDate(
+            `${targetBirthData.birthDate}T${targetBirthData.birthTime || '12:00'}`,
+            targetBirthData.timezone
+          );
+          hebrewDateStr = `${hebrewDate.day} ${hebrewDate.month} ${hebrewDate.year}`;
+          if (hebrewDate.specialDay) {
+            hebrewDateStr += ` (${hebrewDate.specialDay})`;
+          }
+          console.log(`🔯 [Kabbalah] Hebrew birth date: ${hebrewDateStr}`);
+        }
+      } catch (e) {
+        console.warn(`🔯 [Kabbalah] Hebrew date conversion failed:`, e);
+      }
+      
+      // Get personal context (life events, etc.)
       const contextText = params.personalContext || params.lifeEvents || '';
       
-      prompt = `You are a master Kabbalist. Analyze ${targetPerson.name}'s life through the lens of Kabbalah and the Tree of Life.
+      // Build comprehensive Kabbalah prompt with Hebrew data
+      prompt = `You are a master Kabbalist interpreting through the Tree of Life.
 
-${chartData}
+═══════════════════════════════════════════════════════════════════════════
+PRECOMPUTED KABBALAH DATA (use these exact values):
+═══════════════════════════════════════════════════════════════════════════
 
+PERSON: ${fullName}
+
+HEBREW NAME ANALYSIS:
+• First Name: "${firstName}"
+  - Hebrew Transliteration: ${firstNameInfo.hebrew}
+  - Hebrew Letters: ${firstNameInfo.letters.join(' ')}
+  - Gematria Value: ${firstNameInfo.gematria}
+${surnameInfo ? `• Surname: "${surname}"
+  - Hebrew Transliteration: ${surnameInfo.hebrew}
+  - Hebrew Letters: ${surnameInfo.letters.join(' ')}
+  - Gematria Value: ${surnameInfo.gematria}
+• TOTAL NAME GEMATRIA: ${totalGematria}` : ''}
+
+HEBREW BIRTH DATE: ${hebrewDateStr}
+Gregorian Birth: ${targetBirthData?.birthDate || 'Unknown'}${targetBirthData?.birthTime ? ' at ' + targetBirthData.birthTime : ''}
+
+═══════════════════════════════════════════════════════════════════════════
 PERSONAL CONTEXT FROM USER:
+═══════════════════════════════════════════════════════════════════════════
 ${contextText || 'No additional context provided.'}
 
-Write a deep, mystical reading exploring:
-- The soul's journey through the Sephirot
-- Life path and destiny from a Kabbalistic perspective
-- Sacred meaning in key life events
-- Spiritual lessons and soul evolution
+═══════════════════════════════════════════════════════════════════════════
+INTERPRETATION GUIDELINES:
+═══════════════════════════════════════════════════════════════════════════
 
-Style: Mystical, profound, personal. ${spiceLevel >= 7 ? 'Be bold and direct.' : 'Be gentle and uplifting.'}
-Length: ~2000 words.`;
+Write a deep Kabbalistic reading exploring:
+1. The meaning of each Hebrew letter in their name as a spiritual force
+2. The Gematria values and their connection to the Sephirot
+3. Their placement in sacred time (Hebrew birth date)
+4. Soul journey through the Tree of Life based on their name structure
+5. If life events were shared, weave them as activation points
+
+IMPORTANT:
+- Letters are STRUCTURAL FORCES, not symbols
+- Numbers are QUALITATIVE STATES, not predictions
+- Names are CHANNELS OF EXPRESSION and rectification
+- Life events are ACTIVATION POINTS, not causes
+- Do NOT recalculate any values - use the precomputed data above
+- Do NOT predict outcomes or make moral judgments
+
+Style: Mystical, profound, direct address to ${firstName}. ${spiceLevel >= 7 ? 'Be bold and direct.' : 'Be gentle and uplifting.'}
+Format: Continuous prose (no bullet points). ~2000 words.`;
 
       label += `:kabbalah:${docType}`;
       

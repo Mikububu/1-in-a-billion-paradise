@@ -193,9 +193,9 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                                     : <>{personName}, would you like{'\n'}to focus on something{'\n'}specific in your reading?</>)
                             }
                         </Text>
-                        <Text style={styles.subheadline}>
+                        <Text style={[styles.subheadline, isKabbalahActive && styles.subheadlineKabbalah]}>
                             {isKabbalahActive ? (
-                                "Please include your surname. The more you can tell us about the most beautiful or most horrible events in your life - moments of great happiness, love, loss, or death - the richer your reading will be. The exact dates and locations are very important. We will analyze your first and second name and transliterate it into Hebrew for Gematria calculation."
+                                <>Please include your real <Text style={styles.boldText}>first name and surname</Text>. The more you can tell us about the most beautiful or most difficult events in your life, including moments of great happiness, love, loss, or death, the richer and more accurate your reading will be. Exact dates and locations are very important.</>
                             ) : (
                                 "Please feel free to share any questions, feelings, or areas of life you'd like the reading to address."
                             )}
@@ -244,7 +244,7 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                                     isKabbalahActive && { fontSize: 12 }
                                 ]}
                                 multiline
-                                placeholder={isKabbalahActive ? "I will share my life events..." : "I will speak the truth"}
+                                placeholder={isKabbalahActive ? "Lets start with the full name(s)..." : "I will speak the truth"}
                                 placeholderTextColor={colors.mutedText}
                                 value={context}
                                 onChangeText={setContext}
@@ -313,6 +313,16 @@ const styles = StyleSheet.create({
         lineHeight: 20,
         textAlign: 'left',
         marginTop: spacing.sm,
+    },
+    subheadlineKabbalah: {
+        fontSize: 14,
+        textAlign: 'center',
+        paddingHorizontal: spacing.md,
+        lineHeight: 20,
+    },
+    boldText: {
+        fontFamily: typography.sansSemiBold,
+        fontWeight: '600',
     },
     circleWrapper: {
         width: CIRCLE_SIZE,

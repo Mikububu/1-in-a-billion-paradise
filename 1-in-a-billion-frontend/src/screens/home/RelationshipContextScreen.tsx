@@ -17,7 +17,8 @@ import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'RelationshipContext'>;
 
-const MAX_CHARS = 100;
+const MAX_CHARS_DEFAULT = 100;
+const MAX_CHARS_KABBALAH = 600;
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CIRCLE_SIZE = Math.min(SCREEN_WIDTH * 0.7, SCREEN_HEIGHT * 0.4);
 const CIRCLE_SIZE_2 = CIRCLE_SIZE * 1.1; // Second circle - 10% larger
@@ -25,6 +26,11 @@ const CIRCLE_SIZE_3 = CIRCLE_SIZE * 1.25; // Third circle - 25% larger
 
 export const RelationshipContextScreen = ({ navigation, route }: Props) => {
     const { partnerName, completeReading, productType, systems, ...restParams } = route.params as any;
+    
+    // Check if Kabbalah is active - requires special text injection
+    const isKabbalahActive = Array.isArray(systems) && systems.includes('kabbalah');
+    const MAX_CHARS = isKabbalahActive ? MAX_CHARS_KABBALAH : MAX_CHARS_DEFAULT;
+    
     const [context, setContext] = useState('');
     const pulseAnim1 = useRef(new Animated.Value(1)).current;
     const pulseAnim2 = useRef(new Animated.Value(1)).current;
@@ -167,10 +173,16 @@ export const RelationshipContextScreen = ({ navigation, route }: Props) => {
                     {/* Header */}
                     <View style={styles.header}>
                         <Text style={styles.headline}>
-                            Would you like to tell us more about this soul connection?
+                            {isKabbalahActive
+                                ? <>Tell us about your life</>
+                                : <>Would you like to tell us more about this soul connection?</>
+                            }
                         </Text>
-                        <Text style={styles.subheadline}>
-                            {partnerName}, please feel free to share how you're related and how you feel toward them.
+                        <Text style={[styles.subheadline, isKabbalahActive && styles.subheadlineKabbalah]}>
+                            {isKabbalahActive 
+                                ? <>Please include your real <Text style={styles.boldText}>first name and surname</Text>. The more you can tell us about the most beautiful or most difficult events in your life, including moments of great happiness, love, loss, or death, the richer and more accurate your reading will be. Exact dates and locations are very important.</>
+                                : `Please feel free to share how you're related to ${partnerName} and how you feel toward them.`
+                            }
                         </Text>
                     </View>
 
@@ -211,9 +223,15 @@ export const RelationshipContextScreen = ({ navigation, route }: Props) => {
                         />
                         <View style={styles.circleContainer}>
                             <TextInput
-                                style={styles.circleInput}
+                                style={[
+                                    styles.circleInput,
+                                    isKabbalahActive && styles.circleInputKabbalah
+                                ]}
                                 multiline
-                                placeholder="I will speak the truth"
+                                placeholder={isKabbalahActive 
+                                    ? "Lets start with the full name(s)..."
+                                    : "I will speak the truth"
+                                }
                                 placeholderTextColor={colors.mutedText}
                                 value={context}
                                 onChangeText={setContext}
@@ -282,6 +300,17 @@ const styles = StyleSheet.create({
         lineHeight: 22,
         textAlign: 'center',
     },
+    subheadlineKabbalah: {
+        fontSize: 14,
+        textAlign: 'center',
+        marginTop: spacing.sm,
+        paddingHorizontal: spacing.md,
+        lineHeight: 20,
+    },
+    boldText: {
+        fontFamily: typography.sansSemiBold,
+        fontWeight: '600',
+    },
     circleWrapper: {
         width: CIRCLE_SIZE,
         height: CIRCLE_SIZE,
@@ -330,6 +359,9 @@ const styles = StyleSheet.create({
         paddingTop: CIRCLE_SIZE / 2 - 20, // Center text vertically
         textAlignVertical: 'top',
         textAlign: 'center',
+    },
+    circleInputKabbalah: {
+        fontSize: 12, // Smaller text for 600 char limit
     },
     buttonContainer: {
         flexDirection: 'row',
