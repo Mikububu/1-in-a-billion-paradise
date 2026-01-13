@@ -31,7 +31,7 @@ export class HebrewCalendarService {
       day: hdate.getDate(),
       month: hdate.getMonthName(),
       year: hdate.getFullYear(),
-      weekday: dt.weekdayLong,
+      weekday: dt.weekdayLong || 'Unknown',
       specialDay,
     };
   }

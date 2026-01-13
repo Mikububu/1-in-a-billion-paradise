@@ -285,13 +285,22 @@ export class AudioWorker extends BaseWorker {
 
         const storagePath = String(task.input.textArtifactPath);
         console.log(`📥 [AudioWorker] Downloading text: ${storagePath}`);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audioWorker.ts:287',message:'Downloading text from storage',data:{taskId:task.id,storagePath},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
         const { data, error } = await supabase.storage.from('job-artifacts').download(storagePath);
         if (error || !data) {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audioWorker.ts:290',message:'Storage download failed',data:{taskId:task.id,storagePath,errorMessage:error?.message,errorCode:error?.statusCode,errorDetails:JSON.stringify(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
           return { success: false, error: `Download failed: ${error?.message}` };
         }
 
         text = Buffer.from(await data.arrayBuffer()).toString('utf-8');
         console.log(`✅ [AudioWorker] Downloaded ${text.length} chars`);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audioWorker.ts:294',message:'Storage download succeeded',data:{taskId:task.id,storagePath,textLength:text.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
       }
 
       if (!text) {
@@ -309,6 +318,9 @@ export class AudioWorker extends BaseWorker {
       // FETCH RUNPOD KEYS FROM SUPABASE (with env fallback)
       // Always try Supabase first - env fallback only if Supabase returns null
       // ─────────────────────────────────────────────────────────────────────
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audioWorker.ts:312',message:'Fetching RunPod keys',data:{taskId:task.id,jobId:task.job_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       let runpodKey = await apiKeys.runpod().catch(() => null);
       if (!runpodKey) {
         console.warn('⚠️ [AudioWorker] Supabase api_keys lookup failed, using env fallback');
@@ -320,9 +332,17 @@ export class AudioWorker extends BaseWorker {
         runpodEndpoint = this.runpodEndpointId;
       }
       
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audioWorker.ts:325',message:'RunPod keys retrieved',data:{hasKey:!!runpodKey,hasEndpoint:!!runpodEndpoint,endpointId:runpodEndpoint,keySource:runpodKey===this.runpodApiKey?'env':'supabase',endpointSource:runpodEndpoint===this.runpodEndpointId?'env':'supabase',keyLength:runpodKey?.length,endpointLength:runpodEndpoint?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
       if (!runpodKey || !runpodEndpoint) {
         throw new Error('RunPod API key or endpoint ID not found (check Supabase api_keys table or .env)');
       }
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audioWorker.ts:330',message:'RunPod configuration validated',data:{endpointId:runpodEndpoint,constructedUrl:`https://api.runpod.ai/v2/${runpodEndpoint}/runsync`},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
 
       // ─────────────────────────────────────────────────────────────────────
       // GENERATE AUDIO FOR EACH CHUNK (SEQUENTIAL - respects RunPod limits)
@@ -333,8 +353,12 @@ export class AudioWorker extends BaseWorker {
           try {
             console.log(`  Chunk ${index + 1}/${chunks.length} (${chunk.length} chars) attempt ${attempt}`);
 
+            const runpodUrl = `https://api.runpod.ai/v2/${runpodEndpoint}/runsync`;
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audioWorker.ts:339',message:'Making RunPod request',data:{chunkIndex:index+1,totalChunks:chunks.length,attempt,url:runpodUrl,endpointId:runpodEndpoint,endpointIdLength:runpodEndpoint?.length,chunkLength:chunk.length,chunkPreview:chunk.substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
             const response = await axios.post(
-              `https://api.runpod.ai/v2/${runpodEndpoint}/runsync`,
+              runpodUrl,
               {
                 input: {
                   text: chunk,
@@ -351,6 +375,9 @@ export class AudioWorker extends BaseWorker {
                 timeout: 180000,
               }
             );
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audioWorker.ts:353',message:'RunPod request succeeded',data:{chunkIndex:index+1,status:response.status,hasData:!!response.data,dataKeys:Object.keys(response.data||{}),hasId:!!response.data?.id,hasStatus:!!response.data?.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
 
             const data = response.data || {};
 
@@ -449,6 +476,9 @@ export class AudioWorker extends BaseWorker {
 
             throw new Error(data?.error || `No audio_base64 in response. Response keys: ${Object.keys(data || {}).join(', ')}`);
           } catch (error: any) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audioWorker.ts:454',message:'RunPod request failed',data:{chunkIndex:index+1,attempt,errorMessage:error.message,statusCode:error.response?.status,statusText:error.response?.statusText,responseData:error.response?.data,requestUrl:error.config?.url,requestMethod:error.config?.method,requestHeaders:error.config?.headers,endpointId:runpodEndpoint,endpointIdLength:runpodEndpoint?.length,fullError:JSON.stringify(error,Object.getOwnPropertyNames(error))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+            // #endregion
             if (attempt < maxRetries) {
               console.log(`  ⚠️ Chunk ${index + 1} retry in ${attempt * 5}s...`);
               await this.sleep(attempt * 5000);

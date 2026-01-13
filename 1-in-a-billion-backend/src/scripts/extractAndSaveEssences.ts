@@ -9,7 +9,7 @@
  *   npx tsx src/scripts/extractAndSaveEssences.ts --all  (process all completed jobs)
  */
 
-import { supabase } from '../config/supabase';
+import { supabase } from '../services/supabaseClient';
 import { extractAllEssences, SystemEssences } from '../services/essenceExtractionService';
 
 async function extractEssencesForJob(jobId: string): Promise<void> {

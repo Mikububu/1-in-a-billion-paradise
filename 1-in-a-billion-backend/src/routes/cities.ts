@@ -45,13 +45,33 @@ router.get('/search', async (c) => {
             }, 500);
         }
 
-        // Use Google Places Autocomplete API (types=geocode to prefer cities)
-        const autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=(cities)&key=${googlePlacesKey}`;
+        // Use Google Places Autocomplete API
+        // First try with cities restriction, then fallback to broader search if no results
+        let autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=(cities)&key=${googlePlacesKey}`;
         
-        const autocompleteResponse = await axios.get(autocompleteUrl);
-        const autocompleteData = autocompleteResponse.data;
+        let autocompleteResponse = await axios.get(autocompleteUrl);
+        let autocompleteData = autocompleteResponse.data;
 
-        if (autocompleteData.status !== 'OK' || !autocompleteData.predictions) {
+        // If no results with cities restriction, try without restriction and filter for cities/towns/districts
+        if (autocompleteData.status !== 'OK' || !autocompleteData.predictions || autocompleteData.predictions.length === 0) {
+            console.log('No results with cities restriction, trying broader search...');
+            autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&key=${googlePlacesKey}`;
+            autocompleteResponse = await axios.get(autocompleteUrl);
+            autocompleteData = autocompleteResponse.data;
+
+            // Filter to only include cities, towns, districts (exclude countries, establishments, etc.)
+            if (autocompleteData.status === 'OK' && autocompleteData.predictions) {
+                autocompleteData.predictions = autocompleteData.predictions.filter((pred: any) => {
+                    const types = pred.types || [];
+                    return types.includes('locality') || 
+                           types.includes('administrative_area_level_2') || 
+                           types.includes('administrative_area_level_3') ||
+                           (types.includes('geocode') && !types.includes('country') && !types.includes('establishment'));
+                });
+            }
+        }
+
+        if (autocompleteData.status !== 'OK' || !autocompleteData.predictions || autocompleteData.predictions.length === 0) {
             console.warn('Google Places Autocomplete returned no results:', autocompleteData.status);
             return c.json({ cities: [] });
         }
@@ -89,8 +109,17 @@ router.get('/search', async (c) => {
                     if (component.types.includes('administrative_area_level_1')) {
                         region = component.short_name;
                     }
+                    // Prefer locality (city), but fallback to district if no locality
                     if (component.types.includes('locality')) {
                         cityName = component.long_name;
+                    } else if (!cityName || cityName === result.name) {
+                        // If no locality found, use district or sublocality
+                        if (component.types.includes('administrative_area_level_2')) {
+                            // Remove "District" suffix if present (e.g., "Wichian Buri District" -> "Wichian Buri")
+                            cityName = component.long_name.replace(/\s+District$/i, '');
+                        } else if (component.types.includes('sublocality')) {
+                            cityName = component.long_name;
+                        }
                     }
                 }
 
@@ -127,6 +156,107 @@ router.get('/search', async (c) => {
         return c.json({ 
             cities: [],
             error: 'City search failed'
+        }, 500);
+    }
+});
+
+/**
+ * GET /reverse?lat=<latitude>&lng=<longitude>
+ * Reverse geocode coordinates to get city name
+ */
+router.get('/reverse', async (c) => {
+    const lat = parseFloat(c.req.query('lat') || '0');
+    const lng = parseFloat(c.req.query('lng') || '0');
+
+    if (!lat || !lng || lat === 0 || lng === 0) {
+        return c.json({ 
+            error: 'Invalid coordinates' 
+        }, 400);
+    }
+
+    try {
+        const googlePlacesKey = await getApiKey('google_places');
+        
+        if (!googlePlacesKey) {
+            console.error('❌ Google Places API key not found');
+            return c.json({ 
+                error: 'Google Places API not configured'
+            }, 500);
+        }
+
+        // Use Google Geocoding API for reverse geocoding
+        const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${googlePlacesKey}`;
+        
+        const geocodeResponse = await axios.get(geocodeUrl);
+        const geocodeData = geocodeResponse.data;
+
+        if (geocodeData.status !== 'OK' || !geocodeData.results || geocodeData.results.length === 0) {
+            return c.json({ 
+                error: 'No results found',
+                status: geocodeData.status
+            }, 404);
+        }
+
+        const result = geocodeData.results[0];
+        const addressComponents = result.address_components || [];
+        
+        let cityName = '';
+        let country = '';
+        let region = '';
+        let timezone = 'UTC';
+
+        // Extract city name (prefer locality, fallback to district)
+        for (const component of addressComponents) {
+            if (component.types.includes('locality')) {
+                cityName = component.long_name;
+            } else if (!cityName && component.types.includes('administrative_area_level_2')) {
+                // Remove "District" suffix if present
+                const districtName = component.long_name.replace(/\s+District$/i, '');
+                cityName = districtName;
+            } else if (!cityName && component.types.includes('sublocality')) {
+                cityName = component.long_name;
+            }
+            if (component.types.includes('country')) {
+                country = component.long_name;
+            }
+            if (component.types.includes('administrative_area_level_1')) {
+                region = component.short_name;
+            }
+        }
+
+        // If no city name found, use formatted address or place name
+        if (!cityName) {
+            cityName = result.formatted_address.split(',')[0] || result.name || 'Unknown';
+        }
+
+        // Get timezone
+        const timestamp = Math.floor(Date.now() / 1000);
+        const timezoneUrl = `https://maps.googleapis.com/maps/api/timezone/json?location=${lat},${lng}&timestamp=${timestamp}&key=${googlePlacesKey}`;
+        
+        try {
+            const timezoneResponse = await axios.get(timezoneUrl);
+            const timezoneData = timezoneResponse.data;
+            if (timezoneData.status === 'OK') {
+                timezone = timezoneData.timeZoneId;
+            }
+        } catch (error) {
+            console.warn('Timezone API failed, using UTC');
+        }
+
+        return c.json({
+            name: cityName,
+            country,
+            region,
+            timezone,
+            latitude: lat,
+            longitude: lng,
+            formatted_address: result.formatted_address,
+        });
+
+    } catch (error: any) {
+        console.error('Reverse geocoding error:', error.message);
+        return c.json({ 
+            error: 'Reverse geocoding failed'
         }, 500);
     }
 });
