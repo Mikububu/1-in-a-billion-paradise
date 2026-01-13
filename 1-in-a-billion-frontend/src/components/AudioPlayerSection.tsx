@@ -31,7 +31,7 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
   });
 
   const isNarration = type === 'narration';
-  const primaryColor = isNarration ? colors.primary : '#2E7D32';
+  const primaryColor = isNarration ? colors.primary : '#B8860B'; // Dark goldenrod
   
   // Disable controls if audio not available yet (null = checking, false = not ready)
   const isDisabled = controlsDisabled || audio.available !== true;
@@ -88,7 +88,7 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
             minimumTrackTintColor={isDisabled ? '#999' : primaryColor}
             maximumTrackTintColor="transparent"
             thumbTintColor={isDisabled ? '#999' : primaryColor}
-            thumbStyle={{ width: 20, height: 20 }}
+            thumbStyle={{ width: 24, height: 24, borderRadius: 12 }}
             onSlidingStart={audio.handleSlidingStart}
             onValueChange={audio.handleValueChange}
             onSlidingComplete={audio.handleSlidingComplete}
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   controlDisabled: { opacity: 0.5 },
   playIcon: { fontFamily: 'System', fontSize: 18, fontWeight: '700' },
 
-  sliderOuter: { flex: 1, height: 44, position: 'relative', overflow: 'visible' },
+  sliderOuter: { flex: 1, height: 44, position: 'relative', overflow: 'visible', zIndex: 5 },
   sliderPill: {
     position: 'absolute',
     left: 0,
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   sliderDurationOverlay: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center', zIndex: 2 },
-  sliderAbsolute: { position: 'absolute', left: 0, right: 54, height: 28, top: 8, zIndex: 10, overflow: 'visible' },
+  sliderAbsolute: { position: 'absolute', left: 0, right: 54, height: 44, top: 0, zIndex: 100, overflow: 'visible', elevation: 10 },
   sliderDurationText: {
     fontFamily: typography.sansSemiBold,
     fontSize: 14,

@@ -26,7 +26,46 @@ export interface SongTaskInput {
  */
 export async function processSongTask(task: { id: string; job_id: string; input: SongTaskInput }): Promise<void> {
   const { job_id, input } = task;
-  const { docNum, docType, system, personName } = input;
+  const { docNum, docType, system } = input;
+  let { personName } = input;
+
+  // CRITICAL FIX: Get correct person name from job params, not task input
+  // Task input personName is unreliable (often defaults to 'User' from DB trigger)
+  try {
+    const { data: jobData } = await supabase!
+      .from('jobs')
+      .select('params')
+      .eq('id', job_id)
+      .single();
+    
+    const params = jobData?.params as any;
+    if (params) {
+      if (docType === 'person1' || docType === 'individual') {
+        personName = params.person1?.name || params.person?.name || personName;
+      } else if (docType === 'person2') {
+        personName = params.person2?.name || personName;
+      } else if (docType === 'overlay') {
+        // For overlay, use both names combined
+        const p1 = params.person1?.name || params.person?.name;
+        const p2 = params.person2?.name;
+        personName = p2 ? `${p1} and ${p2}` : p1 || personName;
+      } else if (docType === 'verdict') {
+        // For verdict, use both names combined
+        const p1 = params.person1?.name || params.person?.name;
+        const p2 = params.person2?.name;
+        personName = p2 ? `${p1} and ${p2}` : p1 || personName;
+      }
+      console.log(`🎵 Resolved personName from job params: "${personName}" (docType: ${docType})`);
+    }
+  } catch (e) {
+    console.warn('⚠️ Could not resolve person name from job params, using task input:', e);
+  }
+
+  // Final fallback if still 'User' or empty
+  if (!personName || personName === 'User') {
+    personName = 'this soul';
+    console.warn('⚠️ personName was "User" or empty, using fallback: "this soul"');
+  }
 
   console.log(`🎵 Processing song task ${task.id} for doc ${docNum} (${system || 'verdict'}) - ${personName}...`);
 

@@ -157,7 +157,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     return () => { mounted = false; };
   }, [jobId, systemId, docNum]);
 
-  // Check if PDF is ready (with polling until ready)
+  // Check if PDF is ready (by testing the PDF URL directly)
   useEffect(() => {
     let mounted = true;
     let interval: any;
@@ -165,15 +165,13 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     const checkPdf = async () => {
       if (!mounted || pdfReadyRef.current) return;
       try {
-        const artifacts = await fetchJobArtifacts(jobId, ['pdf']);
-        const pdfArtifact = artifacts.find((a) => {
-          const meta = (a.metadata as any) || {};
-          return meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
-        });
+        // Check if PDF URL responds with 200 (HEAD request)
+        const pdfUrl = `${env.CORE_API_URL}/api/jobs/v2/${jobId}/pdf/${docNum}`;
+        const response = await fetch(pdfUrl, { method: 'HEAD' });
         if (mounted) {
-          const ready = !!pdfArtifact?.storage_path;
+          const ready = response.ok;
           if (ready) {
-            console.log(`📄 PDF ready!`);
+            console.log(`📄 PDF ready! (URL check passed)`);
             pdfReadyRef.current = true;
             setPdfReady(true);
             if (interval) clearInterval(interval);
@@ -183,8 +181,11 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
           setPdfChecked(true);
         }
       } catch (error: any) {
-        console.error(`❌ Failed to check PDF:`, error.message);
-        if (mounted) setPdfReady(false);
+        console.warn(`⚠️ PDF check failed:`, error.message);
+        if (mounted) {
+          setPdfReady(false);
+          setPdfChecked(true);
+        }
       }
     };
     
@@ -205,7 +206,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     };
   }, [jobId, systemId, docNum]);
 
-  // Check if audio is ready (with polling until ready)
+  // Check if audio is ready (by testing the audio URL directly)
   useEffect(() => {
     let mounted = true;
     let interval: any;
@@ -213,15 +214,13 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     const checkAudio = async () => {
       if (!mounted || audioReadyRef.current) return;
       try {
-        const artifacts = await fetchJobArtifacts(jobId, ['audio_mp3', 'audio_m4a']);
-        const audioArtifact = artifacts.find((a) => {
-          const meta = (a.metadata as any) || {};
-          return meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
-        });
+        // Check if audio URL responds with 200 (HEAD request)
+        const audioUrl = `${env.CORE_API_URL}/api/jobs/v2/${jobId}/audio/${docNum}`;
+        const response = await fetch(audioUrl, { method: 'HEAD' });
         if (mounted) {
-          const ready = !!audioArtifact?.storage_path;
+          const ready = response.ok;
           if (ready) {
-            console.log(`🎙️ Audio ready!`);
+            console.log(`🎙️ Audio ready! (URL check passed)`);
             audioReadyRef.current = true;
             setAudioReady(true);
             if (interval) clearInterval(interval);
@@ -231,8 +230,11 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
           setAudioChecked(true);
         }
       } catch (error: any) {
-        console.error(`❌ Failed to check audio:`, error.message);
-        if (mounted) setAudioReady(false);
+        console.warn(`⚠️ Audio check failed:`, error.message);
+        if (mounted) {
+          setAudioReady(false);
+          setAudioChecked(true);
+        }
       }
     };
     

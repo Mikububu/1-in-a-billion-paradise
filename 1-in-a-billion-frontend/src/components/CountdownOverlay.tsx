@@ -98,17 +98,30 @@ export const CountdownOverlay: React.FC<CountdownOverlayProps> = ({ jobId, allMe
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   }, [countdownSeconds]);
 
-  // Don't show if media is ready or countdown is 0
-  if (allMediaReady || countdownSeconds <= 0) {
+  // Don't show if media is ready
+  if (allMediaReady) {
     return null;
   }
+
+  // Show "Finishing up" if countdown expired but media not ready
+  const isFinishing = countdownSeconds <= 0 && !allMediaReady && jobCreatedAt !== null;
 
   return (
     <View style={styles.overlay} pointerEvents="box-none">
       <View style={styles.card} pointerEvents="auto">
-        <Text style={styles.label}>Approximate time remaining</Text>
-        <Text style={styles.time}>{countdownDisplay}</Text>
-        <Text style={styles.subtext}>until your reading is ready</Text>
+        {isFinishing ? (
+          <>
+            <Text style={styles.label}>Almost there!</Text>
+            <Text style={styles.finishingText}>Finishing up...</Text>
+            <Text style={styles.subtext}>Your reading will be ready soon</Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.label}>Approximate time remaining</Text>
+            <Text style={styles.time}>{countdownDisplay}</Text>
+            <Text style={styles.subtext}>until your reading is ready</Text>
+          </>
+        )}
       </View>
     </View>
   );
@@ -150,6 +163,12 @@ const styles = StyleSheet.create({
     color: colors.primary,
     marginBottom: 4,
     letterSpacing: 1,
+  },
+  finishingText: {
+    fontFamily: typography.headline,
+    fontSize: 20,
+    color: colors.primary,
+    marginBottom: 4,
   },
   subtext: {
     fontFamily: typography.sansRegular,
