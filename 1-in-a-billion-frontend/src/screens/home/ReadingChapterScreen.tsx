@@ -299,10 +299,15 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     };
   }, [jobId, systemId, docNum]);
 
-  // Compute: ALL media ready (PDF + audio + song = ZIP ready)
+  // Compute: main media ready (PDF + audio for buttons)
+  const mainMediaReady = useMemo(() => {
+    return pdfChecked && audioChecked && pdfReady && audioReady;
+  }, [pdfChecked, audioChecked, pdfReady, audioReady]);
+
+  // Compute: ALL media ready including song (for countdown overlay)
   const allMediaReady = useMemo(() => {
-    return pdfChecked && audioChecked && pdfReady && audioReady && songReady;
-  }, [pdfChecked, audioChecked, pdfReady, audioReady, songReady]);
+    return mainMediaReady && songReady;
+  }, [mainMediaReady, songReady]);
 
   const niceTimestamp = useMemo(() => {
     if (!timestamp) return '';
@@ -384,8 +389,8 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         <View style={styles.contentWrapper}>
           {/* Title row */}
           <View style={styles.titleRow}>
-          {/* PDF/Download buttons - ONLY show when ALL media is ready */}
-          {allMediaReady ? (
+          {/* PDF/Download buttons - show when PDF + audio ready */}
+          {mainMediaReady ? (
             <View style={styles.titleButtonsCol}>
               <TouchableOpacity 
                 style={styles.headerYellowButton} 
@@ -431,7 +436,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             text={text}
             loadingText={loadingText}
             type="narration"
-            textNotReady={!!text && !loadingText && !allMediaReady}
+            textNotReady={!!text && !loadingText && !mainMediaReady}
           />
 
           <View style={styles.musicSpacer} />
@@ -441,7 +446,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             loadingText={loadingSongLyrics}
             type="song"
             controlsDisabled={!songReady}
-            textNotReady={!!songLyrics && !loadingSongLyrics && !allMediaReady}
+            textNotReady={!!songLyrics && !loadingSongLyrics && !songReady}
           />
         </View>
         </View>

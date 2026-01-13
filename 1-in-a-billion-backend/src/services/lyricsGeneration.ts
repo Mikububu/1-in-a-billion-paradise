@@ -2,7 +2,7 @@
  * LYRICS GENERATION SERVICE
  * 
  * Generates personalized song lyrics from deep reading data using DeepSeek.
- * Lyrics include the user's name and reflect their soul themes, emotional patterns,
+ * Lyrics include the person's name and reflect their soul themes, emotional patterns,
  * fears, desires, and life direction extracted from the reading.
  */
 

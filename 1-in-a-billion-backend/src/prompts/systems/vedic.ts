@@ -454,7 +454,7 @@ wants, you can feed it consciously instead of letting it eat you alive."
 function getVedicInterpretationGuidance(spiceLevel: number): string {
   if (spiceLevel <= 3) {
     return `
-INTERPRETATION TONE (User Preference: Safe/Gentle - Level ${spiceLevel}/10):
+INTERPRETATION TONE (Safe/Gentle - Level ${spiceLevel}/10):
 - Frame Nadi Dosha consequences as "areas requiring conscious effort" not "serious problems"
 - Emphasize growth potential and remedial measures prominently
 - Use encouraging, supportive language for challenges
@@ -466,7 +466,7 @@ INTERPRETATION TONE (User Preference: Safe/Gentle - Level ${spiceLevel}/10):
 `;
   } else if (spiceLevel <= 6) {
     return `
-INTERPRETATION TONE (User Preference: Balanced - Level ${spiceLevel}/10):
+INTERPRETATION TONE (Balanced - Level ${spiceLevel}/10):
 - Present Nadi Dosha consequences honestly but compassionately
 - Balance challenges with strengths equally
 - Mention remedies alongside concerns
@@ -478,7 +478,7 @@ INTERPRETATION TONE (User Preference: Balanced - Level ${spiceLevel}/10):
 `;
   } else {
     return `
-INTERPRETATION TONE (User Preference: Spicy/Direct - Level ${spiceLevel}/10):
+INTERPRETATION TONE (Spicy/Direct - Level ${spiceLevel}/10):
 - State Nadi Dosha consequences directly without softening language
 - Lead with challenges and incompatibilities, then strengths
 - Be explicit about emotional discord, financial instability, progeny risks, reduced vitality

@@ -161,7 +161,7 @@ PERSON DATA:
 CHART DATA:
 ${chartData}
 ${personalContext ? `
-PERSONAL CONTEXT (User's Focus):
+PERSONAL CONTEXT:
 "${personalContext}"
 
 INSTRUCTION: Give this context approximately 7% consideration in your reading. Use it ONLY for subtle interpretive framing:

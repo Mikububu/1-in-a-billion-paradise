@@ -554,12 +554,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           queueFetchInFlightRef.current = false;
           return;
         } catch (apiError: any) {
-          console.error('❌ Backend API failed:', apiError);
-          console.error('❌ Error details:', apiError.message, apiError.stack);
-          console.error('❌ API URL was:', env.CORE_API_URL);
-          console.error('❌ UserId was:', userId);
+          console.warn('⚠️ Backend API failed:', apiError?.message || apiError);
           if (mountedRef.current) {
-            setQueueJobsError(`API Error: ${apiError.message || 'Unknown error'}. URL: ${env.CORE_API_URL}, UserId: ${userId}`);
+            setQueueJobsError(`API Error: ${apiError.message || 'Unknown error'}`);
             clearTimeout(loadingWatchdog);
             setLoadingQueueJobs(false);
             setPolling(false);

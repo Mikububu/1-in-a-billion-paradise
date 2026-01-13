@@ -541,7 +541,6 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
     paddingTop: spacing.md,
     zIndex: 10,
-    backgroundColor: colors.background,
   },
   bottomImage: {
     position: 'absolute',
