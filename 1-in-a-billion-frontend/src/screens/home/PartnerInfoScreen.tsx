@@ -382,9 +382,6 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
             </View>
           )}
 
-          <Text style={styles.helperText} selectable>
-            Enter their birthtime as exact as possible.
-          </Text>
         </View>
       </ScrollView>
 
@@ -542,7 +539,9 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: spacing.page,
     paddingBottom: spacing.xl,
+    paddingTop: spacing.md,
     zIndex: 10,
+    backgroundColor: colors.background,
   },
   bottomImage: {
     position: 'absolute',
@@ -552,6 +551,5 @@ const styles = StyleSheet.create({
     height: SCREEN_HEIGHT * 0.5, // Half screen size
     width: '100%',
     zIndex: -1, // Behind everything, allows touch through
-    opacity: 0.9,
   },
 });
