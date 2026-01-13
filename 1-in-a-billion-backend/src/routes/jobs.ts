@@ -529,17 +529,10 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
       }
     }
 
-    // Fallback: if only one audio artifact, use it (common for single-document jobs)
-    if (!audioArtifact && artifacts.length === 1) {
-      console.log(`📦 Using single audio artifact as fallback for docNum ${docNum}`);
-      audioArtifact = artifacts[0];
-    }
-
-    // If still not found and docNum is 1, try first artifact (most common case)
-    if (!audioArtifact && docNum === 1 && artifacts.length > 0) {
-      console.log(`📦 Using first audio artifact for docNum 1`);
-      audioArtifact = artifacts[0];
-    }
+    // REMOVED: Dangerous fallbacks that served wrong audio!
+    // Previously: if only one artifact, use it for any docNum (WRONG)
+    // Previously: if docNum=1 not found, use first artifact (WRONG)
+    // Now: We ONLY serve audio if we find an exact match by docNum
 
     if (!audioArtifact || !audioArtifact.storage_path) {
       console.error(`❌ Audio artifact not found for job ${jobId}, docNum ${docNum}. Available artifacts: ${artifacts.length}`);

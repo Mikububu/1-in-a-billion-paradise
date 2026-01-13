@@ -301,15 +301,17 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     };
   }, [jobId, systemId, docNum]);
 
-  // Compute: main media ready (PDF + audio for buttons)
+  // Compute: main media ready (text loaded = audio/PDF should be ready too)
   const mainMediaReady = useMemo(() => {
-    return pdfChecked && audioChecked && pdfReady && audioReady;
-  }, [pdfChecked, audioChecked, pdfReady, audioReady]);
+    // If text content loaded successfully, audio/PDF endpoints should work
+    return !loadingText && !!text && text.length > 0;
+  }, [loadingText, text]);
 
   // Compute: ALL media ready including song (for countdown overlay)
   const allMediaReady = useMemo(() => {
-    return mainMediaReady && songReady;
-  }, [mainMediaReady, songReady]);
+    // If both text AND lyrics loaded, everything should be ready
+    return mainMediaReady && !loadingSongLyrics && !!songLyrics && songLyrics.length > 0;
+  }, [mainMediaReady, loadingSongLyrics, songLyrics]);
 
   const niceTimestamp = useMemo(() => {
     if (!timestamp) return '';

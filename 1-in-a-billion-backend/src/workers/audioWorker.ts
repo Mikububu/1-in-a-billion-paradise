@@ -529,7 +529,16 @@ export class AudioWorker extends BaseWorker {
               type: 'audio_mp3',
               buffer: mp3,
               contentType: 'audio/mpeg',
-              metadata: { textLength: text.length, chunks: chunks.length, duration, format: 'mp3' },
+              metadata: { 
+                textLength: text.length, 
+                chunks: chunks.length, 
+                duration, 
+                format: 'mp3',
+                // CRITICAL: Include docNum/system/docType so audio can be matched to correct document
+                docNum: task.input?.docNum,
+                system: task.input?.system,
+                docType: task.input?.docType,
+              },
             },
           ],
         };
@@ -544,7 +553,15 @@ export class AudioWorker extends BaseWorker {
               type: 'audio_m4a',
               buffer: m4a,
               contentType: 'audio/mp4',
-              metadata: { textLength: text.length, chunks: chunks.length, format: 'm4a' },
+              metadata: { 
+                textLength: text.length, 
+                chunks: chunks.length, 
+                format: 'm4a',
+                // CRITICAL: Include docNum/system/docType so audio can be matched to correct document
+                docNum: task.input?.docNum,
+                system: task.input?.system,
+                docType: task.input?.docType,
+              },
             },
           ],
         };
