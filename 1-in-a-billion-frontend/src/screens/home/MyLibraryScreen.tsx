@@ -2586,10 +2586,10 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                   })()}
                 </View>
               </TouchableOpacity>
-              {!person.isUser && (
+              {!person.isUser && primaryJobId && (
                 <TouchableOpacity
                   style={styles.personDeleteButton}
-                  onPress={(e) => handleDeletePerson(person, e)}
+                  onPress={(e) => handleDeleteJob(primaryJobId, person.name, e)}
                   activeOpacity={0.7}
                 >
                   <Text style={styles.personDeleteIcon}>✕</Text>

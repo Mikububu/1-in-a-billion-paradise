@@ -353,7 +353,7 @@ export class AudioWorker extends BaseWorker {
           try {
             console.log(`  Chunk ${index + 1}/${chunks.length} (${chunk.length} chars) attempt ${attempt}`);
 
-            const runpodUrl = `https://api.runpod.ai/v2/${runpodEndpoint}/runsync`;
+            const runpodUrl = `https://api.runpod.ai/v2/${runpodEndpoint}/run`;
             // #region agent log
             fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audioWorker.ts:339',message:'Making RunPod request',data:{chunkIndex:index+1,totalChunks:chunks.length,attempt,url:runpodUrl,endpointId:runpodEndpoint,endpointIdLength:runpodEndpoint?.length,chunkLength:chunk.length,chunkPreview:chunk.substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
             // #endregion
@@ -372,7 +372,7 @@ export class AudioWorker extends BaseWorker {
                   Authorization: `Bearer ${runpodKey}`,
                   'Content-Type': 'application/json',
                 },
-                timeout: 180000,
+                timeout: 10000, // Reduced timeout since we're using async /run endpoint
               }
             );
             // #region agent log
