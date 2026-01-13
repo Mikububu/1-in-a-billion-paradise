@@ -15,7 +15,7 @@ Full pipeline implemented for generating personalized songs for paid users who p
 
 ### 2. Lyrics Extraction
 - Extracts key themes and emotional essence from the long reading text
-- Removes astrology jargon, focuses on life struggles, emotions, relationships
+- Focuses on life struggles, emotions, relationships, and astrological insights
 - Creates personalized lyrics that capture the person's story
 
 ### 3. 50 Musicians from 70s/80s (Quiet Execution)

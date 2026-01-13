@@ -374,7 +374,8 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
 
       // IMPORTANT: Always show a verifiable "receipt" (jobId) while generating.
       // This prevents "we did it / we didn't" confusion later — jobId is the source of truth.
-      navigation.replace('GeneratingReading', {
+      // Navigate to Tree of Life video first, then to GeneratingReading
+      navigation.replace('TreeOfLifeVideo', {
         jobId: newJobId,
         productType,
         productName: opts.title,
@@ -382,7 +383,6 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
         partnerName: person2?.name,
         systems: systemsToGenerate,
         readingType: isOverlayFlow ? 'overlay' : 'individual',
-        // readingType: isOverlayFlow ? 'overlay' : 'individual', // Duplicate removed
         forPartner: forPartner || isForTarget,
       });
     } catch (e: any) {

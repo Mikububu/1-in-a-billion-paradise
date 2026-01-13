@@ -41,15 +41,13 @@ export async function generateLyrics(input: LyricsGenerationInput): Promise<Lyri
 Generate a personalized song for ${personName} based on their life story extracted from this reading. This must be QUIET, POETIC MUSIC - never nervous or pop-oriented.
 
 **CRITICAL RULES:**
-1. ❌ NO ASTROLOGY TERMS - No zodiac signs, planets, constellations, houses, aspects, chart references
-2. ❌ NO "Virgo", "Moon in...", "Rising", "Stars aligned", "Cosmic", "Astrological" etc.
-3. ❌ NO POP MUSIC - Never nervous, upbeat, or radio-pop style
-4. ✅ EXTRACT: Character problems, emotional chaos, life struggles, relationship patterns, fears, desires
-5. ✅ MAKE IT EXPLICIT and DRAMATIC - about their LIFE and EMOTIONS, not astrology
-6. ✅ The person's name (${personName}) must appear naturally in lyrics (at least once)
-7. ✅ QUIET, POETIC STYLE - Always in the tradition of Leonard Cohen, Tom Waits, Bob Dylan, John Prine
-8. ✅ MUSIC TO LISTEN TO - Introspective, contemplative, poetry set to music
-9. ✅ Think: "Hallelujah", "Closing Time", "Like a Rolling Stone", "Angel from Montgomery"
+1. ❌ NO POP MUSIC - Never nervous, upbeat, or radio-pop style
+2. ✅ EXTRACT: Character problems, emotional chaos, life struggles, relationship patterns, fears, desires
+3. ✅ MAKE IT EXPLICIT and DRAMATIC - about their LIFE and EMOTIONS
+4. ✅ The person's name (${personName}) must appear naturally in lyrics (at least once)
+5. ✅ QUIET, POETIC STYLE - Always in the tradition of Leonard Cohen, Tom Waits, Bob Dylan, John Prine
+6. ✅ MUSIC TO LISTEN TO - Introspective, contemplative, poetry set to music
+7. ✅ Think: "Hallelujah", "Closing Time", "Like a Rolling Stone", "Angel from Montgomery"
 
 The reading below is JUST RAW MATERIAL to extract ${personName}'s story:
 - What does ${personName} struggle with emotionally?
@@ -59,7 +57,7 @@ The reading below is JUST RAW MATERIAL to extract ${personName}'s story:
 - What do they hide from others?
 - What makes them feel alive or dead inside?
 
-**Reading Excerpt (Use as research only, don't quote astrological terms):**
+**Reading Excerpt (Use as research material):**
 ${readingExcerpt}
 
 ${relationshipContext ? `\n**Relationship Context:** This is about ${personName}'s relationships and love life. Focus on connection, intimacy, heartbreak, and partnership struggles.\n` : ''}
@@ -94,7 +92,7 @@ Style Guide:
 - Contemplative, not nervous or pop-oriented
 - Music to listen to while reading - background, not foreground
 - Specific details that feel real and relatable
-- NO clichés, NO astrology jargon, NO pop hooks
+- NO clichés, NO pop hooks
 - Make people FEEL something deep through poetry, not through catchy melodies
 
 **OUTPUT FORMAT (JSON ONLY):**

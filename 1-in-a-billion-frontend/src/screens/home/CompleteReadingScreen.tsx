@@ -177,8 +177,8 @@ export const CompleteReadingScreen = ({ navigation, route }: Props) => {
       const data = await res.json();
       if (!data.jobId) throw new Error('No jobId returned');
 
-      // Navigate directly to GeneratingReading (no animation screen)
-      navigation.replace('GeneratingReading', {
+      // Navigate to Tree of Life video, then to GeneratingReading
+      navigation.replace('TreeOfLifeVideo', {
         jobId: data.jobId,
         productType: 'complete_reading',
         productName: 'Complete Reading',

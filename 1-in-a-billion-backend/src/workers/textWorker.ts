@@ -21,6 +21,7 @@ import { buildIndividualPrompt } from '../prompts';
 import { SpiceLevel } from '../prompts/spice/levels';
 import { gematriaService } from '../services/kabbalah/GematriaService';
 import { hebrewCalendarService } from '../services/kabbalah/HebrewCalendarService';
+import { OUTPUT_FORMAT_RULES } from '../prompts/core/output-rules';
 
 function clampSpice(level: number): SpiceLevel {
   const clamped = Math.min(10, Math.max(1, Math.round(level)));
@@ -756,7 +757,9 @@ IMPORTANT:
 - Do NOT predict outcomes or make moral judgments
 
 Style: Mystical, profound, direct address to ${firstName}. ${spiceLevel >= 7 ? 'Be bold and direct.' : 'Be gentle and uplifting.'}
-Format: Continuous prose (no bullet points). ~2000 words.`;
+Format: Continuous prose (no bullet points). ~2000 words.
+
+${OUTPUT_FORMAT_RULES}`;
 
       label += `:kabbalah:${docType}`;
       

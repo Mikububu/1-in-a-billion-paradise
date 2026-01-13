@@ -187,7 +187,7 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                     <View style={styles.header}>
                         <Text style={styles.headline}>
                             {isKabbalahActive
-                                ? <>Tell us about your life</>
+                                ? <>Impactful Life Events</>
                                 : (isSelf 
                                     ? <>Would you like{'\n'}to focus on something{'\n'}specific in your reading?</>
                                     : <>{personName}, would you like{'\n'}to focus on something{'\n'}specific in your reading?</>)
@@ -244,7 +244,7 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                                     isKabbalahActive && { fontSize: 12 }
                                 ]}
                                 multiline
-                                placeholder={isKabbalahActive ? "Lets start with the full name(s)..." : "I will speak the truth"}
+                                placeholder={isKabbalahActive ? "EXAMPLE: Laura Steinberg's mother, Marianne Vogel, died on 07 June 2003 at 21:45 in Munich during the birth of her second child, Daniel Steinberg." : "I will speak the truth"}
                                 placeholderTextColor={colors.mutedText}
                                 value={context}
                                 onChangeText={setContext}

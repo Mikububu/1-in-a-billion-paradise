@@ -311,8 +311,8 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
                 );
             }
             
-            // Navigate to GeneratingReading (NO animation screen)
-            navigation.replace('GeneratingReading', {
+            // Navigate to Tree of Life video, then to GeneratingReading
+            navigation.replace('TreeOfLifeVideo', {
                 jobId: data.jobId,
                 productType,
                 productName: productType === 'complete_reading' ? 'Complete Reading' : productType === 'nuclear_package' ? 'Nuclear Package' : systems.join(', '),

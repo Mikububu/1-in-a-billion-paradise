@@ -76,6 +76,7 @@ import { PersonReadingChaptersFlowScreen } from '@/screens/home/PersonReadingCha
 import { ReadingChapterScreen } from '@/screens/home/ReadingChapterScreen';
 import { MyLibraryScreen } from '@/screens/home/MyLibraryScreen';
 import { NextStepScreen } from '@/screens/home/NextStepScreen';
+import { TreeOfLifeVideoScreen } from '@/screens/home/TreeOfLifeVideoScreen';
 import { ComparePeopleScreen } from '@/screens/home/ComparePeopleScreen';
 import { SystemsOverviewScreen } from '@/screens/home/SystemsOverviewScreen';
 import { AudioPlayerScreen } from '@/screens/home/AudioPlayerScreen';
@@ -247,6 +248,16 @@ export type MainStackParamList = {
   VoiceSelection: {
     onSelect: (voiceId: string) => void;
     preselectedVoice?: string;
+  };
+  TreeOfLifeVideo: {
+    jobId: string;
+    productType: string;
+    productName: string;
+    personName?: string;
+    partnerName?: string;
+    readingType?: 'individual' | 'overlay';
+    systems?: string[];
+    forPartner?: boolean;
   };
   GeneratingReading: {
     productType: string;
@@ -649,6 +660,7 @@ const MainNavigator = () => {
       <MainStack.Screen name="PersonalContext" component={PersonalContextScreen} />
       <MainStack.Screen name="SystemSelection" component={SystemSelectionScreen} />
       <MainStack.Screen name="VoiceSelection" component={VoiceSelectionScreen} />
+      <MainStack.Screen name="TreeOfLifeVideo" component={TreeOfLifeVideoScreen} />
       <MainStack.Screen name="GeneratingReading" component={GeneratingReadingScreen} />
       <MainStack.Screen name="ExtendedPrompt" component={ExtendedPromptScreen} />
       <MainStack.Screen name="ExtendedReading" component={ExtendedReadingScreen} />

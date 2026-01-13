@@ -174,7 +174,7 @@ export const RelationshipContextScreen = ({ navigation, route }: Props) => {
                     <View style={styles.header}>
                         <Text style={styles.headline}>
                             {isKabbalahActive
-                                ? <>Tell us about your life</>
+                                ? <>Impactful Life Events</>
                                 : <>Would you like to tell us more about this soul connection?</>
                             }
                         </Text>
@@ -229,7 +229,7 @@ export const RelationshipContextScreen = ({ navigation, route }: Props) => {
                                 ]}
                                 multiline
                                 placeholder={isKabbalahActive 
-                                    ? "Lets start with the full name(s)..."
+                                    ? "EXAMPLE: Laura Steinberg's mother, Marianne Vogel, died on 07 June 2003 at 21:45 in Munich during the birth of her second child, Daniel Steinberg."
                                     : "I will speak the truth"
                                 }
                                 placeholderTextColor={colors.mutedText}
