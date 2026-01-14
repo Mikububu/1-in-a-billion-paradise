@@ -316,12 +316,30 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         if (isPaying) return;
         setIsPaying(true);
 
+        // Developer bypass (same as PurchaseScreen)
+        const DEV_BYPASS_EMAILS = ['michael@1-in-a-billion.app', 'dev@1-in-a-billion.app', 'test@1-in-a-billion.app'];
+        const isDeveloperAccount = DEV_BYPASS_EMAILS.includes(userEmail.toLowerCase());
+        
+        if (isDeveloperAccount || __DEV__) {
+            console.log('🔧 DEV BYPASS: Skipping payment for developer account');
+            setIsPaying(false);
+            // Payment successful → navigate to Account screen
+            navigation.navigate('Account', { postPurchase: true });
+            return;
+        }
+
         try {
             let stripeModule: any;
             try {
                 stripeModule = require('@stripe/stripe-react-native');
             } catch (err) {
                 console.warn('Stripe module not available:', err);
+                // In dev, bypass payment instead of showing error
+                if (__DEV__) {
+                    setIsPaying(false);
+                    navigation.navigate('Account', { postPurchase: true });
+                    return;
+                }
                 Alert.alert(
                     'Payments Not Available',
                     'Apple Pay / Google Pay requires a full app build (TestFlight / production).',

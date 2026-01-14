@@ -918,6 +918,12 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
 
   // Audio is pre-rendered in CoreIdentitiesScreen - no auto-generation here
 
+  const scrollStartX = useRef(0);
+
+  const handleScrollBeginDrag = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    scrollStartX.current = event.nativeEvent.contentOffset.x;
+  };
+
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, layoutMeasurement } = event.nativeEvent;
     const index = Math.round(contentOffset.x / layoutMeasurement.width);
@@ -928,6 +934,18 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
         // @ts-ignore
         navigation.navigate('AddThirdPersonPrompt');
       }, 250);
+    }
+  };
+
+  const handleScrollEndDrag = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const start = scrollStartX.current;
+    const end = event.nativeEvent.contentOffset.x;
+    const delta = end - start;
+    
+    // Swipe left on first page (page 0) to go back - allow unsigned users to navigate back
+    if (page === 0 && delta < -50) {
+      console.log('← Swiping back from HookSequence');
+      navigation.goBack();
     }
   };
 
@@ -1059,6 +1077,8 @@ ${rising.main}`;
               horizontal
               showsHorizontalScrollIndicator={false}
               ref={listRef}
+              onScrollBeginDrag={handleScrollBeginDrag}
+              onScrollEndDrag={handleScrollEndDrag}
               onMomentumScrollEnd={handleScroll}
               renderItem={({ item }) => {
                 if ((item as any).type === 'gateway') {

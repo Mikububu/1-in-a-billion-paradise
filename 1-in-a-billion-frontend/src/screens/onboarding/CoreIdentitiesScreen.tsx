@@ -556,8 +556,9 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
 
       while (!audioReady && attempt < MAX_RETRIES) {
         attempt++;
-        // Keep UX poetic (no technical retry counters)
+        // Keep UX poetic (no technical retry counters) - show text longer so it's visible
         setStatusText('Giving your reading a voice…');
+        await delay(1500); // Show text for at least 1.5s so user can read it
         
         console.log(`🎵 Audio generation attempt ${attempt}/${MAX_RETRIES}`);
         
@@ -584,21 +585,21 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
           console.warn(`⚠️ Audio attempt ${attempt} failed:`, error.message);
           
           if (attempt < MAX_RETRIES) {
-            // Wait 2 seconds before retry
+            // Wait longer and show text so user can read it
             setStatusText('One moment…');
-            await delay(2000);
+            await delay(2500); // Longer delay so text is visible
           } else {
             // Final attempt failed - proceed anyway
             console.error('❌ All audio attempts failed, proceeding without audio');
             setStatusText('Continuing…');
-            await delay(1000);
+            await delay(2000); // Longer delay so text is visible
           }
         }
       }
 
       setProgress(100);
       setStatusText('Ready!');
-      await delay(500);
+      await delay(1500); // Longer delay so "Ready!" is visible
 
       // Log audio state for debugging
       const hookAudioAtNavigation = useOnboardingStore.getState().hookAudio;
