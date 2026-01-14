@@ -205,7 +205,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     }, [karaoke]);
 
     // Auto-play current page; cut audio on page change
-    // NOTE: Page 0 has NO voice audio - let the global "1 in a Billion song" play
+    // Voice audio plays on all pages - "1 in a Billion song" fades out before reaching this screen
     useEffect(() => {
         currentPageRef.current = page;
         setActiveWordIndex(0);
@@ -216,8 +216,6 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
 
         const play = async () => {
             await stopAll();
-            // Skip voice audio on page 0 - global ambient music plays there
-            if (page === 0) return;
             const s = soundRefs.current[page];
             if (!s) return;
             await s.setPositionAsync(0).catch(() => {});
