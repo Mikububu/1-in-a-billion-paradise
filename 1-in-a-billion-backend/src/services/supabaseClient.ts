@@ -10,11 +10,17 @@ import { env } from '../config/env';
 
 // Type definitions for database schema
 export type JobStatus = 'queued' | 'processing' | 'complete' | 'error' | 'cancelled';
-export type JobType = 'extended' | 'synastry' | 'nuclear' | 'nuclear_v2';
+export type JobType = 'extended' | 'synastry' | 'nuclear' | 'nuclear_v2' | 'people_scaling';
 export type JobPhase = 'queued' | 'calculating' | 'text' | 'pdf' | 'audio' | 'finalizing' | 'complete' | 'error';
 
 export type TaskStatus = 'pending' | 'claimed' | 'processing' | 'complete' | 'failed';
-export type TaskType = 'text_generation' | 'pdf_generation' | 'audio_generation' | 'synastry_calc' | 'song_generation';
+export type TaskType =
+  | 'text_generation'
+  | 'pdf_generation'
+  | 'audio_generation'
+  | 'synastry_calc'
+  | 'song_generation'
+  | 'people_scaling';
 
 export type ArtifactType = 'audio_mp3' | 'audio_m4a' | 'pdf' | 'json' | 'text';
 

@@ -35,6 +35,7 @@ primary_region = "sin"
   pdf-worker = "node dist/workers/pdfWorker.js"
   audio-worker = "node dist/workers/audioWorker.js"
   song-worker = "node dist/workers/songWorker.js"
+  people-scaling-worker = "node dist/workers/peopleScalingWorker.js"
   watchdog = "node dist/workers/watchdogWorker.js"
 
 [[vm]]
@@ -83,5 +84,12 @@ primary_region = "sin"
   # Watchdog is lightweight.
   processes = ["watchdog"]
   memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[[vm]]
+  # People scaling is CPU-ish but safe on shared.
+  processes = ["people-scaling-worker"]
+  memory = "512mb"
   cpu_kind = "shared"
   cpus = 1

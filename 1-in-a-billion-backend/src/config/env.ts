@@ -49,6 +49,10 @@ export const env = {
   SUPABASE_URL: process.env.SUPABASE_URL ?? '',
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
   SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY ?? '',
+
+  // Admin Panel (V0 bridge): internal operations triggered from admin-panel server-side
+  // Requires header: x-admin-secret: <ADMIN_PANEL_SECRET>
+  ADMIN_PANEL_SECRET: process.env.ADMIN_PANEL_SECRET ?? '',
   
   // Feature Flags
   SUPABASE_QUEUE_ENABLED: process.env.SUPABASE_QUEUE_ENABLED === 'true',
