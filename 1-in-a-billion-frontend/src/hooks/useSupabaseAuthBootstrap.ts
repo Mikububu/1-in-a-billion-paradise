@@ -27,6 +27,17 @@ async function clearSupabaseTokens() {
 }
 
 /**
+ * Extract first name from full name (e.g. "John Smith" -> "John")
+ * Used for display purposes when users sign up with Google/Apple OAuth
+ */
+function getFirstName(fullName: string | undefined | null): string {
+  if (!fullName) return 'User';
+  const trimmed = fullName.trim();
+  const firstSpace = trimmed.indexOf(' ');
+  return firstSpace > 0 ? trimmed.substring(0, firstSpace) : trimmed;
+}
+
+/**
  * Bootstraps authStore from Supabase persisted session.
  * 
  * ROUTING INVARIANT (DO NOT MODIFY):
@@ -141,11 +152,9 @@ export function useSupabaseAuthBootstrap() {
               provider: session.user.app_metadata?.provider,
             });
           }
-          const name =
-            session.user.user_metadata?.full_name ||
-            session.user.email?.split('@')?.[0] ||
-            'User';
-          setDisplayName(name);
+          const fullName = session.user.user_metadata?.full_name;
+          const firstName = fullName ? getFirstName(fullName) : (session.user.email?.split('@')?.[0] || 'User');
+          setDisplayName(firstName);
 
           // CRITICAL FIX: Check Supabase for existing profile to determine if onboarding is complete
           // This establishes Supabase as the single source of truth
@@ -320,12 +329,10 @@ export function useSupabaseAuthBootstrap() {
         console.log('📊 DEBUG: Setting session and user...');
         setSession(session);
         setUser(session.user);
-        const name =
-          session.user.user_metadata?.full_name ||
-          session.user.email?.split('@')?.[0] ||
-          'User';
-        console.log('📊 DEBUG: Display name will be:', name);
-        setDisplayName(name);
+        const fullName = session.user.user_metadata?.full_name;
+        const firstName = fullName ? getFirstName(fullName) : (session.user.email?.split('@')?.[0] || 'User');
+        console.log('📊 DEBUG: Display name will be:', firstName);
+        setDisplayName(firstName);
         console.log('✅ DEBUG: Auth state set for onboarding flow');
         return;
       }
