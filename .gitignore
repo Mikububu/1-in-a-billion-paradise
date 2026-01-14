@@ -1,54 +1,9 @@
-# Dependencies
-node_modules/
-**/node_modules/
-
-# Build outputs
-dist/
-build/
-*.tsbuildinfo
-
-# Environment variables
+google-tts-credentials.json
 .env
-.env.local
-.env.*.local
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Temporary files
-*.tmp
-*.temp
-.cache/
-
-# Job data (local storage)
+node_modules/
+dist/
 jobs-data/
-*.json.bak
-
-# Supabase local
-.branches/
-.temp/
-
-# Audio/PDF artifacts (too large for git)
-*.mp3
-*.m4a
-*.wav
-*.pdf
-
-# Test outputs
-coverage/
-.nyc_output/
-
+generated-pdfs/
+benchmarks/
+_backups/
+.env
