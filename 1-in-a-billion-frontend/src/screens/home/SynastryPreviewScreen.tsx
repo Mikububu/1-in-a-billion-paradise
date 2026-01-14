@@ -344,18 +344,18 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
       case 'gateway':
         return (
           <View style={styles.page}>
+            {/* Background video - fullscreen */}
+            <Video
+              source={require('@/../assets/videos/want_the_full_picture.mp4')}
+              style={styles.gatewayBgVideo}
+              resizeMode={ResizeMode.COVER}
+              shouldPlay
+              isLooping
+              isMuted
+              rate={0.9}
+            />
+            
             <View style={styles.gatewayContainer}>
-              {/* Background video */}
-              <Video
-                source={require('@/../assets/videos/want_the_full_picture.mp4')}
-                style={styles.gatewayBgVideo}
-                resizeMode={ResizeMode.COVER}
-                shouldPlay
-                isLooping
-                isMuted
-                rate={0.9}
-              />
-
               {/* Card content */}
               <View style={styles.gatewayCard}>
                 <Text style={styles.gatewayTitle} selectable>
@@ -392,12 +392,6 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
   return (
     <SafeAreaView style={styles.container}>
       <BackButton onPress={() => navigation.goBack()} />
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.screenIdBadge}>
-          <Text style={styles.screenIdText}>{screenId}</Text>
-        </View>
-      </View>
       
       {/* Swipeable Pages */}
       <FlatList
@@ -446,19 +440,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.sansMedium,
     fontSize: 16,
     color: colors.primary,
-  },
-  screenIdBadge: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  screenIdText: {
-    fontFamily: typography.sansBold,
-    fontSize: 12,
-    color: colors.mutedText,
   },
   
   // Page
