@@ -77,9 +77,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                 title: 'We search for you!\nEvery Week!',
                 bgVideo: require('@/../assets/videos/we_search_for_you.mp4'),
                 body:
-                    `Dear soul of the sun, welcome to a quiet promise we make to you and keep every single week. ` +
-                    `With a yearly subscription of $9.90, you enter a living system where our background algorithms work continuously, comparing you with others through rare and guarded sources of Vedic astrology, seeking resonance, harmony, and that elusive closeness to a billion. ` +
-                    `This work happens gently and silently, and whenever someone appears whose alignment comes close, you receive a weekly update as a sign that the search is alive and unfolding.`,
+                    `Dear soul of the sun, welcome to a quiet promise we make to you and keep every single week. With a yearly subscription of $9.90, you enter a living system where our background algorithms work continuously, comparing you with others through rare and guarded sources of Vedic astrology, seeking resonance, harmony, and that elusive closeness to a billion. This work happens gently and silently, and whenever someone appears whose alignment comes close, you receive a weekly update as a sign that the search is alive and unfolding.`,
             },
             {
                 eyebrow: 'Your first year includes a gift',
