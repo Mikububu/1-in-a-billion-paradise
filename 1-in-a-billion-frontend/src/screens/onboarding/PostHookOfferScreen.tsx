@@ -8,6 +8,7 @@ import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { useFocusEffect } from '@react-navigation/native';
 import { createYearlySubscriptionIntent, getPaymentConfig } from '@/services/payments';
 import { useAuthStore } from '@/store/authStore';
+import { Video, ResizeMode } from 'expo-av';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'PostHookOffer'>;
 
@@ -34,6 +35,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
             {
                 eyebrow: 'A quiet promise',
                 title: 'We search for you!\nEvery Week!',
+                bgVideo: require('@/../assets/videos/we_search_for_you.mp4'),
                 body:
                     `Dear soul of the sun, welcome to a quiet promise we make to you and keep every single week.\n\n` +
                     `With a yearly subscription of $9.90, you enter a living system where our background algorithms work continuously, comparing you with others through rare and guarded sources of Vedic astrology, seeking resonance, harmony, and that elusive closeness to a billion.\n\n` +
@@ -171,6 +173,20 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     onMomentumScrollEnd={onScrollEnd}
                     renderItem={({ item }) => (
                         <View style={[styles.page, { width: PAGE_W }]}>
+                            {!!(item as any).bgVideo && (
+                                <View style={styles.pageVideoWrap} pointerEvents="none">
+                                    <Video
+                                        source={(item as any).bgVideo}
+                                        style={styles.pageVideo}
+                                        resizeMode={ResizeMode.COVER}
+                                        shouldPlay
+                                        isLooping
+                                        isMuted
+                                        rate={0.9}
+                                    />
+                                    <View style={styles.pageVideoFade} />
+                                </View>
+                            )}
                             {!!item.eyebrow && <Text style={styles.eyebrow}>{item.eyebrow}</Text>}
                             <Text style={styles.title} selectable>{item.title}</Text>
                             <Text style={styles.body} selectable>{item.body}</Text>
@@ -217,6 +233,23 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.page,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    pageVideoWrap: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: 280,
+        overflow: 'hidden',
+        opacity: 0.35, // balanced: present but never competes with text
+    },
+    pageVideo: {
+        width: '100%',
+        height: '100%',
+    },
+    pageVideoFade: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(255,255,255,0.55)',
     },
     eyebrow: {
         fontFamily: typography.sansSemiBold,
