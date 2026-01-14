@@ -95,166 +95,50 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         []
     );
 
-    // Preload all 3 pre-generated audio files when screen mounts
-    useEffect(() => {
-        let cancelled = false;
-
-        const preloadAllAudio = async () => {
-            isPreloadingAudioRef.current = true;
-            setIsPreloadingAudio(true);
-            console.log('🎵 Starting audio preload for offer screens...');
-            try {
-                // Set audio mode for playback
-                await Audio.setAudioModeAsync({
-                    playsInSilentModeIOS: true,
-                    staysActiveInBackground: false,
-                    shouldDuckAndroid: false,
-                });
-
-                // Use pre-generated audio URLs (update OFFER_AUDIO_URLS constant with actual paths)
-                const urls: (string | number | null)[] = OFFER_AUDIO_URLS.map((url, i) => {
-                    console.log(`✅ Audio URL ready for page ${i + 1}: ${url}`);
-                    return url;
-                });
-                
-                if (!cancelled) {
-                    console.log(`🎵 Audio URLs loaded: ${urls.length} files`);
-                    audioUrlsRef.current = urls;
-                    setAudioUrls(urls);
-                }
-            } catch (err: any) {
-                console.error('❌ Error preloading audio:', err?.message || err);
-            } finally {
-                if (!cancelled) {
-                    isPreloadingAudioRef.current = false;
-                    setIsPreloadingAudio(false);
-                }
-            }
-        };
-
-        preloadAllAudio();
-
-        return () => {
-            cancelled = true;
-            // Cleanup: stop and unload all sounds
-            soundRefs.current.forEach(async (sound, idx) => {
-                if (sound) {
-                    try {
-                        await sound.stopAsync();
-                        await sound.unloadAsync();
-                    } catch (e) {
-                        // Ignore cleanup errors
-                    }
-                    soundRefs.current[idx] = null;
-                }
-            });
-            currentPlayingIndex.current = null;
-        };
-    }, [pages]); // Re-run if pages change
-
     // Play/stop audio based on current page
     useEffect(() => {
-        let cancelled = false;
-        
-        const playAudioForPage = async (pageIndex: number) => {
-            if (cancelled) return;
-            
-            console.log(`🎵 Attempting to play audio for page ${pageIndex + 1}...`);
-            
-            // Stop any currently playing audio immediately
-            if (currentPlayingIndex.current !== null) {
-                const currentSound = soundRefs.current[currentPlayingIndex.current];
-                if (currentSound) {
-                    try {
-                        console.log(`⏹️ Stopping audio for page ${currentPlayingIndex.current + 1}`);
-                        await currentSound.stopAsync();
-                        await currentSound.unloadAsync();
-                    } catch (e) {
-                        // Ignore stop errors
-                    }
-                    soundRefs.current[currentPlayingIndex.current] = null;
-                }
-                currentPlayingIndex.current = null;
-                setIsAudioPlaying(false); // Hide yellow background when stopping
+        const playAudio = async () => {
+            // Stop any currently playing audio
+            if (soundRef.current) {
+                try {
+                    await soundRef.current.stopAsync();
+                    await soundRef.current.unloadAsync();
+                } catch (e) {}
+                soundRef.current = null;
             }
+            setIsAudioPlaying(false);
 
-            // Wait for audio to be ready (check every 500ms, max 60 seconds)
-            let attempts = 0;
-            const maxAttempts = 120; // 60 seconds max wait
-            
-            while (isPreloadingAudioRef.current || !audioUrlsRef.current[pageIndex]) {
-                if (cancelled) return;
-                attempts++;
-                if (attempts > maxAttempts) {
-                    console.warn(`⚠️ Timeout waiting for audio for page ${pageIndex + 1}`);
-                    return;
-                }
-                console.log(`⏳ Waiting for audio for page ${pageIndex + 1}... (attempt ${attempts})`);
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                // Re-check state (might have updated)
-                if (!isPreloadingAudioRef.current && audioUrlsRef.current[pageIndex]) {
-                    break;
-                }
-            }
-
-            // If still no audio URL, skip
-            const audioUrl = audioUrlsRef.current[pageIndex];
+            // Get audio URL for current page
+            const audioUrl = OFFER_AUDIO_URLS[page];
             if (!audioUrl) {
-                console.warn(`⚠️ No audio URL available for page ${pageIndex + 1} after waiting`);
+                console.warn(`No audio for page ${page + 1}`);
                 return;
             }
 
-            if (cancelled) return;
-
             try {
-                console.log(`▶️ Creating and playing audio for page ${pageIndex + 1}...`);
-                // Create and play new sound
-                // Handle both URL strings and require() sources
-                const source = typeof audioUrl === 'string' 
-                    ? { uri: audioUrl } 
-                    : audioUrl;
+                console.log(`🔊 Playing audio for page ${page + 1}: ${audioUrl}`);
+                
                 const { sound } = await Audio.Sound.createAsync(
-                    source,
-                    { shouldPlay: true, progressUpdateIntervalMillis: 250 }
+                    { uri: audioUrl },
+                    { shouldPlay: true }
                 );
                 
-                if (cancelled) {
-                    await sound.unloadAsync();
-                    return;
-                }
+                soundRef.current = sound;
+                setIsAudioPlaying(true);
                 
-                soundRefs.current[pageIndex] = sound;
-                currentPlayingIndex.current = pageIndex;
-                setIsAudioPlaying(true); // Show yellow background
-                console.log(`✅ Audio playing for page ${pageIndex + 1}`);
-
-                // Cleanup when audio finishes
                 sound.setOnPlaybackStatusUpdate((status) => {
-                    if (status.isLoaded) {
-                        if (status.didJustFinish) {
-                            console.log(`🏁 Audio finished for page ${pageIndex + 1}`);
-                            setIsAudioPlaying(false); // Hide yellow background
-                            soundRefs.current[pageIndex] = null;
-                            if (currentPlayingIndex.current === pageIndex) {
-                                currentPlayingIndex.current = null;
-                            }
-                        }
-                    } else if ('error' in status) {
-                        console.error(`❌ Audio playback error for page ${pageIndex + 1}:`, status.error);
+                    if (status.isLoaded && status.didJustFinish) {
+                        setIsAudioPlaying(false);
+                        soundRef.current = null;
                     }
                 });
             } catch (err: any) {
-                console.error(`❌ Error playing audio for page ${pageIndex + 1}:`, err?.message || err);
+                console.error(`Audio error for page ${page + 1}:`, err?.message || err);
             }
         };
 
-        playAudioForPage(page);
-        
-        return () => {
-            cancelled = true;
-        };
-    }, [page, audioUrls, isPreloadingAudio]);
+        playAudio();
+    }, [page]);
 
     const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const idx = Math.round(e.nativeEvent.contentOffset.x / PAGE_W);
