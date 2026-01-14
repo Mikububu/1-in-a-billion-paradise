@@ -152,7 +152,8 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: spacing.page,
-    justifyContent: 'center',
+    paddingTop: 60, // Fixed top position like other screens
+    justifyContent: 'flex-start', // Align to top instead of center
     alignItems: 'center',
   },
   textCard: {
