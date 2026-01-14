@@ -41,17 +41,17 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                 title: 'We search for you!\nEvery Week!',
                 bgVideo: require('@/../assets/videos/we_search_for_you.mp4'),
                 body:
-                    `Dear soul of the sun, welcome to a quiet promise we make to you and keep every single week.\n` +
-                    `With a yearly subscription of $9.90, you enter a living system where our background algorithms work continuously, comparing you with others through rare and guarded sources of Vedic astrology, seeking resonance, harmony, and that elusive closeness to a billion.\n` +
+                    `Dear soul of the sun, welcome to a quiet promise we make to you and keep every single week. ` +
+                    `With a yearly subscription of $9.90, you enter a living system where our background algorithms work continuously, comparing you with others through rare and guarded sources of Vedic astrology, seeking resonance, harmony, and that elusive closeness to a billion. ` +
                     `This work happens gently and silently, and whenever someone appears whose alignment comes close, you receive a weekly update as a sign that the search is alive and unfolding.`,
             },
             {
                 eyebrow: 'Your first year includes a gift',
                 title: 'One complete\npersonal reading.',
                 body:
-                    `Your first year includes something personal and intentional.\n` +
-                    `As part of your subscription, you receive one complete personal reading created only for you, drawn from one of our five systems Vedic astrology, Western astrology, Kabbalah, Human Design, or Gene Keys.\n` +
-                    `This is a deep individual reading focused solely on your own structure, timing, and inner design, delivered as an intimate audio experience of approximately 15 to 20 minutes.\n` +
+                    `Your first year includes something personal and intentional. ` +
+                    `As part of your subscription, you receive one complete personal reading created only for you, drawn from one of our five systems Vedic astrology, Western astrology, Kabbalah, Human Design, or Gene Keys. ` +
+                    `This is a deep individual reading focused solely on your own structure, timing, and inner design, delivered as an intimate audio experience of approximately 15 to 20 minutes. ` +
                     `This reading becomes your energetic anchor within our database, allowing future comparisons to be more precise, more meaningful, and more true to who you are.`,
             },
             {
@@ -60,8 +60,8 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                 // Bottom band video (fits nicely above the CTA on page 3)
                 bgVideo: require('@/../assets/videos/lets_connet.mp4'),
                 body:
-                    `This is not a transaction but an initiation.\n` +
-                    `For $9.90, you receive ongoing discovery, quiet precision, and a personal reading offered as a gift, not an upsell.\n` +
+                    `This is not a transaction but an initiation. ` +
+                    `For $9.90, you receive ongoing discovery, quiet precision, and a personal reading offered as a gift, not an upsell. ` +
                     `Enter gently, stay curious, and allow the system to work for you in the background, week after week, as your path unfolds.`,
             },
         ],
@@ -82,11 +82,11 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
             try {
                 stripeModule = require('@stripe/stripe-react-native');
             } catch {
-                Alert.alert(
+            Alert.alert(
                     'Payments Not Available',
                     'Apple Pay / Google Pay requires a full app build (TestFlight / production).',
-                    [{ text: 'OK' }]
-                );
+                [{ text: 'OK' }]
+            );
                 setIsPaying(false);
                 return;
             }
@@ -201,7 +201,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                             </View>
                             {/* Reserve space so text/dots never overlay the video band */}
                             <View style={styles.bottomReserve} />
-                        </View>
+                    </View>
                         );
                     }}
                 />
