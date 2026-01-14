@@ -9,7 +9,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { createYearlySubscriptionIntent, getPaymentConfig } from '@/services/payments';
 import { useAuthStore } from '@/store/authStore';
 import { Video, ResizeMode, Audio } from 'expo-av';
-import { audioApi } from '@/services/api';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'PostHookOffer'>;
 
@@ -19,8 +18,13 @@ const DOTS_H = 24;
 const CTA_AREA_H = 80;
 const BOTTOM_PADDING = 20; // consistent bottom padding for all pages
 
-// David's voice sample URL for TTS voice cloning
-const DAVID_VOICE_URL = 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/david.wav';
+// Pre-generated offer screen audio files (David's voice)
+// TODO: Update these paths to match your actual file locations
+const OFFER_AUDIO_URLS = [
+    'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/offer-audio/page_1.mp3', // Page 1: "We search for you!"
+    'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/offer-audio/page_2.mp3', // Page 2: "One complete personal reading"
+    'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/offer-audio/page_3.mp3', // Page 3: "Become part of a movement"
+];
 
 export const PostHookOfferScreen = ({ navigation }: Props) => {
     const listRef = useRef<FlatList<any>>(null);
@@ -30,12 +34,13 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     const userId = useAuthStore((s) => s.user?.id || 'anonymous');
     const userEmail = useAuthStore((s) => s.user?.email || '');
     
-    // Audio state: preloaded audio URLs and sound instances
-    const [audioUrls, setAudioUrls] = useState<(string | null)[]>([null, null, null]);
+    // Audio state: preloaded audio URLs/sources and sound instances
+    // Can be string URLs or require() sources (number)
+    const [audioUrls, setAudioUrls] = useState<(string | number | null)[]>([null, null, null]);
     const [isPreloadingAudio, setIsPreloadingAudio] = useState(true);
     const soundRefs = useRef<(Audio.Sound | null)[]>([null, null, null]);
     const currentPlayingIndex = useRef<number | null>(null);
-    const audioUrlsRef = useRef<(string | null)[]>([null, null, null]);
+    const audioUrlsRef = useRef<(string | number | null)[]>([null, null, null]);
     const isPreloadingAudioRef = useRef(true);
 
     // (dev logs removed)
@@ -100,7 +105,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         []
     );
 
-    // Preload all 3 audio files using David's voice when screen mounts
+    // Preload all 3 pre-generated audio files when screen mounts
     useEffect(() => {
         let cancelled = false;
 
@@ -116,35 +121,14 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     shouldDuckAndroid: false,
                 });
 
-                const urls: (string | null)[] = [];
-                
-                // Generate TTS for each page's body text
-                for (let i = 0; i < pages.length; i++) {
-                    if (cancelled) return;
-                    
-                    console.log(`🎤 Generating audio for page ${i + 1}...`);
-                    try {
-                        const result = await audioApi.generateTTS(pages[i]!.body, {
-                            audioUrl: DAVID_VOICE_URL,
-                            exaggeration: 0.5,
-                        });
-                        
-                        if (result.success && result.audioBase64) {
-                            urls[i] = `data:audio/mpeg;base64,${result.audioBase64}`;
-                            console.log(`✅ Audio generated for page ${i + 1} (${Math.round(result.audioBase64.length / 1024)}KB)`);
-                        } else {
-                            console.warn(`❌ Failed to generate audio for page ${i + 1}:`, result.error);
-                            urls[i] = null;
-                        }
-                    } catch (err: any) {
-                        console.error(`❌ Error generating audio for page ${i + 1}:`, err?.message || err);
-                        urls[i] = null;
-                    }
-                }
+                // Use pre-generated audio URLs (update OFFER_AUDIO_URLS constant with actual paths)
+                const urls: (string | number | null)[] = OFFER_AUDIO_URLS.map((url, i) => {
+                    console.log(`✅ Audio URL ready for page ${i + 1}: ${url}`);
+                    return url;
+                });
                 
                 if (!cancelled) {
-                    const loadedCount = urls.filter(u => u !== null).length;
-                    console.log(`🎵 Audio preload complete: ${loadedCount}/${pages.length} files ready`);
+                    console.log(`🎵 Audio URLs loaded: ${urls.length} files`);
                     audioUrlsRef.current = urls;
                     setAudioUrls(urls);
                 }
@@ -235,8 +219,12 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
             try {
                 console.log(`▶️ Creating and playing audio for page ${pageIndex + 1}...`);
                 // Create and play new sound
+                // Handle both URL strings and require() sources
+                const source = typeof audioUrl === 'string' 
+                    ? { uri: audioUrl } 
+                    : audioUrl;
                 const { sound } = await Audio.Sound.createAsync(
-                    { uri: audioUrl },
+                    source,
                     { shouldPlay: true, progressUpdateIntervalMillis: 250 }
                 );
                 
