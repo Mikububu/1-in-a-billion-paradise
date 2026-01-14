@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, View, Alert, FlatList, NativeScrollEvent, NativeSyntheticEvent, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -8,7 +8,8 @@ import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { useFocusEffect } from '@react-navigation/native';
 import { createYearlySubscriptionIntent, getPaymentConfig } from '@/services/payments';
 import { useAuthStore } from '@/store/authStore';
-import { Video, ResizeMode } from 'expo-av';
+import { Video, ResizeMode, Audio } from 'expo-av';
+import { audioApi } from '@/services/api';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'PostHookOffer'>;
 
@@ -18,6 +19,9 @@ const DOTS_H = 24;
 const CTA_AREA_H = 80;
 const BOTTOM_PADDING = 20; // consistent bottom padding for all pages
 
+// David's voice sample URL for TTS voice cloning
+const DAVID_VOICE_URL = 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/david.wav';
+
 export const PostHookOfferScreen = ({ navigation }: Props) => {
     const listRef = useRef<FlatList<any>>(null);
     const [page, setPage] = useState(0);
@@ -25,6 +29,12 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     const swipeStartX = useRef<number | null>(null);
     const userId = useAuthStore((s) => s.user?.id || 'anonymous');
     const userEmail = useAuthStore((s) => s.user?.email || '');
+    
+    // Audio state: preloaded audio URLs and sound instances
+    const [audioUrls, setAudioUrls] = useState<(string | null)[]>([null, null, null]);
+    const [isPreloadingAudio, setIsPreloadingAudio] = useState(true);
+    const soundRefs = useRef<(Audio.Sound | null)[]>([null, null, null]);
+    const currentPlayingIndex = useRef<number | null>(null);
 
     // (dev logs removed)
 
@@ -33,6 +43,22 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         useCallback(() => {
             setPage(0);
             listRef.current?.scrollToOffset({ offset: 0, animated: false });
+            
+            // Cleanup: stop all audio when screen loses focus
+            return () => {
+                soundRefs.current.forEach(async (sound, idx) => {
+                    if (sound) {
+                        try {
+                            await sound.stopAsync();
+                            await sound.unloadAsync();
+                        } catch (e) {
+                            // Ignore cleanup errors
+                        }
+                        soundRefs.current[idx] = null;
+                    }
+                });
+                currentPlayingIndex.current = null;
+            };
         }, [])
     );
 
@@ -71,6 +97,125 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         ],
         []
     );
+
+    // Preload all 3 audio files using David's voice when screen mounts
+    useEffect(() => {
+        let cancelled = false;
+
+        const preloadAllAudio = async () => {
+            setIsPreloadingAudio(true);
+            try {
+                // Set audio mode for playback
+                await Audio.setAudioModeAsync({
+                    playsInSilentModeIOS: true,
+                    staysActiveInBackground: false,
+                    shouldDuckAndroid: false,
+                });
+
+                const urls: (string | null)[] = [];
+                
+                // Generate TTS for each page's body text
+                for (let i = 0; i < pages.length; i++) {
+                    if (cancelled) return;
+                    
+                    try {
+                        const result = await audioApi.generateTTS(pages[i]!.body, {
+                            audioUrl: DAVID_VOICE_URL,
+                            exaggeration: 0.5,
+                        });
+                        
+                        if (result.success && result.audioBase64) {
+                            urls[i] = `data:audio/mpeg;base64,${result.audioBase64}`;
+                        } else {
+                            console.warn(`Failed to generate audio for page ${i + 1}:`, result.error);
+                            urls[i] = null;
+                        }
+                    } catch (err) {
+                        console.error(`Error generating audio for page ${i + 1}:`, err);
+                        urls[i] = null;
+                    }
+                }
+                
+                if (!cancelled) {
+                    setAudioUrls(urls);
+                }
+            } catch (err) {
+                console.error('Error preloading audio:', err);
+            } finally {
+                if (!cancelled) {
+                    setIsPreloadingAudio(false);
+                }
+            }
+        };
+
+        preloadAllAudio();
+
+        return () => {
+            cancelled = true;
+            // Cleanup: stop and unload all sounds
+            soundRefs.current.forEach(async (sound, idx) => {
+                if (sound) {
+                    try {
+                        await sound.stopAsync();
+                        await sound.unloadAsync();
+                    } catch (e) {
+                        // Ignore cleanup errors
+                    }
+                    soundRefs.current[idx] = null;
+                }
+            });
+            currentPlayingIndex.current = null;
+        };
+    }, []); // Only run once on mount
+
+    // Play/stop audio based on current page
+    useEffect(() => {
+        const playAudioForPage = async (pageIndex: number) => {
+            // Stop any currently playing audio immediately
+            if (currentPlayingIndex.current !== null) {
+                const currentSound = soundRefs.current[currentPlayingIndex.current];
+                if (currentSound) {
+                    try {
+                        await currentSound.stopAsync();
+                        await currentSound.unloadAsync();
+                    } catch (e) {
+                        // Ignore stop errors
+                    }
+                    soundRefs.current[currentPlayingIndex.current] = null;
+                }
+                currentPlayingIndex.current = null;
+            }
+
+            // If no audio URL for this page, skip
+            const audioUrl = audioUrls[pageIndex];
+            if (!audioUrl || isPreloadingAudio) return;
+
+            try {
+                // Create and play new sound
+                const { sound } = await Audio.Sound.createAsync(
+                    { uri: audioUrl },
+                    { shouldPlay: true, progressUpdateIntervalMillis: 250 }
+                );
+                
+                soundRefs.current[pageIndex] = sound;
+                currentPlayingIndex.current = pageIndex;
+
+                // Cleanup when audio finishes
+                sound.setOnPlaybackStatusUpdate((status) => {
+                    if (status.isLoaded && status.didJustFinish) {
+                        soundRefs.current[pageIndex] = null;
+                        if (currentPlayingIndex.current === pageIndex) {
+                            currentPlayingIndex.current = null;
+                        }
+                    }
+                });
+            } catch (err) {
+                console.error(`Error playing audio for page ${pageIndex + 1}:`, err);
+            }
+        };
+
+        playAudioForPage(page);
+    }, [page, audioUrls, isPreloadingAudio]);
 
     const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const idx = Math.round(e.nativeEvent.contentOffset.x / PAGE_W);
@@ -169,6 +314,16 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     keyExtractor={(_, idx) => `offer-${idx}`}
                     onScrollBeginDrag={(e) => {
                         swipeStartX.current = e.nativeEvent.contentOffset.x;
+                        // Stop audio immediately when user starts swiping
+                        if (currentPlayingIndex.current !== null) {
+                            const currentSound = soundRefs.current[currentPlayingIndex.current];
+                            if (currentSound) {
+                                currentSound.stopAsync().catch(() => {});
+                                currentSound.unloadAsync().catch(() => {});
+                                soundRefs.current[currentPlayingIndex.current] = null;
+                            }
+                            currentPlayingIndex.current = null;
+                        }
                     }}
                     onScrollEndDrag={(e) => {
                         const start = swipeStartX.current;
