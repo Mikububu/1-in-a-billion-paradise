@@ -973,6 +973,25 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     setPage(index);
     // Swipe-only handoff: the 4th page auto-navigates to the next module after a tiny delay.
     if (index === 3) {
+      // Fade out Whispering Breeze before navigating to offer screens
+      if (bgMusicRef.current) {
+        bgMusicRef.current.setVolumeAsync(0.12).then(() => {
+          // Fade out over 2 seconds
+          const fadeOut = async () => {
+            for (let vol = 0.12; vol >= 0; vol -= 0.02) {
+              await new Promise(resolve => setTimeout(resolve, 100));
+              if (bgMusicRef.current) {
+                bgMusicRef.current.setVolumeAsync(vol).catch(() => {});
+              }
+            }
+            if (bgMusicRef.current) {
+              bgMusicRef.current.stopAsync().catch(() => {});
+            }
+          };
+          fadeOut();
+        }).catch(() => {});
+      }
+      
       setTimeout(() => {
         // @ts-ignore
         navigation.navigate('AddThirdPersonPrompt');
