@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontFamily: typography.sansRegular,
     fontSize: 16,
-    color: colors.mutedText,
+    color: colors.text, // keep text black
     textAlign: 'center',
     lineHeight: 24,
     maxWidth: 340,
