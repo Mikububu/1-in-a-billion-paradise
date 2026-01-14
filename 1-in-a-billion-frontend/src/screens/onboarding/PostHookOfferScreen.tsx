@@ -187,7 +187,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                                     <View style={styles.pageVideoFade} />
                                 </View>
                             )}
-                            {!!item.eyebrow && <Text style={styles.eyebrow}>{item.eyebrow}</Text>}
+                            {/* Remove “chapter” label for more space + cleaner composition */}
                             <Text style={styles.title} selectable>{item.title}</Text>
                             <Text style={styles.body} selectable>{item.body}</Text>
                         </View>
@@ -204,16 +204,6 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                         />
                     </View>
                 ) : null}
-
-                {/* Swiper dots: keep them below the CTA buttons */}
-                <View style={styles.dots}>
-                    {pages.map((_, idx) => (
-                        <View
-                            key={`dot-${idx}`}
-                            style={[styles.dot, idx === page && styles.dotActive]}
-                        />
-                    ))}
-                </View>
             </View>
         </SafeAreaView>
     );
@@ -230,7 +220,10 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.lg,
     },
     page: {
+        flex: 1,
         paddingHorizontal: spacing.page,
+        // Reserve space so text never overlays the bottom video band.
+        paddingBottom: 240 + spacing.lg,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -239,9 +232,9 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        height: 280,
+        height: 220, // smaller, still edge-to-edge
         overflow: 'hidden',
-        opacity: 0.35, // balanced: present but never competes with text
+        opacity: 0.22, // non-opaque: video is a subtle atmosphere, not a background layer for text
     },
     pageVideo: {
         width: '100%',
@@ -249,16 +242,7 @@ const styles = StyleSheet.create({
     },
     pageVideoFade: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(255,255,255,0.55)',
-    },
-    eyebrow: {
-        fontFamily: typography.sansSemiBold,
-        fontSize: 12,
-        letterSpacing: 1.2,
-        textTransform: 'uppercase',
-        color: colors.mutedText,
-        marginBottom: spacing.sm,
-        textAlign: 'center',
+        backgroundColor: 'rgba(255,255,255,0.35)',
     },
     title: {
         fontFamily: typography.headline,
@@ -274,25 +258,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 24,
         maxWidth: 340,
-    },
-    dots: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: spacing.sm,
-        marginBottom: spacing.md,
-        gap: 8,
-    },
-    dot: {
-        width: 7,
-        height: 7,
-        borderRadius: 999,
-        backgroundColor: '#D1D5DB',
-        opacity: 0.6,
-    },
-    dotActive: {
-        backgroundColor: colors.primary,
-        opacity: 1,
     },
     button: {
         marginHorizontal: spacing.page,
