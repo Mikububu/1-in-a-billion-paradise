@@ -350,7 +350,16 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     // No secondary CTA; user can swipe freely.
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, isAudioPlaying && styles.containerPlaying]}>
+            {/* DEBUG: Show audio status */}
+            <View style={styles.debugBanner}>
+                <Text style={styles.debugText}>
+                    {isPreloadingAudio ? '⏳ Loading audio...' : 
+                     isAudioPlaying ? '🔊 AUDIO PLAYING' : 
+                     '🔇 No audio playing'}
+                </Text>
+                <Text style={styles.debugText}>Page {page + 1}/3</Text>
+            </View>
             <View style={styles.content}>
                 <FlatList
                     ref={listRef}
@@ -476,8 +485,25 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        // Keep root transparent so leather texture always shows through.
         backgroundColor: 'transparent',
+    },
+    containerPlaying: {
+        backgroundColor: 'rgba(250, 204, 21, 0.3)', // Yellow overlay when playing
+    },
+    debugBanner: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        padding: 10,
+        zIndex: 9999,
+        alignItems: 'center',
+    },
+    debugText: {
+        color: '#fff',
+        fontSize: 14,
+        fontFamily: typography.sansBold,
     },
     content: {
         flex: 1,
@@ -493,16 +519,14 @@ const styles = StyleSheet.create({
         flex: 1,
         width: '100%',
         alignItems: 'center',
-        // Anchor headlines to the same top position across all pages.
         justifyContent: 'flex-start',
-        paddingTop: spacing.xxl, // consistent top offset (safe-area + notch friendly)
+        paddingTop: spacing.xxl,
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.lg,
         borderRadius: 16,
-        transition: 'background-color 0.3s ease',
     },
     textBlockPlaying: {
-        backgroundColor: colors.highlightYellow, // Yellow karaoke background when audio is playing
+        backgroundColor: colors.highlightYellow,
     },
     bottomReserve: {
         // Dynamic per-page height is set inline.
