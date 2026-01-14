@@ -1,187 +1,113 @@
-import React, { useCallback, useState } from 'react';
-import { StyleSheet, Text, View, Alert, ActivityIndicator } from 'react-native';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { StyleSheet, Text, View, Alert, FlatList, NativeScrollEvent, NativeSyntheticEvent, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
 import { Button } from '@/components/Button';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
-import { useOnboardingStore } from '@/store/onboardingStore';
 import { useFocusEffect } from '@react-navigation/native';
-import { useAuthStore } from '@/store/authStore';
-import { useProfileStore } from '@/store/profileStore';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'PostHookOffer'>;
 
+const { width: PAGE_W } = Dimensions.get('window');
+
 export const PostHookOfferScreen = ({ navigation }: Props) => {
-    const completeOnboarding = useOnboardingStore((s) => s.completeOnboarding);
-    const setRedirectAfterOnboarding = useOnboardingStore((s: any) => s.setRedirectAfterOnboarding);
-
-    const {
-        name,
-        birthDate,
-        birthTime,
-        birthCity,
-        hookReadings,
-        relationshipMode,
-        relationshipIntensity
-    } = useOnboardingStore();
-    const sessionId = useAuthStore(s => s.session?.user?.id);
-    const email = useAuthStore(s => s.session?.user?.email);
-
-    // Loading state for dashboard transition
-    const [isTransitioning, setIsTransitioning] = useState(false);
+    const listRef = useRef<FlatList<any>>(null);
+    const [page, setPage] = useState(0);
 
     // If user ever comes back to this screen, re-enable buttons.
     useFocusEffect(
         useCallback(() => {
-            setIsTransitioning(false);
+            setPage(0);
+            listRef.current?.scrollToOffset({ offset: 0, animated: false });
         }, [])
     );
 
-    const buildBirthDataObject = () => {
-        return (birthDate && birthTime && birthCity) ? {
-            birthDate,
-            birthTime,
-            birthCity: birthCity.name,
-            timezone: birthCity.timezone,
-            latitude: birthCity.latitude,
-            longitude: birthCity.longitude
-        } : undefined;
+    const pages = useMemo(
+        () => [
+            {
+                eyebrow: 'A quiet promise',
+                title: 'We search for you\n— every week.',
+                body:
+                    `Dear soul of the sun, welcome to a quiet promise we make to you and keep every single week.\n\n` +
+                    `With a yearly subscription of $9.90, you enter a living system where our background algorithms work continuously, comparing you with others through rare and guarded sources of Vedic astrology, seeking resonance, harmony, and that elusive closeness to a billion.\n\n` +
+                    `This work happens gently and silently, and whenever someone appears whose alignment comes close, you receive a weekly update as a sign that the search is alive and unfolding.`,
+            },
+            {
+                eyebrow: 'Your first year includes a gift',
+                title: 'One complete\npersonal reading.',
+                body:
+                    `Your first year includes something personal and intentional.\n\n` +
+                    `As part of your subscription, you receive one complete personal reading created only for you, drawn from one of our five systems Vedic astrology, Western astrology, Kabbalah, Human Design, or Gene Keys.\n\n` +
+                    `This is a deep individual reading focused solely on your own structure, timing, and inner design, delivered as an intimate audio experience of approximately 15 to 20 minutes.\n\n` +
+                    `This reading becomes your energetic anchor within our database, allowing future comparisons to be more precise, more meaningful, and more true to who you are.`,
+            },
+            {
+                eyebrow: 'An initiation',
+                title: 'Not a transaction.\nA beginning.',
+                body:
+                    `This is not a transaction but an initiation.\n\n` +
+                    `For $9.90, you receive ongoing discovery, quiet precision, and a personal reading offered as a gift, not an upsell.\n\n` +
+                    `Enter gently, stay curious, and allow the system to work for you in the background, week after week, as your path unfolds.`,
+            },
+        ],
+        []
+    );
+
+    const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+        const idx = Math.round(e.nativeEvent.contentOffset.x / PAGE_W);
+        setPage(Math.max(0, Math.min(pages.length - 1, idx)));
     };
 
-    const buildPlacements = () => {
-        return hookReadings ? {
-            sunSign: hookReadings.sun?.sign || '',
-            moonSign: hookReadings.moon?.sign || '',
-            risingSign: hookReadings.rising?.sign || '',
-        } : undefined;
-    };
-
-    const saveLocal = (birthDataObject: any, placements: any) => {
-        if (!name || !birthDataObject) return;
-        console.log('💾 Saving user locally to ProfileStore...');
-        useProfileStore.getState().addPerson({
-            name,
-            isUser: true,
-            birthData: birthDataObject,
-            placements,
-            hookReadings: hookReadings as any
-        });
-    };
-
-    const syncCloud = async (birthDataObject: any, placements: any) => {
-        // Save to CLOUD (Supabase)
-        if (!sessionId) {
-            console.error('❌ CRITICAL: User must be authenticated to complete onboarding');
-            Alert.alert(
-                'Authentication Required',
-                'You must be signed in to save your readings. Please sign in and try again.',
-                [{ text: 'OK' }]
-            );
-            throw new Error('User must be authenticated to complete onboarding');
+    const handleNext = () => {
+        if (page < pages.length - 1) {
+            listRef.current?.scrollToOffset({ offset: (page + 1) * PAGE_W, animated: true });
+            setPage(page + 1);
+            return;
         }
-
-        console.log('☁️  Syncing user to Supabase...');
-        try {
-            // Import dynamically to avoid cycles if any
-            const { upsertSelfProfileToSupabase } = await import('@/services/profileUpsert');
-
-            await upsertSelfProfileToSupabase({
-                userId: sessionId,
-                email: email || '',
-                displayName: name || 'User',
-                relationshipMode,
-                relationshipIntensity,
-                birthData: birthDataObject,
-                placements,  // ← Now saving star signs to database
-                hookReadings: hookReadings as any
-            });
-        } catch (e) {
-            console.error('❌ Error saving profile to cloud:', e);
-            Alert.alert(
-                'Save Error',
-                'Failed to save your profile. Please try again.',
-                [{ text: 'OK' }]
-            );
-            throw e;
-        }
-    };
-
-    const complete = (nextScreen?: string) => {
-        if (nextScreen && setRedirectAfterOnboarding) {
-            setRedirectAfterOnboarding(nextScreen);
-        }
-        completeOnboarding();
-    };
-
-    const handleYes = async () => {
-        // IMPORTANT: This path should feel instant.
-        // Navigate immediately; sync in background.
-        const birthDataObject = buildBirthDataObject();
-        const placements = buildPlacements();
-        saveLocal(birthDataObject, placements);
-
-        try {
-            complete('PartnerInfo');
-            // Fire-and-forget cloud sync. Don't block navigation UX.
-            syncCloud(birthDataObject, placements).catch((error) => {
-                console.error('⚠️ Background profile sync failed (non-blocking):', error);
-            });
-        } catch (error) {
-            console.error('❌ Transition (YES) failed:', error);
-        }
-    };
-
-    const handleNo = async () => {
-        // User says "No" → save everything and complete onboarding → Dashboard
-        setIsTransitioning(true);
-        console.log('🔄 Starting dashboard transition...');
-        try {
-            const birthDataObject = buildBirthDataObject();
-            const placements = buildPlacements();
-            saveLocal(birthDataObject, placements);
-            await syncCloud(birthDataObject, placements);
-            complete();
-        } catch (error) {
-            console.error('❌ Transition failed:', error);
-            setIsTransitioning(false);
-        }
+        // NOTE: Purchase flow is the next step. We intentionally do NOT create a Supabase user here.
+        Alert.alert(
+            'Next step',
+            'Subscription purchase flow is the next step. After purchase, we will create your account and ask for your photo.',
+            [{ text: 'OK' }]
+        );
     };
 
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.content}>
-                <Text style={styles.title} selectable>
-                    Would you like to do a reading for another person?
-                </Text>
-                <Text style={styles.subtitle} selectable>
-                    Add a third person to unlock a free reading and a two person compatibility analysis.
-                </Text>
+                <FlatList
+                    ref={listRef}
+                    data={pages}
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    keyExtractor={(_, idx) => `offer-${idx}`}
+                    onMomentumScrollEnd={onScrollEnd}
+                    renderItem={({ item }) => (
+                        <View style={[styles.page, { width: PAGE_W }]}>
+                            <Text style={styles.eyebrow}>{item.eyebrow}</Text>
+                            <Text style={styles.title} selectable>{item.title}</Text>
+                            <Text style={styles.body} selectable>{item.body}</Text>
+                        </View>
+                    )}
+                />
 
-                <View style={styles.spacer} />
-
-                {isTransitioning ? (
-                    <View style={[styles.button, styles.transitioningButton]}>
-                        <ActivityIndicator size="small" color={colors.text} style={{ marginRight: 12 }} />
-                        <Text style={styles.transitioningText}>TRANSFERRING YOU...</Text>
-                    </View>
-                ) : (
-                    <>
-                        <Button
-                            label="YES, ADD A PERSON"
-                            onPress={handleYes}
-                            variant="primary"
-                            style={styles.button}
+                <View style={styles.dots}>
+                    {pages.map((_, idx) => (
+                        <View
+                            key={`dot-${idx}`}
+                            style={[styles.dot, idx === page && styles.dotActive]}
                         />
+                    ))}
+                </View>
 
-                        <Button
-                            label="NO, CONTINUE TO DASHBOARD"
-                            onPress={handleNo}
-                            variant="secondary"
-                            style={styles.button}
-                        />
-                    </>
-                )}
+                <Button
+                    label={page < pages.length - 1 ? 'Next' : 'Start 1‑Year Subscription — $9.90'}
+                    onPress={handleNext}
+                    variant="primary"
+                    style={styles.button}
+                />
             </View>
         </SafeAreaView>
     );
@@ -195,9 +121,21 @@ const styles = StyleSheet.create({
     },
     content: {
         flex: 1,
-        padding: spacing.page,
+        paddingVertical: spacing.lg,
+    },
+    page: {
+        paddingHorizontal: spacing.page,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    eyebrow: {
+        fontFamily: typography.sansSemiBold,
+        fontSize: 12,
+        letterSpacing: 1.2,
+        textTransform: 'uppercase',
+        color: colors.mutedText,
+        marginBottom: spacing.sm,
+        textAlign: 'center',
     },
     title: {
         fontFamily: typography.headline,
@@ -206,35 +144,34 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginBottom: spacing.md,
     },
-    subtitle: {
+    body: {
         fontFamily: typography.sansRegular,
-        fontSize: 16,
+        fontSize: 15,
         color: colors.mutedText,
         textAlign: 'center',
-        marginBottom: spacing.xl,
         lineHeight: 24,
+        maxWidth: 340,
     },
-    spacer: {
-        flex: 0.2, // Visual space
-    },
-    button: {
-        width: '100%',
-        marginBottom: spacing.md,
-    },
-    transitioningButton: {
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: colors.buttonBg,
-        borderWidth: 1,
-        borderColor: colors.border,
+    dots: {
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
+        marginTop: spacing.md,
+        marginBottom: spacing.lg,
+        gap: 8,
     },
-    transitioningText: {
-        fontFamily: typography.headline,
-        fontSize: 16,
-        color: colors.text,
-        letterSpacing: 1,
+    dot: {
+        width: 7,
+        height: 7,
+        borderRadius: 999,
+        backgroundColor: '#D1D5DB',
+        opacity: 0.6,
+    },
+    dotActive: {
+        backgroundColor: colors.primary,
+        opacity: 1,
+    },
+    button: {
+        marginHorizontal: spacing.page,
     },
 });
