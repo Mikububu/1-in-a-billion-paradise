@@ -43,8 +43,8 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     `This reading becomes your energetic anchor within our database, allowing future comparisons to be more precise, more meaningful, and more true to who you are.`,
             },
             {
-                eyebrow: 'An initiation',
-                title: 'Not a transaction.\nA beginning.',
+                eyebrow: '',
+                title: 'Become part of\na movement of Souls',
                 body:
                     `This is not a transaction but an initiation.\n\n` +
                     `For $9.90, you receive ongoing discovery, quiet precision, and a personal reading offered as a gift, not an upsell.\n\n` +
@@ -57,14 +57,6 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const idx = Math.round(e.nativeEvent.contentOffset.x / PAGE_W);
         setPage(Math.max(0, Math.min(pages.length - 1, idx)));
-    };
-
-    const handleNext = () => {
-        if (page < pages.length - 1) {
-            listRef.current?.scrollToOffset({ offset: (page + 1) * PAGE_W, animated: true });
-            setPage(page + 1);
-            return;
-        }
     };
 
     const handleBuy = () => {
@@ -91,13 +83,31 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     onMomentumScrollEnd={onScrollEnd}
                     renderItem={({ item }) => (
                         <View style={[styles.page, { width: PAGE_W }]}>
-                            <Text style={styles.eyebrow}>{item.eyebrow}</Text>
+                            {!!item.eyebrow && <Text style={styles.eyebrow}>{item.eyebrow}</Text>}
                             <Text style={styles.title} selectable>{item.title}</Text>
                             <Text style={styles.body} selectable>{item.body}</Text>
                         </View>
                     )}
                 />
 
+                {page === pages.length - 1 ? (
+                    <View style={styles.ctaContainer}>
+                        <Button
+                            label="YES I want to buy"
+                            onPress={handleBuy}
+                            variant="primary"
+                            style={[styles.button, styles.buttonPrimary]}
+                        />
+                        <Button
+                            label="No maybe another time"
+                            onPress={handleNoMaybe}
+                            variant="secondary"
+                            style={[styles.button, styles.buttonSecondary]}
+                        />
+                    </View>
+                ) : null}
+
+                {/* Swiper dots: keep them below the CTA buttons */}
                 <View style={styles.dots}>
                     {pages.map((_, idx) => (
                         <View
@@ -106,30 +116,6 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                         />
                     ))}
                 </View>
-
-                {page < pages.length - 1 ? (
-                    <Button
-                        label="Next"
-                        onPress={handleNext}
-                        variant="primary"
-                        style={styles.button}
-                    />
-                ) : (
-                    <>
-                        <Button
-                            label="YES I want to buy"
-                            onPress={handleBuy}
-                            variant="primary"
-                            style={styles.button}
-                        />
-                        <Button
-                            label="No maybe another time"
-                            onPress={handleNoMaybe}
-                            variant="secondary"
-                            style={styles.button}
-                        />
-                    </>
-                )}
             </View>
         </SafeAreaView>
     );
@@ -178,8 +164,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: spacing.md,
-        marginBottom: spacing.lg,
+        marginTop: spacing.sm,
+        marginBottom: spacing.md,
         gap: 8,
     },
     dot: {
@@ -195,5 +181,14 @@ const styles = StyleSheet.create({
     },
     button: {
         marginHorizontal: spacing.page,
+    },
+    ctaContainer: {
+        marginBottom: spacing.md,
+    },
+    buttonPrimary: {
+        marginBottom: spacing.md,
+    },
+    buttonSecondary: {
+        marginTop: 0,
     },
 });
