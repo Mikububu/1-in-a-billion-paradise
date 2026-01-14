@@ -23,6 +23,13 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     const userId = useAuthStore((s) => s.user?.id || 'anonymous');
     const userEmail = useAuthStore((s) => s.user?.email || '');
 
+    // DEBUG TAG: helps confirm which JS bundle is running on device.
+    // (No UI; only logs.)
+    if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.log('🧾 PostHookOfferScreen BUILD_TAG:', 'offer_no_dots_f832d30');
+    }
+
     // If user ever comes back to this screen, re-enable buttons.
     useFocusEffect(
         useCallback(() => {
