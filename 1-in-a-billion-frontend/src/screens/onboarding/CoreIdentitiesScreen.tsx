@@ -746,11 +746,6 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
         <View style={styles.loadingBarContainer}>
           <View style={[styles.loadingBar, { width: `${progress}%` }]} />
         </View>
-
-        {/* Status text */}
-        <Text style={styles.statusText} selectable>
-          {statusText}
-        </Text>
       </View>
 
       {/* Initialization Overlay - Prevents white flash during navigation */}
