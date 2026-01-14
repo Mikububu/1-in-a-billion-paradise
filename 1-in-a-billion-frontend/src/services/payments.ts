@@ -37,6 +37,16 @@ interface PaymentIntentResult {
   error?: string;
 }
 
+interface SubscriptionIntentResult {
+  success: boolean;
+  customerId?: string;
+  ephemeralKeySecret?: string;
+  subscriptionId?: string;
+  paymentIntentClientSecret?: string;
+  priceId?: string;
+  error?: string;
+}
+
 interface PaymentStatus {
   success: boolean;
   status?: string;
@@ -119,6 +129,48 @@ export async function createPaymentIntent(params: {
       success: false,
       error: error.message || 'Network error',
     };
+  }
+}
+
+/**
+ * Create a yearly subscription (Stripe price id configured on backend).
+ * This returns the pieces needed for Stripe PaymentSheet with a customer:
+ * - customerId
+ * - customerEphemeralKeySecret
+ * - paymentIntentClientSecret (from latest_invoice)
+ */
+export async function createYearlySubscriptionIntent(params: {
+  userId: string; // can be 'anonymous' pre-signup
+  userEmail?: string;
+}): Promise<SubscriptionIntentResult> {
+  try {
+    const response = await fetch(`${API_URL}/api/payments/create-subscription`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-Id': params.userId,
+      },
+      body: JSON.stringify({
+        userEmail: params.userEmail || '',
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      return {
+        success: true,
+        customerId: data.customerId,
+        ephemeralKeySecret: data.ephemeralKeySecret,
+        subscriptionId: data.subscriptionId,
+        paymentIntentClientSecret: data.paymentIntentClientSecret,
+        priceId: data.priceId,
+      };
+    }
+
+    return { success: false, error: data.error || 'Failed to create subscription' };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Network error' };
   }
 }
 

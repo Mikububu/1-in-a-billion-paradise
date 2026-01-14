@@ -24,7 +24,13 @@ import { useProfileStore, selectPartners } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
 import { PRODUCTS, formatAudioDuration } from '@/config/products';
 import { BackButton } from '@/components/BackButton';
-import { createPaymentIntent, mapToProductId, extractSystemFromProductId, getPaymentConfig } from '@/services/payments';
+import {
+  createPaymentIntent,
+  createYearlySubscriptionIntent,
+  mapToProductId,
+  extractSystemFromProductId,
+  getPaymentConfig,
+} from '@/services/payments';
 
 // Developer bypass emails (for testing without payment)
 const DEV_BYPASS_EMAILS = [
@@ -41,6 +47,7 @@ export type PurchaseMode =
   | 'partner_readings'   // Upgrade partner's readings
   | 'overlays'           // Compatibility overlays
   | 'nuclear'            // The ultimate package
+  | 'subscription'       // $9.90/year subscription (post-hook offer)
   | 'all';               // Full catalog (fallback)
 
 type Product = {
@@ -76,6 +83,20 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
   // Build products based on mode
   const { title, subtitle, products } = useMemo(() => {
     switch (mode) {
+      case 'subscription':
+        return {
+          title: 'Yearly Subscription',
+          subtitle: '$9.90 / year',
+          products: [
+            {
+              id: 'yearly_subscription',
+              name: '1-Year Subscription',
+              price: 9.9,
+              meta: 'Weekly matching + 1 personal reading',
+              isBundle: true,
+            },
+          ],
+        };
       case 'user_readings':
         return {
           title: 'Your Deep Readings',
@@ -319,31 +340,52 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
         });
       }
 
-      // Map frontend product to backend product ID
-      const backendProductId = mapToProductId(selectedProduct);
-      const systemId = extractSystemFromProductId(selectedProduct);
-      
+      const isSubscription = mode === 'subscription' || selectedProduct === 'yearly_subscription';
+
       // Determine person/partner IDs
       const isOverlay = selectedProduct.startsWith('overlay_') || selectedProduct === 'nuclear_package';
       const isPartner = selectedProduct.startsWith('partner_');
       
-      // 1. Create PaymentIntent on backend
-      console.log('💳 Creating PaymentIntent for:', backendProductId);
-      const intentResult = await createPaymentIntent({
-        userId,
-        productId: backendProductId,
-        systemId: systemId || undefined,
-        personId: isPartner ? partners[0]?.id : user?.id,
-        partnerId: isOverlay ? partners[0]?.id : undefined,
-        readingType: isOverlay ? 'overlay' : 'individual',
-        userEmail,
-      });
-      
-      if (!intentResult.success || !intentResult.clientSecret) {
-        throw new Error(intentResult.error || 'Failed to create payment');
+      let paymentIntentClientSecret: string;
+      let customerId: string | undefined;
+      let customerEphemeralKeySecret: string | undefined;
+
+      if (isSubscription) {
+        console.log('💳 Creating yearly subscription...');
+        const sub = await createYearlySubscriptionIntent({
+          userId: userId || 'anonymous',
+          userEmail: userEmail || undefined,
+        });
+        if (!sub.success || !sub.paymentIntentClientSecret || !sub.customerId || !sub.ephemeralKeySecret) {
+          throw new Error(sub.error || 'Failed to create subscription');
+        }
+        paymentIntentClientSecret = sub.paymentIntentClientSecret;
+        customerId = sub.customerId;
+        customerEphemeralKeySecret = sub.ephemeralKeySecret;
+      } else {
+        // Map frontend product to backend product ID
+        const backendProductId = mapToProductId(selectedProduct);
+        const systemId = extractSystemFromProductId(selectedProduct);
+
+        // 1. Create PaymentIntent on backend
+        console.log('💳 Creating PaymentIntent for:', backendProductId);
+        const intentResult = await createPaymentIntent({
+          userId,
+          productId: backendProductId,
+          systemId: systemId || undefined,
+          personId: isPartner ? partners[0]?.id : user?.id,
+          partnerId: isOverlay ? partners[0]?.id : undefined,
+          readingType: isOverlay ? 'overlay' : 'individual',
+          userEmail,
+        });
+
+        if (!intentResult.success || !intentResult.clientSecret) {
+          throw new Error(intentResult.error || 'Failed to create payment');
+        }
+
+        paymentIntentClientSecret = intentResult.clientSecret;
+        console.log('💳 PaymentIntent created:', intentResult.paymentIntentId);
       }
-      
-      console.log('💳 PaymentIntent created:', intentResult.paymentIntentId);
       
       // 2. Initialize Payment Sheet using imperative API
       const initPaymentSheet = stripeModule.initPaymentSheet;
@@ -353,7 +395,10 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
       }
       
       const { error: initError } = await initPaymentSheet({
-        paymentIntentClientSecret: intentResult.clientSecret,
+        paymentIntentClientSecret: paymentIntentClientSecret,
+        ...(customerId && customerEphemeralKeySecret
+          ? { customerId, customerEphemeralKeySecret }
+          : {}),
         merchantDisplayName: '1 in a Billion',
         // Apple Pay configuration
         applePay: {

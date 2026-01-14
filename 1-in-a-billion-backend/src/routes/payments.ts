@@ -16,11 +16,13 @@
 import { Hono } from 'hono';
 import {
   createPaymentIntent,
+  createYearlySubscription,
   verifyWebhookSignature,
   handlePaymentSuccess,
   getPublishableKey,
   getPaymentIntentStatus,
   PRODUCT_PRICES,
+  upsertStripeSubscriptionToSupabase,
 } from '../services/stripeService';
 import { getApiKey } from '../services/apiKeys';
 
@@ -104,6 +106,41 @@ payments.post('/create-intent', async (c) => {
 });
 
 /**
+ * POST /api/payments/create-subscription
+ * Creates a yearly subscription for $9.90/year (price id configured in Stripe).
+ *
+ * Body: { userEmail?: string }
+ * Header: X-User-Id: string (can be 'anonymous' pre-signup)
+ */
+payments.post('/create-subscription', async (c) => {
+  try {
+    const userId = c.req.header('X-User-Id') || 'anonymous';
+    const body = await c.req.json().catch(() => ({}));
+    const { userEmail } = body || {};
+
+    const res = await createYearlySubscription({
+      userId,
+      userEmail: typeof userEmail === 'string' ? userEmail : undefined,
+      metadata: {
+        source: 'post_hook_offer',
+      },
+    });
+
+    return c.json({
+      success: true,
+      customerId: res.customerId,
+      ephemeralKeySecret: res.ephemeralKeySecret,
+      subscriptionId: res.subscriptionId,
+      paymentIntentClientSecret: res.paymentIntentClientSecret,
+      priceId: res.priceId,
+    });
+  } catch (error: any) {
+    console.error('❌ Error creating subscription:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+/**
  * POST /api/payments/webhook
  * Stripe webhook handler for payment events
  * 
@@ -136,6 +173,32 @@ payments.post('/webhook', async (c) => {
       case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object;
         await handlePaymentSuccess(paymentIntent);
+        break;
+      }
+
+      // Subscription lifecycle / entitlement updates
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted': {
+        const sub = event.data.object as any;
+        const metadata = (sub.metadata || {}) as Record<string, any>;
+        const userId = typeof metadata.userId === 'string' && metadata.userId.length > 0 ? metadata.userId : null;
+
+        const priceId =
+          sub?.items?.data?.[0]?.price?.id ? String(sub.items.data[0].price.id) : null;
+
+        await upsertStripeSubscriptionToSupabase({
+          stripeCustomerId: String(sub.customer),
+          stripeSubscriptionId: String(sub.id),
+          stripePriceId: priceId,
+          status: String(sub.status),
+          cancelAtPeriodEnd: Boolean(sub.cancel_at_period_end),
+          currentPeriodStart: typeof sub.current_period_start === 'number' ? sub.current_period_start : null,
+          currentPeriodEnd: typeof sub.current_period_end === 'number' ? sub.current_period_end : null,
+          userId,
+          email: sub.customer_email ? String(sub.customer_email) : null,
+          metadata,
+        });
         break;
       }
       

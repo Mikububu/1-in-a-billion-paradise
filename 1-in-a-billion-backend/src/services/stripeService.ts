@@ -21,6 +21,9 @@ export const PRODUCT_PRICES: Record<string, number> = {
   nuclear_package: 9999,      // $99.99
 };
 
+// Subscription product (yearly) is managed in Stripe dashboard and referenced by price id.
+// We do NOT hardcode amount here; Stripe is source-of-truth.
+
 // Stripe instance (lazy initialized)
 let stripeInstance: Stripe | null = null;
 
@@ -189,4 +192,125 @@ export async function getPaymentIntentStatus(paymentIntentId: string): Promise<{
     currency: paymentIntent.currency,
     metadata: paymentIntent.metadata as Record<string, string>,
   };
+}
+
+/**
+ * Create a yearly subscription (default: $9.90/year price configured in Stripe).
+ * Returns:
+ * - PaymentIntent client_secret from latest_invoice to be used with PaymentSheet
+ * - customerId + ephemeralKeySecret for PaymentSheet customer context
+ */
+export async function createYearlySubscription(params: {
+  userId: string; // may be 'anonymous' pre-signup
+  userEmail?: string;
+  metadata?: Record<string, string>;
+}): Promise<{
+  customerId: string;
+  ephemeralKeySecret: string;
+  subscriptionId: string;
+  paymentIntentClientSecret: string;
+  priceId: string;
+}> {
+  const stripe = await getStripe();
+  const priceId =
+    (await getApiKey('stripe_subscription_price_id')) ||
+    process.env.STRIPE_SUBSCRIPTION_PRICE_ID ||
+    '';
+
+  if (!priceId) {
+    throw new Error('Stripe subscription price id not configured (STRIPE_SUBSCRIPTION_PRICE_ID)');
+  }
+
+  const customer = await stripe.customers.create({
+    email: params.userEmail || undefined,
+    metadata: {
+      userId: params.userId,
+      app: '1-in-a-billion',
+      ...params.metadata,
+    },
+  });
+
+  // Ephemeral key for PaymentSheet (must use same API version as stripe SDK)
+  const ephemeralKey = await stripe.ephemeralKeys.create(
+    { customer: customer.id },
+    // Keep in sync with Stripe API version in getStripe()
+    // @ts-ignore
+    { apiVersion: '2025-12-15.clover' }
+  );
+
+  const subscription = await stripe.subscriptions.create({
+    customer: customer.id,
+    items: [{ price: priceId }],
+    payment_behavior: 'default_incomplete',
+    payment_settings: {
+      save_default_payment_method: 'on_subscription',
+    },
+    expand: ['latest_invoice.payment_intent'],
+    metadata: {
+      userId: params.userId,
+      app: '1-in-a-billion',
+      kind: 'yearly_subscription',
+      ...params.metadata,
+    },
+  });
+
+  const latestInvoice = subscription.latest_invoice as Stripe.Invoice | null;
+  const pi = (latestInvoice?.payment_intent as Stripe.PaymentIntent | null) || null;
+  const clientSecret = pi?.client_secret || null;
+  if (!clientSecret) {
+    throw new Error('Subscription created but payment_intent client_secret missing');
+  }
+
+  return {
+    customerId: customer.id,
+    ephemeralKeySecret: ephemeralKey.secret,
+    subscriptionId: subscription.id,
+    paymentIntentClientSecret: clientSecret,
+    priceId,
+  };
+}
+
+/**
+ * Upsert Stripe subscription state into Supabase.
+ */
+export async function upsertStripeSubscriptionToSupabase(params: {
+  stripeCustomerId: string;
+  stripeSubscriptionId: string;
+  stripePriceId?: string | null;
+  status: string;
+  cancelAtPeriodEnd?: boolean | null;
+  currentPeriodStart?: number | null; // unix seconds
+  currentPeriodEnd?: number | null;   // unix seconds
+  userId?: string | null;
+  email?: string | null;
+  metadata?: Record<string, any> | null;
+}): Promise<void> {
+  const supabase = createSupabaseServiceClient();
+  if (!supabase) return;
+
+  const toTs = (s: number | null | undefined) =>
+    typeof s === 'number' ? new Date(s * 1000).toISOString() : null;
+
+  const { error } = await supabase
+    .from('user_subscriptions')
+    .upsert(
+      {
+        user_id: params.userId || null,
+        email: params.email || null,
+        stripe_customer_id: params.stripeCustomerId,
+        stripe_subscription_id: params.stripeSubscriptionId,
+        stripe_price_id: params.stripePriceId || null,
+        status: params.status,
+        cancel_at_period_end: params.cancelAtPeriodEnd ?? null,
+        current_period_start: toTs(params.currentPeriodStart),
+        current_period_end: toTs(params.currentPeriodEnd),
+        metadata: params.metadata || {},
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'stripe_subscription_id' }
+    );
+
+  if (error) {
+    console.error('❌ Failed to upsert user_subscriptions:', error);
+  }
 }

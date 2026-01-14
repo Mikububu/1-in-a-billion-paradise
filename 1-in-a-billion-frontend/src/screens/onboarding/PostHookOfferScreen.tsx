@@ -62,12 +62,11 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     const handleBuy = () => {
         // NOTE: Purchase flow is the next step. We intentionally do NOT create a Supabase user here.
         // @ts-ignore
-        navigation.navigate('Purchase');
+        navigation.navigate('Purchase', { mode: 'subscription', preselectedProduct: 'yearly_subscription' });
     };
 
     const handleNoMaybe = () => {
-        setPage(0);
-        listRef.current?.scrollToOffset({ offset: 0, animated: true });
+        // Intentionally do nothing. User can stay, swipe, or go back to listen again.
     };
 
     return (
