@@ -111,6 +111,10 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                 setActiveWordIndex(0);
                 // Stop immediately, but keep loaded in RAM.
                 soundRefs.current.forEach((s) => s?.stopAsync().catch(() => {}));
+                // Also stop background music
+                if (bgMusicRef.current) {
+                    bgMusicRef.current.stopAsync().catch(() => {});
+                }
             };
         }, [])
     );
