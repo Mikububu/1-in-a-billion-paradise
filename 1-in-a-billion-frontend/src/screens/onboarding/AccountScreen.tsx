@@ -44,7 +44,7 @@ const REDIRECT_URI = 'oneinabillion://auth/callback';
 type EmailAuthState = 'idle' | 'loading' | 'error';
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Account'>;
 
-export const AccountScreen = ({ navigation }: Props) => {
+export const AccountScreen = ({ navigation, route }: Props) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isCreatingAccount, setIsCreatingAccount] = useState(false); // Full-screen loading overlay
   const [videoReady, setVideoReady] = useState(false);
@@ -61,6 +61,7 @@ export const AccountScreen = ({ navigation }: Props) => {
   // AccountScreen is always sign-up mode (post-onboarding account creation)
   const isSigningUp = true;
   const [showEmailInput, setShowEmailInput] = useState(false);
+  const isPostPurchase = !!route?.params?.postPurchase;
 
   useFocusEffect(
     useCallback(() => {
@@ -143,8 +144,17 @@ export const AccountScreen = ({ navigation }: Props) => {
       }
 
       setIsLoading(false);
-      // Keep loading overlay visible during navigation
-      // Navigate directly to CoreIdentities (no white page flash)
+      if (isPostPurchase) {
+        // After subscription purchase, we enter the app and land in My Library.
+        const onboarding = useOnboardingStore.getState();
+        onboarding.setRedirectAfterOnboarding('MyLibrary');
+        onboarding.completeOnboarding();
+        onboarding.setShowDashboard(true);
+        setIsCreatingAccount(false);
+        return;
+      }
+
+      // Default: continue onboarding flow
       navigation.replace('CoreIdentities');
     } catch (error: any) {
       console.error(`❌ ${provider.toUpperCase()} EXCHANGE ERROR:`, error.message);
@@ -370,8 +380,15 @@ export const AccountScreen = ({ navigation }: Props) => {
         setEmail('');
         setPassword('');
 
-        // Keep loading overlay visible during navigation
-        // Navigate directly to CoreIdentities (no white page flash)
+        if (isPostPurchase) {
+          const onboarding = useOnboardingStore.getState();
+          onboarding.setRedirectAfterOnboarding('MyLibrary');
+          onboarding.completeOnboarding();
+          onboarding.setShowDashboard(true);
+          setIsCreatingAccount(false);
+          return;
+        }
+
         navigation.replace('CoreIdentities');
       }
     } catch (error: any) {

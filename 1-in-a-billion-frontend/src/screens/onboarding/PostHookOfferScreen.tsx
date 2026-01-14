@@ -6,6 +6,8 @@ import { colors, spacing, typography } from '@/theme/tokens';
 import { Button } from '@/components/Button';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { useFocusEffect } from '@react-navigation/native';
+import { createYearlySubscriptionIntent, getPaymentConfig } from '@/services/payments';
+import { useAuthStore } from '@/store/authStore';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'PostHookOffer'>;
 
@@ -14,6 +16,10 @@ const { width: PAGE_W } = Dimensions.get('window');
 export const PostHookOfferScreen = ({ navigation }: Props) => {
     const listRef = useRef<FlatList<any>>(null);
     const [page, setPage] = useState(0);
+    const [isPaying, setIsPaying] = useState(false);
+    const swipeStartX = useRef<number | null>(null);
+    const userId = useAuthStore((s) => s.user?.id || 'anonymous');
+    const userEmail = useAuthStore((s) => s.user?.email || '');
 
     // If user ever comes back to this screen, re-enable buttons.
     useFocusEffect(
@@ -59,15 +65,84 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         setPage(Math.max(0, Math.min(pages.length - 1, idx)));
     };
 
-    const handleBuy = () => {
-        // NOTE: Purchase flow is the next step. We intentionally do NOT create a Supabase user here.
-        // @ts-ignore
-        navigation.navigate('Purchase', { mode: 'subscription', preselectedProduct: 'yearly_subscription' });
+    const handleBuy = async () => {
+        if (isPaying) return;
+        setIsPaying(true);
+
+        try {
+            let stripeModule: any;
+            try {
+                stripeModule = require('@stripe/stripe-react-native');
+            } catch {
+                Alert.alert(
+                    'Payments Not Available',
+                    'Apple Pay / Google Pay requires a full app build (TestFlight / production).',
+                    [{ text: 'OK' }]
+                );
+                setIsPaying(false);
+                return;
+            }
+
+            const cfg = await getPaymentConfig();
+            const publishableKey = cfg?.publishableKey?.trim();
+            if (!publishableKey) {
+                Alert.alert('Payments Not Configured', 'Stripe publishable key is missing on backend.', [{ text: 'OK' }]);
+                setIsPaying(false);
+                return;
+            }
+
+            if (typeof stripeModule.initStripe === 'function') {
+                await stripeModule.initStripe({
+                    publishableKey,
+                    merchantIdentifier: 'merchant.com.oneinabillion.app',
+                    urlScheme: 'oneinabillion',
+                });
+            }
+
+            const sub = await createYearlySubscriptionIntent({
+                userId,
+                userEmail: userEmail || undefined,
+            });
+            if (!sub.success || !sub.paymentIntentClientSecret || !sub.customerId || !sub.ephemeralKeySecret) {
+                throw new Error(sub.error || 'Failed to start subscription payment');
+            }
+
+            const initPaymentSheet = stripeModule.initPaymentSheet;
+            const presentPaymentSheet = stripeModule.presentPaymentSheet;
+            if (typeof initPaymentSheet !== 'function' || typeof presentPaymentSheet !== 'function') {
+                throw new Error('Stripe PaymentSheet API not available. Rebuild the app with Stripe native modules.');
+            }
+
+            const { error: initError } = await initPaymentSheet({
+                paymentIntentClientSecret: sub.paymentIntentClientSecret,
+                customerId: sub.customerId,
+                customerEphemeralKeySecret: sub.ephemeralKeySecret,
+                merchantDisplayName: '1 in a Billion',
+                applePay: { merchantCountryCode: 'US' },
+                googlePay: { merchantCountryCode: 'US', testEnv: __DEV__ },
+                returnURL: 'oneinabillion://stripe-redirect',
+            });
+            if (initError) throw new Error(initError.message);
+
+            const { error: presentError } = await presentPaymentSheet();
+            if (presentError) {
+                if (presentError.code === 'Canceled') {
+                    setIsPaying(false);
+                    return;
+                }
+                throw new Error(presentError.message);
+            }
+
+            // Payment successful → now create the account (Supabase) and then land in My Library.
+            navigation.navigate('Account', { postPurchase: true });
+        } catch (err: any) {
+            Alert.alert('Payment Failed', err?.message || 'Payment failed.', [{ text: 'OK' }]);
+        } finally {
+            setIsPaying(false);
+        }
     };
 
-    const handleNoMaybe = () => {
-        // Intentionally do nothing. User can stay, swipe, or go back to listen again.
-    };
+    // No secondary CTA; user can swipe freely.
 
     return (
         <SafeAreaView style={styles.container}>
@@ -79,6 +154,20 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     pagingEnabled
                     showsHorizontalScrollIndicator={false}
                     keyExtractor={(_, idx) => `offer-${idx}`}
+                    onScrollBeginDrag={(e) => {
+                        swipeStartX.current = e.nativeEvent.contentOffset.x;
+                    }}
+                    onScrollEndDrag={(e) => {
+                        const start = swipeStartX.current;
+                        if (start == null) return;
+                        const end = e.nativeEvent.contentOffset.x;
+                        const delta = end - start;
+                        // If user swipes left past the first offer page, send them back to Sun hook reading.
+                        if (page === 0 && delta < -40) {
+                            // @ts-ignore
+                            navigation.navigate('HookSequence', { initialReading: 'sun' });
+                        }
+                    }}
                     onMomentumScrollEnd={onScrollEnd}
                     renderItem={({ item }) => (
                         <View style={[styles.page, { width: PAGE_W }]}>
@@ -92,16 +181,10 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                 {page === pages.length - 1 ? (
                     <View style={styles.ctaContainer}>
                         <Button
-                            label="YES I want to buy"
+                            label={isPaying ? 'One moment…' : 'Yes let me in'}
                             onPress={handleBuy}
                             variant="primary"
                             style={[styles.button, styles.buttonPrimary]}
-                        />
-                        <Button
-                            label="No maybe another time"
-                            onPress={handleNoMaybe}
-                            variant="secondary"
-                            style={[styles.button, styles.buttonSecondary]}
                         />
                     </View>
                 ) : null}
@@ -186,8 +269,5 @@ const styles = StyleSheet.create({
     },
     buttonPrimary: {
         marginBottom: spacing.md,
-    },
-    buttonSecondary: {
-        marginTop: 0,
     },
 });

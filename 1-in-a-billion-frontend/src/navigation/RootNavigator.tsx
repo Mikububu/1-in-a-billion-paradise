@@ -29,7 +29,7 @@ export type OnboardingStackParamList = {
   BirthInfo: undefined;
   CurrentCity: undefined;
   Languages: undefined;
-  Account: undefined;
+  Account: { postPurchase?: boolean } | undefined;
   CoreIdentities: undefined;
   CoreIdentitiesIntro: undefined;
   HookSequence: {
