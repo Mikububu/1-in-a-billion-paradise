@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
+import { Button } from '@/components/Button';
 import * as FileSystem from 'expo-file-system/legacy';
 import { getDocumentDirectory, EncodingType } from '@/utils/fileSystem';
 import * as WebBrowser from 'expo-web-browser';
@@ -905,10 +906,13 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, layoutMeasurement } = event.nativeEvent;
     const index = Math.round(contentOffset.x / layoutMeasurement.width);
-    const oldPage = page;
-    setPage(index);  };
+    setPage(index);
+  };
 
-  // No longer need swipe detection - we have a real 4th page now
+  // “Swipe again” handoff: when user is on the last page (Rising) and swipes once more,
+  // we interpret it as intent to continue and navigate to the next screen.
+  const lastPageDragStartX = useRef<number | null>(null);
+  const didSwipeBeyondLast = useRef(false);
 
   const addSavedPDF = useProfileStore((state) => state.addSavedPDF);
   const displayName = useAuthStore((state) => state.displayName);
@@ -919,8 +923,14 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     } else {
       // After the 3rd reading: ask whether they want to add another person.
       // NOTE: We do NOT sign up or persist anything before purchase.
-      // @ts-ignore
-      navigation.navigate('AddThirdPersonPrompt');
+      if (didSwipeBeyondLast.current) {
+        didSwipeBeyondLast.current = false;
+      }
+      // Small delay prevents “stuck” feeling when the user expects a 4th swipe page.
+      setTimeout(() => {
+        // @ts-ignore
+        navigation.navigate('AddThirdPersonPrompt');
+      }, 250);
     }
   };
 
@@ -1045,6 +1055,28 @@ ${rising.main}`;
               horizontal
               showsHorizontalScrollIndicator={false}
               ref={listRef}
+              onScrollBeginDrag={(e) => {
+                if (page === readings.length - 1) {
+                  lastPageDragStartX.current = e.nativeEvent.contentOffset.x;
+                } else {
+                  lastPageDragStartX.current = null;
+                }
+              }}
+              onScrollEndDrag={(e) => {
+                const startX = lastPageDragStartX.current;
+                if (startX == null) return;
+                const endX = e.nativeEvent.contentOffset.x;
+                const delta = endX - startX;
+                // Only treat as “swipe beyond last” if they tried to go further right from the last page.
+                if (page === readings.length - 1 && delta > 40) {
+                  didSwipeBeyondLast.current = true;
+                  // give the bounce a beat, then continue
+                  setTimeout(() => {
+                    // @ts-ignore
+                    navigation.navigate('AddThirdPersonPrompt');
+                  }, 250);
+                }
+              }}
               onMomentumScrollEnd={handleScroll}
               renderItem={({ item }) => {
                 // Regular reading pages (Sun, Moon, Rising)
@@ -1107,7 +1139,7 @@ ${rising.main}`;
           )}
         </View>
 
-        {/* Footer - Pagination dots for all 4 pages */}
+        {/* Footer - Pagination dots + Continue button */}
         {!isLoadingInitial && (
           <View style={styles.footer}>
             <View style={styles.pagination}>
@@ -1122,6 +1154,12 @@ ${rising.main}`;
                 />
               ))}
             </View>
+            <Button
+              label={NEXT_LABELS[readings[page]?.type] || 'Continue'}
+              onPress={handleNext}
+              variant="primary"
+              style={{ marginTop: spacing.md }}
+            />
           </View>
         )}
       </View>
@@ -1156,7 +1194,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   footer: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
