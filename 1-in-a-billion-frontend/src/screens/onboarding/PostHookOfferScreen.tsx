@@ -328,7 +328,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                         const hasVideo = !!(item as any).bgVideo;
                         
                         // Calculate bottom reserve height to prevent text overlap:
-                        // Page 1: video bottom (60) + video height (200) + gap (20) = 280
+                        // Page 1: video bottom (34) + video height (200) + gap (20) = 254
                         // Page 2: dots (24) + padding (20) = 44
                         // Page 3: video bottom (80) + video height (200) + gap (20) = 300
                         let bottomReserveHeight;
@@ -337,8 +337,8 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                                 // Page 3: video at 80px from bottom, height 200px
                                 bottomReserveHeight = 80 + VIDEO_BAND_H + 20;
                             } else {
-                                // Page 1: video at 60px from bottom, height 200px
-                                bottomReserveHeight = 60 + VIDEO_BAND_H + 20;
+                                // Page 1: video at 34px from bottom, height 200px
+                                bottomReserveHeight = 34 + VIDEO_BAND_H + 20;
                             }
                         } else {
                             // Page 2: just dots
@@ -376,11 +376,11 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                                     style={[
                                         styles.pageVideoWrap,
                                         { 
-                                            // Page 1: video sits above dots with gap
+                                            // Page 1: video lower, closer to dots
                                             // Page 3: video sits closer to bottom, above CTA
                                             bottom: isLastOfferPage 
-                                                ? CTA_AREA_H + BOTTOM_PADDING - 20  // Move page 3 video down (away from text)
-                                                : BOTTOM_PADDING + DOTS_H + 16      // Move page 1 video up (away from dots)
+                                                ? CTA_AREA_H + BOTTOM_PADDING - 20  // Page 3 video
+                                                : BOTTOM_PADDING + DOTS_H - 10      // Page 1 video (moved down)
                                         },
                                     ]}
                                     pointerEvents="none"
