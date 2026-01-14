@@ -18,7 +18,7 @@ import { createSupabaseUserClientFromAccessToken, getSignedArtifactUrl } from '.
 import { swissEngine } from '../services/swissEphemeris';
 import { env } from '../config/env';
 import axios from 'axios';
-import { llm } from '../services/llm'; // Centralized LLM service
+import { llm, llmPaid } from '../services/llm'; // llm = DeepSeek (hooks), llmPaid = Claude (deep readings)
 import { SYSTEMS as NUCLEAR_V2_SYSTEMS, SYSTEM_DISPLAY_NAMES as NUCLEAR_V2_SYSTEM_NAMES, type SystemName as NuclearV2SystemName, NUCLEAR_DOCS, VERDICT_DOC, buildPersonPrompt, buildOverlayPrompt as buildNuclearV2OverlayPrompt, buildVerdictPrompt } from '../prompts/structures/nuclearV2';
 import archiver from 'archiver';
 import { PassThrough, Readable } from 'node:stream';
@@ -1221,9 +1221,7 @@ jobQueue.registerProcessor('extended', async (job, updateProgress) => {
         chartData,
       });
 
-      const reading = await llm.generate(prompt, `extended-${system}`, {
-        provider: env.PAID_LLM_PROVIDER as any, // Claude for paid extended readings
-      });
+      const reading = await llmPaid.generate(prompt, `extended-${system}`);
 
       chapters.push({
         name: system,
@@ -1339,9 +1337,7 @@ jobQueue.registerProcessor('synastry', async (job, updateProgress) => {
       chartData,
     });
 
-    const reading = await llm.generate(prompt, `synastry-${system}`, {
-      provider: env.PAID_LLM_PROVIDER as any, // Claude for paid overlay readings
-    });
+    const reading = await llmPaid.generate(prompt, `synastry-${system}`);
 
     const results: Job['results'] = {
       readings: [],
@@ -1447,9 +1443,7 @@ jobQueue.registerProcessor('nuclear_v2', async (job, updateProgress) => {
         style: writingStyle,
       });
 
-      const p1Text = await llm.generate(p1Prompt, `nuclear_v2-${system}-p1`, {
-        provider: env.PAID_LLM_PROVIDER as any, // Claude for paid deep readings
-      });
+      const p1Text = await llmPaid.generate(p1Prompt, `nuclear_v2-${system}-p1`);
       const p1WordCount = p1Text.split(/\s+/).length;
       documents.push({
         id: `${system}-p1`,
@@ -1482,9 +1476,7 @@ jobQueue.registerProcessor('nuclear_v2', async (job, updateProgress) => {
         style: writingStyle,
       });
 
-      const p2Text = await llm.generate(p2Prompt, `nuclear_v2-${system}-p2`, {
-        provider: env.PAID_LLM_PROVIDER as any, // Claude for paid deep readings
-      });
+      const p2Text = await llmPaid.generate(p2Prompt, `nuclear_v2-${system}-p2`);
       const p2WordCount = p2Text.split(/\s+/).length;
       documents.push({
         id: `${system}-p2`,
@@ -1518,9 +1510,7 @@ jobQueue.registerProcessor('nuclear_v2', async (job, updateProgress) => {
         style: writingStyle,
       });
 
-      const overlayText = await llm.generate(overlayPrompt, `nuclear_v2-${system}-overlay`, {
-        provider: env.PAID_LLM_PROVIDER as any, // Claude for paid overlay readings
-      });
+      const overlayText = await llmPaid.generate(overlayPrompt, `nuclear_v2-${system}-overlay`);
       const overlayWordCount = overlayText.split(/\s+/).length;
       documents.push({
         id: `${system}-overlay`,
@@ -1552,9 +1542,7 @@ jobQueue.registerProcessor('nuclear_v2', async (job, updateProgress) => {
       style: writingStyle,
     });
 
-    const verdictText = await llm.generate(verdictPrompt, 'nuclear_v2-verdict', {
-      provider: env.PAID_LLM_PROVIDER as any, // Claude for paid verdict
-    });
+    const verdictText = await llmPaid.generate(verdictPrompt, 'nuclear_v2-verdict');
     const verdictWordCount = verdictText.split(/\s+/).length;
     documents.push({
       id: 'verdict',

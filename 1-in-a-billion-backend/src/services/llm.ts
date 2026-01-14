@@ -90,8 +90,8 @@ class LLMService {
     getHeaders: () => Promise<Record<string, string>>;
   };
 
-  constructor() {
-    this.provider = (process.env.LLM_PROVIDER as LLMProvider) || DEFAULT_PROVIDER;
+  constructor(provider?: LLMProvider) {
+    this.provider = provider || (process.env.LLM_PROVIDER as LLMProvider) || DEFAULT_PROVIDER;
     this.config = PROVIDER_CONFIG[this.provider];
     console.log(`📡 LLM Service initialized: ${this.config.emoji} ${this.config.name}`);
   }
@@ -297,8 +297,16 @@ class LLMService {
   }
 }
 
-// Export singleton instance
+// ═══════════════════════════════════════════════════════════════════════════
+// EXPORT TWO INSTANCES
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Default instance for hook readings (fast, cheap)
 export const llm = new LLMService();
+
+// Paid instance for deep readings (extended, nuclear_v2, synastry, overlays)
+// 🎯 ONE LINE TO CHANGE: Set PAID_LLM_PROVIDER in env.ts
+export const llmPaid = new LLMService(env.PAID_LLM_PROVIDER as LLMProvider);
 
 // Export types for external use
 export type { LLMProvider };
