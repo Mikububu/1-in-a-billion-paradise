@@ -150,8 +150,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
   // Rising arrow animation - beautiful upward motion
   const risingAnim = useRef(new Animated.Value(0)).current;
 
-  // Auto-regenerate readings if missing but placements exist
-  // NOTE: This should rarely trigger since CoreIdentitiesScreen generates readings before navigation
+  // HARD LOCK: never auto-regenerate free hook readings (prevents endless API usage).
   const hasInitiatedRegen = useRef(false);
   useEffect(() => {
     const hasAnyReading = !!(sun || moon || rising);
@@ -168,8 +167,8 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     // 3. Haven't already initiated regeneration
     // 4. Not currently regenerating
     // 5. This is not a custom readings route (which means readings are provided)
-    if (!hasAnyReading && hasPlacements && !hasInitiatedRegen.current && !isRegenerating && !customReadings) {
-      console.log('🔄 No readings found but placements exist - auto-regenerating...');
+    // Intentionally disabled.
+    if (false && !hasAnyReading && hasPlacements && !hasInitiatedRegen.current && !isRegenerating && !customReadings) {
       hasInitiatedRegen.current = true;
       regenerateWithProvider('deepseek');
     }

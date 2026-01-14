@@ -306,12 +306,28 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
   }, []);
 
   const runSequence = async () => {
+    // HARD LOCK: if hook readings already exist, never generate again (prevents infinite free API usage).
+    const existing = useOnboardingStore.getState().hookReadings;
+    if (existing?.sun && existing?.moon && existing?.rising) {
+      console.log('🔒 Hook readings already exist - skipping CoreIdentities generation');
+      setIsInitializing(false);
+      navigation.replace('HookSequence');
+      return;
+    }
+
+    // Never silently fallback to fake birth data.
+    if (!birthDate || !birthCity) {
+      Alert.alert('Missing birth data', 'Please add birth date + city first.');
+      navigation.goBack();
+      return;
+    }
+
     const payload = {
-      birthDate: birthDate || '1968-08-23',
-      birthTime: birthTime || '13:45',
-      timezone: birthCity?.timezone || 'Europe/Vienna',
-      latitude: birthCity?.latitude || 46.6103,
-      longitude: birthCity?.longitude || 13.8558,
+      birthDate,
+      birthTime: birthTime || '12:00',
+      timezone: birthCity?.timezone || 'UTC',
+      latitude: birthCity?.latitude || 0,
+      longitude: birthCity?.longitude || 0,
       relationshipIntensity: relationshipIntensity || 5,
       relationshipMode: relationshipMode || 'sensual',
       primaryLanguage: primaryLanguage?.code || 'en',

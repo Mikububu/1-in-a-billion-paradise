@@ -1,14 +1,34 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
 import { Button } from '@/components/Button';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
+import { useProfileStore } from '@/store/profileStore';
+import { CityOption } from '@/types/forms';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'AddThirdPersonPrompt'>;
 
 export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
+  // HARD LOCK: only allow one free “third person” hook set. If it exists, reuse it.
+  const existingPartner = useProfileStore((s) =>
+    s.people.find((p) => !p.isUser && p.hookReadings && p.hookReadings.length === 3)
+  );
+
+  const existingPartnerCity = useMemo<CityOption | null>(() => {
+    if (!existingPartner?.birthData) return null;
+    return {
+      id: `saved-${existingPartner.id}`,
+      name: existingPartner.birthData.birthCity || 'Unknown',
+      country: '',
+      region: '',
+      latitude: typeof existingPartner.birthData.latitude === 'number' ? existingPartner.birthData.latitude : 0,
+      longitude: typeof existingPartner.birthData.longitude === 'number' ? existingPartner.birthData.longitude : 0,
+      timezone: existingPartner.birthData.timezone || 'UTC',
+    };
+  }, [existingPartner]);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
@@ -23,7 +43,21 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
 
         <Button
           label="YES, ADD A PERSON"
-          onPress={() => navigation.navigate('PartnerInfo', { mode: 'onboarding_hook' } as any)}
+          onPress={() => {
+            if (existingPartner && existingPartnerCity) {
+              // Reuse existing free partner hook reading; do not create a new one.
+              navigation.navigate('PartnerReadings' as any, {
+                partnerName: existingPartner.name,
+                partnerBirthDate: existingPartner.birthData?.birthDate,
+                partnerBirthTime: existingPartner.birthData?.birthTime,
+                partnerBirthCity: existingPartnerCity,
+                partnerId: existingPartner.id,
+                mode: 'onboarding_hook',
+              });
+              return;
+            }
+            navigation.navigate('PartnerInfo', { mode: 'onboarding_hook' } as any);
+          }}
           variant="primary"
           style={styles.button}
         />

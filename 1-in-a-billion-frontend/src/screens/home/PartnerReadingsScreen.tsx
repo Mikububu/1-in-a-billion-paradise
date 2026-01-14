@@ -26,7 +26,7 @@ import { env } from '@/config/env';
 import { audioApi } from '@/services/api';
 import { uploadHookAudioBase64, downloadHookAudioBase64 } from '@/services/hookAudioCloud';
 import { isSupabaseConfigured } from '@/services/supabase';
-import { useProfileStore, Reading } from '@/store/profileStore';
+import { useProfileStore } from '@/store/profileStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useAuthStore } from '@/store/authStore';
 import { AUDIO_CONFIG, getPartnerSignLabel } from '@/config/readingConfig';
@@ -61,6 +61,7 @@ const screenId = 'P1'; // Partner Readings
 export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
   console.log(`📱 Screen ${screenId}: PartnerReadingsScreen`);
   const { partnerName, partnerBirthDate, partnerBirthTime, partnerBirthCity, partnerId } = route.params || {};
+  const isPrepayOnboarding = (route.params as any)?.mode === 'onboarding_hook';
   const user = useProfileStore((s) => s.getUser());
   const onboardingBirthTime = useOnboardingStore((s) => s.birthTime);
   const relationshipIntensity = useOnboardingStore((s: any) => s.relationshipIntensity) ?? 5;
@@ -76,9 +77,8 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
   const [isRegenerating, setIsRegenerating] = useState(false);
   const listRef = useRef<FlatList<PageItem>>(null);
 
-  // Fetch existing hook readings from profileStore
-  const person = useProfileStore((state) => partnerId ? state.getPerson(partnerId) : undefined);
-  const savedReadings = (person?.readings || []).filter(r => (r as any).type === 'single' && r.system === 'western' && r.wordCount && r.wordCount < 500);
+  // Preferred: hook readings are stored on the person as `hookReadings` (Sun/Moon/Rising).
+  const savedHookReadings = useProfileStore((state) => (partnerId ? state.getHookReadings(partnerId) : undefined));
 
   // Pre-rendered partner audio from store (same pattern as 1st person readings)
   const partnerAudio = useOnboardingStore((state) => state.partnerAudio);
@@ -383,34 +383,23 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
   // Fetch initial readings
   // On mount, load existing readings or fetch new ones if missing
   useEffect(() => {
-    if (savedReadings.length === 3) {
-      // Parse saved readings into HookReading format
-      const loadedReadings: HookReading[] = savedReadings.map((r: Reading, index) => {
-        const [intro, ...mainParts] = r.content.split('\n\n');
-        const type: HookReading['type'] = index === 0 ? 'sun' : index === 1 ? 'moon' : 'rising';
-        // Extract sign from placements if available
-        const person = useProfileStore.getState().people.find(p => p.id === partnerId);
-        const sign = type === 'sun' ? person?.placements?.sunSign :
-          type === 'moon' ? person?.placements?.moonSign :
-            person?.placements?.risingSign;
-
-        return {
-          type,
-          sign: sign || 'Unknown',
-          intro: intro || '',
-          main: mainParts.join('\n\n') || '',
-        };
-      });
-
-      // Add gateway page after the 3 hook readings
-      setReadings([...loadedReadings, { type: 'gateway', sign: '', intro: '', main: '' }]);
-      console.log(`✅ Loaded ${partnerName}'s existing readings from store`);
-    } else {
-      // Readings don't exist - generate them
-      console.log(`⚠️ ${partnerName}'s readings not found - generating...`);
-      fetchReadingsWithProvider('deepseek');
+    if (savedHookReadings && savedHookReadings.length === 3) {
+      setReadings([...savedHookReadings, { type: 'gateway', sign: '', intro: '', main: '' }]);
+      console.log(`✅ Loaded ${partnerName}'s hook readings from store`);
+      return;
     }
-  }, [partnerId, savedReadings.length]);
+
+    if (isPrepayOnboarding) {
+      // HARD LOCK: never generate partner hook readings again during free onboarding.
+      Alert.alert('Already generated', 'This free hook reading is already created. Please go back.');
+      navigation.goBack();
+      return;
+    }
+
+    // Non-onboarding fallback: generate if missing (legacy).
+    console.log(`⚠️ ${partnerName}'s readings not found - generating...`);
+    fetchReadingsWithProvider('deepseek');
+  }, [partnerId, isPrepayOnboarding, savedHookReadings?.length]);
 
   const fetchReadingsWithProvider = async (provider: LLMProvider) => {
     console.log(`🔄 Fetching ${partnerName}'s readings with ${provider}...`);
@@ -512,7 +501,9 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
               <Text style={styles.emptyText}>
                 <Text style={styles.nameRed}>{partnerName}</Text>'s readings
               </Text>
-              <Text style={styles.emptySubtext}>Tap a provider above to generate</Text>
+              <Text style={styles.emptySubtext}>
+                {isPrepayOnboarding ? 'Loading…' : 'Tap a provider above to generate'}
+              </Text>
             </View>
           ) : (
             <>
