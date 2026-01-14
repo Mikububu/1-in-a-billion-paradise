@@ -590,7 +590,7 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
 
                           {/* Bottom video slot (replace source with your excentric_couple.mp4 once added to assets/videos) */}
                           <Video
-                            source={require('@/../assets/videos/couple-laughing.mp4')}
+                            source={require('@/../assets/videos/excentric_couple.mp4')}
                             style={styles.gatewayVideo}
                             resizeMode={ResizeMode.COVER}
                             shouldPlay

@@ -346,9 +346,8 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
           <View style={styles.page}>
             <View style={styles.gatewayContainer}>
               {/* Background video */}
-              {/* TODO: add your file at assets/videos/want_the_full_picture.mp4 and swap the source below */}
               <Video
-                source={require('@/../assets/videos/couple-laughing.mp4')}
+                source={require('@/../assets/videos/want_the_full_picture.mp4')}
                 style={styles.gatewayBgVideo}
                 resizeMode={ResizeMode.COVER}
                 shouldPlay
