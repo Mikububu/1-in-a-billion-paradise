@@ -241,8 +241,9 @@ const styles = StyleSheet.create({
         flex: 1,
         width: '100%',
         alignItems: 'center',
-        justifyContent: 'center',
-        paddingTop: spacing.lg, // protects from notch while keeping centered composition
+        // Anchor headlines to the same top position across all pages.
+        justifyContent: 'flex-start',
+        paddingTop: spacing.xxl, // consistent top offset (safe-area + notch friendly)
     },
     bottomReserve: {
         // Reserve space so text never overlays the video band (no swipe dots).
