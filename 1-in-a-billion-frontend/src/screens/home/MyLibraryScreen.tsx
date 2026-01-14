@@ -767,7 +767,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
     // Add people from job receipts (person1/person2) - include processing jobs.
     queueJobsNewestFirst
       .filter((j: any) =>
-        (j.type === 'nuclear_v2' || j.type === 'extended' || j.type === 'single_system') &&
+        (j.type === 'nuclear_v2' || j.type === 'synastry' || j.type === 'extended' || j.type === 'single_system') &&
         (j.status === 'complete' || j.status === 'completed' || j.status === 'processing' || j.status === 'pending' || j.status === 'queued')
       )
       .forEach((job: any) => {
@@ -805,6 +805,11 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
         console.log('🔍 [MyLibrary] Final p1Name:', p1Name, 'from params.person1?.name:', params.person1?.name);
 
+        const requestedSystemsRaw = params.systems || job?.params?.systems || job?.input?.systems;
+        const requestedSystems: string[] = Array.isArray(requestedSystemsRaw)
+          ? requestedSystemsRaw.map((s: any) => String(s).toLowerCase()).filter(Boolean)
+          : [];
+
         // Add person1 - deduplicate by stable id first, merge jobIds
         if (p1Name) {
           const libMatch = p1Id ? libraryPeopleById[p1Id] : undefined;
@@ -836,9 +841,12 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           } else {
             // Create placeholder readings based on job type
             const isOverlay = job.type === 'overlay' || job.type === 'compatibility';
-            const systems = isOverlay 
-              ? ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah', 'verdict']
-              : ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'];
+            const systems =
+              requestedSystems.length > 0
+                ? requestedSystems
+                : isOverlay
+                  ? ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah', 'verdict']
+                  : ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'];
             
             const placeholderReadings = systems.map((system, index) => ({
               id: `reading-${index + 1}`,
@@ -897,9 +905,12 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           } else {
             // Create placeholder readings based on job type
             const isOverlay = job.type === 'overlay' || job.type === 'compatibility';
-            const systems = isOverlay 
-              ? ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah', 'verdict']
-              : ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'];
+            const systems =
+              requestedSystems.length > 0
+                ? requestedSystems
+                : isOverlay
+                  ? ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah', 'verdict']
+                  : ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'];
             
             const placeholderReadings = systems.map((system, index) => ({
               id: `reading-${index + 1}`,

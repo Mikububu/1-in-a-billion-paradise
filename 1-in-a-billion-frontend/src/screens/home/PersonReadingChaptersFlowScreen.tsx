@@ -79,18 +79,22 @@ export const PersonReadingChaptersFlowScreen = ({ navigation, route }: Props) =>
           const systems = requestedSystems.length > 0 ? requestedSystems : ['western'];
 
           // If documents exist, prefer the canonical doc order by docNum; otherwise build placeholders.
-          const docsSorted = [...chapterDocs].sort((a, b) => Number(a?.docNum) - Number(b?.docNum));
+          const desiredSynastryDocType =
+            effectiveViewType === 'person2' ? 'person2' : effectiveViewType === 'overlay' ? 'overlay' : 'person1';
+
+          const docsSorted = [...chapterDocs]
+            .filter((d: any) => String(d?.docType || d?.doc_type || '').toLowerCase() === desiredSynastryDocType)
+            .sort((a, b) => Number(a?.docNum) - Number(b?.docNum));
           const builtSynastry: Chapter[] =
             docsSorted.length > 0
               ? docsSorted.map((d: any) => {
                   const docNum = Number(d?.docNum);
                   const sysId = String(d?.system || 'western').toLowerCase();
-                  const dt = String(d?.docType || d?.doc_type || '').toLowerCase();
                   const sys = SYSTEMS.find((s) => s.id.toLowerCase() === sysId) || SYSTEMS[0];
                   const displayPerson =
-                    dt === 'person1'
+                    desiredSynastryDocType === 'person1'
                       ? (p1Name || personName)
-                      : dt === 'person2'
+                      : desiredSynastryDocType === 'person2'
                         ? (p2Name || personName)
                         : (p1Name && p2Name ? `${p1Name} & ${p2Name}` : personName);
                   return {
@@ -105,34 +109,30 @@ export const PersonReadingChaptersFlowScreen = ({ navigation, route }: Props) =>
                 })
               : (() => {
                   const out: Chapter[] = [];
-                  let docNum = 1;
-                  for (const sysId of systems) {
+                  for (let i = 0; i < systems.length; i++) {
+                    const sysId = systems[i];
                     const sys = SYSTEMS.find((s) => s.id.toLowerCase() === sysId) || SYSTEMS[0];
+                    const base = i * 3;
+                    const docNum =
+                      desiredSynastryDocType === 'person1'
+                        ? base + 1
+                        : desiredSynastryDocType === 'person2'
+                          ? base + 2
+                          : base + 3;
+                    const displayPerson =
+                      desiredSynastryDocType === 'person1'
+                        ? (p1Name || personName)
+                        : desiredSynastryDocType === 'person2'
+                          ? (p2Name || personName)
+                          : (p1Name && p2Name ? `${p1Name} & ${p2Name}` : personName);
+
                     out.push({
-                      personName: p1Name || personName,
+                      personName: displayPerson,
                       personId,
                       jobId,
                       systemId: sys.id,
                       systemName: sys.name,
-                      docNum: docNum++,
-                      timestamp: createdAt,
-                    });
-                    out.push({
-                      personName: p2Name || personName,
-                      personId,
-                      jobId,
-                      systemId: sys.id,
-                      systemName: sys.name,
-                      docNum: docNum++,
-                      timestamp: createdAt,
-                    });
-                    out.push({
-                      personName: p1Name && p2Name ? `${p1Name} & ${p2Name}` : personName,
-                      personId,
-                      jobId,
-                      systemId: sys.id,
-                      systemName: sys.name,
-                      docNum: docNum++,
+                      docNum,
                       timestamp: createdAt,
                     });
                   }
