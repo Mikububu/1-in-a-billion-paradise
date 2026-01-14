@@ -35,6 +35,8 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     const [isPreloadingAudio, setIsPreloadingAudio] = useState(true);
     const soundRefs = useRef<(Audio.Sound | null)[]>([null, null, null]);
     const currentPlayingIndex = useRef<number | null>(null);
+    const audioUrlsRef = useRef<(string | null)[]>([null, null, null]);
+    const isPreloadingAudioRef = useRef(true);
 
     // (dev logs removed)
 
@@ -103,7 +105,9 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         let cancelled = false;
 
         const preloadAllAudio = async () => {
+            isPreloadingAudioRef.current = true;
             setIsPreloadingAudio(true);
+            console.log('🎵 Starting audio preload for offer screens...');
             try {
                 // Set audio mode for playback
                 await Audio.setAudioModeAsync({
@@ -118,6 +122,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                 for (let i = 0; i < pages.length; i++) {
                     if (cancelled) return;
                     
+                    console.log(`🎤 Generating audio for page ${i + 1}...`);
                     try {
                         const result = await audioApi.generateTTS(pages[i]!.body, {
                             audioUrl: DAVID_VOICE_URL,
@@ -126,23 +131,28 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                         
                         if (result.success && result.audioBase64) {
                             urls[i] = `data:audio/mpeg;base64,${result.audioBase64}`;
+                            console.log(`✅ Audio generated for page ${i + 1} (${Math.round(result.audioBase64.length / 1024)}KB)`);
                         } else {
-                            console.warn(`Failed to generate audio for page ${i + 1}:`, result.error);
+                            console.warn(`❌ Failed to generate audio for page ${i + 1}:`, result.error);
                             urls[i] = null;
                         }
-                    } catch (err) {
-                        console.error(`Error generating audio for page ${i + 1}:`, err);
+                    } catch (err: any) {
+                        console.error(`❌ Error generating audio for page ${i + 1}:`, err?.message || err);
                         urls[i] = null;
                     }
                 }
                 
                 if (!cancelled) {
+                    const loadedCount = urls.filter(u => u !== null).length;
+                    console.log(`🎵 Audio preload complete: ${loadedCount}/${pages.length} files ready`);
+                    audioUrlsRef.current = urls;
                     setAudioUrls(urls);
                 }
-            } catch (err) {
-                console.error('Error preloading audio:', err);
+            } catch (err: any) {
+                console.error('❌ Error preloading audio:', err?.message || err);
             } finally {
                 if (!cancelled) {
+                    isPreloadingAudioRef.current = false;
                     setIsPreloadingAudio(false);
                 }
             }
@@ -166,16 +176,23 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
             });
             currentPlayingIndex.current = null;
         };
-    }, []); // Only run once on mount
+    }, [pages]); // Re-run if pages change
 
     // Play/stop audio based on current page
     useEffect(() => {
+        let cancelled = false;
+        
         const playAudioForPage = async (pageIndex: number) => {
+            if (cancelled) return;
+            
+            console.log(`🎵 Attempting to play audio for page ${pageIndex + 1}...`);
+            
             // Stop any currently playing audio immediately
             if (currentPlayingIndex.current !== null) {
                 const currentSound = soundRefs.current[currentPlayingIndex.current];
                 if (currentSound) {
                     try {
+                        console.log(`⏹️ Stopping audio for page ${currentPlayingIndex.current + 1}`);
                         await currentSound.stopAsync();
                         await currentSound.unloadAsync();
                     } catch (e) {
@@ -186,35 +203,76 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                 currentPlayingIndex.current = null;
             }
 
-            // If no audio URL for this page, skip
-            const audioUrl = audioUrls[pageIndex];
-            if (!audioUrl || isPreloadingAudio) return;
+            // Wait for audio to be ready (check every 500ms, max 60 seconds)
+            let attempts = 0;
+            const maxAttempts = 120; // 60 seconds max wait
+            
+            while (isPreloadingAudioRef.current || !audioUrlsRef.current[pageIndex]) {
+                if (cancelled) return;
+                attempts++;
+                if (attempts > maxAttempts) {
+                    console.warn(`⚠️ Timeout waiting for audio for page ${pageIndex + 1}`);
+                    return;
+                }
+                console.log(`⏳ Waiting for audio for page ${pageIndex + 1}... (attempt ${attempts})`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Re-check state (might have updated)
+                if (!isPreloadingAudioRef.current && audioUrlsRef.current[pageIndex]) {
+                    break;
+                }
+            }
+
+            // If still no audio URL, skip
+            const audioUrl = audioUrlsRef.current[pageIndex];
+            if (!audioUrl) {
+                console.warn(`⚠️ No audio URL available for page ${pageIndex + 1} after waiting`);
+                return;
+            }
+
+            if (cancelled) return;
 
             try {
+                console.log(`▶️ Creating and playing audio for page ${pageIndex + 1}...`);
                 // Create and play new sound
                 const { sound } = await Audio.Sound.createAsync(
                     { uri: audioUrl },
                     { shouldPlay: true, progressUpdateIntervalMillis: 250 }
                 );
                 
+                if (cancelled) {
+                    await sound.unloadAsync();
+                    return;
+                }
+                
                 soundRefs.current[pageIndex] = sound;
                 currentPlayingIndex.current = pageIndex;
+                console.log(`✅ Audio playing for page ${pageIndex + 1}`);
 
                 // Cleanup when audio finishes
                 sound.setOnPlaybackStatusUpdate((status) => {
-                    if (status.isLoaded && status.didJustFinish) {
-                        soundRefs.current[pageIndex] = null;
-                        if (currentPlayingIndex.current === pageIndex) {
-                            currentPlayingIndex.current = null;
+                    if (status.isLoaded) {
+                        if (status.didJustFinish) {
+                            console.log(`🏁 Audio finished for page ${pageIndex + 1}`);
+                            soundRefs.current[pageIndex] = null;
+                            if (currentPlayingIndex.current === pageIndex) {
+                                currentPlayingIndex.current = null;
+                            }
                         }
+                    } else if ('error' in status) {
+                        console.error(`❌ Audio playback error for page ${pageIndex + 1}:`, status.error);
                     }
                 });
-            } catch (err) {
-                console.error(`Error playing audio for page ${pageIndex + 1}:`, err);
+            } catch (err: any) {
+                console.error(`❌ Error playing audio for page ${pageIndex + 1}:`, err?.message || err);
             }
         };
 
         playAudioForPage(page);
+        
+        return () => {
+            cancelled = true;
+        };
     }, [page, audioUrls, isPreloadingAudio]);
 
     const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
