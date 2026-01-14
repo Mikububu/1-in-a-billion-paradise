@@ -15,6 +15,9 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'PostHookOffer'>;
 const { width: PAGE_W } = Dimensions.get('window');
 const VIDEO_BAND_H = 220;
 const DOTS_H = 18;
+const CTA_AREA_H = 84; // button height + breathing room (keeps layout stable across devices)
+const CTA_BOTTOM_GAP = 12; // how low the CTA sits (smaller = lower)
+const VIDEO_ABOVE_CTA_GAP = 14; // space between movie band and CTA
 
 export const PostHookOfferScreen = ({ navigation }: Props) => {
     const listRef = useRef<FlatList<any>>(null);
@@ -163,6 +166,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     horizontal
                     pagingEnabled
                     showsHorizontalScrollIndicator={false}
+                    style={{ flex: 1 }}
                     keyExtractor={(_, idx) => `offer-${idx}`}
                     onScrollBeginDrag={(e) => {
                         swipeStartX.current = e.nativeEvent.contentOffset.x;
@@ -182,13 +186,24 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     renderItem={({ item, index }) => {
                         const isLastOfferPage = index === pages.length - 1;
                         const isFirstOfferPage = index === 0;
+                        const hasVideo = !!(item as any).bgVideo;
+                        // Keep layers balanced and non-overlapping:
+                        // - page 1/3 have a video band
+                        // - page 1/2 have dots at bottom
+                        // - page 3 has a CTA at bottom
+                        const bottomOverlayH = isLastOfferPage
+                            ? CTA_AREA_H + CTA_BOTTOM_GAP
+                            : DOTS_H + spacing.lg;
+                        const videoBottomOffset = isLastOfferPage
+                            ? bottomOverlayH + VIDEO_ABOVE_CTA_GAP
+                            : 0; // page 1 sits on bottom; dots float above globally
                         return (
                         <View style={[styles.page, { width: PAGE_W }]}>
-                            {!!(item as any).bgVideo && (
+                            {hasVideo && (
                                 <View
                                     style={[
                                         styles.pageVideoWrap,
-                                        (isLastOfferPage || isFirstOfferPage) && styles.pageVideoWrapLifted,
+                                        { bottom: isLastOfferPage ? videoBottomOffset : 0 },
                                     ]}
                                     pointerEvents="none"
                                 >
@@ -212,9 +227,11 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                             <View
                                 style={[
                                     styles.bottomReserve,
-                                    !!(item as any).bgVideo && (isLastOfferPage || isFirstOfferPage)
-                                        ? { height: VIDEO_BAND_H + spacing.xl }
-                                        : null,
+                                    {
+                                        height:
+                                            (hasVideo ? VIDEO_BAND_H + (isLastOfferPage ? videoBottomOffset : 0) : 0) +
+                                            bottomOverlayH,
+                                    },
                                 ]}
                             />
                     </View>
@@ -273,8 +290,8 @@ const styles = StyleSheet.create({
         paddingTop: spacing.xxl, // consistent top offset (safe-area + notch friendly)
     },
     bottomReserve: {
-        // Reserve space so text never overlays the video band (no swipe dots).
-        height: VIDEO_BAND_H,
+        // Dynamic per-page height is set inline.
+        height: 0,
         width: '100%',
     },
     pageVideoWrap: {
@@ -285,10 +302,6 @@ const styles = StyleSheet.create({
         height: VIDEO_BAND_H, // smaller, still edge-to-edge
         overflow: 'hidden',
         opacity: 1, // fully opaque video
-    },
-    pageVideoWrapLifted: {
-        // Lift the movie slightly upward so it sits higher (requested) and breathes above bottom UI.
-        bottom: spacing.xl,
     },
     pageVideo: {
         width: '100%',
@@ -341,9 +354,12 @@ const styles = StyleSheet.create({
         marginHorizontal: spacing.page,
     },
     ctaContainer: {
-        marginBottom: spacing.md,
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: CTA_BOTTOM_GAP,
     },
     buttonPrimary: {
-        marginBottom: spacing.md,
+        marginBottom: 0,
     },
 });
