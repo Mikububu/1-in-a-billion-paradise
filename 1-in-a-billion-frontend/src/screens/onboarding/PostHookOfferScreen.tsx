@@ -320,12 +320,25 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
             let stripeModule: any;
             try {
                 stripeModule = require('@stripe/stripe-react-native');
-            } catch {
-            Alert.alert(
+            } catch (err) {
+                console.warn('Stripe module not available:', err);
+                Alert.alert(
                     'Payments Not Available',
                     'Apple Pay / Google Pay requires a full app build (TestFlight / production).',
-                [{ text: 'OK' }]
-            );
+                    [{ text: 'OK' }]
+                );
+                setIsPaying(false);
+                return;
+            }
+
+            // Check if Stripe module is properly loaded
+            if (!stripeModule || typeof stripeModule.initStripe !== 'function') {
+                console.warn('Stripe module loaded but initStripe not available');
+                Alert.alert(
+                    'Payments Not Available', 
+                    'Payment processing requires a native build. This feature is not available in Expo Go.',
+                    [{ text: 'OK' }]
+                );
                 setIsPaying(false);
                 return;
             }
@@ -338,12 +351,21 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                 return;
             }
 
-            if (typeof stripeModule.initStripe === 'function') {
+            try {
                 await stripeModule.initStripe({
                     publishableKey,
                     merchantIdentifier: 'merchant.com.oneinabillion.app',
                     urlScheme: 'oneinabillion',
                 });
+            } catch (initErr: any) {
+                console.warn('Stripe initialization failed:', initErr);
+                Alert.alert(
+                    'Payment Initialization Failed',
+                    'This feature requires a native build and cannot run in Expo Go.',
+                    [{ text: 'OK' }]
+                );
+                setIsPaying(false);
+                return;
             }
 
             const sub = await createYearlySubscriptionIntent({
