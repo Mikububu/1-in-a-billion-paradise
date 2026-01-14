@@ -146,8 +146,8 @@ const styles = StyleSheet.create({
     opacity: 1, // explicit: no transparency
   },
   bgImage: {
-    // Move much to the left and up, scale to 50%
-    transform: [{ translateX: -80 }, { translateY: -250 }, { scale: 0.5 }],
+    // Move MUCH left, back down a bit, scale to 50%
+    transform: [{ translateX: -180 }, { translateY: -100 }, { scale: 0.5 }],
   },
   content: {
     flex: 1,
