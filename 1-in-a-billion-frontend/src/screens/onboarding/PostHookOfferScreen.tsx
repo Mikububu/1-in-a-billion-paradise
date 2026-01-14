@@ -39,6 +39,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     const currentPageRef = useRef(0);
     const [isAudioPlaying, setIsAudioPlaying] = useState(false);
     const [activeWordIndex, setActiveWordIndex] = useState(0);
+    const [preloadedCount, setPreloadedCount] = useState(0); // triggers re-run of autoplay when preload finishes
 
     // (dev logs removed)
 
@@ -169,6 +170,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                         }
                     );
                     soundRefs.current[i] = sound;
+                    setPreloadedCount((c) => c + 1);
                 }
             } catch {
                 // Keep UI usable even if audio fails on device.
@@ -206,7 +208,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         };
 
         play();
-    }, [page]);
+    }, [page, preloadedCount]);
 
     const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const idx = Math.round(e.nativeEvent.contentOffset.x / PAGE_W);
@@ -351,25 +353,19 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                             ]}>
                                 <Text style={styles.title} selectable>{item.title}</Text>
                                 {index === page ? (
-                                    <View style={styles.karaokeWrap}>
+                                    <Text style={styles.body} selectable>
                                         {karaoke.wordsByPage[index]?.map((w, wi) => {
                                             const isActive = isAudioPlaying && wi === activeWordIndex;
-                                            const isPast = wi < activeWordIndex;
                                             return (
-                                                <View
+                                                <Text
                                                     key={`w-${index}-${wi}`}
-                                                    style={[styles.wordWrap, isActive && styles.wordActive]}
+                                                    style={[styles.wordInline, isActive && styles.wordInlineActive]}
                                                 >
-                                                    <Text
-                                                        style={[styles.wordText, (isActive || isPast) && styles.wordTextActive]}
-                                                        selectable
-                                                    >
-                                                        {w}{' '}
-                                                    </Text>
-                                                </View>
+                                                    {w + ' '}
+                                                </Text>
                                             );
                                         })}
-                                    </View>
+                                    </Text>
                                 ) : (
                                     <Text style={styles.body} selectable>{item.body}</Text>
                                 )}
@@ -457,7 +453,8 @@ const styles = StyleSheet.create({
         borderRadius: 16,
     },
     textBlockPlaying: {
-        backgroundColor: colors.highlightYellow,
+        // Keep card subtle; karaoke highlight is on the active word itself.
+        backgroundColor: 'transparent',
     },
     bottomReserve: {
         // Dynamic per-page height is set inline.
@@ -491,33 +488,14 @@ const styles = StyleSheet.create({
         lineHeight: 24,
         maxWidth: 340,
     },
-    karaokeWrap: {
-        width: '100%',
-        maxWidth: 340,
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    wordWrap: {
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 10,
-        backgroundColor: 'transparent',
-        marginHorizontal: 0,
-        marginVertical: 0,
-    },
-    wordActive: {
-        backgroundColor: colors.highlightYellow,
-    },
-    wordText: {
+    wordInline: {
         fontFamily: typography.sansRegular,
         fontSize: 15,
         lineHeight: 24,
         color: colors.mutedText,
-        textAlign: 'center',
     },
-    wordTextActive: {
+    wordInlineActive: {
+        backgroundColor: colors.highlightYellow,
         color: colors.text,
         fontFamily: typography.sansMedium,
     },
