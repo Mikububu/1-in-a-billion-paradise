@@ -127,6 +127,9 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
   const soundRef = useRef<Audio.Sound | null>(null);
   const currentPlayingType = useRef<string | null>(null);
 
+  // Background music (Whispering Breeze)
+  const bgMusicRef = useRef<Audio.Sound | null>(null);
+
   // Sign-in state (for 4th page gateway)
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [showDevMode, setShowDevMode] = useState(false);

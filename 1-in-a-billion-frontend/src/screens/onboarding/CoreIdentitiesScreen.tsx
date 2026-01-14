@@ -135,6 +135,7 @@ import { audioApi } from '@/services/api';
 import { AUDIO_CONFIG } from '@/config/readingConfig';
 import { AmbientMusic } from '@/services/ambientMusic';
 import { uploadHookAudioBase64 } from '@/services/hookAudioCloud';
+import { Audio } from 'expo-av';
 // Audio stored in memory (base64) - no file system needed
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'CoreIdentities'>;
@@ -252,6 +253,45 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
   const setHookReading = useOnboardingStore((state) => state.setHookReading);
   const setHookAudio = useOnboardingStore((state) => state.setHookAudio);
   const authUser = useAuthStore((s) => s.user);
+
+  // Background music (Whispering Breeze)
+  const bgMusicRef = useRef<Audio.Sound | null>(null);
+
+  // Load and play background music on mount
+  useEffect(() => {
+    const loadBgMusic = async () => {
+      try {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
+          shouldDuckAndroid: false,
+        });
+
+        const { sound } = await Audio.Sound.createAsync(
+          require('@/../assets/audio/whispering-breeze.mp3'),
+          { 
+            shouldPlay: true, 
+            isLooping: true, 
+            volume: 0.3 // Ambient volume
+          }
+        );
+        bgMusicRef.current = sound;
+        console.log('🎵 Whispering Breeze background music started');
+      } catch (err) {
+        console.warn('⚠️ Background music failed to load:', err);
+      }
+    };
+    loadBgMusic();
+
+    return () => {
+      // Stop and unload background music on unmount
+      if (bgMusicRef.current) {
+        bgMusicRef.current.stopAsync().catch(() => {});
+        bgMusicRef.current.unloadAsync().catch(() => {});
+        bgMusicRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     // Start animations
