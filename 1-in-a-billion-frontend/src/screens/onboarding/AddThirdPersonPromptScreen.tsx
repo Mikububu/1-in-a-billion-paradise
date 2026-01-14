@@ -101,35 +101,37 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
           </Text>
         </View>
 
-        <View style={{ height: spacing.xl }} />
+        <View style={{ flex: 1 }} />
 
-        <Button
-          label="YES, ADD A PERSON"
-          onPress={() => {
-            if (existingPartner && existingPartnerCity) {
-              // Reuse existing free partner hook reading; do not create a new one.
-              navigation.navigate('PartnerReadings' as any, {
-                partnerName: existingPartner.name,
-                partnerBirthDate: existingPartner.birthData?.birthDate,
-                partnerBirthTime: existingPartner.birthData?.birthTime,
-                partnerBirthCity: existingPartnerCity,
-                partnerId: existingPartner.id,
-                mode: 'onboarding_hook',
-              });
-              return;
-            }
-            navigation.navigate('PartnerInfo', { mode: 'onboarding_hook' } as any);
-          }}
-          variant="primary"
-          style={styles.button}
-        />
+        <View style={styles.buttonContainer}>
+          <Button
+            label="YES, ADD A PERSON"
+            onPress={() => {
+              if (existingPartner && existingPartnerCity) {
+                // Reuse existing free partner hook reading; do not create a new one.
+                navigation.navigate('PartnerReadings' as any, {
+                  partnerName: existingPartner.name,
+                  partnerBirthDate: existingPartner.birthData?.birthDate,
+                  partnerBirthTime: existingPartner.birthData?.birthTime,
+                  partnerBirthCity: existingPartnerCity,
+                  partnerId: existingPartner.id,
+                  mode: 'onboarding_hook',
+                });
+                return;
+              }
+              navigation.navigate('PartnerInfo', { mode: 'onboarding_hook' } as any);
+            }}
+            variant="primary"
+            style={styles.button}
+          />
 
-        <Button
-          label="NO, CONTINUE"
-          onPress={() => navigation.navigate('PostHookOffer')}
-          variant="secondary"
-          style={styles.button}
-        />
+          <Button
+            label="NO, CONTINUE"
+            onPress={() => navigation.navigate('PostHookOffer')}
+            variant="secondary"
+            style={styles.button}
+          />
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -180,6 +182,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
     maxWidth: 340,
+  },
+  buttonContainer: {
+    width: '100%',
+    paddingBottom: spacing.lg,
   },
   button: { width: '100%', marginTop: spacing.md },
 });
