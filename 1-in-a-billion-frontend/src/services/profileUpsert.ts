@@ -69,6 +69,15 @@ export async function upsertSelfProfileToSupabase(params: UpsertSelfProfileParam
         return { success: false, error: 'Missing userId' };
     }
 
+    // Important: In React Native dev, `console.error(...)` often triggers a red error overlay.
+    // This function must never block auth/onboarding, and it must fail quietly on flaky networks.
+    const withTimeout = async <T,>(p: Promise<T>, ms: number): Promise<T> => {
+        return await Promise.race([
+            p,
+            new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Network request timed out')), ms)),
+        ]);
+    };
+
     try {
         console.log('🔄 Upserting complete self profile to Supabase...', {
             userId,
@@ -105,16 +114,16 @@ export async function upsertSelfProfileToSupabase(params: UpsertSelfProfileParam
         };
 
         // Check if profile already exists
-        const { data: existing } = await supabase
+        const { data: existing } = await withTimeout(supabase
             .from(TABLE_PEOPLE)
             .select('user_id')
             .eq('user_id', userId)
             .eq('is_user', true)
-            .maybeSingle();
+            .maybeSingle(), 8000);
 
         if (existing) {
             // Update existing profile
-            const { error } = await supabase
+            const { error } = await withTimeout(supabase
                 .from(TABLE_PEOPLE)
                 .update({
                     name: profileRow.name,
@@ -126,20 +135,20 @@ export async function upsertSelfProfileToSupabase(params: UpsertSelfProfileParam
                     ...(profileRow.hook_readings ? { hook_readings: profileRow.hook_readings } : {}),
                 })
                 .eq('user_id', userId)
-                .eq('is_user', true);
+                .eq('is_user', true), 8000);
 
             if (error) {
-                console.error('❌ Failed to update self profile:', error.message);
+                console.warn('⚠️ Failed to update self profile (non-blocking):', error.message);
                 return { success: false, error: error.message };
             }
         } else {
             // Insert new profile
-            const { error } = await supabase
+            const { error } = await withTimeout(supabase
                 .from(TABLE_PEOPLE)
-                .insert(profileRow);
+                .insert(profileRow), 8000);
 
             if (error) {
-                console.error('❌ Failed to insert self profile:', error.message);
+                console.warn('⚠️ Failed to insert self profile (non-blocking):', error.message);
                 return { success: false, error: error.message };
             }
         }
@@ -148,7 +157,7 @@ export async function upsertSelfProfileToSupabase(params: UpsertSelfProfileParam
         return { success: true };
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-        console.error('❌ Exception during profile upsert:', errorMessage);
+        console.warn('⚠️ Exception during profile upsert (non-blocking):', errorMessage);
         return { success: false, error: errorMessage };
     }
 }
