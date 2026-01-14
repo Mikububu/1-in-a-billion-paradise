@@ -127,8 +127,6 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
   const soundRef = useRef<Audio.Sound | null>(null);
   const currentPlayingType = useRef<string | null>(null);
 
-  // Background music (Whispering Breeze)
-  const bgMusicRef = useRef<Audio.Sound | null>(null);
 
   // Sign-in state (for 4th page gateway)
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -207,41 +205,6 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     downloadMissingAudio();
   }, []); // Run once on mount
 
-  // Load and play background music on mount
-  useEffect(() => {
-    const loadBgMusic = async () => {
-      try {
-        await Audio.setAudioModeAsync({
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: false,
-          shouldDuckAndroid: false,
-        });
-
-        const { sound } = await Audio.Sound.createAsync(
-          require('@/../assets/audio/whispering-breeze.mp3'),
-          { 
-            shouldPlay: true, 
-            isLooping: true, 
-            volume: 0.12 // Ambient volume (60% less than before)
-          }
-        );
-        bgMusicRef.current = sound;
-        console.log('🎵 Whispering Breeze background music started');
-      } catch (err) {
-        console.warn('⚠️ Background music failed to load:', err);
-      }
-    };
-    loadBgMusic();
-
-    return () => {
-      // Stop and unload background music on unmount
-      if (bgMusicRef.current) {
-        bgMusicRef.current.stopAsync().catch(() => {});
-        bgMusicRef.current.unloadAsync().catch(() => {});
-        bgMusicRef.current = null;
-      }
-    };
-  }, []);
 
   // Readings array - 3 hook readings + 4th handoff page
   const readings = useMemo((): PageItem[] => {
@@ -324,12 +287,6 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
           soundRef.current.stopAsync().catch(() => { });
           soundRef.current.unloadAsync().catch(() => { });
           soundRef.current = null;
-        }
-        // Also stop and UNLOAD background music
-        if (bgMusicRef.current) {
-          bgMusicRef.current.stopAsync().catch(() => {});
-          bgMusicRef.current.unloadAsync().catch(() => {});
-          bgMusicRef.current = null;
         }
         setAudioPlaying({});
         currentPlayingType.current = null;
@@ -975,13 +932,6 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     setPage(index);
     // Swipe-only handoff: the 4th page auto-navigates to the next module after a tiny delay.
     if (index === 3) {
-      // STOP Whispering Breeze IMMEDIATELY before navigating to offer screens
-      if (bgMusicRef.current) {
-        bgMusicRef.current.stopAsync().catch(() => {});
-        bgMusicRef.current.unloadAsync().catch(() => {});
-        bgMusicRef.current = null;
-      }
-      
       setTimeout(() => {
         // @ts-ignore
         navigation.navigate('AddThirdPersonPrompt');
