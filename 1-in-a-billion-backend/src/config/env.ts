@@ -25,10 +25,10 @@ export const env = {
   OPENAI_MODEL: process.env.OPENAI_MODEL ?? 'gpt-4o',
 
   // POLICY: Provider for paid long-form generation (jobs: extended/synastry/nuclear/nuclear_v2)
-  // Michael (Dec 2025): use DeepSeek for now to avoid Claude costs while testing PDFs/audio.
+  // Michael (Jan 2026): Claude Sonnet 4 for unhinged overlay readings - DeepSeek is too vanilla.
   // Override any time via:
   //   PAID_LLM_PROVIDER=deepseek | claude | openai
-  PAID_LLM_PROVIDER: process.env.PAID_LLM_PROVIDER ?? 'deepseek',
+  PAID_LLM_PROVIDER: process.env.PAID_LLM_PROVIDER ?? 'claude',
 
   // Optional beta protection (OFF unless set)
   // If set, backend requires header: X-BETA-KEY: <value> for /api/jobs/* endpoints
