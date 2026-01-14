@@ -246,10 +246,11 @@ export function useSupabaseAuthBootstrap() {
 
           // Upsert self profile to Supabase (non-blocking)
           const { upsertSelfProfileToSupabase, initializeCommercialState } = await import('@/services/profileUpsert');
+          const currentDisplayName = useAuthStore.getState().displayName;
           upsertSelfProfileToSupabase({
             userId: session.user.id,
             email: session.user.email || '',
-            displayName: name,
+            displayName: currentDisplayName,
           }).catch((err) => {
             console.warn('Profile upsert failed (non-blocking):', err);
           });
