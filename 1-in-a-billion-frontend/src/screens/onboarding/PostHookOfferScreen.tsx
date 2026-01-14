@@ -34,38 +34,35 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     const userId = useAuthStore((s) => s.user?.id || 'anonymous');
     const userEmail = useAuthStore((s) => s.user?.email || '');
     
-    // Audio state: preloaded audio URLs/sources and sound instances
-    // Can be string URLs or require() sources (number)
-    const [audioUrls, setAudioUrls] = useState<(string | number | null)[]>([null, null, null]);
-    const [isPreloadingAudio, setIsPreloadingAudio] = useState(true);
-    const [isAudioPlaying, setIsAudioPlaying] = useState(false); // Track if audio is currently playing
-    const soundRefs = useRef<(Audio.Sound | null)[]>([null, null, null]);
-    const currentPlayingIndex = useRef<number | null>(null);
-    const audioUrlsRef = useRef<(string | number | null)[]>([null, null, null]);
-    const isPreloadingAudioRef = useRef(true);
+    // Audio state
+    const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+    const soundRef = useRef<Audio.Sound | null>(null);
 
     // (dev logs removed)
 
-    // If user ever comes back to this screen, re-enable buttons.
+    // Set audio mode on mount
+    useEffect(() => {
+        Audio.setAudioModeAsync({
+            playsInSilentModeIOS: true,
+            staysActiveInBackground: false,
+            shouldDuckAndroid: false,
+        });
+    }, []);
+
+    // If user ever comes back to this screen, re-enable buttons
     useFocusEffect(
         useCallback(() => {
             setPage(0);
             listRef.current?.scrollToOffset({ offset: 0, animated: false });
             
-            // Cleanup: stop all audio when screen loses focus
+            // Cleanup: stop audio when screen loses focus
             return () => {
-                soundRefs.current.forEach(async (sound, idx) => {
-                    if (sound) {
-                        try {
-                            await sound.stopAsync();
-                            await sound.unloadAsync();
-                        } catch (e) {
-                            // Ignore cleanup errors
-                        }
-                        soundRefs.current[idx] = null;
-                    }
-                });
-                currentPlayingIndex.current = null;
+                if (soundRef.current) {
+                    soundRef.current.stopAsync().catch(() => {});
+                    soundRef.current.unloadAsync().catch(() => {});
+                    soundRef.current = null;
+                }
+                setIsAudioPlaying(false);
             };
         }, [])
     );
@@ -350,16 +347,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     // No secondary CTA; user can swipe freely.
 
     return (
-        <SafeAreaView style={[styles.container, isAudioPlaying && styles.containerPlaying]}>
-            {/* DEBUG: Show audio status */}
-            <View style={styles.debugBanner}>
-                <Text style={styles.debugText}>
-                    {isPreloadingAudio ? '⏳ Loading audio...' : 
-                     isAudioPlaying ? '🔊 AUDIO PLAYING' : 
-                     '🔇 No audio playing'}
-                </Text>
-                <Text style={styles.debugText}>Page {page + 1}/3</Text>
-            </View>
+        <SafeAreaView style={styles.container}>
             <View style={styles.content}>
                 <FlatList
                     ref={listRef}
@@ -371,15 +359,10 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     keyExtractor={(_, idx) => `offer-${idx}`}
                     onScrollBeginDrag={(e) => {
                         swipeStartX.current = e.nativeEvent.contentOffset.x;
-                        // Stop audio immediately when user starts swiping
-                        if (currentPlayingIndex.current !== null) {
-                            const currentSound = soundRefs.current[currentPlayingIndex.current];
-                            if (currentSound) {
-                                currentSound.stopAsync().catch(() => {});
-                                currentSound.unloadAsync().catch(() => {});
-                                soundRefs.current[currentPlayingIndex.current] = null;
-                            }
-                            currentPlayingIndex.current = null;
+                        // Stop audio immediately when swiping
+                        if (soundRef.current) {
+                            soundRef.current.stopAsync().catch(() => {});
+                            setIsAudioPlaying(false);
                         }
                     }}
                     onScrollEndDrag={(e) => {
@@ -486,24 +469,6 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: 'transparent',
-    },
-    containerPlaying: {
-        backgroundColor: 'rgba(250, 204, 21, 0.3)', // Yellow overlay when playing
-    },
-    debugBanner: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        padding: 10,
-        zIndex: 9999,
-        alignItems: 'center',
-    },
-    debugText: {
-        color: '#fff',
-        fontSize: 14,
-        fontFamily: typography.sansBold,
     },
     content: {
         flex: 1,
