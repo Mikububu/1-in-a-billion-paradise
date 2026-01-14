@@ -62,6 +62,9 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
   const { partnerName, partnerBirthDate, partnerBirthTime, partnerBirthCity, partnerId } = route.params || {};
   const user = useProfileStore((s) => s.getUser());
   const onboardingBirthTime = useOnboardingStore((s) => s.birthTime);
+  const relationshipIntensity = useOnboardingStore((s: any) => s.relationshipIntensity) ?? 5;
+  const relationshipMode = useOnboardingStore((s: any) => s.relationshipMode) ?? 'sensual';
+  const primaryLanguage = useOnboardingStore((s: any) => s.primaryLanguage?.code) ?? 'en';
   const authUser = useAuthStore((s) => s.user);
   const hasUsedFreeOverlay = useAuthStore((s) => s.hasUsedFreeOverlay);
 
@@ -430,9 +433,9 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
             timezone: partnerBirthCity?.timezone || 'UTC',
             latitude: partnerBirthCity?.latitude || 0,
             longitude: partnerBirthCity?.longitude || 0,
-            relationshipIntensity: 5,
-            relationshipMode: 'sensual',
-            primaryLanguage: 'en',
+            relationshipIntensity,
+            relationshipMode,
+            primaryLanguage,
             subjectName: partnerName,
             isPartnerReading: true,
           }),

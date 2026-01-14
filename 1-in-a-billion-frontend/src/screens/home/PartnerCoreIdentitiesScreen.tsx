@@ -130,6 +130,11 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
   const people = useProfileStore((state) => state.people);
 
   const authUser = useAuthStore((s) => s.user);
+
+  // Use the same config knobs as the 1st-person hook pipeline (don’t hardcode).
+  const relationshipIntensity = useOnboardingStore((s: any) => s.relationshipIntensity) ?? 5;
+  const relationshipMode = useOnboardingStore((s: any) => s.relationshipMode) ?? 'sensual';
+  const primaryLanguage = useOnboardingStore((s: any) => s.primaryLanguage?.code) ?? 'en';
   
   // Audio store for partner audio pre-rendering
   const setPartnerAudio = useOnboardingStore((state: any) => state.setPartnerAudio);
@@ -219,36 +224,12 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
           timezone: existingPerson.birthData?.timezone || 'UTC',
         } as CityOption);
 
-      // In the pre-pay onboarding add-person flow, we ALWAYS show the animation screen
-      // (even if the person already exists / cached). Otherwise it “jumps” straight to Sun.
-      if (isPrepayOnboarding) {
-        setSavedPartnerId(existingPerson.id);
-
-        setCurrentScreen('intro');
-        setStatusText(`Preparing ${name}'s chart...`);
-        setProgress(5);
-        await delay(1200);
-
-        setCurrentScreen('sun');
-        setStatusText(`Calculating ${name}'s Sun sign...`);
-        setProgress(30);
-        await delay(900);
-
-        setCurrentScreen('moon');
-        setStatusText(`Calculating ${name}'s Moon sign...`);
-        setProgress(60);
-        await delay(900);
-
-        setCurrentScreen('rising');
-        setStatusText(`Calculating ${name}'s Rising sign...`);
-        setProgress(85);
-        await delay(900);
-
-        setCurrentScreen('intro');
-        setStatusText('Chart complete!');
+      // Pre-pay onboarding must run the real hook-reading pipeline (API calls) so the data is correct.
+      // So we only use the cached fast-path in non-onboarding flows.
+      if (!isPrepayOnboarding) {
         setProgress(100);
-        await delay(700);
-
+        setStatusText('Loading existing readings...');
+        await delay(500);
         navigation.replace('PartnerReadings', {
           partnerName: name,
           partnerBirthDate: partnerBirthDate || existingPerson.birthData?.birthDate,
@@ -259,18 +240,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         return;
       }
 
-      // Non-onboarding flow: keep the fast-path for already-indexed partners.
-      setProgress(100);
-      setStatusText('Loading existing readings...');
-      await delay(500);
-      navigation.replace('PartnerReadings', {
-        partnerName: name,
-        partnerBirthDate: partnerBirthDate || existingPerson.birthData?.birthDate,
-        partnerBirthTime: partnerBirthTime || existingPerson.birthData?.birthTime,
-        partnerBirthCity: cachedCity,
-        partnerId: existingPerson.id,
-      });
-      return;
+      // If we're in onboarding, fall through and run the real pipeline below.
     }
 
     // Capture placements so Compare can work later (no extra "pre-run free flows")
@@ -283,15 +253,21 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
     let moonAudioBase64: string | null = null;
     let risingAudioBase64: string | null = null;
     
+    // Never silently fall back to fake birth data in onboarding.
+    if (!partnerBirthDate || !partnerBirthCity) {
+      Alert.alert('Missing birth data', 'Please add birth date + city for this person.');
+      navigation.goBack();
+      return;
+    }
     const payload = {
-      birthDate: partnerBirthDate || '1992-03-15',
-      birthTime: partnerBirthTime || '22:30',
-      timezone: partnerBirthCity?.timezone || 'Europe/Vienna',
-      latitude: partnerBirthCity?.latitude || 48.2082,
-      longitude: partnerBirthCity?.longitude || 16.3738,
-      relationshipIntensity: 5,
-      relationshipMode: 'sensual',
-      primaryLanguage: 'en',
+      birthDate: partnerBirthDate,
+      birthTime: partnerBirthTime || '12:00',
+      timezone: partnerBirthCity?.timezone || 'UTC',
+      latitude: partnerBirthCity?.latitude || 0,
+      longitude: partnerBirthCity?.longitude || 0,
+      relationshipIntensity,
+      relationshipMode,
+      primaryLanguage,
       subjectName: name,
       isPartnerReading: true,
     };
@@ -570,11 +546,23 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         });
       }
       if (nextHookReadings.length === 3) {
-        setHookReadings(partnerId, nextHookReadings as any);
+        setHookReadings(ensuredPartnerId, nextHookReadings as any);
         console.log(`✅ Saved ${partnerName}'s hook readings for Home carousel rotation`);
       }
 
-      // Save partner + readings to Supabase
+      if (isPrepayOnboarding) {
+        // In onboarding: proceed to partner hook reading screens + compatibility preview.
+        navigation.replace('PartnerReadings', {
+          partnerName: name,
+          partnerBirthDate,
+          partnerBirthTime,
+          partnerBirthCity,
+          partnerId: ensuredPartnerId,
+        });
+        return;
+      }
+
+      // Non-onboarding: keep the legacy behavior (dashboard navigation + optional cloud sync).
       const user = useProfileStore.getState().people.find(p => p.isUser);
       const userId = user?.id;
       if (userId) {
@@ -591,13 +579,8 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
           console.error('❌ Error saving partner to Supabase:', error);
         }
       }
-
-      // Navigate directly to Dashboard (all readings generated and saved)
       console.log('✅ Partner readings complete - navigating to Dashboard');
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Home' }],
-      });
+      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
 
     } catch (error) {
       console.error('Error fetching partner readings:', error);
