@@ -272,7 +272,7 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
           { 
             shouldPlay: true, 
             isLooping: true, 
-            volume: 0.3 // Ambient volume
+            volume: 0.12 // Ambient volume (60% less than before)
           }
         );
         bgMusicRef.current = sound;
