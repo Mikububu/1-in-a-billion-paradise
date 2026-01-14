@@ -43,10 +43,12 @@ router.post('/start', async (c) => {
   const body = await c.req.json();
   const params = startSchema.parse(body);
 
-  // Select people IDs to process
+  // Select people keys to process.
+  // IMPORTANT: library_people does not have an `id` column in this project.
+  // The stable identifier is (user_id, client_person_id).
   let peopleQuery = supabase
     .from('library_people')
-    .select('id, created_at')
+    .select('user_id, client_person_id, created_at')
     .order('created_at', { ascending: false });
 
   if (params.scope === 'recent') {
@@ -59,8 +61,11 @@ router.post('/start', async (c) => {
   const { data: people, error: peopleErr } = await peopleQuery;
   if (peopleErr) return c.json({ error: peopleErr.message }, 500);
 
-  const ids = (people || []).map((p: any) => p.id);
-  if (ids.length === 0) {
+  const personKeys = (people || [])
+    .filter((p: any) => p?.user_id && p?.client_person_id)
+    .map((p: any) => ({ user_id: p.user_id, client_person_id: p.client_person_id }));
+
+  if (personKeys.length === 0) {
     return c.json({ ok: true, message: 'No people found to scale', jobId: null }, 200);
   }
 
@@ -95,7 +100,7 @@ router.post('/start', async (c) => {
 
   const jobParams = {
     ...params,
-    totalPeople: ids.length,
+    totalPeople: personKeys.length,
     startedAt: new Date().toISOString(),
     triggeredBy: 'admin-panel',
   };
@@ -118,18 +123,18 @@ router.post('/start', async (c) => {
 
   // Create tasks (batched)
   const batchSize = params.batchSize;
-  const batches: string[][] = [];
-  for (let i = 0; i < ids.length; i += batchSize) {
-    batches.push(ids.slice(i, i + batchSize));
+  const batches: Array<Array<{ user_id: string; client_person_id: string }>> = [];
+  for (let i = 0; i < personKeys.length; i += batchSize) {
+    batches.push(personKeys.slice(i, i + batchSize));
   }
 
-  const taskRows = batches.map((batchIds, idx) => ({
+  const taskRows = batches.map((batchPeople, idx) => ({
     job_id: job.id,
     task_type: 'people_scaling',
     status: 'pending',
     sequence: idx,
     input: {
-      personIds: batchIds,
+      people: batchPeople,
       dryRun: params.dryRun,
       batchNum: idx + 1,
       totalBatches: batches.length,

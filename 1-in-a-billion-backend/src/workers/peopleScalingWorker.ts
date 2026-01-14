@@ -15,7 +15,7 @@ import { createSupabaseServiceClient } from '../services/supabaseClient';
 import { ephemerisIsolation } from '../services/ephemerisIsolation';
 
 type PeopleScalingTaskInput = {
-  personIds: string[];
+  people?: Array<{ user_id: string; client_person_id: string }>;
   dryRun?: boolean;
   batchNum?: number;
   totalBatches?: number;
@@ -41,10 +41,10 @@ export class PeopleScalingWorker extends BaseWorker {
     if (!supabase) return { success: false, error: 'Supabase not configured' };
 
     const input = (task.input || {}) as PeopleScalingTaskInput;
-    const personIds = Array.isArray(input.personIds) ? input.personIds : [];
+    const peopleKeys = Array.isArray(input.people) ? input.people : [];
     const dryRun = !!input.dryRun;
 
-    if (personIds.length === 0) {
+    if (peopleKeys.length === 0) {
       return { success: true, output: { message: 'No people in batch (noop)' } };
     }
 
@@ -53,7 +53,7 @@ export class PeopleScalingWorker extends BaseWorker {
       const batchLabel =
         typeof input.batchNum === 'number' && typeof input.totalBatches === 'number'
           ? `Batch ${input.batchNum}/${input.totalBatches}`
-          : `Batch (${personIds.length} people)`;
+          : `Batch (${peopleKeys.length} people)`;
       await supabase
         .from('jobs')
         .update({
@@ -70,11 +70,16 @@ export class PeopleScalingWorker extends BaseWorker {
       // ignore
     }
 
-    // Load people
+    // Load people.
+    // IMPORTANT: client_person_id is only unique *per user*, so we must match (user_id, client_person_id) pairs.
+    const ors = peopleKeys
+      .filter((p) => p?.user_id && p?.client_person_id)
+      .map((p) => `and(user_id.eq.${p.user_id},client_person_id.eq.${p.client_person_id})`);
+
     const { data: people, error } = await supabase
       .from('library_people')
-      .select('id, user_id, name, birth_data, placements')
-      .in('id', personIds);
+      .select('user_id, client_person_id, name, birth_data, placements')
+      .or(ors.join(','));
 
     if (error) {
       return { success: false, error: `Failed to load people: ${error.message}` };
@@ -82,7 +87,7 @@ export class PeopleScalingWorker extends BaseWorker {
 
     let updated = 0;
     let skipped = 0;
-    const failures: Array<{ id: string; error: string }> = [];
+    const failures: Array<{ client_person_id: string; error: string }> = [];
 
     for (const p of people || []) {
       try {
@@ -114,8 +119,8 @@ export class PeopleScalingWorker extends BaseWorker {
           version: 1,
           computed_at: nowIso(),
           person: {
-            id: (p as any).id,
             user_id: (p as any).user_id,
+            client_person_id: (p as any).client_person_id,
             name: (p as any).name,
           },
           western: {
@@ -137,14 +142,15 @@ export class PeopleScalingWorker extends BaseWorker {
               match_profile: matchProfile,
               match_profile_updated_at: nowIso(),
             } as any)
-            .eq('id', (p as any).id);
+            .eq('user_id', (p as any).user_id)
+            .eq('client_person_id', (p as any).client_person_id);
 
           if (updateErr) throw updateErr;
         }
 
         updated += 1;
       } catch (e: any) {
-        failures.push({ id: (p as any).id, error: e?.message || String(e) });
+        failures.push({ client_person_id: (p as any).client_person_id, error: e?.message || String(e) });
       }
     }
 
