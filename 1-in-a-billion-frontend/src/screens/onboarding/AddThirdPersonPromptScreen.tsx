@@ -146,8 +146,8 @@ const styles = StyleSheet.create({
     opacity: 1, // explicit: no transparency
   },
   bgImage: {
-    // Slightly up, similar to the previous "video slightly up" request.
-    transform: [{ translateY: -10 }],
+    // Move up and scale to 50%
+    transform: [{ translateY: -150 }, { scale: 0.5 }],
   },
   content: {
     flex: 1,
