@@ -101,10 +101,10 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         const tokenize = (text: string) => text.split(/\s+/).filter(Boolean);
         const weightFor = (w: string) => {
             const last = w[w.length - 1] || '';
-            // Slightly faster punctuation pauses so highlight feels more "on time"
-            if (/[.!?]/.test(last)) return 1.8;
-            if (/[:,;]/.test(last)) return 1.35;
-            return 1.0;
+            // Faster word timing so highlight stays in sync with audio
+            if (/[.!?]/.test(last)) return 1.3;
+            if (/[:,;]/.test(last)) return 1.0;
+            return 0.8;
         };
 
         const wordsByPage = pages.map((p) => tokenize(p.body));
