@@ -41,12 +41,14 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
         isMuted
       />
       <View style={styles.content}>
-        <Text style={styles.title} selectable>
-          Would you like to do a free hook reading for another person?
-        </Text>
-        <Text style={styles.subtitle} selectable>
-          You can add one person and receive their Sun, Moon, and Rising previews — plus the compatibility preview between you both.
-        </Text>
+        <View style={styles.textCard}>
+          <Text style={styles.title} selectable>
+            Would you like to do a free hook reading for another person?
+          </Text>
+          <Text style={styles.subtitle} selectable>
+            You can add one person and receive their Sun, Moon, and Rising previews, plus the compatibility preview between you both.
+          </Text>
+        </View>
 
         <View style={{ height: spacing.xl }} />
 
@@ -97,6 +99,16 @@ const styles = StyleSheet.create({
     padding: spacing.page,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  textCard: {
+    width: '100%',
+    maxWidth: 520,
+    backgroundColor: colors.surface, // broken white
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 22,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
   },
   title: {
     fontFamily: typography.headline,
