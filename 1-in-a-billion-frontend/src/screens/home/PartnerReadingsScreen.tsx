@@ -898,18 +898,19 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingHorizontal: spacing.page,
   },
   gatewayTop: {
     width: '100%',
     alignItems: 'center',
-    paddingTop: spacing.xl,
+    paddingTop: spacing.xxl, // Push headline down to standard position
+    paddingHorizontal: spacing.page,
   },
   gatewayTitle: {
     fontFamily: typography.headline,
     fontSize: 28,
     color: colors.text,
     textAlign: 'center',
+    marginTop: spacing.xl, // Extra top margin for headline
     marginBottom: spacing.md,
   },
   gatewaySubtitle: {
@@ -921,11 +922,11 @@ const styles = StyleSheet.create({
   },
   gatewayVideo: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 240,
-    width: '100%',
+    left: -spacing.page, // Break out of page padding to touch left edge
+    right: -spacing.page, // Break out of page padding to touch right edge
+    bottom: -spacing.xl, // Move down to touch bottom
+    height: 340, // Bigger video
+    width: PAGE_WIDTH, // Full screen width
   },
   continueBtn: {
     backgroundColor: colors.primary,
