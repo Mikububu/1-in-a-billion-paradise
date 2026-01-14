@@ -38,6 +38,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     // Can be string URLs or require() sources (number)
     const [audioUrls, setAudioUrls] = useState<(string | number | null)[]>([null, null, null]);
     const [isPreloadingAudio, setIsPreloadingAudio] = useState(true);
+    const [isAudioPlaying, setIsAudioPlaying] = useState(false); // Track if audio is currently playing
     const soundRefs = useRef<(Audio.Sound | null)[]>([null, null, null]);
     const currentPlayingIndex = useRef<number | null>(null);
     const audioUrlsRef = useRef<(string | number | null)[]>([null, null, null]);
@@ -183,6 +184,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     soundRefs.current[currentPlayingIndex.current] = null;
                 }
                 currentPlayingIndex.current = null;
+                setIsAudioPlaying(false); // Hide yellow background when stopping
             }
 
             // Wait for audio to be ready (check every 500ms, max 60 seconds)
@@ -233,6 +235,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                 
                 soundRefs.current[pageIndex] = sound;
                 currentPlayingIndex.current = pageIndex;
+                setIsAudioPlaying(true); // Show yellow background
                 console.log(`✅ Audio playing for page ${pageIndex + 1}`);
 
                 // Cleanup when audio finishes
@@ -240,6 +243,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     if (status.isLoaded) {
                         if (status.didJustFinish) {
                             console.log(`🏁 Audio finished for page ${pageIndex + 1}`);
+                            setIsAudioPlaying(false); // Hide yellow background
                             soundRefs.current[pageIndex] = null;
                             if (currentPlayingIndex.current === pageIndex) {
                                 currentPlayingIndex.current = null;
@@ -405,7 +409,10 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                         
                         return (
                         <View style={[styles.page, { width: PAGE_W }]}>
-                            <View style={styles.textBlock}>
+                            <View style={[
+                                styles.textBlock,
+                                isAudioPlaying && index === page && styles.textBlockPlaying
+                            ]}>
                                 <Text style={styles.title} selectable>{item.title}</Text>
                                 <Text style={styles.body} selectable>{item.body}</Text>
                             </View>
@@ -489,6 +496,13 @@ const styles = StyleSheet.create({
         // Anchor headlines to the same top position across all pages.
         justifyContent: 'flex-start',
         paddingTop: spacing.xxl, // consistent top offset (safe-area + notch friendly)
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.lg,
+        borderRadius: 16,
+        transition: 'background-color 0.3s ease',
+    },
+    textBlockPlaying: {
+        backgroundColor: colors.highlightYellow, // Yellow karaoke background when audio is playing
     },
     bottomReserve: {
         // Dynamic per-page height is set inline.
