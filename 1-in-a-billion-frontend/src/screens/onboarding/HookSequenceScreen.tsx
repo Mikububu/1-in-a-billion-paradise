@@ -17,7 +17,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { Button } from '@/components/Button';
 import * as FileSystem from 'expo-file-system/legacy';
 import { getDocumentDirectory, EncodingType } from '@/utils/fileSystem';
 import * as WebBrowser from 'expo-web-browser';
@@ -63,10 +62,11 @@ const NEXT_LABELS: Record<string, string> = {
   sun: 'Discover Your Moon',
   moon: 'Discover Your Rising',
   rising: 'Continue',
+  gateway: 'Continue',
 };
 
-// New onboarding flow: only the 3 hook pages (no signup gateway here)
-type PageItem = HookReading;
+// Swipe-only flow: 3 hook pages + 4th "handoff" page (no signup)
+type PageItem = HookReading | { type: 'gateway'; sign: ''; intro: ''; main: '' };
 
 type LLMProvider = 'deepseek' | 'claude' | 'gpt' | 'deepthink';
 
@@ -205,7 +205,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     downloadMissingAudio();
   }, []); // Run once on mount
 
-  // Readings array - exactly 3 hook readings
+  // Readings array - 3 hook readings + 4th handoff page
   const readings = useMemo((): PageItem[] => {
     let baseReadings: HookReading[];
     if (customReadings && customReadings.length === 3) {
@@ -216,6 +216,9 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
       if (moon) apiReadings.push(moon);
       if (rising) apiReadings.push(rising);
       baseReadings = apiReadings;
+    }
+    if (baseReadings.length === 3) {
+      return [...baseReadings, { type: 'gateway', sign: '', intro: '', main: '' }];
     }
     return baseReadings;
   }, [sun, moon, rising, customReadings]);
@@ -315,7 +318,20 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     }
   }, [page]);
 
-  // (Signup gateway removed from this flow)
+  // HARD STOP: if user lands on the handoff page (4th swipe), audio must never keep playing.
+  useEffect(() => {
+    const current = readings[page];
+    if (current?.type === 'gateway') {
+      if (soundRef.current) {
+        soundRef.current.stopAsync().catch(() => { });
+        soundRef.current.unloadAsync().catch(() => { });
+        soundRef.current = null;
+      }
+      setAudioPlaying({});
+      currentPlayingType.current = null;
+      setAudioLoading({});
+    }
+  }, [page, readings]);
 
   // Get setHookAudio from store for background generation
   const setHookAudio = useOnboardingStore((state) => state.setHookAudio);
@@ -907,32 +923,21 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     const { contentOffset, layoutMeasurement } = event.nativeEvent;
     const index = Math.round(contentOffset.x / layoutMeasurement.width);
     setPage(index);
-  };
-
-  // “Swipe again” handoff: when user is on the last page (Rising) and swipes once more,
-  // we interpret it as intent to continue and navigate to the next screen.
-  const lastPageDragStartX = useRef<number | null>(null);
-  const didSwipeBeyondLast = useRef(false);
-
-  const addSavedPDF = useProfileStore((state) => state.addSavedPDF);
-  const displayName = useAuthStore((state) => state.displayName);
-
-  const handleNext = async () => {
-    if (page < readings.length - 1) {
-      listRef.current?.scrollToIndex({ index: page + 1, animated: true });
-    } else {
-      // After the 3rd reading: ask whether they want to add another person.
-      // NOTE: We do NOT sign up or persist anything before purchase.
-      if (didSwipeBeyondLast.current) {
-        didSwipeBeyondLast.current = false;
-      }
-      // Small delay prevents “stuck” feeling when the user expects a 4th swipe page.
+    // Swipe-only handoff: the 4th page auto-navigates to the next module after a tiny delay.
+    if (index === 3) {
       setTimeout(() => {
         // @ts-ignore
         navigation.navigate('AddThirdPersonPrompt');
       }, 250);
     }
   };
+
+  // No explicit "continue" button in this screen — it's swipe-only.
+
+  const addSavedPDF = useProfileStore((state) => state.addSavedPDF);
+  const displayName = useAuthStore((state) => state.displayName);
+
+  // handleNext removed — swipe-only navigation
 
   // Generate a beautiful PDF from the 3 hook readings
 
@@ -1055,30 +1060,19 @@ ${rising.main}`;
               horizontal
               showsHorizontalScrollIndicator={false}
               ref={listRef}
-              onScrollBeginDrag={(e) => {
-                if (page === readings.length - 1) {
-                  lastPageDragStartX.current = e.nativeEvent.contentOffset.x;
-                } else {
-                  lastPageDragStartX.current = null;
-                }
-              }}
-              onScrollEndDrag={(e) => {
-                const startX = lastPageDragStartX.current;
-                if (startX == null) return;
-                const endX = e.nativeEvent.contentOffset.x;
-                const delta = endX - startX;
-                // Only treat as “swipe beyond last” if they tried to go further right from the last page.
-                if (page === readings.length - 1 && delta > 40) {
-                  didSwipeBeyondLast.current = true;
-                  // give the bounce a beat, then continue
-                  setTimeout(() => {
-                    // @ts-ignore
-                    navigation.navigate('AddThirdPersonPrompt');
-                  }, 250);
-                }
-              }}
               onMomentumScrollEnd={handleScroll}
               renderItem={({ item }) => {
+                if ((item as any).type === 'gateway') {
+                  // Minimal handoff page: user swiped here, so we auto-navigate.
+                  return (
+                    <View style={styles.page}>
+                      <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color={colors.primary} />
+                        <Text style={styles.loadingText}>Just a moment…</Text>
+                      </View>
+                    </View>
+                  );
+                }
                 // Regular reading pages (Sun, Moon, Rising)
                 return (
                   <View style={styles.page}>
@@ -1139,7 +1133,7 @@ ${rising.main}`;
           )}
         </View>
 
-        {/* Footer - Pagination dots + Continue button */}
+        {/* Footer - Pagination dots (swipe-only) */}
         {!isLoadingInitial && (
           <View style={styles.footer}>
             <View style={styles.pagination}>
@@ -1154,12 +1148,6 @@ ${rising.main}`;
                 />
               ))}
             </View>
-            <Button
-              label={NEXT_LABELS[readings[page]?.type] || 'Continue'}
-              onPress={handleNext}
-              variant="primary"
-              style={{ marginTop: spacing.md }}
-            />
           </View>
         )}
       </View>
