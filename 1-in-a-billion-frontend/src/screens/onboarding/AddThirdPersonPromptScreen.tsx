@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -8,10 +8,14 @@ import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { useProfileStore } from '@/store/profileStore';
 import { CityOption } from '@/types/forms';
 import { Video, ResizeMode } from 'expo-av';
+import { useIsFocused } from '@react-navigation/native';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'AddThirdPersonPrompt'>;
 
 export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
+  const videoRef = useRef<Video>(null);
+  const isFocused = useIsFocused();
+
   // HARD LOCK: only allow one free “third person” hook set. If it exists, reuse it.
   const existingPartner = useProfileStore((s) =>
     s.people.find((p) => !p.isUser && p.hookReadings && p.hookReadings.length === 3)
@@ -30,16 +34,33 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
     };
   }, [existingPartner]);
 
+  // Be explicit: expo-av can sometimes fail to autoplay with only `shouldPlay`, especially with rate changes.
+  useEffect(() => {
+    if (isFocused) {
+      videoRef.current?.playAsync().catch(() => {});
+    } else {
+      videoRef.current?.pauseAsync().catch(() => {});
+    }
+  }, [isFocused]);
+
   return (
     <SafeAreaView style={styles.container}>
       <Video
+        ref={videoRef}
         source={require('@/../assets/videos/reverse_video_finding.mp4')}
         style={styles.bgVideo}
         resizeMode={ResizeMode.COVER}
-        shouldPlay
+        shouldPlay={isFocused}
         isLooping
-        rate={0.5}
         isMuted
+        onLoad={() => {
+          // Some iOS builds can freeze if we start at rate != 1 via prop; set it after load.
+          videoRef.current?.setRateAsync(0.5, false).catch(() => {});
+        }}
+        onReadyForDisplay={() => {
+          // Belt + suspenders: ensure autoplay resumes once frames are ready.
+          if (isFocused) videoRef.current?.playAsync().catch(() => {});
+        }}
       />
       <View style={styles.content}>
         <View style={styles.textCard}>
