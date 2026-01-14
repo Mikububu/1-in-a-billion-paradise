@@ -19,11 +19,11 @@ const CTA_AREA_H = 80;
 const BOTTOM_PADDING = 20; // consistent bottom padding for all pages
 
 // Pre-generated offer screen audio files (David's voice)
-const OFFER_AUDIO_URLS = [
+const OFFER_AUDIO_SOURCES: Array<string | number> = [
     // Uploaded to Supabase Storage bucket: voices / offer-audio/
     'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/offer-audio/page_1.mp3', // Page 1
     'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/offer-audio/page_2.mp3', // Page 2
-    'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/offer-audio/page_3.mp3', // Page 3
+    require('@/../assets/audio/offer/page_3.mp3'), // Page 3 (bundled from Desktop 3.mp3)
 ];
 
 export const PostHookOfferScreen = ({ navigation }: Props) => {
@@ -101,8 +101,9 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         const tokenize = (text: string) => text.split(/\s+/).filter(Boolean);
         const weightFor = (w: string) => {
             const last = w[w.length - 1] || '';
-            if (/[.!?]/.test(last)) return 2.2;
-            if (/[:,;]/.test(last)) return 1.6;
+            // Slightly faster punctuation pauses so highlight feels more "on time"
+            if (/[.!?]/.test(last)) return 1.8;
+            if (/[:,;]/.test(last)) return 1.35;
             return 1.0;
         };
 
@@ -149,9 +150,10 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     if (cancelled) return;
                     if (soundRefs.current[i]) continue;
 
-                    const url = OFFER_AUDIO_URLS[i]!;
+                    const src = OFFER_AUDIO_SOURCES[i]!;
+                    const source = typeof src === 'string' ? { uri: src } : src;
                     const { sound } = await Audio.Sound.createAsync(
-                        { uri: url },
+                        source,
                         { shouldPlay: false, progressUpdateIntervalMillis: 120 },
                         (st) => {
                             if (!st.isLoaded) return;
