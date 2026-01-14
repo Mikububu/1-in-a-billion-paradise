@@ -186,16 +186,22 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                         const isLastOfferPage = index === pages.length - 1;
                         const hasVideo = !!(item as any).bgVideo;
                         
-                        // Calculate bottom reserve height for each page:
-                        // Page 1: video (200) + dots (24) + padding (20) = 244
+                        // Calculate bottom reserve height to prevent text overlap:
+                        // Page 1: video bottom (60) + video height (200) + gap (20) = 280
                         // Page 2: dots (24) + padding (20) = 44
-                        // Page 3: video (200) + CTA (80) + padding (20) = 300
-                        let bottomReserveHeight = BOTTOM_PADDING;
-                        if (hasVideo) bottomReserveHeight += VIDEO_BAND_H;
-                        if (isLastOfferPage) {
-                            bottomReserveHeight += CTA_AREA_H;
+                        // Page 3: video bottom (80) + video height (200) + gap (20) = 300
+                        let bottomReserveHeight;
+                        if (hasVideo) {
+                            if (isLastOfferPage) {
+                                // Page 3: video at 80px from bottom, height 200px
+                                bottomReserveHeight = 80 + VIDEO_BAND_H + 20;
+                            } else {
+                                // Page 1: video at 60px from bottom, height 200px
+                                bottomReserveHeight = 60 + VIDEO_BAND_H + 20;
+                            }
                         } else {
-                            bottomReserveHeight += DOTS_H;
+                            // Page 2: just dots
+                            bottomReserveHeight = DOTS_H + BOTTOM_PADDING;
                         }
                         
                         return (
@@ -209,7 +215,13 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                                 <View
                                     style={[
                                         styles.pageVideoWrap,
-                                        { bottom: isLastOfferPage ? CTA_AREA_H + BOTTOM_PADDING : BOTTOM_PADDING + DOTS_H },
+                                        { 
+                                            // Page 1: video sits above dots with gap
+                                            // Page 3: video sits closer to bottom, above CTA
+                                            bottom: isLastOfferPage 
+                                                ? CTA_AREA_H + BOTTOM_PADDING - 20  // Move page 3 video down (away from text)
+                                                : BOTTOM_PADDING + DOTS_H + 16      // Move page 1 video up (away from dots)
+                                        },
                                     ]}
                                     pointerEvents="none"
                                 >
