@@ -13,11 +13,10 @@ import { Video, ResizeMode } from 'expo-av';
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'PostHookOffer'>;
 
 const { width: PAGE_W } = Dimensions.get('window');
-const VIDEO_BAND_H = 220;
-const DOTS_H = 18;
-const CTA_AREA_H = 84; // button height + breathing room (keeps layout stable across devices)
-const CTA_BOTTOM_GAP = 12; // how low the CTA sits (smaller = lower)
-const VIDEO_ABOVE_CTA_GAP = 14; // space between movie band and CTA
+const VIDEO_BAND_H = 200;
+const DOTS_H = 24;
+const CTA_AREA_H = 80;
+const BOTTOM_PADDING = 20; // consistent bottom padding for all pages
 
 export const PostHookOfferScreen = ({ navigation }: Props) => {
     const listRef = useRef<FlatList<any>>(null);
@@ -185,25 +184,32 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     onMomentumScrollEnd={onScrollEnd}
                     renderItem={({ item, index }) => {
                         const isLastOfferPage = index === pages.length - 1;
-                        const isFirstOfferPage = index === 0;
                         const hasVideo = !!(item as any).bgVideo;
-                        // Keep layers balanced and non-overlapping:
-                        // - page 1/3 have a video band
-                        // - page 1/2 have dots at bottom
-                        // - page 3 has a CTA at bottom
-                        const bottomOverlayH = isLastOfferPage
-                            ? CTA_AREA_H + CTA_BOTTOM_GAP
-                            : DOTS_H + spacing.lg;
-                        const videoBottomOffset = isLastOfferPage
-                            ? bottomOverlayH + VIDEO_ABOVE_CTA_GAP
-                            : 0; // page 1 sits on bottom; dots float above globally
+                        
+                        // Calculate bottom reserve height for each page:
+                        // Page 1: video (200) + dots (24) + padding (20) = 244
+                        // Page 2: dots (24) + padding (20) = 44
+                        // Page 3: video (200) + CTA (80) + padding (20) = 300
+                        let bottomReserveHeight = BOTTOM_PADDING;
+                        if (hasVideo) bottomReserveHeight += VIDEO_BAND_H;
+                        if (isLastOfferPage) {
+                            bottomReserveHeight += CTA_AREA_H;
+                        } else {
+                            bottomReserveHeight += DOTS_H;
+                        }
+                        
                         return (
                         <View style={[styles.page, { width: PAGE_W }]}>
+                            <View style={styles.textBlock}>
+                                <Text style={styles.title} selectable>{item.title}</Text>
+                                <Text style={styles.body} selectable>{item.body}</Text>
+                            </View>
+                            <View style={[styles.bottomReserve, { height: bottomReserveHeight }]} />
                             {hasVideo && (
                                 <View
                                     style={[
                                         styles.pageVideoWrap,
-                                        { bottom: isLastOfferPage ? videoBottomOffset : 0 },
+                                        { bottom: isLastOfferPage ? CTA_AREA_H + BOTTOM_PADDING : BOTTOM_PADDING + DOTS_H },
                                     ]}
                                     pointerEvents="none"
                                 >
@@ -218,22 +224,6 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                                     />
                                 </View>
                             )}
-                            {/* Remove “chapter” label for more space + cleaner composition */}
-                            <View style={styles.textBlock}>
-                                <Text style={styles.title} selectable>{item.title}</Text>
-                                <Text style={styles.body} selectable>{item.body}</Text>
-                            </View>
-                            {/* Reserve space so text/dots never overlay the video band */}
-                            <View
-                                style={[
-                                    styles.bottomReserve,
-                                    {
-                                        height:
-                                            (hasVideo ? VIDEO_BAND_H + (isLastOfferPage ? videoBottomOffset : 0) : 0) +
-                                            bottomOverlayH,
-                                    },
-                                ]}
-                            />
                     </View>
                         );
                     }}
@@ -298,10 +288,9 @@ const styles = StyleSheet.create({
         position: 'absolute',
         left: 0,
         right: 0,
-        bottom: 0,
-        height: VIDEO_BAND_H, // smaller, still edge-to-edge
+        height: VIDEO_BAND_H,
         overflow: 'hidden',
-        opacity: 1, // fully opaque video
+        opacity: 1,
     },
     pageVideo: {
         width: '100%',
@@ -326,9 +315,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         left: 0,
         right: 0,
-        // Keep dots anchored at the bottom (not under the text),
-        // regardless of whether a page has a video band or not.
-        bottom: spacing.lg,
+        bottom: BOTTOM_PADDING,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -357,7 +344,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         left: 0,
         right: 0,
-        bottom: CTA_BOTTOM_GAP,
+        bottom: BOTTOM_PADDING,
     },
     buttonPrimary: {
         marginBottom: 0,
