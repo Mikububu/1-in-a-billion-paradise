@@ -181,10 +181,17 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     onMomentumScrollEnd={onScrollEnd}
                     renderItem={({ item, index }) => {
                         const isLastOfferPage = index === pages.length - 1;
+                        const isFirstOfferPage = index === 0;
                         return (
                         <View style={[styles.page, { width: PAGE_W }]}>
                             {!!(item as any).bgVideo && (
-                                <View style={[styles.pageVideoWrap, isLastOfferPage && styles.pageVideoWrapLast]} pointerEvents="none">
+                                <View
+                                    style={[
+                                        styles.pageVideoWrap,
+                                        (isLastOfferPage || isFirstOfferPage) && styles.pageVideoWrapLifted,
+                                    ]}
+                                    pointerEvents="none"
+                                >
                                     <Video
                                         source={(item as any).bgVideo}
                                         style={styles.pageVideo}
@@ -202,7 +209,14 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                                 <Text style={styles.body} selectable>{item.body}</Text>
                             </View>
                             {/* Reserve space so text/dots never overlay the video band */}
-                            <View style={styles.bottomReserve} />
+                            <View
+                                style={[
+                                    styles.bottomReserve,
+                                    !!(item as any).bgVideo && (isLastOfferPage || isFirstOfferPage)
+                                        ? { height: VIDEO_BAND_H + spacing.xl }
+                                        : null,
+                                ]}
+                            />
                     </View>
                         );
                     }}
@@ -272,8 +286,8 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         opacity: 1, // fully opaque video
     },
-    pageVideoWrapLast: {
-        // On the CTA page, lift the movie slightly upward so it breathes above the button.
+    pageVideoWrapLifted: {
+        // Lift the movie slightly upward so it sits higher (requested) and breathes above bottom UI.
         bottom: spacing.xl,
     },
     pageVideo: {
