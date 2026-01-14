@@ -34,11 +34,11 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     const userId = useAuthStore((s) => s.user?.id || 'anonymous');
     const userEmail = useAuthStore((s) => s.user?.email || '');
     
-    // Audio state
+    // Audio (preloaded + kept in RAM while on this screen)
+    const soundRefs = useRef<(Audio.Sound | null)[]>([null, null, null]);
+    const currentPageRef = useRef(0);
     const [isAudioPlaying, setIsAudioPlaying] = useState(false);
-    const [audioStatus, setAudioStatus] = useState<'idle' | 'loading' | 'playing' | 'error'>('idle');
-    const [audioError, setAudioError] = useState<string | null>(null);
-    const soundRef = useRef<Audio.Sound | null>(null);
+    const [activeWordIndex, setActiveWordIndex] = useState(0);
 
     // (dev logs removed)
 
@@ -56,17 +56,15 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         useCallback(() => {
             setPage(0);
             listRef.current?.scrollToOffset({ offset: 0, animated: false });
+            currentPageRef.current = 0;
+            setActiveWordIndex(0);
             
             // Cleanup: stop audio when screen loses focus
             return () => {
-                if (soundRef.current) {
-                    soundRef.current.stopAsync().catch(() => {});
-                    soundRef.current.unloadAsync().catch(() => {});
-                    soundRef.current = null;
-                }
                 setIsAudioPlaying(false);
-                setAudioStatus('idle');
-                setAudioError(null);
+                setActiveWordIndex(0);
+                // Stop immediately, but keep loaded in RAM.
+                soundRefs.current.forEach((s) => s?.stopAsync().catch(() => {}));
             };
         }, [])
     );
@@ -99,62 +97,115 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         []
     );
 
-    // Play/stop audio based on current page
+    // Karaoke mapping (simple heuristic; we don't have true word timestamps from TTS)
+    const karaoke = useMemo(() => {
+        const tokenize = (text: string) => text.split(/\s+/).filter(Boolean);
+        const weightFor = (w: string) => {
+            const last = w[w.length - 1] || '';
+            if (/[.!?]/.test(last)) return 2.2;
+            if (/[:,;]/.test(last)) return 1.6;
+            return 1.0;
+        };
+
+        const wordsByPage = pages.map((p) => tokenize(p.body));
+        const cumWeightsByPage = wordsByPage.map((words) => {
+            const cum: number[] = [];
+            let sum = 0;
+            for (const w of words) {
+                sum += weightFor(w);
+                cum.push(sum);
+            }
+            return cum;
+        });
+        const totalWeights = cumWeightsByPage.map((cum) => cum[cum.length - 1] || 1);
+
+        const findIndex = (cum: number[], target: number) => {
+            if (cum.length === 0) return 0;
+            let lo = 0;
+            let hi = cum.length - 1;
+            while (lo < hi) {
+                const mid = Math.floor((lo + hi) / 2);
+                if (cum[mid]! >= target) hi = mid;
+                else lo = mid + 1;
+            }
+            return Math.max(0, Math.min(cum.length - 1, lo));
+        };
+
+        return { wordsByPage, cumWeightsByPage, totalWeights, findIndex };
+    }, [pages]);
+
+    // Preload all 3 audios and keep them in RAM
     useEffect(() => {
-        const playAudio = async () => {
-            // Stop any currently playing audio
-            if (soundRef.current) {
-                try {
-                    await soundRef.current.stopAsync();
-                    await soundRef.current.unloadAsync();
-                } catch (e) {}
-                soundRef.current = null;
-            }
-            setIsAudioPlaying(false);
-            setAudioError(null);
+        let cancelled = false;
 
-            // Get audio URL for current page
-            const audioUrl = OFFER_AUDIO_URLS[page];
-            if (!audioUrl) {
-                console.warn(`No audio for page ${page + 1}`);
-                setAudioStatus('error');
-                setAudioError(`Missing audio URL for page ${page + 1}`);
-                return;
-            }
-
+        const preload = async () => {
             try {
-                setAudioStatus('loading');
-                console.log(`🔊 Playing audio for page ${page + 1}: ${audioUrl}`);
-                
-                const { sound } = await Audio.Sound.createAsync(
-                    { uri: audioUrl },
-                    { shouldPlay: true }
-                );
-                
-                soundRef.current = sound;
-                setIsAudioPlaying(true);
-                setAudioStatus('playing');
-                
-                sound.setOnPlaybackStatusUpdate((status) => {
-                    if (status.isLoaded && status.didJustFinish) {
-                        setIsAudioPlaying(false);
-                        setAudioStatus('idle');
-                        soundRef.current = null;
-                    } else if (!status.isLoaded && (status as any)?.error) {
-                        setIsAudioPlaying(false);
-                        setAudioStatus('error');
-                        setAudioError(String((status as any).error));
-                    }
+                await Audio.setAudioModeAsync({
+                    playsInSilentModeIOS: true,
+                    staysActiveInBackground: false,
+                    shouldDuckAndroid: false,
                 });
-            } catch (err: any) {
-                console.error(`Audio error for page ${page + 1}:`, err?.message || err);
-                setIsAudioPlaying(false);
-                setAudioStatus('error');
-                setAudioError(err?.message ? String(err.message) : 'Unknown audio error');
+
+                for (let i = 0; i < 3; i++) {
+                    if (cancelled) return;
+                    if (soundRefs.current[i]) continue;
+
+                    const url = OFFER_AUDIO_URLS[i]!;
+                    const { sound } = await Audio.Sound.createAsync(
+                        { uri: url },
+                        { shouldPlay: false, progressUpdateIntervalMillis: 120 },
+                        (st) => {
+                            if (!st.isLoaded) return;
+                            if (i !== currentPageRef.current) return;
+
+                            setIsAudioPlaying(st.isPlaying);
+                            const dur = st.durationMillis || 1;
+                            const pos = st.positionMillis || 0;
+                            const progress = Math.max(0, Math.min(1, pos / dur));
+                            const total = karaoke.totalWeights[i] || 1;
+                            const target = progress * total;
+                            const idx = karaoke.findIndex(karaoke.cumWeightsByPage[i] || [], target);
+                            setActiveWordIndex(idx);
+                        }
+                    );
+                    soundRefs.current[i] = sound;
+                }
+            } catch {
+                // Keep UI usable even if audio fails on device.
             }
         };
 
-        playAudio();
+        preload();
+
+        return () => {
+            cancelled = true;
+            soundRefs.current.forEach((s, idx) => {
+                if (!s) return;
+                s.stopAsync().catch(() => {});
+                s.unloadAsync().catch(() => {});
+                soundRefs.current[idx] = null;
+            });
+        };
+    }, [karaoke]);
+
+    // Auto-play current page; cut audio on page change
+    useEffect(() => {
+        currentPageRef.current = page;
+        setActiveWordIndex(0);
+
+        const stopAll = async () => {
+            await Promise.all(soundRefs.current.map((s) => s?.stopAsync().catch(() => {})));
+        };
+
+        const play = async () => {
+            await stopAll();
+            const s = soundRefs.current[page];
+            if (!s) return;
+            await s.setPositionAsync(0).catch(() => {});
+            await s.playAsync().catch(() => {});
+        };
+
+        play();
     }, [page]);
 
     const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -244,7 +295,6 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.content}>
-                {isAudioPlaying ? <View style={styles.karaokeGlow} pointerEvents="none" /> : null}
                 <FlatList
                     ref={listRef}
                     data={pages}
@@ -256,11 +306,8 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     onScrollBeginDrag={(e) => {
                         swipeStartX.current = e.nativeEvent.contentOffset.x;
                         // Stop audio immediately when swiping
-                        if (soundRef.current) {
-                            soundRef.current.stopAsync().catch(() => {});
-                            setIsAudioPlaying(false);
-                            setAudioStatus('idle');
-                        }
+                        soundRefs.current.forEach((s) => s?.stopAsync().catch(() => {}));
+                        setIsAudioPlaying(false);
                     }}
                     onScrollEndDrag={(e) => {
                         const start = swipeStartX.current;
@@ -303,7 +350,29 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                                 isAudioPlaying && index === page && styles.textBlockPlaying
                             ]}>
                                 <Text style={styles.title} selectable>{item.title}</Text>
-                                <Text style={styles.body} selectable>{item.body}</Text>
+                                {index === page ? (
+                                    <View style={styles.karaokeWrap}>
+                                        {karaoke.wordsByPage[index]?.map((w, wi) => {
+                                            const isActive = isAudioPlaying && wi === activeWordIndex;
+                                            const isPast = wi < activeWordIndex;
+                                            return (
+                                                <View
+                                                    key={`w-${index}-${wi}`}
+                                                    style={[styles.wordWrap, isActive && styles.wordActive]}
+                                                >
+                                                    <Text
+                                                        style={[styles.wordText, (isActive || isPast) && styles.wordTextActive]}
+                                                        selectable
+                                                    >
+                                                        {w}{' '}
+                                                    </Text>
+                                                </View>
+                                            );
+                                        })}
+                                    </View>
+                                ) : (
+                                    <Text style={styles.body} selectable>{item.body}</Text>
+                                )}
                             </View>
                             <View style={[styles.bottomReserve, { height: bottomReserveHeight }]} />
                             {hasVideo && (
@@ -336,18 +405,6 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     }}
                 />
 
-                {audioStatus !== 'playing' ? (
-                    <View style={styles.audioDebug} pointerEvents="none">
-                        <Text style={styles.audioDebugText}>
-                            {audioStatus === 'loading'
-                                ? 'Loading audio…'
-                                : audioStatus === 'error'
-                                    ? `Audio error: ${audioError || 'unknown'}`
-                                    : ''}
-                        </Text>
-                    </View>
-                ) : null}
-
                 {page === pages.length - 1 ? (
                     <View style={styles.ctaContainer}>
                         <Button
@@ -379,15 +436,6 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: 'transparent',
     },
-    karaokeGlow: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(250, 204, 21, 0.22)',
-        zIndex: 1,
-    },
     content: {
         flex: 1,
         paddingVertical: spacing.lg,
@@ -410,24 +458,6 @@ const styles = StyleSheet.create({
     },
     textBlockPlaying: {
         backgroundColor: colors.highlightYellow,
-    },
-    audioDebug: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        bottom: spacing.lg,
-        paddingHorizontal: spacing.page,
-        zIndex: 10,
-        alignItems: 'center',
-    },
-    audioDebugText: {
-        fontFamily: typography.sansRegular,
-        fontSize: 12,
-        color: colors.text,
-        backgroundColor: 'rgba(255,255,255,0.85)',
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 999,
     },
     bottomReserve: {
         // Dynamic per-page height is set inline.
@@ -460,6 +490,36 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 24,
         maxWidth: 340,
+    },
+    karaokeWrap: {
+        width: '100%',
+        maxWidth: 340,
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    wordWrap: {
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 10,
+        backgroundColor: 'transparent',
+        marginHorizontal: 0,
+        marginVertical: 0,
+    },
+    wordActive: {
+        backgroundColor: colors.highlightYellow,
+    },
+    wordText: {
+        fontFamily: typography.sansRegular,
+        fontSize: 15,
+        lineHeight: 24,
+        color: colors.mutedText,
+        textAlign: 'center',
+    },
+    wordTextActive: {
+        color: colors.text,
+        fontFamily: typography.sansMedium,
     },
     dotsOverlay: {
         position: 'absolute',
