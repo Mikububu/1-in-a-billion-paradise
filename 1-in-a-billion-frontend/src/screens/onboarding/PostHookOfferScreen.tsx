@@ -352,23 +352,19 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                                 isAudioPlaying && index === page && styles.textBlockPlaying
                             ]}>
                                 <Text style={styles.title} selectable>{item.title}</Text>
-                                {index === page ? (
-                                    <Text style={styles.body} selectable>
-                                        {karaoke.wordsByPage[index]?.map((w, wi) => {
-                                            const isActive = isAudioPlaying && wi === activeWordIndex;
-                                            return (
-                                                <Text
-                                                    key={`w-${index}-${wi}`}
-                                                    style={[styles.wordInline, isActive && styles.wordInlineActive]}
-                                                >
-                                                    {w + ' '}
-                                                </Text>
-                                            );
-                                        })}
-                                    </Text>
-                                ) : (
-                                    <Text style={styles.body} selectable>{item.body}</Text>
-                                )}
+                                <Text style={styles.body} selectable>
+                                    {karaoke.wordsByPage[index]?.map((w, wi) => {
+                                        const isActive = isAudioPlaying && index === page && wi === activeWordIndex;
+                                        return (
+                                            <Text
+                                                key={`w-${index}-${wi}`}
+                                                style={[styles.wordInline, isActive && styles.wordInlineActive]}
+                                            >
+                                                {w + ' '}
+                                            </Text>
+                                        );
+                                    })}
+                                </Text>
                             </View>
                             <View style={[styles.bottomReserve, { height: bottomReserveHeight }]} />
                             {hasVideo && (
