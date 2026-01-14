@@ -344,17 +344,6 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
       case 'gateway':
         return (
           <View style={styles.page}>
-            {/* Background video - fullscreen */}
-            <Video
-              source={require('@/../assets/videos/want_the_full_picture.mp4')}
-              style={styles.gatewayBgVideo}
-              resizeMode={ResizeMode.COVER}
-              shouldPlay
-              isLooping
-              isMuted
-              rate={0.9}
-            />
-            
             <View style={styles.gatewayContainer}>
               {/* Card content */}
               <View style={styles.gatewayCard}>
@@ -391,6 +380,19 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
   
   return (
     <SafeAreaView style={styles.container}>
+      {/* Fullscreen background video - only visible on gateway page */}
+      {page === 2 && (
+        <Video
+          source={require('@/../assets/videos/want_the_full_picture.mp4')}
+          style={styles.gatewayBgVideo}
+          resizeMode={ResizeMode.COVER}
+          shouldPlay
+          isLooping
+          isMuted
+          rate={0.9}
+        />
+      )}
+      
       <BackButton onPress={() => navigation.goBack()} />
       
       {/* Swipeable Pages */}
@@ -450,7 +452,7 @@ const styles = StyleSheet.create({
   pageContent: {
     flex: 1,
     paddingHorizontal: spacing.page,
-    paddingTop: spacing.xl,
+    paddingTop: spacing.xxl, // More space below BackButton
     alignItems: 'center',
   },
   
@@ -586,15 +588,15 @@ const styles = StyleSheet.create({
   },
   insightsScrollContent: {
     paddingHorizontal: spacing.page,
-    paddingTop: spacing.xl,
+    paddingTop: spacing.xxl, // Match first page
     paddingBottom: spacing.xl,
   },
   insightsTitle: {
-    fontFamily: typography.sansSemiBold,
-    fontSize: 12 * fontScale,
-    color: colors.primary,
-    letterSpacing: 1,
-    marginBottom: spacing.lg,
+    fontFamily: typography.headline, // Headline font
+    fontSize: 28 * fontScale, // Bigger
+    color: colors.text, // Black text
+    textAlign: 'center', // Centered
+    marginBottom: spacing.xl, // More space below
   },
   insightCard: {
     backgroundColor: colors.surface,
