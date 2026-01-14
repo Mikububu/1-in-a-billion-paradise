@@ -84,7 +84,6 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                 eyebrow: 'Your first year includes a gift',
                 title: 'One complete\npersonal reading.',
                 body:
-                    `Your first year includes something personal and intentional. ` +
                     `As part of your subscription, you receive one complete personal reading created only for you, drawn from one of our five systems Vedic astrology, Western astrology, Kabbalah, Human Design, or Gene Keys. ` +
                     `This is a deep individual reading focused solely on your own structure, timing, and inner design, delivered as an intimate audio experience of approximately 15 to 20 minutes. ` +
                     `This reading becomes your energetic anchor within our database, allowing future comparisons to be more precise, more meaningful, and more true to who you are.`,
@@ -97,9 +96,8 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                 body:
                     `Join the movement of conscious connections. ` +
                     `Let us use technology to deeply dive into the beautiful depth of human connections. ` +
-                    `For $9.90 per year, you receive ongoing discovery and quiet precision. ` +
-                    `Your subscription includes a personal audio reading of approximately 15 to 20 minutes, focused entirely on you and drawn from one of our five systems. ` +
-                    `This reading becomes the foundation that allows the system to work more accurately for you, as meaningful connections are continuously explored and revealed as your path unfolds.`,
+                    `With a quiet and ongoing process working in the background, discovery continues week by week, guided by precision rather than noise. ` +
+                    `This is a living search for meaningful connection, unfolding over time as your path unfolds.`,
             },
         ],
         []
