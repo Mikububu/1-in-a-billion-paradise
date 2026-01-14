@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { Audio } from 'expo-av';
+import { Video, ResizeMode } from 'expo-av';
 // FileSystem not needed - audio stored in memory
 import { colors, spacing, typography } from '@/theme/tokens';
 import { HookReading } from '@/types/forms';
@@ -530,61 +531,72 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
                     return (
                       <View style={styles.page}>
                         <View style={styles.gatewayContainer}>
-                          <Text style={styles.gatewayIcon}>✧</Text>
-                          <Text style={styles.gatewayTitle}>
-                            <Text style={styles.nameRed}>{partnerName}</Text>'s Chart Complete
-                          </Text>
-                          <Text style={styles.gatewaySubtitle}>
-                            Ready to explore your cosmic connection?
-                          </Text>
+                          <View style={styles.gatewayTop}>
+                            <Text style={styles.gatewayTitle}>
+                              <Text style={styles.nameRed}>{partnerName}</Text>'s Chart Complete
+                            </Text>
+                            <Text style={styles.gatewaySubtitle}>
+                              Ready to explore your cosmic connection?
+                            </Text>
 
-                          <TouchableOpacity
-                            style={styles.continueBtn}
-                            onPress={() => {
-                              const userBirthTime = user?.birthData?.birthTime || onboardingBirthTime;
-                              if (!userBirthTime || !partnerBirthTime) {
-                                const missingLabel = !userBirthTime ? 'your birth time' : `${partnerName || 'partner'}'s birth time`;
-                                Alert.alert(
-                                  'Birth time required',
-                                  `Compatibility requires birth time for BOTH people (Rising sign). Please add ${missingLabel} first.`,
-                                  [
-                                    { text: 'Cancel', style: 'cancel' },
-                                    {
-                                      text: 'Edit Birth Data',
-                                      onPress: () => {
-                                        // If partner missing → edit partner, else edit user
-                                        if (!partnerBirthTime && partnerId) {
-                                          navigation.navigate('EditBirthData', { personId: partnerId });
-                                        } else {
-                                          // No personId = edit main user profile (EditBirthDataScreen falls back to getUser())
-                                          navigation.navigate('EditBirthData');
-                                        }
+                            <TouchableOpacity
+                              style={styles.continueBtn}
+                              onPress={() => {
+                                const userBirthTime = user?.birthData?.birthTime || onboardingBirthTime;
+                                if (!userBirthTime || !partnerBirthTime) {
+                                  const missingLabel = !userBirthTime ? 'your birth time' : `${partnerName || 'partner'}'s birth time`;
+                                  Alert.alert(
+                                    'Birth time required',
+                                    `Compatibility requires birth time for BOTH people (Rising sign). Please add ${missingLabel} first.`,
+                                    [
+                                      { text: 'Cancel', style: 'cancel' },
+                                      {
+                                        text: 'Edit Birth Data',
+                                        onPress: () => {
+                                          // If partner missing → edit partner, else edit user
+                                          if (!partnerBirthTime && partnerId) {
+                                            navigation.navigate('EditBirthData', { personId: partnerId });
+                                          } else {
+                                            // No personId = edit main user profile (EditBirthDataScreen falls back to getUser())
+                                            navigation.navigate('EditBirthData');
+                                          }
+                                        },
                                       },
-                                    },
-                                  ]
-                                );
-                                return;
-                              }
-                              // Pre-payment onboarding: always show the free compatibility preview,
-                              // and never route into paid packages here.
-                              navigation.navigate('SynastryPreview', {
-                                partnerName,
-                                partnerBirthDate,
-                                partnerBirthTime,
-                                partnerBirthCity,
-                                onboardingNext: 'PostHookOffer',
-                              });
-                            }}
-                          >
-                            <Text style={styles.continueBtnText}>Compare Charts →</Text>
-                          </TouchableOpacity>
+                                    ]
+                                  );
+                                  return;
+                                }
+                                // Pre-payment onboarding: always show the free compatibility preview,
+                                // and never route into paid packages here.
+                                navigation.navigate('SynastryPreview', {
+                                  partnerName,
+                                  partnerBirthDate,
+                                  partnerBirthTime,
+                                  partnerBirthCity,
+                                  onboardingNext: 'PostHookOffer',
+                                });
+                              }}
+                            >
+                              <Text style={styles.continueBtnText}>Compare Charts →</Text>
+                            </TouchableOpacity>
 
-                          <TouchableOpacity
-                            style={styles.secondaryBtn}
-                            onPress={() => navigation.navigate('PostHookOffer' as any)}
-                          >
-                            <Text style={styles.secondaryBtnText}>Skip for now</Text>
-                          </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.secondaryBtn}
+                              onPress={() => navigation.navigate('PostHookOffer' as any)}
+                            >
+                              <Text style={styles.secondaryBtnText}>Skip for now</Text>
+                            </TouchableOpacity>
+                          </View>
+
+                          {/* Bottom video slot (replace source with your excentric_couple.mp4 once added to assets/videos) */}
+                          <Video
+                            source={require('@/../assets/videos/couple-laughing.mp4')}
+                            style={styles.gatewayVideo}
+                            resizeMode={ResizeMode.COVER}
+                            shouldPlay
+                            isLooping
+                            isMuted
+                          />
                         </View>
                       </View>
                     );
@@ -894,13 +906,13 @@ const styles = StyleSheet.create({
   gatewayContainer: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     paddingHorizontal: spacing.page,
   },
-  gatewayIcon: {
-    fontSize: 48,
-    color: colors.primary,
-    marginBottom: spacing.lg,
+  gatewayTop: {
+    width: '100%',
+    alignItems: 'center',
+    paddingTop: spacing.xl,
   },
   gatewayTitle: {
     fontFamily: typography.headline,
@@ -915,6 +927,14 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     textAlign: 'center',
     marginBottom: spacing.xl,
+  },
+  gatewayVideo: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 240,
+    width: '100%',
   },
   continueBtn: {
     backgroundColor: colors.primary,
