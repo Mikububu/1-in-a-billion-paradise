@@ -50,7 +50,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     const [activeWordIndex, setActiveWordIndex] = useState(0);
     const [preloadedCount, setPreloadedCount] = useState(0); // triggers re-run of autoplay when preload finishes
     
-    // Background music (Glass Horizon) - starts on this screen
+    // Background music (Whispering Breeze) continues on this screen
     const bgMusicRef = useRef<Audio.Sound | null>(null);
 
     // Systems carousel (page 2 only)
@@ -69,18 +69,18 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         }).catch(() => {});
     }, []);
 
-    // Load and play Glass Horizon background music on mount
+    // Load and play Whispering Breeze background music on mount
     useEffect(() => {
         const loadBgMusic = async () => {
             try {
                 const { sound } = await Audio.Sound.createAsync(
-                    require('@/../assets/audio/glass-horizon.mp3'),
-                    { shouldPlay: true, isLooping: true, volume: 0.25 } // 25% volume behind voice
+                    require('@/../assets/audio/whispering-breeze.mp3'),
+                    { shouldPlay: true, isLooping: true, volume: 0.12 } // Same volume as hook screens
                 );
                 bgMusicRef.current = sound;
-                console.log('🎵 Glass Horizon started');
+                console.log('🎵 Whispering Breeze started');
             } catch (err) {
-                console.warn('⚠️ Glass Horizon failed to load:', err);
+                console.warn('⚠️ Whispering Breeze failed to load:', err);
             }
         };
         loadBgMusic();
