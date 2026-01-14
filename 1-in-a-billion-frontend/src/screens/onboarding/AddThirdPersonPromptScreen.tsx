@@ -7,6 +7,7 @@ import { Button } from '@/components/Button';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { useProfileStore } from '@/store/profileStore';
 import { CityOption } from '@/types/forms';
+import { Video, ResizeMode } from 'expo-av';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'AddThirdPersonPrompt'>;
 
@@ -31,6 +32,14 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <Video
+        source={require('@/../assets/videos/reverse_video_finding.mp4')}
+        style={styles.bgVideo}
+        resizeMode={ResizeMode.COVER}
+        shouldPlay
+        isLooping
+        isMuted
+      />
       <View style={styles.content}>
         <Text style={styles.title} selectable>
           Would you like to do a free hook reading for another person?
@@ -75,6 +84,14 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
+  bgVideo: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 1, // explicit: no transparency
+  },
   content: {
     flex: 1,
     padding: spacing.page,
