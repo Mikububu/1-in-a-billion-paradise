@@ -125,6 +125,7 @@ import { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, Animated, Easing, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors, spacing, typography } from '@/theme/tokens';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { useOnboardingStore } from '@/store/onboardingStore';
@@ -292,6 +293,20 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
       }
     };
   }, []);
+
+  // STOP music when screen loses focus (navigating away)
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        // Cleanup on blur
+        if (bgMusicRef.current) {
+          bgMusicRef.current.stopAsync().catch(() => {});
+          bgMusicRef.current.unloadAsync().catch(() => {});
+          bgMusicRef.current = null;
+        }
+      };
+    }, [])
+  );
 
   useEffect(() => {
     // Start animations

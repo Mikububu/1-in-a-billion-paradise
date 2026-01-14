@@ -325,9 +325,11 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
           soundRef.current.unloadAsync().catch(() => { });
           soundRef.current = null;
         }
-        // Also stop background music
+        // Also stop and UNLOAD background music
         if (bgMusicRef.current) {
           bgMusicRef.current.stopAsync().catch(() => {});
+          bgMusicRef.current.unloadAsync().catch(() => {});
+          bgMusicRef.current = null;
         }
         setAudioPlaying({});
         currentPlayingType.current = null;
