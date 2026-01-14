@@ -224,44 +224,53 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         play();
     }, [page, preloadedCount]);
 
-    // Systems carousel animation (page 2 only) — cycle through 5 systems every 2.5s with slow zoom on icon only
+    // Systems carousel animation (page 2 only) — cycle through 5 systems every 3.5s with MUCH slower zoom on icon only
     useEffect(() => {
         if (page !== 1) return; // Only run on page 2 (index 1)
 
         const interval = setInterval(() => {
-            // Fade out text + slow zoom out icon
-            Animated.parallel([
+            // Fade out text only (icon stays visible)
+            Animated.timing(systemFadeAnim, {
+                toValue: 0,
+                duration: 600,
+                useNativeDriver: true,
+            }).start(() => {
+                // Change system while text is faded out
+                setCurrentSystemIndex((prev) => (prev + 1) % FIVE_SYSTEMS.length);
+                // Fade text back in
                 Animated.timing(systemFadeAnim, {
-                    toValue: 0,
-                    duration: 500,
+                    toValue: 1,
+                    duration: 600,
+                    useNativeDriver: true,
+                }).start();
+            });
+        }, 3500);
+
+        return () => clearInterval(interval);
+    }, [page, systemFadeAnim]);
+
+    // Continuous slow zoom animation for icon (always running on page 2)
+    useEffect(() => {
+        if (page !== 1) return;
+
+        const zoomLoop = Animated.loop(
+            Animated.sequence([
+                Animated.timing(systemScaleAnim, {
+                    toValue: 0.85,
+                    duration: 1500, // MUCH slower
                     useNativeDriver: true,
                 }),
                 Animated.timing(systemScaleAnim, {
-                    toValue: 0.7,
-                    duration: 800, // Much slower zoom
+                    toValue: 1,
+                    duration: 1500, // MUCH slower
                     useNativeDriver: true,
                 }),
-            ]).start(() => {
-                // Change system while faded/zoomed out
-                setCurrentSystemIndex((prev) => (prev + 1) % FIVE_SYSTEMS.length);
-                // Fade back in + slow zoom back in
-                Animated.parallel([
-                    Animated.timing(systemFadeAnim, {
-                        toValue: 1,
-                        duration: 500,
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(systemScaleAnim, {
-                        toValue: 1,
-                        duration: 800, // Much slower zoom
-                        useNativeDriver: true,
-                    }),
-                ]).start();
-            });
-        }, 2500);
+            ])
+        );
+        zoomLoop.start();
 
-        return () => clearInterval(interval);
-    }, [page, systemFadeAnim, systemScaleAnim]);
+        return () => zoomLoop.stop();
+    }, [page, systemScaleAnim]);
 
     const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const idx = Math.round(e.nativeEvent.contentOffset.x / PAGE_W);
@@ -394,8 +403,8 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                                 bottomReserveHeight = 34 + VIDEO_BAND_H + 20;
                             }
                         } else {
-                            // Page 2: dots + systems carousel (bigger now)
-                            bottomReserveHeight = DOTS_H + BOTTOM_PADDING + 220;
+                            // Page 2: dots + systems carousel (bigger and lower now)
+                            bottomReserveHeight = DOTS_H + BOTTOM_PADDING + 260;
                         }
                         
                         return (
@@ -612,7 +621,7 @@ const styles = StyleSheet.create({
     // Systems carousel (page 2)
     systemsCarousel: {
         position: 'absolute',
-        bottom: BOTTOM_PADDING + DOTS_H - 10, // Moved down
+        bottom: BOTTOM_PADDING + DOTS_H - 30, // Moved much further down
         left: 0,
         right: 0,
         alignItems: 'center',
@@ -621,8 +630,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.page,
     },
     systemIcon: {
-        width: 120,
-        height: 120,
+        width: 150, // Much bigger
+        height: 150,
         marginBottom: spacing.md,
     },
     systemName: {
