@@ -14,6 +14,7 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'PostHookOffer'>;
 
 const { width: PAGE_W } = Dimensions.get('window');
 const VIDEO_BAND_H = 220;
+const DOTS_H = 18;
 
 export const PostHookOfferScreen = ({ navigation }: Props) => {
     const listRef = useRef<FlatList<any>>(null);
@@ -23,12 +24,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     const userId = useAuthStore((s) => s.user?.id || 'anonymous');
     const userEmail = useAuthStore((s) => s.user?.email || '');
 
-    // DEBUG TAG: helps confirm which JS bundle is running on device.
-    // (No UI; only logs.)
-    if (__DEV__) {
-        // eslint-disable-next-line no-console
-        console.log('🧾 PostHookOfferScreen BUILD_TAG:', 'offer_no_dots_f832d30');
-    }
+    // (dev logs removed)
 
     // If user ever comes back to this screen, re-enable buttons.
     useFocusEffect(
@@ -61,6 +57,8 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
             {
                 eyebrow: '',
                 title: 'Become part of\na movement of Souls',
+                // Bottom band video (fits nicely above the CTA on page 3)
+                bgVideo: require('@/../assets/videos/lets_connet.mp4'),
                 body:
                     `This is not a transaction but an initiation.\n\n` +
                     `For $9.90, you receive ongoing discovery, quiet precision, and a personal reading offered as a gift, not an upsell.\n\n` +
@@ -216,6 +214,17 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                         />
                     </View>
                 ) : null}
+
+                {/* Swipe dots (bring back, but tiny + no extra layout cost). Hidden on last page (CTA). */}
+                {page < pages.length - 1 ? (
+                    <View style={styles.dotsOverlay} pointerEvents="none">
+                        <View style={styles.dots}>
+                            {pages.map((_, idx) => (
+                                <View key={`dot-${idx}`} style={[styles.dot, idx === page && styles.dotActive]} />
+                            ))}
+                        </View>
+                    </View>
+                ) : null}
             </View>
         </SafeAreaView>
     );
@@ -281,6 +290,33 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 24,
         maxWidth: 340,
+    },
+    dotsOverlay: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        // Just above the video band; no reserved space needed.
+        bottom: VIDEO_BAND_H + spacing.sm,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    dots: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        height: DOTS_H,
+    },
+    dot: {
+        width: 6,
+        height: 6,
+        borderRadius: 999,
+        backgroundColor: '#D1D5DB',
+        opacity: 0.6,
+    },
+    dotActive: {
+        backgroundColor: colors.primary,
+        opacity: 1,
     },
     button: {
         marginHorizontal: spacing.page,
