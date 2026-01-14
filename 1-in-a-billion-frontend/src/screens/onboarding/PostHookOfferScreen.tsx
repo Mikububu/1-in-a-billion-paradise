@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, View, Alert, FlatList, NativeScrollEvent, NativeSyntheticEvent, Dimensions } from 'react-native';
+import { Animated, Easing, StyleSheet, Text, View, Alert, FlatList, NativeScrollEvent, NativeSyntheticEvent, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
@@ -23,6 +23,35 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     const swipeStartX = useRef<number | null>(null);
     const userId = useAuthStore((s) => s.user?.id || 'anonymous');
     const userEmail = useAuthStore((s) => s.user?.email || '');
+
+    // Last-page movie: slow fade in/out (breathing) without moving any layout.
+    const movieFade = useRef(new Animated.Value(0.78)).current;
+    const fadeLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+
+    React.useEffect(() => {
+        fadeLoopRef.current = Animated.loop(
+            Animated.sequence([
+                Animated.timing(movieFade, {
+                    toValue: 0.35,
+                    duration: 9000,
+                    easing: Easing.inOut(Easing.ease),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(movieFade, {
+                    toValue: 0.88,
+                    duration: 9000,
+                    easing: Easing.inOut(Easing.ease),
+                    useNativeDriver: true,
+                }),
+            ])
+        );
+        fadeLoopRef.current.start();
+
+        return () => {
+            fadeLoopRef.current?.stop?.();
+            fadeLoopRef.current = null;
+        };
+    }, [movieFade]);
 
     // (dev logs removed)
 
@@ -177,10 +206,19 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                         }
                     }}
                     onMomentumScrollEnd={onScrollEnd}
-                    renderItem={({ item }) => (
+                    renderItem={({ item, index }) => {
+                        const isLastOfferPage = index === pages.length - 1;
+                        return (
                         <View style={[styles.page, { width: PAGE_W }]}>
                             {!!(item as any).bgVideo && (
-                                <View style={styles.pageVideoWrap} pointerEvents="none">
+                                <Animated.View
+                                    style={[
+                                        styles.pageVideoWrap,
+                                        isLastOfferPage && styles.pageVideoWrapLast,
+                                        { opacity: isLastOfferPage ? movieFade : 0.85 },
+                                    ]}
+                                    pointerEvents="none"
+                                >
                                     <Video
                                         source={(item as any).bgVideo}
                                         style={styles.pageVideo}
@@ -188,10 +226,10 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                                         shouldPlay
                                         isLooping
                                         isMuted
-                                        rate={0.9}
+                                        rate={isLastOfferPage ? 0.5 : 0.9}
                                     />
                                     <View style={styles.pageVideoFade} />
-                                </View>
+                                </Animated.View>
                             )}
                             {/* Remove “chapter” label for more space + cleaner composition */}
                             <View style={styles.textBlock}>
@@ -201,7 +239,8 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                             {/* Reserve space so text/dots never overlay the video band */}
                             <View style={styles.bottomReserve} />
                         </View>
-                    )}
+                        );
+                    }}
                 />
 
                 {page === pages.length - 1 ? (
@@ -266,7 +305,10 @@ const styles = StyleSheet.create({
         bottom: 0,
         height: VIDEO_BAND_H, // smaller, still edge-to-edge
         overflow: 'hidden',
-        opacity: 0.85, // more visible (not "transparent")
+    },
+    pageVideoWrapLast: {
+        // On the CTA page, lift the movie slightly upward so it breathes above the button.
+        bottom: spacing.xl,
     },
     pageVideo: {
         width: '100%',
@@ -295,8 +337,9 @@ const styles = StyleSheet.create({
         position: 'absolute',
         left: 0,
         right: 0,
-        // Just above the video band; no reserved space needed.
-        bottom: VIDEO_BAND_H + spacing.sm,
+        // Keep dots anchored at the bottom (not under the text),
+        // regardless of whether a page has a video band or not.
+        bottom: spacing.lg,
         alignItems: 'center',
         justifyContent: 'center',
     },
