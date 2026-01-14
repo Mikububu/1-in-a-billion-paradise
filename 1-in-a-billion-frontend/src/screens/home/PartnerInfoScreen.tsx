@@ -61,6 +61,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
   const addPerson = useProfileStore((state) => state.addPerson);
   const userId = useAuthStore((state) => state.userId);
   const isPrepayOnboarding = (route?.params as any)?.mode === 'onboarding_hook';
+  const mode = (route?.params as any)?.mode as string | undefined;
 
   // City search state
   const [cityQuery, setCityQuery] = useState('');
@@ -161,6 +162,8 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
             ? `${birthTime.getHours().toString().padStart(2, '0')}:${birthTime.getMinutes().toString().padStart(2, '0')}`
             : null,
           partnerBirthCity: cityToUse,
+          partnerId: existingPerson.id,
+          mode,
         });
         return { personId: existingPerson.id, cityToUse };
       } else {
@@ -250,6 +253,8 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
         ? `${birthTime.getHours().toString().padStart(2, '0')}:${birthTime.getMinutes().toString().padStart(2, '0')}`
         : null,
       partnerBirthCity: cityToUse,
+      partnerId,
+      mode,
     });
 
     return { personId, cityToUse };

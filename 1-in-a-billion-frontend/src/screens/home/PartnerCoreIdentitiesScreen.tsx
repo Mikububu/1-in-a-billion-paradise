@@ -115,6 +115,8 @@ const getScreens = (name: string): Record<ScreenKey, ScreenConfig> => ({
 export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
   console.log(`📱 Screen ${screenId}: PartnerCoreIdentitiesScreen`);
   const { partnerName, partnerBirthDate, partnerBirthTime, partnerBirthCity } = route.params || {};
+  const partnerIdFromRoute = (route.params as any)?.partnerId as string | undefined;
+  const isPrepayOnboarding = (route.params as any)?.mode === 'onboarding_hook';
   const name = partnerName || 'Partner';
   
   const [currentScreen, setCurrentScreen] = useState<ScreenKey>('intro');
@@ -216,11 +218,51 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
           longitude: typeof existingPerson.birthData?.longitude === 'number' ? existingPerson.birthData.longitude : 0,
           timezone: existingPerson.birthData?.timezone || 'UTC',
         } as CityOption);
-      // Navigate directly to readings screen with cached data
+
+      // In the pre-pay onboarding add-person flow, we ALWAYS show the animation screen
+      // (even if the person already exists / cached). Otherwise it “jumps” straight to Sun.
+      if (isPrepayOnboarding) {
+        setSavedPartnerId(existingPerson.id);
+
+        setCurrentScreen('intro');
+        setStatusText(`Preparing ${name}'s chart...`);
+        setProgress(5);
+        await delay(1200);
+
+        setCurrentScreen('sun');
+        setStatusText(`Calculating ${name}'s Sun sign...`);
+        setProgress(30);
+        await delay(900);
+
+        setCurrentScreen('moon');
+        setStatusText(`Calculating ${name}'s Moon sign...`);
+        setProgress(60);
+        await delay(900);
+
+        setCurrentScreen('rising');
+        setStatusText(`Calculating ${name}'s Rising sign...`);
+        setProgress(85);
+        await delay(900);
+
+        setCurrentScreen('intro');
+        setStatusText('Chart complete!');
+        setProgress(100);
+        await delay(700);
+
+        navigation.replace('PartnerReadings', {
+          partnerName: name,
+          partnerBirthDate: partnerBirthDate || existingPerson.birthData?.birthDate,
+          partnerBirthTime: partnerBirthTime || existingPerson.birthData?.birthTime,
+          partnerBirthCity: cachedCity,
+          partnerId: existingPerson.id,
+        });
+        return;
+      }
+
+      // Non-onboarding flow: keep the fast-path for already-indexed partners.
       setProgress(100);
       setStatusText('Loading existing readings...');
       await delay(500);
-      
       navigation.replace('PartnerReadings', {
         partnerName: name,
         partnerBirthDate: partnerBirthDate || existingPerson.birthData?.birthDate,
@@ -293,10 +335,10 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
             
             // Upload to Supabase in background (non-blocking)
             const userId = useAuthStore.getState().user?.id;
-            if (userId && partnerId && result.audioBase64) {
+            if (!isPrepayOnboarding && userId && partnerIdFromRoute && result.audioBase64) {
               uploadHookAudioBase64({
                 userId,
-                personId: partnerId,
+                personId: partnerIdFromRoute,
                 type: 'sun',
                 audioBase64: result.audioBase64,
               })
@@ -362,10 +404,10 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
               
               // Upload to Supabase in background (non-blocking)
               const userId = useAuthStore.getState().user?.id;
-              if (userId && partnerId && result.audioBase64) {
+              if (!isPrepayOnboarding && userId && partnerIdFromRoute && result.audioBase64) {
                 uploadHookAudioBase64({
                   userId,
-                  personId: partnerId,
+                  personId: partnerIdFromRoute,
                   type: 'moon',
                   audioBase64: result.audioBase64,
                 })
@@ -418,10 +460,10 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
               
               // Upload to Supabase in background (non-blocking)
               const userId = useAuthStore.getState().user?.id;
-              if (userId && partnerId && result.audioBase64) {
+              if (!isPrepayOnboarding && userId && partnerIdFromRoute && result.audioBase64) {
                 uploadHookAudioBase64({
                   userId,
-                  personId: partnerId,
+                  personId: partnerIdFromRoute,
                   type: 'rising',
                   audioBase64: result.audioBase64,
                 })
@@ -445,38 +487,41 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
       setProgress(100);
       await delay(2000);
 
-      // Save partner to profile store
-      const partnerId = addPerson({
-        name: partnerName || 'Partner',
-        isUser: false,
-        birthData: {
-          birthDate: partnerBirthDate || '',
-          birthTime: partnerBirthTime || '12:00',
-          birthCity: partnerBirthCity?.name || 'Unknown',
-          timezone: partnerBirthCity?.timezone || 'UTC',
-          latitude: partnerBirthCity?.latitude || 0,
-          longitude: partnerBirthCity?.longitude || 0,
-        },
-        placements: sunSign && moonSign && risingSign ? { sunSign, moonSign, risingSign } : undefined,
-      });
-      console.log(`✅ Saved partner ${partnerName} with ID: ${partnerId}`);
-      setSavedPartnerId(partnerId);
+      // Ensure we reuse the person created in PartnerInfoScreen to avoid duplicates.
+      // (PartnerInfo creates/reuses the partner row and passes partnerId here.)
+      const ensuredPartnerId =
+        partnerIdFromRoute ||
+        addPerson({
+          name: partnerName || 'Partner',
+          isUser: false,
+          birthData: {
+            birthDate: partnerBirthDate || '',
+            birthTime: partnerBirthTime || '12:00',
+            birthCity: partnerBirthCity?.name || 'Unknown',
+            timezone: partnerBirthCity?.timezone || 'UTC',
+            latitude: partnerBirthCity?.latitude || 0,
+            longitude: partnerBirthCity?.longitude || 0,
+          },
+          placements: sunSign && moonSign && risingSign ? { sunSign, moonSign, risingSign } : undefined,
+        });
+      console.log(`✅ Using partner ID: ${ensuredPartnerId}`);
+      setSavedPartnerId(ensuredPartnerId);
 
       // Cross-device sync: upload audio base64 to Supabase and persist storage paths on the partner person.
       // (Local file remains the primary playback source.)
       try {
         const uid = authUser?.id;
-        if (uid && env.ENABLE_SUPABASE_LIBRARY_SYNC && isSupabaseConfigured) {
+        if (!isPrepayOnboarding && uid && env.ENABLE_SUPABASE_LIBRARY_SYNC && isSupabaseConfigured) {
           const uploads: Array<Promise<void>> = [];
           const maybeUpload = (type: 'sun' | 'moon' | 'rising', b64: string | null) => {
             if (!b64) return;
             uploads.push(
-              uploadHookAudioBase64({ userId: uid, personId: partnerId, type, audioBase64: b64 })
+              uploadHookAudioBase64({ userId: uid, personId: ensuredPartnerId, type, audioBase64: b64 })
                 .then((res) => {
                   if (!res.success) return;
-                  useProfileStore.getState().updatePerson(partnerId, {
+                  useProfileStore.getState().updatePerson(ensuredPartnerId, {
                     hookAudioPaths: {
-                      ...(useProfileStore.getState().getPerson(partnerId)?.hookAudioPaths || {}),
+                      ...(useProfileStore.getState().getPerson(ensuredPartnerId)?.hookAudioPaths || {}),
                       [type]: res.path,
                     },
                   } as any);
