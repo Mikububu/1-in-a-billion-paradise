@@ -11,6 +11,31 @@ Development: http://localhost:8787
 
 All endpoints require `Authorization: Bearer {token}` header (Supabase JWT).
 
+### POST /api/auth/signup
+
+Creates a new Supabase Auth user.
+
+- **Normalizes email**: trims and lowercases before attempting signup
+- **Duplicate signup protection**: if the email is already registered, returns **HTTP 409**
+
+**Request:**
+```typescript
+{
+  "email": "user@example.com",
+  "password": "securepassword123",
+  "name"?: "Optional display name"
+}
+```
+
+**Response (account already exists):** `409 Conflict`
+```typescript
+{
+  "success": false,
+  "error": "Account already exists",
+  "code": "ACCOUNT_EXISTS"
+}
+```
+
 ## Endpoints
 
 ### POST /api/jobs/start

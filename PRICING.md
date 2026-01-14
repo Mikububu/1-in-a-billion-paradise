@@ -55,6 +55,22 @@ single_price = $108 / 8 = $13.50 (rounded to $14)
 | single_system | 1 | 5 | 13 min | $14 | $14 | - |
 | complete_reading | 5 | 25 | 1h 5m | $70 | **$34** | $36 |
 | compatibility_overlay | 3 | 15 | 39 min | $41 | $41 | - |
+
+---
+
+## ✅ Overlay vs Nuclear Verdict (Product Contract)
+
+### **compatibility_overlay (synastry job)**
+- **Docs**: 3 (per selected system)
+  - Person 1
+  - Person 2
+  - Overlay (synastry)
+- **Final Verdict**: **NO** (verdict is cross-system synthesis, not part of single-system overlay)
+
+### **nuclear_package (nuclear_v2 job)**
+- **Docs**: 16 total
+  - 5 systems × (Person 1 + Person 2 + Overlay) = 15
+  - + **1 Final Verdict** (synthesizes across all 5 systems)
 | nuclear_package | 16 | 100 | 3h 28m | $224 | **$108** | $116 |
 
 ---

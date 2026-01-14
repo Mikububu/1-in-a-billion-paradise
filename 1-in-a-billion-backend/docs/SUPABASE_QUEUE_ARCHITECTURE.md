@@ -83,6 +83,19 @@ POST /api/jobs/start
     * ... (16 documents total for Nuclear V2)
 ```
 
+### 1.1 Document Fan-Out Rules (Authoritative)
+
+The `auto_create_job_tasks()` trigger must create `text_generation` tasks using these rules:
+
+- **extended**
+  - 1 doc per selected system (`docType = 'individual'`)
+- **synastry** (compatibility overlay)
+  - 3 docs per selected system (in order): `person1` → `person2` → `overlay`
+  - **No verdict** for synastry
+- **nuclear_v2**
+  - 5 systems × (`person1` + `person2` + `overlay`) = 15
+  - + **1 verdict** (`docType = 'verdict'`, `docNum = 16`) which synthesizes across all 5 systems
+
 ### 2. Worker Claims Task
 
 ```sql
@@ -405,6 +418,15 @@ setInterval(async () => {
   }
 }, 5 * 60 * 1000);
 ```
+
+### Job/Task Timeout & Retry Cleanup (Production Safety Net)
+
+In addition to worker-side heartbeats and retries, we run a background health check that:
+
+- Marks **stuck tasks** as failed/retryable when they exceed `heartbeat_timeout_seconds` or `max_attempts`
+- Marks **stuck jobs** as errored when their tasks cannot be recovered
+
+This is implemented by SQL functions (migration `migrations/021_add_timeouts_and_retries.sql`) and a backend service that calls them periodically from the API process.
 
 ## 📈 Scaling Strategy
 

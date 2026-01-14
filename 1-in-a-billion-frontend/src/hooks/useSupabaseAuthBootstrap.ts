@@ -131,7 +131,17 @@ export function useSupabaseAuthBootstrap() {
           }
 
           setSession(session);
-          setUser(session.user);          const name =
+          setUser(session.user);
+          // Dev-only: make it obvious which Supabase user this device is using.
+          if (__DEV__) {
+            console.log('🪪 AUTH DEBUG (device session):', {
+              userId: session.user.id,
+              email: session.user.email,
+              providers: session.user.app_metadata?.providers,
+              provider: session.user.app_metadata?.provider,
+            });
+          }
+          const name =
             session.user.user_metadata?.full_name ||
             session.user.email?.split('@')?.[0] ||
             'User';
@@ -191,13 +201,23 @@ export function useSupabaseAuthBootstrap() {
               }
 
               if (hasHookReadings) {
-                console.log('✅ Bootstrap: User has profile AND hook readings - marking onboarding complete');                
-                // Hydrate hook readings
-                profile.hook_readings.forEach((reading: any) => {
-                  if (reading && reading.type) {
+                console.log('✅ Bootstrap: User has profile AND hook readings - marking onboarding complete');
+
+                // Hydrate hook readings safely:
+                // In production this is usually an object like { sun: {...}, moon: {...}, rising: {...} }
+                // but older data might be an array.
+                const readingsArray: any[] = Array.isArray(profile.hook_readings)
+                  ? profile.hook_readings
+                  : (profile.hook_readings && typeof profile.hook_readings === 'object')
+                    ? Object.values(profile.hook_readings)
+                    : [];
+
+                for (const reading of readingsArray) {
+                  if (reading && typeof reading === 'object' && (reading as any).type) {
                     useOnboardingStore.getState().setHookReading(reading);
                   }
-                });
+                }
+
                 // CRITICAL: Actually mark onboarding as complete!
                 useOnboardingStore.getState().completeOnboarding();
                 console.log('✅ Bootstrap: completeOnboarding() called');

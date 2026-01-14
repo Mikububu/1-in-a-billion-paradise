@@ -167,7 +167,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     return () => { mounted = false; };
   }, [jobId, systemId, docNum]);
 
-  // Check if PDF is ready (by testing the PDF URL directly)
+  // Check if PDF is ready (by checking artifacts table)
   useEffect(() => {
     let mounted = true;
     let interval: any;
@@ -175,23 +175,28 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     const checkPdf = async () => {
       if (!mounted || pdfReadyRef.current) return;
       try {
-        // Check if PDF URL responds with 200 (HEAD request)
-        const pdfUrl = `${env.CORE_API_URL}/api/jobs/v2/${jobId}/pdf/${docNum}`;
-        const response = await fetch(pdfUrl, { method: 'HEAD' });
+        console.log(`🔍 Checking PDF artifacts for doc ${docNum}...`);
+        const artifacts = await fetchJobArtifacts(jobId, ['pdf']);
+        const pdfArtifact = artifacts.find((a) => {
+          const meta = (a.metadata as any) || {};
+          return meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
+        });
+        
         if (mounted) {
-          const ready = response.ok;
+          const ready = !!pdfArtifact?.storage_path;
           if (ready) {
-            console.log(`📄 PDF ready! (URL check passed)`);
+            console.log(`✅ PDF ready!`);
             pdfReadyRef.current = true;
             setPdfReady(true);
             if (interval) clearInterval(interval);
           } else {
+            console.log(`❌ PDF not ready yet`);
             setPdfReady(false);
           }
           setPdfChecked(true);
         }
       } catch (error: any) {
-        console.warn(`⚠️ PDF check failed:`, error.message);
+        console.error(`❌ PDF check failed:`, error.message);
         if (mounted) {
           setPdfReady(false);
           setPdfChecked(true);
@@ -216,7 +221,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     };
   }, [jobId, systemId, docNum]);
 
-  // Check if audio is ready (by testing the audio URL directly)
+  // Check if audio is ready (by checking artifacts table)
   useEffect(() => {
     let mounted = true;
     let interval: any;
@@ -224,23 +229,28 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     const checkAudio = async () => {
       if (!mounted || audioReadyRef.current) return;
       try {
-        // Check if audio URL responds with 200 (HEAD request)
-        const audioUrl = `${env.CORE_API_URL}/api/jobs/v2/${jobId}/audio/${docNum}`;
-        const response = await fetch(audioUrl, { method: 'HEAD' });
+        console.log(`🔍 Checking audio artifacts for doc ${docNum}...`);
+        const artifacts = await fetchJobArtifacts(jobId, ['audio_mp3', 'audio_m4a']);
+        const audioArtifact = artifacts.find((a) => {
+          const meta = (a.metadata as any) || {};
+          return meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
+        });
+        
         if (mounted) {
-          const ready = response.ok;
+          const ready = !!audioArtifact?.storage_path;
           if (ready) {
-            console.log(`🎙️ Audio ready! (URL check passed)`);
+            console.log(`✅ Audio ready!`);
             audioReadyRef.current = true;
             setAudioReady(true);
             if (interval) clearInterval(interval);
           } else {
+            console.log(`❌ Audio not ready yet`);
             setAudioReady(false);
           }
           setAudioChecked(true);
         }
       } catch (error: any) {
-        console.warn(`⚠️ Audio check failed:`, error.message);
+        console.error(`❌ Audio check failed:`, error.message);
         if (mounted) {
           setAudioReady(false);
           setAudioChecked(true);
@@ -311,15 +321,24 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     };
   }, [jobId, systemId, docNum]);
 
-  // Compute: main media ready (text loaded = audio/PDF should be ready too)
+  // Compute: main media ready (text, audio, PDF all ready)
   const mainMediaReady = useMemo(() => {
-    // If text content loaded successfully, audio/PDF endpoints should work
-    return !loadingText && !!text && text.length > 0;
-  }, [loadingText, text]);
+    // All three must be ready: text loaded, audio ready, PDF ready
+    return !loadingText && !!text && text.length > 0 && audioReady && pdfReady;
+  }, [loadingText, text, audioReady, pdfReady]);
 
   // Compute: ALL media ready including song (for countdown overlay)
   const allMediaReady = useMemo(() => {
-    // If both text AND lyrics loaded, everything should be ready
+    // For individual readings without songs, just check if main media ready
+    // Song lyrics might be empty for individual/extended readings
+    const expectsSong = loadingSongLyrics || (!!songLyrics && songLyrics.length > 0);
+    
+    if (!expectsSong) {
+      // No song for this reading (individual/extended) - just check text/audio
+      return mainMediaReady;
+    }
+    
+    // Has song - check if both text AND song ready
     return mainMediaReady && !loadingSongLyrics && !!songLyrics && songLyrics.length > 0;
   }, [mainMediaReady, loadingSongLyrics, songLyrics]);
 
@@ -535,19 +554,24 @@ const styles = StyleSheet.create({
   },
 
   titleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  titleButtonsCol: { width: 40, gap: 6, marginLeft: 24 },
+  titleButtonsCol: { width: 50, gap: 8, marginLeft: 20 },
   headerYellowButton: {
-    backgroundColor: colors.surface,
+    backgroundColor: '#ffffff',
     borderRadius: 8,
-    paddingVertical: 4,
+    paddingVertical: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    height: 28,
-    width: 36,
+    height: 40,
+    width: 45,
     borderWidth: 2,
     borderColor: '#111827',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
-  headerYellowText: { fontFamily: typography.sansSemiBold, color: '#111827', fontSize: 12 },
+  headerYellowText: { fontFamily: typography.sansSemiBold, color: '#111827', fontSize: 14 },
   headerYellowButtonDisabled: {
     backgroundColor: '#f5f5f5',
     borderColor: '#d0d0d0',

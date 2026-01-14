@@ -21,6 +21,7 @@ import paymentsRouter from './routes/payments';
 import peopleRouter from './routes/people';
 import { startAutoScaling } from './services/runpodScaler';
 import { preloadApiKeys } from './services/apiKeys';
+import './services/jobHealthCheck'; // Auto-starts job health check service
 
 const app = new Hono();
 

@@ -70,6 +70,7 @@ export interface OverlayPromptConfig {
   person1: PersonData;
   person2: PersonData;
   chartData: ChartData;
+  relationshipContext?: string; // Optional context for interpretation framing (synastry purchases)
 }
 
 export interface NuclearPromptConfig {
@@ -240,12 +241,31 @@ Begin Part ${partNumber} directly.`;
 // ═══════════════════════════════════════════════════════════════════════════
 
 export function buildOverlayPrompt(config: OverlayPromptConfig): string {
-  const { style, spiceLevel, system, person1, person2, chartData } = config;
+  const { style, spiceLevel, system, person1, person2, chartData, relationshipContext } = config;
   
   const systemName = SYSTEM_DISPLAY_NAMES[system];
   const chartKey = system === 'gene_keys' ? 'geneKeys' : system === 'human_design' ? 'humanDesign' : system;
   const chartSection = chartData[chartKey] || '';
   const synastrySection = chartData.synastry || '';
+
+  // Optional relationship context (7% interpretive framing, never overrides astrology)
+  const contextSection = relationshipContext
+    ? `
+
+RELATIONSHIP CONTEXT: ${relationshipContext}
+
+INSTRUCTION: Give this context approximately 7% consideration in your reading. Use it ONLY for subtle interpretive framing:
+- Emphasize life areas relevant to this relationship type (if they align with the system findings)
+- Tailor tone and examples appropriately
+- Adjust practical guidance to fit their dynamic
+
+DO NOT:
+- Invent facts about their relationship
+- Assume intentions or outcomes
+- Override the system's findings
+- Let context dominate the reading
+`
+    : '';
 
   return `
 ═══════════════════════════════════════════════════════════════════════════════
@@ -289,7 +309,7 @@ ${chartSection || '[Chart data to be provided]'}
 ═══════════════════════════════════════════════════════════════════════════════
 SYNASTRY DATA:
 ═══════════════════════════════════════════════════════════════════════════════
-${synastrySection || '[Synastry data to be provided]'}
+${synastrySection || '[Synastry data to be provided]'}${contextSection}
 
 ${buildQualitySection(style, 'overlay')}
 

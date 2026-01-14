@@ -293,6 +293,27 @@ export const AccountScreen = ({ navigation }: Props) => {
       const data = await response.json();
 
       if (!response.ok) {
+        // Deterministic "account exists" handling (prevents accidental "double accounts")
+        if (response.status === 409 || data?.code === 'ACCOUNT_EXISTS') {
+          Alert.alert(
+            'Account Already Exists',
+            'You already have an account. Please sign in instead.',
+            [
+              {
+                text: 'Go to Sign In',
+                onPress: () => {
+                  setShowEmailInput(false);
+                  setEmailAuthState('idle');
+                  setIsCreatingAccount(false);
+                  navigation.replace('Intro');
+                  // Intro → Log In → SignIn screen (existing flow)
+                },
+              },
+              { text: 'OK' },
+            ]
+          );
+          return;
+        }
         throw new Error(data.error || 'Failed to sign up');
       }
 
@@ -391,21 +412,15 @@ export const AccountScreen = ({ navigation }: Props) => {
       <BackButton onPress={() => navigation.goBack()} />
 
       <View style={styles.contentContainer}>
-        <View style={{ flex: 1 }} />
-
         <View style={styles.authSection}>
           {!showEmailInput ? (
             <>
               <TouchableOpacity
-                style={[styles.authButton, styles.googleButton]}
-                onPress={handleGoogleSignIn}
+                style={[styles.authButton, styles.emailButton]}
+                onPress={() => setShowEmailInput(true)}
                 disabled={isLoading}
               >
-                {isLoading ? (
-                  <ActivityIndicator color="#000" />
-                ) : (
-                  <Text style={styles.googleText}>Sign up with Google</Text>
-                )}
+                <Text style={styles.emailButtonText}>Sign up with Email</Text>
               </TouchableOpacity>
 
               {Platform.OS === 'ios' && (
@@ -419,11 +434,15 @@ export const AccountScreen = ({ navigation }: Props) => {
               )}
 
               <TouchableOpacity
-                style={[styles.authButton, styles.emailButton]}
-                onPress={() => setShowEmailInput(true)}
+                style={[styles.authButton, styles.googleButton]}
+                onPress={handleGoogleSignIn}
                 disabled={isLoading}
               >
-                <Text style={styles.emailButtonText}>Sign up with Email</Text>
+                {isLoading ? (
+                  <ActivityIndicator color="#000" />
+                ) : (
+                  <Text style={styles.googleText}>Sign up with Google</Text>
+                )}
               </TouchableOpacity>
             </>
           ) : (
@@ -552,6 +571,7 @@ const styles = StyleSheet.create({
   },
   authSection: {
     gap: spacing.sm,
+    paddingTop: 140, // Position below Back button (top: 60) without overlap
   },
   authButton: {
     paddingVertical: spacing.md,
@@ -561,12 +581,14 @@ const styles = StyleSheet.create({
     minHeight: 56,
   },
   googleButton: {
-    backgroundColor: colors.buttonBg,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)', // White with 50% opacity
+    borderWidth: 2,
+    borderColor: '#000',
   },
   googleText: {
-    color: colors.text,
+    color: '#000',
     fontSize: 16,
-    fontFamily: typography.sansMedium,
+    fontFamily: typography.sansBold,
   },
   appleButton: {
     backgroundColor: '#000',

@@ -46,6 +46,8 @@ export const PersonReadingChaptersFlowScreen = ({ navigation, route }: Props) =>
         const docs: any[] = Array.isArray(job?.results?.documents) ? job.results.documents : [];
         const createdAt = job?.created_at || new Date().toISOString();
         const jt = String(job?.type || '');
+        const p1Name = String(job?.params?.person1?.name || '').trim();
+        const p2Name = String(job?.params?.person2?.name || '').trim();
 
         const effectiveViewType: 'individual' | 'person1' | 'person2' | 'overlay' =
           personType === 'overlay' ? 'overlay' : personType === 'individual' ? 'individual' : (personType as any);
@@ -68,6 +70,90 @@ export const PersonReadingChaptersFlowScreen = ({ navigation, route }: Props) =>
           return (desiredDocTypes || []).includes(docType);
         });
 
+        // ─────────────────────────────────────────────────────────────────────
+        // SYNASTRY (single-system overlay purchase): 3 chapters per system
+        // person1 → person2 → overlay  (NO Final Verdict)
+        // ─────────────────────────────────────────────────────────────────────
+        if (jt === 'synastry') {
+          const requestedSystems: string[] = (job?.params?.systems || []).map((s: string) => String(s).toLowerCase());
+          const systems = requestedSystems.length > 0 ? requestedSystems : ['western'];
+
+          // If documents exist, prefer the canonical doc order by docNum; otherwise build placeholders.
+          const docsSorted = [...chapterDocs].sort((a, b) => Number(a?.docNum) - Number(b?.docNum));
+          const builtSynastry: Chapter[] =
+            docsSorted.length > 0
+              ? docsSorted.map((d: any) => {
+                  const docNum = Number(d?.docNum);
+                  const sysId = String(d?.system || 'western').toLowerCase();
+                  const dt = String(d?.docType || d?.doc_type || '').toLowerCase();
+                  const sys = SYSTEMS.find((s) => s.id.toLowerCase() === sysId) || SYSTEMS[0];
+                  const displayPerson =
+                    dt === 'person1'
+                      ? (p1Name || personName)
+                      : dt === 'person2'
+                        ? (p2Name || personName)
+                        : (p1Name && p2Name ? `${p1Name} & ${p2Name}` : personName);
+                  return {
+                    personName: displayPerson,
+                    personId,
+                    jobId,
+                    systemId: sys.id,
+                    systemName: sys.name,
+                    docNum: docNum || 1,
+                    timestamp: createdAt,
+                  };
+                })
+              : (() => {
+                  const out: Chapter[] = [];
+                  let docNum = 1;
+                  for (const sysId of systems) {
+                    const sys = SYSTEMS.find((s) => s.id.toLowerCase() === sysId) || SYSTEMS[0];
+                    out.push({
+                      personName: p1Name || personName,
+                      personId,
+                      jobId,
+                      systemId: sys.id,
+                      systemName: sys.name,
+                      docNum: docNum++,
+                      timestamp: createdAt,
+                    });
+                    out.push({
+                      personName: p2Name || personName,
+                      personId,
+                      jobId,
+                      systemId: sys.id,
+                      systemName: sys.name,
+                      docNum: docNum++,
+                      timestamp: createdAt,
+                    });
+                    out.push({
+                      personName: p1Name && p2Name ? `${p1Name} & ${p2Name}` : personName,
+                      personId,
+                      jobId,
+                      systemId: sys.id,
+                      systemName: sys.name,
+                      docNum: docNum++,
+                      timestamp: createdAt,
+                    });
+                  }
+                  return out;
+                })();
+
+          if (!mounted) return;
+          let withNext: Chapter[] = [];
+          for (let i = builtSynastry.length - 1; i >= 0; i--) {
+            withNext.unshift({
+              ...builtSynastry[i],
+              nextChapter: withNext[0] || undefined,
+            });
+          }
+          setChapters(withNext);
+          if (withNext.length > 0) {
+            navigation.replace('ReadingChapter', withNext[0] as any);
+          }
+          return;
+        }
+
         // Build chapters for ALL systems requested in job.params.systems
         // This ensures navigation shows all expected systems even if some documents aren't ready yet
         // Documents that aren't ready will show gray/empty content (handled by ReadingChapterScreen)
@@ -82,8 +168,8 @@ export const PersonReadingChaptersFlowScreen = ({ navigation, route }: Props) =>
             .map(sysId => SYSTEMS.find(s => s.id.toLowerCase() === sysId))
             .filter(Boolean) as typeof SYSTEMS;
           
-          // For overlays, add verdict at the end if not already included
-          if (effectiveViewType === 'overlay') {
+          // For nuclear overlays, add verdict at the end if not already included
+          if (effectiveViewType === 'overlay' && jt === 'nuclear_v2') {
             const verdictSystem = SYSTEMS.find(s => s.id === 'verdict');
             if (verdictSystem && !orderedSystems.includes(verdictSystem)) {
               orderedSystems.push(verdictSystem);

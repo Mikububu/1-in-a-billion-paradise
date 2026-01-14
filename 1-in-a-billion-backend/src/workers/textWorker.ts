@@ -17,7 +17,7 @@ import {
   buildOverlayPrompt as buildNuclearV2OverlayPrompt,
   buildVerdictPrompt,
 } from '../prompts/structures/nuclearV2';
-import { buildIndividualPrompt } from '../prompts';
+import { buildIndividualPrompt, buildOverlayPrompt } from '../prompts';
 import { SpiceLevel } from '../prompts/spice/levels';
 import { gematriaService } from '../services/kabbalah/GematriaService';
 import { hebrewCalendarService } from '../services/kabbalah/HebrewCalendarService';
@@ -523,8 +523,8 @@ export class TextWorker extends BaseWorker {
       return { success: false, error: `Failed to load job ${jobId}` };
     }
 
-    if (job.type !== 'nuclear_v2' && job.type !== 'extended') {
-      return { success: false, error: `TextWorker only supports nuclear_v2 and extended right now (got ${job.type})` };
+    if (job.type !== 'nuclear_v2' && job.type !== 'extended' && job.type !== 'synastry') {
+      return { success: false, error: `TextWorker only supports nuclear_v2, synastry, and extended right now (got ${job.type})` };
     }
 
     const params: any = job.params || {};
@@ -540,9 +540,20 @@ export class TextWorker extends BaseWorker {
 
     // Task input schema (we keep it flexible)
     const docNum: number = Number(task.input?.docNum ?? task.sequence + 1);
-    const docType: 'person1' | 'person2' | 'overlay' | 'verdict' = task.input?.docType || (docNum === 16 ? 'verdict' : 'person1');
+    const docType: 'person1' | 'person2' | 'overlay' | 'verdict' | 'individual' =
+      task.input?.docType ||
+      (job.type === 'extended' ? 'individual' : (docNum === 16 ? 'verdict' : 'person1'));
     const system: string | null = task.input?.system ?? null;
     const title: string = task.input?.title || (docType === 'verdict' ? 'Final Verdict' : 'Untitled');
+
+    const requestedSystems: string[] = Array.isArray(params.systems) ? params.systems : [];
+    const systemsCount = requestedSystems.length > 0 ? requestedSystems.length : 1;
+    const docsTotal =
+      job.type === 'nuclear_v2'
+        ? 16
+        : job.type === 'synastry'
+          ? systemsCount * 3
+          : systemsCount; // extended: 1 doc per system
 
     // Update progress: text generation started
     await supabase.rpc('update_job_progress', {
@@ -550,9 +561,9 @@ export class TextWorker extends BaseWorker {
       p_progress: {
         phase: 'text',
         message: `📝 ${title}...`,
-        currentStep: `TEXT: Doc ${docNum}/16`,
+        currentStep: `TEXT: Doc ${docNum}/${docsTotal}`,
         docsComplete: Number(task.input?.docsComplete || 0),
-        docsTotal: 16,
+        docsTotal,
       },
     });
 
@@ -614,25 +625,62 @@ export class TextWorker extends BaseWorker {
     } : null;
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // CRITICAL FIX: Use SYSTEM-SPECIFIC chart data, not generic Western data!
-    // Each system needs its own language: Vedic=Nakshatras, HD=Gates, GK=Gene Keys, etc.
+    // CRITICAL FIX: Build chart data based on docType!
+    // - person1 docs: Only include person1's chart (no person2 data)
+    // - person2 docs: Only include person2's chart (no person1 data)
+    // - overlay/verdict docs: Include both charts
+    // This prevents the LLM from writing about relationships in individual readings
     // ═══════════════════════════════════════════════════════════════════════════
-    const chartData = buildChartDataForSystem(
-      system || 'western',  // Use the actual system from task input
-      person1.name,
-      p1Placements,
-      person2?.name || null,
-      p2Placements,
-      p1BirthData,
-      p2BirthData
-    );
-
-    console.log(`📊 [TextWorker] Building ${system} chart data for doc ${docNum} (not Western unless system=western)`);
+    let chartData: string;
+    
+    if (docType === 'person1') {
+      // Person1 individual reading - ONLY person1's chart
+      chartData = buildChartDataForSystem(
+        system || 'western',
+        person1.name,
+        p1Placements,
+        null, // NO person2 data for individual readings!
+        null,
+        p1BirthData,
+        null
+      );
+      console.log(`📊 [TextWorker] Building ${system} chart data for person1 doc ${docNum} (individual only)`);
+    } else if (docType === 'person2') {
+      // Person2 individual reading - ONLY person2's chart
+      if (!person2 || !p2Placements || !p2BirthData) {
+        throw new Error(`person2 doc requires person2 data, but it's missing for job ${jobId}`);
+      }
+      chartData = buildChartDataForSystem(
+        system || 'western',
+        person2.name,
+        p2Placements,
+        null, // NO person1 data for individual readings!
+        null,
+        p2BirthData,
+        null
+      );
+      console.log(`📊 [TextWorker] Building ${system} chart data for person2 doc ${docNum} (individual only)`);
+    } else {
+      // Overlay/verdict/other - include both charts
+      chartData = buildChartDataForSystem(
+        system || 'western',
+        person1.name,
+        p1Placements,
+        person2?.name || null,
+        p2Placements,
+        p1BirthData,
+        p2BirthData
+      );
+      console.log(`📊 [TextWorker] Building ${system} chart data for ${docType} doc ${docNum} (both people)`);
+    }
 
     let prompt = '';
     let label = `job:${jobId}:doc:${docNum}`;
 
     if (docType === 'verdict') {
+      if (job.type !== 'nuclear_v2') {
+        throw new Error(`Verdict docType is only valid for nuclear_v2 jobs (got ${job.type})`);
+      }
       // ... existing verdict logic ...
       const { data: tasks, error: tasksErr } = await supabase
         .from('job_tasks')
@@ -772,66 +820,117 @@ ${OUTPUT_FORMAT_RULES}`;
         throw new Error(`Invalid or missing system for doc ${docNum}: ${system}`);
       }
 
-      if (docType === 'overlay') {
-        if (!person2 || !p2BirthData || !p2Placements) {
-          throw new Error(`Overlay doc requires person2, but person2 is missing for job ${jobId}`);
+      const chartKey = system === 'gene_keys' ? 'geneKeys' : system === 'human_design' ? 'humanDesign' : system;
+
+      if (job.type === 'nuclear_v2') {
+        if (docType === 'overlay') {
+          if (!person2 || !p2BirthData || !p2Placements) {
+            throw new Error(`Overlay doc requires person2, but person2 is missing for job ${jobId}`);
+          }
+          prompt = buildNuclearV2OverlayPrompt({
+            system: system as any,
+            person1Name: person1.name,
+            person2Name: person2.name,
+            chartData,
+            spiceLevel,
+            style,
+            relationshipContext: params.relationshipContext,
+          });
+          label += `:overlay:${system}`;
+        } else if (docType === 'person1') {
+          prompt = buildPersonPrompt({
+            system: system as any,
+            personName: person1.name,
+            personData: p1BirthData,
+            chartData,
+            spiceLevel,
+            style,
+            personalContext: params.personalContext,
+          });
+          label += `:p1:${system}`;
+        } else if (docType === 'person2') {
+          if (!person2 || !p2BirthData) {
+            throw new Error(`person2 doc requires person2, but person2 is missing for job ${jobId}`);
+          }
+          prompt = buildPersonPrompt({
+            system: system as any,
+            personName: person2.name,
+            personData: p2BirthData,
+            chartData,
+            spiceLevel,
+            style,
+            personalContext: params.personalContext,
+          });
+          label += `:p2:${system}`;
+        } else {
+          throw new Error(`Unknown docType for nuclear_v2: ${docType}`);
         }
-        prompt = buildNuclearV2OverlayPrompt({
-          system: system as any,
-          person1Name: person1.name,
-          person2Name: person2.name,
-          chartData,
-          spiceLevel,
-          style,
-          relationshipContext: params.relationshipContext, // Optional context for interpretive emphasis
-        });
-        label += `:overlay:${system}`;
-      } else if (docType === 'person1') {
-        prompt = buildPersonPrompt({
-          system: system as any,
-          personName: person1.name,
-          personData: p1BirthData,
-          chartData,
-          spiceLevel,
-          style,
-          personalContext: params.personalContext, // Pass through for individual reading personalization
-        });
-        label += `:p1:${system}`;
-      } else if (docType === 'person2') {
+      } else if (job.type === 'synastry') {
+        // Synastry purchase: 3 docs per system (person1, person2, overlay) — NO verdict
         if (!person2 || !p2BirthData) {
-          throw new Error(`person2 doc requires person2, but person2 is missing for job ${jobId}`);
+          throw new Error(`synastry job requires person2, but person2 is missing for job ${jobId}`);
         }
-        prompt = buildPersonPrompt({
-          system: system as any,
-          personName: person2.name,
-          personData: p2BirthData,
-          chartData,
-          spiceLevel,
-          style,
-          personalContext: params.personalContext, // Pass through for individual reading personalization
-        });
-        label += `:p2:${system}`;
-      } else if (docType === 'individual') {
-        // Single-person deep dive (single system). Ensure name + correct chartData key are provided.
-        const safeSystem = system || 'western';
+
+        if (docType === 'overlay') {
+          const chartDataObj: any = { synastry: chartData, [chartKey]: chartData };
+          prompt = buildOverlayPrompt({
+            type: 'overlay',
+            style,
+            spiceLevel,
+            system: system as any,
+            person1: { name: person1.name, ...p1BirthData } as any,
+            person2: { name: person2.name, ...p2BirthData } as any,
+            chartData: chartDataObj,
+            relationshipContext: params.relationshipContext,
+          } as any);
+          label += `:synastry:overlay:${system}`;
+        } else if (docType === 'person1') {
+          const chartDataObj: any = { [chartKey]: chartData };
+          prompt = buildIndividualPrompt({
+            type: 'individual',
+            style,
+            spiceLevel,
+            system: system as any,
+            voiceMode: 'other',
+            person: { name: person1.name, ...p1BirthData } as any,
+            chartData: chartDataObj,
+            personalContext: params.personalContext,
+          } as any);
+          label += `:synastry:p1:${system}`;
+        } else if (docType === 'person2') {
+          const chartDataObj: any = { [chartKey]: chartData };
+          prompt = buildIndividualPrompt({
+            type: 'individual',
+            style,
+            spiceLevel,
+            system: system as any,
+            voiceMode: 'other',
+            person: { name: person2.name, ...p2BirthData } as any,
+            chartData: chartDataObj,
+            personalContext: params.personalContext,
+          } as any);
+          label += `:synastry:p2:${system}`;
+        } else {
+          throw new Error(`Unknown docType for synastry: ${docType}`);
+        }
+      } else if (job.type === 'extended') {
+        if (docType !== 'individual') {
+          throw new Error(`Extended jobs should only create 'individual' docs (got ${docType})`);
+        }
+        const chartDataObj: any = { [chartKey]: chartData };
         prompt = buildIndividualPrompt({
           type: 'individual',
           style,
-          spiceLevel: spiceLevel as SpiceLevel, // Cast number to SpiceLevel union type
-          system: safeSystem as any,
+          spiceLevel,
+          system: system as any,
           voiceMode: 'other',
-          person: {
-            name: person1.name,
-            ...p1BirthData,
-          } as any, // Cast to match PersonData
-          // Provide chart data under the correct system key (not always western)
-          chartData: { [safeSystem]: chartData } as any,
-          personalContext: params.personalContext, // Pass through for individual reading personalization
-        });
-        // personName is already embedded in the prompt via buildIndividualPrompt() config
+          person: { name: person1.name, ...p1BirthData } as any,
+          chartData: chartDataObj,
+          personalContext: params.personalContext,
+        } as any);
         label += `:individual:${system}`;
       } else {
-        throw new Error(`Unknown docType: ${docType}`);
+        throw new Error(`Unhandled job.type: ${job.type}`);
       }
     }
 

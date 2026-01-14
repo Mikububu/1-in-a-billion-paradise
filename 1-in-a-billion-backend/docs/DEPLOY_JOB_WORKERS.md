@@ -150,6 +150,11 @@ When a worker claims a task:
    flyctl scale count worker=1 --app 1-in-a-billion-backend
    ```
 
+4. **Confirm the job/task health check is active (stuck task cleanup)**:
+   - The API server starts a background service that periodically runs DB cleanup functions for stuck jobs/tasks.
+   - If the cleanup migration isn’t applied, jobs can remain stuck forever when a worker dies mid-task.
+   - Migration: `migrations/021_add_timeouts_and_retries.sql`
+
 ### Workers Start But Don't Claim Tasks
 1. **Check SUPABASE_SERVICE_ROLE_KEY**: Workers need the service role key (not anon key) to bypass RLS
 2. **Check database functions**: Ensure `claim_tasks` RPC exists in Supabase
@@ -185,4 +190,5 @@ When a worker claims a task:
 - [ ] Deploy: `flyctl deploy`
 - [ ] Scale workers: `flyctl scale count worker=1`
 - [ ] Verify: `flyctl logs` should show "BaseWorker started"
+- [ ] Verify: health check is running (periodic stuck job/task cleanup)
 - [ ] Test: Create a job and watch it move from `queued` → `processing` → `complete`

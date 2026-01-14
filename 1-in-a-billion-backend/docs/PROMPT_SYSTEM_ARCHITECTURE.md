@@ -615,6 +615,7 @@ interface PromptConfig {
   voiceMode?: 'self' | 'other';  // For individual only
   person1: PersonData;
   person2?: PersonData;  // Required for overlay/nuclear
+  relationshipContext?: string;  // Optional narrative frame for overlay prompts
   chartData: ChartData;
 }
 

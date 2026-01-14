@@ -26,7 +26,8 @@ const router = new Hono();
 router.post('/signup', async (c) => {
     try {
         const body = await c.req.json();
-        const { email, password, name } = body;
+        const { email: emailRaw, password, name } = body;
+        const email = typeof emailRaw === 'string' ? emailRaw.trim().toLowerCase() : emailRaw;
 
         if (!email || typeof email !== 'string' || !email.includes('@')) {
             return c.json({
@@ -77,6 +78,14 @@ router.post('/signup', async (c) => {
 
             if (createError) {
                 console.error('❌ Signup error:', createError.message);
+                const msg = (createError.message || '').toLowerCase();
+                if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('duplicate')) {
+                    return c.json({
+                        success: false,
+                        code: 'ACCOUNT_EXISTS',
+                        error: 'Account already exists. Please sign in.',
+                    }, 409);
+                }
                 return c.json({
                     success: false,
                     error: createError.message
@@ -122,6 +131,16 @@ router.post('/signup', async (c) => {
 
         if (createError) {
             console.error('❌ Signup error:', createError.message);
+            // Make this deterministic for the frontend:
+            // Supabase commonly returns "User already registered"
+            const msg = (createError.message || '').toLowerCase();
+            if (msg.includes('already registered') || msg.includes('already exists')) {
+                return c.json({
+                    success: false,
+                    code: 'ACCOUNT_EXISTS',
+                    error: 'Account already exists. Please sign in.',
+                }, 409);
+            }
             return c.json({
                 success: false,
                 error: createError.message

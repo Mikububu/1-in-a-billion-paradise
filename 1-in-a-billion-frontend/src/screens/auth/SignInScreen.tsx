@@ -528,21 +528,15 @@ export const SignInScreen = ({ route }: SignInScreenProps) => {
       />
 
       <View style={styles.contentContainer}>
-        <View style={{ flex: 1 }} />
-
         <View style={styles.authSection}>
           {!showEmailInput ? (
             <>
               <TouchableOpacity
-                style={[styles.authButton, styles.googleButton]}
-                onPress={handleGoogleSignIn}
+                style={[styles.authButton, styles.emailButton]}
+                onPress={() => setShowEmailInput(true)}
                 disabled={isLoading}
               >
-                {isLoading ? (
-                  <ActivityIndicator color="#000" />
-                ) : (
-                  <Text style={styles.googleText}>Login with Google</Text>
-                )}
+                <Text style={styles.emailButtonText}>Login with Email</Text>
               </TouchableOpacity>
 
               {Platform.OS === 'ios' && (
@@ -556,11 +550,15 @@ export const SignInScreen = ({ route }: SignInScreenProps) => {
               )}
 
               <TouchableOpacity
-                style={[styles.authButton, styles.emailButton]}
-                onPress={() => setShowEmailInput(true)}
+                style={[styles.authButton, styles.googleButton]}
+                onPress={handleGoogleSignIn}
                 disabled={isLoading}
               >
-                <Text style={styles.emailButtonText}>Login with Email</Text>
+                {isLoading ? (
+                  <ActivityIndicator color="#000" />
+                ) : (
+                  <Text style={styles.googleText}>Login with Google</Text>
+                )}
               </TouchableOpacity>
             </>
           ) : showForgotPassword ? (
@@ -703,6 +701,7 @@ const styles = StyleSheet.create({
   },
   authSection: {
     gap: spacing.sm,
+    paddingTop: 140, // Position below Back button (top: 60) without overlap
   },
   authButton: {
     paddingVertical: spacing.md,
@@ -712,12 +711,14 @@ const styles = StyleSheet.create({
     minHeight: 56,
   },
   googleButton: {
-    backgroundColor: colors.buttonBg,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)', // White with 50% opacity
+    borderWidth: 2,
+    borderColor: '#000',
   },
   googleText: {
-    color: colors.text,
+    color: '#000',
     fontSize: 16,
-    fontFamily: typography.sansMedium,
+    fontFamily: typography.sansBold,
   },
   appleButton: {
     backgroundColor: '#000',

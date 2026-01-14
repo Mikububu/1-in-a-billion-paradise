@@ -19,6 +19,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 export const TreeOfLifeVideoScreen = ({ navigation, route }: Props) => {
     const videoRef = useRef<Video>(null);
     const hasNavigated = useRef(false);
+    const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     
     // Pass through all params to GeneratingReading
     const {
@@ -35,6 +36,11 @@ export const TreeOfLifeVideoScreen = ({ navigation, route }: Props) => {
     const navigateToGenerating = () => {
         if (hasNavigated.current) return;
         hasNavigated.current = true;
+
+        if (__DEV__) {
+          // eslint-disable-next-line no-console
+          console.log('🌳 TreeOfLifeVideo → GeneratingReading', { jobId, productType, readingType, systems });
+        }
         
         navigation.replace('GeneratingReading', {
             jobId,
@@ -56,11 +62,19 @@ export const TreeOfLifeVideoScreen = ({ navigation, route }: Props) => {
 
     // Fallback: if video doesn't finish properly, navigate after timeout
     useEffect(() => {
-        const timeout = setTimeout(() => {
+        // Start with a conservative fallback; we tighten this once duration is known.
+        fallbackTimerRef.current = setTimeout(() => {
             navigateToGenerating();
-        }, 15000); // 15 second max
+        }, 45000); // 45s max
 
-        return () => clearTimeout(timeout);
+        return () => {
+          if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+        };
+    }, []);
+
+    useEffect(() => {
+      // Best-effort: explicitly kick playback on mount (helps some iOS edge cases).
+      videoRef.current?.playAsync().catch(() => {});
     }, []);
 
     return (
@@ -72,9 +86,26 @@ export const TreeOfLifeVideoScreen = ({ navigation, route }: Props) => {
                 resizeMode={ResizeMode.COVER}
                 shouldPlay
                 isLooping={false}
-                isMuted={false}
-                volume={1.0}
+                // Safer autoplay on iOS: keep muted for this transition screen.
+                isMuted
                 onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
+                onLoad={(status) => {
+                  // Use actual duration to set a better fallback (duration + 1s, capped).
+                  const duration = (status as any)?.durationMillis;
+                  if (typeof duration === 'number' && duration > 0) {
+                    const ms = Math.min(duration + 1000, 45000);
+                    if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+                    fallbackTimerRef.current = setTimeout(() => {
+                      navigateToGenerating();
+                    }, ms);
+                  }
+                }}
+                onError={(e) => {
+                  // eslint-disable-next-line no-console
+                  console.warn('🌳 TreeOfLifeVideo failed to load/play:', (e as any)?.error || e);
+                  // Don’t strand the user on a black screen.
+                  setTimeout(() => navigateToGenerating(), 800);
+                }}
             />
         </View>
     );
