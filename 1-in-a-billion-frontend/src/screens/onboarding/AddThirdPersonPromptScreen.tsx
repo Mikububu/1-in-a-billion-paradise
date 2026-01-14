@@ -105,7 +105,7 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
           isMuted
           onLoad={() => {
             // Some iOS builds can freeze if we start at rate != 1 via prop; set it after load.
-            videoRef.current?.setRateAsync(0.5, false).catch(() => {});
+            videoRef.current?.setRateAsync(0.35, false).catch(() => {});
           }}
           onReadyForDisplay={() => {
             // Belt + suspenders: ensure autoplay resumes once frames are ready.
@@ -116,7 +116,7 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
       <View style={styles.content}>
         <View style={styles.textCard}>
           <Text style={styles.title} selectable>
-            Would you like to do a free hook reading for another person?
+            Would you like to do a free reading for another person?
           </Text>
           <Text style={styles.subtitle} selectable>
             You can add one person and receive their Sun, Moon, and Rising previews, plus the compatibility preview between you both.
