@@ -52,6 +52,7 @@ function getFirstName(fullName: string | undefined | null): string {
 export function useSupabaseAuthBootstrap() {
   const setUser = useAuthStore((s: any) => s.setUser);
   const setSession = useAuthStore((s: any) => s.setSession);
+  const displayName = useAuthStore((s: any) => s.displayName);
   const setDisplayName = useAuthStore((s: any) => s.setDisplayName);
   const setIsLoading = useAuthStore((s: any) => s.setIsLoading);
   const setIsAuthReady = useAuthStore((s: any) => s.setIsAuthReady);
@@ -152,9 +153,12 @@ export function useSupabaseAuthBootstrap() {
               provider: session.user.app_metadata?.provider,
             });
           }
-          const fullName = session.user.user_metadata?.full_name;
-          const firstName = fullName ? getFirstName(fullName) : (session.user.email?.split('@')?.[0] || 'User');
-          setDisplayName(firstName);
+          // Only set displayName from OAuth if user hasn't already chosen one (e.g., after payment)
+          if (!displayName) {
+            const fullName = session.user.user_metadata?.full_name;
+            const firstName = fullName ? getFirstName(fullName) : (session.user.email?.split('@')?.[0] || 'User');
+            setDisplayName(firstName);
+          }
 
           // CRITICAL FIX: Check Supabase for existing profile to determine if onboarding is complete
           // This establishes Supabase as the single source of truth
@@ -329,10 +333,13 @@ export function useSupabaseAuthBootstrap() {
         console.log('📊 DEBUG: Setting session and user...');
         setSession(session);
         setUser(session.user);
-        const fullName = session.user.user_metadata?.full_name;
-        const firstName = fullName ? getFirstName(fullName) : (session.user.email?.split('@')?.[0] || 'User');
-        console.log('📊 DEBUG: Display name will be:', firstName);
-        setDisplayName(firstName);
+        // Only set displayName from OAuth if user hasn't already chosen one (e.g., after payment)
+        if (!displayName) {
+          const fullName = session.user.user_metadata?.full_name;
+          const firstName = fullName ? getFirstName(fullName) : (session.user.email?.split('@')?.[0] || 'User');
+          console.log('📊 DEBUG: Display name will be:', firstName);
+          setDisplayName(firstName);
+        }
         console.log('✅ DEBUG: Auth state set for onboarding flow');
         return;
       }
@@ -341,17 +348,19 @@ export function useSupabaseAuthBootstrap() {
       console.log('✅ Auth Listener: Profile exists, setting auth state');
       setSession(session);
       setUser(session.user);
-      const name =
-        session.user.user_metadata?.full_name ||
-        session.user.email?.split('@')?.[0] ||
-        'User';
-      setDisplayName(name);
+      // Only set displayName from OAuth if user hasn't already chosen one (e.g., after payment)
+      if (!displayName) {
+        const fullName = session.user.user_metadata?.full_name;
+        const name = fullName ? getFirstName(fullName) : (session.user.email?.split('@')?.[0] || 'User');
+        setDisplayName(name);
+      }
 
       // Upsert self profile to Supabase (non-blocking)
+      const currentDisplayName = useAuthStore.getState().displayName;
       upsertSelfProfileToSupabase({
         userId: session.user.id,
         email: session.user.email || '',
-        displayName: name,
+        displayName: currentDisplayName,
       }).catch((err) => {
         console.warn('Profile upsert failed (non-blocking):', err);
       });

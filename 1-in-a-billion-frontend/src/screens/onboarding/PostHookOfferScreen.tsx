@@ -319,8 +319,8 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         if (isDeveloperAccount || __DEV__) {
             console.log('🔧 DEV BYPASS: Skipping payment for developer account');
             setIsPaying(false);
-            // Payment successful → navigate to Account screen
-            navigation.navigate('Account', { postPurchase: true });
+            // Payment successful → navigate to NameInput screen
+            navigation.navigate('NameInput', { postPurchase: true });
             return;
         }
 
@@ -333,7 +333,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                 // In dev, bypass payment instead of showing error
                 if (__DEV__) {
                     setIsPaying(false);
-                    navigation.navigate('Account', { postPurchase: true });
+                    navigation.navigate('NameInput', { postPurchase: true });
                     return;
                 }
                 Alert.alert(
@@ -416,8 +416,8 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                 throw new Error(presentError.message);
             }
 
-            // Payment successful → now create the account (Supabase) and then land in My Library.
-            navigation.navigate('Account', { postPurchase: true });
+            // Payment successful → ask for name, then create account (Supabase) and land in My Library
+            navigation.navigate('NameInput', { postPurchase: true });
         } catch (err: any) {
             Alert.alert('Payment Failed', err?.message || 'Payment failed.', [{ text: 'OK' }]);
         } finally {
