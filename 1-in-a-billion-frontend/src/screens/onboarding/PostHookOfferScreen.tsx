@@ -630,9 +630,9 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.page,
     },
     systemIcon: {
-        width: 150, // Much bigger
+        width: 150,
         height: 150,
-        marginBottom: spacing.md,
+        marginBottom: spacing.xs, // Less space between icon and text (moved text higher)
     },
     systemName: {
         fontFamily: typography.headline,
@@ -642,10 +642,10 @@ const styles = StyleSheet.create({
         marginBottom: spacing.xs,
     },
     systemTagline: {
-        fontFamily: typography.sansRegular,
-        fontSize: 14,
+        fontFamily: typography.sansBold, // BOLD
+        fontSize: 16, // Bigger
         color: colors.primary,
         textAlign: 'center',
-        lineHeight: 20,
+        lineHeight: 22,
     },
 });
