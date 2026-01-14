@@ -38,6 +38,7 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
         resizeMode={ResizeMode.COVER}
         shouldPlay
         isLooping
+        rate={0.5}
         isMuted
       />
       <View style={styles.content}>
@@ -103,7 +104,7 @@ const styles = StyleSheet.create({
   textCard: {
     width: '100%',
     maxWidth: 520,
-    backgroundColor: colors.surface, // broken white
+    backgroundColor: 'rgba(236, 234, 230, 0.5)', // broken white @ 50% opacity
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 22,
