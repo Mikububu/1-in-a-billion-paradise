@@ -50,9 +50,6 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     const [activeWordIndex, setActiveWordIndex] = useState(0);
     const [preloadedCount, setPreloadedCount] = useState(0); // triggers re-run of autoplay when preload finishes
 
-    // Background music (Glass Horizon)
-    const bgMusicRef = useRef<Audio.Sound | null>(null);
-
     // Systems carousel (page 2 only)
     const [currentSystemIndex, setCurrentSystemIndex] = useState(0);
     const systemFadeAnim = useRef(new Animated.Value(1)).current;
@@ -60,41 +57,13 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
 
     // (dev logs removed)
 
-    // Set audio mode on mount + start background music
+    // Set audio mode on mount
     useEffect(() => {
         Audio.setAudioModeAsync({
             playsInSilentModeIOS: true,
             staysActiveInBackground: false,
             shouldDuckAndroid: false,
         }).catch(() => {});
-
-        // Load and play background music at reduced volume
-        const loadBgMusic = async () => {
-            try {
-                const { sound } = await Audio.Sound.createAsync(
-                    require('@/../assets/audio/glass-horizon.mp3'),
-                    { 
-                        shouldPlay: true, 
-                        isLooping: true, 
-                        volume: 0.25 // Reduced volume
-                    }
-                );
-                bgMusicRef.current = sound;
-                console.log('🎵 Background music started');
-            } catch (err) {
-                console.warn('⚠️ Background music failed to load:', err);
-            }
-        };
-        loadBgMusic();
-
-        return () => {
-            // Stop and unload background music on unmount
-            if (bgMusicRef.current) {
-                bgMusicRef.current.stopAsync().catch(() => {});
-                bgMusicRef.current.unloadAsync().catch(() => {});
-                bgMusicRef.current = null;
-            }
-        };
     }, []);
 
     // If user ever comes back to this screen, re-enable buttons
@@ -111,10 +80,6 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                 setActiveWordIndex(0);
                 // Stop immediately, but keep loaded in RAM.
                 soundRefs.current.forEach((s) => s?.stopAsync().catch(() => {}));
-                // Also stop background music
-                if (bgMusicRef.current) {
-                    bgMusicRef.current.stopAsync().catch(() => {});
-                }
             };
         }, [])
     );
@@ -203,7 +168,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     const source = typeof src === 'string' ? { uri: src } : src;
                     const { sound } = await Audio.Sound.createAsync(
                         source,
-                        { shouldPlay: false, progressUpdateIntervalMillis: 120 },
+                        { shouldPlay: false, progressUpdateIntervalMillis: 120, volume: 1.0 },
                         (st) => {
                             if (!st.isLoaded) return;
                             if (i !== currentPageRef.current) return;
