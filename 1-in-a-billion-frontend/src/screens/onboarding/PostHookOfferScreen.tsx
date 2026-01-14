@@ -14,7 +14,6 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'PostHookOffer'>;
 
 const { width: PAGE_W } = Dimensions.get('window');
 const VIDEO_BAND_H = 220;
-const DOTS_H = 22;
 
 export const PostHookOfferScreen = ({ navigation }: Props) => {
     const listRef = useRef<FlatList<any>>(null);
@@ -210,20 +209,6 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                         />
                     </View>
                 ) : null}
-
-                {/* Swipe dots (hidden on last page where CTA is shown) */}
-                {page < pages.length - 1 ? (
-                    <View style={styles.dotsOverlay} pointerEvents="none">
-                        <View style={styles.dots}>
-                            {pages.map((_, idx) => (
-                                <View
-                                    key={`dot-${idx}`}
-                                    style={[styles.dot, idx === page && styles.dotActive]}
-                                />
-                            ))}
-                        </View>
-                    </View>
-                ) : null}
             </View>
         </SafeAreaView>
     );
@@ -253,7 +238,8 @@ const styles = StyleSheet.create({
         paddingTop: spacing.lg, // protects from notch while keeping centered composition
     },
     bottomReserve: {
-        height: VIDEO_BAND_H + DOTS_H,
+        // Reserve space so text never overlays the video band (no swipe dots).
+        height: VIDEO_BAND_H,
         width: '100%',
     },
     pageVideoWrap: {
@@ -287,32 +273,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 24,
         maxWidth: 340,
-    },
-    dotsOverlay: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        bottom: VIDEO_BAND_H + spacing.sm,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    dots: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: 8,
-        height: DOTS_H,
-    },
-    dot: {
-        width: 7,
-        height: 7,
-        borderRadius: 999,
-        backgroundColor: '#D1D5DB',
-        opacity: 0.7,
-    },
-    dotActive: {
-        backgroundColor: colors.primary,
-        opacity: 1,
     },
     button: {
         marginHorizontal: spacing.page,
