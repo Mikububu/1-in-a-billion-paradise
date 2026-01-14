@@ -60,9 +60,11 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                 // Bottom band video (fits nicely above the CTA on page 3)
                 bgVideo: require('@/../assets/videos/lets_connet.mp4'),
                 body:
-                    `This is not a transaction but an initiation. ` +
-                    `For $9.90, you receive ongoing discovery, quiet precision, and a personal reading offered as a gift, not an upsell. ` +
-                    `Enter gently, stay curious, and allow the system to work for you in the background, week after week, as your path unfolds.`,
+                    `Join the movement of conscious connections. ` +
+                    `Let us use technology to deeply dive into the beautiful depth of human connections. ` +
+                    `For $9.90 per year, you receive ongoing discovery and quiet precision. ` +
+                    `Your subscription includes a personal audio reading of approximately 15 to 20 minutes, focused entirely on you and drawn from one of our five systems. ` +
+                    `This reading becomes the foundation that allows the system to work more accurately for you, as meaningful connections are continuously explored and revealed as your path unfolds.`,
             },
         ],
         []
