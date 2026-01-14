@@ -145,12 +145,9 @@ export const AccountScreen = ({ navigation, route }: Props) => {
 
       setIsLoading(false);
       if (isPostPurchase) {
-        // After subscription purchase, we enter the app and land in My Library.
-        const onboarding = useOnboardingStore.getState();
-        onboarding.setRedirectAfterOnboarding('MyLibrary');
-        onboarding.completeOnboarding();
-        onboarding.setShowDashboard(true);
+        // After subscription purchase, let user choose their included reading
         setIsCreatingAccount(false);
+        navigation.replace('FreeReadingSelection');
         return;
       }
 

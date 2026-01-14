@@ -17,6 +17,7 @@ import { LanguagesScreen } from '@/screens/onboarding/LanguagesScreen';
 // CurrentCityScreen removed from onboarding flow
 import { AccountScreen } from '@/screens/onboarding/AccountScreen';
 import { NameInputScreen } from '@/screens/onboarding/NameInputScreen';
+import { FreeReadingSelectionScreen } from '@/screens/onboarding/FreeReadingSelectionScreen';
 import { CoreIdentitiesScreen } from '@/screens/onboarding/CoreIdentitiesScreen';
 import { HookSequenceScreen } from '@/screens/onboarding/HookSequenceScreen';
 import { PostHookOfferScreen } from '@/screens/onboarding/PostHookOfferScreen';
@@ -31,6 +32,7 @@ export type OnboardingStackParamList = {
   CurrentCity: undefined;
   Languages: undefined;
   NameInput: { postPurchase?: boolean } | undefined;
+  FreeReadingSelection: undefined;
   Account: { postPurchase?: boolean } | undefined;
   CoreIdentities: undefined;
   CoreIdentitiesIntro: undefined;
@@ -462,6 +464,7 @@ const OnboardingNavigator = ({ initialRouteName = "Intro" }: { initialRouteName?
       <OnboardingStack.Screen name="BirthInfo" component={BirthInfoScreen} />
       <OnboardingStack.Screen name="Languages" component={LanguagesScreen} />
       <OnboardingStack.Screen name="NameInput" component={NameInputScreen} />
+      <OnboardingStack.Screen name="FreeReadingSelection" component={FreeReadingSelectionScreen} />
       <OnboardingStack.Screen name="Account" component={AccountScreen} />
       <OnboardingStack.Screen name="CoreIdentities" component={CoreIdentitiesScreen} />
       <OnboardingStack.Screen name="HookSequence" component={HookSequenceScreen} />

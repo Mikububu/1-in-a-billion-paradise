@@ -390,3 +390,44 @@ export const synastryApi = {
     }
   },
 };
+
+/**
+ * Create included reading job (one free reading per subscription)
+ */
+export async function createIncludedReading(
+  userId: string,
+  system: string,
+  birthData: {
+    id?: string;
+    name: string;
+    birthDate: string;
+    birthTime: string;
+    timezone: string;
+    latitude: number;
+    longitude: number;
+  }
+): Promise<{ success: boolean; jobId?: string; error?: string }> {
+  try {
+    const response = await coreClient.post('/api/jobs/v2/start', {
+      type: 'extended',
+      systems: [system],
+      person1: birthData,
+      useIncludedReading: true, // Flag: use the one included reading from subscription
+    }, {
+      headers: {
+        'X-User-Id': userId,
+      },
+    });
+
+    return {
+      success: true,
+      jobId: response.data.jobId,
+    };
+  } catch (error: any) {
+    console.error('Failed to create included reading:', error);
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message || 'Failed to create reading',
+    };
+  }
+}
