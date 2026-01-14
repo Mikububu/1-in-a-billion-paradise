@@ -27,7 +27,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         () => [
             {
                 eyebrow: 'A quiet promise',
-                title: 'We search for you\n— every week.',
+                title: 'We search for you!\nEvery Week!',
                 body:
                     `Dear soul of the sun, welcome to a quiet promise we make to you and keep every single week.\n\n` +
                     `With a yearly subscription of $9.90, you enter a living system where our background algorithms work continuously, comparing you with others through rare and guarded sources of Vedic astrology, seeking resonance, harmony, and that elusive closeness to a billion.\n\n` +
