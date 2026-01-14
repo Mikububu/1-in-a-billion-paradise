@@ -19,11 +19,11 @@ const CTA_AREA_H = 80;
 const BOTTOM_PADDING = 20; // consistent bottom padding for all pages
 
 // Pre-generated offer screen audio files (David's voice)
-// TODO: Update these paths to match your actual file locations
 const OFFER_AUDIO_URLS = [
-    'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/offer-audio/page_1.mp3', // Page 1: "We search for you!"
-    'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/offer-audio/page_2.mp3', // Page 2: "One complete personal reading"
-    'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/offer-audio/page_3.mp3', // Page 3: "Become part of a movement"
+    // Uploaded to Supabase Storage bucket: voices / offer-audio/
+    'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/offer-audio/page_1.mp3', // Page 1
+    'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/offer-audio/page_2.mp3', // Page 2
+    'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/offer-audio/page_3.mp3', // Page 3
 ];
 
 export const PostHookOfferScreen = ({ navigation }: Props) => {
@@ -36,6 +36,8 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     
     // Audio state
     const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+    const [audioStatus, setAudioStatus] = useState<'idle' | 'loading' | 'playing' | 'error'>('idle');
+    const [audioError, setAudioError] = useState<string | null>(null);
     const soundRef = useRef<Audio.Sound | null>(null);
 
     // (dev logs removed)
@@ -46,7 +48,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
             playsInSilentModeIOS: true,
             staysActiveInBackground: false,
             shouldDuckAndroid: false,
-        });
+        }).catch(() => {});
     }, []);
 
     // If user ever comes back to this screen, re-enable buttons
@@ -63,6 +65,8 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     soundRef.current = null;
                 }
                 setIsAudioPlaying(false);
+                setAudioStatus('idle');
+                setAudioError(null);
             };
         }, [])
     );
@@ -107,15 +111,19 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                 soundRef.current = null;
             }
             setIsAudioPlaying(false);
+            setAudioError(null);
 
             // Get audio URL for current page
             const audioUrl = OFFER_AUDIO_URLS[page];
             if (!audioUrl) {
                 console.warn(`No audio for page ${page + 1}`);
+                setAudioStatus('error');
+                setAudioError(`Missing audio URL for page ${page + 1}`);
                 return;
             }
 
             try {
+                setAudioStatus('loading');
                 console.log(`🔊 Playing audio for page ${page + 1}: ${audioUrl}`);
                 
                 const { sound } = await Audio.Sound.createAsync(
@@ -125,15 +133,24 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                 
                 soundRef.current = sound;
                 setIsAudioPlaying(true);
+                setAudioStatus('playing');
                 
                 sound.setOnPlaybackStatusUpdate((status) => {
                     if (status.isLoaded && status.didJustFinish) {
                         setIsAudioPlaying(false);
+                        setAudioStatus('idle');
                         soundRef.current = null;
+                    } else if (!status.isLoaded && (status as any)?.error) {
+                        setIsAudioPlaying(false);
+                        setAudioStatus('error');
+                        setAudioError(String((status as any).error));
                     }
                 });
             } catch (err: any) {
                 console.error(`Audio error for page ${page + 1}:`, err?.message || err);
+                setIsAudioPlaying(false);
+                setAudioStatus('error');
+                setAudioError(err?.message ? String(err.message) : 'Unknown audio error');
             }
         };
 
@@ -227,6 +244,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.content}>
+                {isAudioPlaying ? <View style={styles.karaokeGlow} pointerEvents="none" /> : null}
                 <FlatList
                     ref={listRef}
                     data={pages}
@@ -241,6 +259,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                         if (soundRef.current) {
                             soundRef.current.stopAsync().catch(() => {});
                             setIsAudioPlaying(false);
+                            setAudioStatus('idle');
                         }
                     }}
                     onScrollEndDrag={(e) => {
@@ -317,6 +336,18 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     }}
                 />
 
+                {audioStatus !== 'playing' ? (
+                    <View style={styles.audioDebug} pointerEvents="none">
+                        <Text style={styles.audioDebugText}>
+                            {audioStatus === 'loading'
+                                ? 'Loading audio…'
+                                : audioStatus === 'error'
+                                    ? `Audio error: ${audioError || 'unknown'}`
+                                    : ''}
+                        </Text>
+                    </View>
+                ) : null}
+
                 {page === pages.length - 1 ? (
                     <View style={styles.ctaContainer}>
                         <Button
@@ -348,6 +379,15 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: 'transparent',
     },
+    karaokeGlow: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(250, 204, 21, 0.22)',
+        zIndex: 1,
+    },
     content: {
         flex: 1,
         paddingVertical: spacing.lg,
@@ -370,6 +410,24 @@ const styles = StyleSheet.create({
     },
     textBlockPlaying: {
         backgroundColor: colors.highlightYellow,
+    },
+    audioDebug: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: spacing.lg,
+        paddingHorizontal: spacing.page,
+        zIndex: 10,
+        alignItems: 'center',
+    },
+    audioDebugText: {
+        fontFamily: typography.sansRegular,
+        fontSize: 12,
+        color: colors.text,
+        backgroundColor: 'rgba(255,255,255,0.85)',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 999,
     },
     bottomReserve: {
         // Dynamic per-page height is set inline.
