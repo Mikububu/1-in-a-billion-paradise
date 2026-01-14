@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
@@ -15,6 +15,8 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'AddThirdPersonPro
 export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
   const videoRef = useRef<Video>(null);
   const isFocused = useIsFocused();
+  const videoDrift = useRef(new Animated.Value(0)).current;
+  const driftLoopRef = useRef<Animated.CompositeAnimation | null>(null);
 
   // HARD LOCK: only allow one free “third person” hook set. If it exists, reuse it.
   const existingPartner = useProfileStore((s) =>
@@ -43,25 +45,74 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
     }
   }, [isFocused]);
 
+  // Gentle "forth and back" drift so the background feels alive.
+  useEffect(() => {
+    if (!isFocused) {
+      driftLoopRef.current?.stop?.();
+      driftLoopRef.current = null;
+      videoDrift.setValue(0);
+      return;
+    }
+
+    driftLoopRef.current = Animated.loop(
+      Animated.sequence([
+        Animated.timing(videoDrift, {
+          toValue: 1,
+          duration: 14000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(videoDrift, {
+          toValue: 0,
+          duration: 14000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    driftLoopRef.current.start();
+
+    return () => {
+      driftLoopRef.current?.stop?.();
+      driftLoopRef.current = null;
+    };
+  }, [isFocused, videoDrift]);
+
   return (
     <SafeAreaView style={styles.container}>
-      <Video
-        ref={videoRef}
-        source={require('@/../assets/videos/reverse_video_finding.mp4')}
-        style={styles.bgVideo}
-        resizeMode={ResizeMode.COVER}
-        shouldPlay={isFocused}
-        isLooping
-        isMuted
-        onLoad={() => {
-          // Some iOS builds can freeze if we start at rate != 1 via prop; set it after load.
-          videoRef.current?.setRateAsync(0.5, false).catch(() => {});
-        }}
-        onReadyForDisplay={() => {
-          // Belt + suspenders: ensure autoplay resumes once frames are ready.
-          if (isFocused) videoRef.current?.playAsync().catch(() => {});
-        }}
-      />
+      <Animated.View
+        style={[
+          styles.bgVideo,
+          {
+            transform: [
+              {
+                translateX: videoDrift.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-18, 18],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <Video
+          ref={videoRef}
+          source={require('@/../assets/videos/reverse_video_finding.mp4')}
+          style={StyleSheet.absoluteFill}
+          resizeMode={ResizeMode.COVER}
+          shouldPlay={isFocused}
+          isLooping
+          isMuted
+          onLoad={() => {
+            // Some iOS builds can freeze if we start at rate != 1 via prop; set it after load.
+            videoRef.current?.setRateAsync(0.5, false).catch(() => {});
+          }}
+          onReadyForDisplay={() => {
+            // Belt + suspenders: ensure autoplay resumes once frames are ready.
+            if (isFocused) videoRef.current?.playAsync().catch(() => {});
+          }}
+        />
+      </Animated.View>
       <View style={styles.content}>
         <View style={styles.textCard}>
           <Text style={styles.title} selectable>
