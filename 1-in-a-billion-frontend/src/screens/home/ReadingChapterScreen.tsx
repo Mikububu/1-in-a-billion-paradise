@@ -329,18 +329,17 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
 
   // Compute: ALL media ready including song (for countdown overlay)
   const allMediaReady = useMemo(() => {
-    // For individual readings without songs, just check if main media ready
-    // Song lyrics might be empty for individual/extended readings
-    const expectsSong = loadingSongLyrics || (!!songLyrics && songLyrics.length > 0);
-    
-    if (!expectsSong) {
-      // No song for this reading (individual/extended) - just check text/audio
-      return mainMediaReady;
-    }
-    
-    // Has song - check if both text AND song ready
-    return mainMediaReady && !loadingSongLyrics && !!songLyrics && songLyrics.length > 0;
-  }, [mainMediaReady, loadingSongLyrics, songLyrics]);
+    // If this reading expects a song, we require BOTH:
+    // - song audio artifact ready
+    // - lyrics ready
+    //
+    // Otherwise, we only require main media ready (text + narration audio + PDF).
+    const expectsSong = loadingSongLyrics || songReady || (!!songLyrics && songLyrics.length > 0);
+
+    if (!expectsSong) return mainMediaReady;
+
+    return mainMediaReady && songReady && !loadingSongLyrics && !!songLyrics && songLyrics.length > 0;
+  }, [mainMediaReady, loadingSongLyrics, songLyrics, songReady]);
 
   const niceTimestamp = useMemo(() => {
     if (!timestamp) return '';
@@ -469,7 +468,9 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             text={text}
             loadingText={loadingText}
             type="narration"
-            textNotReady={!!text && !loadingText && !mainMediaReady}
+            // Rule: prohibit narration playback until we can "see it all"
+            controlsDisabled={!allMediaReady}
+            textNotReady={!!text && !loadingText && !allMediaReady}
           />
 
           <View style={styles.musicSpacer} />
@@ -478,8 +479,9 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             text={songLyrics}
             loadingText={loadingSongLyrics}
             type="song"
-            controlsDisabled={!songReady}
-            textNotReady={!!songLyrics && !loadingSongLyrics && !songReady}
+            // Rule: prohibit song playback until we can "see it all"
+            controlsDisabled={!allMediaReady}
+            textNotReady={!!songLyrics && !loadingSongLyrics && !allMediaReady}
           />
         </View>
         </View>
