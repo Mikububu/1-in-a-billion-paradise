@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, View, Alert, FlatList, NativeScrollEvent, NativeSyntheticEvent, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, Alert, FlatList, NativeScrollEvent, NativeSyntheticEvent, Dimensions, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
@@ -26,6 +26,15 @@ const OFFER_AUDIO_SOURCES: Array<string | number> = [
     require('@/../assets/audio/offer/page_3.mp3'), // Page 3 (bundled from Desktop 3.mp3)
 ];
 
+// The 5 cosmic systems (for animated carousel on page 2)
+const FIVE_SYSTEMS = [
+    { symbol: '☉', name: 'Western Astrology', tagline: 'The Psychology of Your Soul' },
+    { symbol: 'ॐ', name: 'Jyotish (Vedic)', tagline: 'The Light of Karma' },
+    { symbol: '◬', name: 'Human Design', tagline: 'Your Bodygraph Blueprint' },
+    { symbol: '❋', name: 'Gene Keys', tagline: 'Shadow → Gift → Siddhi' },
+    { symbol: '✧', name: 'Kabbalah', tagline: 'The Tree of Life' },
+];
+
 export const PostHookOfferScreen = ({ navigation }: Props) => {
     const listRef = useRef<FlatList<any>>(null);
     const [page, setPage] = useState(0);
@@ -40,6 +49,10 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     const [isAudioPlaying, setIsAudioPlaying] = useState(false);
     const [activeWordIndex, setActiveWordIndex] = useState(0);
     const [preloadedCount, setPreloadedCount] = useState(0); // triggers re-run of autoplay when preload finishes
+
+    // Systems carousel (page 2 only)
+    const [currentSystemIndex, setCurrentSystemIndex] = useState(0);
+    const systemFadeAnim = useRef(new Animated.Value(1)).current;
 
     // (dev logs removed)
 
@@ -210,6 +223,31 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         play();
     }, [page, preloadedCount]);
 
+    // Systems carousel animation (page 2 only) — cycle through 5 systems every 2.5s
+    useEffect(() => {
+        if (page !== 1) return; // Only run on page 2 (index 1)
+
+        const interval = setInterval(() => {
+            // Fade out
+            Animated.timing(systemFadeAnim, {
+                toValue: 0,
+                duration: 400,
+                useNativeDriver: true,
+            }).start(() => {
+                // Change system while faded out
+                setCurrentSystemIndex((prev) => (prev + 1) % FIVE_SYSTEMS.length);
+                // Fade back in
+                Animated.timing(systemFadeAnim, {
+                    toValue: 1,
+                    duration: 400,
+                    useNativeDriver: true,
+                }).start();
+            });
+        }, 2500);
+
+        return () => clearInterval(interval);
+    }, [page, systemFadeAnim]);
+
     const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const idx = Math.round(e.nativeEvent.contentOffset.x / PAGE_W);
         setPage(Math.max(0, Math.min(pages.length - 1, idx)));
@@ -329,7 +367,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                         
                         // Calculate bottom reserve height to prevent text overlap:
                         // Page 1: video bottom (34) + video height (200) + gap (20) = 254
-                        // Page 2: dots (24) + padding (20) = 44
+                        // Page 2: dots (24) + padding (20) + carousel (~160) = 204
                         // Page 3: video bottom (80) + video height (200) + gap (20) = 300
                         let bottomReserveHeight;
                         if (hasVideo) {
@@ -341,8 +379,8 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                                 bottomReserveHeight = 34 + VIDEO_BAND_H + 20;
                             }
                         } else {
-                            // Page 2: just dots
-                            bottomReserveHeight = DOTS_H + BOTTOM_PADDING;
+                            // Page 2: dots + systems carousel
+                            bottomReserveHeight = DOTS_H + BOTTOM_PADDING + 160;
                         }
                         
                         return (
@@ -367,6 +405,28 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                                 </Text>
                             </View>
                             <View style={[styles.bottomReserve, { height: bottomReserveHeight }]} />
+                            
+                            {/* Page 2 only: Systems carousel */}
+                            {index === 1 && (
+                                <Animated.View 
+                                    style={[
+                                        styles.systemsCarousel,
+                                        { opacity: systemFadeAnim }
+                                    ]}
+                                    pointerEvents="none"
+                                >
+                                    <Text style={styles.systemSymbol} selectable>
+                                        {FIVE_SYSTEMS[currentSystemIndex].symbol}
+                                    </Text>
+                                    <Text style={styles.systemName} selectable>
+                                        {FIVE_SYSTEMS[currentSystemIndex].name}
+                                    </Text>
+                                    <Text style={styles.systemTagline} selectable>
+                                        {FIVE_SYSTEMS[currentSystemIndex].tagline}
+                                    </Text>
+                                </Animated.View>
+                            )}
+                            
                             {hasVideo && (
                                 <View
                                     style={[
@@ -532,5 +592,36 @@ const styles = StyleSheet.create({
     },
     buttonPrimary: {
         marginBottom: 0,
+    },
+    // Systems carousel (page 2)
+    systemsCarousel: {
+        position: 'absolute',
+        bottom: BOTTOM_PADDING + DOTS_H + 20,
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: spacing.lg,
+        paddingHorizontal: spacing.page,
+    },
+    systemSymbol: {
+        fontSize: 72,
+        lineHeight: 80,
+        textAlign: 'center',
+        marginBottom: spacing.xs,
+    },
+    systemName: {
+        fontFamily: typography.headline,
+        fontSize: 22,
+        color: colors.text,
+        textAlign: 'center',
+        marginBottom: spacing.xs,
+    },
+    systemTagline: {
+        fontFamily: typography.sansRegular,
+        fontSize: 14,
+        color: colors.primary,
+        textAlign: 'center',
+        lineHeight: 20,
     },
 });
