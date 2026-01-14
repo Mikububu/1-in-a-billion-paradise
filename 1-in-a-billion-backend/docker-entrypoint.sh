@@ -25,6 +25,10 @@ case "$PROCESS_GROUP" in
     echo "[entrypoint] Starting PDF worker..."
     exec node dist/workers/pdfWorker.js
     ;;
+  people-scaling-worker)
+    echo "[entrypoint] Starting people scaling worker..."
+    exec node dist/workers/peopleScalingWorker.js
+    ;;
   audiobook-worker)
     echo "[entrypoint] Starting audiobook worker..."
     exec node dist/workers/audiobookQueueWorker.js
