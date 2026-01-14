@@ -61,7 +61,8 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
   const addPerson = useProfileStore((state) => state.addPerson);
   const userId = useAuthStore((state) => state.userId);
   const isPrepayOnboarding = (route?.params as any)?.mode === 'onboarding_hook';
-  const mode = (route?.params as any)?.mode as string | undefined;
+  // mode already derived above; keep a typed alias if needed elsewhere
+  const flowMode = (route?.params as any)?.mode as string | undefined;
 
   // City search state
   const [cityQuery, setCityQuery] = useState('');
@@ -163,7 +164,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
             : null,
           partnerBirthCity: cityToUse,
           partnerId: existingPerson.id,
-          mode,
+          mode: flowMode,
         });
         return { personId: existingPerson.id, cityToUse };
       } else {
@@ -254,7 +255,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
         : null,
       partnerBirthCity: cityToUse,
       partnerId,
-      mode,
+      mode: flowMode,
     });
 
     return { personId, cityToUse };
