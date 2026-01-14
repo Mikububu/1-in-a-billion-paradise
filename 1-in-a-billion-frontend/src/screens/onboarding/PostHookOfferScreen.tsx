@@ -78,7 +78,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
             return () => {
                 setIsAudioPlaying(false);
                 setActiveWordIndex(0);
-                // Stop immediately, but keep loaded in RAM.
+                // Stop voice audio immediately, but keep loaded in RAM.
                 soundRefs.current.forEach((s) => s?.stopAsync().catch(() => {}));
             };
         }, [])
@@ -205,6 +205,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     }, [karaoke]);
 
     // Auto-play current page; cut audio on page change
+    // NOTE: Page 0 has NO voice audio - let the global "1 in a Billion song" play
     useEffect(() => {
         currentPageRef.current = page;
         setActiveWordIndex(0);
@@ -215,6 +216,8 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
 
         const play = async () => {
             await stopAll();
+            // Skip voice audio on page 0 - global ambient music plays there
+            if (page === 0) return;
             const s = soundRefs.current[page];
             if (!s) return;
             await s.setPositionAsync(0).catch(() => {});
