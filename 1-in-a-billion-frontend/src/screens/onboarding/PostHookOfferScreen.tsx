@@ -31,7 +31,7 @@ const FIVE_SYSTEMS = [
     { icon: require('@/../assets/images/systems/western.png'), name: 'Western Astrology', tagline: 'The Psychology of Your Soul' },
     { icon: require('@/../assets/images/systems/vedic.png'), name: 'Jyotish (Vedic)', tagline: 'The Light of Karma' },
     { icon: require('@/../assets/images/systems/human-design.png'), name: 'Human Design', tagline: 'Your Bodygraph Blueprint' },
-    { icon: require('@/../assets/images/systems/Gene keys.png'), name: 'Gene Keys', tagline: 'Shadow → Gift → Siddhi' },
+    { icon: require('@/../assets/images/systems/gene-keys.png'), name: 'Gene Keys', tagline: 'Shadow → Gift → Siddhi' },
     { icon: require('@/../assets/images/systems/Kabbalah.png'), name: 'Kabbalah', tagline: 'The Tree of Life' },
 ];
 
