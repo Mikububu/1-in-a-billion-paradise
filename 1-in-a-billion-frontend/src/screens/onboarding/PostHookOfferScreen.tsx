@@ -65,12 +65,17 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
             setPage(page + 1);
             return;
         }
+    };
+
+    const handleBuy = () => {
         // NOTE: Purchase flow is the next step. We intentionally do NOT create a Supabase user here.
-        Alert.alert(
-            'Next step',
-            'Subscription purchase flow is the next step. After purchase, we will create your account and ask for your photo.',
-            [{ text: 'OK' }]
-        );
+        // @ts-ignore
+        navigation.navigate('Purchase');
+    };
+
+    const handleNoMaybe = () => {
+        setPage(0);
+        listRef.current?.scrollToOffset({ offset: 0, animated: true });
     };
 
     return (
@@ -102,12 +107,29 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     ))}
                 </View>
 
-                <Button
-                    label={page < pages.length - 1 ? 'Next' : 'Start 1‑Year Subscription — $9.90'}
-                    onPress={handleNext}
-                    variant="primary"
-                    style={styles.button}
-                />
+                {page < pages.length - 1 ? (
+                    <Button
+                        label="Next"
+                        onPress={handleNext}
+                        variant="primary"
+                        style={styles.button}
+                    />
+                ) : (
+                    <>
+                        <Button
+                            label="YES I want to buy"
+                            onPress={handleBuy}
+                            variant="primary"
+                            style={styles.button}
+                        />
+                        <Button
+                            label="No maybe another time"
+                            onPress={handleNoMaybe}
+                            variant="secondary"
+                            style={styles.button}
+                        />
+                    </>
+                )}
             </View>
         </SafeAreaView>
     );

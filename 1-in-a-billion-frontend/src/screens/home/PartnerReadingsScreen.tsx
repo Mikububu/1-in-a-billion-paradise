@@ -52,7 +52,7 @@ const getSignLabel = (name: string, type: HookReading['type']) => {
 
 type LLMProvider = 'deepseek' | 'claude' | 'gpt' | 'deepthink';
 
-// Extended page type to include the gateway page (same as HookSequenceScreen)
+// Extended page type to include a gateway page (continue to compatibility)
 type PageItem = HookReading | { type: 'gateway'; sign: ''; intro: ''; main: '' };
 
 const screenId = 'P1'; // Partner Readings
@@ -398,8 +398,8 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
         };
       });
 
-      // No gateway page - just the 3 hook readings (Sun/Moon/Rising)
-      setReadings(loadedReadings);
+      // Add gateway page after the 3 hook readings
+      setReadings([...loadedReadings, { type: 'gateway', sign: '', intro: '', main: '' }]);
       console.log(`✅ Loaded ${partnerName}'s existing readings from store`);
     } else {
       // Readings don't exist - generate them
@@ -445,8 +445,8 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
       }
 
       if (newReadings.length === 3) {
-        // No gateway page - just the 3 hook readings (Sun/Moon/Rising)
-        setReadings(newReadings);
+        // Add gateway page after the 3 hook readings
+        setReadings([...newReadings, { type: 'gateway', sign: '', intro: '', main: '' }]);
         listRef.current?.scrollToIndex({ index: 0, animated: true });
         setPage(0);
 
@@ -562,26 +562,14 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
                                 );
                                 return;
                               }
-                              // If the user has already used their free overlay preview, route directly to paid packages.
-                              if (hasUsedFreeOverlay(authUser?.id)) {
-                                navigation.navigate('SystemSelection', {
-                                  readingType: 'overlay',
-                                  forPartner: false,
-                                  userName: 'You',
-                                  partnerName,
-                                  partnerBirthDate,
-                                  partnerBirthTime,
-                                  partnerBirthCity,
-                                });
-                                return;
-                              }
-
-                              // Otherwise allow the one-time free preview.
+                              // Pre-payment onboarding: always show the free compatibility preview,
+                              // and never route into paid packages here.
                               navigation.navigate('SynastryPreview', {
                                 partnerName,
                                 partnerBirthDate,
                                 partnerBirthTime,
                                 partnerBirthCity,
+                                onboardingNext: 'PostHookOffer',
                               });
                             }}
                           >
@@ -590,9 +578,9 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
 
                           <TouchableOpacity
                             style={styles.secondaryBtn}
-                            onPress={() => navigation.navigate('Home')}
+                            onPress={() => navigation.navigate('PostHookOffer' as any)}
                           >
-                            <Text style={styles.secondaryBtnText}>Back to Dashboard</Text>
+                            <Text style={styles.secondaryBtnText}>Skip for now</Text>
                           </TouchableOpacity>
                         </View>
                       </View>

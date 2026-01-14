@@ -60,6 +60,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
   const people = useProfileStore((state) => state.people);
   const addPerson = useProfileStore((state) => state.addPerson);
   const userId = useAuthStore((state) => state.userId);
+  const isPrepayOnboarding = (route?.params as any)?.mode === 'onboarding_hook';
 
   // City search state
   const [cityQuery, setCityQuery] = useState('');
@@ -210,8 +211,8 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
       placements: placements || undefined, // Save placements immediately
     });
 
-    // Sync to Supabase in background
-    if (userId) {
+    // Sync to Supabase in background (disabled in pre-payment onboarding)
+    if (userId && !isPrepayOnboarding) {
       const person = {
         id: personId,
         name: name.trim(),

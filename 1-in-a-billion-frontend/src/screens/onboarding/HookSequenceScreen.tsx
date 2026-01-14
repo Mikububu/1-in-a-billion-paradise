@@ -62,11 +62,10 @@ const NEXT_LABELS: Record<string, string> = {
   sun: 'Discover Your Moon',
   moon: 'Discover Your Rising',
   rising: 'Continue',
-  gateway: 'Enter Dashboard',
 };
 
-// Extended page type to include the gateway/sign-in page
-type PageItem = HookReading | { type: 'gateway'; sign: ''; intro: ''; main: '' };
+// New onboarding flow: only the 3 hook pages (no signup gateway here)
+type PageItem = HookReading;
 
 type LLMProvider = 'deepseek' | 'claude' | 'gpt' | 'deepthink';
 
@@ -205,7 +204,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     downloadMissingAudio();
   }, []); // Run once on mount
 
-  // Readings array - 3 hook readings + 4th gateway page (signup/login/transition)
+  // Readings array - exactly 3 hook readings
   const readings = useMemo((): PageItem[] => {
     let baseReadings: HookReading[];
     if (customReadings && customReadings.length === 3) {
@@ -216,10 +215,6 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
       if (moon) apiReadings.push(moon);
       if (rising) apiReadings.push(rising);
       baseReadings = apiReadings;
-    }
-    // Add the gateway page after the 3 readings
-    if (baseReadings.length === 3) {
-      return [...baseReadings, { type: 'gateway', sign: '', intro: '', main: '' }];
     }
     return baseReadings;
   }, [sun, moon, rising, customReadings]);
@@ -319,21 +314,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     }
   }, [page]);
 
-  // HARD STOP: if user lands on the gateway (page 4), audio must never keep playing.
-  useEffect(() => {
-    const current = readings[page];
-    if (current?.type === 'gateway') {
-      console.log('🛑 Gateway page active - forcing audio stop');
-      if (soundRef.current) {
-        soundRef.current.stopAsync().catch(() => { });
-        soundRef.current.unloadAsync().catch(() => { });
-        soundRef.current = null;
-      }
-      setAudioPlaying({});
-      currentPlayingType.current = null;
-      setAudioLoading({});
-    }
-  }, [page, readings]);
+  // (Signup gateway removed from this flow)
 
   // Get setHookAudio from store for background generation
   const setHookAudio = useOnboardingStore((state) => state.setHookAudio);
@@ -514,16 +495,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
 
 
 
-  // Auto-transition when user lands on gateway page and is already signed in
-  useEffect(() => {
-    if (page === 3 && isSignedIn && !isTransitioning) {
-      setIsTransitioning(true);
-      console.log('🚀 User already signed in - transitioning to Partner Offer...');
-      // Navigate immediately to prevent Dashboard flash
-      // @ts-ignore
-      navigation.navigate('PostHookOffer');
-    }
-  }, [page, isSignedIn, isTransitioning, navigation]);
+  // (Signup gateway removed from this flow)
 
   // Sign-in handlers
   // Handle deep link for OAuth callback (Onboarding specific)
@@ -945,10 +917,10 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     if (page < readings.length - 1) {
       listRef.current?.scrollToIndex({ index: page + 1, animated: true });
     } else {
-      // Skip PDF generation during onboarding - can be done later from library
-      // Complete onboarding and go directly to the main app (Home/Control Room)
-      console.log('🏠 COMPLETING ONBOARDING - Should go to Home (Screen 10)');
-      completeOnboarding();
+      // After the 3rd reading: ask whether they want to add another person.
+      // NOTE: We do NOT sign up or persist anything before purchase.
+      // @ts-ignore
+      navigation.navigate('AddThirdPersonPrompt');
     }
   };
 
@@ -1075,93 +1047,6 @@ ${rising.main}`;
               ref={listRef}
               onMomentumScrollEnd={handleScroll}
               renderItem={({ item }) => {
-                // 4th page: Gateway (Sign-up or Transition)
-                if (item.type === 'gateway') {
-                  return (
-                    <View style={styles.page}>
-                      <View style={styles.gatewayContainer}>
-                        {isTransitioning ? (
-                          // Transitioning to Dashboard
-                          <>
-                            <Text style={styles.gatewayIcon}>✧</Text>
-                            <Text style={styles.gatewayTitle}>
-                              Entering your{'\n'}Souls Laboratory
-                            </Text>
-                            <ActivityIndicator
-                              size="large"
-                              color={colors.primary}
-                              style={{ marginTop: spacing.xl }}
-                            />
-                          </>
-                        ) : isSignedIn ? (
-                          // Already signed in - auto transition
-                          <>
-                            <Text style={styles.gatewayIcon}>✧</Text>
-                            <Text style={styles.gatewayTitle}>
-                              Welcome back
-                            </Text>
-                            <Text style={styles.gatewaySubtitle}>
-                              Entering your Dashboard...
-                            </Text>
-                            <ActivityIndicator
-                              size="large"
-                              color={colors.primary}
-                              style={{ marginTop: spacing.xl }}
-                            />
-                          </>
-                        ) : (
-                          // Sign up options
-                          <>
-                            {/* 5 Systems Image */}
-                            {/* 5 Systems Image */}
-                            <Image
-                              source={require('@/../assets/images/5_systems.png')}
-                              style={styles.systemsImage}
-                              resizeMode="contain"
-                            />
-                            <Text style={styles.gatewayTitle}>
-                              Sign up to continue
-                            </Text>
-                            <Text style={styles.gatewaySubtitle}>
-                              Save your readings and{'\n'}unlock your full chart
-                            </Text>
-
-                            <View style={styles.buttonsContainer}>
-                              {/* Google Sign In */}
-                              <TouchableOpacity
-                                style={styles.googleButton}
-                                onPress={handleGoogleSignIn}
-                                disabled={isSigningIn}
-                              >
-                                {isSigningIn ? (
-                                  <ActivityIndicator color="#fff" />
-                                ) : (
-                                  <>
-                                    <Text style={styles.googleIcon}>G</Text>
-                                    <Text style={styles.googleText}>Continue with Google</Text>
-                                  </>
-                                )}
-                              </TouchableOpacity>
-
-                              {/* Apple Sign In - iOS only */}
-                              {Platform.OS === 'ios' && (
-                                <TouchableOpacity
-                                  style={styles.appleButton}
-                                  onPress={handleAppleSignIn}
-                                  disabled={isSigningIn}
-                                >
-                                  <Text style={styles.appleIcon}></Text>
-                                  <Text style={styles.appleText}>Continue with Apple</Text>
-                                </TouchableOpacity>
-                              )}
-                            </View>
-                          </>
-                        )}
-                      </View>
-                    </View>
-                  );
-                }
-
                 // Regular reading pages (Sun, Moon, Rising)
                 return (
                   <View style={styles.page}>
@@ -1416,91 +1301,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     width: 36,
   },
-  // Gateway page styles (4th page - sign up / transition)
-  gatewayContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  gatewayIcon: {
-    fontSize: 64,
-    color: colors.primary,
-    marginBottom: spacing.lg,
-  },
-  gatewayTitle: {
-    fontFamily: typography.headline,
-    fontSize: 32 * fontScale,
-    color: colors.text,
-    textAlign: 'center',
-    marginBottom: spacing.md,
-    marginTop: 30, // Increased from 20 to move down further
-  },
-  gatewaySubtitle: {
-    fontFamily: typography.sansRegular,
-    fontSize: 16,
-    color: colors.mutedText,
-    textAlign: 'center',
-    marginBottom: spacing.xl,
-    lineHeight: 24,
-  },
-  systemsImage: {
-    width: '100%',
-    height: '60%', // Keep the bigger size
-    top: 40, // Relative position: Moves image transparently without pushing text
-    marginBottom: spacing.md,
-    alignSelf: 'center',
-    resizeMode: 'contain',
-  },
-  buttonsContainer: {
-    width: '100%',
-    marginTop: 20,
-    top: -20, // Move buttons up visually without reflow
-    paddingBottom: spacing.xxl,
-  },
-  googleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary, // Our RED
-    borderRadius: radii.button,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    width: '100%',
-  },
-  googleIcon: {
-    fontFamily: typography.sansBold,
-    fontSize: 20,
-    color: colors.background,
-    marginRight: spacing.sm,
-  },
-  googleText: {
-    fontFamily: typography.sansSemiBold,
-    fontSize: 16,
-    color: '#fff',
-  },
-  appleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#000',
-    borderRadius: radii.button,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    width: '100%',
-  },
-  appleIcon: {
-    fontSize: 20,
-    color: '#fff',
-    marginRight: spacing.sm,
-  },
-  appleText: {
-    fontFamily: typography.sansSemiBold,
-    fontSize: 16,
-    color: '#fff',
-  },
+  // Gateway page styles removed (signup happens only after purchase)
 
 
 });

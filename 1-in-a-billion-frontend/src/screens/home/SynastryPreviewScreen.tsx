@@ -41,6 +41,7 @@ type PageType = 'score' | 'insights' | 'gateway';
 export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
   console.log(`📱 Screen ${screenId}: SynastryPreviewScreen`);
   const { partnerName, partnerBirthDate, partnerBirthTime, partnerBirthCity } = route.params || {};
+  const onboardingNext = (route.params as any)?.onboardingNext as string | undefined;
   const hookReadings = useOnboardingStore((state: any) => state.hookReadings);
   const userBirthDate = useOnboardingStore((state: any) => state.birthDate);
   const userBirthTime = useOnboardingStore((state: any) => state.birthTime);
@@ -133,7 +134,8 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
             console.log('✅ Compatibility scores calculated:', { spicy: data.spicyScore, safe: data.safeStableScore });
             setScoreError(null);
             // Mark the free overlay as used only after a successful calculation (so no accidental charges).
-            markFreeOverlayUsed(authUser?.id);
+            // Pre-payment onboarding has no auth user, so we skip.
+            if (authUser?.id) markFreeOverlayUsed(authUser.id);
           } else {
             console.error('❌ Invalid score format from API:', data);
             // If API returns error object, log it but don't set scores (keep at 0)
@@ -353,6 +355,10 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
               <TouchableOpacity
                 style={styles.continueBtn}
                 onPress={() => {
+                  if (onboardingNext) {
+                    navigation.navigate(onboardingNext as any);
+                    return;
+                  }
                   navigation.navigate('SynastryOptions', {
                     partnerName: partnerName ?? partner,
                     partnerBirthDate,
@@ -361,7 +367,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
                   });
                 }}
               >
-                <Text style={styles.continueBtnText}>See Package Options</Text>
+                <Text style={styles.continueBtnText}>{onboardingNext ? 'Continue' : 'See Package Options'}</Text>
               </TouchableOpacity>
             </View>
           </View>

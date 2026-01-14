@@ -19,6 +19,7 @@ import { AccountScreen } from '@/screens/onboarding/AccountScreen';
 import { CoreIdentitiesScreen } from '@/screens/onboarding/CoreIdentitiesScreen';
 import { HookSequenceScreen } from '@/screens/onboarding/HookSequenceScreen';
 import { PostHookOfferScreen } from '@/screens/onboarding/PostHookOfferScreen';
+import { AddThirdPersonPromptScreen } from '@/screens/onboarding/AddThirdPersonPromptScreen';
 // ... imports ...
 
 export type OnboardingStackParamList = {
@@ -38,6 +39,13 @@ export type OnboardingStackParamList = {
   } | undefined;
   OnboardingComplete: undefined;
   PostHookOffer: undefined; // New screen
+  AddThirdPersonPrompt: undefined;
+  // Reuse existing “home” screens inside onboarding flow (pre-payment)
+  PartnerInfo: { mode?: string; returnTo?: string } | undefined;
+  PartnerCoreIdentities: any;
+  PartnerReadings: any;
+  SynastryPreview: any;
+  Purchase: any;
 };
 
 // ...
@@ -454,6 +462,13 @@ const OnboardingNavigator = ({ initialRouteName = "Intro" }: { initialRouteName?
       <OnboardingStack.Screen name="Account" component={AccountScreen} />
       <OnboardingStack.Screen name="CoreIdentities" component={CoreIdentitiesScreen} />
       <OnboardingStack.Screen name="HookSequence" component={HookSequenceScreen} />
+      <OnboardingStack.Screen name="AddThirdPersonPrompt" component={AddThirdPersonPromptScreen} />
+      {/* Partner flow screens reused during onboarding */}
+      <OnboardingStack.Screen name="PartnerInfo" component={PartnerInfoScreen as any} />
+      <OnboardingStack.Screen name="PartnerCoreIdentities" component={PartnerCoreIdentitiesScreen as any} />
+      <OnboardingStack.Screen name="PartnerReadings" component={PartnerReadingsScreen as any} />
+      <OnboardingStack.Screen name="SynastryPreview" component={SynastryPreviewScreen as any} />
+      <OnboardingStack.Screen name="Purchase" component={PurchaseScreen as any} />
 
       <OnboardingStack.Screen name="PostHookOffer" component={PostHookOfferScreen} />
     </OnboardingStack.Navigator>
