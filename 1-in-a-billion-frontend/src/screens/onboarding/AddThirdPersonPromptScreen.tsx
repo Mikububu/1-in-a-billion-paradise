@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
 import { Button } from '@/components/Button';
+import { BackButton } from '@/components/BackButton';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { useProfileStore } from '@/store/profileStore';
 import { CityOption } from '@/types/forms';
@@ -69,6 +70,12 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <BackButton
+        onPress={() => {
+          // Go back to Rising sign (page 2 of HookSequence)
+          navigation.navigate('HookSequence', { initialReading: 'rising' } as any);
+        }}
+      />
       <Animated.View
         style={[
           styles.bgVideo,
