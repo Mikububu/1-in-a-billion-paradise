@@ -556,7 +556,8 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
 
       while (!audioReady && attempt < MAX_RETRIES) {
         attempt++;
-        setStatusText(attempt === 1 ? 'Generating audio...' : `Retrying audio (${attempt}/${MAX_RETRIES})...`);
+        // Keep UX poetic (no technical retry counters)
+        setStatusText('Giving your reading a voice…');
         
         console.log(`🎵 Audio generation attempt ${attempt}/${MAX_RETRIES}`);
         
@@ -584,12 +585,12 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
           
           if (attempt < MAX_RETRIES) {
             // Wait 2 seconds before retry
-            setStatusText('Audio generation failed, retrying...');
+            setStatusText('One moment…');
             await delay(2000);
           } else {
             // Final attempt failed - proceed anyway
             console.error('❌ All audio attempts failed, proceeding without audio');
-            setStatusText('Proceeding without audio...');
+            setStatusText('Continuing…');
             await delay(1000);
           }
         }
@@ -613,7 +614,7 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
 
     } catch (error) {
       console.log('Error fetching readings:', error);
-      setStatusText('Error - retrying...');
+      setStatusText('One moment…');
       await delay(2000);
       navigation.replace('HookSequence');
     }
