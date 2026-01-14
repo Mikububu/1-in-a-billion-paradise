@@ -702,7 +702,7 @@ const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
     paddingHorizontal: spacing.page,
-    paddingTop: 0, // Remove top padding since header handles it
+    paddingTop: spacing.xl, // Match HookSequenceScreen - space below BackButton
     paddingBottom: spacing.xl,
     justifyContent: 'space-between',
   },
