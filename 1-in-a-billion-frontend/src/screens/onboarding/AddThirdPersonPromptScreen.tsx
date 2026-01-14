@@ -7,13 +7,11 @@ import { Button } from '@/components/Button';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { useProfileStore } from '@/store/profileStore';
 import { CityOption } from '@/types/forms';
-import { Video, ResizeMode } from 'expo-av';
 import { useIsFocused } from '@react-navigation/native';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'AddThirdPersonPrompt'>;
 
 export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
-  const videoRef = useRef<Video>(null);
   const isFocused = useIsFocused();
   const videoDrift = useRef(new Animated.Value(0)).current;
   const driftLoopRef = useRef<Animated.CompositeAnimation | null>(null);
@@ -35,15 +33,6 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
       timezone: existingPartner.birthData.timezone || 'UTC',
     };
   }, [existingPartner]);
-
-  // Be explicit: expo-av can sometimes fail to autoplay with only `shouldPlay`, especially with rate changes.
-  useEffect(() => {
-    if (isFocused) {
-      videoRef.current?.playAsync().catch(() => {});
-    } else {
-      videoRef.current?.pauseAsync().catch(() => {});
-    }
-  }, [isFocused]);
 
   // Gentle "forth and back" drift so the background feels alive.
   useEffect(() => {
@@ -95,22 +84,11 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
           },
         ]}
       >
-        <Video
-          ref={videoRef}
-          source={require('@/../assets/videos/reverse_video_finding.mp4')}
-          style={StyleSheet.absoluteFill}
-          resizeMode={ResizeMode.COVER}
-          shouldPlay={isFocused}
-          isLooping
-          isMuted
-          onLoad={() => {
-            // Some iOS builds can freeze if we start at rate != 1 via prop; set it after load.
-            videoRef.current?.setRateAsync(0.35, false).catch(() => {});
-          }}
-          onReadyForDisplay={() => {
-            // Belt + suspenders: ensure autoplay resumes once frames are ready.
-            if (isFocused) videoRef.current?.playAsync().catch(() => {});
-          }}
+        <Animated.Image
+          source={require('@/../assets/images/happy.png')}
+          style={[StyleSheet.absoluteFill, styles.bgImage]}
+          resizeMode="cover"
+          fadeDuration={250}
         />
       </Animated.View>
       <View style={styles.content}>
@@ -166,6 +144,10 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     opacity: 1, // explicit: no transparency
+  },
+  bgImage: {
+    // Slightly up, similar to the previous "video slightly up" request.
+    transform: [{ translateY: -10 }],
   },
   content: {
     flex: 1,
