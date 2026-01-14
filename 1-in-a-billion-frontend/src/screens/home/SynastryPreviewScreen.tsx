@@ -27,6 +27,7 @@ import { useOnboardingStore } from '@/store/onboardingStore';
 import { useAuthStore } from '@/store/authStore';
 import { env } from '@/config/env';
 import { BackButton } from '@/components/BackButton';
+import { Video, ResizeMode } from 'expo-av';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SynastryPreview'>;
 
@@ -344,31 +345,45 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
         return (
           <View style={styles.page}>
             <View style={styles.gatewayContainer}>
-              <Text style={styles.gatewayIcon}>✧</Text>
-              <Text style={styles.gatewayTitle}>
-                Want the full picture?
-              </Text>
-              <Text style={styles.gatewaySubtitle}>
-                Come with us on a journey into the space between you and another.
-              </Text>
-              
-              <TouchableOpacity
-                style={styles.continueBtn}
-                onPress={() => {
-                  if (onboardingNext) {
-                    navigation.navigate(onboardingNext as any);
-                    return;
-                  }
-                  navigation.navigate('SynastryOptions', {
-                    partnerName: partnerName ?? partner,
-                    partnerBirthDate,
-                    partnerBirthTime,
-                    partnerBirthCity,
-                  });
-                }}
-              >
-                <Text style={styles.continueBtnText}>{onboardingNext ? 'Continue' : 'See Package Options'}</Text>
-              </TouchableOpacity>
+              {/* Background video */}
+              {/* TODO: add your file at assets/videos/want_the_full_picture.mp4 and swap the source below */}
+              <Video
+                source={require('@/../assets/videos/couple-laughing.mp4')}
+                style={styles.gatewayBgVideo}
+                resizeMode={ResizeMode.COVER}
+                shouldPlay
+                isLooping
+                isMuted
+                rate={0.9}
+              />
+
+              {/* Card content */}
+              <View style={styles.gatewayCard}>
+                <Text style={styles.gatewayTitle} selectable>
+                  Want the full picture?
+                </Text>
+                <Text style={styles.gatewaySubtitle} selectable>
+                  Come with us on a journey into the space between you and another.
+                </Text>
+                
+                <TouchableOpacity
+                  style={styles.continueBtn}
+                  onPress={() => {
+                    if (onboardingNext) {
+                      navigation.navigate(onboardingNext as any);
+                      return;
+                    }
+                    navigation.navigate('SynastryOptions', {
+                      partnerName: partnerName ?? partner,
+                      partnerBirthDate,
+                      partnerBirthTime,
+                      partnerBirthCity,
+                    });
+                  }}
+                >
+                  <Text style={styles.continueBtnText}>{onboardingNext ? 'Continue' : 'See Package Options'}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         );
@@ -629,10 +644,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
   },
-  gatewayIcon: {
-    fontSize: 64,
-    color: colors.primary,
-    marginBottom: spacing.lg,
+  gatewayBgVideo: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  gatewayCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: 'rgba(255,255,255,0.82)', // off-white card (not full white)
+    borderRadius: radii.card,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   gatewayTitle: {
     fontFamily: typography.headline,
