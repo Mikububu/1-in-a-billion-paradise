@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, View, Alert, FlatList, NativeScrollEvent, NativeSyntheticEvent, Dimensions, Animated } from 'react-native';
+import { StyleSheet, Text, View, Alert, FlatList, NativeScrollEvent, NativeSyntheticEvent, Dimensions, Animated, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
@@ -28,11 +28,11 @@ const OFFER_AUDIO_SOURCES: Array<string | number> = [
 
 // The 5 cosmic systems (for animated carousel on page 2)
 const FIVE_SYSTEMS = [
-    { symbol: '☉', name: 'Western Astrology', tagline: 'The Psychology of Your Soul' },
-    { symbol: 'ॐ', name: 'Jyotish (Vedic)', tagline: 'The Light of Karma' },
-    { symbol: '◬', name: 'Human Design', tagline: 'Your Bodygraph Blueprint' },
-    { symbol: '❋', name: 'Gene Keys', tagline: 'Shadow → Gift → Siddhi' },
-    { symbol: '✧', name: 'Kabbalah', tagline: 'The Tree of Life' },
+    { icon: require('@/../assets/images/systems/western.png'), name: 'Western Astrology', tagline: 'The Psychology of Your Soul' },
+    { icon: require('@/../assets/images/systems/vedic.png'), name: 'Jyotish (Vedic)', tagline: 'The Light of Karma' },
+    { icon: require('@/../assets/images/systems/human-design.png'), name: 'Human Design', tagline: 'Your Bodygraph Blueprint' },
+    { icon: require('@/../assets/images/systems/Gene keys.png'), name: 'Gene Keys', tagline: 'Shadow → Gift → Siddhi' },
+    { icon: require('@/../assets/images/systems/Kabbalah.png'), name: 'Kabbalah', tagline: 'The Tree of Life' },
 ];
 
 export const PostHookOfferScreen = ({ navigation }: Props) => {
@@ -53,6 +53,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     // Systems carousel (page 2 only)
     const [currentSystemIndex, setCurrentSystemIndex] = useState(0);
     const systemFadeAnim = useRef(new Animated.Value(1)).current;
+    const systemScaleAnim = useRef(new Animated.Value(1)).current;
 
     // (dev logs removed)
 
@@ -223,30 +224,44 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         play();
     }, [page, preloadedCount]);
 
-    // Systems carousel animation (page 2 only) — cycle through 5 systems every 2.5s
+    // Systems carousel animation (page 2 only) — cycle through 5 systems every 2.5s with zoom + blur
     useEffect(() => {
         if (page !== 1) return; // Only run on page 2 (index 1)
 
         const interval = setInterval(() => {
-            // Fade out
-            Animated.timing(systemFadeAnim, {
-                toValue: 0,
-                duration: 400,
-                useNativeDriver: true,
-            }).start(() => {
-                // Change system while faded out
-                setCurrentSystemIndex((prev) => (prev + 1) % FIVE_SYSTEMS.length);
-                // Fade back in
+            // Zoom out + fade out + blur (simulated via opacity)
+            Animated.parallel([
                 Animated.timing(systemFadeAnim, {
-                    toValue: 1,
+                    toValue: 0,
                     duration: 400,
                     useNativeDriver: true,
-                }).start();
+                }),
+                Animated.timing(systemScaleAnim, {
+                    toValue: 0.8,
+                    duration: 400,
+                    useNativeDriver: true,
+                }),
+            ]).start(() => {
+                // Change system while zoomed out
+                setCurrentSystemIndex((prev) => (prev + 1) % FIVE_SYSTEMS.length);
+                // Zoom back in + fade in
+                Animated.parallel([
+                    Animated.timing(systemFadeAnim, {
+                        toValue: 1,
+                        duration: 400,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(systemScaleAnim, {
+                        toValue: 1,
+                        duration: 400,
+                        useNativeDriver: true,
+                    }),
+                ]).start();
             });
         }, 2500);
 
         return () => clearInterval(interval);
-    }, [page, systemFadeAnim]);
+    }, [page, systemFadeAnim, systemScaleAnim]);
 
     const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const idx = Math.round(e.nativeEvent.contentOffset.x / PAGE_W);
@@ -379,8 +394,8 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                                 bottomReserveHeight = 34 + VIDEO_BAND_H + 20;
                             }
                         } else {
-                            // Page 2: dots + systems carousel
-                            bottomReserveHeight = DOTS_H + BOTTOM_PADDING + 160;
+                            // Page 2: dots + systems carousel (bigger now)
+                            bottomReserveHeight = DOTS_H + BOTTOM_PADDING + 220;
                         }
                         
                         return (
@@ -411,13 +426,18 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                                 <Animated.View 
                                     style={[
                                         styles.systemsCarousel,
-                                        { opacity: systemFadeAnim }
+                                        { 
+                                            opacity: systemFadeAnim,
+                                            transform: [{ scale: systemScaleAnim }]
+                                        }
                                     ]}
                                     pointerEvents="none"
                                 >
-                                    <Text style={styles.systemSymbol} selectable>
-                                        {FIVE_SYSTEMS[currentSystemIndex].symbol}
-                                    </Text>
+                                    <Image
+                                        source={FIVE_SYSTEMS[currentSystemIndex].icon}
+                                        style={styles.systemIcon}
+                                        resizeMode="contain"
+                                    />
                                     <Text style={styles.systemName} selectable>
                                         {FIVE_SYSTEMS[currentSystemIndex].name}
                                     </Text>
@@ -596,7 +616,7 @@ const styles = StyleSheet.create({
     // Systems carousel (page 2)
     systemsCarousel: {
         position: 'absolute',
-        bottom: BOTTOM_PADDING + DOTS_H + 20,
+        bottom: BOTTOM_PADDING + DOTS_H - 10, // Moved down
         left: 0,
         right: 0,
         alignItems: 'center',
@@ -604,11 +624,10 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.lg,
         paddingHorizontal: spacing.page,
     },
-    systemSymbol: {
-        fontSize: 72,
-        lineHeight: 80,
-        textAlign: 'center',
-        marginBottom: spacing.xs,
+    systemIcon: {
+        width: 120,
+        height: 120,
+        marginBottom: spacing.md,
     },
     systemName: {
         fontFamily: typography.headline,
