@@ -224,36 +224,36 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         play();
     }, [page, preloadedCount]);
 
-    // Systems carousel animation (page 2 only) — cycle through 5 systems every 2.5s with zoom + blur
+    // Systems carousel animation (page 2 only) — cycle through 5 systems every 2.5s with slow zoom on icon only
     useEffect(() => {
         if (page !== 1) return; // Only run on page 2 (index 1)
 
         const interval = setInterval(() => {
-            // Zoom out + fade out + blur (simulated via opacity)
+            // Fade out text + slow zoom out icon
             Animated.parallel([
                 Animated.timing(systemFadeAnim, {
                     toValue: 0,
-                    duration: 400,
+                    duration: 500,
                     useNativeDriver: true,
                 }),
                 Animated.timing(systemScaleAnim, {
-                    toValue: 0.8,
-                    duration: 400,
+                    toValue: 0.7,
+                    duration: 800, // Much slower zoom
                     useNativeDriver: true,
                 }),
             ]).start(() => {
-                // Change system while zoomed out
+                // Change system while faded/zoomed out
                 setCurrentSystemIndex((prev) => (prev + 1) % FIVE_SYSTEMS.length);
-                // Zoom back in + fade in
+                // Fade back in + slow zoom back in
                 Animated.parallel([
                     Animated.timing(systemFadeAnim, {
                         toValue: 1,
-                        duration: 400,
+                        duration: 500,
                         useNativeDriver: true,
                     }),
                     Animated.timing(systemScaleAnim, {
                         toValue: 1,
-                        duration: 400,
+                        duration: 800, // Much slower zoom
                         useNativeDriver: true,
                     }),
                 ]).start();
@@ -423,28 +423,24 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                             
                             {/* Page 2 only: Systems carousel */}
                             {index === 1 && (
-                                <Animated.View 
-                                    style={[
-                                        styles.systemsCarousel,
-                                        { 
-                                            opacity: systemFadeAnim,
-                                            transform: [{ scale: systemScaleAnim }]
-                                        }
-                                    ]}
-                                    pointerEvents="none"
-                                >
-                                    <Image
+                                <View style={styles.systemsCarousel} pointerEvents="none">
+                                    <Animated.Image
                                         source={FIVE_SYSTEMS[currentSystemIndex].icon}
-                                        style={styles.systemIcon}
+                                        style={[
+                                            styles.systemIcon,
+                                            { transform: [{ scale: systemScaleAnim }] }
+                                        ]}
                                         resizeMode="contain"
                                     />
-                                    <Text style={styles.systemName} selectable>
-                                        {FIVE_SYSTEMS[currentSystemIndex].name}
-                                    </Text>
-                                    <Text style={styles.systemTagline} selectable>
-                                        {FIVE_SYSTEMS[currentSystemIndex].tagline}
-                                    </Text>
-                                </Animated.View>
+                                    <Animated.View style={{ opacity: systemFadeAnim }}>
+                                        <Text style={styles.systemName} selectable>
+                                            {FIVE_SYSTEMS[currentSystemIndex].name}
+                                        </Text>
+                                        <Text style={styles.systemTagline} selectable>
+                                            {FIVE_SYSTEMS[currentSystemIndex].tagline}
+                                        </Text>
+                                    </Animated.View>
+                                </View>
                             )}
                             
                             {hasVideo && (
