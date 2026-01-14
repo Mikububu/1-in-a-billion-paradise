@@ -207,6 +207,42 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     downloadMissingAudio();
   }, []); // Run once on mount
 
+  // Load and play background music on mount
+  useEffect(() => {
+    const loadBgMusic = async () => {
+      try {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
+          shouldDuckAndroid: false,
+        });
+
+        const { sound } = await Audio.Sound.createAsync(
+          require('@/../assets/audio/whispering-breeze.mp3'),
+          { 
+            shouldPlay: true, 
+            isLooping: true, 
+            volume: 0.3 // Ambient volume
+          }
+        );
+        bgMusicRef.current = sound;
+        console.log('🎵 Whispering Breeze background music started');
+      } catch (err) {
+        console.warn('⚠️ Background music failed to load:', err);
+      }
+    };
+    loadBgMusic();
+
+    return () => {
+      // Stop and unload background music on unmount
+      if (bgMusicRef.current) {
+        bgMusicRef.current.stopAsync().catch(() => {});
+        bgMusicRef.current.unloadAsync().catch(() => {});
+        bgMusicRef.current = null;
+      }
+    };
+  }, []);
+
   // Readings array - 3 hook readings + 4th handoff page
   const readings = useMemo((): PageItem[] => {
     let baseReadings: HookReading[];
@@ -288,6 +324,10 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
           soundRef.current.stopAsync().catch(() => { });
           soundRef.current.unloadAsync().catch(() => { });
           soundRef.current = null;
+        }
+        // Also stop background music
+        if (bgMusicRef.current) {
+          bgMusicRef.current.stopAsync().catch(() => {});
         }
         setAudioPlaying({});
         currentPlayingType.current = null;
