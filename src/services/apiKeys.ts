@@ -67,6 +67,7 @@ export async function getApiKey(
         'stripe': 'STRIPE_SECRET_KEY', // Stripe payment processing
         'stripe_publishable': 'STRIPE_PUBLISHABLE_KEY', // Stripe publishable key for mobile SDK
         'stripe_webhook_secret': 'STRIPE_WEBHOOK_SECRET', // Stripe webhook verification
+        'stripe_subscription_price_id': 'STRIPE_SUBSCRIPTION_PRICE_ID', // Stripe price id for $9.90/year subscription
       };
 
       const configKey = keyMapping[service];
@@ -138,6 +139,7 @@ export async function preloadApiKeys() {
     'minimax',
     'stripe',
     'stripe_publishable',
+    'stripe_subscription_price_id',
   ];
 
   console.log('🔄 [API Keys] Preloading keys from Supabase...');

@@ -25,10 +25,10 @@ export const env = {
   OPENAI_MODEL: process.env.OPENAI_MODEL ?? 'gpt-4o',
 
   // POLICY: Provider for paid long-form generation (jobs: extended/synastry/nuclear/nuclear_v2)
-  // Michael (Dec 2025): use DeepSeek for now to avoid Claude costs while testing PDFs/audio.
+  // Michael (Jan 2026): Claude Sonnet 4 for unhinged overlay readings - DeepSeek is too vanilla.
   // Override any time via:
   //   PAID_LLM_PROVIDER=deepseek | claude | openai
-  PAID_LLM_PROVIDER: process.env.PAID_LLM_PROVIDER ?? 'deepseek',
+  PAID_LLM_PROVIDER: process.env.PAID_LLM_PROVIDER ?? 'claude',
 
   // Optional beta protection (OFF unless set)
   // If set, backend requires header: X-BETA-KEY: <value> for /api/jobs/* endpoints
@@ -49,6 +49,10 @@ export const env = {
   SUPABASE_URL: process.env.SUPABASE_URL ?? '',
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
   SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY ?? '',
+
+  // Admin Panel (V0 bridge): internal operations triggered from admin-panel server-side
+  // Requires header: x-admin-secret: <ADMIN_PANEL_SECRET>
+  ADMIN_PANEL_SECRET: process.env.ADMIN_PANEL_SECRET ?? '',
   
   // Feature Flags
   SUPABASE_QUEUE_ENABLED: process.env.SUPABASE_QUEUE_ENABLED === 'true',

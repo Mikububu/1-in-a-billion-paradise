@@ -16,6 +16,7 @@ import { voicesRouter } from './routes/voices';
 import vedicRouter from './routes/vedic';
 import vedicV2Router from './routes/vedic_v2';
 import adminRouter from './routes/admin';
+import internalPeopleScalingRouter from './routes/internalPeopleScaling';
 import notificationsRouter from './routes/notifications';
 import paymentsRouter from './routes/payments';
 import peopleRouter from './routes/people';
@@ -29,7 +30,7 @@ const app = new Hono();
 app.use('*', cors({
   origin: '*',
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'X-User-Id'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-User-Id', 'X-Admin-Secret'],
   exposeHeaders: ['Content-Length'],
   maxAge: 86400,
 }));
@@ -57,6 +58,7 @@ app.route('/api/voices', voicesRouter);
 app.route('/api/vedic', vedicRouter);
 app.route('/api/vedic-v2', vedicV2Router);
 app.route('/api/admin', adminRouter);
+app.route('/api/internal/people-scaling', internalPeopleScalingRouter);
 app.route('/api/notifications', notificationsRouter);
 app.route('/api/payments', paymentsRouter);
 app.route('/api/people', peopleRouter);
