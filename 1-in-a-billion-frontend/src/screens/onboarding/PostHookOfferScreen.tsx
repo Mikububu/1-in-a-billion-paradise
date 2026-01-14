@@ -49,6 +49,9 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     const [isAudioPlaying, setIsAudioPlaying] = useState(false);
     const [activeWordIndex, setActiveWordIndex] = useState(0);
     const [preloadedCount, setPreloadedCount] = useState(0); // triggers re-run of autoplay when preload finishes
+    
+    // Background music (Glass Horizon) - starts on this screen
+    const bgMusicRef = useRef<Audio.Sound | null>(null);
 
     // Systems carousel (page 2 only)
     const [currentSystemIndex, setCurrentSystemIndex] = useState(0);
@@ -66,6 +69,31 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         }).catch(() => {});
     }, []);
 
+    // Load and play Glass Horizon background music on mount
+    useEffect(() => {
+        const loadBgMusic = async () => {
+            try {
+                const { sound } = await Audio.Sound.createAsync(
+                    require('@/../assets/audio/glass-horizon.mp3'),
+                    { shouldPlay: true, isLooping: true, volume: 0.25 } // 25% volume behind voice
+                );
+                bgMusicRef.current = sound;
+                console.log('🎵 Glass Horizon started');
+            } catch (err) {
+                console.warn('⚠️ Glass Horizon failed to load:', err);
+            }
+        };
+        loadBgMusic();
+
+        return () => {
+            if (bgMusicRef.current) {
+                bgMusicRef.current.stopAsync().catch(() => {});
+                bgMusicRef.current.unloadAsync().catch(() => {});
+                bgMusicRef.current = null;
+            }
+        };
+    }, []);
+
     // If user ever comes back to this screen, re-enable buttons
     useFocusEffect(
         useCallback(() => {
@@ -78,8 +106,10 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
             return () => {
                 setIsAudioPlaying(false);
                 setActiveWordIndex(0);
-                // Stop voice audio immediately, but keep loaded in RAM.
+                // Stop voice audio
                 soundRefs.current.forEach((s) => s?.stopAsync().catch(() => {}));
+                // Stop background music
+                bgMusicRef.current?.stopAsync().catch(() => {});
             };
         }, [])
     );
