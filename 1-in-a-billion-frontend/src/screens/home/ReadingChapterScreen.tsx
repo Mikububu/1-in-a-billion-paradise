@@ -327,7 +327,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     return !loadingText && !!text && text.length > 0 && audioReady && pdfReady;
   }, [loadingText, text, audioReady, pdfReady]);
 
-  // Compute: ALL media ready including song (for countdown overlay)
+  // Compute: ALL media ready including song (for "download both audios" UX)
   const allMediaReady = useMemo(() => {
     // If this reading expects a song, we require BOTH:
     // - song audio artifact ready
@@ -461,16 +461,17 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
 
         {/* Audio players - modular components */}
         <View style={styles.card}>
-          <CountdownOverlay jobId={jobId} allMediaReady={allMediaReady} />
+          {/* Timer overlay should stay until MAIN reading media is ready (text + PDF + narration audio). */}
+          <CountdownOverlay jobId={jobId} allMediaReady={mainMediaReady} />
 
           <AudioPlayerSection
             audioUrl={narrationUrl}
             text={text}
             loadingText={loadingText}
             type="narration"
-            // Rule: prohibit narration playback until we can "see it all"
-            controlsDisabled={!allMediaReady}
-            textNotReady={!!text && !loadingText && !allMediaReady}
+            // Rule: narration must NOT play until main reading media is ready (PDF + narration + text).
+            controlsDisabled={!mainMediaReady}
+            textNotReady={!!text && !loadingText && !mainMediaReady}
           />
 
           <View style={styles.musicSpacer} />
@@ -479,9 +480,9 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             text={songLyrics}
             loadingText={loadingSongLyrics}
             type="song"
-            // Rule: prohibit song playback until we can "see it all"
-            controlsDisabled={!allMediaReady}
-            textNotReady={!!songLyrics && !loadingSongLyrics && !allMediaReady}
+            // Song can become playable as soon as the song audio is ready.
+            controlsDisabled={!songReady}
+            textNotReady={!!songLyrics && !loadingSongLyrics && !songReady}
           />
         </View>
         </View>
