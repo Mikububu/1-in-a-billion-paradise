@@ -15,7 +15,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.oneinabillion.app"
+      "bundleIdentifier": "com.oneinabillion.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +27,11 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.oneinabillion.app"
+      "package": "com.oneinabillion.app",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -37,6 +44,7 @@
       "expo-video",
       "expo-apple-authentication",
       "expo-image-picker",
+      "expo-document-picker",
       "expo-dev-client",
       [
         "@stripe/stripe-react-native",
@@ -45,8 +53,12 @@
           "enableGooglePay": true
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "eced09a0-1038-41f6-a46c-1ec085690182"
+      }
+    },
+    "owner": "michaelpw"
   }
 }
-
-

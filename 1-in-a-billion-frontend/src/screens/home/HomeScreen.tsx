@@ -102,74 +102,97 @@ export const HomeScreen = ({ navigation }: Props) => {
   // Upload and generate claymation photo
   const handleUploadPhoto = async () => {
     try {
-      // Dynamically import expo-image-picker (may not be available in Expo Go)
-      let ImagePicker;
+      // Try expo-document-picker first (works in Expo Go)
+      let DocumentPicker;
       try {
-        ImagePicker = await import('expo-image-picker');
-      } catch (importError) {
-        Alert.alert(
-          'Feature Not Available',
-          'Photo upload requires a development build. Please install the custom build from EAS.',
-          [{ text: 'OK' }]
-        );
-        return;
+        DocumentPicker = await import('expo-document-picker');
+      } catch {
+        // Fallback to expo-image-picker if available
+        try {
+          const ImagePicker = await import('expo-image-picker');
+          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (status !== 'granted') {
+            Alert.alert('Permission Required', 'Please allow access to your photo library.');
+            return;
+          }
+          const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+            base64: true,
+          });
+          if (result.canceled || !result.assets[0]?.base64) return;
+          
+          setUploadingPhoto(true);
+          const userId = useAuthStore.getState().userId;
+          const response = await fetch(`${env.CORE_API_URL}/api/profile/claymation`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-User-Id': userId || '' },
+            body: JSON.stringify({ photoBase64: result.assets[0].base64 }),
+          });
+          const data = await response.json();
+          if (data.success && data.imageUrl) {
+            setClaymationPhotoUrl(data.imageUrl);
+            Alert.alert('Success!', 'Your claymation portrait has been created.');
+          } else {
+            Alert.alert('Error', data.error || 'Failed to create claymation portrait');
+          }
+          return;
+        } catch {
+          Alert.alert('Not Available', 'Photo upload requires a development build.');
+          return;
+        }
       }
       
-      // Request permissions
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please allow access to your photo library.');
-        return;
-      }
-      
-      // Pick image
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-        base64: true,
+      // Use expo-document-picker
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'image/*',
+        copyToCacheDirectory: true,
       });
       
-      if (result.canceled || !result.assets[0]?.base64) {
+      if (result.canceled || !result.assets?.[0]) {
         return;
       }
       
       setUploadingPhoto(true);
       
-      // Call backend to generate claymation
-      const userId = useAuthStore.getState().userId;
-      const response = await fetch(`${env.CORE_API_URL}/api/profile/claymation`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-User-Id': userId || '',
-        },
-        body: JSON.stringify({
-          photoBase64: result.assets[0].base64,
-        }),
-      });
+      // Read file as base64
+      const fileUri = result.assets[0].uri;
+      const response = await fetch(fileUri);
+      const blob = await response.blob();
+      const reader = new FileReader();
       
-      const data = await response.json();
+      reader.onloadend = async () => {
+        const base64 = (reader.result as string).split(',')[1];
+        
+        // Call backend to generate claymation
+        const userId = useAuthStore.getState().userId;
+        const uploadResponse = await fetch(`${env.CORE_API_URL}/api/profile/claymation`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-Id': userId || '',
+          },
+          body: JSON.stringify({ photoBase64: base64 }),
+        });
+        
+        const data = await uploadResponse.json();
+        
+        if (data.success && data.imageUrl) {
+          setClaymationPhotoUrl(data.imageUrl);
+          Alert.alert('Success!', 'Your claymation portrait has been created. This is how you will appear to potential matches.');
+        } else {
+          Alert.alert('Error', data.error || 'Failed to create claymation portrait');
+        }
+        setUploadingPhoto(false);
+      };
       
-      if (data.success && data.imageUrl) {
-        setClaymationPhotoUrl(data.imageUrl);
-        Alert.alert('Success!', 'Your claymation portrait has been created. This is how you will appear to potential matches.');
-      } else {
-        Alert.alert('Error', data.error || 'Failed to create claymation portrait');
-      }
+      reader.readAsDataURL(blob);
+      
     } catch (error: any) {
       console.error('Photo upload error:', error);
-      if (error.message?.includes('native module') || error.message?.includes('ExponentImagePicker')) {
-        Alert.alert(
-          'Feature Not Available',
-          'Photo upload requires a production build. This feature is not available in Expo Go.',
-          [{ text: 'OK' }]
-        );
-      } else {
-        Alert.alert('Error', 'Failed to upload photo. Please try again.');
-      }
-    } finally {
+      Alert.alert('Error', 'Failed to upload photo. Please try again.');
       setUploadingPhoto(false);
     }
   };
