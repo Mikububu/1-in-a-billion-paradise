@@ -101,6 +101,15 @@ export const HomeScreen = ({ navigation }: Props) => {
   
   // Upload and generate claymation photo
   const handleUploadPhoto = async () => {
+    Alert.alert(
+      'Coming Soon',
+      'Photo upload will be available in the next update. For now, focus on getting your readings!',
+      [{ text: 'OK' }]
+    );
+    return;
+    
+    // TODO: Re-enable after dev build
+    /*
     try {
       // Dynamically import expo-image-picker (may not be available in Expo Go)
       let ImagePicker;
@@ -172,6 +181,7 @@ export const HomeScreen = ({ navigation }: Props) => {
     } finally {
       setUploadingPhoto(false);
     }
+    */
   };
 
   console.log('🔍 HomeScreen data check:', {
