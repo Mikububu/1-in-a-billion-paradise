@@ -184,11 +184,14 @@ export const PersonReadingChaptersFlowScreen = ({ navigation, route }: Props) =>
         const systemsInJob = new Set(chapterDocs.map((d) => String(d?.system || '').toLowerCase()));
 
         const built: Chapter[] = orderedSystems.map((sys, index) => {
-          const match = chapterDocs.find((d) => String(d?.system || '').toLowerCase() === sys.id.toLowerCase());
+          // For verdict, match by docType since system can be null or 'western'
+          const match = sys.id === 'verdict'
+            ? chapterDocs.find((d) => String(d?.docType || '').toLowerCase() === 'verdict')
+            : chapterDocs.find((d) => String(d?.system || '').toLowerCase() === sys.id.toLowerCase());
           
-          // Use docNum from document if available, otherwise use sequential index
-          // If document isn't ready yet, the screen will show empty/gray content (which is fine)
-          const docNum = match ? Number(match?.docNum) || (index + 1) : (index + 1);
+          // Use docNum from document if available
+          // For verdict, always use 16
+          const docNum = sys.id === 'verdict' ? 16 : (match ? Number(match?.docNum) || (index + 1) : (index + 1));
           
           // #region agent log
           fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingChaptersFlowScreen.tsx:105',message:'Building chapter',data:{system:sys.id,index,foundMatch:!!match,matchDocNum:match?.docNum,calculatedDocNum:docNum,matchDocType:match?.docType},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
