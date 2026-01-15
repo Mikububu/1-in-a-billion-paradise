@@ -9,6 +9,8 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { requireAdminAuth, requirePermission, getAdmin, logAdminAction } from '../middleware/adminAuth';
 import { createSupabaseServiceClient } from '../services/supabaseClient';
+import { SYSTEM_LLM_PROVIDERS, type LLMProviderName, type ReadingSystem } from '../config/llmProviders';
+import { llm, llmPaid } from '../services/llm';
 
 const router = new Hono();
 
@@ -516,6 +518,255 @@ router.get('/dashboard/stats', requirePermission('analytics', 'read'), async (c)
     });
   } catch (err: any) {
     console.error('Error fetching dashboard stats:', err);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// LLM PROVIDER CONFIGURATION
+// ───────────────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/admin/llm/config
+ * Get current LLM provider configuration per system
+ */
+router.get('/llm/config', requirePermission('system', 'read'), async (c) => {
+  try {
+    return c.json({
+      providers: SYSTEM_LLM_PROVIDERS,
+      available: ['claude', 'deepseek', 'openai'] as LLMProviderName[],
+      current_default: llm.getProvider(),
+      current_paid: llmPaid.getProvider(),
+      note: 'To change providers, update src/config/llmProviders.ts and redeploy. Runtime config coming soon.',
+    });
+  } catch (err: any) {
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// SUBSCRIPTION MANAGEMENT
+// ───────────────────────────────────────────────────────────────────────────
+
+const subscriptionListSchema = z.object({
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(20),
+  status: z.enum(['active', 'cancelled', 'past_due', 'incomplete']).optional(),
+  includedReadingUsed: z.enum(['true', 'false']).optional(),
+});
+
+/**
+ * GET /api/admin/subscriptions
+ * List all subscriptions with filters
+ */
+router.get('/subscriptions', requirePermission('subscriptions', 'read'), async (c) => {
+  const supabase = createSupabaseServiceClient();
+  if (!supabase) {
+    return c.json({ error: 'Database connection failed' }, 500);
+  }
+
+  try {
+    const params = subscriptionListSchema.parse(Object.fromEntries(Object.entries(c.req.query())));
+    const { page, limit, status, includedReadingUsed } = params;
+    const offset = (page - 1) * limit;
+
+    let query = supabase
+      .from('user_subscriptions')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+    if (includedReadingUsed === 'true') {
+      query = query.eq('included_reading_used', true);
+    } else if (includedReadingUsed === 'false') {
+      query = query.eq('included_reading_used', false);
+    }
+
+    const { data: subscriptions, error, count } = await query;
+
+    if (error) {
+      console.error('Error fetching subscriptions:', error);
+      return c.json({ error: 'Failed to fetch subscriptions' }, 500);
+    }
+
+    return c.json({
+      subscriptions: subscriptions || [],
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit),
+      },
+    });
+  } catch (err: any) {
+    if (err instanceof z.ZodError) {
+      return c.json({ error: 'Invalid query parameters', details: err.issues }, 400);
+    }
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+/**
+ * GET /api/admin/subscriptions/:subscriptionId
+ * Get subscription details
+ */
+router.get('/subscriptions/:subscriptionId', requirePermission('subscriptions', 'read'), async (c) => {
+  const supabase = createSupabaseServiceClient();
+  if (!supabase) {
+    return c.json({ error: 'Database connection failed' }, 500);
+  }
+
+  const subscriptionId = c.req.param('subscriptionId');
+
+  try {
+    const { data: subscription, error } = await supabase
+      .from('user_subscriptions')
+      .select('*')
+      .eq('id', subscriptionId)
+      .single();
+
+    if (error || !subscription) {
+      return c.json({ error: 'Subscription not found' }, 404);
+    }
+
+    // Get the included reading job if used
+    let includedReadingJob = null;
+    if (subscription.included_reading_job_id) {
+      const { data: job } = await supabase
+        .from('jobs')
+        .select('*')
+        .eq('id', subscription.included_reading_job_id)
+        .single();
+      includedReadingJob = job;
+    }
+
+    return c.json({
+      subscription,
+      includedReadingJob,
+    });
+  } catch (err: any) {
+    console.error('Error fetching subscription:', err);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+/**
+ * GET /api/admin/subscriptions/stats
+ * Get subscription statistics
+ */
+router.get('/subscriptions/stats', requirePermission('subscriptions', 'read'), async (c) => {
+  const supabase = createSupabaseServiceClient();
+  if (!supabase) {
+    return c.json({ error: 'Database connection failed' }, 500);
+  }
+
+  try {
+    // Total active subscriptions
+    const { count: activeCount } = await supabase
+      .from('user_subscriptions')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'active');
+
+    // Included readings used
+    const { count: readingsUsed } = await supabase
+      .from('user_subscriptions')
+      .select('*', { count: 'exact', head: true })
+      .eq('included_reading_used', true);
+
+    // Included readings not used (active subs)
+    const { count: readingsAvailable } = await supabase
+      .from('user_subscriptions')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'active')
+      .eq('included_reading_used', false);
+
+    // By system (for included readings)
+    const { data: bySystem } = await supabase
+      .from('user_subscriptions')
+      .select('included_reading_system')
+      .eq('included_reading_used', true)
+      .not('included_reading_system', 'is', null);
+
+    const systemCounts: Record<string, number> = {};
+    bySystem?.forEach((s: any) => {
+      const sys = s.included_reading_system;
+      systemCounts[sys] = (systemCounts[sys] || 0) + 1;
+    });
+
+    return c.json({
+      total_active: activeCount || 0,
+      included_readings: {
+        used: readingsUsed || 0,
+        available: readingsAvailable || 0,
+        by_system: systemCounts,
+      },
+    });
+  } catch (err: any) {
+    console.error('Error fetching subscription stats:', err);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+/**
+ * POST /api/admin/subscriptions/:subscriptionId/reset-reading
+ * Reset included reading (allow user to use it again)
+ */
+router.post('/subscriptions/:subscriptionId/reset-reading', requirePermission('subscriptions', 'manage'), async (c) => {
+  const supabase = createSupabaseServiceClient();
+  if (!supabase) {
+    return c.json({ error: 'Database connection failed' }, 500);
+  }
+
+  const subscriptionId = c.req.param('subscriptionId');
+  const admin = getAdmin(c)!;
+
+  try {
+    const { data: subscription, error: fetchError } = await supabase
+      .from('user_subscriptions')
+      .select('*')
+      .eq('id', subscriptionId)
+      .single();
+
+    if (fetchError || !subscription) {
+      return c.json({ error: 'Subscription not found' }, 404);
+    }
+
+    const { data: updated, error: updateError } = await supabase
+      .from('user_subscriptions')
+      .update({
+        included_reading_used: false,
+        included_reading_system: null,
+        included_reading_job_id: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', subscriptionId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error resetting reading:', updateError);
+      return c.json({ error: 'Failed to reset reading' }, 500);
+    }
+
+    // Log action
+    await logAdminAction(
+      admin.id,
+      'subscription_reading_reset',
+      'subscription',
+      subscriptionId,
+      { 
+        previous_system: subscription.included_reading_system,
+        previous_job_id: subscription.included_reading_job_id,
+      },
+      c.req.header('x-forwarded-for') || undefined,
+      c.req.header('user-agent') || undefined
+    );
+
+    return c.json({ subscription: updated });
+  } catch (err: any) {
     return c.json({ error: 'Internal server error' }, 500);
   }
 });
