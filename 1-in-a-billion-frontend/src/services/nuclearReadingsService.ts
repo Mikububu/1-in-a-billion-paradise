@@ -112,11 +112,23 @@ const getAuthHeaders = async (): Promise<Record<string, string>> => {
 // CORE API FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Simple in-memory cache to avoid repeated API calls
+const jobCache = new Map<string, { job: NuclearJob; timestamp: number }>();
+const CACHE_TTL_MS = 60000; // 1 minute cache
+
 /**
  * Fetch a job with all artifacts from the backend API.
- * This is the single source of truth for job data.
+ * Uses in-memory cache to avoid repeated requests.
  */
-export const fetchJob = async (jobId: string): Promise<NuclearJob | null> => {
+export const fetchJob = async (jobId: string, bypassCache = false): Promise<NuclearJob | null> => {
+  // Check cache first
+  if (!bypassCache) {
+    const cached = jobCache.get(jobId);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      return cached.job;
+    }
+  }
+
   const backendUrl = getBackendUrl();
   if (!backendUrl) {
     console.error('❌ Backend URL not configured');
@@ -127,11 +139,14 @@ export const fetchJob = async (jobId: string): Promise<NuclearJob | null> => {
     const headers = await getAuthHeaders();
     const response = await axios.get(`${backendUrl}/api/jobs/v2/${jobId}`, { 
       headers,
-      timeout: 30000,
+      timeout: 60000, // Increased timeout
     });
 
     if (response.data?.success && response.data?.job) {
-      return response.data.job as NuclearJob;
+      const job = response.data.job as NuclearJob;
+      // Cache the result
+      jobCache.set(jobId, { job, timestamp: Date.now() });
+      return job;
     }
 
     console.warn('⚠️ Unexpected API response:', response.data);
@@ -144,6 +159,15 @@ export const fetchJob = async (jobId: string): Promise<NuclearJob | null> => {
       console.error('❌ Failed to fetch job:', axiosError.message);
     }
     return null;
+  }
+};
+
+/** Clear cache for a specific job or all jobs */
+export const clearJobCache = (jobId?: string) => {
+  if (jobId) {
+    jobCache.delete(jobId);
+  } else {
+    jobCache.clear();
   }
 };
 

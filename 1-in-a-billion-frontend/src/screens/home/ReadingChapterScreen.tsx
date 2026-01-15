@@ -140,14 +140,24 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         setLoadingSongLyrics(true);
         console.log(`🎵 Loading song lyrics for jobId=${jobId}, systemId=${systemId}, docNum=${docNum}`);
         const artifacts = await fetchJobArtifacts(jobId, ['audio_song']);
-        console.log(`🎶 Found ${artifacts.length} song artifacts`);
+        console.log(`🎶 Found ${artifacts.length} song artifacts for doc ${docNum}`);
         const songArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
-          const matches = meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
-          if (matches) console.log(`✅ Found matching song artifact`);
-          // #region agent log
-          if(matches){fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReadingChapterScreen.tsx:141',message:'Song artifact matched',data:{jobId,requestedSystem:systemId,requestedDocNum:docNum,matchedSystem:meta?.system,matchedDocNum:meta?.docNum,matchedDocType:meta?.docType},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,D'})}).catch(()=>{});}
-          // #endregion
+          const metaDocNum = Number(meta?.docNum);
+          const targetDocNum = Number(docNum);
+          
+          // Match by docNum first (required)
+          if (metaDocNum !== targetDocNum) return false;
+          
+          // For verdict: systemId is 'verdict' but artifact has system: null
+          if (systemId === 'verdict') {
+            const matches = !meta?.system || meta?.system === 'verdict';
+            if (matches) console.log(`✅ Found matching song artifact (verdict)`);
+            return matches;
+          }
+          
+          const matches = meta?.system === systemId;
+          if (matches) console.log(`✅ Found matching song artifact (${systemId})`);
           return matches;
         });
         const lyrics = (songArtifact?.metadata as any)?.lyrics;
@@ -286,16 +296,28 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         const artifacts = await fetchJobArtifacts(jobId, ['audio_song']);
         const songArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
-          return meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
+          const metaDocNum = Number(meta?.docNum);
+          const targetDocNum = Number(docNum);
+          
+          // Match by docNum first (required)
+          if (metaDocNum !== targetDocNum) return false;
+          
+          // For verdict: systemId is 'verdict' but artifact has system: null
+          if (systemId === 'verdict') {
+            return !meta?.system || meta?.system === 'verdict';
+          }
+          
+          return meta?.system === systemId;
         });
         if (mounted) {
           const ready = !!songArtifact?.storage_path;
           if (ready) {
-            console.log(`🎵 Song ready!`);
+            console.log(`🎵 Song ready for doc ${docNum}!`);
             songReadyRef.current = true;
             setSongReady(true);
             if (interval) clearInterval(interval);
           } else {
+            console.log(`⏳ Song not ready for doc ${docNum}, system: ${systemId}`);
             setSongReady(false);
           }
         }
