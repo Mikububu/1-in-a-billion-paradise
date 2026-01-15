@@ -584,7 +584,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             .select('id,type,status,progress,params,created_at,updated_at')
             .eq('user_id', userId)
             // Show full lifecycle so users can tell "what happened"
-            .in('status', ['queued', 'pending', 'processing', 'complete', 'error'])
+            .in('status', ['queued', 'processing', 'complete', 'error', 'cancelled'])
             .order('created_at', { ascending: false })
             .limit(12);
 
