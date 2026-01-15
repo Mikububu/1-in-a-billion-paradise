@@ -800,9 +800,9 @@ router.get('/services/status', requirePermission('system', 'read'), async (c) =>
     const runpodKey = await apiKeys.runpod();
     const runpodEndpointId = await apiKeys.runpodEndpoint();
     
-    // Get balance
+    // Get balance and spend info
     const balanceRes = await axios.post('https://api.runpod.io/graphql', {
-      query: `query { myself { currentSpendPerHr creditBalance } }`
+      query: `query { myself { currentSpendPerHr creditBalance serverlessDiscount { discountFactor } } }`
     }, {
       headers: {
         'Authorization': `Bearer ${runpodKey}`,
@@ -825,11 +825,12 @@ router.get('/services/status', requirePermission('system', 'read'), async (c) =>
     const myself = balanceRes.data?.data?.myself;
     const endpoints = endpointRes.data?.data?.myself?.endpoints || [];
     const currentEndpoint = endpoints.find((e: any) => e.id === runpodEndpointId);
+    const balance = myself?.creditBalance || 0;
 
     services.push({
       name: 'RunPod',
-      status: 'ok',
-      balance: myself?.creditBalance || 0,
+      status: balance > 5 ? 'ok' : balance > 0 ? 'unknown' : 'error',
+      balance: balance,
       currency: 'USD',
       details: {
         currentSpendPerHr: myself?.currentSpendPerHr || 0,
@@ -838,6 +839,7 @@ router.get('/services/status', requirePermission('system', 'read'), async (c) =>
         workersMin: currentEndpoint?.workersMin || 0,
         workersMax: currentEndpoint?.workersMax || 0,
         totalEndpoints: endpoints.length,
+        discountFactor: myself?.serverlessDiscount?.discountFactor,
       },
     });
   } catch (err: any) {
@@ -848,10 +850,54 @@ router.get('/services/status', requirePermission('system', 'read'), async (c) =>
     });
   }
 
-  // 2. Anthropic (Claude) - No direct balance API, check if key works
+  // 2. Fly.io - Check organization billing
+  try {
+    const flyToken = await apiKeys.flyIo();
+    if (flyToken) {
+      // Fly.io GraphQL API for billing
+      const billingRes = await axios.post('https://api.fly.io/graphql', {
+        query: `query { viewer { organizations { nodes { id name billingStatus } } } }`
+      }, {
+        headers: {
+          'Authorization': `Bearer ${flyToken}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000,
+      });
+      
+      const orgs = billingRes.data?.data?.viewer?.organizations?.nodes || [];
+      const org = orgs[0];
+      
+      services.push({
+        name: 'Fly.io',
+        status: org?.billingStatus === 'current' ? 'ok' : 'unknown',
+        balance: 'Check fly.io/dashboard',
+        details: {
+          keyConfigured: true,
+          organization: org?.name || 'Unknown',
+          billingStatus: org?.billingStatus || 'unknown',
+          note: 'Fly.io uses usage-based billing. Check dashboard for details.',
+        },
+      });
+    } else {
+      services.push({
+        name: 'Fly.io',
+        status: 'unknown',
+        balance: 'N/A',
+        details: { keyConfigured: false },
+      });
+    }
+  } catch (err: any) {
+    services.push({
+      name: 'Fly.io',
+      status: 'error',
+      error: err.message?.substring(0, 100),
+    });
+  }
+
+  // 3. Anthropic (Claude) - No direct balance API, check if key works
   try {
     const claudeKey = await apiKeys.claude();
-    // Just verify the key format is valid
     services.push({
       name: 'Anthropic (Claude)',
       status: claudeKey ? 'ok' : 'error',
@@ -859,7 +905,9 @@ router.get('/services/status', requirePermission('system', 'read'), async (c) =>
       details: {
         keyConfigured: !!claudeKey,
         provider: 'claude',
+        model: 'claude-sonnet-4-20250514',
         note: 'Anthropic does not provide a balance API. Check your dashboard.',
+        dashboardUrl: 'https://console.anthropic.com/settings/billing',
       },
     });
   } catch (err: any) {
@@ -870,20 +918,52 @@ router.get('/services/status', requirePermission('system', 'read'), async (c) =>
     });
   }
 
-  // 3. OpenAI - Check organization billing (if available)
+  // 4. OpenAI - Try to get usage info
   try {
     const openaiKey = await apiKeys.openai();
-    services.push({
-      name: 'OpenAI',
-      status: openaiKey ? 'ok' : 'error',
-      balance: 'Check platform.openai.com',
-      details: {
-        keyConfigured: !!openaiKey,
-        provider: 'openai',
-        model: env.OPENAI_MODEL,
-        note: 'OpenAI billing API requires org-level permissions.',
-      },
-    });
+    if (openaiKey) {
+      // Try to get subscription info (may not work for all accounts)
+      try {
+        const usageRes = await axios.get('https://api.openai.com/v1/dashboard/billing/subscription', {
+          headers: { 'Authorization': `Bearer ${openaiKey}` },
+          timeout: 10000,
+        });
+        const sub = usageRes.data;
+        services.push({
+          name: 'OpenAI',
+          status: 'ok',
+          balance: sub?.soft_limit_usd || 'Check platform.openai.com',
+          details: {
+            keyConfigured: true,
+            provider: 'openai',
+            model: env.OPENAI_MODEL,
+            plan: sub?.plan?.title,
+            dashboardUrl: 'https://platform.openai.com/usage',
+          },
+        });
+      } catch {
+        // Billing API not available, just show key status
+        services.push({
+          name: 'OpenAI',
+          status: 'ok',
+          balance: 'Check platform.openai.com',
+          details: {
+            keyConfigured: true,
+            provider: 'openai',
+            model: env.OPENAI_MODEL,
+            note: 'Billing API requires org admin permissions.',
+            dashboardUrl: 'https://platform.openai.com/usage',
+          },
+        });
+      }
+    } else {
+      services.push({
+        name: 'OpenAI',
+        status: 'error',
+        balance: 'N/A',
+        details: { keyConfigured: false },
+      });
+    }
   } catch (err: any) {
     services.push({
       name: 'OpenAI',
@@ -892,19 +972,50 @@ router.get('/services/status', requirePermission('system', 'read'), async (c) =>
     });
   }
 
-  // 4. DeepSeek - Check if key works
+  // 5. DeepSeek - Try to get balance
   try {
     const deepseekKey = await apiKeys.deepseek();
-    services.push({
-      name: 'DeepSeek',
-      status: deepseekKey ? 'ok' : 'error',
-      balance: 'Check platform.deepseek.com',
-      details: {
-        keyConfigured: !!deepseekKey,
-        provider: 'deepseek',
-        note: 'DeepSeek does not provide a public balance API.',
-      },
-    });
+    if (deepseekKey) {
+      try {
+        // DeepSeek has a user balance endpoint
+        const balanceRes = await axios.get('https://api.deepseek.com/user/balance', {
+          headers: { 'Authorization': `Bearer ${deepseekKey}` },
+          timeout: 10000,
+        });
+        const balance = balanceRes.data?.balance_infos?.[0]?.total_balance || 0;
+        services.push({
+          name: 'DeepSeek',
+          status: balance > 1 ? 'ok' : balance > 0 ? 'unknown' : 'error',
+          balance: balance,
+          currency: balanceRes.data?.balance_infos?.[0]?.currency || 'CNY',
+          details: {
+            keyConfigured: true,
+            provider: 'deepseek',
+            model: 'deepseek-chat',
+            dashboardUrl: 'https://platform.deepseek.com/usage',
+          },
+        });
+      } catch {
+        services.push({
+          name: 'DeepSeek',
+          status: 'ok',
+          balance: 'Check platform.deepseek.com',
+          details: {
+            keyConfigured: true,
+            provider: 'deepseek',
+            note: 'Balance API may require different permissions.',
+            dashboardUrl: 'https://platform.deepseek.com/usage',
+          },
+        });
+      }
+    } else {
+      services.push({
+        name: 'DeepSeek',
+        status: 'error',
+        balance: 'N/A',
+        details: { keyConfigured: false },
+      });
+    }
   } catch (err: any) {
     services.push({
       name: 'DeepSeek',
@@ -913,18 +1024,48 @@ router.get('/services/status', requirePermission('system', 'read'), async (c) =>
     });
   }
 
-  // 5. MiniMax - Check if key works
+  // 6. MiniMax - Check balance
   try {
     const minimaxKey = await apiKeys.minimax();
-    services.push({
-      name: 'MiniMax',
-      status: minimaxKey ? 'ok' : 'error',
-      balance: 'Check minimax.chat',
-      details: {
-        keyConfigured: !!minimaxKey,
-        purpose: 'Music/Song generation',
-      },
-    });
+    if (minimaxKey) {
+      try {
+        // MiniMax query balance endpoint
+        const balanceRes = await axios.get('https://api.minimax.chat/v1/query_balance', {
+          headers: { 'Authorization': `Bearer ${minimaxKey}` },
+          timeout: 10000,
+        });
+        const balance = balanceRes.data?.balance || 0;
+        services.push({
+          name: 'MiniMax',
+          status: balance > 10 ? 'ok' : balance > 0 ? 'unknown' : 'error',
+          balance: balance,
+          currency: 'CNY',
+          details: {
+            keyConfigured: true,
+            purpose: 'Music/Song generation',
+            dashboardUrl: 'https://minimax.chat',
+          },
+        });
+      } catch {
+        services.push({
+          name: 'MiniMax',
+          status: 'ok',
+          balance: 'Check minimax.chat',
+          details: {
+            keyConfigured: true,
+            purpose: 'Music/Song generation',
+            note: 'Balance API endpoint may have changed.',
+          },
+        });
+      }
+    } else {
+      services.push({
+        name: 'MiniMax',
+        status: 'error',
+        balance: 'N/A',
+        details: { keyConfigured: false },
+      });
+    }
   } catch (err: any) {
     services.push({
       name: 'MiniMax',
@@ -933,7 +1074,7 @@ router.get('/services/status', requirePermission('system', 'read'), async (c) =>
     });
   }
 
-  // 6. Google Places - Check if key works
+  // 7. Google Places - Check if key works
   try {
     const googleKey = await apiKeys.googlePlaces();
     services.push({
@@ -943,6 +1084,7 @@ router.get('/services/status', requirePermission('system', 'read'), async (c) =>
       details: {
         keyConfigured: !!googleKey,
         purpose: 'City search/autocomplete',
+        dashboardUrl: 'https://console.cloud.google.com/apis/dashboard',
       },
     });
   } catch (err: any) {
@@ -953,62 +1095,98 @@ router.get('/services/status', requirePermission('system', 'read'), async (c) =>
     });
   }
 
-  // 7. Supabase Storage - Check usage
+  // 8. Supabase - Check usage and estimate
   try {
     const supabase = createSupabaseServiceClient();
     if (supabase) {
-      // Get total files count from audio bucket
-      const { data: audioFiles, error: audioError } = await supabase.storage
-        .from('audio')
-        .list('', { limit: 1000 });
+      // Get total files count from buckets
+      const [audioRes, pdfRes, songsRes] = await Promise.all([
+        supabase.storage.from('audio').list('', { limit: 1000 }),
+        supabase.storage.from('pdf-readings').list('', { limit: 1000 }),
+        supabase.storage.from('songs').list('', { limit: 1000 }).catch(() => ({ data: [], error: null })),
+      ]);
 
-      const { data: pdfs, error: pdfError } = await supabase.storage
-        .from('pdf-readings')
-        .list('', { limit: 1000 });
+      const totalFiles = (audioRes.data?.length || 0) + (pdfRes.data?.length || 0) + (songsRes.data?.length || 0);
 
       services.push({
-        name: 'Supabase Storage',
+        name: 'Supabase',
         status: 'ok',
+        balance: 'Check supabase.com/dashboard',
         details: {
-          audioBucket: {
-            files: audioFiles?.length || 0,
-            error: audioError?.message,
+          storage: {
+            audioFiles: audioRes.data?.length || 0,
+            pdfFiles: pdfRes.data?.length || 0,
+            songFiles: songsRes.data?.length || 0,
+            totalFiles,
           },
-          pdfBucket: {
-            files: pdfs?.length || 0,
-            error: pdfError?.message,
-          },
-          note: 'File counts are approximate (max 1000 per list)',
+          note: 'Free tier: 1GB storage, 2GB bandwidth/month',
+          dashboardUrl: 'https://supabase.com/dashboard/project/jyjsfjulwnkogqsvivkp/settings/billing/usage',
         },
       });
     }
   } catch (err: any) {
     services.push({
-      name: 'Supabase Storage',
+      name: 'Supabase',
       status: 'error',
       error: err.message,
     });
   }
 
-  // 8. Stripe - Check connection
+  // 9. Stripe - Check balance
   try {
     const stripeKey = await apiKeys.stripe();
-    services.push({
-      name: 'Stripe',
-      status: stripeKey ? 'ok' : 'error',
-      balance: 'Check dashboard.stripe.com',
-      details: {
-        keyConfigured: !!stripeKey,
-        purpose: 'Payment processing',
-      },
-    });
+    if (stripeKey) {
+      try {
+        // Get Stripe balance
+        const Stripe = (await import('stripe')).default;
+        const stripe = new Stripe(stripeKey);
+        const balance = await stripe.balance.retrieve();
+        
+        // Sum available balance
+        const availableUSD = balance.available
+          .filter((b: any) => b.currency === 'usd')
+          .reduce((sum: number, b: any) => sum + b.amount, 0) / 100;
+
+        services.push({
+          name: 'Stripe',
+          status: 'ok',
+          balance: availableUSD,
+          currency: 'USD',
+          details: {
+            keyConfigured: true,
+            purpose: 'Payment processing',
+            availableBalance: availableUSD,
+            pendingBalance: balance.pending
+              .filter((b: any) => b.currency === 'usd')
+              .reduce((sum: number, b: any) => sum + b.amount, 0) / 100,
+            dashboardUrl: 'https://dashboard.stripe.com/balance',
+          },
+        });
+      } catch (stripeErr: any) {
+        services.push({
+          name: 'Stripe',
+          status: 'ok',
+          balance: 'Check dashboard.stripe.com',
+          details: {
+            keyConfigured: true,
+            purpose: 'Payment processing',
+            note: stripeErr.message?.substring(0, 50),
+          },
+        });
+      }
+    } else {
+      services.push({
+        name: 'Stripe',
+        status: 'unknown',
+        balance: 'N/A',
+        details: { keyConfigured: false },
+      });
+    }
   } catch (err: any) {
     services.push({
       name: 'Stripe',
-      status: 'unknown',
-      details: {
-        note: 'Stripe key not configured or error fetching',
-      },
+      status: 'error',
+      error: err.message,
     });
   }
 
