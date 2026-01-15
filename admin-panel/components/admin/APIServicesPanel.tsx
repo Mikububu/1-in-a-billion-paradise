@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { servicesApi } from '../../lib/api/client';
 
 interface ServiceStatus {
   name: string;
@@ -29,9 +30,9 @@ const STATUS_COLORS = {
 
 const SERVICE_ICONS: Record<string, string> = {
   'RunPod': '🎤',
-  'Anthropic (Claude)': '🤖',
-  'OpenAI': '🧠',
-  'DeepSeek': '🔍',
+  'Anthropic (Claude)': '🧠',
+  'OpenAI': '🤖',
+  'DeepSeek': '🔮',
   'MiniMax': '🎵',
   'Google Places': '📍',
   'Supabase Storage': '💾',
@@ -52,15 +53,8 @@ export function APIServicesPanel() {
   const fetchStatus = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/services/status', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-        },
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch service status');
-      
-      const result = await response.json();
+      setError(null);
+      const result = await servicesApi.getStatus();
       setData(result);
     } catch (err: any) {
       setError(err.message);
@@ -71,15 +65,7 @@ export function APIServicesPanel() {
 
   const fetchRunpodDetailed = async () => {
     try {
-      const response = await fetch('/api/admin/services/runpod/detailed', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-        },
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch RunPod details');
-      
-      const result = await response.json();
+      const result = await servicesApi.getRunpodDetailed();
       setRunpodDetailed(result);
       setShowRunpodDetails(true);
     } catch (err: any) {
@@ -124,7 +110,7 @@ export function APIServicesPanel() {
       <div className="bg-white rounded-lg shadow">
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">API Services Status</h2>
+            <h2 className="text-lg font-semibold text-gray-900">🔌 API Services Status</h2>
             <p className="text-sm text-gray-500">Last updated: {new Date(data.timestamp).toLocaleString()}</p>
           </div>
           <button 
@@ -210,7 +196,7 @@ export function APIServicesPanel() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto m-4">
             <div className="px-6 py-4 border-b flex justify-between items-center">
-              <h3 className="text-lg font-semibold">RunPod Detailed Status</h3>
+              <h3 className="text-lg font-semibold">🎤 RunPod Detailed Status</h3>
               <button 
                 onClick={() => setShowRunpodDetails(false)}
                 className="text-gray-500 hover:text-gray-700"
@@ -221,7 +207,7 @@ export function APIServicesPanel() {
             <div className="p-6 space-y-4">
               {/* Balance */}
               <div className="p-4 bg-green-50 rounded-lg">
-                <h4 className="font-medium text-green-800">Balance</h4>
+                <h4 className="font-medium text-green-800">💰 Balance</h4>
                 <div className="text-2xl font-bold text-green-900">
                   ${runpodDetailed.balance?.credits?.toFixed(2) || '0.00'}
                 </div>
@@ -233,10 +219,10 @@ export function APIServicesPanel() {
               {/* Current Endpoint */}
               {runpodDetailed.endpoint && (
                 <div className="p-4 bg-blue-50 rounded-lg">
-                  <h4 className="font-medium text-blue-800">Active Endpoint</h4>
-                  <div className="text-sm space-y-1">
+                  <h4 className="font-medium text-blue-800">🔗 Active Endpoint</h4>
+                  <div className="text-sm space-y-1 mt-2">
                     <div><strong>Name:</strong> {runpodDetailed.endpoint.name}</div>
-                    <div><strong>ID:</strong> {runpodDetailed.endpoint.id}</div>
+                    <div><strong>ID:</strong> <code className="bg-blue-100 px-1 rounded">{runpodDetailed.endpoint.id}</code></div>
                     <div><strong>Workers:</strong> {runpodDetailed.endpoint.workersMin} - {runpodDetailed.endpoint.workersMax}</div>
                     <div><strong>Idle Timeout:</strong> {runpodDetailed.endpoint.idleTimeout}s</div>
                   </div>
@@ -245,19 +231,19 @@ export function APIServicesPanel() {
 
               {/* Recent Jobs */}
               <div className="p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-medium text-gray-800">Recent Jobs (Last 20)</h4>
-                <div className="grid grid-cols-3 gap-4 mt-2">
+                <h4 className="font-medium text-gray-800">📊 Recent Jobs (Last 20)</h4>
+                <div className="grid grid-cols-3 gap-4 mt-3">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-green-600">{runpodDetailed.recentJobs?.completed || 0}</div>
-                    <div className="text-xs text-gray-500">Completed</div>
+                    <div className="text-xs text-gray-500">✅ Completed</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-red-600">{runpodDetailed.recentJobs?.failed || 0}</div>
-                    <div className="text-xs text-gray-500">Failed</div>
+                    <div className="text-xs text-gray-500">❌ Failed</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-blue-600">{runpodDetailed.recentJobs?.avgExecutionTimeSec || 0}s</div>
-                    <div className="text-xs text-gray-500">Avg Time</div>
+                    <div className="text-xs text-gray-500">⏱️ Avg Time</div>
                   </div>
                 </div>
               </div>

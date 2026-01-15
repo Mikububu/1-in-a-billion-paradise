@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { queueApi } from '../../lib/api/client';
 
 interface QueueStatus {
   byStatus: Record<string, number>;
@@ -42,15 +43,7 @@ export function QueueStatusPanel() {
 
   const fetchStatus = async () => {
     try {
-      const response = await fetch('/api/admin/queue/status', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-        },
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch queue status');
-      
-      const result = await response.json();
+      const result = await queueApi.getStatus();
       setData(result);
       setError(null);
     } catch (err: any) {
@@ -123,7 +116,7 @@ export function QueueStatusPanel() {
       {/* Status Breakdown */}
       <div className="bg-white rounded-lg shadow">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="font-semibold text-gray-900">Tasks by Status</h3>
+          <h3 className="font-semibold text-gray-900">📋 Tasks by Status</h3>
         </div>
         <div className="p-6">
           <div className="grid grid-cols-5 gap-4">
@@ -143,7 +136,7 @@ export function QueueStatusPanel() {
       {/* Task Type Breakdown */}
       <div className="bg-white rounded-lg shadow">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="font-semibold text-gray-900">Active Tasks by Type</h3>
+          <h3 className="font-semibold text-gray-900">🔧 Active Tasks by Type</h3>
         </div>
         <div className="p-6">
           <div className="grid grid-cols-3 gap-4">
@@ -165,7 +158,7 @@ export function QueueStatusPanel() {
 
       {/* Recent Activity */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="font-semibold text-gray-900 mb-3">Last Hour Activity</h3>
+        <h3 className="font-semibold text-gray-900 mb-3">⏰ Last Hour Activity</h3>
         <div className="grid grid-cols-3 gap-6">
           <div className="text-center">
             <div className="text-2xl font-bold text-gray-900">{data.health.recentTotal}</div>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { llmApi } from '../../lib/api/client';
 
 interface LLMConfig {
   providers: Record<string, string>;
@@ -10,25 +11,25 @@ interface LLMConfig {
   note: string;
 }
 
-const SYSTEM_LABELS: Record<string, string> = {
-  western: 'Western Astrology',
-  vedic: 'Vedic Astrology (Jyotish)',
-  human_design: 'Human Design',
-  gene_keys: 'Gene Keys',
-  kabbalah: 'Kabbalah',
-  verdict: 'Final Verdict',
-};
-
 const PROVIDER_COLORS: Record<string, string> = {
-  claude: 'bg-purple-100 text-purple-800 border-purple-300',
-  deepseek: 'bg-blue-100 text-blue-800 border-blue-300',
-  openai: 'bg-green-100 text-green-800 border-green-300',
+  claude: 'bg-purple-100 text-purple-800 border-purple-200',
+  deepseek: 'bg-blue-100 text-blue-800 border-blue-200',
+  openai: 'bg-green-100 text-green-800 border-green-200',
 };
 
-const PROVIDER_LABELS: Record<string, string> = {
-  claude: 'Claude Sonnet 4',
-  deepseek: 'DeepSeek',
-  openai: 'OpenAI GPT-4o',
+const PROVIDER_ICONS: Record<string, string> = {
+  claude: '🧠',
+  deepseek: '🔮',
+  openai: '🤖',
+};
+
+const SYSTEM_DESCRIPTIONS: Record<string, string> = {
+  western: 'Western Astrology readings (Sun signs, houses, aspects)',
+  vedic: 'Vedic/Jyotish readings (Nakshatras, Dashas, Doshas)',
+  human_design: 'Human Design charts (Type, Strategy, Authority)',
+  gene_keys: 'Gene Keys interpretations (Shadows, Gifts, Siddhis)',
+  kabbalah: 'Kabbalistic analysis (Tree of Life, Gematria)',
+  verdict: 'Final synthesis combining all systems',
 };
 
 export function LLMConfigPanel() {
@@ -43,18 +44,9 @@ export function LLMConfigPanel() {
   const fetchConfig = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/llm/config', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch LLM config');
-      }
-      
-      const data = await response.json();
-      setConfig(data);
+      setError(null);
+      const result = await llmApi.getConfig();
+      setConfig(result);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -67,9 +59,9 @@ export function LLMConfigPanel() {
       <div className="bg-white rounded-lg shadow p-6">
         <div className="animate-pulse">
           <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="h-12 bg-gray-100 rounded"></div>
+              <div key={i} className="h-16 bg-gray-100 rounded-lg"></div>
             ))}
           </div>
         </div>
@@ -83,10 +75,7 @@ export function LLMConfigPanel() {
         <div className="text-red-600">
           <h3 className="font-semibold">Error loading LLM config</h3>
           <p className="text-sm">{error}</p>
-          <button 
-            onClick={fetchConfig}
-            className="mt-2 text-sm text-blue-600 hover:underline"
-          >
+          <button onClick={fetchConfig} className="mt-2 text-sm text-blue-600 hover:underline">
             Retry
           </button>
         </div>
@@ -97,85 +86,95 @@ export function LLMConfigPanel() {
   if (!config) return null;
 
   return (
-    <div className="bg-white rounded-lg shadow">
-      <div className="px-6 py-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900">LLM Provider Configuration</h2>
-        <p className="text-sm text-gray-500 mt-1">
-          Current provider assignments for each reading system
-        </p>
-      </div>
-
-      <div className="p-6">
-        {/* Current instances info */}
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-gray-500">Default (Hook Readings):</span>
-              <span className={`ml-2 px-2 py-1 rounded border ${PROVIDER_COLORS[config.current_default]}`}>
-                {PROVIDER_LABELS[config.current_default] || config.current_default}
-              </span>
+    <div className="space-y-6">
+      {/* Current Instances */}
+      <div className="bg-white rounded-lg shadow">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">🤖 Active LLM Instances</h2>
+        </div>
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 bg-gray-50 rounded-lg border">
+              <div className="text-sm text-gray-500 mb-1">Default (Hook Readings)</div>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">{PROVIDER_ICONS[config.current_default.toLowerCase()] || '⚙️'}</span>
+                <span className="font-semibold text-lg">{config.current_default}</span>
+              </div>
+              <div className="text-xs text-gray-500 mt-2">Fast, cheap • Used for Sun/Moon/Rising</div>
             </div>
-            <div>
-              <span className="text-gray-500">Paid (Deep Readings):</span>
-              <span className={`ml-2 px-2 py-1 rounded border ${PROVIDER_COLORS[config.current_paid]}`}>
-                {PROVIDER_LABELS[config.current_paid] || config.current_paid}
-              </span>
+            <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+              <div className="text-sm text-gray-500 mb-1">Paid (Deep Readings)</div>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">{PROVIDER_ICONS[config.current_paid.toLowerCase()] || '⚙️'}</span>
+                <span className="font-semibold text-lg">{config.current_paid}</span>
+              </div>
+              <div className="text-xs text-gray-500 mt-2">Quality focus • Used for Extended/Nuclear/Synastry</div>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* System providers table */}
-        <div className="overflow-hidden border border-gray-200 rounded-lg">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  System
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Provider
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {Object.entries(config.providers).map(([system, provider]) => (
-                <tr key={system} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
-                      {SYSTEM_LABELS[system] || system}
-                    </div>
-                    <div className="text-xs text-gray-500">{system}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium border ${PROVIDER_COLORS[provider]}`}>
-                      {PROVIDER_LABELS[provider] || provider}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      Active
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Per-System Configuration */}
+      <div className="bg-white rounded-lg shadow">
+        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+          <h2 className="text-lg font-semibold text-gray-900">⚙️ Per-System Provider Configuration</h2>
+          <button 
+            onClick={fetchConfig}
+            className="px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
+          >
+            Refresh
+          </button>
         </div>
+        <div className="p-6">
+          <div className="space-y-3">
+            {Object.entries(config.providers).map(([system, provider]) => {
+              const providerLower = (provider as string).toLowerCase();
+              return (
+                <div 
+                  key={system}
+                  className="flex items-center justify-between p-4 rounded-lg border bg-gray-50"
+                >
+                  <div className="flex-1">
+                    <div className="font-medium capitalize">{system.replace('_', ' ')}</div>
+                    <div className="text-xs text-gray-500">{SYSTEM_DESCRIPTIONS[system] || ''}</div>
+                  </div>
+                  <div className={`px-3 py-1 rounded-full text-sm font-medium border ${PROVIDER_COLORS[providerLower] || 'bg-gray-100'}`}>
+                    {PROVIDER_ICONS[providerLower] || '⚙️'} {provider}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
-        {/* Note */}
-        <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-amber-800">Configuration Note</h3>
-              <p className="mt-1 text-sm text-amber-700">{config.note}</p>
+      {/* Available Providers */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h3 className="font-semibold text-gray-900 mb-4">📋 Available Providers</h3>
+        <div className="flex flex-wrap gap-3">
+          {config.available.map((provider) => {
+            const providerLower = provider.toLowerCase();
+            return (
+              <div 
+                key={provider}
+                className={`px-4 py-2 rounded-lg border ${PROVIDER_COLORS[providerLower] || 'bg-gray-100'}`}
+              >
+                {PROVIDER_ICONS[providerLower] || '⚙️'} {provider}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Configuration Note */}
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <span className="text-xl">💡</span>
+          <div>
+            <h4 className="font-medium text-amber-900">How to Change Providers</h4>
+            <p className="text-sm text-amber-800 mt-1">{config.note}</p>
+            <div className="mt-2 text-xs text-amber-700">
+              <code className="bg-amber-100 px-2 py-1 rounded">src/config/llmProviders.ts</code>
             </div>
           </div>
         </div>

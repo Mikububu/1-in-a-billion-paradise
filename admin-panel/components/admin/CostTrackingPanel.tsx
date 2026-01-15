@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { costsApi } from '../../lib/api/client';
 
 interface CostSummary {
   totalCost: number;
@@ -76,29 +77,19 @@ export function CostTrackingPanel() {
 
   const fetchAll = async () => {
     setLoading(true);
+    setError(null);
     try {
       const [todayRes, monthRes, logsRes, pricingRes] = await Promise.all([
-        fetch('/api/admin/costs/today', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` },
-        }),
-        fetch('/api/admin/costs/month', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` },
-        }),
-        fetch('/api/admin/costs/logs?limit=50', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` },
-        }),
-        fetch('/api/admin/costs/pricing', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` },
-        }),
+        costsApi.getToday().catch(() => null),
+        costsApi.getMonth().catch(() => null),
+        costsApi.getLogs({ limit: 50 }).catch(() => ({ logs: [] })),
+        costsApi.getPricing().catch(() => null),
       ]);
 
-      if (todayRes.ok) setTodayCosts(await todayRes.json());
-      if (monthRes.ok) setMonthCosts(await monthRes.json());
-      if (logsRes.ok) {
-        const logsData = await logsRes.json();
-        setRecentLogs(logsData.logs || []);
-      }
-      if (pricingRes.ok) setPricing(await pricingRes.json());
+      if (todayRes) setTodayCosts(todayRes);
+      if (monthRes) setMonthCosts(monthRes);
+      if (logsRes) setRecentLogs(logsRes.logs || []);
+      if (pricingRes) setPricing(pricingRes);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -152,21 +143,21 @@ export function CostTrackingPanel() {
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow p-6 text-white">
-          <div className="text-sm opacity-80">Today's Costs</div>
+          <div className="text-sm opacity-80">📅 Today's Costs</div>
           <div className="text-3xl font-bold">{formatCost(todayCosts?.totalCost || 0)}</div>
           <div className="text-sm mt-2 opacity-80">
             {Object.keys(todayCosts?.byProvider || {}).length} providers used
           </div>
         </div>
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow p-6 text-white">
-          <div className="text-sm opacity-80">This Month</div>
+          <div className="text-sm opacity-80">📆 This Month</div>
           <div className="text-3xl font-bold">{formatCost(monthCosts?.totalCost || 0)}</div>
           <div className="text-sm mt-2 opacity-80">
             {monthCosts?.byJob?.length || 0} jobs tracked
           </div>
         </div>
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow p-6 text-white">
-          <div className="text-sm opacity-80">Avg Cost/Job</div>
+          <div className="text-sm opacity-80">📊 Avg Cost/Job</div>
           <div className="text-3xl font-bold">
             {formatCost(monthCosts?.byJob?.length 
               ? (monthCosts.totalCost / monthCosts.byJob.length) 

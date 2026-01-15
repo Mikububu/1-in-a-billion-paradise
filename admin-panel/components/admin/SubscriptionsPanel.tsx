@@ -1,20 +1,21 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { subscriptionsApi } from '../../lib/api/client';
 
 interface Subscription {
   id: string;
-  user_id: string | null;
-  email: string | null;
+  user_id: string;
   stripe_customer_id: string;
   stripe_subscription_id: string;
   status: string;
+  current_period_start: string;
+  current_period_end: string;
   included_reading_used: boolean;
   included_reading_system: string | null;
   included_reading_job_id: string | null;
-  current_period_start: string | null;
-  current_period_end: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 interface SubscriptionStats {
@@ -28,17 +29,17 @@ interface SubscriptionStats {
 
 const STATUS_COLORS: Record<string, string> = {
   active: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-800',
-  past_due: 'bg-yellow-100 text-yellow-800',
-  incomplete: 'bg-gray-100 text-gray-800',
+  cancelled: 'bg-gray-100 text-gray-800',
+  past_due: 'bg-red-100 text-red-800',
+  incomplete: 'bg-yellow-100 text-yellow-800',
 };
 
-const SYSTEM_LABELS: Record<string, string> = {
-  western: 'Western',
-  vedic: 'Vedic',
-  human_design: 'Human Design',
-  gene_keys: 'Gene Keys',
-  kabbalah: 'Kabbalah',
+const SYSTEM_COLORS: Record<string, string> = {
+  western: 'bg-blue-100 text-blue-800',
+  vedic: 'bg-orange-100 text-orange-800',
+  human_design: 'bg-purple-100 text-purple-800',
+  gene_keys: 'bg-green-100 text-green-800',
+  kabbalah: 'bg-indigo-100 text-indigo-800',
 };
 
 export function SubscriptionsPanel() {
@@ -46,37 +47,29 @@ export function SubscriptionsPanel() {
   const [stats, setStats] = useState<SubscriptionStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [readingFilter, setReadingFilter] = useState<string>('');
+  const [filter, setFilter] = useState<'all' | 'used' | 'available'>('all');
+  const [resetting, setResetting] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchSubscriptions();
-    fetchStats();
-  }, [page, statusFilter, readingFilter]);
+    fetchAll();
+  }, [filter]);
 
-  const fetchSubscriptions = async () => {
+  const fetchAll = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({
-        page: String(page),
-        limit: '20',
-      });
-      if (statusFilter) params.append('status', statusFilter);
-      if (readingFilter) params.append('includedReadingUsed', readingFilter);
-
-      const response = await fetch(`/api/admin/subscriptions?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-        },
-      });
+      setError(null);
       
-      if (!response.ok) throw new Error('Failed to fetch subscriptions');
+      const params: any = { limit: 50 };
+      if (filter === 'used') params.includedReadingUsed = 'true';
+      if (filter === 'available') params.includedReadingUsed = 'false';
       
-      const data = await response.json();
-      setSubscriptions(data.subscriptions);
-      setTotalPages(data.pagination.totalPages);
+      const [subsRes, statsRes] = await Promise.all([
+        subscriptionsApi.list(params),
+        subscriptionsApi.getStats(),
+      ]);
+      
+      setSubscriptions(subsRes.subscriptions || []);
+      setStats(statsRes);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -84,230 +77,177 @@ export function SubscriptionsPanel() {
     }
   };
 
-  const fetchStats = async () => {
-    try {
-      const response = await fetch('/api/admin/subscriptions/stats', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-        },
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch stats');
-      
-      const data = await response.json();
-      setStats(data);
-    } catch (err: any) {
-      console.error('Failed to fetch stats:', err);
-    }
-  };
-
-  const handleResetReading = async (subscriptionId: string) => {
-    if (!confirm('Are you sure you want to reset this user\'s included reading? They will be able to generate a new one.')) {
+  const resetReading = async (subscriptionId: string) => {
+    if (!confirm('Are you sure you want to reset this user\'s included reading? They will be able to use it again.')) {
       return;
     }
-
+    
     try {
-      const response = await fetch(`/api/admin/subscriptions/${subscriptionId}/reset-reading`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-        },
-      });
-      
-      if (!response.ok) throw new Error('Failed to reset reading');
-      
-      // Refresh data
-      fetchSubscriptions();
-      fetchStats();
+      setResetting(subscriptionId);
+      await subscriptionsApi.resetReading(subscriptionId);
+      await fetchAll();
     } catch (err: any) {
       alert('Failed to reset reading: ' + err.message);
+    } finally {
+      setResetting(null);
     }
   };
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
+  if (loading && subscriptions.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="space-y-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-16 bg-gray-100 rounded-lg"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="text-red-600">
+          <h3 className="font-semibold">Error loading subscriptions</h3>
+          <p className="text-sm">{error}</p>
+          <button onClick={fetchAll} className="mt-2 text-sm text-blue-600 hover:underline">
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Stats Cards */}
+      {/* Stats Overview */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-sm text-gray-500">Active Subscriptions</div>
-            <div className="text-2xl font-bold text-gray-900">{stats.total_active}</div>
+          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow p-6 text-white">
+            <div className="text-sm opacity-80">💳 Active Subscriptions</div>
+            <div className="text-3xl font-bold">{stats.total_active}</div>
+            <div className="text-sm mt-2 opacity-80">$9.90/year each</div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-sm text-gray-500">Readings Used</div>
-            <div className="text-2xl font-bold text-green-600">{stats.included_readings.used}</div>
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow p-6 text-white">
+            <div className="text-sm opacity-80">📖 Readings Used</div>
+            <div className="text-3xl font-bold">{stats.included_readings.used}</div>
+            <div className="text-sm mt-2 opacity-80">included readings claimed</div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-sm text-gray-500">Readings Available</div>
-            <div className="text-2xl font-bold text-blue-600">{stats.included_readings.available}</div>
+          <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg shadow p-6 text-white">
+            <div className="text-sm opacity-80">⏳ Readings Available</div>
+            <div className="text-3xl font-bold">{stats.included_readings.available}</div>
+            <div className="text-sm mt-2 opacity-80">pending use</div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-sm text-gray-500">Usage Rate</div>
-            <div className="text-2xl font-bold text-purple-600">
-              {stats.total_active > 0 
-                ? Math.round((stats.included_readings.used / stats.total_active) * 100) 
-                : 0}%
-            </div>
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow p-6 text-white">
+            <div className="text-sm opacity-80">💰 Est. Revenue</div>
+            <div className="text-3xl font-bold">${(stats.total_active * 9.90).toFixed(0)}</div>
+            <div className="text-sm mt-2 opacity-80">annual</div>
           </div>
         </div>
       )}
 
       {/* Readings by System */}
       {stats && Object.keys(stats.included_readings.by_system).length > 0 && (
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-sm font-medium text-gray-700 mb-3">Readings by System</h3>
-          <div className="flex flex-wrap gap-2">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="font-semibold text-gray-900 mb-4">📊 Readings Used by System</h3>
+          <div className="flex flex-wrap gap-3">
             {Object.entries(stats.included_readings.by_system).map(([system, count]) => (
-              <span key={system} className="px-3 py-1 bg-gray-100 rounded-full text-sm">
-                {SYSTEM_LABELS[system] || system}: <strong>{count}</strong>
-              </span>
+              <div 
+                key={system}
+                className={`px-4 py-2 rounded-lg ${SYSTEM_COLORS[system] || 'bg-gray-100'}`}
+              >
+                <span className="font-medium capitalize">{system.replace('_', ' ')}</span>
+                <span className="ml-2 font-bold">{count}</span>
+              </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4">
-        <div className="flex flex-wrap gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              className="border border-gray-300 rounded-md px-3 py-2 text-sm"
-            >
-              <option value="">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="past_due">Past Due</option>
-              <option value="incomplete">Incomplete</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Included Reading</label>
-            <select
-              value={readingFilter}
-              onChange={(e) => { setReadingFilter(e.target.value); setPage(1); }}
-              className="border border-gray-300 rounded-md px-3 py-2 text-sm"
-            >
-              <option value="">All</option>
-              <option value="true">Used</option>
-              <option value="false">Not Used</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
       {/* Subscriptions Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Subscriptions</h2>
-        </div>
-
-        {loading ? (
-          <div className="p-6">
-            <div className="animate-pulse space-y-3">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-12 bg-gray-100 rounded"></div>
-              ))}
-            </div>
+      <div className="bg-white rounded-lg shadow">
+        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+          <h2 className="text-lg font-semibold text-gray-900">💳 Subscriptions</h2>
+          <div className="flex items-center gap-3">
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value as any)}
+              className="text-sm border rounded px-2 py-1"
+            >
+              <option value="all">All</option>
+              <option value="used">Reading Used</option>
+              <option value="available">Reading Available</option>
+            </select>
+            <button 
+              onClick={fetchAll}
+              className="px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
+            >
+              Refresh
+            </button>
           </div>
-        ) : error ? (
-          <div className="p-6 text-red-600">{error}</div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reading</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period End</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {subscriptions.map((sub) => (
-                    <tr key={sub.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{sub.email || '—'}</div>
-                        <div className="text-xs text-gray-500">{sub.user_id?.slice(0, 8) || 'No user'}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[sub.status] || 'bg-gray-100'}`}>
-                          {sub.status}
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period End</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reading</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {subscriptions.map((sub) => (
+                <tr key={sub.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3">
+                    <div className="text-sm font-medium text-gray-900">{sub.user_id.slice(0, 8)}...</div>
+                    <div className="text-xs text-gray-500">{sub.stripe_customer_id}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 rounded text-xs ${STATUS_COLORS[sub.status] || 'bg-gray-100'}`}>
+                      {sub.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-500">
+                    {new Date(sub.current_period_end).toLocaleDateString()}
+                  </td>
+                  <td className="px-4 py-3">
+                    {sub.included_reading_used ? (
+                      <div>
+                        <span className={`px-2 py-1 rounded text-xs ${SYSTEM_COLORS[sub.included_reading_system || ''] || 'bg-gray-100'}`}>
+                          ✓ {sub.included_reading_system?.replace('_', ' ') || 'Used'}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {sub.included_reading_used ? (
-                          <div>
-                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              Used: {SYSTEM_LABELS[sub.included_reading_system || ''] || sub.included_reading_system}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            Available
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(sub.current_period_end)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(sub.created_at)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {sub.included_reading_used && (
-                          <button
-                            onClick={() => handleResetReading(sub.id)}
-                            className="text-amber-600 hover:text-amber-800 font-medium"
-                          >
-                            Reset Reading
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">Not used</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {sub.included_reading_used && (
+                      <button
+                        onClick={() => resetReading(sub.id)}
+                        disabled={resetting === sub.id}
+                        className="text-xs text-red-600 hover:text-red-800 disabled:opacity-50"
+                      >
+                        {resetting === sub.id ? 'Resetting...' : 'Reset Reading'}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {subscriptions.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              No subscriptions found
             </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="px-3 py-1 border rounded text-sm disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                <span className="text-sm text-gray-500">
-                  Page {page} of {totalPages}
-                </span>
-                <button
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="px-3 py-1 border rounded text-sm disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
