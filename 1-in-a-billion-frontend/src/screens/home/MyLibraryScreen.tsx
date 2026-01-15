@@ -26,10 +26,8 @@ import {
   Share,
   GestureResponderEvent,
   LayoutChangeEvent,
-  Animated,
   Image,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -132,82 +130,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   const [libraryPeopleById, setLibraryPeopleById] = useState<Record<string, Person>>({});
   // Track nuclear_v2 job artifacts for reading badges
   const [nuclearJobArtifacts, setNuclearJobArtifacts] = useState<Record<string, Array<{ system?: string; docType?: string }>>>({});
-  
-  // ═══════════════════════════════════════════════════════════════════════════
-  // CLAYMATION PHOTO & MATCHES
-  // ═══════════════════════════════════════════════════════════════════════════
-  const [claymationPhotoUrl, setClaymationPhotoUrl] = useState<string | null>(null);
-  const [matchCount, setMatchCount] = useState<number>(0);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const blinkAnim = useRef(new Animated.Value(1)).current;
-  
-  // Blinking animation for upload prompt
-  useEffect(() => {
-    if (!claymationPhotoUrl) {
-      const blink = Animated.loop(
-        Animated.sequence([
-          Animated.timing(blinkAnim, { toValue: 0.3, duration: 800, useNativeDriver: true }),
-          Animated.timing(blinkAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-        ])
-      );
-      blink.start();
-      return () => blink.stop();
-    }
-  }, [claymationPhotoUrl, blinkAnim]);
-  
-  // Upload and generate claymation photo
-  const handleUploadPhoto = async () => {
-    try {
-      // Request permissions
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please allow access to your photo library.');
-        return;
-      }
-      
-      // Pick image
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-        base64: true,
-      });
-      
-      if (result.canceled || !result.assets[0]?.base64) {
-        return;
-      }
-      
-      setUploadingPhoto(true);
-      
-      // Call backend to generate claymation
-      const userId = useAuthStore.getState().userId;
-      const response = await fetch(`${env.CORE_API_URL}/api/profile/claymation`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-User-Id': userId || '',
-        },
-        body: JSON.stringify({
-          photoBase64: result.assets[0].base64,
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (data.success && data.imageUrl) {
-        setClaymationPhotoUrl(data.imageUrl);
-        Alert.alert('Success!', 'Your claymation portrait has been created. This is how you will appear to potential matches.');
-      } else {
-        Alert.alert('Error', data.error || 'Failed to create claymation portrait');
-      }
-    } catch (error: any) {
-      console.error('Photo upload error:', error);
-      Alert.alert('Error', 'Failed to upload photo. Please try again.');
-    } finally {
-      setUploadingPhoto(false);
-    }
-  };
 
   // CRITICAL: Stop audio when screen loses focus (useFocusEffect runs cleanup BEFORE blur)
   useFocusEffect(
@@ -2464,37 +2386,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
         {/* Headline */}
         <Text style={styles.headerTitle}>My Souls Library</Text>
-        
-        {/* Matches Counter & Photo Upload Prompt */}
-        <View style={styles.matchesSection}>
-          <View style={styles.matchesRow}>
-            <Text style={styles.matchesNumber}>{matchCount}</Text>
-            <Text style={styles.matchesLabel}>matches</Text>
-          </View>
-          
-          {!claymationPhotoUrl ? (
-            <TouchableOpacity 
-              style={styles.uploadPhotoPrompt}
-              onPress={handleUploadPhoto}
-              disabled={uploadingPhoto}
-            >
-              <Animated.View style={[styles.uploadArrowContainer, { opacity: blinkAnim }]}>
-                <Text style={styles.uploadArrow}>→</Text>
-              </Animated.View>
-              <Animated.Text style={[styles.uploadText, { opacity: blinkAnim }]}>
-                {uploadingPhoto ? 'Creating your portrait...' : 'Upload your photograph'}
-              </Animated.Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.claymationPreview}>
-              <Image 
-                source={{ uri: claymationPhotoUrl }} 
-                style={styles.claymationImage}
-              />
-              <Text style={styles.claymationLabel}>Your portrait</Text>
-            </View>
-          )}
-        </View>
 
         {!!queueJobsError && !loadingQueueJobs && (
           <TouchableOpacity
@@ -2903,80 +2794,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.sansSemiBold,
     fontSize: 12,
     color: '#C41E3A',
-  },
-  
-  // ═══════════════════════════════════════════════════════════════════════════
-  // MATCHES & CLAYMATION PHOTO STYLES
-  // ═══════════════════════════════════════════════════════════════════════════
-  matchesSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.sm,
-    marginBottom: spacing.md,
-    backgroundColor: colors.cardBg,
-    borderRadius: RADIUS_CARD,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  matchesRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
-  },
-  matchesNumber: {
-    fontFamily: typography.sansBold,
-    fontSize: 48,
-    color: colors.text,
-    lineHeight: 52,
-  },
-  matchesLabel: {
-    fontFamily: typography.sansRegular,
-    fontSize: 16,
-    color: colors.mutedText,
-  },
-  uploadPhotoPrompt: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    backgroundColor: '#FFE4B5',
-    borderRadius: RADIUS_PILL,
-  },
-  uploadArrowContainer: {
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  uploadArrow: {
-    fontFamily: typography.sansBold,
-    fontSize: 20,
-    color: '#D4A017',
-  },
-  uploadText: {
-    fontFamily: typography.sansSemiBold,
-    fontSize: 13,
-    color: '#8B6914',
-  },
-  claymationPreview: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  claymationImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  claymationLabel: {
-    fontFamily: typography.sansRegular,
-    fontSize: 12,
-    color: colors.mutedText,
   },
   
   header: {

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Animated, Alert, Modal, ActivityIndicator, Pressable, useWindowDimensions, Image } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Animated, Alert, Modal, ActivityIndicator, Pressable, useWindowDimensions, Image, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuthStore } from '@/store/authStore';
+import { env } from '@/config/env';
 import { Audio } from 'expo-av';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { backfillMissingPlacements } from '@/services/placementsCalculator';
@@ -77,6 +79,100 @@ export const HomeScreen = ({ navigation }: Props) => {
   const allPeople = useProfileStore((state) => state.people);
   const partners = useMemo(() => allPeople.filter(p => !p.isUser), [allPeople]);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
+  
+  // Claymation photo upload state
+  const [claymationPhotoUrl, setClaymationPhotoUrl] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const blinkAnim = useRef(new Animated.Value(1)).current;
+  
+  // Blinking animation for upload prompt
+  useEffect(() => {
+    if (!claymationPhotoUrl) {
+      const blink = Animated.loop(
+        Animated.sequence([
+          Animated.timing(blinkAnim, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+          Animated.timing(blinkAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+        ])
+      );
+      blink.start();
+      return () => blink.stop();
+    }
+  }, [claymationPhotoUrl, blinkAnim]);
+  
+  // Upload and generate claymation photo
+  const handleUploadPhoto = async () => {
+    try {
+      // Dynamically import expo-image-picker (may not be available in Expo Go)
+      let ImagePicker;
+      try {
+        ImagePicker = await import('expo-image-picker');
+      } catch (importError) {
+        Alert.alert(
+          'Feature Not Available',
+          'Photo upload requires a production build. This feature is not available in Expo Go.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please allow access to your photo library.');
+        return;
+      }
+      
+      // Pick image
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        base64: true,
+      });
+      
+      if (result.canceled || !result.assets[0]?.base64) {
+        return;
+      }
+      
+      setUploadingPhoto(true);
+      
+      // Call backend to generate claymation
+      const userId = useAuthStore.getState().userId;
+      const response = await fetch(`${env.CORE_API_URL}/api/profile/claymation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': userId || '',
+        },
+        body: JSON.stringify({
+          photoBase64: result.assets[0].base64,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.imageUrl) {
+        setClaymationPhotoUrl(data.imageUrl);
+        Alert.alert('Success!', 'Your claymation portrait has been created. This is how you will appear to potential matches.');
+      } else {
+        Alert.alert('Error', data.error || 'Failed to create claymation portrait');
+      }
+    } catch (error: any) {
+      console.error('Photo upload error:', error);
+      if (error.message?.includes('native module') || error.message?.includes('ExponentImagePicker')) {
+        Alert.alert(
+          'Feature Not Available',
+          'Photo upload requires a production build. This feature is not available in Expo Go.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Error', 'Failed to upload photo. Please try again.');
+      }
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   console.log('🔍 HomeScreen data check:', {
     hasHookReadings: !!(hookReadings.sun && hookReadings.moon && hookReadings.rising),
@@ -903,6 +999,31 @@ export const HomeScreen = ({ navigation }: Props) => {
           )}
         </View>
 
+        {/* Upload Photo Prompt */}
+        {!claymationPhotoUrl ? (
+          <TouchableOpacity 
+            style={styles.uploadPhotoPrompt}
+            onPress={handleUploadPhoto}
+            disabled={uploadingPhoto}
+            activeOpacity={0.8}
+          >
+            <Animated.View style={{ opacity: blinkAnim, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={styles.uploadArrow}>→</Text>
+              <Text style={styles.uploadText}>
+                {uploadingPhoto ? 'Creating your portrait...' : 'Upload your photograph'}
+              </Text>
+            </Animated.View>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.claymationPreview}>
+            <Image 
+              source={{ uri: claymationPhotoUrl }} 
+              style={styles.claymationImage}
+            />
+            <Text style={styles.claymationLabel}>Your portrait for matches</Text>
+          </View>
+        )}
+
         {/* MY SOULS LABORATORY CARD - Simple */}
         <TouchableOpacity
           style={[styles.libraryCard, { marginTop: spacing.lg * compactV }]}
@@ -1377,6 +1498,43 @@ const styles = StyleSheet.create({
   },
   
   // Produced By Section
+  // Upload photo prompt styles
+  uploadPhotoPrompt: {
+    marginTop: spacing.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: '#FFE4B5',
+    borderRadius: 999,
+    alignSelf: 'center',
+  },
+  uploadArrow: {
+    fontFamily: typography.sansBold,
+    fontSize: 18,
+    color: '#D4A017',
+  },
+  uploadText: {
+    fontFamily: typography.sansSemiBold,
+    fontSize: 14,
+    color: '#8B6914',
+  },
+  claymationPreview: {
+    marginTop: spacing.lg,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  claymationImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  claymationLabel: {
+    fontFamily: typography.sansRegular,
+    fontSize: 12,
+    color: colors.mutedText,
+  },
+  
   producedBySection: {
     alignItems: 'center',
     marginTop: spacing.lg,
