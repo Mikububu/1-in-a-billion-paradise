@@ -6,6 +6,8 @@
  */
 
 import { supabase, isSupabaseConfigured } from './supabase';
+import { env } from '@/config/env';
+import axios from 'axios';
 
 // Types
 export type JobStatus = 'pending' | 'processing' | 'complete' | 'error';
@@ -92,9 +94,60 @@ export const fetchJobArtifacts = async (
   jobId: string,
   artifactTypes?: Array<JobArtifact['artifact_type']>
 ): Promise<JobArtifact[]> => {
-  if (!isSupabaseConfigured) return [];
+  // METHOD 1: Try backend API first (bypasses RLS, includes signed URLs)
+  try {
+    const backendUrl = env.CORE_API_URL || process.env.EXPO_PUBLIC_CORE_API_URL;
+    if (backendUrl) {
+      // Get auth token for backend
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {};
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
+      const response = await axios.get(`${backendUrl}/api/jobs/v2/${jobId}`, { headers });
+      
+      if (response.data?.success && response.data?.job?.artifacts) {
+        let artifacts = response.data.job.artifacts as JobArtifact[];
+        
+        // Filter by artifact types if specified
+        if (Array.isArray(artifactTypes) && artifactTypes.length > 0) {
+          artifacts = artifacts.filter(a => artifactTypes.includes(a.artifact_type));
+        }
+        
+        if (__DEV__) {
+          console.log(`✅ Fetched ${artifacts.length} artifacts via backend API for job ${jobId.substring(0, 8)}`);
+        }
+        
+        return artifacts;
+      }
+    }
+  } catch (backendError: any) {
+    if (__DEV__) {
+      console.warn('⚠️ Backend API failed, falling back to Supabase:', backendError.message);
+    }
+  }
+
+  // METHOD 2: Fallback to direct Supabase query (requires RLS)
+  if (!isSupabaseConfigured) {
+    console.warn('⚠️ Supabase not configured');
+    return [];
+  }
 
   try {
+    // CRITICAL: Ensure we have an active session before querying
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError || !session) {
+      console.warn('⚠️ No active session for artifact fetch:', sessionError?.message || 'No session');
+      // Try to refresh session
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.warn('⚠️ No authenticated user for artifact fetch');
+        return [];
+      }
+    }
+
     let q = supabase
       .from('job_artifacts')
       .select('*')
@@ -108,17 +161,24 @@ export const fetchJobArtifacts = async (
     const { data, error } = await q;
 
     if (error) {
-      // Silently handle errors - don't show to user, just return empty array
-      // Only log in dev mode for debugging
-      if (__DEV__) {
-        console.warn('Error fetching artifacts (silent):', error.message);
-      }
+      console.error('❌ Error fetching artifacts from Supabase:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        jobId: jobId.substring(0, 8),
+        artifactTypes,
+      });
       return [];
     }
 
+    if (__DEV__) {
+      console.log(`✅ Fetched ${data?.length || 0} artifacts from Supabase for job ${jobId.substring(0, 8)} (types: ${artifactTypes?.join(',') || 'all'})`);
+    }
+
     return data || [];
-  } catch (err) {
-    console.error('Error in fetchJobArtifacts:', err);
+  } catch (err: any) {
+    console.error('❌ Exception in fetchJobArtifacts:', err.message);
     return [];
   }
 };
