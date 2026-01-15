@@ -20,6 +20,7 @@ import internalPeopleScalingRouter from './routes/internalPeopleScaling';
 import notificationsRouter from './routes/notifications';
 import paymentsRouter from './routes/payments';
 import peopleRouter from './routes/people';
+import profileRouter from './routes/profile';
 import { startAutoScaling } from './services/runpodScaler';
 import { preloadApiKeys } from './services/apiKeys';
 import './services/jobHealthCheck'; // Auto-starts job health check service
@@ -62,6 +63,7 @@ app.route('/api/internal/people-scaling', internalPeopleScalingRouter);
 app.route('/api/notifications', notificationsRouter);
 app.route('/api/payments', paymentsRouter);
 app.route('/api/people', peopleRouter);
+app.route('/api/profile', profileRouter);
 
 // Start text worker in background (processes Supabase queue)
 // No GPU needed - just calls DeepSeek API
