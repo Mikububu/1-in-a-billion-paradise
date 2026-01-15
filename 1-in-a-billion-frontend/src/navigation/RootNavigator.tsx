@@ -103,12 +103,12 @@ import { SynastryOverlayScreen } from '@/screens/premium/SynastryOverlayScreen';
 import { PurchaseScreen } from '@/screens/premium/PurchaseScreen';
 import { HowMatchingWorksScreen } from '@/screens/home/HowMatchingWorksScreen';
 import { ChartCalculationScreen } from '@/screens/home/ChartCalculationScreen';
-// KYC screens
-import { KYCIntroScreen } from '@/screens/kyc/KYCIntroScreen';
-import { KYCPhoneScreen } from '@/screens/kyc/KYCPhoneScreen';
-import { KYCDocumentScreen } from '@/screens/kyc/KYCDocumentScreen';
-import { KYCFaceScanScreen } from '@/screens/kyc/KYCFaceScanScreen';
-import { KYCCompleteScreen } from '@/screens/kyc/KYCCompleteScreen';
+// KYC screens (disabled for now - sleeping until needed)
+// import { KYCIntroScreen } from '@/screens/kyc/KYCIntroScreen';
+// import { KYCPhoneScreen } from '@/screens/kyc/KYCPhoneScreen';
+// import { KYCDocumentScreen } from '@/screens/kyc/KYCDocumentScreen';
+// import { KYCFaceScanScreen } from '@/screens/kyc/KYCFaceScanScreen';
+// import { KYCCompleteScreen } from '@/screens/kyc/KYCCompleteScreen';
 // Learn screens
 import { SystemExplainerScreen } from '@/screens/learn/SystemExplainerScreen';
 import { WhyDifferentScreen } from '@/screens/learn/WhyDifferentScreen';
@@ -387,13 +387,13 @@ export type MainStackParamList = {
     mode?: 'user_readings' | 'partner_readings' | 'overlays' | 'nuclear' | 'all';
     partnerName?: string;
   };
-  // KYC Screens
-  KYCIntro: undefined;
-  KYCPhone: undefined;
-  KYCPhoto: undefined;
-  KYCDocument: undefined;
-  KYCFaceScan: undefined;
-  KYCComplete: undefined;
+  // KYC Screens (disabled - sleeping until needed)
+  // KYCIntro: undefined;
+  // KYCPhone: undefined;
+  // KYCPhoto: undefined;
+  // KYCDocument: undefined;
+  // KYCFaceScan: undefined;
+  // KYCComplete: undefined;
   // Learn Screens
   SystemExplainer: {
     system: 'western' | 'vedic' | 'human_design' | 'gene_keys' | 'kabbalah' | 'all';
@@ -728,12 +728,12 @@ const MainNavigator = () => {
       <MainStack.Screen name="ReadingChapter" component={ReadingChapterScreen} />
       <MainStack.Screen name="SynastryOverlay" component={SynastryOverlayScreen} />
       <MainStack.Screen name="Purchase" component={PurchaseScreen} />
-      {/* KYC Screens */}
-      <MainStack.Screen name="KYCIntro" component={KYCIntroScreen} />
-      <MainStack.Screen name="KYCPhone" component={KYCPhoneScreen} />
-      <MainStack.Screen name="KYCDocument" component={KYCDocumentScreen} />
-      <MainStack.Screen name="KYCFaceScan" component={KYCFaceScanScreen} />
-      <MainStack.Screen name="KYCComplete" component={KYCCompleteScreen} />
+      {/* KYC Screens (disabled - sleeping until needed) */}
+      {/* <MainStack.Screen name="KYCIntro" component={KYCIntroScreen} /> */}
+      {/* <MainStack.Screen name="KYCPhone" component={KYCPhoneScreen} /> */}
+      {/* <MainStack.Screen name="KYCDocument" component={KYCDocumentScreen} /> */}
+      {/* <MainStack.Screen name="KYCFaceScan" component={KYCFaceScanScreen} /> */}
+      {/* <MainStack.Screen name="KYCComplete" component={KYCCompleteScreen} /> */}
       {/* Learn Screens */}
       <MainStack.Screen name="SystemExplainer" component={SystemExplainerScreen} />
       <MainStack.Screen name="WhyDifferent" component={WhyDifferentScreen} />
