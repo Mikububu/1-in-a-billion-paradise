@@ -177,7 +177,8 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         const artifacts = await fetchJobArtifacts(jobId, ['pdf']);
         const pdfArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
-          return meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
+          if (Number(meta?.docNum) !== Number(docNum)) return false;
+          return systemId === 'verdict' ? !meta?.system : meta?.system === systemId;
         });
         
         if (mounted) {
@@ -231,7 +232,8 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         const artifacts = await fetchJobArtifacts(jobId, ['audio_mp3', 'audio_m4a']);
         const audioArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
-          return meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
+          if (Number(meta?.docNum) !== Number(docNum)) return false;
+          return systemId === 'verdict' ? !meta?.system : meta?.system === systemId;
         });
         
         if (mounted) {
