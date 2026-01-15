@@ -27,15 +27,21 @@ admin-panel/
 │   │   ├── page.tsx
 │   │   ├── users/
 │   │   ├── jobs/
-│   │   ├── subscriptions/    # NEW: Subscription management
-│   │   ├── llm-config/       # NEW: LLM provider configuration
+│   │   ├── subscriptions/
+│   │   ├── llm-config/
+│   │   ├── services/
+│   │   ├── storage/
 │   │   └── analytics/
 │   └── api/
 ├── components/
 │   ├── admin/
-│   │   ├── LLMConfigPanel.tsx      # NEW: View/manage LLM providers per system
-│   │   ├── SubscriptionsPanel.tsx  # NEW: Subscription & reading tracking
-│   │   └── ...
+│   │   ├── AdminDashboard.tsx      # Main dashboard with tabs
+│   │   ├── APIServicesPanel.tsx    # API balances & status (RunPod, Claude, etc.)
+│   │   ├── QueueStatusPanel.tsx    # Job queue monitoring
+│   │   ├── LLMConfigPanel.tsx      # LLM providers per system
+│   │   ├── SubscriptionsPanel.tsx  # Subscription & reading tracking
+│   │   ├── SystemConfigPanel.tsx   # System configuration viewer
+│   │   └── StorageUsagePanel.tsx   # Supabase storage usage
 │   └── ui/
 ├── lib/
 │   ├── api/
@@ -117,14 +123,27 @@ All admin routes require authentication and appropriate permissions.
 ### Dashboard
 - `GET /api/admin/dashboard/stats` - Dashboard statistics
 
-### LLM Configuration (NEW)
+### LLM Configuration
 - `GET /api/admin/llm/config` - Get LLM provider config
 
-### Subscriptions (NEW)
+### Subscriptions
 - `GET /api/admin/subscriptions` - List subscriptions
 - `GET /api/admin/subscriptions/:id` - Get subscription
 - `GET /api/admin/subscriptions/stats` - Get stats
 - `POST /api/admin/subscriptions/:id/reset-reading` - Reset reading
+
+### API Services Status (NEW)
+- `GET /api/admin/services/status` - Get all API service statuses and balances
+- `GET /api/admin/services/runpod/detailed` - Detailed RunPod endpoint and job info
+
+### System Configuration (NEW)
+- `GET /api/admin/system/config` - Get all system configuration values
+
+### Queue Status (NEW)
+- `GET /api/admin/queue/status` - Get job queue status by status and task type
+
+### Storage Usage (NEW)
+- `GET /api/admin/storage/usage` - Get Supabase storage bucket usage
 
 ---
 
@@ -161,3 +180,61 @@ export const SYSTEM_LLM_PROVIDERS = {
 ```
 
 Future: Runtime config via JSON file or database.
+
+---
+
+## API Services Monitored
+
+The admin panel monitors these external services:
+
+| Service | Purpose | Balance API |
+|---------|---------|-------------|
+| **RunPod** | TTS Audio (Chatterbox) | ✅ GraphQL API |
+| **Anthropic (Claude)** | Deep Readings (LLM) | ❌ Check dashboard |
+| **OpenAI** | Kabbalah Readings | ❌ Check dashboard |
+| **DeepSeek** | Hook Readings | ❌ Check dashboard |
+| **MiniMax** | Song Generation | ❌ Check dashboard |
+| **Google Places** | City Search | ❌ Check dashboard |
+| **Stripe** | Payments | Check dashboard |
+| **Supabase Storage** | Audio, PDFs, Songs | ✅ Via API |
+
+### RunPod Balance Check
+The admin panel can fetch your RunPod credit balance via their GraphQL API:
+```graphql
+query { myself { creditBalance currentSpendPerHr } }
+```
+
+---
+
+## Admin Panel Components
+
+### AdminDashboard.tsx
+Main dashboard with tabbed navigation:
+- Overview (recent changes, quick stats)
+- API Services (balances, status)
+- Job Queue (live monitoring)
+- LLM Config (per-system providers)
+- Subscriptions ($9.90/year management)
+- Storage (bucket usage)
+- System Config (feature flags, settings)
+
+### APIServicesPanel.tsx
+Shows status and balances for all external services:
+- RunPod credit balance and spend rate
+- Endpoint worker status
+- Service connection status
+
+### QueueStatusPanel.tsx
+Live job queue monitoring:
+- Tasks by status (pending, processing, complete, error)
+- Tasks by type (text, audio, pdf)
+- Stuck task detection
+- Error rate calculation
+
+### SystemConfigPanel.tsx
+View system configuration:
+- LLM provider assignments
+- Tragic Realism level
+- Queue settings
+- Worker configuration
+- Feature flags

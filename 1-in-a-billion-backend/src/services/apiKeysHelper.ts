@@ -54,5 +54,13 @@ export const apiKeys = {
     if (!key) throw new Error('MiniMax API key not found');
     return key;
   },
+
+  async stripe(): Promise<string | null> {
+    return await getApiKey('stripe', process.env.STRIPE_SECRET_KEY || undefined);
+  },
+
+  async resend(): Promise<string | null> {
+    return await getApiKey('resend', process.env.RESEND_API_KEY || undefined);
+  },
 };
 

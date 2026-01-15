@@ -7,10 +7,13 @@
 
 import { Hono } from 'hono';
 import { z } from 'zod';
+import axios from 'axios';
 import { requireAdminAuth, requirePermission, getAdmin, logAdminAction } from '../middleware/adminAuth';
 import { createSupabaseServiceClient } from '../services/supabaseClient';
 import { SYSTEM_LLM_PROVIDERS, type LLMProviderName, type ReadingSystem } from '../config/llmProviders';
 import { llm, llmPaid } from '../services/llm';
+import { apiKeys } from '../services/apiKeysHelper';
+import { env } from '../config/env';
 
 const router = new Hono();
 
@@ -768,6 +771,498 @@ router.post('/subscriptions/:subscriptionId/reset-reading', requirePermission('s
     return c.json({ subscription: updated });
   } catch (err: any) {
     return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// API SERVICE STATUS & BALANCES
+// ───────────────────────────────────────────────────────────────────────────
+
+interface ServiceStatus {
+  name: string;
+  status: 'ok' | 'error' | 'unknown';
+  balance?: number | string;
+  currency?: string;
+  details?: any;
+  error?: string;
+}
+
+/**
+ * GET /api/admin/services/status
+ * Get status and balances for all API services
+ */
+router.get('/services/status', requirePermission('system', 'read'), async (c) => {
+  const services: ServiceStatus[] = [];
+
+  // 1. RunPod - Check balance via GraphQL API
+  try {
+    const runpodKey = await apiKeys.runpod();
+    const runpodEndpointId = await apiKeys.runpodEndpoint();
+    
+    // Get balance
+    const balanceRes = await axios.post('https://api.runpod.io/graphql', {
+      query: `query { myself { currentSpendPerHr creditBalance } }`
+    }, {
+      headers: {
+        'Authorization': `Bearer ${runpodKey}`,
+        'Content-Type': 'application/json',
+      },
+      timeout: 10000,
+    });
+
+    // Get endpoint status
+    const endpointRes = await axios.post('https://api.runpod.io/graphql', {
+      query: `query { myself { endpoints { id name workersMin workersMax idleTimeout } } }`
+    }, {
+      headers: {
+        'Authorization': `Bearer ${runpodKey}`,
+        'Content-Type': 'application/json',
+      },
+      timeout: 10000,
+    });
+
+    const myself = balanceRes.data?.data?.myself;
+    const endpoints = endpointRes.data?.data?.myself?.endpoints || [];
+    const currentEndpoint = endpoints.find((e: any) => e.id === runpodEndpointId);
+
+    services.push({
+      name: 'RunPod',
+      status: 'ok',
+      balance: myself?.creditBalance || 0,
+      currency: 'USD',
+      details: {
+        currentSpendPerHr: myself?.currentSpendPerHr || 0,
+        endpointId: runpodEndpointId,
+        endpointName: currentEndpoint?.name || 'Unknown',
+        workersMin: currentEndpoint?.workersMin || 0,
+        workersMax: currentEndpoint?.workersMax || 0,
+        totalEndpoints: endpoints.length,
+      },
+    });
+  } catch (err: any) {
+    services.push({
+      name: 'RunPod',
+      status: 'error',
+      error: err.message,
+    });
+  }
+
+  // 2. Anthropic (Claude) - No direct balance API, check if key works
+  try {
+    const claudeKey = await apiKeys.claude();
+    // Just verify the key format is valid
+    services.push({
+      name: 'Anthropic (Claude)',
+      status: claudeKey ? 'ok' : 'error',
+      balance: 'Check console.anthropic.com',
+      details: {
+        keyConfigured: !!claudeKey,
+        provider: 'claude',
+        note: 'Anthropic does not provide a balance API. Check your dashboard.',
+      },
+    });
+  } catch (err: any) {
+    services.push({
+      name: 'Anthropic (Claude)',
+      status: 'error',
+      error: err.message,
+    });
+  }
+
+  // 3. OpenAI - Check organization billing (if available)
+  try {
+    const openaiKey = await apiKeys.openai();
+    services.push({
+      name: 'OpenAI',
+      status: openaiKey ? 'ok' : 'error',
+      balance: 'Check platform.openai.com',
+      details: {
+        keyConfigured: !!openaiKey,
+        provider: 'openai',
+        model: env.OPENAI_MODEL,
+        note: 'OpenAI billing API requires org-level permissions.',
+      },
+    });
+  } catch (err: any) {
+    services.push({
+      name: 'OpenAI',
+      status: 'error',
+      error: err.message,
+    });
+  }
+
+  // 4. DeepSeek - Check if key works
+  try {
+    const deepseekKey = await apiKeys.deepseek();
+    services.push({
+      name: 'DeepSeek',
+      status: deepseekKey ? 'ok' : 'error',
+      balance: 'Check platform.deepseek.com',
+      details: {
+        keyConfigured: !!deepseekKey,
+        provider: 'deepseek',
+        note: 'DeepSeek does not provide a public balance API.',
+      },
+    });
+  } catch (err: any) {
+    services.push({
+      name: 'DeepSeek',
+      status: 'error',
+      error: err.message,
+    });
+  }
+
+  // 5. MiniMax - Check if key works
+  try {
+    const minimaxKey = await apiKeys.minimax();
+    services.push({
+      name: 'MiniMax',
+      status: minimaxKey ? 'ok' : 'error',
+      balance: 'Check minimax.chat',
+      details: {
+        keyConfigured: !!minimaxKey,
+        purpose: 'Music/Song generation',
+      },
+    });
+  } catch (err: any) {
+    services.push({
+      name: 'MiniMax',
+      status: 'error',
+      error: err.message,
+    });
+  }
+
+  // 6. Google Places - Check if key works
+  try {
+    const googleKey = await apiKeys.googlePlaces();
+    services.push({
+      name: 'Google Places',
+      status: googleKey ? 'ok' : 'unknown',
+      balance: 'Check console.cloud.google.com',
+      details: {
+        keyConfigured: !!googleKey,
+        purpose: 'City search/autocomplete',
+      },
+    });
+  } catch (err: any) {
+    services.push({
+      name: 'Google Places',
+      status: 'error',
+      error: err.message,
+    });
+  }
+
+  // 7. Supabase Storage - Check usage
+  try {
+    const supabase = createSupabaseServiceClient();
+    if (supabase) {
+      // Get total files count from audio bucket
+      const { data: audioFiles, error: audioError } = await supabase.storage
+        .from('audio')
+        .list('', { limit: 1000 });
+
+      const { data: pdfs, error: pdfError } = await supabase.storage
+        .from('pdf-readings')
+        .list('', { limit: 1000 });
+
+      services.push({
+        name: 'Supabase Storage',
+        status: 'ok',
+        details: {
+          audioBucket: {
+            files: audioFiles?.length || 0,
+            error: audioError?.message,
+          },
+          pdfBucket: {
+            files: pdfs?.length || 0,
+            error: pdfError?.message,
+          },
+          note: 'File counts are approximate (max 1000 per list)',
+        },
+      });
+    }
+  } catch (err: any) {
+    services.push({
+      name: 'Supabase Storage',
+      status: 'error',
+      error: err.message,
+    });
+  }
+
+  // 8. Stripe - Check connection
+  try {
+    const stripeKey = await apiKeys.stripe();
+    services.push({
+      name: 'Stripe',
+      status: stripeKey ? 'ok' : 'error',
+      balance: 'Check dashboard.stripe.com',
+      details: {
+        keyConfigured: !!stripeKey,
+        purpose: 'Payment processing',
+      },
+    });
+  } catch (err: any) {
+    services.push({
+      name: 'Stripe',
+      status: 'unknown',
+      details: {
+        note: 'Stripe key not configured or error fetching',
+      },
+    });
+  }
+
+  return c.json({
+    services,
+    timestamp: new Date().toISOString(),
+    environment: {
+      tragicRealismLevel: env.TRAGIC_REALISM_LEVEL,
+      paidLlmProvider: env.PAID_LLM_PROVIDER,
+      supabaseQueueEnabled: env.SUPABASE_QUEUE_ENABLED,
+    },
+  });
+});
+
+/**
+ * GET /api/admin/services/runpod/detailed
+ * Get detailed RunPod endpoint and job status
+ */
+router.get('/services/runpod/detailed', requirePermission('system', 'read'), async (c) => {
+  try {
+    const runpodKey = await apiKeys.runpod();
+    const runpodEndpointId = await apiKeys.runpodEndpoint();
+
+    // Get all endpoints with detailed info
+    const res = await axios.post('https://api.runpod.io/graphql', {
+      query: `
+        query {
+          myself {
+            creditBalance
+            currentSpendPerHr
+            endpoints {
+              id
+              name
+              workersMin
+              workersMax
+              idleTimeout
+              gpuIds
+              templateId
+            }
+            serverlessJobs(input: {endpointId: "${runpodEndpointId}", last: 20}) {
+              id
+              status
+              createdAt
+              completedAt
+              executionTime
+            }
+          }
+        }
+      `
+    }, {
+      headers: {
+        'Authorization': `Bearer ${runpodKey}`,
+        'Content-Type': 'application/json',
+      },
+      timeout: 15000,
+    });
+
+    const data = res.data?.data?.myself;
+    if (!data) {
+      return c.json({ error: 'Failed to fetch RunPod data' }, 500);
+    }
+
+    const currentEndpoint = data.endpoints?.find((e: any) => e.id === runpodEndpointId);
+    const jobs = data.serverlessJobs || [];
+
+    // Calculate job stats
+    const completedJobs = jobs.filter((j: any) => j.status === 'COMPLETED');
+    const failedJobs = jobs.filter((j: any) => j.status === 'FAILED');
+    const avgExecutionTime = completedJobs.length > 0
+      ? completedJobs.reduce((sum: number, j: any) => sum + (j.executionTime || 0), 0) / completedJobs.length
+      : 0;
+
+    return c.json({
+      balance: {
+        credits: data.creditBalance,
+        currentSpendPerHr: data.currentSpendPerHr,
+      },
+      endpoint: currentEndpoint || null,
+      allEndpoints: data.endpoints || [],
+      recentJobs: {
+        total: jobs.length,
+        completed: completedJobs.length,
+        failed: failedJobs.length,
+        avgExecutionTimeSec: Math.round(avgExecutionTime),
+        jobs: jobs.slice(0, 10), // Last 10 jobs
+      },
+    });
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// SYSTEM CONFIGURATION
+// ───────────────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/admin/system/config
+ * Get all system configuration values
+ */
+router.get('/system/config', requirePermission('system', 'read'), async (c) => {
+  return c.json({
+    llm: {
+      paidProvider: env.PAID_LLM_PROVIDER,
+      systemProviders: SYSTEM_LLM_PROVIDERS,
+      defaultInstance: llm.getProvider(),
+      paidInstance: llmPaid.getProvider(),
+    },
+    content: {
+      tragicRealismLevel: env.TRAGIC_REALISM_LEVEL,
+      tragicRealismDescription: [
+        'Off (legacy tone)',
+        'Subtle',
+        'Clear',
+        'Mythic / Destiny-forward',
+      ][env.TRAGIC_REALISM_LEVEL] || 'Unknown',
+    },
+    queue: {
+      enabled: env.SUPABASE_QUEUE_ENABLED,
+      rolloutPercent: env.SUPABASE_QUEUE_ROLLOUT_PERCENT,
+    },
+    worker: {
+      maxConcurrentTasks: env.WORKER_MAX_CONCURRENT_TASKS,
+      pollingIntervalMs: env.WORKER_POLLING_INTERVAL_MS,
+      maxPollingIntervalMs: env.WORKER_MAX_POLLING_INTERVAL_MS,
+    },
+    features: {
+      betaKeyEnabled: !!env.BETA_KEY,
+      devAutoConfirmEmail: env.DEV_AUTO_CONFIRM_EMAIL,
+    },
+  });
+});
+
+/**
+ * GET /api/admin/queue/status
+ * Get current job queue status
+ */
+router.get('/queue/status', requirePermission('jobs', 'read'), async (c) => {
+  const supabase = createSupabaseServiceClient();
+  if (!supabase) {
+    return c.json({ error: 'Database connection failed' }, 500);
+  }
+
+  try {
+    // Get counts by status
+    const statuses = ['pending', 'claimed', 'processing', 'complete', 'error'];
+    const counts: Record<string, number> = {};
+
+    for (const status of statuses) {
+      const { count } = await supabase
+        .from('job_queue_v2')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', status);
+      counts[status] = count || 0;
+    }
+
+    // Get counts by task type
+    const taskTypes = ['text', 'audio', 'pdf'];
+    const taskCounts: Record<string, number> = {};
+
+    for (const type of taskTypes) {
+      const { count } = await supabase
+        .from('job_queue_v2')
+        .select('*', { count: 'exact', head: true })
+        .eq('task_type', type)
+        .in('status', ['pending', 'claimed', 'processing']);
+      taskCounts[type] = count || 0;
+    }
+
+    // Get stuck tasks (claimed > 10 minutes ago)
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const { count: stuckCount } = await supabase
+      .from('job_queue_v2')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'claimed')
+      .lt('claimed_at', tenMinutesAgo);
+
+    // Get error rate (last hour)
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: recentTotal } = await supabase
+      .from('job_queue_v2')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', oneHourAgo);
+
+    const { count: recentErrors } = await supabase
+      .from('job_queue_v2')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'error')
+      .gte('created_at', oneHourAgo);
+
+    const errorRate = recentTotal ? ((recentErrors || 0) / recentTotal * 100).toFixed(1) : '0';
+
+    return c.json({
+      byStatus: counts,
+      byTaskType: taskCounts,
+      health: {
+        stuckTasks: stuckCount || 0,
+        recentErrorRate: `${errorRate}%`,
+        recentTotal: recentTotal || 0,
+        recentErrors: recentErrors || 0,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+/**
+ * GET /api/admin/storage/usage
+ * Get Supabase storage usage details
+ */
+router.get('/storage/usage', requirePermission('system', 'read'), async (c) => {
+  const supabase = createSupabaseServiceClient();
+  if (!supabase) {
+    return c.json({ error: 'Database connection failed' }, 500);
+  }
+
+  try {
+    const buckets = ['audio', 'pdf-readings', 'songs'];
+    const usage: Record<string, any> = {};
+
+    for (const bucket of buckets) {
+      try {
+        const { data, error } = await supabase.storage
+          .from(bucket)
+          .list('', { limit: 1000, sortBy: { column: 'created_at', order: 'desc' } });
+
+        if (error) {
+          usage[bucket] = { error: error.message };
+        } else {
+          const files = data || [];
+          const totalSize = files.reduce((sum, f) => sum + (f.metadata?.size || 0), 0);
+
+          usage[bucket] = {
+            fileCount: files.length,
+            totalSizeMB: (totalSize / (1024 * 1024)).toFixed(2),
+            recentFiles: files.slice(0, 5).map(f => ({
+              name: f.name,
+              size: f.metadata?.size,
+              created: f.created_at,
+            })),
+          };
+        }
+      } catch (bucketErr: any) {
+        usage[bucket] = { error: bucketErr.message };
+      }
+    }
+
+    return c.json({
+      buckets: usage,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
   }
 });
 
