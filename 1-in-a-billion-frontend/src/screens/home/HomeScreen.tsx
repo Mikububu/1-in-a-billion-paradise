@@ -1504,7 +1504,8 @@ const styles = StyleSheet.create({
   },
   uploadPhotoPrompt: {
     position: 'absolute',
-    right: -80,
+    left: '100%',
+    marginLeft: 12,
     top: '50%',
     transform: [{ translateY: -12 }],
     paddingVertical: 4,
@@ -1524,7 +1525,8 @@ const styles = StyleSheet.create({
   },
   claymationImageSmall: {
     position: 'absolute',
-    right: -50,
+    left: '100%',
+    marginLeft: 12,
     top: '50%',
     transform: [{ translateY: -18 }],
     width: 36,

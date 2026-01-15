@@ -9,9 +9,38 @@
  */
 
 import axios from 'axios';
+import * as fs from 'fs';
+import * as path from 'path';
 import { getApiKey } from './apiKeys';
 import { env } from '../config/env';
 import { createSupabaseServiceClient } from './supabaseClient';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EXAMPLE IMAGES (loaded at startup for style reference)
+// ═══════════════════════════════════════════════════════════════════════════
+
+let exampleImagesBase64: string[] = [];
+
+function loadExampleImages() {
+  if (exampleImagesBase64.length > 0) return; // Already loaded
+  
+  const examplesDir = path.join(__dirname, '../../assets/example-claymation');
+  try {
+    if (fs.existsSync(examplesDir)) {
+      const files = fs.readdirSync(examplesDir).filter(f => /\.(jpg|jpeg|png)$/i.test(f));
+      exampleImagesBase64 = files.slice(0, 3).map(file => {
+        const buffer = fs.readFileSync(path.join(examplesDir, file));
+        return buffer.toString('base64');
+      });
+      console.log(`📸 [Claymation] Loaded ${exampleImagesBase64.length} example images for style reference`);
+    }
+  } catch (err) {
+    console.warn('⚠️ [Claymation] Could not load example images:', err);
+  }
+}
+
+// Load on module init
+loadExampleImages();
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CLAYMATION PROMPT (from CLAYMATION_PORTRAIT.md)
@@ -27,7 +56,9 @@ Use soft directional lighting that creates warm natural shadows and emphasizes p
 
 The overall look must feel fully analog and handmade using the visual language of clay, carved plaster, linoleum collage, and aged paper.
 
-AVOID: Any digital smoothness, gloss, airbrushing, typography, symbols, text, borders, stamps, or graphic elements.
+CRITICAL: The background MUST be pure white (#FFFFFF). No colored backgrounds, no gradients, no textures in the background - just clean white.
+
+AVOID: Any digital smoothness, gloss, airbrushing, typography, symbols, text, borders, stamps, or graphic elements. No aged paper or canvas backgrounds - the background must be WHITE.
 
 The image should feel like a photographed physical sculpture rather than a digital illustration, grounded in a philosophical artisanal and material driven aesthetic.`;
 
@@ -38,6 +69,7 @@ The image should feel like a photographed physical sculpture rather than a digit
 export interface ClaymationResult {
   success: boolean;
   imageUrl?: string;
+  originalUrl?: string;
   storagePath?: string;
   error?: string;
   cost?: number;
@@ -71,23 +103,67 @@ export async function generateClaymationPortrait(
     }
 
     console.log('🎨 [Claymation] Starting portrait generation...');
+    
+    // Ensure example images are loaded
+    loadExampleImages();
 
     // ─────────────────────────────────────────────────────────────────────
-    // STEP 1: Analyze photo with GPT-4o Vision
+    // STEP 0: Store original image first
+    // ─────────────────────────────────────────────────────────────────────
+    console.log('📸 [Claymation] Step 0: Storing original image...');
+    
+    const originalBuffer = Buffer.from(photoBase64, 'base64');
+    const originalPath = `${userId}/${personId || 'self'}/original.jpg`;
+    
+    const { error: originalUploadError } = await supabase.storage
+      .from('profile-images')
+      .upload(originalPath, originalBuffer, {
+        contentType: 'image/jpeg',
+        upsert: true,
+      });
+    
+    let originalUrl: string | undefined;
+    if (!originalUploadError) {
+      const { data: originalUrlData } = supabase.storage
+        .from('profile-images')
+        .getPublicUrl(originalPath);
+      originalUrl = originalUrlData.publicUrl;
+      console.log('✅ [Claymation] Original stored at:', originalUrl);
+    } else {
+      console.warn('⚠️ [Claymation] Could not store original:', originalUploadError.message);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // STEP 1: Analyze photo with GPT-4o Vision (with style examples)
     // ─────────────────────────────────────────────────────────────────────
     console.log('👁️ [Claymation] Step 1: Analyzing photo with GPT-4o Vision...');
     
-    const analysisResponse = await axios.post(
-      'https://api.openai.com/v1/chat/completions',
+    // Build content array with user photo and optional style examples
+    const contentArray: any[] = [
       {
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: `Describe this person's appearance for an artist who will create a clay sculpture portrait. Include:
+        type: 'text',
+        text: `You are helping create a claymation portrait. First, study these example claymation images to understand the desired aesthetic style:`
+      }
+    ];
+    
+    // Add example images as style references
+    if (exampleImagesBase64.length > 0) {
+      console.log(`📸 [Claymation] Including ${exampleImagesBase64.length} style examples...`);
+      for (const exampleB64 of exampleImagesBase64) {
+        contentArray.push({
+          type: 'image_url',
+          image_url: {
+            url: `data:image/jpeg;base64,${exampleB64}`,
+            detail: 'low' // Low detail for style examples to save tokens
+          }
+        });
+      }
+    }
+    
+    // Add the actual user photo and analysis request
+    contentArray.push({
+      type: 'text',
+      text: `Now, describe the following person's appearance for an artist who will create a clay sculpture portrait in the SAME STYLE as the examples above. Include:
 - Face shape (oval, round, square, heart-shaped, etc.)
 - Hair color, length, and style
 - Eye color and shape
@@ -97,16 +173,25 @@ export async function generateClaymationPortrait(
 - Approximate age range
 - Gender presentation
 
-Be specific and detailed but neutral. This description will be used to create an artistic claymation portrait.`
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:image/jpeg;base64,${photoBase64}`,
-                  detail: 'high'
-                }
-              }
-            ]
+Be specific and detailed but neutral. This description will be used to create an artistic claymation portrait matching the aesthetic of the examples.`
+    });
+    
+    contentArray.push({
+      type: 'image_url',
+      image_url: {
+        url: `data:image/jpeg;base64,${photoBase64}`,
+        detail: 'high'
+      }
+    });
+    
+    const analysisResponse = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'user',
+            content: contentArray
           }
         ],
         max_tokens: 500,
@@ -116,7 +201,7 @@ Be specific and detailed but neutral. This description will be used to create an
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
-        timeout: 60000,
+        timeout: 90000, // Increased for multiple images
       }
     );
 
@@ -138,7 +223,7 @@ ${description}
 
 ${CLAYMATION_STYLE_PROMPT}
 
-The portrait should be a bust (head and shoulders), centered, with a neutral background that looks like aged paper or canvas.`;
+The portrait should be a bust (head and shoulders), centered, on a PURE WHITE BACKGROUND. No textures, no gradients, no aged paper - just clean white (#FFFFFF).`;
 
     const dalleResponse = await axios.post(
       'https://api.openai.com/v1/images/generations',
@@ -168,7 +253,7 @@ The portrait should be a bust (head and shoulders), centered, with a neutral bac
     console.log('✅ [Claymation] Image generated successfully');
 
     // ─────────────────────────────────────────────────────────────────────
-    // STEP 3: Upload to Supabase Storage
+    // STEP 3: Upload claymation to Supabase Storage
     // ─────────────────────────────────────────────────────────────────────
     const imageBuffer = Buffer.from(generatedImageB64, 'base64');
     const storagePath = `${userId}/${personId || 'self'}/claymation.png`;
@@ -201,21 +286,25 @@ The portrait should be a bust (head and shoulders), centered, with a neutral bac
     if (personId) {
       const { error: updateError } = await supabase
         .from('library_people')
-        .update({ claymation_url: imageUrl })
+        .update({ 
+          claymation_url: imageUrl,
+          original_photo_url: originalUrl,
+        })
         .eq('id', personId);
 
       if (updateError) {
         console.warn('⚠️ [Claymation] Could not update library_people:', updateError);
       } else {
-        console.log('✅ [Claymation] Updated library_people.claymation_url');
+        console.log('✅ [Claymation] Updated library_people with both URLs');
       }
     }
 
     return {
       success: true,
       imageUrl,
+      originalUrl,
       storagePath,
-      cost: 0.10, // Approximate: $0.02 vision + $0.08 DALL-E 3 HD
+      cost: 0.12, // Approximate: $0.04 vision (with examples) + $0.08 DALL-E 3 HD
     };
 
   } catch (error: any) {
