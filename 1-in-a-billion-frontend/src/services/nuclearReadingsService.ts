@@ -40,10 +40,10 @@ export type JobArtifact = {
     docNum?: number;
     system?: string;
     wordCount?: number;
-    kind?: string;
-    lyrics?: string;
-    duration?: number;
-    style?: string;
+    kind?: string; // e.g. "combined" for audiobook, if set by backend
+    lyrics?: string; // For song artifacts
+    duration?: number; // For song artifacts
+    style?: string; // For song artifacts
   };
   created_at: string;
 };
@@ -51,7 +51,7 @@ export type JobArtifact = {
 export type NuclearReading = {
   job: NuclearJob;
   artifacts: JobArtifact[];
-  texts: { [taskId: string]: string };
+  texts: { [taskId: string]: string }; // Loaded text content
 };
 
 // Fetch all nuclear jobs for current user
@@ -87,7 +87,7 @@ export const fetchNuclearJobs = async (): Promise<NuclearJob[]> => {
   }
 };
 
-// Fetch artifacts for a job (direct Supabase query)
+// Fetch artifacts for a job
 export const fetchJobArtifacts = async (
   jobId: string,
   artifactTypes?: Array<JobArtifact['artifact_type']>
@@ -108,8 +108,10 @@ export const fetchJobArtifacts = async (
     const { data, error } = await q;
 
     if (error) {
+      // Silently handle errors - don't show to user, just return empty array
+      // Only log in dev mode for debugging
       if (__DEV__) {
-        console.warn('Error fetching artifacts:', error.message);
+        console.warn('Error fetching artifacts (silent):', error.message);
       }
       return [];
     }
@@ -144,6 +146,7 @@ export type SoulJourneyChapter = {
 };
 
 export const buildSoulJourneyChapters = (artifacts: JobArtifact[]): SoulJourneyChapter[] => {
+  // Group artifacts by docNum when available. If docNum missing, fall back to created_at order.
   const byDoc = new Map<number, SoulJourneyChapter>();
   const fallback: SoulJourneyChapter[] = [];
 
@@ -167,6 +170,7 @@ export const buildSoulJourneyChapters = (artifacts: JobArtifact[]): SoulJourneyC
     byDoc.set(docNum, next);
   };
 
+  // Sort stable by created_at so fallbacks are deterministic
   const sorted = [...artifacts].sort((a, b) => (Date.parse(a.created_at) || 0) - (Date.parse(b.created_at) || 0));
 
   for (const a of sorted) {
@@ -215,6 +219,7 @@ export const downloadTextContent = async (storagePath: string): Promise<string |
       return null;
     }
 
+    // Convert Blob to text using FileReader (React Native compatible)
     return new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -236,6 +241,7 @@ export const downloadTextContent = async (storagePath: string): Promise<string |
 // Fetch complete nuclear reading with all texts
 export const fetchNuclearReading = async (jobId: string): Promise<NuclearReading | null> => {
   try {
+    // Get job
     const { data: job, error: jobError } = await supabase
       .from('jobs')
       .select('*')
@@ -247,8 +253,10 @@ export const fetchNuclearReading = async (jobId: string): Promise<NuclearReading
       return null;
     }
 
+    // Get artifacts (all types)
     const artifacts = await fetchJobArtifacts(jobId);
 
+    // Download all text content
     const texts: { [taskId: string]: string } = {};
     for (const artifact of artifacts) {
       const content = await downloadTextContent(artifact.storage_path);
@@ -278,3 +286,4 @@ export const getNuclearReadingsSummary = async () => {
     isComplete: job.status === 'complete',
   }));
 };
+

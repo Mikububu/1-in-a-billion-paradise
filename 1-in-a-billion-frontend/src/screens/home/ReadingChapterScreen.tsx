@@ -1,17 +1,15 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions, Animated } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { env } from '@/config/env';
 import { downloadTextContent, fetchJobArtifacts } from '@/services/nuclearReadingsService';
-import { downloadAudioFromUrl, shareAudioFile } from '@/services/audioDownload';
 import { BackButton } from '@/components/BackButton';
 import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
 import { AudioPlayerSection } from '@/components/AudioPlayerSection';
 import { SystemEssence } from '@/components/SystemEssence';
-import { CountdownOverlay } from '@/components/CountdownOverlay';
 import { colors, layout, radii, spacing, typography } from '@/theme/tokens';
 import { useProfileStore } from '@/store/profileStore';
 
@@ -22,10 +20,6 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
   const { width: windowW } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const person = useProfileStore((s) => (personId ? s.getPerson(personId) : undefined));
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReadingChapterScreen.tsx:21',message:'Screen initialized',data:{personName,jobId:jobId?.substring(0,8),systemId,docNum,nextChapterSystem:nextChapter?.systemId,nextChapterDocNum:nextChapter?.docNum},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,E'})}).catch(()=>{});
-  // #endregion
 
   const nextSystemIcon = useMemo(() => {
     const sid = String(nextChapter?.systemId || '');
@@ -49,7 +43,6 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
   const [songReady, setSongReady] = useState<boolean>(false);
   const [pdfChecked, setPdfChecked] = useState<boolean>(false);
   const [audioChecked, setAudioChecked] = useState<boolean>(false);
-  const [downloading, setDownloading] = useState<boolean>(false);
   const pdfReadyRef = useRef(false);
   const audioReadyRef = useRef(false);
   const songReadyRef = useRef(false);
@@ -91,9 +84,6 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         // Try new artifact system first
         const artifacts = await fetchJobArtifacts(jobId, ['text']);
         console.log(`📚 Found ${artifacts.length} text artifacts in job_artifacts table`);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReadingChapterScreen.tsx:91',message:'Text artifacts fetched',data:{jobId,systemId,docNum,artifactsCount:artifacts.length,artifactSystems:artifacts.map(a=>(a.metadata as any)?.system),artifactDocNums:artifacts.map(a=>(a.metadata as any)?.docNum)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         
         const textArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
@@ -140,25 +130,14 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         setLoadingSongLyrics(true);
         console.log(`🎵 Loading song lyrics for jobId=${jobId}, systemId=${systemId}, docNum=${docNum}`);
         const artifacts = await fetchJobArtifacts(jobId, ['audio_song']);
-        console.log(`🎶 Found ${artifacts.length} song artifacts for doc ${docNum}`);
+        console.log(`🎶 Found ${artifacts.length} song artifacts`);
         const songArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
-          const metaDocNum = Number(meta?.docNum);
-          const targetDocNum = Number(docNum);
-          
-          // Match by docNum first (required)
-          if (metaDocNum !== targetDocNum) return false;
-          
-          // For verdict: systemId is 'verdict' but artifact has system: null
-          if (systemId === 'verdict') {
-            const matches = !meta?.system || meta?.system === 'verdict';
-            if (matches) console.log(`✅ Found matching song artifact (verdict)`);
-            return matches;
-          }
-          
-          const matches = meta?.system === systemId;
-          if (matches) console.log(`✅ Found matching song artifact (${systemId})`);
-          return matches;
+          if (Number(meta?.docNum) !== Number(docNum)) return false;
+          // Verdict: systemId='verdict' but artifact has system:null
+          const sysMatch = systemId === 'verdict' ? !meta?.system : meta?.system === systemId;
+          if (sysMatch) console.log(`✅ Found matching song artifact`);
+          return sysMatch;
         });
         const lyrics = (songArtifact?.metadata as any)?.lyrics;
         if (mounted) {
@@ -177,7 +156,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     return () => { mounted = false; };
   }, [jobId, systemId, docNum]);
 
-  // Check if PDF is ready (by checking artifacts table)
+  // Check if PDF is ready (with polling until ready)
   useEffect(() => {
     let mounted = true;
     let interval: any;
@@ -185,32 +164,26 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     const checkPdf = async () => {
       if (!mounted || pdfReadyRef.current) return;
       try {
-        console.log(`🔍 Checking PDF artifacts for doc ${docNum}...`);
         const artifacts = await fetchJobArtifacts(jobId, ['pdf']);
         const pdfArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
           return meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
         });
-        
         if (mounted) {
           const ready = !!pdfArtifact?.storage_path;
           if (ready) {
-            console.log(`✅ PDF ready!`);
+            console.log(`📄 PDF ready!`);
             pdfReadyRef.current = true;
             setPdfReady(true);
             if (interval) clearInterval(interval);
           } else {
-            console.log(`❌ PDF not ready yet`);
             setPdfReady(false);
           }
           setPdfChecked(true);
         }
       } catch (error: any) {
-        console.error(`❌ PDF check failed:`, error.message);
-        if (mounted) {
-          setPdfReady(false);
-          setPdfChecked(true);
-        }
+        console.error(`❌ Failed to check PDF:`, error.message);
+        if (mounted) setPdfReady(false);
       }
     };
     
@@ -231,7 +204,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     };
   }, [jobId, systemId, docNum]);
 
-  // Check if audio is ready (by checking artifacts table)
+  // Check if audio is ready (with polling until ready)
   useEffect(() => {
     let mounted = true;
     let interval: any;
@@ -239,32 +212,26 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     const checkAudio = async () => {
       if (!mounted || audioReadyRef.current) return;
       try {
-        console.log(`🔍 Checking audio artifacts for doc ${docNum}...`);
         const artifacts = await fetchJobArtifacts(jobId, ['audio_mp3', 'audio_m4a']);
         const audioArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
           return meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
         });
-        
         if (mounted) {
           const ready = !!audioArtifact?.storage_path;
           if (ready) {
-            console.log(`✅ Audio ready!`);
+            console.log(`🎙️ Audio ready!`);
             audioReadyRef.current = true;
             setAudioReady(true);
             if (interval) clearInterval(interval);
           } else {
-            console.log(`❌ Audio not ready yet`);
             setAudioReady(false);
           }
           setAudioChecked(true);
         }
       } catch (error: any) {
-        console.error(`❌ Audio check failed:`, error.message);
-        if (mounted) {
-          setAudioReady(false);
-          setAudioChecked(true);
-        }
+        console.error(`❌ Failed to check audio:`, error.message);
+        if (mounted) setAudioReady(false);
       }
     };
     
@@ -296,28 +263,18 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         const artifacts = await fetchJobArtifacts(jobId, ['audio_song']);
         const songArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
-          const metaDocNum = Number(meta?.docNum);
-          const targetDocNum = Number(docNum);
-          
-          // Match by docNum first (required)
-          if (metaDocNum !== targetDocNum) return false;
-          
-          // For verdict: systemId is 'verdict' but artifact has system: null
-          if (systemId === 'verdict') {
-            return !meta?.system || meta?.system === 'verdict';
-          }
-          
-          return meta?.system === systemId;
+          if (Number(meta?.docNum) !== Number(docNum)) return false;
+          // Verdict: systemId='verdict' but artifact has system:null
+          return systemId === 'verdict' ? !meta?.system : meta?.system === systemId;
         });
         if (mounted) {
           const ready = !!songArtifact?.storage_path;
           if (ready) {
-            console.log(`🎵 Song ready for doc ${docNum}!`);
+            console.log(`🎵 Song ready!`);
             songReadyRef.current = true;
             setSongReady(true);
             if (interval) clearInterval(interval);
           } else {
-            console.log(`⏳ Song not ready for doc ${docNum}, system: ${systemId}`);
             setSongReady(false);
           }
         }
@@ -343,26 +300,6 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     };
   }, [jobId, systemId, docNum]);
 
-  // Compute: main media ready (text, audio, PDF all ready)
-  const mainMediaReady = useMemo(() => {
-    // All three must be ready: text loaded, audio ready, PDF ready
-    return !loadingText && !!text && text.length > 0 && audioReady && pdfReady;
-  }, [loadingText, text, audioReady, pdfReady]);
-
-  // Compute: ALL media ready including song (for "download both audios" UX)
-  const allMediaReady = useMemo(() => {
-    // If this reading expects a song, we require BOTH:
-    // - song audio artifact ready
-    // - lyrics ready
-    //
-    // Otherwise, we only require main media ready (text + narration audio + PDF).
-    const expectsSong = loadingSongLyrics || songReady || (!!songLyrics && songLyrics.length > 0);
-
-    if (!expectsSong) return mainMediaReady;
-
-    return mainMediaReady && songReady && !loadingSongLyrics && !!songLyrics && songLyrics.length > 0;
-  }, [mainMediaReady, loadingSongLyrics, songLyrics, songReady]);
-
   const niceTimestamp = useMemo(() => {
     if (!timestamp) return '';
     try {
@@ -385,48 +322,6 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     return Math.max(130, w);
   }, [windowW]);
 
-  // Download both audio files (narration + song)
-  const handleDownloadAudios = async () => {
-    if (downloading || !allMediaReady) return;
-    
-    setDownloading(true);
-    try {
-      const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-      const baseName = `${sanitize(personName)}_${sanitize(systemName)}_doc${docNum}`;
-      
-      // Download narration audio
-      const narrationFileName = `${baseName}_narration`;
-      console.log(`📥 Downloading narration: ${narrationUrl}`);
-      const narrationPath = await downloadAudioFromUrl(narrationUrl, narrationFileName);
-      console.log(`✅ Narration downloaded: ${narrationPath}`);
-      
-      // Download song audio
-      const songFileName = `${baseName}_song`;
-      console.log(`📥 Downloading song: ${songUrl}`);
-      const songPath = await downloadAudioFromUrl(songUrl, songFileName);
-      console.log(`✅ Song downloaded: ${songPath}`);
-      
-      // Share both files (user can save to Files app, etc.)
-      const shared = await shareAudioFile(narrationPath, `${personName} - ${systemName} - Narration`);
-      if (shared) {
-        // After sharing narration, offer to share song
-        setTimeout(async () => {
-          await shareAudioFile(songPath, `${personName} - ${systemName} - Song`);
-        }, 500);
-      }
-      
-      Alert.alert(
-        'Download Complete',
-        `Both audio files downloaded:\n• Narration\n• Song\n\nYou can find them in your Files app.`
-      );
-    } catch (error: any) {
-      console.error('❌ Download error:', error);
-      Alert.alert('Download Failed', error.message || 'Could not download audio files. Please try again.');
-    } finally {
-      setDownloading(false);
-    }
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <BackButton onPress={() => navigation.goBack()} />
@@ -443,30 +338,22 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         <View style={styles.contentWrapper}>
           {/* Title row */}
           <View style={styles.titleRow}>
-          {/* PDF/Download buttons - show when PDF + audio ready */}
-          {mainMediaReady ? (
-            <View style={styles.titleButtonsCol}>
-              <TouchableOpacity 
-                style={styles.headerYellowButton} 
-                onPress={() => {}}
-              >
-                <Text style={styles.headerYellowText}>PDF</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.headerYellowButton, downloading && styles.headerYellowButtonDisabled]} 
-                onPress={handleDownloadAudios}
-                disabled={downloading}
-              >
-                {downloading ? (
-                  <ActivityIndicator size="small" color="#111827" />
-                ) : (
-                  <Text style={styles.headerYellowText}>↓</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.titleButtonsCol} />
-          )}
+          <View style={styles.titleButtonsCol}>
+            <TouchableOpacity 
+              style={[styles.headerYellowButton, !pdfReady && styles.headerYellowButtonDisabled]} 
+              onPress={() => {}}
+              disabled={!pdfReady}
+            >
+              <Text style={[styles.headerYellowText, !pdfReady && styles.headerYellowTextDisabled]}>PDF</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.headerYellowButton, !pdfReady && styles.headerYellowButtonDisabled]} 
+              onPress={() => {}}
+              disabled={!pdfReady}
+            >
+              <Text style={[styles.headerYellowText, !pdfReady && styles.headerYellowTextDisabled]}>↓</Text>
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.titleBlock}>
             <Text style={styles.title} numberOfLines={2}>{personName}</Text>
@@ -483,30 +370,24 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
 
         {/* Audio players - modular components */}
         <View style={styles.card}>
-          {/* Timer overlay should stay until MAIN reading media is ready (text + PDF + narration audio). */}
-          <CountdownOverlay jobId={jobId} allMediaReady={mainMediaReady} />
-
           <AudioPlayerSection
             audioUrl={narrationUrl}
             text={text}
             loadingText={loadingText}
             type="narration"
-            // Rule: narration must NOT play until main reading media is ready (PDF + narration + text).
-            controlsDisabled={!mainMediaReady}
-            textNotReady={!!text && !loadingText && !mainMediaReady}
+            textNotReady={!!text && !loadingText && (!pdfChecked || !audioChecked || !pdfReady || !audioReady)}
           />
 
           <View style={styles.musicSpacer} />
+
           <AudioPlayerSection
             audioUrl={songUrl}
             text={songLyrics}
             loadingText={loadingSongLyrics}
             type="song"
-            // Song can become playable as soon as the song audio is ready.
             controlsDisabled={!songReady}
-            textNotReady={!!songLyrics && !loadingSongLyrics && !songReady}
+            textNotReady={!!songLyrics && !loadingSongLyrics && (!songReady || !pdfReady || !audioReady)}
           />
-        </View>
         </View>
 
         {/* Bottom navigation buttons */}
@@ -548,7 +429,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
               </Text>
             </TouchableOpacity>
           </View>
-        )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -579,24 +460,19 @@ const styles = StyleSheet.create({
   },
 
   titleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  titleButtonsCol: { width: 50, gap: 8, marginLeft: 20 },
+  titleButtonsCol: { width: 40, gap: 6, marginLeft: 24 },
   headerYellowButton: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderRadius: 8,
-    paddingVertical: 6,
+    paddingVertical: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    height: 40,
-    width: 45,
+    height: 28,
+    width: 36,
     borderWidth: 2,
     borderColor: '#111827',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
   },
-  headerYellowText: { fontFamily: typography.sansSemiBold, color: '#111827', fontSize: 14 },
+  headerYellowText: { fontFamily: typography.sansSemiBold, color: '#111827', fontSize: 12 },
   headerYellowButtonDisabled: {
     backgroundColor: '#f5f5f5',
     borderColor: '#d0d0d0',
@@ -615,7 +491,7 @@ const styles = StyleSheet.create({
   },
   titleRightSpacer: { width: 40 },
 
-  card: { backgroundColor: 'transparent', borderRadius: 16, padding: 16, marginBottom: 16, position: 'relative' },
+  card: { backgroundColor: 'transparent', borderRadius: 16, padding: 16, marginBottom: 16 },
   musicSpacer: { height: 18 },
 
   bottomCtasRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, width: '100%' },
