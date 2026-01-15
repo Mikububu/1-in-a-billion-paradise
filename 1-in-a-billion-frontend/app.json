@@ -36,6 +36,8 @@
       "expo-audio",
       "expo-video",
       "expo-apple-authentication",
+      "expo-image-picker",
+      "expo-dev-client",
       [
         "@stripe/stripe-react-native",
         {
