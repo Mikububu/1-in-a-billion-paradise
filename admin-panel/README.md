@@ -142,8 +142,16 @@ All admin routes require authentication and appropriate permissions.
 ### Queue Status (NEW)
 - `GET /api/admin/queue/status` - Get job queue status by status and task type
 
-### Storage Usage (NEW)
+### Storage Usage
 - `GET /api/admin/storage/usage` - Get Supabase storage bucket usage
+
+### Cost Tracking (NEW)
+- `GET /api/admin/costs/today` - Today's costs breakdown
+- `GET /api/admin/costs/month` - This month's costs breakdown
+- `GET /api/admin/costs/range` - Custom date range costs
+- `GET /api/admin/costs/logs` - Recent cost log entries
+- `GET /api/admin/costs/pricing` - Current pricing configuration
+- `GET /api/admin/costs/by-job/:id` - Detailed costs for a specific job
 
 ---
 
@@ -211,12 +219,32 @@ query { myself { creditBalance currentSpendPerHr } }
 ### AdminDashboard.tsx
 Main dashboard with tabbed navigation:
 - Overview (recent changes, quick stats)
+- **Costs (NEW)** - Token usage, costs by provider, job costs
 - API Services (balances, status)
 - Job Queue (live monitoring)
 - LLM Config (per-system providers)
 - Subscriptions ($9.90/year management)
 - Storage (bucket usage)
 - System Config (feature flags, settings)
+
+### CostTrackingPanel.tsx (NEW)
+Track costs for all API calls:
+- Today's costs vs. This month
+- Breakdown by provider (Claude, DeepSeek, OpenAI, RunPod)
+- Recent cost log entries with token counts
+- Top jobs by cost
+- Pricing reference table
+
+---
+
+## API Pricing (Jan 2026)
+
+| Provider | Input (per 1M tokens) | Output (per 1M tokens) |
+|----------|----------------------|------------------------|
+| **DeepSeek** | $0.14 | $0.28 |
+| **Claude Sonnet 4** | $3.00 | $15.00 |
+| **OpenAI GPT-4o** | $2.50 | $10.00 |
+| **RunPod** | ~$0.0004/sec | ~$0.024/min |
 
 ### APIServicesPanel.tsx
 Shows status and balances for all external services:

@@ -14,6 +14,7 @@ import { SYSTEM_LLM_PROVIDERS, type LLMProviderName, type ReadingSystem } from '
 import { llm, llmPaid } from '../services/llm';
 import { apiKeys } from '../services/apiKeysHelper';
 import { env } from '../config/env';
+import { getTodayCosts, getMonthCosts, getCostSummary, LLM_PRICING, RUNPOD_PRICING } from '../services/costTracking';
 
 const router = new Hono();
 
@@ -1260,6 +1261,200 @@ router.get('/storage/usage', requirePermission('system', 'read'), async (c) => {
     return c.json({
       buckets: usage,
       timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// COST TRACKING
+// ───────────────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/admin/costs/today
+ * Get today's costs breakdown
+ */
+router.get('/costs/today', requirePermission('analytics', 'read'), async (c) => {
+  try {
+    const summary = await getTodayCosts();
+    if (!summary) {
+      return c.json({ error: 'Failed to fetch costs' }, 500);
+    }
+    return c.json(summary);
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+/**
+ * GET /api/admin/costs/month
+ * Get this month's costs breakdown
+ */
+router.get('/costs/month', requirePermission('analytics', 'read'), async (c) => {
+  try {
+    const summary = await getMonthCosts();
+    if (!summary) {
+      return c.json({ error: 'Failed to fetch costs' }, 500);
+    }
+    return c.json(summary);
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+/**
+ * GET /api/admin/costs/range
+ * Get costs for a custom date range
+ */
+router.get('/costs/range', requirePermission('analytics', 'read'), async (c) => {
+  try {
+    const startStr = c.req.query('start');
+    const endStr = c.req.query('end');
+
+    if (!startStr || !endStr) {
+      return c.json({ error: 'start and end query params required (ISO date strings)' }, 400);
+    }
+
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return c.json({ error: 'Invalid date format' }, 400);
+    }
+
+    const summary = await getCostSummary(start, end);
+    if (!summary) {
+      return c.json({ error: 'Failed to fetch costs' }, 500);
+    }
+    return c.json(summary);
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+/**
+ * GET /api/admin/costs/logs
+ * Get recent cost log entries
+ */
+router.get('/costs/logs', requirePermission('analytics', 'read'), async (c) => {
+  const supabase = createSupabaseServiceClient();
+  if (!supabase) {
+    return c.json({ error: 'Database connection failed' }, 500);
+  }
+
+  try {
+    const limit = parseInt(c.req.query('limit') || '100');
+    const provider = c.req.query('provider');
+    const jobId = c.req.query('jobId');
+
+    let query = supabase
+      .from('cost_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(Math.min(limit, 500));
+
+    if (provider) {
+      query = query.eq('provider', provider);
+    }
+    if (jobId) {
+      query = query.eq('job_id', jobId);
+    }
+
+    const { data: logs, error } = await query;
+
+    if (error) {
+      return c.json({ error: 'Failed to fetch cost logs' }, 500);
+    }
+
+    return c.json({
+      logs: logs || [],
+      count: logs?.length || 0,
+    });
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+/**
+ * GET /api/admin/costs/pricing
+ * Get current pricing configuration
+ */
+router.get('/costs/pricing', requirePermission('analytics', 'read'), async (c) => {
+  return c.json({
+    llm: LLM_PRICING,
+    runpod: RUNPOD_PRICING,
+    note: 'Prices in USD. LLM prices are per 1M tokens.',
+  });
+});
+
+/**
+ * GET /api/admin/costs/by-job/:jobId
+ * Get detailed costs for a specific job
+ */
+router.get('/costs/by-job/:jobId', requirePermission('analytics', 'read'), async (c) => {
+  const supabase = createSupabaseServiceClient();
+  if (!supabase) {
+    return c.json({ error: 'Database connection failed' }, 500);
+  }
+
+  const jobId = c.req.param('jobId');
+
+  try {
+    // Get job info
+    const { data: job, error: jobError } = await supabase
+      .from('jobs')
+      .select('id, type, status, total_cost_usd, cost_breakdown, created_at, completed_at')
+      .eq('id', jobId)
+      .single();
+
+    if (jobError || !job) {
+      return c.json({ error: 'Job not found' }, 404);
+    }
+
+    // Get cost logs for this job
+    const { data: logs, error: logsError } = await supabase
+      .from('cost_logs')
+      .select('*')
+      .eq('job_id', jobId)
+      .order('created_at', { ascending: true });
+
+    if (logsError) {
+      return c.json({ error: 'Failed to fetch cost logs' }, 500);
+    }
+
+    // Calculate summary
+    const byProvider: Record<string, { count: number; cost: number; tokens: number }> = {};
+    let totalTokens = 0;
+    let totalCost = 0;
+
+    for (const log of logs || []) {
+      const provider = log.provider;
+      if (!byProvider[provider]) {
+        byProvider[provider] = { count: 0, cost: 0, tokens: 0 };
+      }
+      byProvider[provider].count++;
+      byProvider[provider].cost += parseFloat(log.cost_usd) || 0;
+      byProvider[provider].tokens += (log.input_tokens || 0) + (log.output_tokens || 0);
+      totalTokens += (log.input_tokens || 0) + (log.output_tokens || 0);
+      totalCost += parseFloat(log.cost_usd) || 0;
+    }
+
+    return c.json({
+      job: {
+        id: job.id,
+        type: job.type,
+        status: job.status,
+        createdAt: job.created_at,
+        completedAt: job.completed_at,
+      },
+      costs: {
+        total: totalCost,
+        totalTokens,
+        byProvider,
+        breakdown: job.cost_breakdown,
+      },
+      logs: logs || [],
     });
   } catch (err: any) {
     return c.json({ error: err.message }, 500);

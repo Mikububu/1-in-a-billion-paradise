@@ -7,8 +7,9 @@ import { LLMConfigPanel } from './LLMConfigPanel';
 import { SubscriptionsPanel } from './SubscriptionsPanel';
 import { SystemConfigPanel } from './SystemConfigPanel';
 import { StorageUsagePanel } from './StorageUsagePanel';
+import { CostTrackingPanel } from './CostTrackingPanel';
 
-type TabId = 'overview' | 'services' | 'queue' | 'llm' | 'subscriptions' | 'storage' | 'config';
+type TabId = 'overview' | 'costs' | 'services' | 'queue' | 'llm' | 'subscriptions' | 'storage' | 'config';
 
 interface Tab {
   id: TabId;
@@ -18,6 +19,7 @@ interface Tab {
 
 const TABS: Tab[] = [
   { id: 'overview', label: 'Overview', icon: '📊' },
+  { id: 'costs', label: 'Costs', icon: '💰' },
   { id: 'services', label: 'API Services', icon: '🔌' },
   { id: 'queue', label: 'Job Queue', icon: '📋' },
   { id: 'llm', label: 'LLM Config', icon: '🤖' },
@@ -33,6 +35,8 @@ export function AdminDashboard() {
     switch (activeTab) {
       case 'overview':
         return <OverviewTab />;
+      case 'costs':
+        return <CostTrackingPanel />;
       case 'services':
         return <APIServicesPanel />;
       case 'queue':
