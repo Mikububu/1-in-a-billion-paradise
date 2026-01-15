@@ -15,13 +15,19 @@ import { Button } from '@/components/Button';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { BackButton } from '@/components/BackButton';
 
-// Lazy load expo-image-picker
+// Dynamic import to avoid crash in Expo Go
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let ImagePicker: any = null;
-try {
-  ImagePicker = require('expo-image-picker');
-} catch (e) {
-  console.warn('expo-image-picker not available');
+
+async function loadImagePicker() {
+  if (!ImagePicker) {
+    try {
+      ImagePicker = await import('expo-image-picker');
+    } catch (e) {
+      console.warn('expo-image-picker not available');
+    }
+  }
+  return ImagePicker;
 }
 
 type Props = NativeStackScreenProps<MainStackParamList, 'KYCPhoto'>;
@@ -38,8 +44,11 @@ export const KYCPhotoScreen = ({ navigation }: Props) => {
   const [isVerifying, setIsVerifying] = useState(false);
 
   const takePhoto = async () => {
+    // Load ImagePicker dynamically
+    const picker = await loadImagePicker();
+    
     // DEV: If ImagePicker not available, use placeholder
-    if (!ImagePicker) {
+    if (!picker) {
       const placeholderUri = `https://via.placeholder.com/200/cccccc/666666?text=Photo+${currentPose + 1}`;
       const newPhotos = [...photos];
       newPhotos[currentPose] = placeholderUri;
@@ -50,15 +59,15 @@ export const KYCPhotoScreen = ({ navigation }: Props) => {
       return;
     }
 
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    const { status } = await picker.requestCameraPermissionsAsync();
     
     if (status !== 'granted') {
       Alert.alert('Camera Required', 'We need camera access to verify your identity.');
       return;
     }
 
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    const result = await picker.launchCameraAsync({
+      mediaTypes: picker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,

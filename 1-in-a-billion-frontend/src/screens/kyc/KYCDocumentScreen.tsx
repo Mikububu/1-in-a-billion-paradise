@@ -15,13 +15,19 @@ import { Button } from '@/components/Button';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { BackButton } from '@/components/BackButton';
 
-// Lazy load expo-image-picker
+// Dynamic import to avoid crash in Expo Go
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let ImagePicker: any = null;
-try {
-  ImagePicker = require('expo-image-picker');
-} catch (e) {
-  console.warn('expo-image-picker not available');
+
+async function loadImagePicker() {
+  if (!ImagePicker) {
+    try {
+      ImagePicker = await import('expo-image-picker');
+    } catch (e) {
+      console.warn('expo-image-picker not available');
+    }
+  }
+  return ImagePicker;
 }
 
 type Props = NativeStackScreenProps<MainStackParamList, 'KYCDocument'>;
@@ -41,8 +47,11 @@ export const KYCDocumentScreen = ({ navigation }: Props) => {
   const [isUploading, setIsUploading] = useState(false);
 
   const pickImage = async (side: 'front' | 'back') => {
+    // Load ImagePicker dynamically
+    const picker = await loadImagePicker();
+    
     // DEV: If ImagePicker not available, use placeholder
-    if (!ImagePicker) {
+    if (!picker) {
       Alert.alert(
         'Dev Mode',
         'Image picker not available. Using placeholder image.',
@@ -61,11 +70,11 @@ export const KYCDocumentScreen = ({ navigation }: Props) => {
       return;
     }
 
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    const { status } = await picker.requestCameraPermissionsAsync();
     
     if (status !== 'granted') {
       // Try media library instead
-      const { status: libStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status: libStatus } = await picker.requestMediaLibraryPermissionsAsync();
       if (libStatus !== 'granted') {
         Alert.alert('Permission Required', 'We need camera or photo library access to verify your document.');
         return;
@@ -79,8 +88,8 @@ export const KYCDocumentScreen = ({ navigation }: Props) => {
         {
           text: 'Take Photo',
           onPress: async () => {
-            const result = await ImagePicker.launchCameraAsync({
-              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            const result = await picker.launchCameraAsync({
+              mediaTypes: picker.MediaTypeOptions.Images,
               allowsEditing: true,
               aspect: [3, 2],
               quality: 0.8,
@@ -94,8 +103,8 @@ export const KYCDocumentScreen = ({ navigation }: Props) => {
         {
           text: 'Choose from Library',
           onPress: async () => {
-            const result = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            const result = await picker.launchImageLibraryAsync({
+              mediaTypes: picker.MediaTypeOptions.Images,
               allowsEditing: true,
               aspect: [3, 2],
               quality: 0.8,

@@ -1498,16 +1498,12 @@ const styles = StyleSheet.create({
   // Produced By Section
   // Upload photo prompt styles
   matchCountWrapper: {
-    position: 'relative',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 12,
   },
   uploadPhotoPrompt: {
-    position: 'absolute',
-    left: '100%',
-    marginLeft: 12,
-    top: '50%',
-    transform: [{ translateY: -12 }],
     paddingVertical: 4,
     paddingHorizontal: 8,
     backgroundColor: colors.primary,
@@ -1524,11 +1520,6 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   claymationImageSmall: {
-    position: 'absolute',
-    left: '100%',
-    marginLeft: 12,
-    top: '50%',
-    transform: [{ translateY: -18 }],
     width: 36,
     height: 36,
     borderRadius: 18,
