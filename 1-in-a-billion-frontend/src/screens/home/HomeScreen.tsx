@@ -988,8 +988,8 @@ export const HomeScreen = ({ navigation }: Props) => {
           ) : (
             <>
               <Text style={styles.sectionLabel} selectable>Match status</Text>
-              {/* Match count with upload prompt next to it */}
-              <View style={styles.matchCountRow}>
+              {/* Match count centered, upload button positioned to the right */}
+              <View style={styles.matchCountWrapper}>
                 <Text style={styles.statusNumber} selectable>0</Text>
                 {!claymationPhotoUrl ? (
                   <TouchableOpacity 
@@ -1497,13 +1497,16 @@ const styles = StyleSheet.create({
   
   // Produced By Section
   // Upload photo prompt styles
-  matchCountRow: {
-    flexDirection: 'row',
+  matchCountWrapper: {
+    position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
   },
   uploadPhotoPrompt: {
+    position: 'absolute',
+    right: -80,
+    top: '50%',
+    transform: [{ translateY: -12 }],
     paddingVertical: 4,
     paddingHorizontal: 8,
     backgroundColor: colors.primary,
@@ -1520,6 +1523,10 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   claymationImageSmall: {
+    position: 'absolute',
+    right: -50,
+    top: '50%',
+    transform: [{ translateY: -18 }],
     width: 36,
     height: 36,
     borderRadius: 18,
