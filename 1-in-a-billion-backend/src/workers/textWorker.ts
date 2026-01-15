@@ -23,6 +23,7 @@ import { SpiceLevel } from '../prompts/spice/levels';
 import { gematriaService } from '../services/kabbalah/GematriaService';
 import { hebrewCalendarService } from '../services/kabbalah/HebrewCalendarService';
 import { OUTPUT_FORMAT_RULES } from '../prompts/core/output-rules';
+import { logLLMCost } from '../services/costTracking';
 
 function clampSpice(level: number): SpiceLevel {
   const clamped = Math.min(10, Math.max(1, Math.round(level)));
@@ -953,20 +954,39 @@ ${OUTPUT_FORMAT_RULES}`;
     console.log(`🔧 System "${system}" → Provider: ${configuredProvider}`);
     
     let text: string;
+    let llmInstance: typeof llm | typeof llmPaid;
     if (configuredProvider === 'claude') {
       // Use Claude Sonnet 4 via llmPaid (unhinged, no censorship)
+      llmInstance = llmPaid;
       text = await llmPaid.generate(prompt, label, { 
         maxTokens: 8192, 
         temperature: 0.8,
       });
     } else {
       // Use DeepSeek (default) or OpenAI via llm with provider override
+      llmInstance = llm;
       text = await llm.generate(prompt, label, { 
         maxTokens: 8192, 
         temperature: 0.8,
         provider: configuredProvider as LLMProvider,
       });
     }
+    
+    // 💰 LOG COST for this LLM call
+    const usageData = llmInstance.getLastUsage();
+    if (usageData) {
+      await logLLMCost(
+        jobId,
+        task.id,
+        {
+          provider: usageData.provider,
+          inputTokens: usageData.usage.inputTokens,
+          outputTokens: usageData.usage.outputTokens,
+        },
+        `text_${system || 'verdict'}_${docType}`
+      );
+    }
+    
     const wordCount = text.split(/\s+/).filter(Boolean).length;
 
     if (wordCount < 200) {

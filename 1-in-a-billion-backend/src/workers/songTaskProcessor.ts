@@ -9,6 +9,7 @@
 import { supabase } from '../services/supabaseClient';
 import { generateLyrics } from '../services/lyricsGeneration';
 import { generateSong, downloadSongAudio } from '../services/songGeneration';
+import { logCost, MINIMAX_PRICING } from '../services/costTracking';
 
 export interface SongTaskInput {
   docNum: number;        // Which document this song is for (1-16)
@@ -199,6 +200,16 @@ export async function processSongTask(task: { id: string; job_id: string; input:
     } else {
       throw new Error('No audio data available from MiniMax');
     }
+    
+    // 💰 LOG MINIMAX COST for this song generation
+    await logCost({
+      jobId: job_id,
+      taskId: task.id,
+      provider: 'minimax',
+      model: 'music-01',
+      costUsd: MINIMAX_PRICING.perSong,
+      label: `song_${system || 'verdict'}_${docType}`,
+    });
 
     // Step 5: Upload to Supabase Storage (matching frontend format)
     // Get job params to extract both person names (for synastry songs)
