@@ -988,7 +988,30 @@ export const HomeScreen = ({ navigation }: Props) => {
           ) : (
             <>
               <Text style={styles.sectionLabel} selectable>Match status</Text>
-              <Text style={styles.statusNumber} selectable>0</Text>
+              {/* Match count with upload prompt next to it */}
+              <View style={styles.matchCountRow}>
+                <Text style={styles.statusNumber} selectable>0</Text>
+                {!claymationPhotoUrl ? (
+                  <TouchableOpacity 
+                    style={styles.uploadPhotoPrompt}
+                    onPress={handleUploadPhoto}
+                    disabled={uploadingPhoto}
+                    activeOpacity={0.8}
+                  >
+                    <Animated.View style={{ opacity: blinkAnim, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Text style={styles.uploadArrow}>→</Text>
+                      <Text style={styles.uploadText}>
+                        {uploadingPhoto ? 'Creating...' : 'Upload photo'}
+                      </Text>
+                    </Animated.View>
+                  </TouchableOpacity>
+                ) : (
+                  <Image 
+                    source={{ uri: claymationPhotoUrl }} 
+                    style={styles.claymationImageSmall}
+                  />
+                )}
+              </View>
               <Animated.Text
                 style={[styles.statusSub, { transform: [{ scale: pulseAnim }] }]}
                 selectable
@@ -997,32 +1020,6 @@ export const HomeScreen = ({ navigation }: Props) => {
               </Animated.Text>
             </>
           )}
-        </View>
-
-        {/* Upload Photo Prompt */}
-        {!claymationPhotoUrl ? (
-          <TouchableOpacity 
-            style={styles.uploadPhotoPrompt}
-            onPress={handleUploadPhoto}
-            disabled={uploadingPhoto}
-            activeOpacity={0.8}
-          >
-            <Animated.View style={{ opacity: blinkAnim, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={styles.uploadArrow}>→</Text>
-              <Text style={styles.uploadText}>
-                {uploadingPhoto ? 'Creating your portrait...' : 'Upload your photograph'}
-              </Text>
-            </Animated.View>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.claymationPreview}>
-            <Image 
-              source={{ uri: claymationPhotoUrl }} 
-              style={styles.claymationImage}
-            />
-            <Text style={styles.claymationLabel}>Your portrait for matches</Text>
-          </View>
-        )}
 
         {/* MY SOULS LABORATORY CARD - Simple */}
         <TouchableOpacity
@@ -1499,40 +1496,34 @@ const styles = StyleSheet.create({
   
   // Produced By Section
   // Upload photo prompt styles
+  matchCountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
   uploadPhotoPrompt: {
-    marginTop: spacing.lg,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: '#FFE4B5',
-    borderRadius: 999,
-    alignSelf: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
   },
   uploadArrow: {
     fontFamily: typography.sansBold,
-    fontSize: 18,
-    color: '#D4A017',
+    fontSize: 10,
+    color: '#fff',
   },
   uploadText: {
     fontFamily: typography.sansSemiBold,
-    fontSize: 14,
-    color: '#8B6914',
+    fontSize: 9,
+    color: '#fff',
   },
-  claymationPreview: {
-    marginTop: spacing.lg,
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  claymationImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  claymationImageSmall: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 2,
     borderColor: colors.primary,
-  },
-  claymationLabel: {
-    fontFamily: typography.sansRegular,
-    fontSize: 12,
-    color: colors.mutedText,
   },
   
   producedBySection: {
