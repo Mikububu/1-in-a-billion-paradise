@@ -429,7 +429,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
