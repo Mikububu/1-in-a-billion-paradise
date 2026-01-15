@@ -144,7 +144,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         const songArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
           if (Number(meta?.docNum) !== Number(docNum)) return false;
-          const sysMatch = systemId === 'verdict' ? !meta?.system : meta?.system === systemId;
+          const sysMatch = systemId === 'verdict' ? (meta?.docType === 'verdict' || !meta?.system) : meta?.system === systemId;
           if (sysMatch) console.log(`✅ Found matching song artifact`);
           return sysMatch;
         });
@@ -178,7 +178,8 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         const pdfArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
           if (Number(meta?.docNum) !== Number(docNum)) return false;
-          return systemId === 'verdict' ? !meta?.system : meta?.system === systemId;
+          if (systemId === 'verdict') return meta?.docType === 'verdict' || !meta?.system;
+          return meta?.system === systemId;
         });
         
         if (mounted) {
@@ -233,7 +234,8 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         const audioArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
           if (Number(meta?.docNum) !== Number(docNum)) return false;
-          return systemId === 'verdict' ? !meta?.system : meta?.system === systemId;
+          if (systemId === 'verdict') return meta?.docType === 'verdict' || !meta?.system;
+          return meta?.system === systemId;
         });
         
         if (mounted) {
@@ -287,7 +289,8 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         const songArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
           if (Number(meta?.docNum) !== Number(docNum)) return false;
-          return systemId === 'verdict' ? !meta?.system : meta?.system === systemId;
+          if (systemId === 'verdict') return meta?.docType === 'verdict' || !meta?.system;
+          return meta?.system === systemId;
         });
         if (mounted) {
           const ready = !!songArtifact?.storage_path;
