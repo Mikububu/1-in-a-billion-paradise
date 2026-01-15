@@ -14,6 +14,7 @@
  */
 
 import { env } from '../../config/env';
+import { buildForbiddenSection } from '../core/forbidden';
 
 export const SYSTEMS = ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'] as const;
 export type SystemName = typeof SYSTEMS[number];
@@ -177,6 +178,8 @@ ${styleInstructions}
 
 ${tragicRealismLensBlock('person')}
 
+${buildForbiddenSection(style)}
+
 **CRITICAL: WRITE 1500-1800 WORDS. This is essential.**
 
 STRUCTURE (1500-1800 words total):
@@ -287,6 +290,8 @@ ${styleInstructions}
 
 ${tragicRealismLensBlock('overlay')}
 
+${buildForbiddenSection(style)}
+
 **CRITICAL: WRITE EXACTLY 2200 WORDS MINIMUM. Do NOT write less than 2200 words.**
 
 STRUCTURE (2200+ words total):
@@ -363,6 +368,8 @@ STYLE: ${style === 'spicy_surreal' ? 'SPICY SURREAL - unflinching truth' : 'PROD
 SPICE LEVEL: ${spiceLevel}/10
 
 ${tragicRealismLensBlock('verdict')}
+
+${buildForbiddenSection(style)}
 
 **CRITICAL: WRITE EXACTLY 2000 WORDS MINIMUM. Do NOT write less than 2000 words.**
 

@@ -38,6 +38,18 @@ export const FORBIDDEN_PHRASES = [
   'You will meet',
   'In the future you will',
   'Destiny awaits',
+  
+  // Repetitive LLM patterns (synastry readings)
+  'two distinct ecosystems',
+  'ecosystems collide',
+  'distinct ecosystems',
+  'two worlds collide',
+  'when two worlds',
+  'dance of opposites',
+  'cosmic dance',
+  'tapestry of',
+  'rich tapestry',
+  'woven tapestry',
 ];
 
 /**
