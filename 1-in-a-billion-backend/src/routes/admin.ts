@@ -1639,5 +1639,211 @@ router.get('/costs/by-job/:jobId', requirePermission('analytics', 'read'), async
   }
 });
 
+// ───────────────────────────────────────────────────────────────────────────
+// MATCHES & GALLERY MANAGEMENT
+// ───────────────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/admin/matches
+ * Get all matches
+ */
+router.get('/matches', async (c) => {
+  const supabase = createSupabaseServiceClient();
+  if (!supabase) return c.json({ error: 'Database not configured' }, 500);
+
+  try {
+    const { data: matches, error } = await supabase
+      .from('matches')
+      .select(`
+        id,
+        user1_id,
+        user2_id,
+        person1_id,
+        person2_id,
+        compatibility_score,
+        match_reason,
+        systems_matched,
+        status,
+        user1_seen_at,
+        user2_seen_at,
+        created_at,
+        updated_at,
+        person1:person1_id (display_name),
+        person2:person2_id (display_name)
+      `)
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error) {
+      // Table might not exist yet
+      if (error.code === '42P01') {
+        return c.json({ matches: [], error: 'Matches table not yet created. Apply migration 028.' });
+      }
+      throw error;
+    }
+
+    const formattedMatches = (matches || []).map((m: any) => ({
+      id: m.id,
+      user1_id: m.user1_id,
+      user2_id: m.user2_id,
+      person1_name: m.person1?.display_name || 'Unknown',
+      person2_name: m.person2?.display_name || 'Unknown',
+      compatibility_score: m.compatibility_score,
+      match_reason: m.match_reason,
+      systems_matched: m.systems_matched || [],
+      status: m.status,
+      created_at: m.created_at,
+    }));
+
+    return c.json({ matches: formattedMatches });
+  } catch (err: any) {
+    console.error('Admin matches error:', err);
+    return c.json({ error: err.message, matches: [] }, 500);
+  }
+});
+
+/**
+ * GET /api/admin/matches/stats
+ * Get match and gallery statistics
+ */
+router.get('/matches/stats', async (c) => {
+  const supabase = createSupabaseServiceClient();
+  if (!supabase) return c.json({ error: 'Database not configured' }, 500);
+
+  try {
+    // Gallery stats - count portraits
+    const { count: portraitCount } = await supabase
+      .from('library_people')
+      .select('*', { count: 'exact', head: true })
+      .not('claymation_url', 'is', null);
+
+    const { count: activeUsers } = await supabase
+      .from('library_people')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_self', true)
+      .gte('last_active_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+
+    const { count: recentUploads } = await supabase
+      .from('library_people')
+      .select('*', { count: 'exact', head: true })
+      .not('claymation_url', 'is', null)
+      .gte('updated_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+
+    // Match stats
+    let matchStats = {
+      total_matches: 0,
+      active_matches: 0,
+      pending_matches: 0,
+      declined_matches: 0,
+      avg_compatibility: 0,
+    };
+
+    try {
+      const { data: matches } = await supabase
+        .from('matches')
+        .select('status, compatibility_score');
+
+      if (matches && matches.length > 0) {
+        matchStats.total_matches = matches.length;
+        matchStats.active_matches = matches.filter((m: any) => m.status === 'active').length;
+        matchStats.pending_matches = matches.filter((m: any) => m.status === 'pending').length;
+        matchStats.declined_matches = matches.filter((m: any) => m.status === 'declined').length;
+        
+        const scoresWithValues = matches.filter((m: any) => m.compatibility_score != null);
+        if (scoresWithValues.length > 0) {
+          matchStats.avg_compatibility = scoresWithValues.reduce((sum: number, m: any) => sum + m.compatibility_score, 0) / scoresWithValues.length;
+        }
+      }
+    } catch {
+      // Matches table might not exist
+    }
+
+    return c.json({
+      galleryStats: {
+        total_portraits: portraitCount || 0,
+        active_users: activeUsers || 0,
+        recent_uploads: recentUploads || 0,
+      },
+      matchStats,
+    });
+  } catch (err: any) {
+    console.error('Admin matches stats error:', err);
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+/**
+ * POST /api/admin/matches/create
+ * Manually create a match (for testing)
+ */
+router.post('/matches/create', async (c) => {
+  const supabase = createSupabaseServiceClient();
+  if (!supabase) return c.json({ error: 'Database not configured' }, 500);
+
+  try {
+    const body = await c.req.json();
+    const { user1Id, user2Id, compatibilityScore, matchReason, systemsMatched } = body;
+
+    if (!user1Id || !user2Id) {
+      return c.json({ error: 'Missing user IDs' }, 400);
+    }
+
+    const { data, error } = await supabase.rpc('create_match', {
+      p_user1_id: user1Id,
+      p_user2_id: user2Id,
+      p_compatibility_score: compatibilityScore || null,
+      p_match_reason: matchReason || null,
+      p_systems_matched: JSON.stringify(systemsMatched || []),
+    });
+
+    if (error) throw error;
+
+    return c.json({ success: true, matchId: data });
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+/**
+ * GET /api/admin/gallery
+ * Get gallery of claymation portraits
+ */
+router.get('/gallery', async (c) => {
+  const supabase = createSupabaseServiceClient();
+  if (!supabase) return c.json({ error: 'Database not configured' }, 500);
+
+  const limit = parseInt(c.req.query('limit') || '50');
+  const offset = parseInt(c.req.query('offset') || '0');
+
+  try {
+    const { data, error } = await supabase
+      .from('library_people')
+      .select(`
+        id,
+        user_id,
+        display_name,
+        claymation_url,
+        placements,
+        gallery_bio,
+        last_active_at,
+        show_in_gallery,
+        created_at
+      `)
+      .not('claymation_url', 'is', null)
+      .eq('is_self', true)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+
+    return c.json({
+      gallery: data || [],
+      count: data?.length || 0,
+    });
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
 export default router;
 

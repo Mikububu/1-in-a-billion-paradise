@@ -61,6 +61,10 @@ import { HomeScreen } from '@/screens/home/HomeScreen';
 import { YourChartScreen } from '@/screens/home/YourChartScreen';
 import { MatchesScreen } from '@/screens/home/MatchesScreen';
 import { MatchDetailScreen } from '@/screens/home/MatchDetailScreen';
+import { GalleryScreen } from '@/screens/social/GalleryScreen';
+import { ChatListScreen } from '@/screens/social/ChatListScreen';
+import { ChatScreen } from '@/screens/social/ChatScreen';
+import { MatchRevealScreen } from '@/screens/social/MatchRevealScreen';
 import { PartnerInfoScreen } from '@/screens/home/PartnerInfoScreen';
 import { PartnerCoreIdentitiesScreen } from '@/screens/home/PartnerCoreIdentitiesScreen';
 import { PartnerReadingsScreen } from '@/screens/home/PartnerReadingsScreen';
@@ -151,6 +155,23 @@ export type MainStackParamList = {
   ChartCalculation: { personId?: string } | undefined;
   Matches: undefined;
   MatchDetail: { matchId: string };
+  Gallery: undefined;
+  ChatList: undefined;
+  Chat: {
+    conversationId: string;
+    otherName: string;
+    otherClaymationUrl: string | null;
+  };
+  MatchReveal: {
+    matchId: string;
+    otherName: string;
+    otherClaymationUrl: string | null;
+    userName: string;
+    userClaymationUrl: string | null;
+    compatibilityScore?: number;
+    matchReason?: string;
+    conversationId: string;
+  };
   PartnerInfo: { mode?: 'add_person_only'; returnTo?: 'ComparePeople' } | undefined;
   PartnerCoreIdentities: {
     partnerName: string;
@@ -672,6 +693,10 @@ const MainNavigator = () => {
       <MainStack.Screen name="ChartCalculation" component={ChartCalculationScreen} />
       <MainStack.Screen name="Matches" component={MatchesScreen} />
       <MainStack.Screen name="MatchDetail" component={MatchDetailScreen} />
+      <MainStack.Screen name="Gallery" component={GalleryScreen} />
+      <MainStack.Screen name="ChatList" component={ChatListScreen} />
+      <MainStack.Screen name="Chat" component={ChatScreen} />
+      <MainStack.Screen name="MatchReveal" component={MatchRevealScreen} options={{ presentation: 'fullScreenModal' }} />
       <MainStack.Screen name="PartnerInfo" component={PartnerInfoScreen} />
       <MainStack.Screen name="PartnerCoreIdentities" component={PartnerCoreIdentitiesScreen} />
       <MainStack.Screen name="PartnerReadings" component={PartnerReadingsScreen} />

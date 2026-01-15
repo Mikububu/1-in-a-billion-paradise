@@ -158,3 +158,37 @@ export const costsApi = {
   getPricing: () => adminFetch('/costs/pricing'),
   getByJob: (jobId: string) => adminFetch(`/costs/by-job/${jobId}`),
 };
+
+// Matches & Gallery
+export const matchesApi = {
+  getAll: () => adminFetch('/matches'),
+  getStats: () => adminFetch('/matches/stats'),
+  create: (data: { user1Id: string; user2Id: string; compatibilityScore?: number; matchReason?: string; systemsMatched?: string[] }) =>
+    adminFetch('/matches/create', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+export const galleryApi = {
+  list: (params?: { limit?: number; offset?: number }) => {
+    const query = new URLSearchParams(params as any).toString();
+    return adminFetch(`/gallery${query ? `?${query}` : ''}`);
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UNIFIED API CLIENT
+// ═══════════════════════════════════════════════════════════════════════════
+
+export const apiClient = {
+  dashboardApi,
+  usersApi,
+  jobsApi,
+  subscriptionsApi,
+  llmApi,
+  servicesApi,
+  queueApi,
+  systemApi,
+  storageApi,
+  costsApi,
+  matchesApi,
+  galleryApi,
+};

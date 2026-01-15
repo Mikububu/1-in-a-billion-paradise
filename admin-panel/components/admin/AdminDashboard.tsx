@@ -8,9 +8,10 @@ import { SubscriptionsPanel } from './SubscriptionsPanel';
 import { SystemConfigPanel } from './SystemConfigPanel';
 import { StorageUsagePanel } from './StorageUsagePanel';
 import { CostTrackingPanel } from './CostTrackingPanel';
+import { MatchesPanel } from './MatchesPanel';
 import { dashboardApi, getAdminToken, clearAdminToken } from '../../lib/api/client';
 
-type TabId = 'overview' | 'costs' | 'services' | 'queue' | 'llm' | 'subscriptions' | 'storage' | 'config';
+type TabId = 'overview' | 'costs' | 'services' | 'queue' | 'llm' | 'subscriptions' | 'matches' | 'storage' | 'config';
 
 interface Tab {
   id: TabId;
@@ -25,6 +26,7 @@ const TABS: Tab[] = [
   { id: 'queue', label: 'Job Queue', icon: '📋' },
   { id: 'llm', label: 'LLM Config', icon: '🤖' },
   { id: 'subscriptions', label: 'Subscriptions', icon: '💳' },
+  { id: 'matches', label: 'Matches & Gallery', icon: '💕' },
   { id: 'storage', label: 'Storage', icon: '💾' },
   { id: 'config', label: 'System Config', icon: '⚙️' },
 ];
@@ -211,6 +213,8 @@ export function AdminDashboard() {
         return <LLMConfigPanel />;
       case 'subscriptions':
         return <SubscriptionsPanel />;
+      case 'matches':
+        return <MatchesPanel />;
       case 'storage':
         return <StorageUsagePanel />;
       case 'config':
