@@ -1020,6 +1020,7 @@ export const HomeScreen = ({ navigation }: Props) => {
               </Animated.Text>
             </>
           )}
+        </View>
 
         {/* MY SOULS LABORATORY CARD - Simple */}
         <TouchableOpacity
