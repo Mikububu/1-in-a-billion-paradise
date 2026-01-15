@@ -239,7 +239,7 @@ export async function getCostSummary(
 
     // Get job details for top jobs
     const topJobIds = Object.entries(byJobId)
-      .sort((a, b) => b[1] - a[1])
+      .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
       .slice(0, 20)
       .map(([id]) => id);
 
@@ -255,7 +255,7 @@ export async function getCostSummary(
         jobType: job.type,
         totalCost: byJobId[job.id] || 0,
         createdAt: job.created_at,
-      })).sort((a, b) => b.totalCost - a.totalCost);
+      })).sort((a: { totalCost: number }, b: { totalCost: number }) => b.totalCost - a.totalCost);
     }
 
     return {

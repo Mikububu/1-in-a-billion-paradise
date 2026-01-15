@@ -1241,12 +1241,12 @@ router.get('/storage/usage', requirePermission('system', 'read'), async (c) => {
           usage[bucket] = { error: error.message };
         } else {
           const files = data || [];
-          const totalSize = files.reduce((sum, f) => sum + (f.metadata?.size || 0), 0);
+          const totalSize = files.reduce((sum: number, f: any) => sum + (f.metadata?.size || 0), 0);
 
           usage[bucket] = {
             fileCount: files.length,
             totalSizeMB: (totalSize / (1024 * 1024)).toFixed(2),
-            recentFiles: files.slice(0, 5).map(f => ({
+            recentFiles: files.slice(0, 5).map((f: any) => ({
               name: f.name,
               size: f.metadata?.size,
               created: f.created_at,
