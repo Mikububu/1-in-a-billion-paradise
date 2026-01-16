@@ -79,8 +79,8 @@ export async function getGallery(options?: {
   let query = supabase
     .from('library_people')
     .select(`
-      id,
       user_id,
+      client_person_id,
       name,
       claymation_url,
       placements,
@@ -103,7 +103,7 @@ export async function getGallery(options?: {
   }
 
   return (data || []).map((p: any) => ({
-    id: p.id,
+    id: p.client_person_id, // Use client_person_id as the unique identifier
     userId: p.user_id,
     displayName: p.name,
     claymationUrl: p.claymation_url,
@@ -126,8 +126,8 @@ export async function getRandomGallery(count: number = 20, excludeUserId?: strin
   let query = supabase
     .from('library_people')
     .select(`
-      id,
       user_id,
+      client_person_id,
       name,
       claymation_url,
       placements,
@@ -152,7 +152,7 @@ export async function getRandomGallery(count: number = 20, excludeUserId?: strin
   const shuffled = (data || []).sort(() => Math.random() - 0.5).slice(0, count);
 
   return shuffled.map((p: any) => ({
-    id: p.id,
+    id: p.client_person_id, // Use client_person_id as the unique identifier
     userId: p.user_id,
     displayName: p.name,
     claymationUrl: p.claymation_url,
