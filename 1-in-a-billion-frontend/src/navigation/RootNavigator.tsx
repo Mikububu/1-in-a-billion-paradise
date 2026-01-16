@@ -828,36 +828,41 @@ export const RootNavigator = () => {
 
   // CRITICAL FIX: Continue onboarding if not completed, BUT check if user is actually a returning user
   const shouldContinueOnboarding = hasSession && !hasCompletedOnboarding;
-
-  if (shouldContinueOnboarding) {
-    // SAFETY CHECK: Detect returning users who somehow have hasCompletedOnboarding = false
-    // (could happen from app updates, cache clears, etc.)
-    const people = useProfileStore.getState().people || [];
-    const isPaidUser = people.some(p => p.is_user && p.has_paid_reading);
-    const hasUploadedPhoto = people.some(p => p.is_user && p.claymation_url);
-    
-    if (isPaidUser || hasUploadedPhoto || hasHookReadings) {
-      // This is a RETURNING user, not a new onboarding user - force completion and route to dashboard
+  
+  // SAFETY CHECK: Detect returning users who somehow have hasCompletedOnboarding = false
+  // (could happen from app updates, cache clears, etc.)
+  const people = useProfileStore((s) => s.people) || [];
+  const isPaidUser = people.some((p: any) => p.isUser && p.hasPaidReading);
+  const hasUploadedPhoto = people.some((p: any) => p.isUser && p.claymationUrl);
+  const isReturningUser = isPaidUser || hasUploadedPhoto || hasHookReadings;
+  
+  // FIX: Use useEffect to update state AFTER render, not during render
+  // This prevents the "Cannot update a component while rendering" error
+  const setHasCompletedOnboarding = useOnboardingStore((s) => s.setHasCompletedOnboarding);
+  
+  useEffect(() => {
+    if (shouldContinueOnboarding && isReturningUser) {
       console.log('✅ SAFETY: Returning user detected (paid/photo/readings exist) → Force complete onboarding');
-      useOnboardingStore.getState().setHasCompletedOnboarding(true);
-      // Fall through to render MainNavigator below
-    } else {
-      // Truly incomplete onboarding - resume at correct step
-      const initialRoute =
-        !onboardingBirthDate || !onboardingBirthTime || !onboardingBirthCity
-          ? 'BirthInfo'
-          : !primaryLanguage
-            ? 'Languages'
-            : 'CoreIdentities';
-      
-      console.log(`🔄 ROUTING: Incomplete onboarding → Continue to ${initialRoute}`);    
-      return (
-        <TexturedBackground style={{ flex: 1 }}>
-          <OnboardingNavigator initialRouteName={initialRoute} />
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'box-none' }} />
-        </TexturedBackground>
-      );
+      setHasCompletedOnboarding(true);
     }
+  }, [shouldContinueOnboarding, isReturningUser, setHasCompletedOnboarding]);
+
+  if (shouldContinueOnboarding && !isReturningUser) {
+    // Truly incomplete onboarding - resume at correct step
+    const initialRoute =
+      !onboardingBirthDate || !onboardingBirthTime || !onboardingBirthCity
+        ? 'BirthInfo'
+        : !primaryLanguage
+          ? 'Languages'
+          : 'CoreIdentities';
+    
+    console.log(`🔄 ROUTING: Incomplete onboarding → Continue to ${initialRoute}`);    
+    return (
+      <TexturedBackground style={{ flex: 1 }}>
+        <OnboardingNavigator initialRouteName={initialRoute} />
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'box-none' }} />
+      </TexturedBackground>
+    );
   }
 
   // INVARIANT ASSERTION: Warn if session exists but we're about to render onboarding
@@ -867,12 +872,9 @@ export const RootNavigator = () => {
 
   return (
     <TexturedBackground style={{ flex: 1 }}>
-      {hasSession && hasCompletedOnboarding ? (
-        // Logged-in users with completed onboarding go straight to MainNavigator.
+      {hasSession && (hasCompletedOnboarding || isReturningUser) ? (
+        // Logged-in users with completed onboarding (or detected as returning) go to MainNavigator.
         <MainNavigator />
-      ) : hasSession ? (
-        // Session exists but onboarding incomplete → Continue onboarding
-        <OnboardingNavigator initialRouteName={initialRoute} />
       ) : (
         // No session → Intro (Screen 1)
         <OnboardingNavigator initialRouteName="Intro" />
