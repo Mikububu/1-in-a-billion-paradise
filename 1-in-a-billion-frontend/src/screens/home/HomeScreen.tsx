@@ -83,11 +83,45 @@ export const HomeScreen = ({ navigation }: Props) => {
   // Claymation photo upload state
   const [claymationPhotoUrl, setClaymationPhotoUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [matchCount, setMatchCount] = useState(0);
   const blinkAnim = useRef(new Animated.Value(1)).current;
   
   // DEBUG: Get current user ID from session (user object is not persisted)
   const session = useAuthStore((state) => state.session);
   const currentUserId = session?.user?.id;
+
+  // Load claymation portrait and match count on mount
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (!authUserId) return;
+
+      try {
+        // Load claymation URL from library_people
+        const { data } = await supabase
+          .from('library_people')
+          .select('claymation_url')
+          .eq('user_id', authUserId)
+          .eq('is_user', true)
+          .single();
+
+        if (data?.claymation_url) {
+          setClaymationPhotoUrl(data.claymation_url);
+        }
+
+        // Load match count
+        const { count } = await supabase
+          .from('matches')
+          .select('*', { count: 'exact', head: true })
+          .or(`user1_id.eq.${authUserId},user2_id.eq.${authUserId}`);
+
+        setMatchCount(count || 0);
+      } catch (error) {
+        console.error('Failed to load user data:', error);
+      }
+    };
+
+    loadUserData();
+  }, [authUserId]);
   
   // Blinking animation for upload prompt
   useEffect(() => {
@@ -982,8 +1016,12 @@ export const HomeScreen = ({ navigation }: Props) => {
             <>
               <Text style={styles.sectionLabel} selectable>Match status</Text>
               {/* Match count centered, upload button positioned to the right */}
-              <View style={styles.matchCountWrapper}>
-                <Text style={styles.statusNumber} selectable>0</Text>
+              <TouchableOpacity 
+                style={styles.matchCountWrapper}
+                onPress={() => navigation.navigate('Gallery' as any)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.statusNumber} selectable>{matchCount}</Text>
                 {!claymationPhotoUrl ? (
                   <View>
                     <TouchableOpacity 
@@ -999,9 +1037,6 @@ export const HomeScreen = ({ navigation }: Props) => {
                         </Text>
                       </Animated.View>
                     </TouchableOpacity>
-                    <Text style={{ fontSize: 6, color: '#666', marginTop: 2 }}>
-                      {currentUserId ? `ID: ${currentUserId.slice(0,8)}` : 'Not signed in'}
-                    </Text>
                   </View>
                 ) : (
                   <Image 
@@ -1009,6 +1044,7 @@ export const HomeScreen = ({ navigation }: Props) => {
                     style={styles.claymationImageSmall}
                   />
                 )}
+              </TouchableOpacity>
               </View>
               <Animated.Text
                 style={[styles.statusSub, { transform: [{ scale: pulseAnim }] }]}
