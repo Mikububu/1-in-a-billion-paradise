@@ -826,32 +826,38 @@ export const RootNavigator = () => {
   // 2. Session + Onboarding incomplete → Continue onboarding (CoreIdentities → HookSequence)
   // 3. Session + Onboarding complete → Dashboard
 
-  // CRITICAL FIX: Continue onboarding if not completed, regardless of whether readings exist
-  // Readings may be generated but user still needs to see HookSequence screen
+  // CRITICAL FIX: Continue onboarding if not completed, BUT check if user is actually a returning user
   const shouldContinueOnboarding = hasSession && !hasCompletedOnboarding;
 
   if (shouldContinueOnboarding) {
-    // Resume onboarding at the earliest missing step (never skip required screens).
-    // Order: BirthInfo → Languages → CoreIdentities → HookSequence
-    // 
-    // IMPORTANT: If user has hook readings from Supabase, they MUST have birth data
-    // (can't generate readings without it). Skip BirthInfo check to avoid timing issues
-    // where Supabase data hasn't hydrated to local store yet.
-    const initialRoute =
-      hasHookReadings
-        ? 'HookSequence' // User has readings → skip to HookSequence (birth data must exist in Supabase)
-        : !onboardingBirthDate || !onboardingBirthTime || !onboardingBirthCity
+    // SAFETY CHECK: Detect returning users who somehow have hasCompletedOnboarding = false
+    // (could happen from app updates, cache clears, etc.)
+    const people = useProfileStore.getState().people || [];
+    const isPaidUser = people.some(p => p.is_user && p.has_paid_reading);
+    const hasUploadedPhoto = people.some(p => p.is_user && p.claymation_url);
+    
+    if (isPaidUser || hasUploadedPhoto || hasHookReadings) {
+      // This is a RETURNING user, not a new onboarding user - force completion and route to dashboard
+      console.log('✅ SAFETY: Returning user detected (paid/photo/readings exist) → Force complete onboarding');
+      useOnboardingStore.getState().setHasCompletedOnboarding(true);
+      // Fall through to render MainNavigator below
+    } else {
+      // Truly incomplete onboarding - resume at correct step
+      const initialRoute =
+        !onboardingBirthDate || !onboardingBirthTime || !onboardingBirthCity
           ? 'BirthInfo'
           : !primaryLanguage
             ? 'Languages'
             : 'CoreIdentities';
-    console.log(`🔄 ROUTING: Session exists but onboarding incomplete → Continue to ${initialRoute}`);    
-    return (
-      <TexturedBackground style={{ flex: 1 }}>
-        <OnboardingNavigator initialRouteName={initialRoute} />
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'box-none' }} />
-      </TexturedBackground>
-    );
+      
+      console.log(`🔄 ROUTING: Incomplete onboarding → Continue to ${initialRoute}`);    
+      return (
+        <TexturedBackground style={{ flex: 1 }}>
+          <OnboardingNavigator initialRouteName={initialRoute} />
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'box-none' }} />
+        </TexturedBackground>
+      );
+    }
   }
 
   // INVARIANT ASSERTION: Warn if session exists but we're about to render onboarding
