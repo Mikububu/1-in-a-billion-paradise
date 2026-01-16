@@ -129,13 +129,19 @@ export const HomeScreen = ({ navigation }: Props) => {
           if (result.canceled || !result.assets[0]?.base64) return;
           
           setUploadingPhoto(true);
-          const session = useAuthStore.getState().session;
-          const userId = session?.user?.id;
+          const authState = useAuthStore.getState();
+          const session = authState.session;
+          const user = authState.user;
+          const userId = session?.user?.id || user?.id;
+          
+          // DEBUG: Show what we have
           if (!userId) {
-            Alert.alert('Error', 'Please sign in to upload a photo');
+            const debugInfo = `Session: ${session ? 'exists' : 'null'}\nUser: ${user ? 'exists' : 'null'}\nSession.user.id: ${session?.user?.id || 'null'}\nUser.id: ${user?.id || 'null'}`;
+            Alert.alert('DEBUG: No User ID', debugInfo);
             setUploadingPhoto(false);
             return;
           }
+          
           const response = await fetch(`${env.CORE_API_URL}/api/profile/claymation`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
@@ -177,13 +183,19 @@ export const HomeScreen = ({ navigation }: Props) => {
         const base64 = (reader.result as string).split(',')[1];
         
         // Call backend to generate claymation
-        const session = useAuthStore.getState().session;
-        const userId = session?.user?.id;
+        const authState = useAuthStore.getState();
+        const session = authState.session;
+        const user = authState.user;
+        const userId = session?.user?.id || user?.id;
+        
+        // DEBUG: Show what we have
         if (!userId) {
-          Alert.alert('Error', 'Please sign in to upload a photo');
+          const debugInfo = `Session: ${session ? 'exists' : 'null'}\nUser: ${user ? 'exists' : 'null'}\nSession.user.id: ${session?.user?.id || 'null'}\nUser.id: ${user?.id || 'null'}`;
+          Alert.alert('DEBUG: No User ID', debugInfo);
           setUploadingPhoto(false);
           return;
         }
+        
         const uploadResponse = await fetch(`${env.CORE_API_URL}/api/profile/claymation`, {
           method: 'POST',
           headers: {
