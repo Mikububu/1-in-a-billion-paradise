@@ -987,8 +987,23 @@ ${OUTPUT_FORMAT_RULES}`;
       );
     }
     
-    // Post-process: Remove em-dashes (—) and en-dashes (–) that LLMs love to add
-    text = text.replace(/—/g, ', ').replace(/–/g, '-').replace(/\s+,/g, ',');
+    // Post-process: Clean LLM output for spoken audio
+    text = text
+      // Remove em-dashes and en-dashes
+      .replace(/—/g, ', ').replace(/–/g, '-')
+      // Remove markdown bold/italic asterisks
+      .replace(/\*\*\*/g, '').replace(/\*\*/g, '').replace(/\*/g, '')
+      // Remove markdown headers (# ## ### etc)
+      .replace(/^#{1,6}\s+/gm, '')
+      // Remove markdown underscores for emphasis
+      .replace(/___/g, '').replace(/__/g, '').replace(/(?<!\w)_(?!\w)/g, '')
+      // Remove duplicate headlines (same line repeated)
+      .replace(/^(.+)\n\1$/gm, '$1')
+      // Remove section headers (short lines 2-5 words followed by blank line then text)
+      // Common patterns: "The Attraction", "Core Identity", "THE SYNTHESIS", etc.
+      .replace(/^(The |THE |CHAPTER |Section |Part )?[A-Z][A-Za-z\s]{5,40}\n\n/gm, '')
+      // Clean up extra whitespace
+      .replace(/\s+,/g, ',').replace(/\n{3,}/g, '\n\n');
     
     const wordCount = text.split(/\s+/).filter(Boolean).length;
 

@@ -13,13 +13,20 @@
 export const OUTPUT_FORMAT_RULES = `
 OUTPUT FORMAT (CRITICAL - FOLLOW EXACTLY):
 
+⚠️ THIS IS SPOKEN AUDIO - NOT WRITTEN TEXT ⚠️
+This text will be converted to audio via text-to-speech.
+The listener will HEAR every word. Write as if speaking aloud.
+NO markdown, NO formatting, NO symbols - just pure spoken prose.
+
 PROSE STYLE:
-- Pure flowing prose paragraphs ONLY
-- NO markdown syntax (no #, ##, **, __, -, etc.)
+- ONE CONTINUOUS FLOWING ESSAY - not a document with sections
+- Start with a single poetic headline (5-8 words), then flow naturally
+- NO SECTION HEADERS OR SUBHEADLINES IN THE TEXT
+- ABSOLUTELY NO markdown syntax (no #, ##, *, **, __, -, etc.)
+- ABSOLUTELY NO asterisks for emphasis - this is SPOKEN
 - NO bullet points or numbered lists
-- NO section headers with symbols
-- Clear paragraph breaks between sections
-- Use ═══════ separators between MAJOR sections only
+- NO duplicate headlines or repeated titles
+- Clear paragraph breaks between topics (but no headers announcing them)
 
 PUNCTUATION:
 - Standard punctuation only: . , ; : ' " ? !
@@ -41,11 +48,12 @@ TEXT CLEANUP REQUIREMENTS (MUST BE FLAWLESS FOR AUDIO):
 - NO HTML tags or entities
 - NO broken words or unreadable text
 
-HEADLINE AND SECTION FORMATTING FOR TTS:
-- If you use section breaks or headlines, ALWAYS add a space AFTER them
-- Example: "THE LAGNA PORTAL [space] Her Lagna is the portal..."
-- TTS needs pauses after headlines to interpret them correctly
-- Use paragraph breaks (double line break) between major sections
+ESSAY STRUCTURE FOR TTS:
+- Begin with ONE poetic headline (5-8 words) that captures the essence
+- After the headline, write ONE CONTINUOUS ESSAY with NO further headers
+- Do NOT announce topics with headers like "The Shadow" or "Core Identity"
+- Flow naturally from one topic to the next like a documentary narrator
+- Use paragraph breaks between topics, but NO headers announcing them
 - Use natural sentence breaks - TTS will pause at periods, commas, semicolons
 
 FINAL TEXT VALIDATION:

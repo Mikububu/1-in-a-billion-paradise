@@ -180,24 +180,24 @@ ${tragicRealismLensBlock('person')}
 
 ${buildForbiddenSection(style)}
 
-**CRITICAL: WRITE 1500-1800 WORDS. This is essential.**
+**CRITICAL: WRITE 2500-3000 WORDS. This reading must be 15-20 minutes of audio.**
 
-STRUCTURE (1500-1800 words total):
+STRUCTURE (2500-3000 words total):
 
-1. CORE IDENTITY through ${systemName} (400 words)
+1. CORE IDENTITY through ${systemName} (600 words)
    - What makes ${personName} fundamentally WHO THEY ARE
    - Primary patterns and drives
    - Deep psychological foundation
    - How this system uniquely reveals ${personName}
 
-2. EMOTIONAL & RELATIONAL PATTERNS (500 words)
+2. EMOTIONAL & RELATIONAL PATTERNS (700 words)
    - How ${personName} feels and processes emotions
    - What ${personName} needs from partners
    - Attachment style indicators
    - Emotional triggers and soothing patterns
    - How ${personName} expresses love
 
-3. SHADOW WORK (600 words)
+3. SHADOW WORK (800 words)
    - ${personName}'s unconscious patterns
    - Self-sabotage tendencies in love
    - Defense mechanisms and armor
@@ -205,23 +205,28 @@ STRUCTURE (1500-1800 words total):
    - The wound that keeps reopening
    - What ${personName} hides even from themselves
 
-4. GIFTS & POTENTIAL (250 words)
+4. GIFTS & POTENTIAL (400 words)
    - Natural talents in relationship
    - What ${personName} brings to partnership
    - How ${personName} shines when conscious
 
-5. PRACTICAL INSIGHTS (150 words)
+5. PRACTICAL INSIGHTS (300 words)
    - How to love ${personName}
    - What triggers ${personName}
    - What ${personName} needs to feel safe
 
-WORD COUNT CHECK: Count your words. If under 2000, ADD MORE DEPTH.
+WORD COUNT CHECK: Count your words. If under 2500, ADD MORE DEPTH. Target is 2800 words.
 
 OUTPUT RULES:
-- **FIRST LINE MUST BE A HEADLINE** (5-8 words max, capturing the essence of ${personName}'s reading)
-- After headline, add a blank line, then begin the reading
+⚠️ THIS IS SPOKEN AUDIO - every word will be heard aloud via TTS
+- FIRST LINE: A single poetic headline (5-8 words max)
+- After headline, add a blank line, then begin ONE CONTINUOUS ESSAY
+- NO SECTION HEADERS OR SUBHEADLINES - the structure above is for YOUR guidance only
+- Do NOT write "The Attraction" or "Core Identity" etc as headers in the text
+- Just flow naturally from one topic to the next like a documentary narrator
 - Use 3RD PERSON with ${personName}'s name (never "you/your")
-- Pure prose, NO markdown or bullets (except the required headline)
+- Pure prose ONLY - NO asterisks, NO markdown, NO bullets, NO formatting symbols
+- NO * or ** for emphasis - this is SPOKEN, not written
 - Audio-ready: spell out numbers ("twenty-three degrees" not "23°")
 - NO em-dashes (—), use commas or periods
 - NO phrases like "This is not just...", "Here's the thing...", "Let me show you..."
@@ -292,47 +297,52 @@ ${tragicRealismLensBlock('overlay')}
 
 ${buildForbiddenSection(style)}
 
-**CRITICAL: WRITE EXACTLY 2200 WORDS MINIMUM. Do NOT write less than 2200 words.**
+**CRITICAL: WRITE EXACTLY 3000 WORDS MINIMUM. This overlay must be 18-20 minutes of audio.**
 
-STRUCTURE (2200+ words total):
+STRUCTURE (3000+ words total):
 
-1. THE ATTRACTION (500 words)
+1. THE ATTRACTION (700 words)
    - What draws them together magnetically
    - The initial spark through ${systemName}
    - Why they can't look away from each other
    - The chemistry that defies logic
 
-2. THE FRICTION (500 words)
+2. THE FRICTION (600 words)
    - Where they clash and collide
    - Incompatibilities and tension points
    - The arguments they'll have repeatedly
    - What drives each other crazy
 
-3. SEXUAL & POWER DYNAMICS (500 words)
+3. SEXUAL & POWER DYNAMICS (600 words)
    - How desire manifests between them
    - Who holds power, who surrenders
    - The bedroom as battlefield and sanctuary
    - What they unlock in each other physically
 
-4. THE SHADOW DANCE (500 words)
+4. THE SHADOW DANCE (700 words)
    - How they trigger each other's deepest wounds
    - Projection patterns and blame games
    - What goes catastrophically wrong when unconscious
    - The destruction they're capable of together
 
-5. THE GIFT (200 words)
+5. THE GIFT (400 words)
    - What they activate in each other
    - Growth potential if they stay conscious
    - What they could create together
 
-WORD COUNT CHECK: Count your words. If under 2200, ADD MORE DEPTH.
+WORD COUNT CHECK: Count your words. If under 3000, ADD MORE DEPTH. Target is 3200 words.
 
 OUTPUT RULES:
-- **FIRST LINE MUST BE A HEADLINE** (5-8 words max, capturing the essence of their dynamic)
-- After headline, add a blank line, then begin the reading
+⚠️ THIS IS SPOKEN AUDIO - every word will be heard aloud via TTS
+- FIRST LINE: A single poetic headline (5-8 words max)
+- After headline, add a blank line, then begin ONE CONTINUOUS ESSAY
+- NO SECTION HEADERS OR SUBHEADLINES - the structure above is for YOUR guidance only
+- Do NOT write "The Attraction" or "The Friction" etc as headers in the text
+- Just flow naturally from one topic to the next like a documentary narrator
 - Use both names, never "you/your"
-- Pure prose, NO markdown (except the required headline)
-- Audio-ready formatting
+- Pure prose ONLY - NO asterisks, NO markdown, NO bullets, NO formatting symbols
+- NO * or ** for emphasis - this is SPOKEN, not written
+- Audio-ready: spell out all numbers
 - NO em-dashes, NO AI phrases
 
 EXAMPLE FORMAT:
@@ -371,11 +381,11 @@ ${tragicRealismLensBlock('verdict')}
 
 ${buildForbiddenSection(style)}
 
-**CRITICAL: WRITE EXACTLY 2000 WORDS MINIMUM. Do NOT write less than 2000 words.**
+**CRITICAL: WRITE EXACTLY 2800 WORDS MINIMUM. This verdict must be 18-20 minutes of audio.**
 
-STRUCTURE (2000+ words total):
+STRUCTURE (2800+ words total):
 
-1. THE SYNTHESIS (500 words)
+1. THE SYNTHESIS (700 words)
    - What all 5 systems unanimously agree on
    - The core truth of this connection that cannot be denied
    - The patterns that emerged across every system
@@ -400,10 +410,14 @@ STRUCTURE (2000+ words total):
    - End with a line that lands like a bell in a dark room
 
 OUTPUT RULES:
-- Pure prose, NO markdown
-- Audio-ready
-- Unflinching honesty
-- NO AI clichés
+⚠️ THIS IS SPOKEN AUDIO - every word will be heard aloud via TTS
+- Start directly with the synthesis, NO headline needed for verdict
+- ONE CONTINUOUS ESSAY - NO section headers like "The Synthesis" or "The Verdict"
+- The structure above is for YOUR guidance only, do NOT include headers
+- Flow naturally from one topic to the next like a documentary narrator
+- Pure prose, NO markdown, NO asterisks, NO formatting
+- Audio-ready: spell out all numbers
+- Unflinching honesty - NO AI clichés
 
 Deliver the verdict:
 `.trim();
