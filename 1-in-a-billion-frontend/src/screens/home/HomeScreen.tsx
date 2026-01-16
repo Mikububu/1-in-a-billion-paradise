@@ -125,10 +125,15 @@ export const HomeScreen = ({ navigation }: Props) => {
           if (result.canceled || !result.assets[0]?.base64) return;
           
           setUploadingPhoto(true);
-          const userId = useAuthStore.getState().userId;
+          const userId = useAuthStore.getState().user?.id;
+          if (!userId) {
+            Alert.alert('Error', 'Please sign in to upload a photo');
+            setUploadingPhoto(false);
+            return;
+          }
           const response = await fetch(`${env.CORE_API_URL}/api/profile/claymation`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-User-Id': userId || '' },
+            headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
             body: JSON.stringify({ photoBase64: result.assets[0].base64 }),
           });
           const data = await response.json();
@@ -167,12 +172,17 @@ export const HomeScreen = ({ navigation }: Props) => {
         const base64 = (reader.result as string).split(',')[1];
         
         // Call backend to generate claymation
-        const userId = useAuthStore.getState().userId;
+        const userId = useAuthStore.getState().user?.id;
+        if (!userId) {
+          Alert.alert('Error', 'Please sign in to upload a photo');
+          setUploadingPhoto(false);
+          return;
+        }
         const uploadResponse = await fetch(`${env.CORE_API_URL}/api/profile/claymation`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-User-Id': userId || '',
+            'X-User-Id': userId,
           },
           body: JSON.stringify({ photoBase64: base64 }),
         });
