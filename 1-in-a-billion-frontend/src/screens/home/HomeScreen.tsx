@@ -1015,35 +1015,13 @@ export const HomeScreen = ({ navigation }: Props) => {
           ) : (
             <>
               <Text style={styles.sectionLabel} selectable>Match status</Text>
-              {/* Match count centered, upload button positioned to the right */}
+              {/* Match count only - profile photo moved below library card */}
               <TouchableOpacity 
                 style={styles.matchCountWrapper}
                 onPress={() => navigation.navigate('Gallery' as any)}
                 activeOpacity={0.7}
               >
                 <Text style={styles.statusNumber} selectable>{matchCount}</Text>
-                {!claymationPhotoUrl ? (
-                  <View>
-                    <TouchableOpacity 
-                      style={styles.uploadPhotoPrompt}
-                      onPress={handleUploadPhoto}
-                      disabled={uploadingPhoto}
-                      activeOpacity={0.8}
-                    >
-                      <Animated.View style={{ opacity: blinkAnim, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Text style={styles.uploadArrow}>→</Text>
-                        <Text style={styles.uploadText}>
-                          {uploadingPhoto ? 'Creating...' : 'Upload photo'}
-                        </Text>
-                      </Animated.View>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <Image 
-                    source={{ uri: claymationPhotoUrl }} 
-                    style={styles.claymationImageSmall}
-                  />
-                )}
               </TouchableOpacity>
               <Animated.Text
                 style={[styles.statusSub, { transform: [{ scale: pulseAnim }] }]}
@@ -1071,16 +1049,39 @@ export const HomeScreen = ({ navigation }: Props) => {
           </View>
         </TouchableOpacity>
 
-        {/* Produced By Section */}
-        <View
-          style={[
-            styles.producedBySection,
-            {
-              marginTop: spacing.lg * compactV,
-              marginBottom: spacing.xl * compactV,
-            },
-          ]}
-        >
+        {/* PROFILE PHOTO / UPLOAD BUTTON - Moved below library card */}
+        <View style={styles.profilePhotoSection}>
+          {!claymationPhotoUrl ? (
+            <TouchableOpacity 
+              style={styles.uploadPhotoButton}
+              onPress={handleUploadPhoto}
+              disabled={uploadingPhoto}
+              activeOpacity={0.8}
+            >
+              <Animated.View style={{ opacity: blinkAnim, alignItems: 'center' }}>
+                <View style={styles.uploadPhotoPlaceholder}>
+                  <Text style={styles.uploadPhotoIcon}>📸</Text>
+                </View>
+                <Text style={styles.uploadPhotoLabel}>
+                  {uploadingPhoto ? 'Creating...' : 'Upload photo'}
+                </Text>
+              </Animated.View>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('Gallery' as any)}
+              activeOpacity={0.8}
+            >
+              <Image 
+                source={{ uri: claymationPhotoUrl }} 
+                style={styles.claymationImageLarge}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Produced By Section - Moved down and closer together */}
+        <View style={styles.producedBySection}>
           <Text style={styles.producedByText}>produced by</Text>
           <Image
             source={require('../../../assets/images/forbidden-yoga-logo-white.png')}
@@ -1536,22 +1537,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
   },
-  uploadPhotoPrompt: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-  },
-  uploadArrow: {
-    fontFamily: typography.sansBold,
-    fontSize: 10,
-    color: '#fff',
-  },
-  uploadText: {
-    fontFamily: typography.sansSemiBold,
-    fontSize: 9,
-    color: '#fff',
-  },
   claymationImageSmall: {
     width: 36,
     height: 36,
@@ -1560,16 +1545,52 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   
+  // Profile photo section - below library card
+  profilePhotoSection: {
+    alignItems: 'center',
+    marginTop: spacing.xl,
+    marginBottom: spacing.lg,
+  },
+  uploadPhotoButton: {
+    alignItems: 'center',
+  },
+  uploadPhotoPlaceholder: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadPhotoIcon: {
+    fontSize: 32,
+  },
+  uploadPhotoLabel: {
+    fontFamily: typography.sansRegular,
+    fontSize: 12,
+    color: colors.primary,
+    marginTop: spacing.xs,
+  },
+  claymationImageLarge: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  
   producedBySection: {
     alignItems: 'center',
-    marginTop: spacing.lg,
+    marginTop: spacing.xs,
     marginBottom: spacing.xl,
   },
   producedByText: {
     fontFamily: typography.sansRegular,
     fontSize: 12,
     color: colors.mutedText,
-    marginBottom: spacing.sm,
+    marginBottom: 4,
   },
   forbiddenYogaLogo: {
     width: 200,
