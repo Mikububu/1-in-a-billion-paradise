@@ -125,17 +125,21 @@ export const HomeScreen = ({ navigation }: Props) => {
           if (result.canceled || !result.assets[0]?.base64) return;
           
           setUploadingPhoto(true);
-          const userId = useAuthStore.getState().user?.id;
+          const user = useAuthStore.getState().user;
+          const userId = user?.id;
+          console.log('🔍 Upload photo - User:', user ? 'exists' : 'null', 'ID:', userId);
           if (!userId) {
             Alert.alert('Error', 'Please sign in to upload a photo');
             setUploadingPhoto(false);
             return;
           }
+          console.log('📤 Sending request with X-User-Id:', userId);
           const response = await fetch(`${env.CORE_API_URL}/api/profile/claymation`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
             body: JSON.stringify({ photoBase64: result.assets[0].base64 }),
           });
+          console.log('📥 Response status:', response.status);
           const data = await response.json();
           if (data.success && data.imageUrl) {
             setClaymationPhotoUrl(data.imageUrl);
@@ -172,12 +176,15 @@ export const HomeScreen = ({ navigation }: Props) => {
         const base64 = (reader.result as string).split(',')[1];
         
         // Call backend to generate claymation
-        const userId = useAuthStore.getState().user?.id;
+        const user = useAuthStore.getState().user;
+        const userId = user?.id;
+        console.log('🔍 Upload photo (web) - User:', user ? 'exists' : 'null', 'ID:', userId);
         if (!userId) {
           Alert.alert('Error', 'Please sign in to upload a photo');
           setUploadingPhoto(false);
           return;
         }
+        console.log('📤 Sending request (web) with X-User-Id:', userId);
         const uploadResponse = await fetch(`${env.CORE_API_URL}/api/profile/claymation`, {
           method: 'POST',
           headers: {
@@ -186,6 +193,7 @@ export const HomeScreen = ({ navigation }: Props) => {
           },
           body: JSON.stringify({ photoBase64: base64 }),
         });
+        console.log('📥 Response status (web):', uploadResponse.status);
         
         const data = await uploadResponse.json();
         
