@@ -20,7 +20,7 @@ import { env } from '../config/env';
 import axios from 'axios';
 import { llm, llmPaid } from '../services/llm'; // llm = DeepSeek (hooks), llmPaid = Claude (deep readings)
 import { checkUserSubscription, markIncludedReadingUsed } from '../services/subscriptionService';
-import { SYSTEMS as NUCLEAR_V2_SYSTEMS, SYSTEM_DISPLAY_NAMES as NUCLEAR_V2_SYSTEM_NAMES, type SystemName as NuclearV2SystemName, NUCLEAR_DOCS, VERDICT_DOC, buildPersonPrompt, buildOverlayPrompt as buildNuclearV2OverlayPrompt, buildVerdictPrompt } from '../prompts/structures/nuclearV2';
+import { SYSTEMS as NUCLEAR_V2_SYSTEMS, SYSTEM_DISPLAY_NAMES as NUCLEAR_V2_SYSTEM_NAMES, type SystemName as NuclearV2SystemName, NUCLEAR_DOCS, VERDICT_DOC, buildPersonPrompt, buildOverlayPrompt as buildNuclearV2OverlayPrompt, buildVerdictPrompt } from '../prompts/structures/paidReadingPrompts';
 import archiver from 'archiver';
 import { PassThrough, Readable } from 'node:stream';
 import {

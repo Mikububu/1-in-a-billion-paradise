@@ -17,7 +17,7 @@ import {
   buildPersonPrompt,
   buildOverlayPrompt as buildNuclearV2OverlayPrompt,
   buildVerdictPrompt,
-} from '../prompts/structures/nuclearV2';
+} from '../prompts/structures/paidReadingPrompts';
 import { buildIndividualPrompt, buildOverlayPrompt } from '../prompts';
 import { SpiceLevel } from '../prompts/spice/levels';
 import { gematriaService } from '../services/kabbalah/GematriaService';
