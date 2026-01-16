@@ -144,7 +144,9 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         const songArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
           if (Number(meta?.docNum) !== Number(docNum)) return false;
-          const sysMatch = systemId === 'verdict' ? (meta?.docType === 'verdict' || !meta?.system) : meta?.system === systemId;
+          const sysMatch = systemId === 'verdict' 
+            ? (meta?.docType === 'verdict' || !meta?.system || (Number(docNum) === 16 && meta?.system === 'western')) 
+            : meta?.system === systemId;
           if (sysMatch) console.log(`✅ Found matching song artifact`);
           return sysMatch;
         });
@@ -178,7 +180,10 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         const pdfArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
           if (Number(meta?.docNum) !== Number(docNum)) return false;
-          if (systemId === 'verdict') return meta?.docType === 'verdict' || !meta?.system;
+          // Verdict can have system: null, 'western', or docType: 'verdict'
+          if (systemId === 'verdict') {
+            return meta?.docType === 'verdict' || !meta?.system || (Number(docNum) === 16 && meta?.system === 'western');
+          }
           return meta?.system === systemId;
         });
         
@@ -234,7 +239,10 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         const audioArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
           if (Number(meta?.docNum) !== Number(docNum)) return false;
-          if (systemId === 'verdict') return meta?.docType === 'verdict' || !meta?.system;
+          // Verdict can have system: null, 'western', or docType: 'verdict'
+          if (systemId === 'verdict') {
+            return meta?.docType === 'verdict' || !meta?.system || (Number(docNum) === 16 && meta?.system === 'western');
+          }
           return meta?.system === systemId;
         });
         
@@ -289,7 +297,10 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         const songArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
           if (Number(meta?.docNum) !== Number(docNum)) return false;
-          if (systemId === 'verdict') return meta?.docType === 'verdict' || !meta?.system;
+          // Verdict can have system: null, 'western', or docType: 'verdict'
+          if (systemId === 'verdict') {
+            return meta?.docType === 'verdict' || !meta?.system || (Number(docNum) === 16 && meta?.system === 'western');
+          }
           return meta?.system === systemId;
         });
         if (mounted) {
