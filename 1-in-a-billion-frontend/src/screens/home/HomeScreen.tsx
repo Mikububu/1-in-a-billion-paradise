@@ -85,9 +85,9 @@ export const HomeScreen = ({ navigation }: Props) => {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const blinkAnim = useRef(new Animated.Value(1)).current;
   
-  // DEBUG: Get current user state
-  const currentUser = useAuthStore((state) => state.user);
-  const currentUserId = currentUser?.id;
+  // DEBUG: Get current user ID from session (user object is not persisted)
+  const session = useAuthStore((state) => state.session);
+  const currentUserId = session?.user?.id;
   
   // Blinking animation for upload prompt
   useEffect(() => {
@@ -129,21 +129,18 @@ export const HomeScreen = ({ navigation }: Props) => {
           if (result.canceled || !result.assets[0]?.base64) return;
           
           setUploadingPhoto(true);
-          const user = useAuthStore.getState().user;
-          const userId = user?.id;
-          console.log('🔍 Upload photo - User:', user ? 'exists' : 'null', 'ID:', userId);
+          const session = useAuthStore.getState().session;
+          const userId = session?.user?.id;
           if (!userId) {
             Alert.alert('Error', 'Please sign in to upload a photo');
             setUploadingPhoto(false);
             return;
           }
-          console.log('📤 Sending request with X-User-Id:', userId);
           const response = await fetch(`${env.CORE_API_URL}/api/profile/claymation`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
             body: JSON.stringify({ photoBase64: result.assets[0].base64 }),
           });
-          console.log('📥 Response status:', response.status);
           const data = await response.json();
           if (data.success && data.imageUrl) {
             setClaymationPhotoUrl(data.imageUrl);
@@ -180,15 +177,13 @@ export const HomeScreen = ({ navigation }: Props) => {
         const base64 = (reader.result as string).split(',')[1];
         
         // Call backend to generate claymation
-        const user = useAuthStore.getState().user;
-        const userId = user?.id;
-        console.log('🔍 Upload photo (web) - User:', user ? 'exists' : 'null', 'ID:', userId);
+        const session = useAuthStore.getState().session;
+        const userId = session?.user?.id;
         if (!userId) {
           Alert.alert('Error', 'Please sign in to upload a photo');
           setUploadingPhoto(false);
           return;
         }
-        console.log('📤 Sending request (web) with X-User-Id:', userId);
         const uploadResponse = await fetch(`${env.CORE_API_URL}/api/profile/claymation`, {
           method: 'POST',
           headers: {
@@ -197,7 +192,6 @@ export const HomeScreen = ({ navigation }: Props) => {
           },
           body: JSON.stringify({ photoBase64: base64 }),
         });
-        console.log('📥 Response status (web):', uploadResponse.status);
         
         const data = await uploadResponse.json();
         
