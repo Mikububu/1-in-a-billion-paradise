@@ -85,6 +85,10 @@ export const HomeScreen = ({ navigation }: Props) => {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const blinkAnim = useRef(new Animated.Value(1)).current;
   
+  // DEBUG: Get current user state
+  const currentUser = useAuthStore((state) => state.user);
+  const currentUserId = currentUser?.id;
+  
   // Blinking animation for upload prompt
   useEffect(() => {
     if (!claymationPhotoUrl) {
@@ -1033,19 +1037,24 @@ export const HomeScreen = ({ navigation }: Props) => {
               <View style={styles.matchCountWrapper}>
                 <Text style={styles.statusNumber} selectable>0</Text>
                 {!claymationPhotoUrl ? (
-                  <TouchableOpacity 
-                    style={styles.uploadPhotoPrompt}
-                    onPress={handleUploadPhoto}
-                    disabled={uploadingPhoto}
-                    activeOpacity={0.8}
-                  >
-                    <Animated.View style={{ opacity: blinkAnim, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <Text style={styles.uploadArrow}>→</Text>
-                      <Text style={styles.uploadText}>
-                        {uploadingPhoto ? 'Creating...' : 'Upload photo'}
-                      </Text>
-                    </Animated.View>
-                  </TouchableOpacity>
+                  <View>
+                    <TouchableOpacity 
+                      style={styles.uploadPhotoPrompt}
+                      onPress={handleUploadPhoto}
+                      disabled={uploadingPhoto}
+                      activeOpacity={0.8}
+                    >
+                      <Animated.View style={{ opacity: blinkAnim, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Text style={styles.uploadArrow}>→</Text>
+                        <Text style={styles.uploadText}>
+                          {uploadingPhoto ? 'Creating...' : 'Upload photo'}
+                        </Text>
+                      </Animated.View>
+                    </TouchableOpacity>
+                    <Text style={{ fontSize: 6, color: '#666', marginTop: 2 }}>
+                      {currentUserId ? `ID: ${currentUserId.slice(0,8)}` : 'Not signed in'}
+                    </Text>
+                  </View>
                 ) : (
                   <Image 
                     source={{ uri: claymationPhotoUrl }} 
