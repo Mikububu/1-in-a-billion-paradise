@@ -30,16 +30,23 @@ async function main() {
   console.log('🚀 Sending to claymation service...\n');
   
   try {
-    const result = await generateClaymationPortrait(userId, base64Image);
+    const result = await generateClaymationPortrait(base64Image, userId);
     
-    console.log('✅ Claymation Generated Successfully!\n');
-    console.log('📊 Result:');
-    console.log(`   Original Image URL: ${result.originalUrl}`);
-    console.log(`   Claymation URL: ${result.claymationUrl}\n`);
-    
-    console.log('🎉 Test complete! Check Supabase Storage:');
-    console.log(`   - profile-images/${userId}/original-*.jpg`);
-    console.log(`   - profile-images/${userId}/claymation-*.png`);
+    if (result.success) {
+      console.log('✅ Claymation Generated Successfully!\n');
+      console.log('📊 Result:');
+      console.log(`   Original Image URL: ${result.originalUrl || 'Not stored'}`);
+      console.log(`   Claymation URL: ${result.imageUrl}\n`);
+      console.log(`   Storage Path: ${result.storagePath || 'N/A'}`);
+      console.log(`   Cost: $${result.cost?.toFixed(4) || '0'}\n`);
+      
+      console.log('🎉 Test complete! Check Supabase Storage:');
+      console.log(`   - profile-images/${userId}/original-*.jpg`);
+      console.log(`   - profile-images/${userId}/claymation-*.png`);
+    } else {
+      console.log('❌ Claymation Generation Failed\n');
+      console.log(`Error: ${result.error}`);
+    }
     
   } catch (error: any) {
     console.error('❌ Error:', error.message);

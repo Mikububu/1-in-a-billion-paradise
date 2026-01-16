@@ -37,7 +37,7 @@ export const NameInputScreen = ({ navigation, route }: Props) => {
     <View style={styles.wrapper}>
       {/* Background Video */}
       <Video
-        source={require('@/assets/videos/connection.mp4')}
+        source={require('../../../assets/videos/connection.mp4')}
         style={styles.backgroundVideo}
         resizeMode={ResizeMode.COVER}
         shouldPlay
