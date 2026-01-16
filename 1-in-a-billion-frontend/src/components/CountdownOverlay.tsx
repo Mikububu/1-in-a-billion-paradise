@@ -27,24 +27,33 @@ export const CountdownOverlay: React.FC<CountdownOverlayProps> = ({ jobId, allMe
   const [countdownSeconds, setCountdownSeconds] = useState<number>(0);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Fetch job creation time on mount
+  // Fetch job creation time on mount - with fallback to "now" if network fails
   useEffect(() => {
+    // If media is already ready, don't bother fetching
+    if (allMediaReady) return;
+    
     let mounted = true;
     (async () => {
       try {
         const res = await fetch(`${env.CORE_API_URL}/api/jobs/v2/${jobId}`);
-        if (!res.ok) return;
+        if (!res.ok) {
+          // Network failed, use current time as fallback
+          if (mounted) setJobCreatedAt(new Date());
+          return;
+        }
         const payload = await res.json();
         const createdAt = payload?.job?.created_at;
-        if (createdAt && mounted) {
-          setJobCreatedAt(new Date(createdAt));
+        if (mounted) {
+          setJobCreatedAt(createdAt ? new Date(createdAt) : new Date());
         }
       } catch (error) {
-        console.error('Failed to fetch job creation time:', error);
+        // Network failed, use current time as fallback so countdown still works
+        console.warn('Failed to fetch job creation time, using fallback:', error);
+        if (mounted) setJobCreatedAt(new Date());
       }
     })();
     return () => { mounted = false; };
-  }, [jobId]);
+  }, [jobId, allMediaReady]);
 
   // Countdown timer - based on job creation time
   useEffect(() => {
