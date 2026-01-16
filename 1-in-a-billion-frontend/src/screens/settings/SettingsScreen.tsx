@@ -9,7 +9,8 @@
  * - Data & Privacy controls
  */
 
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert, Linking } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert, Linking, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
@@ -20,6 +21,8 @@ import { useAuthStore } from '@/store/authStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
 import { BackButton } from '@/components/BackButton';
+import { fetchPeopleFromSupabase } from '@/services/peopleCloud';
+import { isSupabaseConfigured } from '@/services/supabase';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Settings'>;
 
@@ -41,15 +44,61 @@ type SettingsSection = {
 
 export const SettingsScreen = ({ navigation }: Props) => {
   console.log(`📱 Screen ${screenId}: SettingsScreen`);
+  const [isSyncing, setIsSyncing] = useState(false);
   const resetOnboarding = useOnboardingStore((state) => state.reset);
   const resetProfile = useProfileStore((state) => state.reset);
   const signOut = useAuthStore((s) => s.signOut);
   const resetSubscription = useSubscriptionStore((s) => s.reset);
+  const authUser = useAuthStore((s) => s.user);
+  const upsertPersonById = useProfileStore((s) => s.upsertPersonById);
   // Get verification status directly from user object (not via function)
 
   const people = useProfileStore((state) => state.people);
   const user = people.find(p => p.isUser);
   const isVerified = user?.isVerified || false;
+
+  const handleForceSync = async () => {
+    if (!authUser?.id || !isSupabaseConfigured) {
+      Alert.alert('Cannot Sync', 'You must be signed in to sync from cloud.');
+      return;
+    }
+
+    Alert.alert(
+      'Force Sync from Cloud',
+      'This will download your data from the cloud and overwrite any local changes. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sync Now',
+          onPress: async () => {
+            setIsSyncing(true);
+            try {
+              console.log('☁️ Force syncing from Supabase...');
+              const result = await fetchPeopleFromSupabase(authUser.id);
+              
+              if (result.success && result.people.length > 0) {
+                // Overwrite local data with cloud data
+                for (const person of result.people) {
+                  upsertPersonById(person);
+                }
+                console.log(`✅ Force synced ${result.people.length} people from cloud`);
+                Alert.alert('Sync Complete', `Downloaded ${result.people.length} profiles from cloud. Your data is now up to date.`);
+              } else if (result.success && result.people.length === 0) {
+                Alert.alert('No Data Found', 'No profiles found in cloud for your account.');
+              } else {
+                Alert.alert('Sync Failed', result.error || 'Could not fetch data from cloud.');
+              }
+            } catch (error: any) {
+              console.error('Force sync error:', error);
+              Alert.alert('Sync Error', error.message || 'An error occurred while syncing.');
+            } finally {
+              setIsSyncing(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleStartOver = () => {
     Alert.alert(
@@ -131,6 +180,13 @@ export const SettingsScreen = ({ navigation }: Props) => {
           title: 'My Library',
           subtitle: 'Readings, audio & saved content',
           onPress: () => navigation.navigate('MyLibrary'),
+        },
+        {
+          id: 'sync',
+          icon: '↓',
+          title: isSyncing ? 'Syncing...' : 'Sync from Cloud',
+          subtitle: 'Download latest data from server',
+          onPress: handleForceSync,
         },
         {
           id: 'notifications',
