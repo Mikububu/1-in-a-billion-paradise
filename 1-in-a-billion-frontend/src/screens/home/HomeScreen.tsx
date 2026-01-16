@@ -103,124 +103,66 @@ export const HomeScreen = ({ navigation }: Props) => {
     }
   }, [claymationPhotoUrl, blinkAnim]);
   
-  // Upload and generate claymation photo
+  // Upload and generate claymation photo - PRODUCTION VERSION
   const handleUploadPhoto = async () => {
     try {
-      // Try expo-document-picker first (works in Expo Go)
-      let DocumentPicker;
-      try {
-        DocumentPicker = await import('expo-document-picker');
-      } catch {
-        // Fallback to expo-image-picker if available
-        try {
-          const ImagePicker = await import('expo-image-picker');
-          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-          if (status !== 'granted') {
-            Alert.alert('Permission Required', 'Please allow access to your photo library.');
-            return;
-          }
-          const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.8,
-            base64: true,
-          });
-          if (result.canceled || !result.assets[0]?.base64) return;
-          
-          setUploadingPhoto(true);
-          const authState = useAuthStore.getState();
-          const session = authState.session;
-          const user = authState.user;
-          const userId = session?.user?.id || user?.id;
-          
-          // DEBUG: Show what we have
-          if (!userId) {
-            const debugInfo = `Session: ${session ? 'exists' : 'null'}\nUser: ${user ? 'exists' : 'null'}\nSession.user.id: ${session?.user?.id || 'null'}\nUser.id: ${user?.id || 'null'}`;
-            Alert.alert('DEBUG: No User ID', debugInfo);
-            setUploadingPhoto(false);
-            return;
-          }
-          
-          const response = await fetch(`${env.CORE_API_URL}/api/profile/claymation`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
-            body: JSON.stringify({ photoBase64: result.assets[0].base64 }),
-          });
-          const data = await response.json();
-          if (data.success && data.imageUrl) {
-            setClaymationPhotoUrl(data.imageUrl);
-            Alert.alert('Success!', 'Your claymation portrait has been created.');
-          } else {
-            Alert.alert('Error', data.error || 'Failed to create claymation portrait');
-          }
-          return;
-        } catch {
-          Alert.alert('Not Available', 'Photo upload requires a development build.');
-          return;
-        }
-      }
+      const ImagePicker = await import('expo-image-picker');
       
-      // Use expo-document-picker
-      const result = await DocumentPicker.getDocumentAsync({
-        type: 'image/*',
-        copyToCacheDirectory: true,
-      });
-      
-      if (result.canceled || !result.assets?.[0]) {
+      // Request permissions
+      const { status} = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please allow access to your photo library to upload a photo.');
         return;
       }
-      
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (result.canceled || !result.assets[0]?.base64) {
+        return;
+      }
+
       setUploadingPhoto(true);
+
+      // Get user ID from auth store
+      const authState = useAuthStore.getState();
+      const userId = authState.session?.user?.id || authState.user?.id;
       
-      // Read file as base64
-      const fileUri = result.assets[0].uri;
-      const response = await fetch(fileUri);
-      const blob = await response.blob();
-      const reader = new FileReader();
-      
-      reader.onloadend = async () => {
-        const base64 = (reader.result as string).split(',')[1];
-        
-        // Call backend to generate claymation
-        const authState = useAuthStore.getState();
-        const session = authState.session;
-        const user = authState.user;
-        const userId = session?.user?.id || user?.id;
-        
-        // DEBUG: Show what we have
-        if (!userId) {
-          const debugInfo = `Session: ${session ? 'exists' : 'null'}\nUser: ${user ? 'exists' : 'null'}\nSession.user.id: ${session?.user?.id || 'null'}\nUser.id: ${user?.id || 'null'}`;
-          Alert.alert('DEBUG: No User ID', debugInfo);
-          setUploadingPhoto(false);
-          return;
-        }
-        
-        const uploadResponse = await fetch(`${env.CORE_API_URL}/api/profile/claymation`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-User-Id': userId,
-          },
-          body: JSON.stringify({ photoBase64: base64 }),
-        });
-        
-        const data = await uploadResponse.json();
-        
-        if (data.success && data.imageUrl) {
-          setClaymationPhotoUrl(data.imageUrl);
-          Alert.alert('Success!', 'Your claymation portrait has been created. This is how you will appear to potential matches.');
-        } else {
-          Alert.alert('Error', data.error || 'Failed to create claymation portrait');
-        }
+      if (!userId) {
+        Alert.alert('Error', 'You must be signed in to upload a photo. Please restart the app and sign in.');
         setUploadingPhoto(false);
-      };
+        return;
+      }
+
+      // Upload to backend
+      const response = await fetch(`${env.CORE_API_URL}/api/profile/claymation`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-User-Id': userId,
+        },
+        body: JSON.stringify({ photoBase64: result.assets[0].base64 }),
+      });
+
+      const data = await response.json();
       
-      reader.readAsDataURL(blob);
+      if (data.success && data.imageUrl) {
+        setClaymationPhotoUrl(data.imageUrl);
+        Alert.alert('Success', 'Your claymation portrait is ready!');
+      } else {
+        Alert.alert('Error', data.error || 'Failed to generate claymation portrait');
+      }
       
+      setUploadingPhoto(false);
     } catch (error: any) {
       console.error('Photo upload error:', error);
-      Alert.alert('Error', 'Failed to upload photo. Please try again.');
+      Alert.alert('Error', error.message || 'Failed to upload photo. Please try again.');
       setUploadingPhoto(false);
     }
   };
