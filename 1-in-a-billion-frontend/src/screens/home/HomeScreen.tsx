@@ -1045,7 +1045,6 @@ export const HomeScreen = ({ navigation }: Props) => {
                   />
                 )}
               </TouchableOpacity>
-              </View>
               <Animated.Text
                 style={[styles.statusSub, { transform: [{ scale: pulseAnim }] }]}
                 selectable
