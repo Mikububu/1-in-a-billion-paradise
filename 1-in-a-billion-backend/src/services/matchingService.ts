@@ -81,16 +81,14 @@ export async function getGallery(options?: {
     .select(`
       id,
       user_id,
-      display_name,
+      name,
       claymation_url,
       placements,
-      gallery_bio,
-      last_active_at
+      updated_at
     `)
     .not('claymation_url', 'is', null)
-    .eq('show_in_gallery', true)
-    .eq('is_self', true)
-    .order('last_active_at', { ascending: false, nullsFirst: false })
+    .eq('is_user', true)
+    .order('updated_at', { ascending: false, nullsFirst: false })
     .range(offset, offset + limit - 1);
 
   if (options?.excludeUserId) {
@@ -107,13 +105,13 @@ export async function getGallery(options?: {
   return (data || []).map((p: any) => ({
     id: p.id,
     userId: p.user_id,
-    displayName: p.display_name,
+    displayName: p.name,
     claymationUrl: p.claymation_url,
     sunSign: p.placements?.sunSign || null,
     moonSign: p.placements?.moonSign || null,
     risingSign: p.placements?.risingSign || null,
-    bio: p.gallery_bio,
-    lastActiveAt: p.last_active_at,
+    bio: null, // Bio feature not implemented yet
+    lastActiveAt: p.updated_at,
   }));
 }
 
@@ -130,15 +128,13 @@ export async function getRandomGallery(count: number = 20, excludeUserId?: strin
     .select(`
       id,
       user_id,
-      display_name,
+      name,
       claymation_url,
       placements,
-      gallery_bio,
-      last_active_at
+      updated_at
     `)
     .not('claymation_url', 'is', null)
-    .eq('show_in_gallery', true)
-    .eq('is_self', true)
+    .eq('is_user', true)
     .limit(count * 3);
 
   if (excludeUserId) {
@@ -158,13 +154,13 @@ export async function getRandomGallery(count: number = 20, excludeUserId?: strin
   return shuffled.map((p: any) => ({
     id: p.id,
     userId: p.user_id,
-    displayName: p.display_name,
+    displayName: p.name,
     claymationUrl: p.claymation_url,
     sunSign: p.placements?.sunSign || null,
     moonSign: p.placements?.moonSign || null,
     risingSign: p.placements?.risingSign || null,
-    bio: p.gallery_bio,
-    lastActiveAt: p.last_active_at,
+    bio: null, // Bio feature not implemented yet
+    lastActiveAt: p.updated_at,
   }));
 }
 
