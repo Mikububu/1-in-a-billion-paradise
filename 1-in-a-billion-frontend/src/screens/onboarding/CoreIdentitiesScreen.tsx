@@ -325,12 +325,35 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
       return;
     }
 
+    // CRITICAL: Validate birth location has valid coordinates
+    // Without valid coordinates, Swiss Ephemeris cannot calculate Rising sign
+    if (
+      typeof birthCity?.latitude !== 'number' ||
+      typeof birthCity?.longitude !== 'number' ||
+      (birthCity.latitude === 0 && birthCity.longitude === 0)
+    ) {
+      console.error('❌ Invalid birth location:', birthCity);
+      Alert.alert(
+        'Invalid Birth Location',
+        'Your birth city is missing coordinates. Please go back and select a valid city from the list.'
+      );
+      navigation.goBack();
+      return;
+    }
+
+    console.log('🌍 Birth location validated:', {
+      city: birthCity.name,
+      lat: birthCity.latitude,
+      lng: birthCity.longitude,
+      tz: birthCity.timezone,
+    });
+
     const payload = {
       birthDate,
       birthTime: birthTime || '12:00',
-      timezone: birthCity?.timezone || 'UTC',
-      latitude: birthCity?.latitude || 0,
-      longitude: birthCity?.longitude || 0,
+      timezone: birthCity.timezone || 'UTC',
+      latitude: birthCity.latitude,
+      longitude: birthCity.longitude,
       relationshipIntensity: relationshipIntensity || 5,
       relationshipMode: relationshipMode || 'sensual',
       primaryLanguage: primaryLanguage?.code || 'en',

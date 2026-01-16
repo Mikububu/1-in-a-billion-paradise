@@ -259,12 +259,35 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
       navigation.goBack();
       return;
     }
+    
+    // CRITICAL: Validate birth location has valid coordinates
+    if (
+      typeof partnerBirthCity?.latitude !== 'number' ||
+      typeof partnerBirthCity?.longitude !== 'number' ||
+      (partnerBirthCity.latitude === 0 && partnerBirthCity.longitude === 0)
+    ) {
+      console.error('❌ Invalid partner birth location:', partnerBirthCity);
+      Alert.alert(
+        'Invalid Birth Location',
+        `${name}'s birth city is missing coordinates. Please go back and select a valid city from the list.`
+      );
+      navigation.goBack();
+      return;
+    }
+
+    console.log(`🌍 Partner birth location validated:`, {
+      city: partnerBirthCity.name,
+      lat: partnerBirthCity.latitude,
+      lng: partnerBirthCity.longitude,
+      tz: partnerBirthCity.timezone,
+    });
+    
     const payload = {
       birthDate: partnerBirthDate,
       birthTime: partnerBirthTime || '12:00',
-      timezone: partnerBirthCity?.timezone || 'UTC',
-      latitude: partnerBirthCity?.latitude || 0,
-      longitude: partnerBirthCity?.longitude || 0,
+      timezone: partnerBirthCity.timezone || 'UTC',
+      latitude: partnerBirthCity.latitude,
+      longitude: partnerBirthCity.longitude,
       relationshipIntensity,
       relationshipMode,
       primaryLanguage,

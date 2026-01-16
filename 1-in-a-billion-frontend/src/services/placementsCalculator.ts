@@ -14,7 +14,7 @@ export interface Placements {
   risingDegree?: any;
 }
 
-function normalizePlacements(raw: any): Placements | null {
+export function normalizePlacements(raw: any): Placements | null {
   if (!raw || typeof raw !== 'object') return null;
 
   // Support a few historical/backend variants

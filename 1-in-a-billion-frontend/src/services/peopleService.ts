@@ -7,7 +7,7 @@
 
 import { supabase, isSupabaseConfigured } from './supabase';
 import { Person, BirthData, Placements } from '@/store/profileStore';
-import { calculatePlacements } from './placementsCalculator';
+import { calculatePlacements, normalizePlacements } from './placementsCalculator';
 import { env } from '@/config/env';
 
 export type LibraryPerson = {
@@ -57,20 +57,25 @@ export async function fetchPeopleFromSupabase(userId: string): Promise<Person[]>
     console.log(`✅ Fetched ${data.length} people from Supabase`);
 
     // Convert Supabase format to frontend Person format
-    const people: Person[] = data.map((row: any) => ({
-      id: row.client_person_id,
-      name: row.name,
-      isUser: row.is_user || false,
-      isVerified: row.is_user || false,
-      gender: row.gender,
-      birthData: row.birth_data,
-      placements: row.placements,
-      personalContext: row.personal_context,
-      readings: [], // Readings loaded separately
-      jobIds: [], // Job IDs loaded separately
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    }));
+    const people: Person[] = data.map((row: any) => {
+      // Normalize placements to ensure consistent format (sunSign, moonSign, risingSign)
+      const normalizedPlacements = normalizePlacements(row.placements) || row.placements;
+      
+      return {
+        id: row.client_person_id,
+        name: row.name,
+        isUser: row.is_user || false,
+        isVerified: row.is_user || false,
+        gender: row.gender,
+        birthData: row.birth_data,
+        placements: normalizedPlacements,
+        personalContext: row.personal_context,
+        readings: [], // Readings loaded separately
+        jobIds: [], // Job IDs loaded separately
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
+    });
 
     return people;
   } catch (err: any) {
@@ -334,21 +339,26 @@ export async function fetchPeopleWithPaidReadings(userId: string): Promise<Perso
     console.log(`✅ Fetched ${data.length} people with paid readings`);
 
     // Convert Supabase format to frontend Person format
-    const people: Person[] = data.map((row: any) => ({
-      id: row.client_person_id,
-      name: row.name,
-      isUser: row.is_user || false,
-      isVerified: row.is_user || false,
-      gender: row.gender,
-      birthData: row.birth_data,
-      placements: row.placements,
-      hasPaidReading: row.has_paid_reading,
-      personalContext: row.personal_context,
-      readings: [],
-      jobIds: [],
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    }));
+    const people: Person[] = data.map((row: any) => {
+      // Normalize placements to ensure consistent format (sunSign, moonSign, risingSign)
+      const normalizedPlacements = normalizePlacements(row.placements) || row.placements;
+      
+      return {
+        id: row.client_person_id,
+        name: row.name,
+        isUser: row.is_user || false,
+        isVerified: row.is_user || false,
+        gender: row.gender,
+        birthData: row.birth_data,
+        placements: normalizedPlacements,
+        hasPaidReading: row.has_paid_reading,
+        personalContext: row.personal_context,
+        readings: [],
+        jobIds: [],
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
+    });
 
     return people;
   } catch (err: any) {

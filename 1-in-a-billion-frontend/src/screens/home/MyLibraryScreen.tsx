@@ -42,6 +42,7 @@ import { fetchPeopleWithPaidReadings, deletePersonFromSupabase } from '@/service
 import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { fetchNuclearJobs, fetchJobArtifacts } from '@/services/nuclearReadingsService';
+import { normalizePlacements } from '@/services/placementsCalculator';
 
 // Define radii values directly to avoid import issues
 const RADIUS_CARD = 22;
@@ -258,6 +259,10 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           for (const row of data as any[]) {
             const id = row.client_person_id;
             if (!id) continue;
+            
+            // Normalize placements to ensure consistent format (sunSign, moonSign, risingSign)
+            const normalizedPlacements = normalizePlacements(row.placements) || row.placements;
+            
             nextMap[id] = {
               id,
               name: row.name,
@@ -265,7 +270,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
               isVerified: row.is_user || false,
               gender: row.gender,
               birthData: row.birth_data,
-              placements: row.placements,
+              placements: normalizedPlacements,
               readings: [],
               jobIds: [],
               createdAt: row.created_at || new Date().toISOString(),

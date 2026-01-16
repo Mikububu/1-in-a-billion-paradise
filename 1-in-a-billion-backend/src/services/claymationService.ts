@@ -2,13 +2,13 @@
  * CLAYMATION PORTRAIT SERVICE
  * 
  * Transforms user photos into handcrafted claymation-style portraits
- * using OpenAI's GPT-4o Vision + DALL-E 3.
+ * using Google AI Studio (image-to-image transformation).
  * 
  * Purpose: Privacy-preserving profile images for the matching system.
  * When users match, they see each other's claymation portraits, not real photos.
  */
 
-import axios from 'axios';
+import { GoogleGenAI } from '@google/genai';
 import * as fs from 'fs';
 import * as path from 'path';
 import { getApiKey } from './apiKeys';
@@ -46,21 +46,13 @@ loadExampleImages();
 // CLAYMATION PROMPT (from CLAYMATION_PORTRAIT.md)
 // ═══════════════════════════════════════════════════════════════════════════
 
-const CLAYMATION_STYLE_PROMPT = `Transform this portrait into a handcrafted analog claymation and collage sculpture aesthetic.
+const CLAYMATION_STYLE_PROMPT = `Create a handcrafted claymation sculpture portrait. 
 
-The subject must appear as a physically sculpted clay figure with realistic human proportions and a serious contemplative presence.
+Style: Matte clay with tactile texture, finger marks, and handmade imperfections. Soft natural lighting. Analog and artisanal aesthetic.
 
-All surfaces should be matte and tactile, showing finger marks, rough material edges, slight asymmetry, and handcrafted imperfections.
+Background: Pure white.
 
-Use soft directional lighting that creates warm natural shadows and emphasizes physical depth and texture.
-
-The overall look must feel fully analog and handmade using the visual language of clay, carved plaster, linoleum collage, and aged paper.
-
-CRITICAL: The background MUST be pure white (#FFFFFF). No colored backgrounds, no gradients, no textures in the background - just clean white.
-
-AVOID: Any digital smoothness, gloss, airbrushing, typography, symbols, text, borders, stamps, or graphic elements. No aged paper or canvas backgrounds - the background must be WHITE.
-
-The image should feel like a photographed physical sculpture rather than a digital illustration, grounded in a philosophical artisanal and material driven aesthetic.`;
+Avoid: Digital smoothness, gloss, text, borders, or graphic elements.`;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -82,9 +74,8 @@ export interface ClaymationResult {
 /**
  * Generate a claymation portrait from a user's photo
  * 
- * Two-step process:
- * 1. Analyze the photo with GPT-4o Vision to describe the person
- * 2. Generate claymation with DALL-E 3 using the description
+ * Single-step image-to-image transformation using Google AI Studio.
+ * Sends photo + style prompt directly to generate claymation portrait.
  */
 export async function generateClaymationPortrait(
   photoBase64: string,
@@ -97,12 +88,13 @@ export async function generateClaymationPortrait(
   }
 
   try {
-    const apiKey = await getApiKey('openai', env.OPENAI_API_KEY);
-    if (!apiKey) {
-      return { success: false, error: 'OpenAI API key not found' };
+    const googleKey = await getApiKey('google_ai_studio', env.GOOGLE_API_KEY || '');
+    
+    if (!googleKey) {
+      return { success: false, error: 'Google AI Studio API key not found' };
     }
 
-    console.log('🎨 [Claymation] Starting portrait generation...');
+    console.log('🎨 [Claymation] Starting portrait generation with Google AI Studio...');
     
     // Ensure example images are loaded
     loadExampleImages();
@@ -134,123 +126,62 @@ export async function generateClaymationPortrait(
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // STEP 1: Analyze photo with GPT-4o Vision (with style examples)
+    // Generate claymation directly with Google AI Studio (image-to-image)
     // ─────────────────────────────────────────────────────────────────────
-    console.log('👁️ [Claymation] Step 1: Analyzing photo with GPT-4o Vision...');
-    
-    // Build content array with user photo and optional style examples
-    const contentArray: any[] = [
-      {
-        type: 'text',
-        text: `You are helping create a claymation portrait. First, study these example claymation images to understand the desired aesthetic style:`
-      }
-    ];
-    
-    // Add example images as style references
-    if (exampleImagesBase64.length > 0) {
-      console.log(`📸 [Claymation] Including ${exampleImagesBase64.length} style examples...`);
-      for (const exampleB64 of exampleImagesBase64) {
-        contentArray.push({
-          type: 'image_url',
-          image_url: {
-            url: `data:image/jpeg;base64,${exampleB64}`,
-            detail: 'low' // Low detail for style examples to save tokens
-          }
-        });
-      }
-    }
-    
-    // Add the actual user photo and analysis request
-    contentArray.push({
-      type: 'text',
-      text: `Now, describe the following person's appearance for an artist who will create a clay sculpture portrait in the SAME STYLE as the examples above. Include:
-- Face shape (oval, round, square, heart-shaped, etc.)
-- Hair color, length, and style
-- Eye color and shape
-- Skin tone
-- Any distinctive features (beard, glasses, freckles, etc.)
-- Expression/mood
-- Approximate age range
-- Gender presentation
+    console.log('🎨 [Claymation] Generating claymation with Google AI Studio...');
 
-Be specific and detailed but neutral. This description will be used to create an artistic claymation portrait matching the aesthetic of the examples.`
-    });
+    const ai = new GoogleGenAI({ apiKey: googleKey });
+
+    // Build parts array: image first, then text (matching working code)
+    const parts: any[] = [];
     
-    contentArray.push({
-      type: 'image_url',
-      image_url: {
-        url: `data:image/jpeg;base64,${photoBase64}`,
-        detail: 'high'
+    // Add image (remove data:image/jpeg;base64, prefix if present)
+    const base64Data = photoBase64.includes(',') ? photoBase64.split(',')[1] : photoBase64;
+    parts.push({
+      inlineData: {
+        data: base64Data,
+        mimeType: 'image/jpeg'
       }
     });
-    
-    const analysisResponse = await axios.post(
-      'https://api.openai.com/v1/chat/completions',
-      {
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'user',
-            content: contentArray
-          }
-        ],
-        max_tokens: 500,
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 90000, // Increased for multiple images
-      }
-    );
 
-    const description = analysisResponse.data.choices?.[0]?.message?.content;
-    if (!description) {
-      return { success: false, error: 'Failed to analyze photo' };
+    // Add text prompt (matching working code style)
+    const stylePrompt = `Transform this portrait into a professional claymation style (like Wallace & Gromit or Shaun the Sheep). Focus on tactile clay textures, visible fingerprints, and expressive clay-like features. White background.`;
+    parts.push({ text: stylePrompt });
+
+    // Generate using the SDK (matching working code structure)
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: { parts },
+      config: {
+        imageConfig: {
+          aspectRatio: "1:1"
+        }
+      }
+    });
+
+    // Extract image from response (loop through parts to find inlineData)
+    let generatedImageB64: string | undefined;
+    if (response.candidates?.[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData?.data) {
+          generatedImageB64 = part.inlineData.data;
+          break;
+        }
+      }
     }
 
-    console.log('📝 [Claymation] Got description:', description.slice(0, 100) + '...');
-
-    // ─────────────────────────────────────────────────────────────────────
-    // STEP 2: Generate claymation portrait with DALL-E 3
-    // ─────────────────────────────────────────────────────────────────────
-    console.log('🎭 [Claymation] Step 2: Generating claymation with DALL-E 3...');
-
-    const dallePrompt = `Create a portrait of a person with these features:
-
-${description}
-
-${CLAYMATION_STYLE_PROMPT}
-
-The portrait should be a bust (head and shoulders), centered, on a PURE WHITE BACKGROUND. No textures, no gradients, no aged paper - just clean white (#FFFFFF).`;
-
-    const dalleResponse = await axios.post(
-      'https://api.openai.com/v1/images/generations',
-      {
-        model: 'dall-e-3',
-        prompt: dallePrompt,
-        n: 1,
-        size: '1024x1024',
-        quality: 'hd',
-        style: 'natural',
-        response_format: 'b64_json',
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 120000, // 2 min for image generation
-      }
-    );
-
-    const generatedImageB64 = dalleResponse.data.data?.[0]?.b64_json;
     if (!generatedImageB64) {
-      return { success: false, error: 'Failed to generate claymation image' };
+      console.error('❌ [Claymation] No image found in response:', {
+        hasCandidates: !!response.candidates,
+        candidateCount: response.candidates?.length,
+        hasContent: !!response.candidates?.[0]?.content,
+        partsCount: response.candidates?.[0]?.content?.parts?.length,
+        finishReason: response.candidates?.[0]?.finishReason
+      });
+      return { success: false, error: 'Failed to generate claymation image with Google AI Studio' };
     }
 
-    console.log('✅ [Claymation] Image generated successfully');
+    console.log('✅ [Claymation] Image generated successfully with Google AI Studio');
 
     // ─────────────────────────────────────────────────────────────────────
     // STEP 3: Upload claymation to Supabase Storage
@@ -281,22 +212,22 @@ The portrait should be a bust (head and shoulders), centered, on a PURE WHITE BA
     console.log('✅ [Claymation] Uploaded to:', imageUrl);
 
     // ─────────────────────────────────────────────────────────────────────
-    // STEP 4: Update library_people record (if personId provided)
+    // STEP 4: Update library_people record (update user's self record)
     // ─────────────────────────────────────────────────────────────────────
-    if (personId) {
-      const { error: updateError } = await supabase
-        .from('library_people')
-        .update({ 
-          claymation_url: imageUrl,
-          original_photo_url: originalUrl,
-        })
-        .eq('id', personId);
+    const { error: updateError } = await supabase
+      .from('library_people')
+      .update({ 
+        claymation_url: imageUrl,
+        original_photo_url: originalUrl,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', userId)
+      .eq('is_user', true);
 
-      if (updateError) {
-        console.warn('⚠️ [Claymation] Could not update library_people:', updateError);
-      } else {
-        console.log('✅ [Claymation] Updated library_people with both URLs');
-      }
+    if (updateError) {
+      console.warn('⚠️ [Claymation] Could not update library_people:', updateError);
+    } else {
+      console.log('✅ [Claymation] Updated library_people with both URLs');
     }
 
     return {
@@ -304,11 +235,14 @@ The portrait should be a bust (head and shoulders), centered, on a PURE WHITE BA
       imageUrl,
       originalUrl,
       storagePath,
-      cost: 0.12, // Approximate: $0.04 vision (with examples) + $0.08 DALL-E 3 HD
+      cost: 0.05, // Google AI Studio image generation (estimated)
     };
 
   } catch (error: any) {
     console.error('❌ [Claymation] Error:', error.message);
+    if (error.response?.data) {
+      console.error('   Response data:', JSON.stringify(error.response.data, null, 2));
+    }
     return { success: false, error: error.message };
   }
 }

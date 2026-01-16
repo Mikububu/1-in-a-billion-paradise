@@ -18,6 +18,7 @@
 
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
 import type { Person } from '@/store/profileStore';
+import { normalizePlacements } from './placementsCalculator';
 
 const TABLE_PEOPLE = 'library_people';
 
@@ -75,6 +76,10 @@ function toRow(userId: string, p: Person): LibraryPersonRow {
 
 function fromRow(r: LibraryPersonRow): Person {
   const now = new Date().toISOString();
+  
+  // Normalize placements to ensure consistent format (sunSign, moonSign, risingSign)
+  const normalizedPlacements = normalizePlacements(r.placements) || r.placements;
+  
   return {
     id: r.client_person_id,
     name: r.name,
@@ -88,7 +93,7 @@ function fromRow(r: LibraryPersonRow): Person {
     // Birth data
     birthData: (r.birth_data || {}) as any,
     // Calculated data
-    placements: (r.placements || undefined) as any,
+    placements: normalizedPlacements,
     hookReadings: (r.hook_readings || undefined) as any,
     hookAudioPaths: (r.hook_audio_paths || undefined) as any,
     readings: [],
