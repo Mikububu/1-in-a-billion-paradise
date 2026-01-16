@@ -88,7 +88,7 @@ export async function generateClaymationPortrait(
   }
 
   try {
-    const googleKey = await getApiKey('google_ai_studio', env.GOOGLE_API_KEY || '');
+    const googleKey = await getApiKey('google_ai_studio', env.GOOGLE_AI_STUDIO_API_KEY || '');
     
     if (!googleKey) {
       return { success: false, error: 'Google AI Studio API key not found' };

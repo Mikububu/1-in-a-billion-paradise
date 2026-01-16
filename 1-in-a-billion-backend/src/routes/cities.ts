@@ -24,8 +24,36 @@ interface CityResult {
 }
 
 /**
+ * Helper: Check if a place type array indicates a city/town/locality
+ */
+function isValidCityType(types: string[]): boolean {
+    // Accept: cities, towns, villages, districts, neighborhoods, postal towns
+    return types.includes('locality') ||
+           types.includes('sublocality') ||
+           types.includes('sublocality_level_1') ||
+           types.includes('administrative_area_level_2') ||
+           types.includes('administrative_area_level_3') ||
+           types.includes('administrative_area_level_4') ||
+           types.includes('administrative_area_level_5') ||
+           types.includes('colloquial_area') ||
+           types.includes('neighborhood') ||
+           types.includes('postal_town') ||
+           types.includes('town') ||
+           types.includes('village') ||
+           // Accept geocode results that aren't countries or large regions
+           (types.includes('geocode') && 
+            !types.includes('country') && 
+            !types.includes('administrative_area_level_1'));
+}
+
+/**
  * GET /search?q=<query>
  * Search for cities using Google Places API
+ * 
+ * Uses a multi-strategy approach to find cities worldwide:
+ * 1. First tries (cities) type for exact city matches
+ * 2. Falls back to geocode for broader matches (towns, villages, districts)
+ * 3. Finally tries no type restriction for maximum coverage
  */
 router.get('/search', async (c) => {
     const query = c.req.query('q');
@@ -45,38 +73,60 @@ router.get('/search', async (c) => {
             }, 500);
         }
 
-        // Use Google Places Autocomplete API
-        // Search without strict (cities) restriction to find towns, communes, districts
-        // This finds places like Meyrin (Switzerland), Wichian Buri (Thailand), etc.
-        const autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=(regions)&key=${googlePlacesKey}`;
-        
-        let autocompleteResponse = await axios.get(autocompleteUrl);
-        let autocompleteData = autocompleteResponse.data;
+        // Multi-strategy search: try different type restrictions to maximize coverage
+        // Some cities only appear with certain type filters
+        const searchStrategies = [
+            { types: '(cities)', name: 'cities' },           // Major cities
+            { types: 'geocode', name: 'geocode' },           // All geocodable places
+            { types: '(regions)', name: 'regions' },         // Regions, localities
+            { types: '', name: 'unrestricted' },             // No restriction (fallback)
+        ];
 
-        // Filter to only include cities, towns, districts, localities
-        if (autocompleteData.status === 'OK' && autocompleteData.predictions) {
-            autocompleteData.predictions = autocompleteData.predictions.filter((pred: any) => {
-                const types = pred.types || [];
-                // Accept: locality, sublocality, town, city, district, commune
-                return types.includes('locality') || 
-                       types.includes('sublocality') ||
-                       types.includes('administrative_area_level_2') || 
-                       types.includes('administrative_area_level_3') ||
-                       types.includes('administrative_area_level_4') ||
-                       types.includes('colloquial_area') ||
-                       (types.includes('geocode') && !types.includes('country'));
-            });
+        let allPredictions: any[] = [];
+        const seenPlaceIds = new Set<string>();
+
+        for (const strategy of searchStrategies) {
+            try {
+                const typesParam = strategy.types ? `&types=${strategy.types}` : '';
+                const autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}${typesParam}&key=${googlePlacesKey}`;
+                
+                const autocompleteResponse = await axios.get(autocompleteUrl);
+                const autocompleteData = autocompleteResponse.data;
+
+                if (autocompleteData.status === 'OK' && autocompleteData.predictions) {
+                    // Filter and deduplicate
+                    for (const pred of autocompleteData.predictions) {
+                        if (seenPlaceIds.has(pred.place_id)) continue;
+                        
+                        const types = pred.types || [];
+                        if (isValidCityType(types)) {
+                            seenPlaceIds.add(pred.place_id);
+                            allPredictions.push(pred);
+                        }
+                    }
+                }
+
+                // If we have enough results, stop searching
+                if (allPredictions.length >= 8) break;
+                
+            } catch (strategyError) {
+                console.warn(`City search strategy '${strategy.name}' failed:`, strategyError);
+                // Continue with next strategy
+            }
         }
 
-        if (autocompleteData.status !== 'OK' || !autocompleteData.predictions || autocompleteData.predictions.length === 0) {
-            console.warn('Google Places Autocomplete returned no results:', autocompleteData.status);
+        if (allPredictions.length === 0) {
+            console.warn('Google Places Autocomplete returned no results for:', query);
             return c.json({ cities: [] });
         }
+
+        console.log(`🌍 City search for "${query}": found ${allPredictions.length} candidates`);
+        
 
         // Get detailed info for each place (to get coordinates and timezone)
         const cities: CityResult[] = [];
 
-        for (const prediction of autocompleteData.predictions.slice(0, 6)) {
+        for (const prediction of allPredictions.slice(0, 8)) {
             try {
                 const placeId = prediction.place_id;
                 const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,geometry,address_components&key=${googlePlacesKey}`;
@@ -94,30 +144,62 @@ router.get('/search', async (c) => {
                 if (!location) continue;
 
                 // Extract city name and country from address components
+                // Priority: locality > sublocality > admin_level_3 > admin_level_2 > postal_town > neighborhood
                 const addressComponents = result.address_components || [];
-                let cityName = result.name;
+                let cityName = '';
                 let country = '';
                 let region = '';
+                
+                // Collect candidates by priority
+                let locality = '';
+                let sublocality = '';
+                let adminLevel2 = '';
+                let adminLevel3 = '';
+                let adminLevel4 = '';
+                let postalTown = '';
+                let neighborhood = '';
 
                 for (const component of addressComponents) {
-                    if (component.types.includes('country')) {
+                    const types = component.types || [];
+                    
+                    if (types.includes('country')) {
                         country = component.long_name;
                     }
-                    if (component.types.includes('administrative_area_level_1')) {
+                    if (types.includes('administrative_area_level_1')) {
                         region = component.short_name;
                     }
-                    // Prefer locality (city), but fallback to district if no locality
-                    if (component.types.includes('locality')) {
-                        cityName = component.long_name;
-                    } else if (!cityName || cityName === result.name) {
-                        // If no locality found, use district or sublocality
-                        if (component.types.includes('administrative_area_level_2')) {
-                            // Remove "District" suffix if present (e.g., "Wichian Buri District" -> "Wichian Buri")
-                            cityName = component.long_name.replace(/\s+District$/i, '');
-                        } else if (component.types.includes('sublocality')) {
-                            cityName = component.long_name;
-                        }
+                    if (types.includes('locality')) {
+                        locality = component.long_name;
                     }
+                    if (types.includes('sublocality') || types.includes('sublocality_level_1')) {
+                        sublocality = component.long_name;
+                    }
+                    if (types.includes('administrative_area_level_2')) {
+                        // Clean up common suffixes
+                        adminLevel2 = component.long_name
+                            .replace(/\s+(District|Province|Prefecture|County|Region|Municipality)$/i, '');
+                    }
+                    if (types.includes('administrative_area_level_3')) {
+                        adminLevel3 = component.long_name
+                            .replace(/\s+(District|Barangay|Ward|Township)$/i, '');
+                    }
+                    if (types.includes('administrative_area_level_4')) {
+                        adminLevel4 = component.long_name;
+                    }
+                    if (types.includes('postal_town')) {
+                        postalTown = component.long_name;
+                    }
+                    if (types.includes('neighborhood')) {
+                        neighborhood = component.long_name;
+                    }
+                }
+                
+                // Choose best city name by priority
+                cityName = locality || sublocality || adminLevel3 || adminLevel2 || adminLevel4 || postalTown || neighborhood || result.name;
+                
+                // If region is same as city name, try to get a more specific region
+                if (region === cityName && adminLevel2 && adminLevel2 !== cityName) {
+                    region = adminLevel2;
                 }
 
                 // Get timezone using Google Timezone API
