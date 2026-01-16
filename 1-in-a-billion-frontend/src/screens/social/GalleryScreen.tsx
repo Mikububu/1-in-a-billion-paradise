@@ -331,9 +331,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   profileImage: {
-    width: 280,
-    height: 280,
-    borderRadius: 20,
+    width: 340,
+    height: 340,
+    borderRadius: 24,
     marginBottom: spacing.lg,
     borderWidth: 3,
     borderColor: colors.primary,
