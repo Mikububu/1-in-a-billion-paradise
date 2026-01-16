@@ -120,7 +120,11 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
           const res = await fetch(`${env.CORE_API_URL}/api/jobs/v2/${jobId}`);
           const payload = await res.json();
           const docs = payload?.job?.results?.documents || [];
-          const matchingDoc = docs.find((d: any) => d.system === systemId && Number(d.docNum) === Number(docNum));
+          const matchingDoc = docs.find((d: any) => {
+            if (Number(d.docNum) !== Number(docNum)) return false;
+            if (systemId === 'verdict') return d.docType === 'verdict' || !d.system || d.system === 'western';
+            return d.system === systemId;
+          });
           if (matchingDoc?.text) {
             console.log(`✅ Found text in job.results.documents: ${matchingDoc.text.length} chars`);
             if (mounted) setText(matchingDoc.text);

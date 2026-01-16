@@ -987,6 +987,9 @@ ${OUTPUT_FORMAT_RULES}`;
       );
     }
     
+    // Post-process: Remove em-dashes (—) and en-dashes (–) that LLMs love to add
+    text = text.replace(/—/g, ', ').replace(/–/g, '-').replace(/\s+,/g, ',');
+    
     const wordCount = text.split(/\s+/).filter(Boolean).length;
 
     if (wordCount < 200) {
