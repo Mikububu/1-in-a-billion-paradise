@@ -84,6 +84,7 @@ export const HomeScreen = ({ navigation }: Props) => {
   const [claymationPhotoUrl, setClaymationPhotoUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [matchCount, setMatchCount] = useState(0);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
   const blinkAnim = useRef(new Animated.Value(1)).current;
   
   // DEBUG: Get current user ID from session (user object is not persisted)
@@ -1069,7 +1070,7 @@ export const HomeScreen = ({ navigation }: Props) => {
             </TouchableOpacity>
           ) : (
             <TouchableOpacity 
-              onPress={() => navigation.navigate('Gallery' as any)}
+              onPress={() => setShowPhotoModal(true)}
               activeOpacity={0.8}
             >
               <Image 
@@ -1091,6 +1092,36 @@ export const HomeScreen = ({ navigation }: Props) => {
         </View>
 
       </ScrollView>
+
+      {/* Claymation Photo Modal */}
+      <Modal
+        visible={showPhotoModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPhotoModal(false)}
+      >
+        <Pressable 
+          style={styles.photoModalOverlay}
+          onPress={() => setShowPhotoModal(false)}
+          activeOpacity={1}
+        >
+          <View style={styles.photoModalContent}>
+            {claymationPhotoUrl && (
+              <Image 
+                source={{ uri: claymationPhotoUrl }} 
+                style={styles.photoModalImage}
+                resizeMode="contain"
+              />
+            )}
+            <TouchableOpacity 
+              style={styles.photoModalCloseButton}
+              onPress={() => setShowPhotoModal(false)}
+            >
+              <Text style={styles.photoModalCloseText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* Reading Detail Modal */}
       <Modal
@@ -1595,6 +1626,38 @@ const styles = StyleSheet.create({
   forbiddenYogaLogo: {
     width: 200,
     height: 60,
+  },
+  
+  // Claymation photo modal
+  photoModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoModalContent: {
+    width: '90%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  photoModalImage: {
+    width: 300,
+    height: 300,
+    borderRadius: 20,
+    borderWidth: 3,
+    borderColor: colors.primary,
+  },
+  photoModalCloseButton: {
+    marginTop: spacing.xl,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl * 2,
+    backgroundColor: colors.primary,
+    borderRadius: 999,
+  },
+  photoModalCloseText: {
+    fontFamily: typography.sansSemiBold,
+    fontSize: 16,
+    color: '#fff',
   },
 });
 
