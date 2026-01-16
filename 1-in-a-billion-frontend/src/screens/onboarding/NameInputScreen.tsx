@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Video, ResizeMode } from 'expo-av';
 import { colors, spacing, typography } from '@/theme/tokens';
 import { Button } from '@/components/Button';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
@@ -33,39 +34,64 @@ export const NameInputScreen = ({ navigation, route }: Props) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.topSection}>
-          <Text style={styles.title} selectable>
-            The name you wish{'\n'}to be known by
-          </Text>
-          
-          <TextInput
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            placeholder="Your first name"
-            placeholderTextColor={colors.mutedText}
-            autoCapitalize="words"
-            autoCorrect={false}
-            autoFocus
-            returnKeyType="done"
-            onSubmitEditing={handleContinue}
+    <View style={styles.wrapper}>
+      {/* Background Video */}
+      <Video
+        source={require('@/assets/videos/connection.mp4')}
+        style={styles.backgroundVideo}
+        resizeMode={ResizeMode.COVER}
+        shouldPlay
+        isLooping
+        isMuted
+      />
+      
+      <SafeAreaView style={styles.container}>
+        <View style={styles.content}>
+          <View style={styles.topSection}>
+            <Text style={styles.title} selectable>
+              The name you wish{'\n'}to be known by
+            </Text>
+            
+            <TextInput
+              style={styles.input}
+              value={name}
+              onChangeText={setName}
+              placeholder="Your first name"
+              placeholderTextColor={colors.mutedText}
+              autoCapitalize="words"
+              autoCorrect={false}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={handleContinue}
+            />
+          </View>
+
+          <Button
+            label="Continue"
+            onPress={handleContinue}
+            variant="primary"
+            style={styles.button}
           />
         </View>
-
-        <Button
-          label="Continue"
-          onPress={handleContinue}
-          variant="primary"
-          style={styles.button}
-        />
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  wrapper: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  backgroundVideo: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
   container: {
     flex: 1,
     backgroundColor: 'transparent',
