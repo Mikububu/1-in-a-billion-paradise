@@ -122,6 +122,10 @@ export async function calculatePlacements(
             rising: normalized.risingSign,
           });
         }
+        // #region agent log
+        // DEBUG: Log Swiss Ephemeris calculation results
+        fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'placementsCalculator.ts:125',message:'Swiss Ephemeris calculated placements',data:{birthData,system,normalized,raw:data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
         return normalized;
       } catch {
         // Try next base
@@ -148,16 +152,17 @@ export async function calculatePlacements(
  */
 export async function backfillMissingPlacements(
   people: Array<{ id: string; name: string; birthData: any; placements?: any }>,
-  updatePerson: (id: string, updates: any) => void
+  updatePerson: (id: string, updates: any) => void,
+  force: boolean = false
 ): Promise<{ updated: number; failed: number }> {
-  console.log('🔄 BACKFILLING MISSING PLACEMENTS');
+  console.log('🔄 BACKFILLING MISSING PLACEMENTS' + (force ? ' (FORCE MODE)' : ''));
 
   let updated = 0;
   let failed = 0;
 
   for (const person of people) {
-    // Skip if already has placements
-    if (person.placements?.sunSign && person.placements?.moonSign && person.placements?.risingSign) {
+    // Skip if already has placements (unless force mode)
+    if (!force && person.placements?.sunSign && person.placements?.moonSign && person.placements?.risingSign) {
       console.log(`✓ ${person.name}: Already has placements`);
       continue;
     }
