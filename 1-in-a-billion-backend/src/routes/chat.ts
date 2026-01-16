@@ -47,12 +47,13 @@ router.get('/gallery', async (c) => {
 /**
  * GET /api/chat/gallery/random
  * Get random selection of claymation portraits
+ * NOTE: Includes the user's own profile so they can view it
  */
 router.get('/gallery/random', async (c) => {
-  const userId = c.req.header('X-User-Id');
   const count = parseInt(c.req.query('count') || '20');
 
-  const gallery = await getRandomGallery(count, userId || undefined);
+  // Don't exclude the user - they should be able to see their own portrait in the gallery
+  const gallery = await getRandomGallery(count);
 
   return c.json({ success: true, gallery, count: gallery.length });
 });
