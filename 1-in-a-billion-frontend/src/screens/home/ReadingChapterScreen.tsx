@@ -97,9 +97,16 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
         
         const textArtifact = artifacts.find((a) => {
           const meta = (a.metadata as any) || {};
-          const matches = meta?.system === systemId && Number(meta?.docNum) === Number(docNum);
-          if (matches) console.log(`✅ Found matching artifact: ${a.storage_path}`);
-          return matches;
+          if (Number(meta?.docNum) !== Number(docNum)) return false;
+          // Verdict can have system: null, 'western', or docType: 'verdict'
+          let sysMatch: boolean;
+          if (systemId === 'verdict') {
+            sysMatch = meta?.docType === 'verdict' || !meta?.system || (Number(docNum) === 16 && meta?.system === 'western');
+          } else {
+            sysMatch = meta?.system === systemId;
+          }
+          if (sysMatch) console.log(`✅ Found matching artifact: ${a.storage_path}`);
+          return sysMatch;
         });
         
         if (textArtifact?.storage_path) {
