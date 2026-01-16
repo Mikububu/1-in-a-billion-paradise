@@ -30,6 +30,8 @@
       "package": "com.oneinabillion.app",
       "permissions": [
         "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
@@ -59,6 +61,12 @@
         "projectId": "eced09a0-1038-41f6-a46c-1ec085690182"
       }
     },
-    "owner": "michaelpw"
+    "owner": "michaelpw",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/eced09a0-1038-41f6-a46c-1ec085690182"
+    }
   }
 }

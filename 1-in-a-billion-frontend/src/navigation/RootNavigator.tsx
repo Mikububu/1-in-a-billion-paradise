@@ -833,13 +833,17 @@ export const RootNavigator = () => {
   if (shouldContinueOnboarding) {
     // Resume onboarding at the earliest missing step (never skip required screens).
     // Order: BirthInfo → Languages → CoreIdentities → HookSequence
+    // 
+    // IMPORTANT: If user has hook readings from Supabase, they MUST have birth data
+    // (can't generate readings without it). Skip BirthInfo check to avoid timing issues
+    // where Supabase data hasn't hydrated to local store yet.
     const initialRoute =
-      !onboardingBirthDate || !onboardingBirthTime || !onboardingBirthCity
-        ? 'BirthInfo'
-        : !primaryLanguage
-          ? 'Languages'
-          : hasHookReadings
-            ? 'HookSequence'
+      hasHookReadings
+        ? 'HookSequence' // User has readings → skip to HookSequence (birth data must exist in Supabase)
+        : !onboardingBirthDate || !onboardingBirthTime || !onboardingBirthCity
+          ? 'BirthInfo'
+          : !primaryLanguage
+            ? 'Languages'
             : 'CoreIdentities';
     console.log(`🔄 ROUTING: Session exists but onboarding incomplete → Continue to ${initialRoute}`);    
     return (
