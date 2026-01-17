@@ -73,6 +73,20 @@ ${person1Name} & ${person2Name}
 
 Total: ~${OVERLAY_STRUCTURE.totalWords} words (~${OVERLAY_STRUCTURE.audioMinutes} minutes audio)
 
+The structure below is FOR YOUR GUIDANCE ONLY - do NOT include section headers in output.
+
+⚠️ THIS IS SPOKEN AUDIO - every word will be heard aloud via TTS
+
+OUTPUT RULES:
+- Start with a single poetic headline (5-8 words), then blank line, then ONE CONTINUOUS ESSAY
+- NO SECTION HEADERS - do NOT write "The Dynamic" or "Shadow Work" etc in the text
+- Flow naturally from one topic to the next like a documentary narrator
+- Use both names in 3rd person (never "you/your")
+- Pure prose ONLY - NO asterisks, NO markdown, NO bullets, NO formatting
+- Audio-ready: spell out numbers ("twenty-three degrees" not "23°")
+- NO em-dashes (—), use commas or periods
+
+CONTENT GUIDANCE:
 ${sections}
 
 NOTE: Analyze each person INDEPENDENTLY before examining the dynamic.

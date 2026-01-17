@@ -8,8 +8,8 @@
 
 export const INDIVIDUAL_STRUCTURE = {
   name: 'Individual Deep Dive',
-  totalWords: 2000,
-  audioMinutes: 15,
+  totalWords: 2800,
+  audioMinutes: 18,
   
   sections: [
     {
@@ -60,13 +60,18 @@ ${s.description}`)
 STRUCTURE: ${INDIVIDUAL_STRUCTURE.name} for ${personName}
 ═══════════════════════════════════════════════════════════════════════════════
 
-**CRITICAL: WRITE EXACTLY 2000 WORDS. Not less, not more.**
+**CRITICAL: WRITE 2500-3000 WORDS. This must be 15-20 minutes of audio.**
 
-${sections}
+The structure above is FOR YOUR GUIDANCE ONLY - do NOT include section headers in output.
 
-RULES:
+⚠️ THIS IS SPOKEN AUDIO - every word will be heard aloud via TTS
+
+OUTPUT RULES:
+- Start with a single poetic headline (5-8 words), then blank line, then ONE CONTINUOUS ESSAY
+- NO SECTION HEADERS - do NOT write "Core Identity" or "Shadow Work" etc in the text
+- Flow naturally from one topic to the next like a documentary narrator
 - Use 3RD PERSON with ${personName}'s name (never "you/your")
-- Pure prose, NO markdown or bullets
+- Pure prose ONLY - NO asterisks, NO markdown, NO bullets, NO formatting
 - Audio-ready: spell out numbers ("twenty-three degrees" not "23°")
 - NO em-dashes (—), use commas or periods
 - Shadow Work = 25% of content. Be honest but not cruel.

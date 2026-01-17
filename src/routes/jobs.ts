@@ -18,8 +18,9 @@ import { createSupabaseUserClientFromAccessToken, getSignedArtifactUrl } from '.
 import { swissEngine } from '../services/swissEphemeris';
 import { env } from '../config/env';
 import axios from 'axios';
-import { llm } from '../services/llm'; // Centralized LLM service
-import { SYSTEMS as NUCLEAR_V2_SYSTEMS, SYSTEM_DISPLAY_NAMES as NUCLEAR_V2_SYSTEM_NAMES, type SystemName as NuclearV2SystemName, NUCLEAR_DOCS, VERDICT_DOC, buildPersonPrompt, buildOverlayPrompt as buildNuclearV2OverlayPrompt, buildVerdictPrompt } from '../prompts/structures/nuclearV2';
+import { llm, llmPaid } from '../services/llm'; // llm = DeepSeek (hooks), llmPaid = Claude (deep readings)
+import { checkUserSubscription, markIncludedReadingUsed } from '../services/subscriptionService';
+import { SYSTEMS as NUCLEAR_V2_SYSTEMS, SYSTEM_DISPLAY_NAMES as NUCLEAR_V2_SYSTEM_NAMES, type SystemName as NuclearV2SystemName, NUCLEAR_DOCS, VERDICT_DOC, buildPersonPrompt, buildOverlayPrompt as buildNuclearV2OverlayPrompt, buildVerdictPrompt } from '../prompts/structures/paidReadingPrompts';
 import archiver from 'archiver';
 import { PassThrough, Readable } from 'node:stream';
 import {
@@ -859,6 +860,7 @@ const startJobSchema = z.object({
   personalContext: z.string().max(500).optional(), // Contextual infusion for individual readings
   voiceId: z.string().optional(), // Voice narrator ID (e.g., 'david', 'elisabeth')
   audioUrl: z.string().optional(), // Optional direct audio URL (WAV for RunPod training)
+  useIncludedReading: z.boolean().optional(), // Flag: use the one included reading from subscription
 });
 
 // LLM calls now use centralized llm.generate() from ../services/llm
@@ -971,6 +973,33 @@ router.post('/v2/start', async (c) => {
 
     console.log('👤 Creating job for user:', userId);
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // AUTHORIZATION: Check if user can use their included reading
+    // ═══════════════════════════════════════════════════════════════════════
+    if (payload.useIncludedReading && payload.type === 'extended') {
+      console.log('🔐 Checking included reading entitlement...');
+      
+      const subscription = await checkUserSubscription(userId);
+      
+      if (!subscription || subscription.status !== 'active') {
+        console.warn(`❌ User ${userId} has no active subscription`);
+        return c.json({ 
+          success: false, 
+          error: 'Active subscription required to use included reading' 
+        }, 403);
+      }
+      
+      if (subscription.included_reading_used) {
+        console.warn(`❌ User ${userId} has already used their included reading`);
+        return c.json({ 
+          success: false, 
+          error: 'You have already used your included reading. Please purchase a reading separately.' 
+        }, 403);
+      }
+      
+      console.log(`✅ User ${userId} can use their included reading`);
+    }
+
     // Resolve voice and set audioUrl (WAV for RunPod training) if voiceId provided
     let audioUrl = payload.audioUrl;
     if (payload.voiceId && !audioUrl) {
@@ -1013,6 +1042,17 @@ router.post('/v2/start', async (c) => {
       },
       // tasks: tasks as any, // REMOVED - handled by DB trigger
     });
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Mark included reading as used (if applicable)
+    // ═══════════════════════════════════════════════════════════════════════
+    if (payload.useIncludedReading && payload.type === 'extended') {
+      const system = payload.systems[0]; // User chose one system
+      const marked = await markIncludedReadingUsed(userId, system, jobId);
+      if (!marked) {
+        console.warn(`⚠️  Failed to mark included reading as used for user ${userId}`);
+      }
+    }
 
     return c.json({
       success: true,
@@ -1221,7 +1261,7 @@ jobQueue.registerProcessor('extended', async (job, updateProgress) => {
         chartData,
       });
 
-      const reading = await llm.generate(prompt, `extended-${system}`);
+      const reading = await llmPaid.generate(prompt, `extended-${system}`);
 
       chapters.push({
         name: system,
@@ -1337,7 +1377,7 @@ jobQueue.registerProcessor('synastry', async (job, updateProgress) => {
       chartData,
     });
 
-    const reading = await llm.generate(prompt, `synastry-${system}`);
+    const reading = await llmPaid.generate(prompt, `synastry-${system}`);
 
     const results: Job['results'] = {
       readings: [],
@@ -1443,7 +1483,7 @@ jobQueue.registerProcessor('nuclear_v2', async (job, updateProgress) => {
         style: writingStyle,
       });
 
-      const p1Text = await llm.generate(p1Prompt, `nuclear_v2-${system}-p1`);
+      const p1Text = await llmPaid.generate(p1Prompt, `nuclear_v2-${system}-p1`);
       const p1WordCount = p1Text.split(/\s+/).length;
       documents.push({
         id: `${system}-p1`,
@@ -1476,7 +1516,7 @@ jobQueue.registerProcessor('nuclear_v2', async (job, updateProgress) => {
         style: writingStyle,
       });
 
-      const p2Text = await llm.generate(p2Prompt, `nuclear_v2-${system}-p2`);
+      const p2Text = await llmPaid.generate(p2Prompt, `nuclear_v2-${system}-p2`);
       const p2WordCount = p2Text.split(/\s+/).length;
       documents.push({
         id: `${system}-p2`,
@@ -1510,7 +1550,7 @@ jobQueue.registerProcessor('nuclear_v2', async (job, updateProgress) => {
         style: writingStyle,
       });
 
-      const overlayText = await llm.generate(overlayPrompt, `nuclear_v2-${system}-overlay`);
+      const overlayText = await llmPaid.generate(overlayPrompt, `nuclear_v2-${system}-overlay`);
       const overlayWordCount = overlayText.split(/\s+/).length;
       documents.push({
         id: `${system}-overlay`,
@@ -1542,7 +1582,7 @@ jobQueue.registerProcessor('nuclear_v2', async (job, updateProgress) => {
       style: writingStyle,
     });
 
-    const verdictText = await llm.generate(verdictPrompt, 'nuclear_v2-verdict');
+    const verdictText = await llmPaid.generate(verdictPrompt, 'nuclear_v2-verdict');
     const verdictWordCount = verdictText.split(/\s+/).length;
     documents.push({
       id: 'verdict',

@@ -8,7 +8,8 @@
 import { BaseWorker, TaskResult } from './baseWorker';
 import { JobTask, supabase } from '../services/supabaseClient';
 import { ephemerisIsolation } from '../services/ephemerisIsolation'; // Isolated process (crash-safe)
-import { llm } from '../services/llm'; // Centralized LLM service
+import { llm, llmPaid, type LLMProvider } from '../services/llm'; // Centralized LLM service
+import { getProviderForSystem, type LLMProviderName } from '../config/llmProviders';
 import { generateDramaticTitles } from '../services/titleGenerator'; // Dramatic title generation
 import {
   SYSTEMS as NUCLEAR_V2_SYSTEMS,
@@ -16,12 +17,13 @@ import {
   buildPersonPrompt,
   buildOverlayPrompt as buildNuclearV2OverlayPrompt,
   buildVerdictPrompt,
-} from '../prompts/structures/nuclearV2';
+} from '../prompts/structures/paidReadingPrompts';
 import { buildIndividualPrompt, buildOverlayPrompt } from '../prompts';
 import { SpiceLevel } from '../prompts/spice/levels';
 import { gematriaService } from '../services/kabbalah/GematriaService';
 import { hebrewCalendarService } from '../services/kabbalah/HebrewCalendarService';
 import { OUTPUT_FORMAT_RULES } from '../prompts/core/output-rules';
+import { logLLMCost } from '../services/costTracking';
 
 function clampSpice(level: number): SpiceLevel {
   const clamped = Math.min(10, Math.max(1, Math.round(level)));
@@ -735,11 +737,29 @@ export class TextWorker extends BaseWorker {
       const surnameInfo = surname ? gematriaService.processName(surname) : null;
       const totalGematria = firstNameInfo.gematria + (surnameInfo?.gematria || 0);
       
+      // Helper to romanize Hebrew characters for TTS compatibility
+      const romanizeHebrew = (hebrewStr: string): string => {
+        const hebrewToRoman: Record<string, string> = {
+          'א': 'Aleph', 'ב': 'Bet', 'ג': 'Gimel', 'ד': 'Dalet', 'ה': 'Heh',
+          'ו': 'Vav', 'ז': 'Zayin', 'ח': 'Chet', 'ט': 'Tet', 'י': 'Yod',
+          'כ': 'Kaf', 'ך': 'Kaf', 'ל': 'Lamed', 'מ': 'Mem', 'ם': 'Mem',
+          'נ': 'Nun', 'ן': 'Nun', 'ס': 'Samekh', 'ע': 'Ayin', 'פ': 'Peh',
+          'ף': 'Peh', 'צ': 'Tzadi', 'ץ': 'Tzadi', 'ק': 'Qof', 'ר': 'Resh',
+          'ש': 'Shin', 'ת': 'Tav'
+        };
+        return hebrewStr.split('').map(char => hebrewToRoman[char] || char).join('-');
+      };
+      
+      const firstNameRomanized = romanizeHebrew(firstNameInfo.hebrew);
+      const surnameRomanized = surnameInfo ? romanizeHebrew(surnameInfo.hebrew) : null;
+      
       console.log(`🔯 [Kabbalah] Hebrew: ${firstNameInfo.hebrew}${surnameInfo ? ' ' + surnameInfo.hebrew : ''}`);
+      console.log(`🔯 [Kabbalah] Romanized: ${firstNameRomanized}${surnameRomanized ? ' ' + surnameRomanized : ''}`);
       console.log(`🔯 [Kabbalah] Gematria: ${firstNameInfo.gematria}${surnameInfo ? ' + ' + surnameInfo.gematria + ' = ' + totalGematria : ''}`);
       
       // Convert birth date to Hebrew calendar
-      let hebrewDateStr = 'Unknown';
+      let hebrewDateStr = 'birth date not provided';
+      let hasValidBirthDate = false;
       try {
         if (targetBirthData?.birthDate && targetBirthData?.timezone) {
           const hebrewDate = await hebrewCalendarService.getHebrewDate(
@@ -750,7 +770,10 @@ export class TextWorker extends BaseWorker {
           if (hebrewDate.specialDay) {
             hebrewDateStr += ` (${hebrewDate.specialDay})`;
           }
+          hasValidBirthDate = true;
           console.log(`🔯 [Kabbalah] Hebrew birth date: ${hebrewDateStr}`);
+        } else {
+          console.warn(`🔯 [Kabbalah] No birth data available for ${fullName}`);
         }
       } catch (e) {
         console.warn(`🔯 [Kabbalah] Hebrew date conversion failed:`, e);
@@ -762,6 +785,8 @@ export class TextWorker extends BaseWorker {
       // Build comprehensive Kabbalah prompt with Hebrew data
       prompt = `CRITICAL FORMATTING WARNING: Do NOT use asterisks (**), markdown, bullet points, or any special formatting. Write pure flowing prose only. No ** around titles or emphasis.
 
+⚠️  CRITICAL: Do NOT write Hebrew characters (א ב ג etc.) in your response. This text will be converted to audio and TTS cannot pronounce Hebrew. Only use English letters and romanized Hebrew names (Aleph, Bet, Gimel, etc.).
+
 You are a master Kabbalist interpreting through the Tree of Life.
 
 ═══════════════════════════════════════════════════════════════════════════
@@ -772,17 +797,15 @@ PERSON: ${fullName}
 
 HEBREW NAME ANALYSIS:
 • First Name: "${firstName}"
-  - Hebrew Transliteration: ${firstNameInfo.hebrew}
-  - Hebrew Letters: ${firstNameInfo.letters.join(' ')}
+  - Hebrew Letters (Romanized): ${firstNameRomanized}
   - Gematria Value: ${firstNameInfo.gematria}
 ${surnameInfo ? `• Surname: "${surname}"
-  - Hebrew Transliteration: ${surnameInfo.hebrew}
-  - Hebrew Letters: ${surnameInfo.letters.join(' ')}
+  - Hebrew Letters (Romanized): ${surnameRomanized}
   - Gematria Value: ${surnameInfo.gematria}
 • TOTAL NAME GEMATRIA: ${totalGematria}` : ''}
 
-HEBREW BIRTH DATE: ${hebrewDateStr}
-Gregorian Birth: ${targetBirthData?.birthDate || 'Unknown'}${targetBirthData?.birthTime ? ' at ' + targetBirthData.birthTime : ''}
+${hasValidBirthDate ? `HEBREW BIRTH DATE: ${hebrewDateStr}` : '⚠️  Birth date not available - focus reading on name analysis only'}
+Gregorian Birth: ${targetBirthData?.birthDate || 'not provided'}${targetBirthData?.birthTime ? ' at ' + targetBirthData.birthTime : ''}
 
 ═══════════════════════════════════════════════════════════════════════════
 PERSONAL CONTEXT FROM USER:
@@ -946,14 +969,63 @@ ${OUTPUT_FORMAT_RULES}`;
       console.log('🔍 [Vedic Debug] Prompt length:', prompt.length);
     }
 
-    // Use centralized LLM service (provider set by LLM_PROVIDER env)
-    // POLICY: Kabbalah system ALWAYS uses OpenAI as per KABBALAH_SYSTEM.md
-    const provider = system === 'kabbalah' ? 'openai' : undefined;
-    const text = await llm.generate(prompt, label, { 
-      maxTokens: 8192, 
-      temperature: 0.8,
-      provider 
-    });
+    // Use centralized LLM service with per-system provider config
+    // Config: src/config/llmProviders.ts (Claude for most, OpenAI for Kabbalah)
+    const configuredProvider = getProviderForSystem(system || 'western');
+    console.log(`🔧 System "${system}" → Provider: ${configuredProvider}`);
+    
+    let text: string;
+    let llmInstance: typeof llm | typeof llmPaid;
+    if (configuredProvider === 'claude') {
+      // Use Claude Sonnet 4 via llmPaid (unhinged, no censorship)
+      llmInstance = llmPaid;
+      text = await llmPaid.generate(prompt, label, { 
+        maxTokens: 8192, 
+        temperature: 0.8,
+      });
+    } else {
+      // Use DeepSeek (default) or OpenAI via llm with provider override
+      llmInstance = llm;
+      text = await llm.generate(prompt, label, { 
+        maxTokens: 8192, 
+        temperature: 0.8,
+        provider: configuredProvider as LLMProvider,
+      });
+    }
+    
+    // 💰 LOG COST for this LLM call
+    const usageData = llmInstance.getLastUsage();
+    if (usageData) {
+      await logLLMCost(
+        jobId,
+        task.id,
+        {
+          provider: usageData.provider,
+          inputTokens: usageData.usage.inputTokens,
+          outputTokens: usageData.usage.outputTokens,
+        },
+        `text_${system || 'verdict'}_${docType}`
+      );
+    }
+    
+    // Post-process: Clean LLM output for spoken audio
+    text = text
+      // Remove em-dashes and en-dashes
+      .replace(/—/g, ', ').replace(/–/g, '-')
+      // Remove markdown bold/italic asterisks
+      .replace(/\*\*\*/g, '').replace(/\*\*/g, '').replace(/\*/g, '')
+      // Remove markdown headers (# ## ### etc)
+      .replace(/^#{1,6}\s+/gm, '')
+      // Remove markdown underscores for emphasis
+      .replace(/___/g, '').replace(/__/g, '').replace(/(?<!\w)_(?!\w)/g, '')
+      // Remove duplicate headlines (same line repeated)
+      .replace(/^(.+)\n\1$/gm, '$1')
+      // Remove section headers (short lines 2-5 words followed by blank line then text)
+      // Common patterns: "The Attraction", "Core Identity", "THE SYNTHESIS", etc.
+      .replace(/^(The |THE |CHAPTER |Section |Part )?[A-Z][A-Za-z\s]{5,40}\n\n/gm, '')
+      // Clean up extra whitespace
+      .replace(/\s+,/g, ',').replace(/\n{3,}/g, '\n\n');
+    
     const wordCount = text.split(/\s+/).filter(Boolean).length;
 
     if (wordCount < 200) {

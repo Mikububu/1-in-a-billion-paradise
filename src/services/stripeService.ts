@@ -255,7 +255,8 @@ export async function createYearlySubscription(params: {
   });
 
   const latestInvoice = subscription.latest_invoice as Stripe.Invoice | null;
-  const pi = (latestInvoice?.payment_intent as Stripe.PaymentIntent | null) || null;
+  const paymentIntentRaw = (latestInvoice as any)?.payment_intent;
+  const pi = (typeof paymentIntentRaw === 'string' ? null : (paymentIntentRaw as Stripe.PaymentIntent | null)) || null;
   const clientSecret = pi?.client_secret || null;
   if (!clientSecret) {
     throw new Error('Subscription created but payment_intent client_secret missing');
@@ -263,7 +264,7 @@ export async function createYearlySubscription(params: {
 
   return {
     customerId: customer.id,
-    ephemeralKeySecret: ephemeralKey.secret,
+    ephemeralKeySecret: ephemeralKey.secret || '',
     subscriptionId: subscription.id,
     paymentIntentClientSecret: clientSecret,
     priceId,

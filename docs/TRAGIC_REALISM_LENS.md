@@ -52,11 +52,12 @@ Levels:
   - `src/services/text/deepseekClient.ts` → `generateHookReading`
   - `src/routes/readings.ts` (`/sun`, `/moon`, `/rising`)
 
-### Deep readings (paid/long-form) + Nuclear V2
+### Deep readings (paid/long-form)
 - Implemented in:
   - `src/prompts/styles/production.ts`
   - `src/prompts/styles/spicy-surreal.ts`
-  - `src/prompts/structures/nuclearV2.ts`
+  - `src/prompts/structures/paidReadingPrompts.ts` (renamed from nuclearV2.ts)
+  - `src/prompts/core/psychological-provocations.ts` (NEW - question-based thinking)
   - `src/prompts/builder.ts` (simple prompt fallbacks)
 
 ### Extended + Synastry endpoints

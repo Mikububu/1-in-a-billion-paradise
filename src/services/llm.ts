@@ -28,6 +28,21 @@ type LLMProvider = 'deepseek' | 'claude' | 'openai';
 // DeepSeek for all readings - faster and more reliable
 const DEFAULT_PROVIDER: LLMProvider = 'deepseek';
 
+// Token usage tracking
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
+export interface LLMResponse {
+  text: string;
+  usage: TokenUsage;
+  provider: LLMProvider;
+  model: string;
+  durationMs: number;
+}
+
 const PROVIDER_CONFIG = {
   deepseek: {
     name: 'DeepSeek',
@@ -44,6 +59,11 @@ const PROVIDER_CONFIG = {
       };
     },
     parseResponse: (data: any) => data?.choices?.[0]?.message?.content || '',
+    parseUsage: (data: any): TokenUsage => ({
+      inputTokens: data?.usage?.prompt_tokens || 0,
+      outputTokens: data?.usage?.completion_tokens || 0,
+      totalTokens: data?.usage?.total_tokens || 0,
+    }),
   },
   claude: {
     name: 'Claude Sonnet 4',
@@ -61,6 +81,11 @@ const PROVIDER_CONFIG = {
       };
     },
     parseResponse: (data: any) => data?.content?.[0]?.text || '',
+    parseUsage: (data: any): TokenUsage => ({
+      inputTokens: data?.usage?.input_tokens || 0,
+      outputTokens: data?.usage?.output_tokens || 0,
+      totalTokens: (data?.usage?.input_tokens || 0) + (data?.usage?.output_tokens || 0),
+    }),
   },
   openai: {
     name: 'OpenAI',
@@ -77,6 +102,11 @@ const PROVIDER_CONFIG = {
       };
     },
     parseResponse: (data: any) => data?.choices?.[0]?.message?.content || '',
+    parseUsage: (data: any): TokenUsage => ({
+      inputTokens: data?.usage?.prompt_tokens || 0,
+      outputTokens: data?.usage?.completion_tokens || 0,
+      totalTokens: data?.usage?.total_tokens || 0,
+    }),
   },
 };
 
@@ -90,8 +120,8 @@ class LLMService {
     getHeaders: () => Promise<Record<string, string>>;
   };
 
-  constructor() {
-    this.provider = (process.env.LLM_PROVIDER as LLMProvider) || DEFAULT_PROVIDER;
+  constructor(provider?: LLMProvider) {
+    this.provider = provider || (process.env.LLM_PROVIDER as LLMProvider) || DEFAULT_PROVIDER;
     this.config = PROVIDER_CONFIG[this.provider];
     console.log(`📡 LLM Service initialized: ${this.config.emoji} ${this.config.name}`);
   }
@@ -110,6 +140,23 @@ class LLMService {
    */
   getProvider(): string {
     return this.config.name;
+  }
+
+  // Store last usage for cost tracking
+  private lastUsage: TokenUsage | null = null;
+  private lastProvider: LLMProvider | null = null;
+  private lastDurationMs: number = 0;
+
+  /**
+   * Get the last call's token usage (for cost tracking)
+   */
+  getLastUsage(): { usage: TokenUsage; provider: LLMProvider; durationMs: number } | null {
+    if (!this.lastUsage || !this.lastProvider) return null;
+    return {
+      usage: this.lastUsage,
+      provider: this.lastProvider,
+      durationMs: this.lastDurationMs,
+    };
   }
 
   /**
@@ -157,10 +204,16 @@ class LLMService {
         });
 
         const text = config.parseResponse(response.data);
-        const elapsed = ((Date.now() - startTime) / 1000).toFixed(0);
+        const usage = config.parseUsage(response.data);
+        const elapsed = Date.now() - startTime;
         const words = text.split(/\s+/).length;
         
-        console.log(`✅ ${config.name} [${label}] done in ${elapsed}s, got ${words} words`);
+        // Store usage for cost tracking
+        this.lastUsage = usage;
+        this.lastProvider = provider;
+        this.lastDurationMs = elapsed;
+        
+        console.log(`✅ ${config.name} [${label}] done in ${(elapsed / 1000).toFixed(0)}s, got ${words} words (${usage.inputTokens}→${usage.outputTokens} tokens)`);
         return text;
 
       } catch (error: any) {
@@ -297,8 +350,16 @@ class LLMService {
   }
 }
 
-// Export singleton instance
+// ═══════════════════════════════════════════════════════════════════════════
+// EXPORT TWO INSTANCES
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Default instance for hook readings (fast, cheap)
 export const llm = new LLMService();
+
+// Paid instance for deep readings (extended, nuclear_v2, synastry, overlays)
+// 🎯 ONE LINE TO CHANGE: Set PAID_LLM_PROVIDER in env.ts
+export const llmPaid = new LLMService(env.PAID_LLM_PROVIDER as LLMProvider);
 
 // Export types for external use
 export type { LLMProvider };

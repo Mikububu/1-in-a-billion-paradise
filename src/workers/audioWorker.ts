@@ -22,6 +22,7 @@ import { BaseWorker, TaskResult } from './baseWorker';
 import { JobTask, supabase } from '../services/supabaseClient';
 import { env } from '../config/env';
 import { apiKeys } from '../services/apiKeysHelper';
+import { logRunPodCost } from '../services/costTracking';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Audio Format Detection
@@ -505,8 +506,13 @@ export class AudioWorker extends BaseWorker {
         }
       }
 
-      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+      const elapsedMs = Date.now() - startTime;
+      const elapsed = (elapsedMs / 1000).toFixed(1);
       console.log(`✅ [AudioWorker] All ${chunks.length} chunks done in ${elapsed}s`);
+      
+      // 💰 LOG RUNPOD COST for this audio generation
+      const jobId = task.job_id;
+      await logRunPodCost(jobId, task.id, elapsedMs, `audio_${task.input?.system || 'unknown'}_${task.input?.docType || 'unknown'}`);
 
       // ─────────────────────────────────────────────────────────────────────
       // CONCATENATE WAV CHUNKS

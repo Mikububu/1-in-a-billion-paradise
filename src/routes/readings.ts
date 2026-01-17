@@ -56,11 +56,61 @@ const placementsSchema = z.object({
 router.post('/placements', async (c) => {
   const parsed = placementsSchema.parse(await c.req.json());
 
+  // DEBUG: Log incoming data for troubleshooting
+  console.log('📍 [Placements] Incoming request:', {
+    birthDate: parsed.birthDate,
+    birthTime: parsed.birthTime,
+    timezone: parsed.timezone,
+    latitude: parsed.latitude,
+    longitude: parsed.longitude,
+    system: parsed.system,
+  });
+
+  // CRITICAL WARNING: Detect timezone mismatch
+  // If timezone is UTC but coordinates are far from GMT, the user likely has a bug
+  let correctedTimezone = parsed.timezone;
+  if (parsed.timezone === 'UTC') {
+    const expectedOffset = Math.round(parsed.longitude / 15); // Rough timezone estimate
+    if (Math.abs(expectedOffset) > 1) {
+      console.error('⚠️ [Placements] TIMEZONE BUG DETECTED! Timezone is UTC but coordinates suggest offset:', {
+        timezone: parsed.timezone,
+        longitude: parsed.longitude,
+        expectedOffset: `UTC${expectedOffset >= 0 ? '+' : ''}${expectedOffset}`,
+        coordinates: `${parsed.latitude}, ${parsed.longitude}`,
+      });
+      
+      // SAFETY NET: Try to fetch correct timezone from Google Timezone API
+      try {
+        const { getApiKey } = await import('../services/apiKeys');
+        const googleKey = await getApiKey('google_places');
+        if (googleKey) {
+          const timestamp = Math.floor(Date.now() / 1000);
+          const tzUrl = `https://maps.googleapis.com/maps/api/timezone/json?location=${parsed.latitude},${parsed.longitude}&timestamp=${timestamp}&key=${googleKey}`;
+          const tzResponse = await fetch(tzUrl);
+          const tzData = await tzResponse.json();
+          if (tzData.status === 'OK' && tzData.timeZoneId) {
+            console.log(`✅ [Placements] AUTO-CORRECTED timezone: UTC → ${tzData.timeZoneId}`);
+            correctedTimezone = tzData.timeZoneId;
+          }
+        }
+      } catch (tzErr) {
+        console.warn('[Placements] Failed to auto-correct timezone:', tzErr);
+        // Continue with UTC if correction fails
+      }
+    }
+  }
+
+  // VALIDATION: Reject invalid coordinates (0,0 is in the middle of the ocean)
+  if (parsed.latitude === 0 && parsed.longitude === 0) {
+    console.error('❌ [Placements] Invalid coordinates (0,0) - birth location missing!');
+    return c.json({ error: 'Invalid birth location - coordinates are 0,0' }, 400);
+  }
+
   // Swiss engine expects a ReadingPayload; provide safe defaults for non-reading fields.
   const placements = await swissEngine.computePlacements({
     birthDate: parsed.birthDate,
     birthTime: parsed.birthTime,
-    timezone: parsed.timezone,
+    timezone: correctedTimezone, // Use corrected timezone (auto-fixed if UTC bug detected)
     latitude: parsed.latitude,
     longitude: parsed.longitude,
     relationshipIntensity: 5,
@@ -90,6 +140,22 @@ router.post('/placements', async (c) => {
 
 router.post('/sun', async (c) => {
   const parsed = payloadSchema.parse(await c.req.json());
+  
+  // DEBUG: Log incoming data
+  console.log('☉ [Sun] Incoming request:', {
+    birthDate: parsed.birthDate,
+    birthTime: parsed.birthTime,
+    timezone: parsed.timezone,
+    lat: parsed.latitude,
+    lng: parsed.longitude,
+  });
+  
+  // VALIDATION: Reject invalid coordinates
+  if (parsed.latitude === 0 && parsed.longitude === 0) {
+    console.error('❌ [Sun] Invalid coordinates (0,0) - birth location missing!');
+    return c.json({ error: 'Invalid birth location - coordinates are 0,0' }, 400);
+  }
+  
   const cacheKey = JSON.stringify({ type: 'sun', parsed });
   const cached = sunCache.get(cacheKey);
   if (cached) return c.json({ ...cached, metadata: { ...cached.metadata, cacheHit: true } });
@@ -108,6 +174,22 @@ router.post('/sun', async (c) => {
 
 router.post('/moon', async (c) => {
   const parsed = payloadSchema.parse(await c.req.json());
+  
+  // DEBUG: Log incoming data
+  console.log('☽ [Moon] Incoming request:', {
+    birthDate: parsed.birthDate,
+    birthTime: parsed.birthTime,
+    timezone: parsed.timezone,
+    lat: parsed.latitude,
+    lng: parsed.longitude,
+  });
+  
+  // VALIDATION: Reject invalid coordinates
+  if (parsed.latitude === 0 && parsed.longitude === 0) {
+    console.error('❌ [Moon] Invalid coordinates (0,0) - birth location missing!');
+    return c.json({ error: 'Invalid birth location - coordinates are 0,0' }, 400);
+  }
+  
   const cacheKey = JSON.stringify({ type: 'moon', parsed });
   const cached = moonCache.get(cacheKey);
   if (cached) return c.json({ ...cached, metadata: { ...cached.metadata, cacheHit: true } });
@@ -126,6 +208,22 @@ router.post('/moon', async (c) => {
 
 router.post('/rising', async (c) => {
   const parsed = payloadSchema.parse(await c.req.json());
+  
+  // DEBUG: Log incoming data
+  console.log('↑ [Rising] Incoming request:', {
+    birthDate: parsed.birthDate,
+    birthTime: parsed.birthTime,
+    timezone: parsed.timezone,
+    lat: parsed.latitude,
+    lng: parsed.longitude,
+  });
+  
+  // VALIDATION: Reject invalid coordinates
+  if (parsed.latitude === 0 && parsed.longitude === 0) {
+    console.error('❌ [Rising] Invalid coordinates (0,0) - birth location missing!');
+    return c.json({ error: 'Invalid birth location - coordinates are 0,0' }, 400);
+  }
+  
   const cacheKey = JSON.stringify({ type: 'rising', parsed });
   const cached = risingCache.get(cacheKey);
   if (cached) return c.json({ ...cached, metadata: { ...cached.metadata, cacheHit: true } });

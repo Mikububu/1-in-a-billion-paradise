@@ -79,6 +79,32 @@ THE ABYSS:
 Every relationship analysis should include exploration of worst-case trajectory. 
 Make it visceral. Make it real. Make them aware of what they're capable of if they don't wake up.
 `,
+
+  sexInstructions: `
+SEX AS DOORWAY OR DESTRUCTION:
+
+Sex is not a side topic. It is central to understanding a soul.
+
+THE FORK IN THE SHADOW:
+Every person's sexuality is either:
+- A doorway to liberation (conscious exploration, transformation through desire)
+- A trapdoor to destruction (addiction, compulsion, using others as drugs)
+
+QUESTIONS TO ANSWER:
+- What does this person need sexually that they've never asked for?
+- What fetish or fantasy lives in them that they hide?
+- Does their sexuality liberate them or imprison them?
+- What would their sex life reveal about their psychology?
+
+FOR OVERLAYS:
+- Who dominates? Who submits? Who pretends?
+- Is the sex a doorway to intimacy or a drug to avoid it?
+- What do they unlock in each other? What do they destroy?
+- How could the sex save them? How could it annihilate them?
+
+Do NOT euphemize. Say "sex" not "intimacy." Say "fetish" not "preferences."
+The reader came here for truth, not comfort.
+`,
 };
 
 /**
@@ -99,6 +125,8 @@ ${SPICY_SURREAL_STYLE.tone}
 ${SPICY_SURREAL_STYLE.requiredLanguage}
 
 ${SPICY_SURREAL_STYLE.shadowInstructions}
+
+${SPICY_SURREAL_STYLE.sexInstructions}
 
 ${env.TRAGIC_REALISM_LEVEL >= 1 ? `
 TRAGIC REALISM LENS (LEVEL ${env.TRAGIC_REALISM_LEVEL}) - REQUIRED:
