@@ -7,6 +7,27 @@ import { llm } from '../llm'; // Centralized LLM service
 // READINGS CLIENT - Uses centralized LLM service (provider via LLM_PROVIDER env)
 // ═══════════════════════════════════════════════════════════════════════════
 
+/**
+ * Clean text by removing em-dashes and other problematic characters
+ * LLMs keep adding em-dashes despite being told not to - so we strip them post-generation
+ */
+function cleanText(text: string): string {
+  if (!text) return text;
+  
+  return text
+    // Replace em-dashes with commas
+    .replace(/—/g, ',')
+    // Replace en-dashes with hyphens
+    .replace(/–/g, '-')
+    // Remove any other unicode dashes
+    .replace(/[\u2013\u2014\u2015]/g, ',')
+    // Clean up double commas
+    .replace(/,\s*,/g, ',')
+    // Clean up comma before period
+    .replace(/,\s*\./g, '.')
+    .trim();
+}
+
 type HookRequest = {
   type: HookReading['type'];
   sign: string;
@@ -87,21 +108,21 @@ export const deepSeekClient = {
         const reading: HookReading = {
           type,
           sign,
-          intro: parsed.preamble || parsed.intro,
-          main: parsed.analysis || parsed.main,
+          intro: cleanText(parsed.preamble || parsed.intro),
+          main: cleanText(parsed.analysis || parsed.main),
         };
         return { reading, source: 'deepseek' };
       } catch (parseError) {
         console.error('Failed to parse LLM response:', normalized);
         return {
-          reading: { type, sign, intro: 'Parse error', main: rawContent },
+          reading: { type, sign, intro: 'Parse error', main: cleanText(rawContent) },
           source: 'fallback',
         };
       }
     } catch (error) {
       console.error('LLM API error:', error);
       return {
-        reading: { type, sign, intro: 'API error', main: String(error) },
+        reading: { type, sign, intro: 'API error', main: cleanText(String(error)) },
         source: 'fallback',
       };
     }
@@ -285,13 +306,13 @@ Start directly with the reading content, opening with ${subjectName}'s name.
       const wordCount = content.split(/\s+/).length;
       console.log(`✅ Extended reading complete: ${wordCount} words in ${duration}s via ${llm.getProvider()} STREAMING`);
       
-      return { reading: { content: content.trim() }, source: 'deepseek' as const };
+      return { reading: { content: cleanText(content) }, source: 'deepseek' as const };
     } catch (error: any) {
       const errorMsg = error?.message || String(error);
       console.error(`❌ Extended reading error (${llm.getProvider()}): ${errorMsg}`);
       
       return {
-        reading: { content: `Error generating ${systemName} reading: ${errorMsg}` },
+        reading: { content: cleanText(`Error generating ${systemName} reading: ${errorMsg}`) },
         source: 'deepseek' as const,
       };
     }
