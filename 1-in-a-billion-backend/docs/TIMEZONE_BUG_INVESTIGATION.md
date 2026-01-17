@@ -214,8 +214,42 @@ Users who onboarded during the timezone bug have **stale cached data** in their 
 
 ---
 
+## The Three Layers of Protection
+
+After this investigation, we now have **three layers** protecting against timezone bugs:
+
+| Layer | Location | What It Does |
+|-------|----------|--------------|
+| **1. Backend Fallback** | `cities.ts` | If Google Timezone API fails, uses country-based timezone mapping |
+| **2. Backend Safety Net** | `readings.ts` | If timezone is UTC but coordinates suggest otherwise, auto-corrects via Google API |
+| **3. Frontend Auto-Refresh** | `CoreIdentitiesScreen.tsx` | If cached timezone is UTC, refreshes from backend before calculating |
+
+**Why all three?**
+- Layer 1: Handles new users when Google API is down
+- Layer 2: Catches any request that slips through with wrong timezone
+- Layer 3: Fixes existing users who have stale cached data on their device
+
+---
+
 ## Commits
 
 - `169f751` - Fix: Timezone fallback for city search when Google Timezone API is disabled
 - `c42f3ea` - Fix timezone bug causing wrong Rising sign calculations (backend safety net)
-- (latest) - Remove hard lock + add timezone auto-refresh for existing users
+- `f8c0e23` - docs: Add TIMEZONE_BUG_INVESTIGATION.md for AI context
+- `d795bd3` - Fix: Remove hard lock + auto-refresh timezone for existing users
+
+---
+
+## For Future AI Assistants
+
+If a user reports **wrong Rising sign** or **wrong astrological placements**:
+
+1. **Check their timezone** - Is it `UTC` when it shouldn't be?
+2. **Check the city search API** - Is Google Timezone API returning `REQUEST_DENIED`?
+3. **Check their cached data** - Does their iPhone have stale `birthCity.timezone: "UTC"`?
+4. **Trigger CoreIdentities** - Have them go through the flow again to auto-refresh
+
+The system should now self-heal, but if issues persist:
+- Verify Google Timezone API is enabled in Google Cloud Console
+- Check backend logs for timezone-related warnings
+- The backend safety net in `readings.ts` will log `TIMEZONE BUG DETECTED` if it catches a mismatch
