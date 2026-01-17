@@ -790,6 +790,11 @@ export const RootNavigator = () => {
   const onboardingBirthCity = useOnboardingStore((s: any) => s.birthCity);
   const primaryLanguage = useOnboardingStore((s: any) => s.primaryLanguage);
   const isHydrated = useOnboardingStore((s) => s._hasHydrated);
+  const setHasCompletedOnboarding = useOnboardingStore((s) => s.setHasCompletedOnboarding);
+  
+  // CRITICAL: Call all hooks BEFORE any conditional returns
+  const people = useProfileStore((s) => s.people) || [];
+  const [hydrationTimeout, setHydrationTimeout] = useState(false);
 
   console.log('🧭 RootNavigator State:', {
     isLoading,
@@ -801,10 +806,14 @@ export const RootNavigator = () => {
     showDashboard
   });
 
+  // ROUTING LOGIC PREP: Calculate values needed for routing decisions
+  const shouldContinueOnboarding = hasSession && !hasCompletedOnboarding;
+  const isPaidUser = people.some((p: any) => p.isUser && p.hasPaidReading);
+  const hasUploadedPhoto = people.some((p: any) => p.isUser && p.claymationUrl);
+  const isReturningUser = isPaidUser || hasUploadedPhoto || hasHookReadings;
+
   // Block rendering until Bootstrap determines if we have a valid session AND persist has hydrated
   // Add a timeout fallback to prevent infinite loading
-  const [hydrationTimeout, setHydrationTimeout] = useState(false);
-
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!isHydrated) {
@@ -815,6 +824,15 @@ export const RootNavigator = () => {
 
     return () => clearTimeout(timer);
   }, [isHydrated]);
+  
+  // FIX: Use useEffect to update state AFTER render, not during render
+  // This prevents the "Cannot update a component while rendering" error
+  useEffect(() => {
+    if (shouldContinueOnboarding && isReturningUser) {
+      console.log('✅ SAFETY: Returning user detected (paid/photo/readings exist) → Force complete onboarding');
+      setHasCompletedOnboarding(true);
+    }
+  }, [shouldContinueOnboarding, isReturningUser, setHasCompletedOnboarding]);
 
   if ((!isAuthReady || !isHydrated) && !hydrationTimeout) {
     console.log('⏳ RootNavigator: Waiting for Auth Bootstrap and Store Hydration...');
@@ -825,27 +843,6 @@ export const RootNavigator = () => {
   // 1. No session → Onboarding (Intro)
   // 2. Session + Onboarding incomplete → Continue onboarding (CoreIdentities → HookSequence)
   // 3. Session + Onboarding complete → Dashboard
-
-  // CRITICAL FIX: Continue onboarding if not completed, BUT check if user is actually a returning user
-  const shouldContinueOnboarding = hasSession && !hasCompletedOnboarding;
-  
-  // SAFETY CHECK: Detect returning users who somehow have hasCompletedOnboarding = false
-  // (could happen from app updates, cache clears, etc.)
-  const people = useProfileStore((s) => s.people) || [];
-  const isPaidUser = people.some((p: any) => p.isUser && p.hasPaidReading);
-  const hasUploadedPhoto = people.some((p: any) => p.isUser && p.claymationUrl);
-  const isReturningUser = isPaidUser || hasUploadedPhoto || hasHookReadings;
-  
-  // FIX: Use useEffect to update state AFTER render, not during render
-  // This prevents the "Cannot update a component while rendering" error
-  const setHasCompletedOnboarding = useOnboardingStore((s) => s.setHasCompletedOnboarding);
-  
-  useEffect(() => {
-    if (shouldContinueOnboarding && isReturningUser) {
-      console.log('✅ SAFETY: Returning user detected (paid/photo/readings exist) → Force complete onboarding');
-      setHasCompletedOnboarding(true);
-    }
-  }, [shouldContinueOnboarding, isReturningUser, setHasCompletedOnboarding]);
 
   if (shouldContinueOnboarding && !isReturningUser) {
     // Truly incomplete onboarding - resume at correct step
