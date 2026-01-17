@@ -309,14 +309,10 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
   }, []);
 
   const runSequence = async () => {
-    // HARD LOCK: if hook readings already exist, never generate again (prevents infinite free API usage).
-    const existing = useOnboardingStore.getState().hookReadings;
-    if (existing?.sun && existing?.moon && existing?.rising) {
-      console.log('🔒 Hook readings already exist - skipping CoreIdentities generation');
-      setIsInitializing(false);
-      navigation.replace('HookSequence');
-      return;
-    }
+    // REMOVED HARD LOCK: Always recalculate to ensure correct timezone is used
+    // This fixes users who onboarded when the timezone bug existed (returning UTC for all cities)
+    // Yes, this means API costs for regenerating readings, but ensures correctness.
+    console.log('🔄 CoreIdentities: Starting fresh calculation (no hard lock)');
 
     // Never silently fallback to fake birth data.
     if (!birthDate || !birthCity) {
@@ -348,18 +344,38 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
       tz: birthCity.timezone,
     });
 
-    // CRITICAL: Detect timezone issues BEFORE making API calls
-    const resolvedTimezone = birthCity.timezone || 'UTC';
+    // ════════════════════════════════════════════════════════════════════════════
+    // TIMEZONE AUTO-REFRESH: Fix cached UTC timezones from the timezone bug
+    // If timezone is UTC but coordinates suggest a different timezone, 
+    // use reverseGeocode to get the correct timezone from the backend
+    // ════════════════════════════════════════════════════════════════════════════
+    let resolvedTimezone = birthCity.timezone || 'UTC';
+    
     if (resolvedTimezone === 'UTC') {
-      // If timezone is UTC but coordinates are far from GMT, we have a bug!
       const expectedOffset = Math.round(birthCity.longitude / 15);
       if (Math.abs(expectedOffset) > 1) {
-        console.error('⚠️ TIMEZONE BUG! Using UTC but coordinates suggest a different timezone:', {
-          storedTimezone: birthCity.timezone,
-          longitude: birthCity.longitude,
-          expectedOffset: `UTC${expectedOffset >= 0 ? '+' : ''}${expectedOffset}`,
-          cityObject: JSON.stringify(birthCity),
-        });
+        console.warn('⚠️ Detected stale UTC timezone, refreshing from coordinates...');
+        try {
+          const { reverseGeocode } = await import('@/services/geonames');
+          const refreshedCity = await reverseGeocode(birthCity.latitude, birthCity.longitude);
+          
+          if (refreshedCity?.timezone && refreshedCity.timezone !== 'UTC') {
+            resolvedTimezone = refreshedCity.timezone;
+            console.log(`✅ Timezone auto-refreshed: UTC → ${resolvedTimezone}`);
+            
+            // Update the cached birthCity with correct timezone for future use
+            const setBirthCity = useOnboardingStore.getState().setBirthCity;
+            setBirthCity({
+              ...birthCity,
+              timezone: resolvedTimezone,
+            });
+          } else {
+            console.warn('⚠️ Timezone refresh failed, backend will apply safety net');
+          }
+        } catch (err) {
+          console.warn('⚠️ Timezone refresh error:', err);
+          // Continue anyway - backend has its own safety net
+        }
       }
     }
 

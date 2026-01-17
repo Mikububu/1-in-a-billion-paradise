@@ -176,7 +176,46 @@ curl -X POST "https://1-in-a-billion-backend.fly.dev/api/reading/placements" \
 
 ---
 
+## Frontend Fix for Existing Users
+
+Users who onboarded during the timezone bug have **stale cached data** in their iPhone:
+- `birthCity.timezone: "UTC"` (wrong)
+- `hookReadings` with wrong signs
+
+### Solution: Remove Hard Lock + Auto-Refresh Timezone
+
+**File:** `1-in-a-billion-frontend/src/screens/onboarding/CoreIdentitiesScreen.tsx`
+
+1. **Removed the "HARD LOCK"** that prevented recalculation:
+   ```javascript
+   // OLD: Prevented regeneration, kept wrong data forever
+   if (existing?.sun && existing?.moon && existing?.rising) {
+     navigation.replace('HookSequence');
+     return;
+   }
+   ```
+
+2. **Added timezone auto-refresh** before calculation:
+   ```javascript
+   if (resolvedTimezone === 'UTC') {
+     const refreshedCity = await reverseGeocode(birthCity.latitude, birthCity.longitude);
+     if (refreshedCity?.timezone && refreshedCity.timezone !== 'UTC') {
+       resolvedTimezone = refreshedCity.timezone;
+       // Also update cached birthCity for future use
+       setBirthCity({ ...birthCity, timezone: resolvedTimezone });
+     }
+   }
+   ```
+
+**Result:** When users go through CoreIdentities again, it:
+1. Auto-refreshes their timezone from coordinates
+2. Recalculates placements with correct timezone
+3. Generates fresh readings (costs API $, but ensures correctness)
+
+---
+
 ## Commits
 
 - `169f751` - Fix: Timezone fallback for city search when Google Timezone API is disabled
 - `c42f3ea` - Fix timezone bug causing wrong Rising sign calculations (backend safety net)
+- (latest) - Remove hard lock + add timezone auto-refresh for existing users
