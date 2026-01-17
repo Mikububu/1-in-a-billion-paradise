@@ -8,8 +8,8 @@ import { llm } from '../llm'; // Centralized LLM service
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Clean text by removing em-dashes and other problematic characters
- * LLMs keep adding em-dashes despite being told not to - so we strip them post-generation
+ * Clean text by removing em-dashes, Hebrew characters, and other problematic characters
+ * LLMs keep adding em-dashes and Hebrew chars despite being told not to - so we strip them post-generation
  */
 function cleanText(text: string): string {
   if (!text) return text;
@@ -21,10 +21,15 @@ function cleanText(text: string): string {
     .replace(/–/g, '-')
     // Remove any other unicode dashes
     .replace(/[\u2013\u2014\u2015]/g, ',')
+    // Remove Hebrew characters (U+0590 to U+05FF is Hebrew Unicode block)
+    // TTS cannot pronounce Hebrew - strip all Hebrew chars
+    .replace(/[\u0590-\u05FF]/g, '')
     // Clean up double commas
     .replace(/,\s*,/g, ',')
     // Clean up comma before period
     .replace(/,\s*\./g, '.')
+    // Clean up double spaces
+    .replace(/\s\s+/g, ' ')
     .trim();
 }
 
