@@ -9,7 +9,13 @@ import { llm } from '../llm'; // Centralized LLM service
 
 /**
  * Clean text by removing em-dashes, Hebrew characters, and other problematic characters
- * LLMs keep adding em-dashes and Hebrew chars despite being told not to - so we strip them post-generation
+ * 
+ * Post-processing safety net for TTS compatibility:
+ * - LLMs sometimes add em-dashes despite instructions → replace with commas
+ * - Hebrew characters may slip through → strip them (prompts should prevent this via romanization)
+ * 
+ * Note: Prompts should instruct LLMs to write naturally with romanized letter names (Aleph, Bet, etc.)
+ * This cleanup is a backup to ensure TTS never receives unpronounceble characters.
  */
 function cleanText(text: string): string {
   if (!text) return text;
@@ -21,8 +27,8 @@ function cleanText(text: string): string {
     .replace(/–/g, '-')
     // Remove any other unicode dashes
     .replace(/[\u2013\u2014\u2015]/g, ',')
-    // Remove Hebrew characters (U+0590 to U+05FF is Hebrew Unicode block)
-    // TTS cannot pronounce Hebrew - strip all Hebrew chars
+    // SAFETY NET: Remove Hebrew characters (U+0590 to U+05FF)
+    // Prompts should prevent this, but strip as backup for TTS compatibility
     .replace(/[\u0590-\u05FF]/g, '')
     // Clean up double commas
     .replace(/,\s*,/g, ',')
