@@ -281,11 +281,26 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
       lng: partnerBirthCity.longitude,
       tz: partnerBirthCity.timezone,
     });
+
+    // CRITICAL: Detect timezone issues BEFORE making API calls
+    const resolvedTimezone = partnerBirthCity.timezone || 'UTC';
+    if (resolvedTimezone === 'UTC') {
+      // If timezone is UTC but coordinates are far from GMT, we have a bug!
+      const expectedOffset = Math.round(partnerBirthCity.longitude / 15);
+      if (Math.abs(expectedOffset) > 1) {
+        console.error(`⚠️ TIMEZONE BUG for ${name}! Using UTC but coordinates suggest a different timezone:`, {
+          storedTimezone: partnerBirthCity.timezone,
+          longitude: partnerBirthCity.longitude,
+          expectedOffset: `UTC${expectedOffset >= 0 ? '+' : ''}${expectedOffset}`,
+          cityObject: JSON.stringify(partnerBirthCity),
+        });
+      }
+    }
     
     const payload = {
       birthDate: partnerBirthDate,
       birthTime: partnerBirthTime || '12:00',
-      timezone: partnerBirthCity.timezone || 'UTC',
+      timezone: resolvedTimezone,
       latitude: partnerBirthCity.latitude,
       longitude: partnerBirthCity.longitude,
       relationshipIntensity,
@@ -294,6 +309,14 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
       subjectName: name,
       isPartnerReading: true,
     };
+    
+    console.log(`🚀 Partner payload for ${name}:`, {
+      birthDate: payload.birthDate,
+      birthTime: payload.birthTime,
+      timezone: payload.timezone,
+      lat: payload.latitude,
+      lng: payload.longitude,
+    });
 
     try {
       // SCREEN 1: Intro - show for 10 seconds

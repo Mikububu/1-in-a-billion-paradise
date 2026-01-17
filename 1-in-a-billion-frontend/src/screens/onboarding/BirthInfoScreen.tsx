@@ -154,6 +154,21 @@ export const BirthInfoScreen = ({ navigation }: Props) => {
     setCityQuery(displayName);
     setShowCitySuggestions(false);
     setCitySuggestions([]);
+    
+    // DEBUG: Log city data to verify timezone is present
+    console.log('🏙️ City selected:', {
+      name: city.name,
+      country: city.country,
+      timezone: city.timezone,
+      lat: city.latitude,
+      lng: city.longitude,
+      hasTimezone: !!city.timezone,
+    });
+    
+    if (!city.timezone) {
+      console.error('❌ CRITICAL: Selected city has no timezone!', JSON.stringify(city));
+    }
+    
     setBirthCity(city);
   }, [setBirthCity]);
 

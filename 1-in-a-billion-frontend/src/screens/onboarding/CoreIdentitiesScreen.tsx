@@ -348,16 +348,39 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
       tz: birthCity.timezone,
     });
 
+    // CRITICAL: Detect timezone issues BEFORE making API calls
+    const resolvedTimezone = birthCity.timezone || 'UTC';
+    if (resolvedTimezone === 'UTC') {
+      // If timezone is UTC but coordinates are far from GMT, we have a bug!
+      const expectedOffset = Math.round(birthCity.longitude / 15);
+      if (Math.abs(expectedOffset) > 1) {
+        console.error('⚠️ TIMEZONE BUG! Using UTC but coordinates suggest a different timezone:', {
+          storedTimezone: birthCity.timezone,
+          longitude: birthCity.longitude,
+          expectedOffset: `UTC${expectedOffset >= 0 ? '+' : ''}${expectedOffset}`,
+          cityObject: JSON.stringify(birthCity),
+        });
+      }
+    }
+
     const payload = {
       birthDate,
       birthTime: birthTime || '12:00',
-      timezone: birthCity.timezone || 'UTC',
+      timezone: resolvedTimezone,
       latitude: birthCity.latitude,
       longitude: birthCity.longitude,
       relationshipIntensity: relationshipIntensity || 5,
       relationshipMode: relationshipMode || 'sensual',
       primaryLanguage: primaryLanguage?.code || 'en',
     };
+    
+    console.log('🚀 CoreIdentities payload:', {
+      birthDate: payload.birthDate,
+      birthTime: payload.birthTime,
+      timezone: payload.timezone,
+      lat: payload.latitude,
+      lng: payload.longitude,
+    });
 
     // ============================================================================
     // AUDIO GENERATION PIPELINE

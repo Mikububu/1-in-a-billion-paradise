@@ -25,6 +25,21 @@ export async function searchCities(query: string): Promise<CityOption[]> {
       return [];
     }
 
+    // DEBUG: Log to verify timezone is present in API response
+    if (__DEV__) {
+      console.log('🌍 City search results:', data.cities.map((c: CityOption) => ({
+        name: c.name,
+        timezone: c.timezone,
+        hasTimezone: !!c.timezone,
+      })));
+    }
+
+    // Validate all cities have timezone - log warning if any are missing
+    const missingTimezone = data.cities.filter((c: CityOption) => !c.timezone);
+    if (missingTimezone.length > 0) {
+      console.error('⚠️ Cities returned without timezone:', missingTimezone.map((c: CityOption) => c.name));
+    }
+
     return data.cities;
   } catch (error) {
     console.warn('City search failed:', error);
