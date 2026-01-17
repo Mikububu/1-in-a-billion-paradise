@@ -24,6 +24,96 @@ interface CityResult {
 }
 
 /**
+ * TIMEZONE FALLBACK: When Google Timezone API is not enabled,
+ * estimate timezone from country code + longitude
+ * 
+ * This provides IANA timezone IDs (not just offsets) for major countries
+ */
+const COUNTRY_TIMEZONE_MAP: Record<string, string> = {
+    // Asia-Pacific
+    'Philippines': 'Asia/Manila',
+    'Japan': 'Asia/Tokyo',
+    'South Korea': 'Asia/Seoul',
+    'China': 'Asia/Shanghai',
+    'Taiwan': 'Asia/Taipei',
+    'Hong Kong': 'Asia/Hong_Kong',
+    'Singapore': 'Asia/Singapore',
+    'Malaysia': 'Asia/Kuala_Lumpur',
+    'Indonesia': 'Asia/Jakarta',
+    'Thailand': 'Asia/Bangkok',
+    'Vietnam': 'Asia/Ho_Chi_Minh',
+    'India': 'Asia/Kolkata',
+    'Australia': 'Australia/Sydney',
+    'New Zealand': 'Pacific/Auckland',
+    // Europe
+    'United Kingdom': 'Europe/London',
+    'UK': 'Europe/London',
+    'Germany': 'Europe/Berlin',
+    'France': 'Europe/Paris',
+    'Spain': 'Europe/Madrid',
+    'Italy': 'Europe/Rome',
+    'Netherlands': 'Europe/Amsterdam',
+    'Belgium': 'Europe/Brussels',
+    'Switzerland': 'Europe/Zurich',
+    'Austria': 'Europe/Vienna',
+    'Poland': 'Europe/Warsaw',
+    'Sweden': 'Europe/Stockholm',
+    'Norway': 'Europe/Oslo',
+    'Denmark': 'Europe/Copenhagen',
+    'Finland': 'Europe/Helsinki',
+    'Portugal': 'Europe/Lisbon',
+    'Greece': 'Europe/Athens',
+    'Turkey': 'Europe/Istanbul',
+    'Russia': 'Europe/Moscow',
+    // Americas
+    'United States': 'America/New_York', // Default to Eastern, will be refined by longitude
+    'USA': 'America/New_York',
+    'Canada': 'America/Toronto',
+    'Mexico': 'America/Mexico_City',
+    'Brazil': 'America/Sao_Paulo',
+    'Argentina': 'America/Buenos_Aires',
+    'Chile': 'America/Santiago',
+    'Colombia': 'America/Bogota',
+    'Peru': 'America/Lima',
+    // Middle East & Africa
+    'Israel': 'Asia/Jerusalem',
+    'United Arab Emirates': 'Asia/Dubai',
+    'UAE': 'Asia/Dubai',
+    'Saudi Arabia': 'Asia/Riyadh',
+    'Egypt': 'Africa/Cairo',
+    'South Africa': 'Africa/Johannesburg',
+};
+
+/**
+ * Estimate timezone from longitude (fallback when Google API fails)
+ * For US/Canada, uses longitude to determine specific timezone
+ */
+function estimateTimezone(longitude: number, country: string): string {
+    // First check country-specific timezones
+    const countryTz = COUNTRY_TIMEZONE_MAP[country];
+    
+    // For US/Canada, refine by longitude
+    if (country === 'United States' || country === 'USA' || country === 'Canada') {
+        if (longitude < -130) return 'America/Anchorage';       // Alaska
+        if (longitude < -115) return 'America/Los_Angeles';     // Pacific
+        if (longitude < -100) return 'America/Denver';          // Mountain
+        if (longitude < -85) return 'America/Chicago';          // Central
+        return 'America/New_York';                              // Eastern
+    }
+    
+    if (countryTz) return countryTz;
+    
+    // Generic fallback: estimate from longitude
+    // This is approximate but better than UTC
+    const offset = Math.round(longitude / 15);
+    
+    // Return IANA timezone ID (Etc/GMT uses inverted sign convention)
+    if (offset === 0) return 'UTC';
+    if (offset > 0) return `Etc/GMT-${offset}`;
+    return `Etc/GMT+${Math.abs(offset)}`;
+}
+
+/**
  * Helper: Check if a place type array indicates a city/town/locality
  */
 function isValidCityType(types: string[]): boolean {
@@ -202,16 +292,34 @@ router.get('/search', async (c) => {
                     region = adminLevel2;
                 }
 
-                // Get timezone using Google Timezone API
+                // Get timezone using Google Timezone API (with fallback)
                 const timestamp = Math.floor(Date.now() / 1000);
                 const timezoneUrl = `https://maps.googleapis.com/maps/api/timezone/json?location=${location.lat},${location.lng}&timestamp=${timestamp}&key=${googlePlacesKey}`;
                 
-                const timezoneResponse = await axios.get(timezoneUrl);
-                const timezoneData = timezoneResponse.data;
-
-                const timezone = timezoneData.status === 'OK' 
-                    ? timezoneData.timeZoneId 
-                    : 'UTC'; // Fallback
+                // Start with fallback estimate
+                let timezone = estimateTimezone(location.lng, country);
+                let usedFallback = true;
+                
+                try {
+                    const timezoneResponse = await axios.get(timezoneUrl);
+                    const timezoneData = timezoneResponse.data;
+                    
+                    if (timezoneData.status === 'OK') {
+                        timezone = timezoneData.timeZoneId;
+                        usedFallback = false;
+                        console.log(`✅ Timezone for ${cityName}: ${timezone} (Google API)`);
+                    } else {
+                        // API failed - use the pre-calculated fallback
+                        console.warn(`⚠️ Google Timezone API unavailable for ${cityName}, using fallback: ${timezone}`);
+                        if (timezoneData.errorMessage?.includes('not activated')) {
+                            // Only log this once per session to avoid spam
+                            console.warn('📋 To fix: Enable "Time Zone API" in Google Cloud Console');
+                        }
+                    }
+                } catch (tzError: any) {
+                    // Network error - use the pre-calculated fallback
+                    console.warn(`⚠️ Timezone API error for ${cityName}, using fallback: ${timezone}`);
+                }
 
                 cities.push({
                     id: placeId,
@@ -308,9 +416,12 @@ router.get('/reverse', async (c) => {
             cityName = result.formatted_address.split(',')[0] || result.name || 'Unknown';
         }
 
-        // Get timezone
+        // Get timezone (with fallback)
         const timestamp = Math.floor(Date.now() / 1000);
         const timezoneUrl = `https://maps.googleapis.com/maps/api/timezone/json?location=${lat},${lng}&timestamp=${timestamp}&key=${googlePlacesKey}`;
+        
+        // Start with fallback estimate
+        timezone = estimateTimezone(lng, country);
         
         try {
             const timezoneResponse = await axios.get(timezoneUrl);
@@ -319,7 +430,7 @@ router.get('/reverse', async (c) => {
                 timezone = timezoneData.timeZoneId;
             }
         } catch (error) {
-            console.warn('Timezone API failed, using UTC');
+            console.warn(`Timezone API failed, using fallback: ${timezone}`);
         }
 
         return c.json({
