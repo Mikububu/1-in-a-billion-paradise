@@ -785,7 +785,7 @@ export class TextWorker extends BaseWorker {
       // Build comprehensive Kabbalah prompt with Hebrew data
       prompt = `CRITICAL FORMATTING WARNING: Do NOT use asterisks (**), markdown, bullet points, or any special formatting. Write pure flowing prose only. No ** around titles or emphasis.
 
-⚠️  CRITICAL: Do NOT write Hebrew characters (א ב ג etc.) in your response. This text will be converted to audio and TTS cannot pronounce Hebrew. Only use English letters and romanized Hebrew names (Aleph, Bet, Gimel, etc.).
+⚠️  CRITICAL AUDIO FORMAT: This reading will become an audiobook. Write as if speaking directly to ${firstName}. Use natural, flowing language that sounds beautiful when spoken aloud. When discussing Hebrew letters, use their English names (Aleph, Bet, Gimel) woven naturally into sentences, not as technical notation.
 
 You are a master Kabbalist interpreting through the Tree of Life.
 
@@ -830,6 +830,27 @@ IMPORTANT:
 - Life events are ACTIVATION POINTS, not causes
 - Do NOT recalculate any values - use the precomputed data above
 - Do NOT predict outcomes or make moral judgments
+
+═══════════════════════════════════════════════════════════════════════════
+CRITICAL: HOW TO WRITE ABOUT HEBREW LETTERS (for audio narration):
+═══════════════════════════════════════════════════════════════════════════
+
+This reading will be converted to audio. Write naturally using ENGLISH NAMES for Hebrew letters.
+
+✅ CORRECT (flows naturally as speech):
+"The letter Aleph opens your name like the first breath of creation. Aleph carries the value of one, the unity that precedes all division. This primal letter holds the tension between above and below, a silent teacher of paradox. Following Aleph comes Bet, the house, the container..."
+
+❌ INCORRECT (unpronounceble):
+"The letter א opens your name... א carries the value of one..."
+
+When discussing each letter in their name:
+- Use the romanized names: Aleph, Bet, Gimel, Dalet, Heh, Vav, Zayin, Chet, Tet, Yod, Kaf, Lamed, Mem, Nun, Samekh, Ayin, Peh, Tzadi, Qof, Resh, Shin, Tav
+- Write as if speaking to someone who cannot see Hebrew script
+- Make the letter names part of natural, flowing sentences
+- Focus on the MEANING and ENERGY of each letter, not the visual glyph
+- Example: "Yod, the smallest letter yet the seed of all others, appears in your name twice..."
+
+Think of this as an audiobook essay on spiritual architecture, not a technical Hebrew lesson.
 
 Style: Mystical, profound, direct address to ${firstName}. ${spiceLevel >= 7 ? 'Be bold and direct.' : 'Be gentle and uplifting.'}
 Format: Continuous prose (no bullet points). ~2000 words.
