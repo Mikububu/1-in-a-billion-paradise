@@ -27,6 +27,11 @@ import { useAuthStore } from '@/store/authStore';
 import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { enableNotificationsForJob } from '@/services/pushNotifications';
+import { 
+  estimateAudioGenerationTime, 
+  calculateRemainingTime, 
+  formatCountdown 
+} from '@/utils/audioTimeEstimator';
 
 const API_URL = env.CORE_API_URL;
 
@@ -85,6 +90,10 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
   const [systemsCompleted, setSystemsCompleted] = useState(0);
   const [audioChunksTotal, setAudioChunksTotal] = useState(0);
   const [audioChunksCompleted, setAudioChunksCompleted] = useState(0);
+  
+  // Smart timer state
+  const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState<number | null>(null);
+  const [initialEstimate, setInitialEstimate] = useState<number | null>(null);
 
   // Nuclear V2: 16 document slots
   const [completedDocs, setCompletedDocs] = useState<string[]>([]);
@@ -219,6 +228,30 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
         const pct = Math.max(0, Math.min(100, Math.round(pctRaw)));
         setProgressPercent(pct);
         setCurrentStep(job.progress?.message || `Status: ${status || 'unknown'}`);
+
+        // Smart timer: Calculate initial estimate on first poll
+        if (initialEstimate === null && job.progress?.message) {
+          // Estimate based on number of systems/docs being generated
+          const systemCount = systems?.length || 1;
+          const isNuclear = productType === 'nuclear_package';
+          
+          // Each system generates ~2000 words of text (takes 3-5 min)
+          // Plus audio generation (varies by provider)
+          // Nuclear has 16 docs, each ~2000 words
+          const estimatedTextMinutes = isNuclear ? 15 : systemCount * 4; // 4 min per system
+          const estimatedAudioMinutes = isNuclear ? 20 : systemCount * 3; // 3 min per system
+          const totalMinutes = estimatedTextMinutes + estimatedAudioMinutes;
+          const totalSeconds = totalMinutes * 60;
+          
+          setInitialEstimate(totalSeconds);
+          setEstimatedTimeRemaining(totalSeconds);
+        }
+        
+        // Update remaining time based on progress
+        if (initialEstimate !== null) {
+          const remaining = calculateRemainingTime(initialEstimate, pct);
+          setEstimatedTimeRemaining(remaining);
+        }
 
         // For Nuclear V2, mark docs as "complete" when we have at least a pdf/audio URL.
         if (productType === 'nuclear_package') {
@@ -459,6 +492,15 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
           <View style={styles.statusDot} />
           <Text style={styles.statusText}>Generating in background</Text>
         </Animated.View>
+
+        {/* Smart Timer - Shows estimated time remaining */}
+        {estimatedTimeRemaining !== null && estimatedTimeRemaining > 0 && !generationComplete && (
+          <View style={styles.timerContainer}>
+            <Text style={styles.timerLabel}>ESTIMATED TIME</Text>
+            <Text style={styles.timerDisplay}>{formatCountdown(estimatedTimeRemaining)}</Text>
+            <Text style={styles.timerHint}>You can close the app</Text>
+          </View>
+        )}
 
         {/* Nuclear V2: PDF Grid - Classical Forbidden Yoga Style */}
         {productType === 'nuclear_package' && (
@@ -875,6 +917,38 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.mutedText,
     marginTop: spacing.md,
+  },
+  // Smart Timer Styles
+  timerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.accentSoft,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.cardStroke,
+  },
+  timerLabel: {
+    fontFamily: typography.sansSemiBold, // Inter SemiBold (app's main font)
+    fontSize: 11,
+    color: colors.mutedText,
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  timerDisplay: {
+    fontFamily: typography.sansBold, // Inter Bold (app's main font)
+    fontSize: 32,
+    color: colors.text,
+    letterSpacing: 2,
+  },
+  timerHint: {
+    fontFamily: typography.sansRegular, // Inter Regular (app's main font)
+    fontSize: 12,
+    color: colors.mutedText,
+    marginTop: 6,
   },
 });
 

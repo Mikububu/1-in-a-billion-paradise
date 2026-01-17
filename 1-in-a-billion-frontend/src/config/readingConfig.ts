@@ -49,6 +49,9 @@ export const VOICES = {
 
 /**
  * Estimate audio generation time based on text length
+ * @deprecated Use estimateAudioGenerationTime from audioTimeEstimator.ts instead
+ * This function is kept for backwards compatibility but uses the old simple calculation.
+ * New code should use the smart estimator which accounts for provider, chunking, and parallel processing.
  * @param text - The reading text to be converted to audio
  * @returns { min, max } minutes estimate
  */
@@ -62,6 +65,12 @@ export const estimateAudioTime = (text: string): { min: number; max: number; dis
     display: minMinutes === maxMinutes ? `~${minMinutes} min` : `${minMinutes}-${maxMinutes} min`,
   };
 };
+
+/**
+ * Smart audio estimation - imports from new utility
+ * Use this for all new code requiring audio time estimates
+ */
+export { estimateAudioGenerationTime, formatCountdown } from '../utils/audioTimeEstimator';
 
 /** Background audio generation message */
 export const AUDIO_GENERATION_MESSAGE = {
