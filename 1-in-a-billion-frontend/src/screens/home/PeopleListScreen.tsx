@@ -177,12 +177,17 @@ export const PeopleListScreen = ({ navigation, route }: Props) => {
                   </Text>
                 </View>
                 <View style={styles.personInfo}>
+                  {/* Cosmic Signature - 3 signs instead of name */}
                   <Text style={styles.personName} selectable>
-                    {person.name}
+                    {(() => {
+                      const sun = person.placements?.sunSign;
+                      const moon = person.placements?.moonSign;
+                      const rising = person.placements?.risingSign;
+                      if (!sun || !moon || !rising) return person.name;
+                      const abbreviate = (sign: string) => sign.substring(0, 3);
+                      return `☉${abbreviate(sun)} ☽${abbreviate(moon)} ↑${abbreviate(rising)}`;
+                    })()}
                     {person.isUser && <Text style={styles.youBadge}> (You)</Text>}
-                  </Text>
-                  <Text style={styles.personMeta} selectable>
-                    {formatPlacements(person.placements)}
                   </Text>
                   <Text style={styles.personReadings}>
                     {person.readings.length} {person.readings.length === 1 ? 'reading' : 'readings'} saved

@@ -1068,15 +1068,36 @@ export const HomeScreen = ({ navigation }: Props) => {
               </Animated.View>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity 
-              onPress={() => navigation.navigate('Gallery' as any)}
-              activeOpacity={0.8}
-            >
-              <Image 
-                source={{ uri: claymationPhotoUrl }} 
-                style={styles.claymationImageLarge}
-              />
-            </TouchableOpacity>
+            <View style={{ alignItems: 'center' }}>
+              <TouchableOpacity 
+                onPress={() => navigation.navigate('Gallery' as any)}
+                activeOpacity={0.8}
+              >
+                <Image 
+                  source={{ uri: claymationPhotoUrl }} 
+                  style={styles.claymationImageLarge}
+                />
+              </TouchableOpacity>
+              {/* Cosmic Signature Badge - 3 Signs instead of name */}
+              {(() => {
+                const sunSign = hookReadings.sun?.sign;
+                const moonSign = hookReadings.moon?.sign;
+                const risingSign = hookReadings.rising?.sign;
+                
+                if (!sunSign || !moonSign || !risingSign) return null;
+                
+                // Get 3-letter abbreviations (Ari, Tau, Gem, Can, Leo, Vir, Lib, Sco, Sag, Cap, Aqu, Pis)
+                const abbreviate = (sign: string) => sign.substring(0, 3);
+                
+                return (
+                  <View style={styles.cosmicSignatureBadge}>
+                    <Text style={styles.cosmicSignatureText}>
+                      ☉{abbreviate(sunSign)} ☽{abbreviate(moonSign)} ↑{abbreviate(risingSign)}
+                    </Text>
+                  </View>
+                );
+              })()}
+            </View>
           )}
         </View>
 
@@ -1579,6 +1600,21 @@ const styles = StyleSheet.create({
     borderRadius: 36,
     borderWidth: 2,
     borderColor: colors.primary,
+  },
+  cosmicSignatureBadge: {
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    backgroundColor: colors.surface,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.primary + '40',
+  },
+  cosmicSignatureText: {
+    fontFamily: typography.sansRegular,
+    fontSize: 11,
+    color: colors.text,
+    letterSpacing: 0.5,
   },
   
   producedBySection: {

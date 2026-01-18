@@ -2449,7 +2449,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                   }]}>{person.name?.charAt(0) || '?'}</Text>
                 </View>
                 <View style={styles.personInfo}>
-                  {/* Show "Name - System" or "Name - Full Reading" format */}
+                  {/* Show "Cosmic Signature - System" format */}
                   {(() => {
                     const job = queueJobs.find((j: any) => j.id === primaryJobId);
                     const systems = job?.params?.systems || [];
@@ -2463,9 +2463,20 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                       readingType = systemName;
                     }
                     
+                    // Get cosmic signature (3 signs) instead of name
+                    const sun = person.placements?.sunSign;
+                    const moon = person.placements?.moonSign;
+                    const rising = person.placements?.risingSign;
+                    let displayName = person.name; // Fallback to name if no placements
+                    
+                    if (sun && moon && rising) {
+                      const abbreviate = (sign: string) => sign.substring(0, 3);
+                      displayName = `☉${abbreviate(sun)} ☽${abbreviate(moon)} ↑${abbreviate(rising)}`;
+                    }
+                    
                     return (
                       <Text style={styles.personName}>
-                        {person.name}{readingType ? ` - ${readingType}` : ''}
+                        {displayName}{readingType ? ` - ${readingType}` : ''}
                       </Text>
                     );
                   })()}
