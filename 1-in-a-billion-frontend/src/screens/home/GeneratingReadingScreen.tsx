@@ -374,30 +374,13 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
 
   const isThirdPerson = !!personName && personName !== 'You' && personName !== 'User';
 
-  const handleGoToSoulLaboratory = () => {
-    // Navigate to My Souls Library
+  const handleGoToMySecretLife = () => {
+    // Navigate to Souls Library (My Secret Life)
     navigation.navigate('MyLibrary');
   };
 
-  const handleGoToResults = () => {
-    // Navigate directly to readings screen
-    if (activeJobId) {
-      const personType = partnerName ? 'overlay' : 'individual';
-      const displayName = partnerName 
-        ? `${personName || 'You'} & ${partnerName}`
-        : personName || 'You';
-      
-      navigation.navigate('PersonReadings', {
-        personName: displayName,
-        personId: personId || '',
-        personType: personType as 'person1' | 'person2' | 'overlay' | 'individual',
-        jobId: activeJobId,
-      });
-    }
-  };
-
-  const handleGoToMySecretLife = () => {
-    // Navigate to My Secret Life (Home screen)
+  const handleGoToKarmicZoo = () => {
+    // Navigate to Karmic Zoo (Home screen)
     navigation.navigate('Home');
   };
 
@@ -471,13 +454,13 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
           </Text>
         </TouchableOpacity>
 
-        {/* My Secret Life Button - RED dashed stroke */}
+        {/* My Secret Life Button - RED dashed stroke → navigates to Souls Library */}
         <TouchableOpacity style={styles.redDashedButton} onPress={handleGoToMySecretLife}>
           <Text style={styles.redDashedButtonText}>My Secret Life</Text>
         </TouchableOpacity>
 
-        {/* My Karmic Zoo Button */}
-        <TouchableOpacity style={styles.libraryButton} onPress={handleGoToSoulLaboratory}>
+        {/* My Karmic Zoo Button → navigates to Home (Karmic Zoo) */}
+        <TouchableOpacity style={styles.libraryButton} onPress={handleGoToKarmicZoo}>
           <Text style={styles.libraryButtonText}>My Karmic Zoo</Text>
         </TouchableOpacity>
 
