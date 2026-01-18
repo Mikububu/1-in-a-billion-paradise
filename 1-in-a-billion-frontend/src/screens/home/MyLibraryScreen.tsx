@@ -2449,7 +2449,26 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                   }]}>{person.name?.charAt(0) || '?'}</Text>
                 </View>
                 <View style={styles.personInfo}>
-                  <Text style={styles.personName}>{person.name}</Text>
+                  {/* Show "Name - System" or "Name - Full Reading" format */}
+                  {(() => {
+                    const job = queueJobs.find((j: any) => j.id === primaryJobId);
+                    const systems = job?.params?.systems || [];
+                    const productType = job?.params?.productType || job?.params?.type;
+                    
+                    let readingType = '';
+                    if (productType === 'complete_reading' || systems.length > 1) {
+                      readingType = 'Full Reading';
+                    } else if (systems.length === 1) {
+                      const systemName = SYSTEM_INFO[systems[0] as ReadingSystem]?.name || systems[0];
+                      readingType = systemName;
+                    }
+                    
+                    return (
+                      <Text style={styles.personName}>
+                        {person.name}{readingType ? ` - ${readingType}` : ''}
+                      </Text>
+                    );
+                  })()}
                   {/* Job creation date - helps distinguish multiple jobs for same person */}
                   {(() => {
                     const job = queueJobs.find((j: any) => j.id === primaryJobId);
