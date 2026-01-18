@@ -190,8 +190,19 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
         navigation.goBack();
     };
 
+    const lastSubmitTime = React.useRef(0);
+    
     // Start job with selected voice (new modular approach)
     const startJobWithVoice = async (voiceId: string) => {
+        // CRITICAL: Prevent double-submissions with debounce
+        const now = Date.now();
+        if (loading || (now - lastSubmitTime.current < 2000)) {
+            console.warn('⚠️ Blocked duplicate submission (debounced)');
+            return;
+        }
+        lastSubmitTime.current = now;
+        setLoading(true);
+        
         try {
             // Import job creation utilities
             const { env } = await import('@/config/env');
@@ -325,6 +336,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
             
         } catch (e: any) {
             console.error('Failed to start job:', e);
+            setLoading(false); // Reset loading state on error
             Alert.alert('Error', e?.message || 'Could not start generation. Please try again.');
         }
     };

@@ -89,6 +89,8 @@ const LOADING_MESSAGES = [
 export const CompleteReadingScreen = ({ navigation, route }: Props) => {  
   const [currentPage, setCurrentPage] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const lastSubmitTime = useRef(0);
 
   // Data Stores
   const {
@@ -103,6 +105,15 @@ export const CompleteReadingScreen = ({ navigation, route }: Props) => {
   const isForPartner = !!partnerName;
 
   const handleBuy = async () => {
+    // CRITICAL: Prevent double-submissions with debounce
+    const now = Date.now();
+    if (isSubmitting || (now - lastSubmitTime.current < 2000)) {
+      console.warn('⚠️ Blocked duplicate submission (debounced)');
+      return;
+    }
+    lastSubmitTime.current = now;
+    setIsSubmitting(true);
+    
     try {
 
       // 1. Get User ID
@@ -190,6 +201,7 @@ export const CompleteReadingScreen = ({ navigation, route }: Props) => {
 
     } catch (e: any) {
       console.error('Failed to start complete reading:', e);
+      setIsSubmitting(false); // Reset submitting state on error
       // Show error to user
       const errorMessage = e?.message || 'Could not start generation. Please try again.';
       Alert.alert('Error', errorMessage);

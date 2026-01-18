@@ -240,8 +240,16 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
     }
   };
 
+  const lastSubmitTime = React.useRef(0);
+  
   const startJobAndNavigate = async (opts: { productType: string; title: string; systems: string[]; voiceIdOverride?: string; relationshipContext?: string; personalContext?: string }) => {
-    if (isLoading) return; // Prevent double-clicks
+    // CRITICAL: Prevent double-submissions with immediate guard + debounce
+    const now = Date.now();
+    if (isLoading || (now - lastSubmitTime.current < 2000)) {
+      console.warn('⚠️ Blocked duplicate submission (debounced)');
+      return;
+    }
+    lastSubmitTime.current = now;
     setIsLoading(true);
 
     // Debug: Log data sources for person1
