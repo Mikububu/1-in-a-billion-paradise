@@ -1542,6 +1542,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     }
 
     isPlayingMutex.current = true;
+    let safetyTimeout: NodeJS.Timeout | null = null;
 
     try {
       // If this reading is playing, pause it
@@ -1591,7 +1592,19 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       setLoadingAudioId(reading.id);
       const url = reading.audioPath;
       
+      console.log(`🎵 Loading audio for ${reading.name} (${reading.system}):`, {
+        url: url?.substring(0, 100),
+        docNum: reading.docNum,
+        jobId: reading.jobId?.substring(0, 8)
+      });
+      
       if (!url) throw new Error('No audio URL');
+      
+      // Safety timeout to force reset loading state after 35 seconds
+      safetyTimeout = setTimeout(() => {
+        console.warn(`⏰ Audio load taking too long for ${reading.name}, resetting loading state`);
+        setLoadingAudioId(prev => prev === reading.id ? null : prev);
+      }, 35000);
       
       const { sound } = await Promise.race([
         Audio.Sound.createAsync(
@@ -1638,12 +1651,14 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       setPlayingId(reading.id);
       setPlaybackPosition(0);
       setLoadingAudioId(null);
+      if (safetyTimeout) clearTimeout(safetyTimeout);
     } catch (e: any) {
       console.error('❌ Audio error:', e);
       const errorMsg = e?.message || 'Unknown error';
       Alert.alert('Audio Error', `Could not play audio: ${errorMsg}\n\nCheck Metro console for details.`);
       setPlayingId(null);
       setLoadingAudioId(null);
+      if (safetyTimeout) clearTimeout(safetyTimeout);
     } finally {
       isPlayingMutex.current = false;
     }
@@ -3056,6 +3071,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   timeText: {
+    fontFamily: 'Inter_400Regular',
     fontSize: 11,
     color: '#888',
     minWidth: 45,
@@ -3133,6 +3149,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   songTimeText: {
+    fontFamily: 'Inter_400Regular',
     fontSize: 11,
     color: '#666',
     minWidth: 45,
