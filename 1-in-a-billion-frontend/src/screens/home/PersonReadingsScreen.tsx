@@ -761,9 +761,11 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                 r.jobId = s.jobId; // Ensure jobId is set
                 console.log(`  ✅ Set jobId=${s.jobId} for reading ${r.id}`);
               }
+              // Use existing docNum from API if available (more accurate than calculated docNumFromKey)
+              const effectiveDocNum = r.docNum || docNumFromKey;
               if (!r.pdfPath && s.pdfUrl) r.pdfPath = s.pdfUrl;
-              if (!r.audioPath && s.audioUrl) r.audioPath = `${env.CORE_API_URL}/api/jobs/v2/${s.jobId}/audio/${docNumFromKey}`;
-              if (!r.songPath && s.songUrl) r.songPath = `${env.CORE_API_URL}/api/jobs/v2/${s.jobId}/song/${docNumFromKey}`;
+              if (!r.audioPath && s.audioUrl) r.audioPath = `${env.CORE_API_URL}/api/jobs/v2/${r.jobId || s.jobId}/audio/${effectiveDocNum}`;
+              if (!r.songPath && s.songUrl) r.songPath = `${env.CORE_API_URL}/api/jobs/v2/${r.jobId || s.jobId}/song/${effectiveDocNum}`;
             } else if (shouldAggregateJobs) {
               // For aggregated jobs, create reading from Supabase artifact if not in API response
               const system = SYSTEMS.find(sys => sys.id === s.key);
@@ -1617,6 +1619,8 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
               }
             } else if ('error' in status) {
               console.error('❌ Audio status error:', status.error);
+              // Reset loading state when error occurs to prevent stuck UI
+              setLoadingAudioId(prev => prev === reading.id ? null : prev);
             }
           },
           false // downloadFirst = false for streaming (don't download entire file first)
@@ -1730,6 +1734,10 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
               setIsSongScrubbing(false);
               setSongScrubPosition(0);
             }
+          } else if ('error' in status) {
+            console.error('❌ Song status error:', status.error);
+            // Reset loading state when error occurs to prevent stuck UI
+            setLoadingSongId(prev => prev === reading.id ? null : prev);
           }
         },
         false // downloadFirst = false for streaming
@@ -3048,7 +3056,6 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   timeText: {
-    fontFamily: 'System',
     fontSize: 11,
     color: '#888',
     minWidth: 45,
@@ -3126,7 +3133,6 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   songTimeText: {
-    fontFamily: 'System',
     fontSize: 11,
     color: '#666',
     minWidth: 45,
