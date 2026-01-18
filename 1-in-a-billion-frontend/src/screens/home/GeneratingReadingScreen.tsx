@@ -935,7 +935,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   timerDisplay: {
-    fontFamily: typography.sansBold, // Inter Bold (app's main font)
+    fontFamily: typography.sansRegular, // Inter Regular (normal font as requested)
     fontSize: 32,
     color: colors.text,
     letterSpacing: 2,
