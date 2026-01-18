@@ -18,7 +18,7 @@ import { PRODUCTS, formatAudioDuration } from '@/config/products';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 // Voices are now fetched from backend API - no need for hardcoded VOICES object
 import { VoiceSelectionModal } from '@/components/VoiceSelectionModal';
 import { useProfileStore } from '@/store/profileStore';
@@ -240,7 +240,7 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
     }
   };
 
-  const lastSubmitTime = React.useRef(0);
+  const lastSubmitTime = useRef(0);
   
   const startJobAndNavigate = async (opts: { productType: string; title: string; systems: string[]; voiceIdOverride?: string; relationshipContext?: string; personalContext?: string }) => {
     // CRITICAL: Prevent double-submissions with immediate guard + debounce

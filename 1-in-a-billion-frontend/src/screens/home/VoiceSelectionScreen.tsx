@@ -5,7 +5,7 @@
  * and voice sample playback. Replaces the cramped modal overlay.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -190,7 +190,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
         navigation.goBack();
     };
 
-    const lastSubmitTime = React.useRef(0);
+    const lastSubmitTime = useRef(0);
     
     // Start job with selected voice (new modular approach)
     const startJobWithVoice = async (voiceId: string) => {
