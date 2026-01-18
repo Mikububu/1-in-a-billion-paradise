@@ -380,8 +380,8 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
   };
 
   const handleGoToKarmicZoo = () => {
-    // Navigate to Karmic Zoo (Home screen)
-    navigation.navigate('Home');
+    // Navigate to Karmic Zoo (ComparePeople screen with 4 buttons)
+    navigation.navigate('ComparePeople');
   };
 
   // Get the system name for the headline
