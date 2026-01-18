@@ -6,7 +6,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { env } from '@/config/env';
 import { downloadTextContent, fetchJobArtifacts } from '@/services/nuclearReadingsService';
-import { downloadAudioFromUrl, shareAudioFile } from '@/services/audioDownload';
+import { downloadAudioFromUrl, shareAudioFile, downloadPdfFromUrl, sharePdfFile } from '@/services/audioDownload';
 import { BackButton } from '@/components/BackButton';
 import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
 import { AudioPlayerSection } from '@/components/AudioPlayerSection';
@@ -62,6 +62,11 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
   const songUrl = useMemo(() => {
     const url = `${env.CORE_API_URL}/api/jobs/v2/${jobId}/song/${docNum}`;
     console.log(`🎵 Song URL: ${url}`);
+    return url;
+  }, [jobId, docNum]);
+  const pdfUrl = useMemo(() => {
+    const url = `${env.CORE_API_URL}/api/jobs/v2/${jobId}/pdf/${docNum}`;
+    console.log(`📄 PDF URL: ${url}`);
     return url;
   }, [jobId, docNum]);
 
@@ -389,8 +394,8 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     return Math.max(130, w);
   }, [windowW]);
 
-  // Download both audio files (narration + song)
-  const handleDownloadAudios = async () => {
+  // Download all files (narration + song + PDF)
+  const handleDownloadAllFiles = async () => {
     if (downloading || !allMediaReady) return;
     
     setDownloading(true);
@@ -410,22 +415,30 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
       const songPath = await downloadAudioFromUrl(songUrl, songFileName);
       console.log(`✅ Song downloaded: ${songPath}`);
       
-      // Share both files (user can save to Files app, etc.)
-      const shared = await shareAudioFile(narrationPath, `${personName} - ${systemName} - Narration`);
-      if (shared) {
-        // After sharing narration, offer to share song
+      // Download PDF
+      const pdfFileName = `${baseName}_reading`;
+      console.log(`📥 Downloading PDF: ${pdfUrl}`);
+      const pdfPath = await downloadPdfFromUrl(pdfUrl, pdfFileName);
+      console.log(`✅ PDF downloaded: ${pdfPath}`);
+      
+      // Share all files sequentially (user can save to Files app, etc.)
+      const sharedNarration = await shareAudioFile(narrationPath, `${personName} - ${systemName} - Narration`);
+      if (sharedNarration) {
         setTimeout(async () => {
           await shareAudioFile(songPath, `${personName} - ${systemName} - Song`);
+          setTimeout(async () => {
+            await sharePdfFile(pdfPath, `${personName} - ${systemName} - Reading`);
+          }, 500);
         }, 500);
       }
       
       Alert.alert(
         'Download Complete',
-        `Both audio files downloaded:\n• Narration\n• Song\n\nYou can find them in your Files app.`
+        `All files downloaded:\n• Narration Audio\n• Song Audio\n• Reading PDF\n\nYou can find them in your Files app.`
       );
     } catch (error: any) {
       console.error('❌ Download error:', error);
-      Alert.alert('Download Failed', error.message || 'Could not download audio files. Please try again.');
+      Alert.alert('Download Failed', error.message || 'Could not download files. Please try again.');
     } finally {
       setDownloading(false);
     }
@@ -458,7 +471,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.headerYellowButton, downloading && styles.headerYellowButtonDisabled]} 
-                onPress={handleDownloadAudios}
+                onPress={handleDownloadAllFiles}
                 disabled={downloading}
               >
                 {downloading ? (

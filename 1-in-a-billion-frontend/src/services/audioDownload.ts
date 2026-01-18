@@ -210,6 +210,63 @@ export const generateAudioFileName = (
   return `reading_${sanitize(userName)}_${system || 'western'}_${date}`;
 };
 
+/**
+ * Download PDF from URL and save locally
+ */
+export const downloadPdfFromUrl = async (
+  pdfUrl: string,
+  fileName: string,
+  onProgress?: (progress: number) => void
+): Promise<string> => {
+  await ensureAudioDirectory();
+
+  const dir = getAudioDirectory();
+  if (!dir) throw new Error('No writable directory available (documentDirectory/cacheDirectory missing)');
+  const filePath = `${dir}${fileName}.pdf`;
+
+  const downloadResumable = FileSystem.createDownloadResumable(
+    pdfUrl,
+    filePath,
+    {},
+    (downloadProgress: { totalBytesWritten: number; totalBytesExpectedToWrite: number }) => {
+      const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+      onProgress?.(progress);
+    }
+  );
+
+  const result = await downloadResumable.downloadAsync();
+
+  if (!result?.uri) {
+    throw new Error('PDF download failed');
+  }
+
+  return result.uri;
+};
+
+/**
+ * Share/export PDF file
+ */
+export const sharePdfFile = async (filePath: string, title?: string): Promise<boolean> => {
+  const isAvailable = await Sharing.isAvailableAsync();
+
+  if (!isAvailable) {
+    Alert.alert('Sharing not available', 'Unable to share files on this device.');
+    return false;
+  }
+
+  try {
+    await Sharing.shareAsync(filePath, {
+      mimeType: 'application/pdf',
+      dialogTitle: title || 'Save your reading PDF',
+      UTI: 'com.adobe.pdf', // iOS
+    });
+    return true;
+  } catch (error) {
+    console.error('Share PDF error:', error);
+    return false;
+  }
+};
+
 
 
 
