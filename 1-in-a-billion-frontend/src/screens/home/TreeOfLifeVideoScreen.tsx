@@ -86,8 +86,7 @@ export const TreeOfLifeVideoScreen = ({ navigation, route }: Props) => {
                 resizeMode={ResizeMode.COVER}
                 shouldPlay
                 isLooping={false}
-                // Safer autoplay on iOS: keep muted for this transition screen.
-                isMuted
+                isMuted={false} // Audio enabled for Tree of Life video
                 onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
                 onLoad={(status) => {
                   // Use actual duration to set a better fallback (duration + 1s, capped).
