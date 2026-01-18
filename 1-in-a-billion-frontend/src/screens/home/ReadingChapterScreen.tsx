@@ -352,11 +352,11 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     };
   }, [jobId, systemId, docNum]);
 
-  // Compute: main media ready (text, audio, PDF all ready)
+  // Compute: main media ready (text + audio, PDF is optional)
   const mainMediaReady = useMemo(() => {
-    // All three must be ready: text loaded, audio ready, PDF ready
-    return !loadingText && !!text && text.length > 0 && audioReady && pdfReady;
-  }, [loadingText, text, audioReady, pdfReady]);
+    // Text and audio must be ready. PDF is optional (may fail or not be generated yet).
+    return !loadingText && !!text && text.length > 0 && audioReady;
+  }, [loadingText, text, audioReady]);
 
   // Compute: ALL media ready including song (for "download both audios" UX)
   const allMediaReady = useMemo(() => {
@@ -394,47 +394,67 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     return Math.max(130, w);
   }, [windowW]);
 
-  // Download all files (narration + song + PDF)
+  // Download all available files (narration + song + PDF if ready)
   const handleDownloadAllFiles = async () => {
-    if (downloading || !allMediaReady) return;
+    if (downloading || !mainMediaReady) return;
     
     setDownloading(true);
+    const downloadedFiles: string[] = [];
     try {
       const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
       const baseName = `${sanitize(personName)}_${sanitize(systemName)}_doc${docNum}`;
       
-      // Download narration audio
+      // Download narration audio (required)
       const narrationFileName = `${baseName}_narration`;
       console.log(`📥 Downloading narration: ${narrationUrl}`);
       const narrationPath = await downloadAudioFromUrl(narrationUrl, narrationFileName);
       console.log(`✅ Narration downloaded: ${narrationPath}`);
+      downloadedFiles.push('Narration Audio');
       
-      // Download song audio
-      const songFileName = `${baseName}_song`;
-      console.log(`📥 Downloading song: ${songUrl}`);
-      const songPath = await downloadAudioFromUrl(songUrl, songFileName);
-      console.log(`✅ Song downloaded: ${songPath}`);
-      
-      // Download PDF
-      const pdfFileName = `${baseName}_reading`;
-      console.log(`📥 Downloading PDF: ${pdfUrl}`);
-      const pdfPath = await downloadPdfFromUrl(pdfUrl, pdfFileName);
-      console.log(`✅ PDF downloaded: ${pdfPath}`);
-      
-      // Share all files sequentially (user can save to Files app, etc.)
-      const sharedNarration = await shareAudioFile(narrationPath, `${personName} - ${systemName} - Narration`);
-      if (sharedNarration) {
-        setTimeout(async () => {
-          await shareAudioFile(songPath, `${personName} - ${systemName} - Song`);
+      // Try to download song audio (optional)
+      if (songReady) {
+        try {
+          const songFileName = `${baseName}_song`;
+          console.log(`📥 Downloading song: ${songUrl}`);
+          const songPath = await downloadAudioFromUrl(songUrl, songFileName);
+          console.log(`✅ Song downloaded: ${songPath}`);
+          downloadedFiles.push('Song Audio');
+          
+          // Share song
+          await shareAudioFile(narrationPath, `${personName} - ${systemName} - Narration`);
           setTimeout(async () => {
-            await sharePdfFile(pdfPath, `${personName} - ${systemName} - Reading`);
+            await shareAudioFile(songPath, `${personName} - ${systemName} - Song`);
           }, 500);
-        }, 500);
+        } catch (songError) {
+          console.warn('⚠️ Song download failed, continuing:', songError);
+        }
+      } else {
+        // Only share narration if no song
+        await shareAudioFile(narrationPath, `${personName} - ${systemName} - Narration`);
       }
       
+      // Try to download PDF (optional)
+      if (pdfReady) {
+        try {
+          const pdfFileName = `${baseName}_reading`;
+          console.log(`📥 Downloading PDF: ${pdfUrl}`);
+          const pdfPath = await downloadPdfFromUrl(pdfUrl, pdfFileName);
+          console.log(`✅ PDF downloaded: ${pdfPath}`);
+          downloadedFiles.push('Reading PDF');
+          
+          // Share PDF after a delay
+          setTimeout(async () => {
+            await sharePdfFile(pdfPath, `${personName} - ${systemName} - Reading`);
+          }, songReady ? 1000 : 500);
+        } catch (pdfError) {
+          console.warn('⚠️ PDF download failed, continuing:', pdfError);
+        }
+      }
+      
+      const filesList = downloadedFiles.map(f => `• ${f}`).join('\n');
       Alert.alert(
         'Download Complete',
-        `All files downloaded:\n• Narration Audio\n• Song Audio\n• Reading PDF\n\nYou can find them in your Files app.`
+        `Downloaded files:\n${filesList}\n\nYou can find them in your Files app.`
       );
     } catch (error: any) {
       console.error('❌ Download error:', error);
