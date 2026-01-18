@@ -1060,7 +1060,7 @@ export const HomeScreen = ({ navigation }: Props) => {
             >
               <Animated.View style={{ opacity: blinkAnim, alignItems: 'center' }}>
                 <View style={styles.uploadPhotoPlaceholder}>
-                  <Text style={styles.uploadPhotoIcon}>📸</Text>
+                  <Text style={styles.uploadPhotoIcon}>⊕</Text>
                 </View>
                 <Text style={styles.uploadPhotoLabel}>
                   {uploadingPhoto ? 'Creating...' : 'Upload photo'}

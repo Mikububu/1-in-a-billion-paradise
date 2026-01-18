@@ -229,19 +229,24 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
         setProgressPercent(pct);
         setCurrentStep(job.progress?.message || `Status: ${status || 'unknown'}`);
 
-        // Smart timer: Calculate initial estimate on first poll
+        // Smart timer: Calculate initial estimate on first poll using NEW estimator
         if (initialEstimate === null && job.progress?.message) {
-          // Estimate based on number of systems/docs being generated
           const systemCount = systems?.length || 1;
           const isNuclear = productType === 'nuclear_package';
           
-          // Each system generates ~2000 words of text (takes 3-5 min)
-          // Plus audio generation (varies by provider)
-          // Nuclear has 16 docs, each ~2000 words
-          const estimatedTextMinutes = isNuclear ? 15 : systemCount * 4; // 4 min per system
-          const estimatedAudioMinutes = isNuclear ? 20 : systemCount * 3; // 3 min per system
-          const totalMinutes = estimatedTextMinutes + estimatedAudioMinutes;
-          const totalSeconds = totalMinutes * 60;
+          // Use the new smart timer estimation based on actual text length and LLM provider
+          // For initial estimate, assume ~2000 words per system
+          const avgCharsPerWord = 5;
+          const wordsPerSystem = 2000;
+          const estimatedTextLength = isNuclear ? 16 * wordsPerSystem * avgCharsPerWord : systemCount * wordsPerSystem * avgCharsPerWord;
+          const systemsList = systems || ['western'];
+          
+          // Import and use the smart timer
+          const { estimateTotalReadingTime } = require('@/utils/audioTimeEstimator');
+          const estimate = estimateTotalReadingTime(estimatedTextLength, systemsList, 'deepseek');
+          
+          // Use the MAX time as initial estimate (conservative)
+          const totalSeconds = estimate.max * 60;
           
           setInitialEstimate(totalSeconds);
           setEstimatedTimeRemaining(totalSeconds);
@@ -466,25 +471,14 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
           </Text>
         </TouchableOpacity>
 
-        {/* Results Button - Go directly to readings */}
-        <TouchableOpacity 
-          style={styles.libraryButton} 
-          onPress={handleGoToResults}
-          disabled={!activeJobId}
-        >
-          <Text style={[styles.libraryButtonText, !activeJobId && styles.libraryButtonTextDisabled]}>
-            Results
-          </Text>
+        {/* My Secret Life Button - RED dashed stroke */}
+        <TouchableOpacity style={styles.redDashedButton} onPress={handleGoToMySecretLife}>
+          <Text style={styles.redDashedButtonText}>My Secret Life</Text>
         </TouchableOpacity>
 
-        {/* My Secret Life Button */}
-        <TouchableOpacity style={styles.libraryButton} onPress={handleGoToMySecretLife}>
-          <Text style={styles.libraryButtonText}>My Secret Life</Text>
-        </TouchableOpacity>
-
-        {/* My Souls Library Button */}
+        {/* My Karmic Zoo Button */}
         <TouchableOpacity style={styles.libraryButton} onPress={handleGoToSoulLaboratory}>
-          <Text style={styles.libraryButtonText}>My Souls Library</Text>
+          <Text style={styles.libraryButtonText}>My Karmic Zoo</Text>
         </TouchableOpacity>
 
         {/* Status indicator - Centered */}
@@ -797,6 +791,25 @@ const styles = StyleSheet.create({
   libraryButtonTextDisabled: {
     opacity: 0.5,
     color: colors.mutedText,
+  },
+  // Red dashed button style (matching the design system)
+  redDashedButton: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    width: '100%',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderRadius: radii.button,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+  },
+  redDashedButtonText: {
+    fontFamily: typography.sansSemiBold,
+    fontSize: 16,
+    color: colors.primary,
+    textAlign: 'center',
   },
   statusRow: {
     flexDirection: 'row',
