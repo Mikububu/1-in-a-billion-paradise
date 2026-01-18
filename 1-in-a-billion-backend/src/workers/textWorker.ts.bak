@@ -233,11 +233,11 @@ ${person2Name!.toUpperCase()} WESTERN (TROPICAL) CHART:
       if (!hasP2) {
         return `${person1Name.toUpperCase()} VEDIC JYOTISH CHART (SIDEREAL ONLY):
 
-===============================================================================
+═══════════════════════════════════════════════════════════════════════════════
 CRITICAL: THIS IS PURE VEDIC ASTROLOGY (JYOTISH)
 THIS CHART USES THE SIDEREAL ZODIAC (LAHIRI AYANAMSA).
 DO NOT USE ANY WESTERN TROPICAL DATA.
-===============================================================================
+═══════════════════════════════════════════════════════════════════════════════
 
 FORBIDDEN TERMINOLOGY:
 - DO NOT use "Sun sign", "Moon sign", "zodiac sign" (these are Western concepts)
@@ -253,9 +253,9 @@ REQUIRED VEDIC TERMINOLOGY ONLY:
 - Use "Nakshatra" (27 lunar mansions)
 - Use "Dasha" for planetary periods (Vimshottari system)
 
-===============================================================================
+═══════════════════════════════════════════════════════════════════════════════
 CHART DATA (SIDEREAL - LAHIRI AYANAMSA):
-===============================================================================
+═══════════════════════════════════════════════════════════════════════════════
 
 GRAHAS + BHAVAS (WHOLE SIGN / RASHI HOUSES):
 ${formatGrahas(p1Sid)}
@@ -280,9 +280,9 @@ RAHU-KETU AXIS (KARMIC NODES):
 - Rahu: ${p1RahuSidereal != null ? `${getZodiacSign(p1RahuSidereal)} ${Math.floor(p1RahuSidereal % 30)}°` : '[not available]'} - Material desires, worldly attachments
 - Ketu: ${p1KetuSidereal != null ? `${getZodiacSign(p1KetuSidereal)} ${Math.floor(p1KetuSidereal % 30)}°` : '[not available]'} - Spiritual detachment, past life mastery
 
-===============================================================================
+═══════════════════════════════════════════════════════════════════════════════
 VEDIC ANALYSIS REQUIREMENTS (PURE JYOTISH ONLY):
-===============================================================================
+═══════════════════════════════════════════════════════════════════════════════
 
 1. NAKSHATRA ANALYSIS (MOST CRITICAL):
    - Janma Nakshatra deity and what the deity WANTS from this person.
@@ -311,9 +311,9 @@ ABSOLUTE REQUIREMENTS:
 
       return `${person1Name.toUpperCase()} VEDIC JYOTISH CHART (SIDEREAL ONLY):
 
-===============================================================================
+═══════════════════════════════════════════════════════════════════════════════
 CRITICAL: PURE VEDIC ASTROLOGY - ZERO WESTERN CONCEPTS ALLOWED
-===============================================================================
+═══════════════════════════════════════════════════════════════════════════════
 
 FORBIDDEN: "Sun sign", "Moon sign", "Ascendant", "Rising", "house", tropical zodiac, Western astrology
 
@@ -353,9 +353,9 @@ SURYA (SUN) - SOUL PURPOSE:
 RAHU-KETU AXIS (KARMIC NODES):
  - Rahu: ${p2RahuSidereal != null ? `${getZodiacSign(p2RahuSidereal)} ${Math.floor(p2RahuSidereal % 30)}°` : '[not available]'} | Ketu: ${p2KetuSidereal != null ? `${getZodiacSign(p2KetuSidereal)} ${Math.floor(p2KetuSidereal % 30)}°` : '[not available]'}
 
-===============================================================================
+═══════════════════════════════════════════════════════════════════════════════
 VEDIC ANALYSIS REQUIREMENTS (PURE JYOTISH - NO WESTERN MIXING):
-===============================================================================
+═══════════════════════════════════════════════════════════════════════════════
 
 - Analyze both charts using SIDEREAL positions ONLY
 - Use ONLY Vedic terminology (Rashi, Lagna, Nakshatra, Graha, Bhava, Dasha)
@@ -490,10 +490,10 @@ export class TextWorker extends BaseWorker {
   protected async processTask(task: JobTask): Promise<TaskResult> {
     if (!supabase) return { success: false, error: 'Supabase not configured' };
 
-    // ===========================================================================
+    // ═══════════════════════════════════════════════════════════════════════════
     // SWISS EPHEMERIS DIAGNOSTIC - Check health BEFORE attempting calculations
     // Using ISOLATED process to prevent crashes from killing main worker
-    // ===========================================================================
+    // ═══════════════════════════════════════════════════════════════════════════
     console.log('=== SWISS EPHEMERIS DIAGNOSTIC START ===');
     try {
       const healthCheck = await ephemerisIsolation.healthCheck();
@@ -626,13 +626,13 @@ export class TextWorker extends BaseWorker {
       timezone: person2.timezone,
     } : null;
 
-    // ===========================================================================
+    // ═══════════════════════════════════════════════════════════════════════════
     // CRITICAL FIX: Build chart data based on docType!
     // - person1 docs: Only include person1's chart (no person2 data)
     // - person2 docs: Only include person2's chart (no person1 data)
     // - overlay/verdict docs: Include both charts
     // This prevents the LLM from writing about relationships in individual readings
-    // ===========================================================================
+    // ═══════════════════════════════════════════════════════════════════════════
     let chartData: string;
     
     if (docType === 'person1') {
@@ -713,9 +713,9 @@ export class TextWorker extends BaseWorker {
       label += ':verdict';
 
     } else if (system === 'kabbalah') {
-      // ===========================================================================
+      // ═══════════════════════════════════════════════════════════════════════════
       // KABBALAH FULL PIPELINE - Hebrew Name Conversion + Gematria
-      // ===========================================================================
+      // ═══════════════════════════════════════════════════════════════════════════
       // 1. Convert name to Hebrew letters
       // 2. Calculate Gematria values
       // 3. Convert birth date to Hebrew calendar
