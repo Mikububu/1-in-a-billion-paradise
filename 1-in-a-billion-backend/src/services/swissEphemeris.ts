@@ -3,6 +3,8 @@ import fs from 'fs';
 import { DateTime } from 'luxon';
 import swe from 'swisseph';
 import { ReadingPayload } from '../types';
+import { calculateHumanDesign, HDProfile, PlanetaryPositions } from './humanDesignCalculator';
+import { calculateGeneKeys, HologeneticProfile } from './geneKeysCalculator';
 
 /**
  * SWISS EPHEMERIS CONFIGURATION
@@ -244,6 +246,35 @@ export type PlacementSummary = {
       isTrueNode?: boolean; // only for Rahu/Ketu when true node used
     }>;
   };
+
+  // Human Design summary (complete calculation with Type, Authority, Profile, etc.)
+  humanDesign?: {
+    type: 'Manifestor' | 'Generator' | 'Manifesting Generator' | 'Projector' | 'Reflector';
+    strategy: string;
+    authority: string;
+    profile: string; // e.g., '4/6'
+    incarnationCross: string; // e.g., 'Right Angle Cross of Planning'
+    definedCenters: string[]; // e.g., ['Throat', 'G', 'Sacral']
+    activeGates: number[]; // All defined gates (conscious + unconscious)
+    activeChannels: string[]; // e.g., ['1-8', '20-34']
+    personality: any; // Full personality activation data
+    design: any; // Full design activation data
+  };
+
+  // Gene Keys summary (Hologenetic Profile)
+  geneKeys?: {
+    lifesWork?: { geneKey: number; line: number; shadow: string; gift: string; siddhi: string };
+    evolution?: { geneKey: number; line: number; shadow: string; gift: string; siddhi: string };
+    radiance?: { geneKey: number; line: number; shadow: string; gift: string; siddhi: string };
+    purpose?: { geneKey: number; line: number; shadow: string; gift: string; siddhi: string };
+    attraction?: { geneKey: number; line: number; shadow: string; gift: string; siddhi: string };
+    iq?: { geneKey: number; line: number; shadow: string; gift: string; siddhi: string };
+    eq?: { geneKey: number; line: number; shadow: string; gift: string; siddhi: string };
+    sq?: { geneKey: number; line: number; shadow: string; gift: string; siddhi: string };
+    vocation?: { geneKey: number; line: number; shadow: string; gift: string; siddhi: string };
+    culture?: { geneKey: number; line: number; shadow: string; gift: string; siddhi: string };
+    pearl?: { geneKey: number; line: number; shadow: string; gift: string; siddhi: string };
+  };
 };
 
 type VedicGrahaKey = NonNullable<PlacementSummary['sidereal']>['grahas'][number]['key'];
@@ -269,6 +300,55 @@ export class SwissEphemerisEngine {
       throw new Error(`Swiss Ephemeris Moon calculation failed: ${moon.error}`);
     }
     const moonLongitude = (moon as { longitude: number }).longitude;
+
+    // Calculate all planetary positions (tropical) for Human Design & Gene Keys
+    const mercury = swe.swe_calc_ut(jdUt, swe.SE_MERCURY, flags);
+    if ('error' in mercury) {
+      throw new Error(`Swiss Ephemeris Mercury calculation failed: ${mercury.error}`);
+    }
+    const mercuryLongitude = (mercury as { longitude: number }).longitude;
+
+    const venus = swe.swe_calc_ut(jdUt, swe.SE_VENUS, flags);
+    if ('error' in venus) {
+      throw new Error(`Swiss Ephemeris Venus calculation failed: ${venus.error}`);
+    }
+    const venusLongitude = (venus as { longitude: number }).longitude;
+
+    const mars = swe.swe_calc_ut(jdUt, swe.SE_MARS, flags);
+    if ('error' in mars) {
+      throw new Error(`Swiss Ephemeris Mars calculation failed: ${mars.error}`);
+    }
+    const marsLongitude = (mars as { longitude: number }).longitude;
+
+    const jupiter = swe.swe_calc_ut(jdUt, swe.SE_JUPITER, flags);
+    if ('error' in jupiter) {
+      throw new Error(`Swiss Ephemeris Jupiter calculation failed: ${jupiter.error}`);
+    }
+    const jupiterLongitude = (jupiter as { longitude: number }).longitude;
+
+    const saturn = swe.swe_calc_ut(jdUt, swe.SE_SATURN, flags);
+    if ('error' in saturn) {
+      throw new Error(`Swiss Ephemeris Saturn calculation failed: ${saturn.error}`);
+    }
+    const saturnLongitude = (saturn as { longitude: number }).longitude;
+
+    const uranus = swe.swe_calc_ut(jdUt, swe.SE_URANUS, flags);
+    if ('error' in uranus) {
+      throw new Error(`Swiss Ephemeris Uranus calculation failed: ${uranus.error}`);
+    }
+    const uranusLongitude = (uranus as { longitude: number }).longitude;
+
+    const neptune = swe.swe_calc_ut(jdUt, swe.SE_NEPTUNE, flags);
+    if ('error' in neptune) {
+      throw new Error(`Swiss Ephemeris Neptune calculation failed: ${neptune.error}`);
+    }
+    const neptuneLongitude = (neptune as { longitude: number }).longitude;
+
+    const pluto = swe.swe_calc_ut(jdUt, swe.SE_PLUTO, flags);
+    if ('error' in pluto) {
+      throw new Error(`Swiss Ephemeris Pluto calculation failed: ${pluto.error}`);
+    }
+    const plutoLongitude = (pluto as { longitude: number }).longitude;
 
     // Calculate Houses (Ascendant/Rising + House Cusps) - Tropical Western
     const houses = swe.swe_houses(jdUt, payload.latitude, payload.longitude, 'P'); // Placidus
@@ -446,6 +526,98 @@ export class SwissEphemerisEngine {
       };
     } catch (e) {
       console.warn('[Swiss Ephemeris] Sidereal computation failed:', e);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // HUMAN DESIGN & GENE KEYS CALCULATION
+    // ═══════════════════════════════════════════════════════════════════════════
+    try {
+      console.log('[Swiss Ephemeris] Calculating Human Design & Gene Keys...');
+
+      // 1. Calculate Design time (88 days ≈ 3 months before birth)
+      // Human Design uses "Design" positions from ~88 days before birth (Imprinting)
+      const DESIGN_OFFSET_DAYS = 88;
+      const designJdUt = jdUt - DESIGN_OFFSET_DAYS;
+
+      console.log(`[Swiss Ephemeris] Design JD: ${designJdUt} (${DESIGN_OFFSET_DAYS} days before birth)`);
+
+      // 2. Calculate planetary positions for Design time
+      const getDesignPosition = (planet: number): number => {
+        const result = swe.swe_calc_ut(designJdUt, planet, flags);
+        if ('error' in result) {
+          throw new Error(`Failed to calculate design position for planet ${planet}: ${result.error}`);
+        }
+        return (result as { longitude: number }).longitude;
+      };
+
+      const getPersonalityPosition = (planet: number): number => {
+        const result = swe.swe_calc_ut(jdUt, planet, flags);
+        if ('error' in result) {
+          throw new Error(`Failed to calculate personality position for planet ${planet}: ${result.error}`);
+        }
+        return (result as { longitude: number }).longitude;
+      };
+
+      // 3. Build PlanetaryPositions object (personality + design)
+      const planetaryPositions: PlanetaryPositions = {
+        personality: {
+          sun: sunLongitude,
+          earth: (sunLongitude + 180) % 360,
+          moon: moonLongitude,
+          northNode: getPersonalityPosition(swe.SE_MEAN_NODE),
+          southNode: (getPersonalityPosition(swe.SE_MEAN_NODE) + 180) % 360,
+          mercury: mercuryLongitude,
+          venus: venusLongitude,
+          mars: marsLongitude,
+          jupiter: jupiterLongitude,
+          saturn: saturnLongitude,
+          uranus: uranusLongitude,
+          neptune: neptuneLongitude,
+          pluto: plutoLongitude,
+        },
+        design: {
+          sun: getDesignPosition(swe.SE_SUN),
+          earth: (getDesignPosition(swe.SE_SUN) + 180) % 360,
+          moon: getDesignPosition(swe.SE_MOON),
+          northNode: getDesignPosition(swe.SE_MEAN_NODE),
+          southNode: (getDesignPosition(swe.SE_MEAN_NODE) + 180) % 360,
+          mercury: getDesignPosition(swe.SE_MERCURY),
+          venus: getDesignPosition(swe.SE_VENUS),
+          mars: getDesignPosition(swe.SE_MARS),
+          jupiter: getDesignPosition(swe.SE_JUPITER),
+          saturn: getDesignPosition(swe.SE_SATURN),
+          uranus: getDesignPosition(swe.SE_URANUS),
+          neptune: getDesignPosition(swe.SE_NEPTUNE),
+          pluto: getDesignPosition(swe.SE_PLUTO),
+        },
+      };
+
+      // 4. Calculate Human Design
+      const hdResult: HDProfile = calculateHumanDesign(planetaryPositions);
+      console.log(`[Swiss Ephemeris] Human Design Type: ${hdResult.type}, Profile: ${hdResult.profile}`);
+
+      // 5. Calculate Gene Keys
+      const gkResult: HologeneticProfile = calculateGeneKeys(planetaryPositions);
+      console.log(`[Swiss Ephemeris] Gene Keys Life's Work: ${gkResult.lifesWork?.geneKey}.${gkResult.lifesWork?.line}`);
+
+      // 6. Add to result
+      result.humanDesign = {
+        type: hdResult.type,
+        strategy: hdResult.strategy,
+        authority: hdResult.authority,
+        profile: hdResult.profile,
+        incarnationCross: hdResult.incarnationCross,
+        definedCenters: hdResult.definedCenters,
+        activeGates: hdResult.activeGates,
+        activeChannels: hdResult.activeChannels,
+        personality: hdResult.personality,
+        design: hdResult.design,
+      };
+
+      result.geneKeys = gkResult;
+    } catch (e) {
+      console.error('[Swiss Ephemeris] Human Design & Gene Keys calculation failed:', e);
+      // Don't fail the entire request - just log the error
     }
 
     console.log(`Swiss Ephemeris Results:`, JSON.stringify(result, null, 2));

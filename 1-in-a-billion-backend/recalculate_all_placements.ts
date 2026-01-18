@@ -31,15 +31,23 @@ async function main() {
   let failed = 0;
 
   for (const person of people) {
-    const hasValidPlacements = person.placements && 
+    const hasBasicPlacements = person.placements && 
       person.placements.sunSign && 
       person.placements.moonSign && 
       person.placements.risingSign;
 
-    if (hasValidPlacements) {
-      console.log(`⏭️  ${person.name}: Already has placements - skipping`);
+    const hasHumanDesign = person.placements?.humanDesign;
+    const hasGeneKeys = person.placements?.geneKeys;
+
+    // Only skip if they have FULL placements (including HD & GK)
+    if (hasBasicPlacements && hasHumanDesign && hasGeneKeys) {
+      console.log(`⏭️  ${person.name}: Already has full placements (including HD/GK) - skipping`);
       skipped++;
       continue;
+    }
+
+    if (hasBasicPlacements && (!hasHumanDesign || !hasGeneKeys)) {
+      console.log(`🔄 ${person.name}: Has placements but missing HD/GK - recalculating`);
     }
 
     // Get birth data from JSON
