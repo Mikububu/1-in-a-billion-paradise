@@ -92,12 +92,12 @@ export const OverlayReaderScreen = ({ navigation, route }: Props) => {
 
   const getFirst = (type: string) => artifacts.find((a) => a.artifact_type === type && a.storage_path);
 
-  // Check if all media is ready (PDF + audio + song)
+  // Check if all media is ready (PDF + audio, song is optional)
   const allMediaReady = useMemo(() => {
     const hasPdf = !!getFirst('pdf');
     const hasAudio = !!getFirst('audio_mp3') || !!getFirst('audio_m4a') || !!getFirst('audio');
-    const hasSong = !!getFirst('audio_song');
-    return hasPdf && hasAudio && hasSong;
+    // Song is optional - don't require it for the overlay to be considered "ready"
+    return hasPdf && hasAudio;
   }, [artifacts]);
 
   const canRetry = useMemo(() => job?.status === 'error' && job?.input, [job?.input, job?.status]);
