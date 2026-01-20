@@ -22,6 +22,10 @@ export interface SavedReading {
 /**
  * Save all hook readings (Sun, Moon, Rising) for a user
  * Called after account creation to persist the free readings
+ * 
+ * ARCHITECTURE NOTE (INVARIANT 9): Hook readings must be saved to BOTH:
+ * 1. user_readings table (per-reading rows, used by getUserReadings)
+ * 2. library_people.hook_readings column (JSON, used by bootstrap to detect onboarding complete)
  */
 export async function saveHookReadings(
   userId: string,
@@ -49,6 +53,7 @@ export async function saveHookReadings(
       return { success: false, error: 'No readings to save' };
     }
     
+    // 1. Save to user_readings table (per-reading rows)
     const { error } = await supabase
       .from('user_readings')
       .upsert(readingsToSave, {
@@ -57,8 +62,35 @@ export async function saveHookReadings(
       });
     
     if (error) {
-      console.error('Error saving hook readings:', error);
+      console.error('Error saving hook readings to user_readings:', error);
       return { success: false, error: error.message };
+    }
+    
+    // 2. ALSO save to library_people.hook_readings column (INVARIANT 9)
+    // This is critical for bootstrap to detect onboarding completion
+    const hookReadingsObject: Record<string, HookReading> = {};
+    for (const type of ['sun', 'moon', 'rising'] as const) {
+      if (readings[type]) {
+        hookReadingsObject[type] = readings[type]!;
+      }
+    }
+    
+    if (Object.keys(hookReadingsObject).length > 0) {
+      const { error: libraryError } = await supabase
+        .from('library_people')
+        .update({ 
+          hook_readings: hookReadingsObject,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId)
+        .eq('is_user', true);
+      
+      if (libraryError) {
+        // Log but don't fail - user_readings write succeeded
+        console.warn('⚠️ Failed to save hook_readings to library_people:', libraryError.message);
+      } else {
+        console.log('✅ Also saved hook_readings to library_people.hook_readings');
+      }
     }
     
     console.log(`✅ Saved ${readingsToSave.length} readings for user ${userId}`);

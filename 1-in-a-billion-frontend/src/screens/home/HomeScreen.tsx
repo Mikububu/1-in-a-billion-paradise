@@ -351,10 +351,10 @@ export const HomeScreen = ({ navigation }: Props) => {
     moon: currentPerson.hookReadings?.moon?.sign || currentPerson.placements?.moonSign || null,
     rising: currentPerson.hookReadings?.rising?.sign || currentPerson.placements?.risingSign || null,
   } : {
-    // Fallback when carousel is empty: try onboardingStore, then user placements, then known test data
-    sun: hookReadings.sun?.sign || user?.placements?.sunSign || null,
-    moon: hookReadings.moon?.sign || user?.placements?.moonSign || null,
-    rising: hookReadings.rising?.sign || user?.placements?.risingSign || null,
+    // Fallback when carousel is empty: prefer placements (Swiss Ephemeris = accurate) over hookReadings (potentially stale)
+    sun: user?.placements?.sunSign || hookReadings.sun?.sign || null,
+    moon: user?.placements?.moonSign || hookReadings.moon?.sign || null,
+    rising: user?.placements?.risingSign || hookReadings.rising?.sign || null,
   };
 
   // Rotate carousel every 10 seconds

@@ -1257,7 +1257,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
       <View style={styles.profileHeader}>
         <View style={styles.profileAvatar}>
           <Text style={styles.profileInitial}>
-            {(hookReadings.sun?.sign)?.charAt(0) || '?'}
+            {(user?.placements?.sunSign || hookReadings.sun?.sign)?.charAt(0) || '?'}
           </Text>
         </View>
         <View style={styles.profileInfo}>
@@ -1266,9 +1266,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             {birthDate ? formatDate(birthDate) : 'Birth date not set'}
           </Text>
           <View style={styles.signsRow}>
-            <Text style={styles.signBadge}>☉ {hookReadings.sun?.sign || '?'}</Text>
-            <Text style={styles.signBadge}>☽ {hookReadings.moon?.sign || '?'}</Text>
-            <Text style={styles.signBadge}>↑ {hookReadings.rising?.sign || '?'}</Text>
+            <Text style={styles.signBadge}>☉ {user?.placements?.sunSign || hookReadings.sun?.sign || '?'}</Text>
+            <Text style={styles.signBadge}>☽ {user?.placements?.moonSign || hookReadings.moon?.sign || '?'}</Text>
+            <Text style={styles.signBadge}>↑ {user?.placements?.risingSign || hookReadings.rising?.sign || '?'}</Text>
           </View>
         </View>
         <Text style={styles.profileArrow}>→</Text>
