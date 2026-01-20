@@ -72,20 +72,17 @@
    - Goes to earliest missing screen
 
 3. **Session exists + Onboarding complete:**
-   - → Always goes to `S1_INTRO` (Screen 1) first
-   - Shows: "Sign Out" + "My Secret Life" buttons
-   - User must tap "My Secret Life" to go to Dashboard
+   - → Routes to MainNavigator (Dashboard)
+   - Intro-first “My Secret Life” gate is legacy behavior and is not enforced by current `RootNavigator` routing
 
 ### The showDashboard Flag
 
-- **Purpose:** Controls which navigator is shown (OnboardingNavigator vs MainNavigator)
-- **Default:** Always `false` on app launch (not persisted)
-- **When set to `true`:**
-  - User taps "My Secret Life" on Intro
-  - Onboarding completes (so user goes to Dashboard immediately)
-- **When reset to `false`:**
-  - User signs out
-  - App launches (always starts as `false`)
+**Legacy / compatibility flag**
+
+- `showDashboard` may still exist in `onboardingStore`, but **current routing does not rely on it**.
+- Current authoritative routing rule in `RootNavigator` is:
+  - **If Supabase session exists → MainNavigator**
+  - **If no session → OnboardingNavigator (Intro)**
 
 ### Sign Out Behavior
 
@@ -122,16 +119,15 @@
     - `S2_RELATIONSHIP` ("Get Started" button)
     - `S2_SIGNIN` ("Log In" button)
   - If **signed in:**
-    - `S10_HOME` ("My Secret Life" button - sets `showDashboard=true` flag)
+    - `S10_HOME` ("My Secret Life" button – legacy wording; in other screens this is now “My Souls Library”)
     - Sign Out flow ("Sign Out" button - deletes all data)
 - **Backend:** 
   - `DELETE /api/account/purge` - When user confirms Sign Out (deletes all user data)
 - **Data Stored:** 
-  - `onboardingStore.showDashboard` - Flag to switch from OnboardingNavigator to MainNavigator
-  - When "My Secret Life" pressed: `showDashboard = true`
-  - When "Sign Out" pressed: Deletes all Supabase data + clears local stores + `showDashboard = false`
+  - `onboardingStore.showDashboard` exists, but routing does not depend on it
+  - When "Sign Out" pressed: Deletes all Supabase data + clears local stores
 - **Special Behavior:**
-  - **CRITICAL:** This screen is ALWAYS shown on app launch, regardless of sign-in status
+  - **CRITICAL (current):** Routing is session-driven. If session exists → MainNavigator; otherwise → Intro.
   - Signed-in users see: "Sign Out" + "My Secret Life" buttons
   - Not signed-in users see: "Log In" + "Get Started" buttons
   - Sign Out shows warning: "By signing out you would delete all your user data and history. Are you sure?"
@@ -639,7 +635,7 @@
   - **CRITICAL SCREEN** - This triggers the entire generation pipeline:
     1. Backend receives job request
     2. Creates job row in Supabase `jobs` table
-    3. Enqueues tasks in Supabase `job_queue` table
+    3. Enqueues tasks in Supabase Queue V2 (`job_queue_v2` / `job_tasks`)
     4. Text worker (on Fly.io) claims tasks, calls DeepSeek API
     5. PDF worker (on Fly.io) generates PDFs, uploads to Storage
     6. Audio worker (RunPod GPU) generates audio, uploads to Storage
@@ -647,11 +643,11 @@
   - Creates `jobs` row with status `processing`
   - Creates `job_tasks` rows (text_generation, pdf_generation, audio_generation)
   - Workers update task status as they complete
-  - Final artifacts stored in Storage buckets (`library` for PDFs, `library` for audio)
+  - Final artifacts stored in Storage bucket `job-artifacts` (private)
 - **PDF Impact:** 
   - **PDF GENERATION HAPPENS HERE**
   - PDF worker generates PDF from reading text
-  - Uploads to Supabase Storage at `library/{jobId}/document_{docNum}.pdf`
+  - Uploads to Supabase Storage in `job-artifacts` (PDF artifacts)
   - Updates job artifact metadata
 
 **Screen 29: Account Deletion** (`AccountDeletionScreen`)

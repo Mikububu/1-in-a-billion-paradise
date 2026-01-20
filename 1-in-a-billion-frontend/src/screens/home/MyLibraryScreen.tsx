@@ -274,6 +274,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
               gender: row.gender,
               birthData: row.birth_data,
               placements: normalizedPlacements,
+              // Portrait fields (used for avatars + couple images)
+              originalPhotoUrl: row.original_photo_url || undefined,
+              claymationUrl: row.claymation_url || undefined,
               readings: [],
               jobIds: [],
               createdAt: row.created_at || new Date().toISOString(),

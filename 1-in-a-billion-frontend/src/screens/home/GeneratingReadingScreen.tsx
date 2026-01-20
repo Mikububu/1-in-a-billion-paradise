@@ -454,9 +454,9 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
           </Text>
         </TouchableOpacity>
 
-        {/* My Secret Life Button - RED dashed stroke → navigates to Souls Library */}
+        {/* My Souls Library Button - RED dashed stroke → navigates to Souls Library */}
         <TouchableOpacity style={styles.redDashedButton} onPress={handleGoToMySecretLife}>
-          <Text style={styles.redDashedButtonText}>My Secret Life</Text>
+          <Text style={styles.redDashedButtonText}>My Souls Library</Text>
         </TouchableOpacity>
 
         {/* My Karmic Zoo Button → navigates to Home (Karmic Zoo) */}
