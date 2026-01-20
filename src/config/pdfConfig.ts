@@ -68,15 +68,24 @@ export const PDF_CONFIG = {
   },
 
   // ─────────────────────────────────────────────────────────────────────────
-  // HEADER
+  // HEADER (First page only)
+  // Centered "1 in a Billion" brand name + date (NO Swiss Ephemeris text)
   // ─────────────────────────────────────────────────────────────────────────
   header: {
     show: true,
-    fontSize: 10,
-    color: '#666666',
-    showPersonNames: true,
-    showSystemName: true,
-    separator: ' • ',
+    brandFontSize: 16,        // "1 in a Billion" font size
+    dateFontSize: 9,          // Date font size
+    titleFontSize: 12,        // System + Person name font size
+    brandColor: '#000000',
+    dateColor: '#666666',
+    titleColor: '#000000',
+    
+    // First page header (date display)
+    firstPage: {
+      showDate: true,
+      showBrandCentered: true,  // "1 in a Billion" centered at top
+      dateFormat: { year: 'numeric', month: 'long', day: 'numeric' } as Intl.DateTimeFormatOptions,
+    },
   },
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -88,6 +97,19 @@ export const PDF_CONFIG = {
     color: '#999999',
     showPageNumbers: true,
     showGeneratedDate: false,
+    
+    // Footer content (appears on ALL PDFs)
+    content: {
+      disclaimer: 'This reading is for contemplation and self-discovery.',
+      copyright: '© 1 in a Billion',
+      website: 'http://1-in-a-billion.app/',
+      publisher: {
+        name: 'SwiftBuy Solutions LLC',
+        address: 'Meydan Grandstand, 6th floor, Meydan Road, Nad Al Sheba, Dubai, U.A.E.',
+      },
+      poweredBy: 'forbidden-yoga.com',
+      creator: 'Michael Wogenburg',
+    },
   },
 
   // ─────────────────────────────────────────────────────────────────────────

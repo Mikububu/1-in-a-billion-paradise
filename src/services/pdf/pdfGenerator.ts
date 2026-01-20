@@ -1,6 +1,7 @@
 import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import path from 'path';
+import { PDF_CONFIG, fontSize, color } from '../../config/pdfConfig';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // DESIGN SYSTEM - Mouna Dhyana / Forbidden Yoga Classical Style
@@ -186,22 +187,36 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
       drawRunningFooter();
 
       // ─────────────────────────────────────────────────────────────────────
-      // PAGE HEADER - "Day 1" style (top left, bold sans-serif)
+      // PAGE HEADER - Centered "1 in a Billion" (similar to app screen 1)
       // ─────────────────────────────────────────────────────────────────────
 
-      doc.font('Inter-SemiBold').fontSize(10).fillColor('#000000')
-        .text('1 in a Billion', MARGINS.inner, MARGINS.top);
+      doc.font('Inter-SemiBold').fontSize(16).fillColor('#000000')
+        .text('1 in a Billion', { align: 'center' });
+
+      doc.moveDown(1);
+
+      // ─────────────────────────────────────────────────────────────────────
+      // DATE - Centered below brand name (NO "Swiss Ephemeris" text)
+      // ─────────────────────────────────────────────────────────────────────
+
+      const formattedDate = options.generatedAt.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      doc.font('Inter').fontSize(9).fillColor('#666666')
+        .text(formattedDate, { align: 'center' });
 
       doc.moveDown(2);
 
       // ─────────────────────────────────────────────────────────────────────
-      // TITLE - Centered, bold (like "The 365 days - the Andhakaara path to power")
+      // TITLE - System + Person name (centered)
       // ─────────────────────────────────────────────────────────────────────
 
-      doc.font('Inter-SemiBold').fontSize(11).fillColor('#000000')
+      doc.font('Inter-SemiBold').fontSize(12).fillColor('#000000')
         .text(options.title, { align: 'center' });
 
-      doc.moveDown(2);
+      doc.moveDown(3);
 
       // ─────────────────────────────────────────────────────────────────────
       // DEDICATION/EPIGRAPH - Elegant serif, italicized feel, JUSTIFIED
@@ -213,16 +228,17 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
       // ─────────────────────────────────────────────────────────────────────
 
       // ─────────────────────────────────────────────────────────────────────
-      // PERSON INFO - Section title style (like "Mouna Dhyana")
+      // PERSON INFO - Profile-style layout (image middle-left, data right)
       // ─────────────────────────────────────────────────────────────────────
 
-      // Optional portrait/couple image rendered to the right of the person info block.
-      const imageGap = 10;
-      const portraitH = 92;
-      const portraitW = couplePortraitBuf ? 160 : 92;
-      const imageX = MARGINS.inner + contentWidth - portraitW;
+      // Portrait/couple image on the LEFT side (profile-style layout)
+      const imageGap = 20;
+      const portraitH = 100;
+      const portraitW = couplePortraitBuf ? 160 : 100;
+      const imageX = MARGINS.inner;
       const infoStartY = doc.y;
-      const textWidth = contentWidth - (couplePortraitBuf || person1PortraitBuf ? (portraitW + imageGap) : 0);
+      const textStartX = imageX + portraitW + imageGap;
+      const textWidth = contentWidth - (portraitW + imageGap);
 
       if (couplePortraitBuf) {
         try {
@@ -238,11 +254,12 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
         }
       }
 
-      doc.font('Inter-SemiBold').fontSize(10.5).fillColor('#000000')
-        .text(options.person1.name, { width: textWidth });
+      // Person info text on the RIGHT of image
+      doc.font('Inter-SemiBold').fontSize(11).fillColor('#000000')
+        .text(options.person1.name, textStartX, infoStartY, { width: textWidth });
       doc.moveDown(0.5);
 
-      // Short info lines (like "To learn to listen properly.")
+      // Birth date
       doc.font('EBGaramond').fontSize(9.5).fillColor('#000000')
         .text(`Born ${options.person1.birthDate}`, { width: textWidth });
 
@@ -398,17 +415,8 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
       // FOOTER - Simple centered (like "© forbidden-yoga.com")
       // ─────────────────────────────────────────────────────────────────────
 
-      doc.moveDown(3);
-      doc.font('Inter').fontSize(9).fillColor('#888888')
-        .text('· · ·', { align: 'center' });
-      doc.moveDown(0.5);
-      doc.font('Inter').fontSize(8).fillColor('#888888')
-        .text('This reading is for contemplation and self-discovery.', { align: 'center' });
-      doc.font('Inter').fontSize(8).fillColor('#888888')
-        .text(`Swiss Ephemeris · ${options.generatedAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, { align: 'center' });
-      doc.moveDown(1);
-      doc.font('Inter').fontSize(9).fillColor('#666666')
-        .text('© 1 in a Billion', { align: 'center' });
+      // Render footer using centralized config (see src/config/pdfConfig.ts)
+      renderFooter(doc);
 
       doc.end();
 
@@ -426,6 +434,83 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
 
 function slugify(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+/**
+ * Render PDF header (first page only) using centralized config
+ * 
+ * CHANGE HEADER: Edit src/config/pdfConfig.ts header.firstPage
+ * Changes apply to ALL PDFs instantly
+ */
+function renderFirstPageHeader(doc: PDFKit.PDFDocument, generatedDate: Date): void {
+  if (!PDF_CONFIG.header.show || !PDF_CONFIG.header.firstPage.showDate) return;
+
+  const { ephemerisCredit, dateFormat } = PDF_CONFIG.header.firstPage;
+  const headerFontSize = PDF_CONFIG.header.fontSize;
+  const headerColor = PDF_CONFIG.header.color;
+
+  const formattedDate = generatedDate.toLocaleDateString('en-US', dateFormat);
+  
+  doc.font('Inter').fontSize(headerFontSize).fillColor(headerColor)
+    .text(`${ephemerisCredit} ${PDF_CONFIG.header.separator} ${formattedDate}`, { align: 'center' });
+  doc.moveDown(1);
+}
+
+/**
+ * Render PDF footer using centralized config
+ * 
+ * CHANGE FOOTER: Edit src/config/pdfConfig.ts footer.content
+ * Changes apply to ALL PDFs instantly
+ */
+function renderFooter(doc: PDFKit.PDFDocument): void {
+  if (!PDF_CONFIG.footer.show) return;
+
+  const { content } = PDF_CONFIG.footer;
+  const footerFontSize = fontSize('footer');
+  const footerColor = PDF_CONFIG.footer.color;
+
+  doc.moveDown(3);
+  
+  // Separator dots
+  doc.font('Inter').fontSize(9).fillColor('#888888')
+    .text('· · ·', { align: 'center' });
+  doc.moveDown(0.5);
+
+  // Disclaimer
+  doc.font('Inter').fontSize(footerFontSize).fillColor(footerColor)
+    .text(content.disclaimer, { align: 'center' });
+  
+  doc.moveDown(0.5);
+
+  // Website
+  doc.font('Inter').fontSize(footerFontSize).fillColor(footerColor)
+    .text(`Website: ${content.website}`, { align: 'center' });
+  
+  doc.moveDown(0.5);
+
+  // Publisher
+  doc.font('Inter').fontSize(footerFontSize).fillColor(footerColor)
+    .text('Published by:', { align: 'center' });
+  doc.font('Inter').fontSize(footerFontSize).fillColor(footerColor)
+    .text(content.publisher.name, { align: 'center' });
+  doc.font('Inter').fontSize(footerFontSize - 1).fillColor(footerColor)
+    .text(content.publisher.address, { align: 'center' });
+  
+  doc.moveDown(0.5);
+
+  // Powered by
+  doc.font('Inter').fontSize(footerFontSize).fillColor(footerColor)
+    .text(`powered by: ${content.poweredBy}`, { align: 'center' });
+  
+  // Creator
+  doc.font('Inter').fontSize(footerFontSize).fillColor(footerColor)
+    .text(`App created by: ${content.creator}`, { align: 'center' });
+  
+  doc.moveDown(1);
+  
+  // Copyright
+  doc.font('Inter').fontSize(9).fillColor('#666666')
+    .text(content.copyright, { align: 'center' });
 }
 
 export async function generateChapterPDF(
