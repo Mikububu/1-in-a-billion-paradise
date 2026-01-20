@@ -228,15 +228,19 @@ const birthCompletenessScore = (p: any) => {
   return score;
 };
 
-const sanitizeBirthData = (p: any): BirthData => {
+const sanitizeBirthData = (p: any, existingBirthData?: BirthData): BirthData => {
   const bd = p?.birthData || {};
+  const existing = existingBirthData || {};
+  
+  // CRITICAL: Merge with existing data instead of replacing with defaults
+  // This prevents overwriting good data with empty strings during partial updates
   return {
-    birthDate: typeof bd.birthDate === 'string' ? bd.birthDate : '',
-    birthTime: typeof bd.birthTime === 'string' ? bd.birthTime : '',
-    birthCity: typeof bd.birthCity === 'string' ? bd.birthCity : '',
-    timezone: typeof bd.timezone === 'string' ? bd.timezone : '',
-    latitude: typeof bd.latitude === 'number' && Number.isFinite(bd.latitude) ? bd.latitude : 0,
-    longitude: typeof bd.longitude === 'number' && Number.isFinite(bd.longitude) ? bd.longitude : 0,
+    birthDate: (typeof bd.birthDate === 'string' && bd.birthDate) || existing.birthDate || '',
+    birthTime: (typeof bd.birthTime === 'string' && bd.birthTime) || existing.birthTime || '',
+    birthCity: (typeof bd.birthCity === 'string' && bd.birthCity) || existing.birthCity || '',
+    timezone: (typeof bd.timezone === 'string' && bd.timezone) || existing.timezone || '',
+    latitude: (typeof bd.latitude === 'number' && Number.isFinite(bd.latitude)) ? bd.latitude : (existing.latitude || 0),
+    longitude: (typeof bd.longitude === 'number' && Number.isFinite(bd.longitude)) ? bd.longitude : (existing.longitude || 0),
   };
 };
 
@@ -647,8 +651,8 @@ export const useProfileStore = create<ProfileState>()(
             name: preferredName, // Use preferred name instead of blindly taking incoming
             // Preserve deep readings already cached locally unless incoming explicitly has them
             readings: Array.isArray(incoming.readings) && incoming.readings.length > 0 ? incoming.readings : existing.readings,
-            // Ensure birthData is always sanitized
-            birthData: sanitizeBirthData(incoming?.birthData ? incoming : { ...existing, ...incoming }),
+            // Ensure birthData is always sanitized and merged with existing data
+            birthData: sanitizeBirthData(incoming?.birthData ? incoming : { ...existing, ...incoming }, existing.birthData),
             updatedAt: incoming.updatedAt || existing.updatedAt || new Date().toISOString(),
           };
 
