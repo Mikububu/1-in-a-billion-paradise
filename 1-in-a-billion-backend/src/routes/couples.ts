@@ -10,6 +10,12 @@ import { getCoupleImage } from '../services/coupleImageService';
 const router = new Hono();
 
 /**
+ * GET /api/couples/health
+ * Simple health check to verify deploy includes this router.
+ */
+router.get('/health', (c) => c.json({ ok: true }));
+
+/**
  * POST /api/couples/image
  * 
  * Generate or retrieve couple claymation image
