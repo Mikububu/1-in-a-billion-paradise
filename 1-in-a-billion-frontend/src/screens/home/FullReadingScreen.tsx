@@ -24,7 +24,7 @@ const ZODIAC_SIGNS = [
 ];
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as FileSystem from 'expo-file-system/legacy';
-import { getDocumentDirectory } from '@/utils/fileSystem';
+import { getCacheDirectory, getDocumentDirectory, EncodingType } from '@/utils/fileSystem';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import { Audio } from 'expo-av';
@@ -653,6 +653,32 @@ export const FullReadingScreen = ({ navigation, route }: Props) => {
       const personName = subjectName && subjectName !== 'You' ? subjectName : (userName !== 'You' ? userName : 'Michael');
       const birthDateFormatted = birthDate ? new Date(birthDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Unknown';
 
+      // Best-effort: embed portrait into PDF (avoids remote image loading issues)
+      const resolvePortraitUrl = () => {
+        const me = getUser();
+        if (!me) return null;
+        if (!forPartner) return (me as any)?.claymationUrl || (me as any)?.originalPhotoUrl || null;
+        const all = useProfileStore.getState().people || [];
+        const match = all.find((p: any) => (p?.name || '').toLowerCase() === (partnerName || '').toLowerCase());
+        return (match as any)?.claymationUrl || (match as any)?.originalPhotoUrl || null;
+      };
+
+      const portraitUrl = resolvePortraitUrl();
+      let portraitDataUri: string | null = null;
+      if (portraitUrl) {
+        try {
+          const cacheDir = getCacheDirectory() || (FileSystem.cacheDirectory || '');
+          const ext = portraitUrl.toLowerCase().includes('.png') ? 'png' : 'jpg';
+          const tmpPath = `${cacheDir}pdf-portrait-${Date.now()}.${ext}`;
+          await FileSystem.downloadAsync(portraitUrl, tmpPath);
+          const base64 = await FileSystem.readAsStringAsync(tmpPath, { encoding: EncodingType.Base64 as any });
+          portraitDataUri = `data:image/${ext === 'png' ? 'png' : 'jpeg'};base64,${base64}`;
+          FileSystem.deleteAsync(tmpPath, { idempotent: true }).catch(() => {});
+        } catch {
+          portraitDataUri = null;
+        }
+      }
+
       // System-specific colors
       const systemColors: Record<string, { primary: string; accent: string }> = {
         western: { primary: '#1a365d', accent: '#3182ce' },
@@ -679,7 +705,7 @@ export const FullReadingScreen = ({ navigation, route }: Props) => {
     @page { margin: 50px; size: A4; }
     body {
       font-family: Georgia, 'Times New Roman', serif;
-      line-height: 1.8;
+      line-height: 1.6;
       color: #2d3748;
       max-width: 100%;
     }
@@ -689,59 +715,73 @@ export const FullReadingScreen = ({ navigation, route }: Props) => {
       padding-bottom: 30px;
       margin-bottom: 40px;
     }
+    .metaRow {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 28px;
+      margin-top: 22px;
+    }
+    .portrait {
+      width: 92px;
+      height: 92px;
+      border-radius: 14px;
+      object-fit: cover;
+      background: #f7fafc;
+      border: 1px solid #e2e8f0;
+    }
     .logo {
-      font-size: 14px;
+      font-size: 12px;
       letter-spacing: 4px;
       color: ${colors.accent};
       text-transform: uppercase;
       margin-bottom: 10px;
     }
     .title {
-      font-size: 32px;
+      font-size: 26px;
       color: ${colors.primary};
       margin: 20px 0 10px 0;
       font-weight: normal;
     }
     .version {
-      font-size: 12px;
+      font-size: 11px;
       color: #718096;
       letter-spacing: 2px;
     }
     .meta {
       display: flex;
       justify-content: center;
-      gap: 40px;
-      margin-top: 25px;
-      font-size: 14px;
+      gap: 28px;
+      font-size: 12px;
       color: #4a5568;
     }
     .meta-item {
       text-align: center;
     }
     .meta-label {
-      font-size: 11px;
+      font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 1px;
       color: #a0aec0;
     }
     .meta-value {
-      font-size: 16px;
+      font-size: 13px;
       color: ${colors.primary};
       margin-top: 4px;
     }
     .content {
-      font-size: 15px;
+      font-size: 13px;
       text-align: justify;
     }
     .content p {
-      margin-bottom: 18px;
+      margin-bottom: 14px;
       text-indent: 20px;
     }
     .content p:first-child {
       text-indent: 0;
     }
     .content p:first-child::first-letter {
-      font-size: 48px;
+      font-size: 42px;
       float: left;
       line-height: 1;
       padding-right: 10px;
@@ -752,7 +792,7 @@ export const FullReadingScreen = ({ navigation, route }: Props) => {
       padding-top: 20px;
       border-top: 1px solid #e2e8f0;
       text-align: center;
-      font-size: 11px;
+      font-size: 10px;
       color: #a0aec0;
     }
   </style>
@@ -762,19 +802,22 @@ export const FullReadingScreen = ({ navigation, route }: Props) => {
     <div class="logo">1 in a Billion</div>
     <h1 class="title">${systemName} Reading</h1>
     <div class="version">Version 1.0</div>
-    <div class="meta">
-      <div class="meta-item">
-        <div class="meta-label">Prepared For</div>
-        <div class="meta-value">${personName}</div>
+    <div class="metaRow">
+      <div class="meta">
+        <div class="meta-item">
+          <div class="meta-label">Prepared For</div>
+          <div class="meta-value">${personName}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Birth Date</div>
+          <div class="meta-value">${birthDateFormatted}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Generated</div>
+          <div class="meta-value">${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+        </div>
       </div>
-      <div class="meta-item">
-        <div class="meta-label">Birth Date</div>
-        <div class="meta-value">${birthDateFormatted}</div>
-      </div>
-      <div class="meta-item">
-        <div class="meta-label">Generated</div>
-        <div class="meta-value">${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-      </div>
+      ${portraitDataUri ? `<img class="portrait" src="${portraitDataUri}" />` : ''}
     </div>
   </div>
   

@@ -10,6 +10,7 @@
 import { BaseWorker, TaskResult } from './baseWorker';
 import { JobTask, supabase } from '../services/supabaseClient';
 import { generateChapterPDF } from '../services/pdf/pdfGenerator';
+import { getCoupleImage } from '../services/coupleImageService';
 
 export class PdfWorker extends BaseWorker {
   constructor() {
@@ -69,6 +70,72 @@ export class PdfWorker extends BaseWorker {
     const userId = job.user_id;
     const person1 = params.person1 || { name: 'Person 1', birthDate: '' };
     const person2 = params.person2 || undefined;
+    const person1Id: string | undefined = person1?.id;
+    const person2Id: string | undefined = person2?.id;
+
+    const getPortraitUrl = async (clientPersonId?: string): Promise<string | null> => {
+      if (!clientPersonId) return null;
+      try {
+        const { data, error } = await supabase
+          .from('library_people')
+          .select('claymation_url, original_photo_url')
+          .eq('user_id', userId)
+          .eq('client_person_id', clientPersonId)
+          .maybeSingle();
+        if (!error && data) return (data.claymation_url || data.original_photo_url) as string | null;
+      } catch {
+        // ignore
+      }
+
+      // Fallback: if the ID doesn't match a client_person_id (self profile often uses is_user=true),
+      // fall back to the self profile.
+      try {
+        const { data, error } = await supabase
+          .from('library_people')
+          .select('claymation_url, original_photo_url')
+          .eq('user_id', userId)
+          .eq('is_user', true)
+          .maybeSingle();
+        if (!error && data) return (data.claymation_url || data.original_photo_url) as string | null;
+      } catch {
+        // ignore
+      }
+
+      return null;
+    };
+
+    const getCoupleImageUrl = async (a?: string, b?: string): Promise<string | null> => {
+      if (!a || !b) return null;
+      const [p1, p2] = a < b ? [a, b] : [b, a];
+      try {
+        const { data, error } = await supabase
+          .from('couple_claymations')
+          .select('couple_image_url')
+          .eq('user_id', userId)
+          .eq('person1_id', p1)
+          .eq('person2_id', p2)
+          .maybeSingle();
+        if (!error && data?.couple_image_url) return data.couple_image_url as string;
+      } catch {
+        // ignore
+      }
+      return null;
+    };
+
+    const [person1PortraitUrl, person2PortraitUrl, existingCoupleImageUrl] = await Promise.all([
+      getPortraitUrl(person1Id),
+      getPortraitUrl(person2Id),
+      getCoupleImageUrl(person1Id, person2Id),
+    ]);
+
+    let coupleImageUrl = existingCoupleImageUrl;
+    if (!coupleImageUrl && person1PortraitUrl && person2PortraitUrl && person1Id && person2Id) {
+      // Ensure couple image exists for synastry PDFs (generate if missing/outdated)
+      const res = await getCoupleImage(userId, person1Id, person2Id, person1PortraitUrl, person2PortraitUrl, false);
+      if (res.success && res.coupleImageUrl) {
+        coupleImageUrl = res.coupleImageUrl;
+      }
+    }
 
     // Generate PDF
     try {
@@ -88,6 +155,7 @@ export class PdfWorker extends BaseWorker {
           sunSign: person1.sunSign,
           moonSign: person1.moonSign,
           risingSign: person1.risingSign,
+          portraitUrl: person1PortraitUrl || undefined,
         },
         person2
           ? {
@@ -96,8 +164,11 @@ export class PdfWorker extends BaseWorker {
               sunSign: person2.sunSign,
               moonSign: person2.moonSign,
               risingSign: person2.risingSign,
+              portraitUrl: person2PortraitUrl || undefined,
             }
           : undefined
+        ,
+        coupleImageUrl || undefined
       );
 
       // Read PDF file

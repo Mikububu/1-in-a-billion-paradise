@@ -16,6 +16,7 @@ const pdfPayloadSchema = z.object({
     sunSign: z.string().optional(),
     moonSign: z.string().optional(),
     risingSign: z.string().optional(),
+    portraitUrl: z.string().url().optional(),
   }),
   person2: z.object({
     name: z.string(),
@@ -23,7 +24,9 @@ const pdfPayloadSchema = z.object({
     sunSign: z.string().optional(),
     moonSign: z.string().optional(),
     risingSign: z.string().optional(),
+    portraitUrl: z.string().url().optional(),
   }).optional(),
+  coupleImageUrl: z.string().url().optional(),
   chapters: z.array(z.object({
     title: z.string(),
     system: z.string(),
@@ -54,6 +57,7 @@ const chapterPdfSchema = z.object({
     sunSign: z.string().optional(),
     moonSign: z.string().optional(),
     risingSign: z.string().optional(),
+    portraitUrl: z.string().url().optional(),
   }),
   person2: z.object({
     name: z.string(),
@@ -61,7 +65,9 @@ const chapterPdfSchema = z.object({
     sunSign: z.string().optional(),
     moonSign: z.string().optional(),
     risingSign: z.string().optional(),
+    portraitUrl: z.string().url().optional(),
   }).optional(),
+  coupleImageUrl: z.string().url().optional(),
 });
 
 /**
@@ -80,6 +86,7 @@ router.post('/generate', async (c) => {
       subtitle: payload.subtitle,
       person1: payload.person1,
       person2: payload.person2,
+      coupleImageUrl: payload.coupleImageUrl,
       chapters: payload.chapters.map(ch => ({
         title: ch.title,
         system: ch.system,
@@ -132,7 +139,8 @@ router.post('/generate-chapter', async (c) => {
         verdict: payload.chapter.verdict,
       } as any,
       payload.person1 as any,
-      payload.person2 as any
+      payload.person2 as any,
+      payload.coupleImageUrl
     );
     
     console.log(`✅ Chapter PDF generated: ${result.filePath}`);
