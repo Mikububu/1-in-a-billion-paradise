@@ -5,8 +5,8 @@
  * Photo is transformed into claymation style via backend service.
  */
 
-import { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, ActivityIndicator, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
@@ -41,6 +41,24 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
   
   const [photoUri, setPhotoUri] = useState<string | null>(person?.originalPhotoUrl || null);
   const [isUploading, setIsUploading] = useState(false);
+  
+  // Rotation animation for uploading indicator
+  const rotateAnim = React.useRef(new Animated.Value(0)).current;
+  
+  React.useEffect(() => {
+    // Show rotating animation when no photo OR when uploading
+    if (!photoUri || isUploading) {
+      Animated.loop(
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        })
+      ).start();
+    } else {
+      rotateAnim.setValue(0);
+    }
+  }, [photoUri, isUploading]);
 
   if (!person) {
     return (
@@ -118,14 +136,15 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <BackButton onPress={() => navigation.goBack()} />
+    <>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <BackButton onPress={() => navigation.goBack()} />
       
       <View style={styles.content}>
         <Text style={styles.title}>Upload Photo</Text>
         <Text style={styles.subtitle}>{person.name}</Text>
         
-        <View style={styles.photoPreview}>
+        <TouchableOpacity style={styles.photoPreview} onPress={pickImage} disabled={isUploading}>
           {photoUri ? (
             <Image source={{ uri: photoUri }} style={styles.previewImage} />
           ) : (
@@ -134,29 +153,41 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
               <Text style={styles.placeholderHint}>Tap to select photo</Text>
             </View>
           )}
-        </View>
+          
+          {/* Rotating dashed border before upload and during upload */}
+          {(!photoUri || isUploading) && (
+            <Animated.View
+              style={[
+                styles.uploadingBorder,
+                {
+                  transform: [
+                    {
+                      rotate: rotateAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0deg', '360deg'],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
+          )}
+        </TouchableOpacity>
 
         <Text style={styles.infoText}>
-          Your photo will be transformed into a claymation-style portrait for privacy and artistic consistency.
+          By selecting and uploading a photo, you confirm having the necessary rights to do so. The photo will be transformed into a modified portrait for privacy and artistic consistency.
         </Text>
 
-        <View style={styles.buttons}>
-          <Button
-            label={photoUri ? "Change Photo" : "Select Photo"}
-            onPress={pickImage}
-            variant="secondary"
-            disabled={isUploading}
-          />
-          
-          {photoUri && (
+        {photoUri && (
+          <View style={styles.buttons}>
             <Button
               label={isUploading ? "Uploading..." : "Upload & Transform"}
               onPress={handleUpload}
               variant="primary"
               disabled={isUploading}
             />
-          )}
-        </View>
+          </View>
+        )}
 
         {isUploading && (
           <View style={styles.uploadingOverlay}>
@@ -168,6 +199,16 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
         )}
       </View>
     </SafeAreaView>
+    
+    {/* Demo claymation preview - outside SafeAreaView to reach bottom */}
+    <View style={styles.demoPreview}>
+      <Image 
+        source={require('../../../assets/demo-claymation.png')} 
+        style={styles.demoImage}
+        resizeMode="cover"
+      />
+    </View>
+    </>
   );
 };
 
@@ -200,6 +241,22 @@ const styles = StyleSheet.create({
     borderRadius: 100,
     overflow: 'hidden',
     marginBottom: spacing.lg,
+    position: 'relative',
+  },
+  uploadingBorder: {
+    position: 'absolute',
+    top: -8,
+    left: -8,
+    width: 216,
+    height: 216,
+    borderRadius: 108,
+    borderWidth: 6,
+    borderStyle: 'dashed',
+    borderColor: '#FF0000',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
   },
   previewImage: {
     width: '100%',
@@ -259,5 +316,19 @@ const styles = StyleSheet.create({
     fontFamily: typography.sansSemiBold,
     fontSize: 16,
     color: colors.text,
+  },
+  demoPreview: {
+    position: 'absolute',
+    bottom: -60,
+    left: 0,
+    right: 0,
+    height: 460,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  demoImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
 });
