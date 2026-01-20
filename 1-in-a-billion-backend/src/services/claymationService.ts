@@ -212,17 +212,26 @@ export async function generateClaymationPortrait(
     console.log('✅ [Claymation] Uploaded to:', imageUrl);
 
     // ─────────────────────────────────────────────────────────────────────
-    // STEP 4: Update library_people record (update user's self record)
+    // STEP 4: Update library_people record
+    //
+    // IMPORTANT (schema): `library_people` does NOT have an `id` column. The unique
+    // identifier is (`user_id`, `client_person_id`), plus `is_user` for the self row.
+    //
+    // - If `personId` is provided, treat it as `client_person_id` and update THAT person.
+    // - Otherwise, update the user's self record (`is_user = true`).
     // ─────────────────────────────────────────────────────────────────────
-    const { error: updateError } = await supabase
+    const updateQuery = supabase
       .from('library_people')
-      .update({ 
+      .update({
         claymation_url: imageUrl,
         original_photo_url: originalUrl,
         updated_at: new Date().toISOString(),
       })
-      .eq('user_id', userId)
-      .eq('is_user', true);
+      .eq('user_id', userId);
+
+    const { error: updateError } = personId
+      ? await updateQuery.eq('client_person_id', personId)
+      : await updateQuery.eq('is_user', true);
 
     if (updateError) {
       console.warn('⚠️ [Claymation] Could not update library_people:', updateError);
@@ -262,12 +271,22 @@ export async function getClaymationPortrait(
     const { data } = await supabase
       .from('library_people')
       .select('claymation_url')
-      .eq('id', personId)
-      .single();
+      .eq('user_id', userId)
+      .eq('client_person_id', personId)
+      .maybeSingle();
 
     if (data?.claymation_url) {
       return data.claymation_url;
     }
+  } else {
+    const { data } = await supabase
+      .from('library_people')
+      .select('claymation_url')
+      .eq('user_id', userId)
+      .eq('is_user', true)
+      .maybeSingle();
+
+    if (data?.claymation_url) return data.claymation_url;
   }
 
   // Check storage directly

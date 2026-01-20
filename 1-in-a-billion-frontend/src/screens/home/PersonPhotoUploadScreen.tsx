@@ -136,7 +136,7 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
   };
 
   return (
-    <>
+    <View style={styles.root}>
       <SafeAreaView style={styles.container} edges={['top']}>
         <BackButton onPress={() => navigation.goBack()} />
       
@@ -174,9 +174,11 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
           )}
         </TouchableOpacity>
 
-        <Text style={styles.infoText}>
-          By selecting and uploading a photo, you confirm having the necessary rights to do so. The photo will be transformed into a modified portrait for privacy and artistic consistency.
-        </Text>
+        <View style={styles.infoCard}>
+          <Text style={styles.infoText}>
+            By selecting and uploading a photo, you confirm having the necessary rights to do so. The photo will be transformed into a modified portrait for privacy and artistic consistency.
+          </Text>
+        </View>
 
         {photoUri && (
           <View style={styles.buttons}>
@@ -193,26 +195,29 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
           <View style={styles.uploadingOverlay}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.uploadingText}>
-              Transforming into claymation...
+              Transforming into a stylized portrait...
             </Text>
           </View>
         )}
       </View>
     </SafeAreaView>
-    
-    {/* Demo claymation preview - outside SafeAreaView to reach bottom */}
-    <View style={styles.demoPreview}>
+
+    {/* Demo stylized portrait preview - pinned to bottom of screen */}
+    <View pointerEvents="none" style={styles.demoPreview}>
       <Image 
         source={require('../../../assets/demo-claymation.png')} 
         style={styles.demoImage}
-        resizeMode="cover"
       />
     </View>
-    </>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
   container: {
     flex: 1,
     backgroundColor: 'transparent',
@@ -285,12 +290,21 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontFamily: typography.sansRegular,
-    fontSize: 14,
+    fontSize: 12,
     color: colors.mutedText,
     textAlign: 'center',
-    marginBottom: spacing.xl,
-    maxWidth: 300,
-    lineHeight: 20,
+    lineHeight: 17,
+  },
+  infoCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 22,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.lg,
   },
   buttons: {
     width: '100%',
@@ -319,16 +333,20 @@ const styles = StyleSheet.create({
   },
   demoPreview: {
     position: 'absolute',
-    bottom: -60,
+    bottom: 0,
     left: 0,
     right: 0,
-    height: 460,
+    height: 320,
     alignItems: 'center',
     justifyContent: 'flex-end',
   },
   demoImage: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+    height: 320,
+    resizeMode: 'contain',
   },
 });

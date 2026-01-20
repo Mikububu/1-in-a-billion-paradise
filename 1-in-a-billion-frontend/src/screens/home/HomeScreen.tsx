@@ -188,9 +188,9 @@ export const HomeScreen = ({ navigation }: Props) => {
       
       if (data.success && data.imageUrl) {
         setClaymationPhotoUrl(data.imageUrl);
-        Alert.alert('Success', 'Your claymation portrait is ready!');
+        Alert.alert('Success', 'Your stylized portrait is ready!');
       } else {
-        Alert.alert('Error', data.error || 'Failed to generate claymation portrait');
+        Alert.alert('Error', data.error || 'Failed to generate stylized portrait');
       }
       
       setUploadingPhoto(false);
