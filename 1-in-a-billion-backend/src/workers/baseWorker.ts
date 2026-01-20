@@ -440,12 +440,15 @@ export abstract class BaseWorker {
         } else {
           fileName = `${person1Name}_${person2Name}_${system}_${PDF_VERSION}`;
         }
+      } else if (docType === 'person2' && person2Name) {
+        // Person 2 reading: use person2's name
+        fileName = `${person2Name}_${system}_${PDF_VERSION}`;
       } else if (title && title !== 'Untitled' && title !== 'Reading') {
         // Use title if available (for special documents)
         const cleanTitle = cleanForFilename(title);
         fileName = `${cleanTitle}_${person1Name}_${PDF_VERSION}`;
       } else {
-        // Standard format: PersonName_SystemName_v1.0.pdf
+        // Standard format: PersonName_SystemName_v1.0.pdf (person1 or individual)
         fileName = `${person1Name}_${system}_${PDF_VERSION}`;
       }
     } else {

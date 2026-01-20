@@ -164,6 +164,18 @@ export class PdfWorker extends BaseWorker {
 
     // Generate PDF
     try {
+      // For person2 readings, swap person1 and person2 so the PDF shows the correct person
+      const isPerson2Reading = docType === 'person2';
+      const isOverlayReading = docType === 'overlay' || docType === 'verdict';
+      
+      // Determine which person to show in the PDF
+      const pdfPerson1 = isPerson2Reading && person2 ? person2 : person1;
+      const pdfPerson1Portrait = isPerson2Reading ? person2PortraitUrl : person1PortraitUrl;
+      
+      // Only include person2 for overlay readings (NOT for single person readings)
+      const pdfPerson2 = isOverlayReading && person2 ? person2 : undefined;
+      const pdfPerson2Portrait = isOverlayReading ? person2PortraitUrl : undefined;
+      
       const { filePath, pageCount } = await generateChapterPDF(
         docNum,
         {
@@ -175,21 +187,21 @@ export class PdfWorker extends BaseWorker {
           verdict: docType === 'verdict' ? text : undefined,
         },
         {
-          name: person1.name,
-          birthDate: person1.birthDate || '',
-          sunSign: person1.sunSign,
-          moonSign: person1.moonSign,
-          risingSign: person1.risingSign,
-          portraitUrl: person1PortraitUrl || undefined,
+          name: pdfPerson1.name,
+          birthDate: pdfPerson1.birthDate || '',
+          sunSign: pdfPerson1.sunSign,
+          moonSign: pdfPerson1.moonSign,
+          risingSign: pdfPerson1.risingSign,
+          portraitUrl: pdfPerson1Portrait || undefined,
         },
-        person2
+        pdfPerson2
           ? {
-              name: person2.name,
-              birthDate: person2.birthDate || '',
-              sunSign: person2.sunSign,
-              moonSign: person2.moonSign,
-              risingSign: person2.risingSign,
-              portraitUrl: person2PortraitUrl || undefined,
+              name: pdfPerson2.name,
+              birthDate: pdfPerson2.birthDate || '',
+              sunSign: pdfPerson2.sunSign,
+              moonSign: pdfPerson2.moonSign,
+              risingSign: pdfPerson2.risingSign,
+              portraitUrl: pdfPerson2Portrait || undefined,
             }
           : undefined
         ,
