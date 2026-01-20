@@ -8,7 +8,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
-import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
+import { Video, ResizeMode, AVPlaybackStatus, Audio } from 'expo-av';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 
@@ -70,6 +70,15 @@ export const TreeOfLifeVideoScreen = ({ navigation, route }: Props) => {
         return () => {
           if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
         };
+    }, []);
+
+    // Set audio mode to play in silent mode on iOS
+    useEffect(() => {
+      Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: false,
+      }).catch(() => {});
     }, []);
 
     useEffect(() => {
