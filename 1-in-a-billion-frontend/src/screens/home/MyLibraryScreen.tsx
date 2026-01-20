@@ -2872,8 +2872,17 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
               <Text style={styles.emptySubtitle}>
                 {queueJobs.length > 0
                   ? `${queueJobs.length} job(s) found but no readings yet.\nJobs may still be processing.`
-                  : 'Complete onboarding to receive your readings.'}
+                  : 'You have not yet created any deep reading analyses.'}
               </Text>
+              {queueJobs.length === 0 && (
+                <TouchableOpacity
+                  style={styles.emptyButton}
+                  activeOpacity={0.85}
+                  onPress={() => navigation.navigate('ComparePeople')}
+                >
+                  <Text style={styles.emptyButtonText}>MY KARMIC ZOO</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
