@@ -431,6 +431,8 @@ export abstract class BaseWorker {
         fileName = `${person1Name}_${system}_audio`;
       }
     } else if (artifactType === 'pdf') {
+      // ⚠️ CRITICAL: Follow TEXT_READING_SPEC.md § 3.3 - DocType Data Scoping Rule
+      // See: docs/CRITICAL_RULES_CHECKLIST.md Rule 1
       // PDF format: PersonName_SystemName_v1.0.pdf
       // For synastry: Person1_Person2_Synastry_v1.0.pdf
       // For overlay: Person1_Person2_System_v1.0.pdf
@@ -440,12 +442,15 @@ export abstract class BaseWorker {
         } else {
           fileName = `${person1Name}_${person2Name}_${system}_${PDF_VERSION}`;
         }
+      } else if (docType === 'person2' && person2Name) {
+        // Person 2 reading: use person2's name
+        fileName = `${person2Name}_${system}_${PDF_VERSION}`;
       } else if (title && title !== 'Untitled' && title !== 'Reading') {
         // Use title if available (for special documents)
         const cleanTitle = cleanForFilename(title);
         fileName = `${cleanTitle}_${person1Name}_${PDF_VERSION}`;
       } else {
-        // Standard format: PersonName_SystemName_v1.0.pdf
+        // Standard format: PersonName_SystemName_v1.0.pdf (person1 or individual)
         fileName = `${person1Name}_${system}_${PDF_VERSION}`;
       }
     } else {

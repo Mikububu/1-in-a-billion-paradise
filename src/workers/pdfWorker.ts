@@ -10,6 +10,9 @@
 import { BaseWorker, TaskResult } from './baseWorker';
 import { JobTask, supabase } from '../services/supabaseClient';
 import { generateChapterPDF } from '../services/pdf/pdfGenerator';
+import { getCoupleImage } from '../services/coupleImageService';
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export class PdfWorker extends BaseWorker {
   constructor() {
@@ -69,9 +72,115 @@ export class PdfWorker extends BaseWorker {
     const userId = job.user_id;
     const person1 = params.person1 || { name: 'Person 1', birthDate: '' };
     const person2 = params.person2 || undefined;
+    const person1Id: string | undefined = person1?.id;
+    const person2Id: string | undefined = person2?.id;
+
+    const getPortraitUrl = async (clientPersonId?: string): Promise<string | null> => {
+      if (!clientPersonId) return null;
+      try {
+        const { data, error } = await supabase
+          .from('library_people')
+          .select('claymation_url, original_photo_url')
+          .eq('user_id', userId)
+          .eq('client_person_id', clientPersonId)
+          .maybeSingle();
+        if (!error && data) return (data.claymation_url || data.original_photo_url) as string | null;
+      } catch {
+        // ignore
+      }
+
+      // Fallback: if the ID doesn't match a client_person_id (self profile often uses is_user=true),
+      // fall back to the self profile.
+      try {
+        const { data, error } = await supabase
+          .from('library_people')
+          .select('claymation_url, original_photo_url')
+          .eq('user_id', userId)
+          .eq('is_user', true)
+          .maybeSingle();
+        if (!error && data) return (data.claymation_url || data.original_photo_url) as string | null;
+      } catch {
+        // ignore
+      }
+
+      return null;
+    };
+
+    const getCoupleImageUrl = async (a?: string, b?: string): Promise<string | null> => {
+      if (!a || !b) return null;
+      const [p1, p2] = a < b ? [a, b] : [b, a];
+      try {
+        const { data, error } = await supabase
+          .from('couple_claymations')
+          .select('couple_image_url')
+          .eq('user_id', userId)
+          .eq('person1_id', p1)
+          .eq('person2_id', p2)
+          .maybeSingle();
+        if (!error && data?.couple_image_url) return data.couple_image_url as string;
+      } catch {
+        // ignore
+      }
+      return null;
+    };
+
+    // If portraits are still being generated, wait briefly so PDFs can include them.
+    // This prevents "empty image" PDFs right after a new photo upload.
+    const maxWaitMs = 60_000;
+    const pollMs = 3_000;
+    const startedAt = Date.now();
+
+    let person1PortraitUrl: string | null = null;
+    let person2PortraitUrl: string | null = null;
+    let existingCoupleImageUrl: string | null = null;
+
+    while (Date.now() - startedAt < maxWaitMs) {
+      const [p1, p2, c] = await Promise.all([
+        getPortraitUrl(person1Id),
+        getPortraitUrl(person2Id),
+        getCoupleImageUrl(person1Id, person2Id),
+      ]);
+
+      person1PortraitUrl = p1;
+      person2PortraitUrl = p2;
+      existingCoupleImageUrl = c;
+
+      // For single PDFs we only need p1. For overlay PDFs we want p1+p2 (and ideally couple image).
+      const hasSingleReady = !!person1PortraitUrl;
+      const hasOverlayReady = !person2 || (!!person1PortraitUrl && !!person2PortraitUrl);
+      if (hasSingleReady && hasOverlayReady) break;
+
+      await sleep(pollMs);
+    }
+
+    let coupleImageUrl = existingCoupleImageUrl;
+    if (!coupleImageUrl && person1PortraitUrl && person2PortraitUrl && person1Id && person2Id) {
+      // Ensure couple image exists for synastry PDFs (generate if missing/outdated)
+      const res = await getCoupleImage(userId, person1Id, person2Id, person1PortraitUrl, person2PortraitUrl, false);
+      if (res.success && res.coupleImageUrl) {
+        coupleImageUrl = res.coupleImageUrl;
+      }
+    }
 
     // Generate PDF
     try {
+      // ⚠️ CRITICAL: Follow TEXT_READING_SPEC.md § 3.3 - DocType Data Scoping Rule
+      // See: docs/CRITICAL_RULES_CHECKLIST.md Rule 1
+      // person1 docs → ONLY person1 data
+      // person2 docs → ONLY person2 data
+      // overlay/verdict docs → BOTH people
+      
+      const isPerson2Reading = docType === 'person2';
+      const isOverlayReading = docType === 'overlay' || docType === 'verdict';
+      
+      // Determine which person to show in the PDF
+      const pdfPerson1 = isPerson2Reading && person2 ? person2 : person1;
+      const pdfPerson1Portrait = isPerson2Reading ? person2PortraitUrl : person1PortraitUrl;
+      
+      // Only include person2 for overlay readings (NOT for single person readings)
+      const pdfPerson2 = isOverlayReading && person2 ? person2 : undefined;
+      const pdfPerson2Portrait = isOverlayReading ? person2PortraitUrl : undefined;
+      
       const { filePath, pageCount } = await generateChapterPDF(
         docNum,
         {
@@ -83,21 +192,25 @@ export class PdfWorker extends BaseWorker {
           verdict: docType === 'verdict' ? text : undefined,
         },
         {
-          name: person1.name,
-          birthDate: person1.birthDate || '',
-          sunSign: person1.sunSign,
-          moonSign: person1.moonSign,
-          risingSign: person1.risingSign,
+          name: pdfPerson1.name,
+          birthDate: pdfPerson1.birthDate || '',
+          sunSign: pdfPerson1.sunSign,
+          moonSign: pdfPerson1.moonSign,
+          risingSign: pdfPerson1.risingSign,
+          portraitUrl: pdfPerson1Portrait || undefined,
         },
-        person2
+        pdfPerson2
           ? {
-              name: person2.name,
-              birthDate: person2.birthDate || '',
-              sunSign: person2.sunSign,
-              moonSign: person2.moonSign,
-              risingSign: person2.risingSign,
+              name: pdfPerson2.name,
+              birthDate: pdfPerson2.birthDate || '',
+              sunSign: pdfPerson2.sunSign,
+              moonSign: pdfPerson2.moonSign,
+              risingSign: pdfPerson2.risingSign,
+              portraitUrl: pdfPerson2Portrait || undefined,
             }
           : undefined
+        ,
+        coupleImageUrl || undefined
       );
 
       // Read PDF file

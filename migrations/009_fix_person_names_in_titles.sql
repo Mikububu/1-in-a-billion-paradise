@@ -1,23 +1,18 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- AUTO-CREATE JOB TASKS ON JOB INSERT
+-- FIX: Use actual person names in task titles (not generic "Person 1/2")
 -- ═══════════════════════════════════════════════════════════════════════════
 --
--- This migration adds a trigger that automatically creates job_tasks when a
--- job is inserted, based on the job type.
+-- This migration updates the auto_create_job_tasks trigger to extract
+-- actual person names from job params and use them in task titles.
 --
--- Task fan-out logic:
--- - nuclear_v2: Creates 16 tasks (15 text + 1 verdict)
--- - extended: Creates tasks based on params.systems array
--- - synastry: Creates synastry calculation tasks
+-- Before: "vedic - Person 1", "vedic - Person 2"
+-- After:  "vedic - Akasha", "vedic - Michael"
 --
 -- ═══════════════════════════════════════════════════════════════════════════
 
 BEGIN;
 
--- ───────────────────────────────────────────────────────────────────────────
--- FUNCTION: Auto-create tasks based on job type
--- ───────────────────────────────────────────────────────────────────────────
-
+-- Drop and recreate the function with person name extraction
 CREATE OR REPLACE FUNCTION auto_create_job_tasks()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -262,44 +257,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- ───────────────────────────────────────────────────────────────────────────
--- TRIGGER: Auto-create tasks on job insert
--- ───────────────────────────────────────────────────────────────────────────
-
-DROP TRIGGER IF EXISTS trg_auto_create_job_tasks ON jobs;
-
-CREATE TRIGGER trg_auto_create_job_tasks
-  AFTER INSERT ON jobs
-  FOR EACH ROW
-  EXECUTE FUNCTION auto_create_job_tasks();
-
--- ───────────────────────────────────────────────────────────────────────────
--- GRANT PERMISSIONS
--- ───────────────────────────────────────────────────────────────────────────
-
--- Function is called by trigger, so it needs to be executable by the trigger owner
+-- Ensure function has correct permissions
 ALTER FUNCTION auto_create_job_tasks() SET search_path = public;
 
 COMMIT;
-
--- ═══════════════════════════════════════════════════════════════════════════
--- VERIFICATION
--- ═══════════════════════════════════════════════════════════════════════════
-
--- Test the trigger:
--- INSERT INTO jobs (user_id, type, params)
--- VALUES (
---   '00000000-0000-0000-0000-000000000000',
---   'nuclear_v2',
---   '{"person1": {}, "person2": {}}'::jsonb
--- )
--- RETURNING id;
-
--- Check tasks were created:
--- SELECT id, task_type, sequence, input->>'docNum' as doc_num, input->>'system' as system
--- FROM job_tasks
--- WHERE job_id = '<job_id>'
--- ORDER BY sequence;
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- END OF MIGRATION

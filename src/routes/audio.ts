@@ -473,24 +473,76 @@ router.post('/generate-tts', async (c) => {
         throw new Error(`Chunk ${index + 1} failed after ${maxRetries} retries`);
       };
 
-      // SEQUENTIAL chunk processing for stability!
-      console.log(`🚀 Starting SEQUENTIAL generation of ${chunks.length} chunks...`);
+      // ═══════════════════════════════════════════════════════════════════════════
+      // AUDIO GENERATION: SEQUENTIAL vs PARALLEL
+      // ═══════════════════════════════════════════════════════════════════════════
+      // Toggle via AUDIO_PARALLEL_MODE environment variable:
+      //   - "false" (default) = Sequential (old, stable, slower)
+      //   - "true" = Parallel (new, faster, experimental)
+      // 
+      // To enable parallel mode: Set AUDIO_PARALLEL_MODE=true in .env
+      // To revert to sequential: Remove env var or set to false
+      // ═══════════════════════════════════════════════════════════════════════════
+      
+      const useParallelMode = process.env.AUDIO_PARALLEL_MODE === 'true';
+      const concurrentLimit = parseInt(process.env.AUDIO_CONCURRENT_LIMIT || '3', 10);
+      
       const startTime = Date.now();
+      let audioBuffers: Buffer[] = [];
 
-      const audioBuffers: Buffer[] = [];
-      for (let i = 0; i < chunks.length; i++) {
-        // Process sequentially to avoid overwhelming RunPod concurrency limits
-        try {
-          const buffer = await generateChunk(chunks[i]!, i);
-          audioBuffers.push(buffer);
-        } catch (err: any) {
-          console.error(`❌ Chunk ${i + 1} failed permanently: ${err.message}`);
-          throw err;
+      if (useParallelMode) {
+        // ─────────────────────────────────────────────────────────────────────────
+        // PARALLEL MODE (NEW) - 3-5x faster for multi-chunk readings
+        // ─────────────────────────────────────────────────────────────────────────
+        console.log(`🚀 Starting PARALLEL generation of ${chunks.length} chunks (max ${concurrentLimit} concurrent)...`);
+        
+        // Use p-limit for controlled concurrency
+        const pLimit = (await import('p-limit')).default;
+        const limit = pLimit(concurrentLimit);
+        
+        const promises = chunks.map((chunk, index) => 
+          limit(async () => {
+            try {
+              const buffer = await generateChunk(chunk, index);
+              console.log(`  ✅ Chunk ${index + 1}/${chunks.length} completed`);
+              return { index, buffer };
+            } catch (err: any) {
+              console.error(`  ❌ Chunk ${index + 1} failed permanently: ${err.message}`);
+              throw err;
+            }
+          })
+        );
+        
+        // Wait for all chunks to complete
+        const results = await Promise.all(promises);
+        
+        // Sort by original index (parallel execution may complete out of order)
+        results.sort((a, b) => a.index - b.index);
+        audioBuffers = results.map(r => r.buffer);
+        
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.log(`✅ All ${chunks.length} chunks completed in ${elapsed}s (parallel, ${concurrentLimit} concurrent)!`);
+        
+      } else {
+        // ─────────────────────────────────────────────────────────────────────────
+        // SEQUENTIAL MODE (OLD) - Stable fallback, processes one chunk at a time
+        // ─────────────────────────────────────────────────────────────────────────
+        console.log(`🚀 Starting SEQUENTIAL generation of ${chunks.length} chunks...`);
+        
+        for (let i = 0; i < chunks.length; i++) {
+          // Process sequentially to avoid overwhelming RunPod concurrency limits
+          try {
+            const buffer = await generateChunk(chunks[i]!, i);
+            audioBuffers.push(buffer);
+          } catch (err: any) {
+            console.error(`❌ Chunk ${i + 1} failed permanently: ${err.message}`);
+            throw err;
+          }
         }
-      }
 
-      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-      console.log(`✅ All ${chunks.length} chunks completed in ${elapsed}s (sequential)!`);
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.log(`✅ All ${chunks.length} chunks completed in ${elapsed}s (sequential)!`);
+      }
 
       // Concatenate all chunks into WAV
       const wavAudio = concatenateWavBuffers(audioBuffers);

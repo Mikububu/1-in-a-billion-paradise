@@ -711,6 +711,114 @@ router.get('/v2/:jobId/song/:docNum', async (c) => {
   }
 });
 
+// PDF download endpoint: /api/jobs/v2/:jobId/pdf/:docNum
+// Returns the PDF artifact as application/pdf
+router.get('/v2/:jobId/pdf/:docNum', async (c) => {
+  const jobId = c.req.param('jobId');
+  const docNum = parseInt(c.req.param('docNum'), 10);
+  
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+    return c.json({ success: false, error: 'Supabase not configured' }, 500);
+  }
+
+  if (!Number.isFinite(docNum) || docNum < 1) {
+    return c.json({ success: false, error: 'Invalid docNum' }, 400);
+  }
+
+  try {
+    const { jobQueueV2 } = await import('../services/jobQueueV2');
+    const job = await jobQueueV2.getJob(jobId);
+    
+    if (!job) {
+      return c.json({ success: false, error: 'Job not found' }, 404);
+    }
+
+    // Get all PDF artifacts for this job
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    
+    const { data: artifacts, error } = await supabase
+      .from('job_artifacts')
+      .select('*')
+      .eq('job_id', jobId)
+      .eq('artifact_type', 'pdf')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching PDF artifacts:', error);
+      return c.json({ success: false, error: 'Failed to fetch PDF artifacts' }, 500);
+    }
+
+    if (!artifacts || artifacts.length === 0) {
+      return c.json({ success: false, error: 'No PDF artifacts found' }, 404);
+    }
+
+    // Find artifact matching docNum exactly (from metadata or derive from task sequence)
+    let pdfArtifact = artifacts.find(a => a.metadata?.docNum === docNum);
+    
+    // If not found by metadata, try to match by task sequence
+    if (!pdfArtifact) {
+      const tasks = await jobQueueV2.getJobTasks(jobId);
+      const taskIdToSequence: Record<string, number> = {};
+      for (const task of tasks) {
+        taskIdToSequence[task.id] = task.sequence;
+      }
+      
+      // PDF tasks typically have sequence 100+ (docNum = sequence - 99)
+      for (const artifact of artifacts) {
+        if (artifact.task_id) {
+          const seq = taskIdToSequence[artifact.task_id];
+          if (typeof seq === 'number' && seq >= 100) {
+            const artifactDocNum = seq - 99;
+            if (artifactDocNum === docNum) {
+              pdfArtifact = artifact;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    if (!pdfArtifact || !pdfArtifact.storage_path) {
+      console.error(`❌ PDF artifact not found for job ${jobId}, docNum ${docNum}. Available artifacts: ${artifacts.length}`);
+      return c.json({ success: false, error: `PDF artifact not found for docNum ${docNum}` }, 404);
+    }
+
+    console.log(`✅ Found PDF artifact for docNum ${docNum}: ${pdfArtifact.storage_path}`);
+
+    // Get the URL to fetch from (prefer public, fallback to signed)
+    let fetchUrl = pdfArtifact.public_url;
+    if (!fetchUrl) {
+      fetchUrl = await getSignedArtifactUrl(pdfArtifact.storage_path, 3600);
+    }
+    
+    if (!fetchUrl) {
+      return c.json({ success: false, error: 'Failed to generate URL' }, 500);
+    }
+
+    // Stream the PDF bytes directly
+    console.log(`📄 Streaming PDF from: ${fetchUrl.substring(0, 80)}...`);
+    const pdfResponse = await fetch(fetchUrl);
+    
+    if (!pdfResponse.ok) {
+      console.error(`❌ Failed to fetch PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
+      return c.json({ success: false, error: 'Failed to fetch PDF from storage' }, 500);
+    }
+
+    const headers = new Headers();
+    headers.set('content-type', 'application/pdf');
+    const contentLength = pdfResponse.headers.get('content-length');
+    if (contentLength) headers.set('content-length', contentLength);
+    headers.set('cache-control', 'public, max-age=3600');
+
+    // Return PDF stream
+    return new Response(pdfResponse.body, { status: 200, headers });
+  } catch (error: any) {
+    console.error('Error in PDF endpoint:', error);
+    return c.json({ success: false, error: error.message || 'Internal server error' }, 500);
+  }
+});
+
 // DEBUG: Reset stuck tasks (claimed/processing but stale)
 router.post('/v2/:jobId/reset-stuck', async (c) => {
   const jobId = c.req.param('jobId');

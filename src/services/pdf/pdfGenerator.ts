@@ -55,8 +55,9 @@ interface PDFGenerationOptions {
   type: 'single' | 'overlay' | 'nuclear';
   title: string;
   subtitle?: string;
-  person1: { name: string; birthDate: string; sunSign?: string; moonSign?: string; risingSign?: string };
-  person2?: { name: string; birthDate: string; sunSign?: string; moonSign?: string; risingSign?: string };
+  person1: { name: string; birthDate: string; sunSign?: string; moonSign?: string; risingSign?: string; portraitUrl?: string };
+  person2?: { name: string; birthDate: string; sunSign?: string; moonSign?: string; risingSign?: string; portraitUrl?: string };
+  coupleImageUrl?: string;
   chapters: ChapterContent[];
   generatedAt: Date;
   // Dual-truth compatibility (0.0–10.0). If only one value is supplied, we mirror it.
@@ -78,6 +79,20 @@ function normalizeToTen(value: number): number {
   return value;
 }
 
+async function fetchImageBuffer(url: string): Promise<Buffer | null> {
+  try {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 15000);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(t);
+    if (!res.ok) return null;
+    const ab = await res.arrayBuffer();
+    return Buffer.from(ab);
+  } catch {
+    return null;
+  }
+}
+
 export async function generateReadingPDF(options: PDFGenerationOptions): Promise<{
   filePath: string;
   pageCount: number;
@@ -87,6 +102,13 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
 
   const filename = `${slugify(options.title)}-${Date.now()}.pdf`;
   const filePath = path.join(outputDir, filename);
+
+  // Best-effort: preload portrait/couple images (so PDFs can embed them reliably)
+  const [person1PortraitBuf, person2PortraitBuf, couplePortraitBuf] = await Promise.all([
+    options.person1.portraitUrl ? fetchImageBuffer(options.person1.portraitUrl) : Promise.resolve(null),
+    options.person2?.portraitUrl ? fetchImageBuffer(options.person2.portraitUrl) : Promise.resolve(null),
+    options.coupleImageUrl ? fetchImageBuffer(options.coupleImageUrl) : Promise.resolve(null),
+  ]);
 
   return new Promise((resolve, reject) => {
     try {
@@ -151,7 +173,7 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
 
         // CRITICAL: doc.save()/restore() do NOT restore font/fontSize/fillColor
         // Explicitly reset to body text defaults to prevent style leakage
-        doc.font('EBGaramond').fontSize(10).fillColor('#000000');
+        doc.font('EBGaramond').fontSize(9.5).fillColor('#000000');
       };
 
       doc.on('pageAdded', () => {
@@ -176,7 +198,7 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
       // TITLE - Centered, bold (like "The 365 days - the Andhakaara path to power")
       // ─────────────────────────────────────────────────────────────────────
 
-      doc.font('Inter-SemiBold').fontSize(12).fillColor('#000000')
+      doc.font('Inter-SemiBold').fontSize(11).fillColor('#000000')
         .text(options.title, { align: 'center' });
 
       doc.moveDown(2);
@@ -194,29 +216,61 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
       // PERSON INFO - Section title style (like "Mouna Dhyana")
       // ─────────────────────────────────────────────────────────────────────
 
-      doc.font('Inter-SemiBold').fontSize(11).fillColor('#000000')
-        .text(options.person1.name);
+      // Optional portrait/couple image rendered to the right of the person info block.
+      const imageGap = 10;
+      const portraitH = 92;
+      const portraitW = couplePortraitBuf ? 160 : 92;
+      const imageX = MARGINS.inner + contentWidth - portraitW;
+      const infoStartY = doc.y;
+      const textWidth = contentWidth - (couplePortraitBuf || person1PortraitBuf ? (portraitW + imageGap) : 0);
+
+      if (couplePortraitBuf) {
+        try {
+          doc.image(couplePortraitBuf, imageX, infoStartY, { fit: [portraitW, portraitH] });
+        } catch {
+          // ignore
+        }
+      } else if (person1PortraitBuf) {
+        try {
+          doc.image(person1PortraitBuf, imageX, infoStartY, { fit: [portraitW, portraitH] });
+        } catch {
+          // ignore
+        }
+      }
+
+      doc.font('Inter-SemiBold').fontSize(10.5).fillColor('#000000')
+        .text(options.person1.name, { width: textWidth });
       doc.moveDown(0.5);
 
       // Short info lines (like "To learn to listen properly.")
-      doc.font('EBGaramond').fontSize(10).fillColor('#000000')
-        .text(`Born ${options.person1.birthDate}`);
+      doc.font('EBGaramond').fontSize(9.5).fillColor('#000000')
+        .text(`Born ${options.person1.birthDate}`, { width: textWidth });
 
       if (options.person1.sunSign) {
-        doc.font('EBGaramond').fontSize(9).fillColor('#444444')
-          .text(`Sun in ${options.person1.sunSign} · Moon in ${options.person1.moonSign || '—'} · Rising ${options.person1.risingSign || '—'}`);
+        doc.font('EBGaramond').fontSize(8.5).fillColor('#444444')
+          .text(`Sun in ${options.person1.sunSign} · Moon in ${options.person1.moonSign || '—'} · Rising ${options.person1.risingSign || '—'}`, { width: textWidth });
       }
 
       if (options.person2) {
         doc.moveDown(1.5);
-        doc.font('Inter-SemiBold').fontSize(11).fillColor('#000000')
-          .text(options.person2.name);
+        // For overlays, if we don't have a couple image, try to render person2 portrait beside person2 info.
+        const p2StartY = doc.y;
+        if (!couplePortraitBuf && person2PortraitBuf) {
+          try {
+            doc.image(person2PortraitBuf, imageX, p2StartY, { fit: [portraitW, portraitH] });
+          } catch {
+            // ignore
+          }
+        }
+
+        doc.font('Inter-SemiBold').fontSize(10.5).fillColor('#000000')
+          .text(options.person2.name, { width: textWidth });
         doc.moveDown(0.5);
-        doc.font('EBGaramond').fontSize(10).fillColor('#000000')
-          .text(`Born ${options.person2.birthDate}`);
+        doc.font('EBGaramond').fontSize(9.5).fillColor('#000000')
+          .text(`Born ${options.person2.birthDate}`, { width: textWidth });
         if (options.person2.sunSign) {
-          doc.font('EBGaramond').fontSize(9).fillColor('#444444')
-            .text(`Sun in ${options.person2.sunSign} · Moon in ${options.person2.moonSign || '—'} · Rising ${options.person2.risingSign || '—'}`);
+          doc.font('EBGaramond').fontSize(8.5).fillColor('#444444')
+            .text(`Sun in ${options.person2.sunSign} · Moon in ${options.person2.moonSign || '—'} · Rising ${options.person2.risingSign || '—'}`, { width: textWidth });
         }
       }
 
@@ -259,7 +313,7 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
         const chapter = options.chapters[i];
 
         // Chapter/Section title (like "Mouna Dhyana")
-        doc.font('Inter-SemiBold').fontSize(10.5).fillColor('#000000')
+        doc.font('Inter-SemiBold').fontSize(10).fillColor('#000000')
           .text(chapter.title);
         doc.moveDown(1);
 
@@ -271,7 +325,7 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
             .map((p) => p.trim())
             .filter(Boolean);
 
-          doc.font('EBGaramond').fontSize(10).fillColor('#000000');
+          doc.font('EBGaramond').fontSize(9.5).fillColor('#000000');
           for (const p of paragraphs) {
             doc.text(`    ${p}`, { align: 'justify', lineGap: 2 });
             doc.moveDown(0.6);
@@ -281,7 +335,7 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
 
         // Person 2 reading
         if (chapter.person2Reading && options.person2) {
-          doc.font('Inter-SemiBold').fontSize(10).fillColor('#000000')
+          doc.font('Inter-SemiBold').fontSize(9.5).fillColor('#000000')
             .text(options.person2.name);
           doc.moveDown(0.5);
 
@@ -290,7 +344,7 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
             .map((p) => p.trim())
             .filter(Boolean);
 
-          doc.font('EBGaramond').fontSize(10).fillColor('#000000');
+          doc.font('EBGaramond').fontSize(9.5).fillColor('#000000');
           for (const p of paragraphs) {
             doc.text(`    ${p}`, { align: 'justify', lineGap: 2 });
             doc.moveDown(0.6);
@@ -300,7 +354,7 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
 
         // Overlay reading
         if (chapter.overlayReading) {
-          doc.font('Inter-SemiBold').fontSize(10).fillColor('#000000')
+          doc.font('Inter-SemiBold').fontSize(9.5).fillColor('#000000')
             .text('The Space Between');
           doc.moveDown(0.5);
 
@@ -309,7 +363,7 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
             .map((p) => p.trim())
             .filter(Boolean);
 
-          doc.font('EBGaramond').fontSize(10).fillColor('#000000');
+          doc.font('EBGaramond').fontSize(9.5).fillColor('#000000');
           for (const p of paragraphs) {
             doc.text(`    ${p}`, { align: 'justify', lineGap: 2 });
             doc.moveDown(0.6);
@@ -333,7 +387,7 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
           doc.moveDown(1);
         }
 
-        doc.font('EBGaramond').fontSize(10).fillColor('#000000')
+        doc.font('EBGaramond').fontSize(9.5).fillColor('#000000')
           .text(options.finalVerdict, {
             align: 'justify',
             lineGap: 4,
@@ -378,13 +432,17 @@ export async function generateChapterPDF(
   chapterNumber: number,
   chapter: ChapterContent,
   person1: PDFGenerationOptions['person1'],
-  person2?: PDFGenerationOptions['person2']
+  person2?: PDFGenerationOptions['person2'],
+  coupleImageUrl?: string
 ): Promise<{ filePath: string; pageCount: number }> {
+  // Use the chapter title directly (no "Chapter X:" prefix)
+  // The title already contains the system name and person name (e.g., "Vedic - Akasha")
   return generateReadingPDF({
     type: person2 ? 'overlay' : 'single',
-    title: `Chapter ${chapterNumber}: ${chapter.title}`,
+    title: chapter.title,
     person1,
     person2,
+    coupleImageUrl,
     chapters: [chapter],
     generatedAt: new Date(),
   });
