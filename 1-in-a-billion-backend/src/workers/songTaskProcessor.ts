@@ -240,11 +240,13 @@ export async function processSongTask(task: { id: string; job_id: string; input:
     const person2Name = params?.person2?.name ? cleanForFilename(params.person2.name) : null;
     const systemName = system ? cleanForFilename(system.charAt(0).toUpperCase() + system.slice(1)) : 'Verdict';
 
+    // ⚠️ CRITICAL: Follow TEXT_READING_SPEC.md § 3.3 - DocType Data Scoping Rule
+    // See: docs/CRITICAL_RULES_CHECKLIST.md Rule 1
     // Generate filename matching frontend format:
-    // Individual: PersonName_SystemName_song.mp3
+    // Individual/person1/person2: PersonName_SystemName_song.mp3
     // Synastry/Overlay: Person1_Person2_System_song.mp3
     let fileName: string;
-    if (person2Name && (docType === 'overlay' || docType === 'synastry' || docType === 'person2')) {
+    if (person2Name && (docType === 'overlay' || docType === 'synastry')) {
       fileName = `${person1Name}_${person2Name}_${systemName}_song.mp3`;
     } else {
       fileName = `${person1Name}_${systemName}_song.mp3`;

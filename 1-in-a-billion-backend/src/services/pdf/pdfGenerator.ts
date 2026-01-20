@@ -2,46 +2,22 @@ import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import path from 'path';
 
-// ═══════════════════════════════════════════════════════════════════════════
-// DESIGN SYSTEM - Mouna Dhyana / Forbidden Yoga Classical Style
-// Reference: "Day 1 - 001 Mouna Dhyana E.pdf"
-//
-// Typography:
-// - Headers: Sans-serif (Inter) - bold
-// - Body: Serif (Lora) - JUSTIFIED like classical books
-// - Dedication: Serif (Playfair) - elegant, italicized feel
-// - Footer: Sans-serif (Inter) - small, centered
-// ═══════════════════════════════════════════════════════════════════════════
+// Font path
+const FONTS_DIR = path.resolve(__dirname, '../../../assets/fonts');
+const GARAMOND = path.join(FONTS_DIR, 'EBGaramond-Regular.ttf');
 
-// Font paths
-function findFontsDir(): string {
-  const candidates = [
-    path.resolve(__dirname, '../../..', 'assets', 'fonts'),
-    path.resolve(__dirname, '../../../assets/fonts'),
-    path.resolve(process.cwd(), 'assets', 'fonts'),
-    '/Users/michaelperinwogenburg/Desktop/1-in-a-billion-app/1-in-a-billion-backend/assets/fonts',
-  ];
-
-  for (const dir of candidates) {
-    if (fs.existsSync(path.join(dir, 'Inter_500Medium.ttf'))) {
-      return dir;
-    }
-  }
-  return candidates[0];
-}
-
-const FONTS_DIR = findFontsDir();
-const FONTS = {
-  // USE LORA - Better unicode support for special characters
-  interRegular: path.join(FONTS_DIR, 'Lora_400Regular.ttf'),
-  interMedium: path.join(FONTS_DIR, 'Lora_400Regular.ttf'),
-  interSemiBold: path.join(FONTS_DIR, 'Lora_400Regular.ttf'),
-  lora: path.join(FONTS_DIR, 'Lora_400Regular.ttf'),
-  ebGaramond: path.join(FONTS_DIR, 'Lora_400Regular.ttf'),
-  playfair: path.join(FONTS_DIR, 'Lora_400Regular.ttf'),
-  playfairBold: path.join(FONTS_DIR, 'Lora_400Regular.ttf'),
-};
-
+/**
+ * ⚠️ CRITICAL: ChapterContent must have EXACTLY ONE reading field with content
+ * 
+ * Each PDF should only use ONE of these fields:
+ * - person1Reading: For person 1's individual reading ONLY
+ * - person2Reading: For person 2's individual reading ONLY
+ * - overlayReading: For synastry/compatibility reading ONLY
+ * - verdict: For final verdict/summary ONLY
+ * 
+ * NEVER use the same content for multiple fields or multiple PDFs.
+ * See: docs/PDF_CONTENT_ROUTING_RULES.md
+ */
 interface ChapterContent {
   title: string;
   system: string;
@@ -60,23 +36,10 @@ interface PDFGenerationOptions {
   coupleImageUrl?: string;
   chapters: ChapterContent[];
   generatedAt: Date;
-  // Dual-truth compatibility (0.0–10.0). If only one value is supplied, we mirror it.
   spicyScore?: number;
   safeStableScore?: number;
-  // Backwards compat: old percent-based score (0–100). If present, we map 75% -> 7.5/10.
   compatibilityScore?: number;
   finalVerdict?: string;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// PDF GENERATOR - Mouna Dhyana Classical Book Style
-// ═══════════════════════════════════════════════════════════════════════════
-
-
-function normalizeToTen(value: number): number {
-  // If value looks like a percent (e.g. 75), map to /10 (7.5)
-  if (value > 10) return value / 10;
-  return value;
 }
 
 async function fetchImageBuffer(url: string): Promise<Buffer | null> {
@@ -103,8 +66,8 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
   const filename = `${slugify(options.title)}-${Date.now()}.pdf`;
   const filePath = path.join(outputDir, filename);
 
-  // Best-effort: preload portrait/couple images (so PDFs can embed them reliably)
-  const [person1PortraitBuf, person2PortraitBuf, couplePortraitBuf] = await Promise.all([
+  // Fetch portrait images
+  const [person1Portrait, person2Portrait, couplePortrait] = await Promise.all([
     options.person1.portraitUrl ? fetchImageBuffer(options.person1.portraitUrl) : Promise.resolve(null),
     options.person2?.portraitUrl ? fetchImageBuffer(options.person2.portraitUrl) : Promise.resolve(null),
     options.coupleImageUrl ? fetchImageBuffer(options.coupleImageUrl) : Promise.resolve(null),
@@ -112,303 +75,109 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
 
   return new Promise((resolve, reject) => {
     try {
-      // ============================================================
-      // 6×9 US TRADE PAPERBACK (publisher-style)
-      // ============================================================
-      // PDFKit uses points: 72pt = 1 inch
-      // 6×9 inches => 432×648 points
-      const PAGE = { width: 6 * 72, height: 9 * 72 };
-      // Book-ish margins (slightly larger inner/gutter)
-      const MARGINS = {
-        top: 0.75 * 72,      // 54pt
-        bottom: 0.85 * 72,   // 61.2pt
-        inner: 1.0 * 72,     // 72pt
-        outer: 0.75 * 72,    // 54pt
-      };
-
       const doc = new PDFDocument({
-        size: [PAGE.width, PAGE.height],
-        margins: {
-          top: MARGINS.top,
-          bottom: MARGINS.bottom,
-          left: MARGINS.inner,
-          right: MARGINS.outer,
-        },
-        autoFirstPage: true,
+        size: 'A4',
+        margins: { top: 120, bottom: 120, left: 100, right: 100 },
+        bufferPages: true,
       });
 
-      // Register fonts
-      if (fs.existsSync(FONTS.interRegular)) doc.registerFont('Inter', FONTS.interRegular);
-      if (fs.existsSync(FONTS.interMedium)) doc.registerFont('Inter-Medium', FONTS.interMedium);
-      if (fs.existsSync(FONTS.interSemiBold)) doc.registerFont('Inter-SemiBold', FONTS.interSemiBold);
-      if (fs.existsSync(FONTS.lora)) doc.registerFont('Lora', FONTS.lora);
-      if (fs.existsSync(FONTS.playfair)) doc.registerFont('Playfair', FONTS.playfair);
-      if (fs.existsSync(FONTS.playfairBold)) doc.registerFont('Playfair-Bold', FONTS.playfairBold);
-      if (fs.existsSync(FONTS.ebGaramond)) doc.registerFont('EBGaramond', FONTS.ebGaramond);
+      // Register Garamond font
+      if (fs.existsSync(GARAMOND)) {
+        doc.registerFont('Garamond', GARAMOND);
+      }
 
       const writeStream = fs.createWriteStream(filePath);
       doc.pipe(writeStream);
 
-      const contentWidth = doc.page.width - (MARGINS.inner + MARGINS.outer);
       let pageCount = 1;
-      let pageNumber = 1;
+      doc.on('pageAdded', () => { pageCount++; });
 
-      const drawRunningFooter = () => {
-        doc.save(); // Isolate footer styles
-        const prevY = doc.y;
-        const oldBottomMargin = doc.page.margins.bottom;
-        doc.page.margins.bottom = 0; // Prevent infinite loop triggers by allowing writing in bottom margin
-
-        doc.font('Inter').fontSize(8).fillColor('#777777')
-          // Moved footer down slightly to avoid text overlap (using fixed position from bottom)
-          .text(String(pageNumber), MARGINS.inner, doc.page.height - 40, {
-            width: contentWidth,
-            align: 'center',
-            lineBreak: false,
-          });
-
-        doc.page.margins.bottom = oldBottomMargin; // Restore margin
-        doc.y = prevY;
-        doc.restore(); // Restore body styles
-
-        // CRITICAL: doc.save()/restore() do NOT restore font/fontSize/fillColor
-        // Explicitly reset to body text defaults to prevent style leakage
-        doc.font('EBGaramond').fontSize(9.5).fillColor('#000000');
-      };
-
-      doc.on('pageAdded', () => {
-        pageCount++;
-        pageNumber++;
-        drawRunningFooter();
+      // Title
+      doc.font('Garamond').fontSize(18).text(options.title, { align: 'center' });
+      
+      // Timestamp below title
+      const timestamp = options.generatedAt.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
       });
+      doc.font('Garamond').fontSize(10).text(timestamp, { align: 'center' });
+      doc.moveDown(1);
 
-      // Draw footer for first page
-      drawRunningFooter();
-
-      // ─────────────────────────────────────────────────────────────────────
-      // PAGE HEADER - "Day 1" style (top left, bold sans-serif)
-      // ─────────────────────────────────────────────────────────────────────
-
-      doc.font('Inter-SemiBold').fontSize(10).fillColor('#000000')
-        .text('1 in a Billion', MARGINS.inner, MARGINS.top);
-
-      doc.moveDown(2);
-
-      // ─────────────────────────────────────────────────────────────────────
-      // TITLE - Centered, bold (like "The 365 days - the Andhakaara path to power")
-      // ─────────────────────────────────────────────────────────────────────
-
-      doc.font('Inter-SemiBold').fontSize(11).fillColor('#000000')
-        .text(options.title, { align: 'center' });
-
-      doc.moveDown(2);
-
-      // ─────────────────────────────────────────────────────────────────────
-      // DEDICATION/EPIGRAPH - Elegant serif, italicized feel, JUSTIFIED
-      // (Like "The 365 days - the Andhakaara path to power is dedicated...")
-      // ─────────────────────────────────────────────────────────────────────
-
-      // ─────────────────────────────────────────────────────────────────────
-      // DEDICATION/EPIGRAPH - REMOVED PER USER REQUEST
-      // ─────────────────────────────────────────────────────────────────────
-
-      // ─────────────────────────────────────────────────────────────────────
-      // PERSON INFO - Section title style (like "Mouna Dhyana")
-      // ─────────────────────────────────────────────────────────────────────
-
-      // Optional portrait/couple image rendered to the right of the person info block.
-      const imageGap = 10;
-      const portraitH = 92;
-      const portraitW = couplePortraitBuf ? 160 : 92;
-      const imageX = MARGINS.inner + contentWidth - portraitW;
-      const infoStartY = doc.y;
-      const textWidth = contentWidth - (couplePortraitBuf || person1PortraitBuf ? (portraitW + imageGap) : 0);
-
-      if (couplePortraitBuf) {
+      // Portrait image (couple if available, otherwise solo)
+      const imageToUse = couplePortrait || person1Portrait;
+      if (imageToUse) {
+        // Image width matches text width (page width minus left and right margins)
+        const imgWidth = doc.page.width - 100 - 100; // 395pt on A4
+        const imgX = 100; // Same as left margin
+        const imgY = doc.y + 20; // Space above image
+        const imgHeight = imgWidth; // Assume square-ish image
+        const radius = 20; // Rounded corner radius
+        
         try {
-          doc.image(couplePortraitBuf, imageX, infoStartY, { fit: [portraitW, portraitH] });
+          // Create rounded rectangle clipping path
+          doc.save();
+          doc.roundedRect(imgX, imgY, imgWidth, imgHeight, radius).clip();
+          doc.image(imageToUse, imgX, imgY, { width: imgWidth });
+          doc.restore();
+          
+          // Move cursor below the image
+          doc.y = imgY + imgHeight + 20; // Image height + padding
         } catch {
-          // ignore
+          // ignore image errors
         }
-      } else if (person1PortraitBuf) {
-        try {
-          doc.image(person1PortraitBuf, imageX, infoStartY, { fit: [portraitW, portraitH] });
-        } catch {
-          // ignore
-        }
-      }
-
-      doc.font('Inter-SemiBold').fontSize(10.5).fillColor('#000000')
-        .text(options.person1.name, { width: textWidth });
-      doc.moveDown(0.5);
-
-      // Short info lines (like "To learn to listen properly.")
-      doc.font('EBGaramond').fontSize(9.5).fillColor('#000000')
-        .text(`Born ${options.person1.birthDate}`, { width: textWidth });
-
-      if (options.person1.sunSign) {
-        doc.font('EBGaramond').fontSize(8.5).fillColor('#444444')
-          .text(`Sun in ${options.person1.sunSign} · Moon in ${options.person1.moonSign || '—'} · Rising ${options.person1.risingSign || '—'}`, { width: textWidth });
-      }
-
-      if (options.person2) {
-        doc.moveDown(1.5);
-        // For overlays, if we don't have a couple image, try to render person2 portrait beside person2 info.
-        const p2StartY = doc.y;
-        if (!couplePortraitBuf && person2PortraitBuf) {
-          try {
-            doc.image(person2PortraitBuf, imageX, p2StartY, { fit: [portraitW, portraitH] });
-          } catch {
-            // ignore
-          }
-        }
-
-        doc.font('Inter-SemiBold').fontSize(10.5).fillColor('#000000')
-          .text(options.person2.name, { width: textWidth });
-        doc.moveDown(0.5);
-        doc.font('EBGaramond').fontSize(9.5).fillColor('#000000')
-          .text(`Born ${options.person2.birthDate}`, { width: textWidth });
-        if (options.person2.sunSign) {
-          doc.font('EBGaramond').fontSize(8.5).fillColor('#444444')
-            .text(`Sun in ${options.person2.sunSign} · Moon in ${options.person2.moonSign || '—'} · Rising ${options.person2.risingSign || '—'}`, { width: textWidth });
-        }
-      }
-
-
-      // Compatibility score
-      const spicy = options.spicyScore !== undefined ? options.spicyScore
-        : (options.compatibilityScore !== undefined ? normalizeToTen(options.compatibilityScore) : undefined);
-      const safeStable = options.safeStableScore !== undefined ? options.safeStableScore
-        : (options.compatibilityScore !== undefined ? normalizeToTen(options.compatibilityScore) : undefined);
-
-      if (spicy !== undefined && safeStable !== undefined) {
-        doc.moveDown(2);
-        doc.font('Playfair-Bold').fontSize(32).fillColor('#000000')
-          .text(`${spicy.toFixed(1)}/10`, { align: 'center' });
-        doc.font('Inter').fontSize(9).fillColor('#666666')
-          .text('Spicy', { align: 'center' });
-        doc.moveDown(0.75);
-        doc.font('Playfair-Bold').fontSize(20).fillColor('#000000')
-          .text(`${safeStable.toFixed(1)}/10`, { align: 'center' });
-        doc.font('Inter').fontSize(9).fillColor('#666666')
-          .text('Safe & Stable', { align: 'center' });
-      }
-
-
-      if (options.compatibilityScore !== undefined) {
-        doc.moveDown(2);
-        doc.font('Playfair-Bold').fontSize(36).fillColor('#000000')
-          .text(`${normalizeToTen(options.compatibilityScore).toFixed(1)}/10`, { align: 'center' });
-        doc.font('Inter').fontSize(9).fillColor('#666666')
-          .text('Compatibility (legacy)', { align: 'center' });
-      }
-
-      doc.moveDown(2);
-
-      // ─────────────────────────────────────────────────────────────────────
-      // CHAPTERS - Classical book body text style
-      // ─────────────────────────────────────────────────────────────────────
-
-      for (let i = 0; i < options.chapters.length; i++) {
-        const chapter = options.chapters[i];
-
-        // Chapter/Section title (like "Mouna Dhyana")
-        doc.font('Inter-SemiBold').fontSize(10).fillColor('#000000')
-          .text(chapter.title);
+        
+        doc.moveDown(2); // Space below image
+      } else {
         doc.moveDown(1);
+      }
 
-        // Person 1 reading
+      // Body text - justified (block)
+      for (const chapter of options.chapters) {
         if (chapter.person1Reading) {
-          // Body text - book paragraphs (first-line indent, justified)
-          const paragraphs = chapter.person1Reading
-            .split(/\n\s*\n/g)
-            .map((p) => p.trim())
-            .filter(Boolean);
-
-          doc.font('EBGaramond').fontSize(9.5).fillColor('#000000');
-          for (const p of paragraphs) {
-            doc.text(`    ${p}`, { align: 'justify', lineGap: 2 });
-            doc.moveDown(0.6);
-          }
-          doc.moveDown(1.5);
-        }
-
-        // Person 2 reading
-        if (chapter.person2Reading && options.person2) {
-          doc.font('Inter-SemiBold').fontSize(9.5).fillColor('#000000')
-            .text(options.person2.name);
-          doc.moveDown(0.5);
-
-          const paragraphs = chapter.person2Reading
-            .split(/\n\s*\n/g)
-            .map((p) => p.trim())
-            .filter(Boolean);
-
-          doc.font('EBGaramond').fontSize(9.5).fillColor('#000000');
-          for (const p of paragraphs) {
-            doc.text(`    ${p}`, { align: 'justify', lineGap: 2 });
-            doc.moveDown(0.6);
-          }
-          doc.moveDown(1.5);
-        }
-
-        // Overlay reading
-        if (chapter.overlayReading) {
-          doc.font('Inter-SemiBold').fontSize(9.5).fillColor('#000000')
-            .text('The Space Between');
-          doc.moveDown(0.5);
-
-          const paragraphs = chapter.overlayReading
-            .split(/\n\s*\n/g)
-            .map((p) => p.trim())
-            .filter(Boolean);
-
-          doc.font('EBGaramond').fontSize(9.5).fillColor('#000000');
-          for (const p of paragraphs) {
-            doc.text(`    ${p}`, { align: 'justify', lineGap: 2 });
-            doc.moveDown(0.6);
-          }
-          doc.moveDown(1.5);
-        }
-      }
-
-      // ─────────────────────────────────────────────────────────────────────
-      // FINAL VERDICT
-      // ─────────────────────────────────────────────────────────────────────
-
-      if (options.finalVerdict) {
-        doc.font('Inter-SemiBold').fontSize(11).fillColor('#000000')
-          .text('Final Verdict');
-        doc.moveDown(1);
-
-        if (options.compatibilityScore !== undefined) {
-          doc.font('Playfair-Bold').fontSize(28).fillColor('#000000')
-            .text(`${normalizeToTen(options.compatibilityScore).toFixed(1)}/10`, { align: 'center' });
+          doc.font('Garamond').fontSize(11).text(chapter.person1Reading, { align: 'justify' });
           doc.moveDown(1);
         }
-
-        doc.font('EBGaramond').fontSize(9.5).fillColor('#000000')
-          .text(options.finalVerdict, {
-            align: 'justify',
-            lineGap: 4,
-          });
+        if (chapter.person2Reading) {
+          doc.font('Garamond').fontSize(11).text(chapter.person2Reading, { align: 'justify' });
+          doc.moveDown(1);
+        }
+        if (chapter.overlayReading) {
+          doc.font('Garamond').fontSize(11).text(chapter.overlayReading, { align: 'justify' });
+          doc.moveDown(1);
+        }
       }
 
-      // ─────────────────────────────────────────────────────────────────────
-      // FOOTER - Simple centered (like "© forbidden-yoga.com")
-      // ─────────────────────────────────────────────────────────────────────
-
+      // Appendix - LEFT aligned
       doc.moveDown(3);
-      doc.font('Inter').fontSize(9).fillColor('#888888')
-        .text('· · ·', { align: 'center' });
-      doc.moveDown(0.5);
-      doc.font('Inter').fontSize(8).fillColor('#888888')
-        .text('This reading is for contemplation and self-discovery.', { align: 'center' });
-      doc.font('Inter').fontSize(8).fillColor('#888888')
-        .text(`Swiss Ephemeris · ${options.generatedAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, { align: 'center' });
+      doc.font('Garamond').fontSize(10);
+      doc.text('1-in-a-billion.app', { align: 'left' });
       doc.moveDown(1);
-      doc.font('Inter').fontSize(9).fillColor('#666666')
-        .text('© 1 in a Billion', { align: 'center' });
+      doc.text('Published by:', { align: 'left' });
+      doc.text('SwiftBuy Solutions LLC', { align: 'left' });
+      doc.text('Meydan Grandstand, 6th floor, Meydan Road, Nad Al Sheba, Dubai, U.A.E.', { align: 'left' });
+      doc.moveDown(1);
+      doc.text('powered by: forbidden-yoga.com', { align: 'left' });
+      doc.text('Program idea and concept: Michael Wogenburg', { align: 'left' });
+
+      // Add page numbers to all pages
+      const range = doc.bufferedPageRange();
+      for (let i = range.start; i < range.start + range.count; i++) {
+        doc.switchToPage(i);
+        // Save current position
+        const savedY = doc.y;
+        // Draw page number at bottom - use absolute positioning
+        doc.font('Garamond').fontSize(10);
+        doc.page.margins.bottom = 0;
+        doc.text(String(i + 1), 100, doc.page.height - 60, { 
+          width: doc.page.width - 200, 
+          align: 'center',
+          lineBreak: false,
+          continued: false
+        });
+        doc.page.margins.bottom = 120;
+        doc.y = savedY;
+      }
 
       doc.end();
 
@@ -435,8 +204,36 @@ export async function generateChapterPDF(
   person2?: PDFGenerationOptions['person2'],
   coupleImageUrl?: string
 ): Promise<{ filePath: string; pageCount: number }> {
-  // Use the chapter title directly (no "Chapter X:" prefix)
-  // The title already contains the system name and person name (e.g., "Vedic - Akasha")
+  // ⚠️ CRITICAL VALIDATION: Prevent using same content for different reading types
+  // Count how many reading fields have content
+  const contentFields = [
+    chapter.person1Reading,
+    chapter.person2Reading,
+    chapter.overlayReading,
+    chapter.verdict,
+  ].filter(Boolean);
+  
+  if (contentFields.length === 0) {
+    throw new Error('CRITICAL PDF ERROR: No reading content provided in chapter');
+  }
+  
+  if (contentFields.length > 1) {
+    throw new Error(
+      `CRITICAL PDF ERROR: Multiple reading fields have content (${contentFields.length} fields). ` +
+      `Only ONE should have content per PDF. This prevents the bug where same content is used for all PDFs.`
+    );
+  }
+  
+  // Validate person2 readings have person2 data
+  if (chapter.person2Reading && !person2) {
+    throw new Error('CRITICAL PDF ERROR: person2Reading provided but no person2 data');
+  }
+  
+  // Validate overlay readings have person2 data
+  if (chapter.overlayReading && !person2) {
+    throw new Error('CRITICAL PDF ERROR: overlayReading provided but no person2 data');
+  }
+  
   return generateReadingPDF({
     type: person2 ? 'overlay' : 'single',
     title: chapter.title,

@@ -431,6 +431,8 @@ export abstract class BaseWorker {
         fileName = `${person1Name}_${system}_audio`;
       }
     } else if (artifactType === 'pdf') {
+      // ⚠️ CRITICAL: Follow TEXT_READING_SPEC.md § 3.3 - DocType Data Scoping Rule
+      // See: docs/CRITICAL_RULES_CHECKLIST.md Rule 1
       // PDF format: PersonName_SystemName_v1.0.pdf
       // For synastry: Person1_Person2_Synastry_v1.0.pdf
       // For overlay: Person1_Person2_System_v1.0.pdf

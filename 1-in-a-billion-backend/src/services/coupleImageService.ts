@@ -1,8 +1,22 @@
 /**
  * COUPLE IMAGE SERVICE
  * 
- * Creates AI-generated romantic couple portraits from two individual
- * claymation portraits using Google AI Studio.
+ * Creates AI-generated romantic couple portraits by composing two 
+ * already-generated individual styled portraits together.
+ * 
+ * ⚠️ CRITICAL - DO NOT CHANGE THIS APPROACH:
+ * 
+ * This service MUST take already-styled portraits (from claymationService.ts)
+ * as inputs, NOT original photos. This is the ONLY way to ensure facial 
+ * features are preserved in couple portraits regardless of artistic style.
+ * 
+ * Workflow:
+ * 1. Generate individual portrait for Person 1 (original photo → styled portrait)
+ * 2. Generate individual portrait for Person 2 (original photo → styled portrait)  
+ * 3. Compose couple portrait (styled portrait 1 + styled portrait 2 → couple image)
+ * 
+ * This approach works for ANY artistic style (linoleum, clay, watercolor, etc.)
+ * and ensures both faces remain recognizable in the couple composition.
  */
 
 import { GoogleGenAI } from '@google/genai';
@@ -22,7 +36,13 @@ export interface CoupleImageResult {
 
 /**
  * Generate a romantic couple portrait using AI
- * Takes two individual claymation portraits and creates an intimate "lovers" composition
+ * 
+ * Takes two already-generated styled portraits (e.g., linoleum/claymation style) 
+ * and composes them into an intimate "lovers" composition.
+ * 
+ * The AI preserves the facial features from both input portraits while creating
+ * a unified romantic composition. This approach ensures face consistency regardless
+ * of the artistic style used.
  */
 export async function composeCoupleImage(
   userId: string,
@@ -37,6 +57,21 @@ export async function composeCoupleImage(
   }
 
   try {
+    // ⚠️ CRITICAL VALIDATION: Ensure we're receiving styled portraits, not original photos
+    // Styled portraits should be in profile-images bucket with /claymation.png suffix
+    // or in couple-claymations bucket
+    const isStyledPortrait1 = claymation1Url.includes('/claymation.png') || claymation1Url.includes('couple-claymations');
+    const isStyledPortrait2 = claymation2Url.includes('/claymation.png') || claymation2Url.includes('couple-claymations');
+    
+    if (!isStyledPortrait1 || !isStyledPortrait2) {
+      console.warn('⚠️ [Couple] WARNING: URLs do not appear to be styled portraits!');
+      console.warn('   Person 1 URL:', claymation1Url);
+      console.warn('   Person 2 URL:', claymation2Url);
+      console.warn('   Expected URLs to contain "/claymation.png"');
+      console.warn('   Couple portraits MUST be composed from styled portraits, not original photos!');
+      // Don't fail completely, but log the warning
+    }
+    
     const googleKey = await getApiKey('google_ai_studio', env.GOOGLE_AI_STUDIO_API_KEY || '');
     if (!googleKey) {
       return { success: false, error: 'Google AI Studio API key not found' };
@@ -81,9 +116,9 @@ export async function composeCoupleImage(
           mimeType: 'image/png'
         }
       },
-      // Romantic couple prompt
+      // Romantic couple composition prompt
       {
-        text: `Exquisite artisan clay portrait. Extreme close-up. Soft, sophisticated color palette. Hand-sculpted details with visible fingerprints. Expressive glass bead eyes. Close together in love.`
+        text: `Compose these two stylized portraits into a romantic couple portrait. Keep the exact same artistic style from the input portraits. Show them pressed close together in love, intimate composition. Preserve the facial features from both portraits exactly as shown - do not change or reinterpret the faces. Extreme close-up zoomed in, subjects fill entire frame edge to edge, no empty margins or white space around subjects.`
       }
     ];
 
@@ -115,9 +150,16 @@ export async function composeCoupleImage(
 
     console.log('✅ [Couple] AI couple portrait generated successfully');
 
-    // 3. Post-process the image
+    // 3. Post-process the image: auto-crop white space, then enhance
     const rawImageBuffer = Buffer.from(generatedImageB64, 'base64');
-    const imageBuffer = await sharp(rawImageBuffer)
+    
+    // First trim white/off-white background
+    const trimmedBuffer = await sharp(rawImageBuffer)
+      .trim({ threshold: 30 })  // Trim pixels similar to white/off-white
+      .toBuffer();
+    
+    // Then apply other processing
+    const imageBuffer = await sharp(trimmedBuffer)
       .resize(1024, 1024, { fit: 'cover', position: 'attention' })
       .modulate({ saturation: 1.1, brightness: 1.02 })
       .sharpen(0.3)

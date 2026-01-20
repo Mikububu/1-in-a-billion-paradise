@@ -49,7 +49,9 @@ Valid `docType` values:
 - `overlay` (synastry + nuclear_v2)
 - `verdict` (nuclear_v2 only; docNum 16)
 
-### 3.3 Critical Data-Scoping Rule (Prevents Audio/Text Mismatch)
+### 3.3 Critical Data-Scoping Rule (Prevents Audio/Text/PDF Mismatch)
+
+**⚠️ APPLIES TO ALL WORKERS: textWorker.ts, pdfWorker.ts, audioWorker.ts, songWorker.ts**
 
 When generating text for a doc:
 

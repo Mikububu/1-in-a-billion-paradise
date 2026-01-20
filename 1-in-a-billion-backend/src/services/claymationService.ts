@@ -146,7 +146,7 @@ export async function generateClaymationPortrait(
     });
 
     // Add text prompt
-    const stylePrompt = `Exquisite artisan clay portrait. Extreme close-up. Soft, sophisticated color palette. Hand-sculpted details with visible fingerprints. Expressive glass bead eyes.`;
+    const stylePrompt = `High-contrast Linoleum analog handcrafted style. Bold black strokes on textured off-white paper. Smooth, hand-carved edges and negative space. Minimalist palette (mostly black/white with a single accent color like red). 2D graphic illustration. Isolated on white. Extreme close-up zoomed in, subject fills entire frame edge to edge, no empty margins or white space around subject.`;
     parts.push({ text: stylePrompt });
 
     // Generate using the SDK (matching working code structure)
@@ -186,11 +186,19 @@ export async function generateClaymationPortrait(
 
     // ─────────────────────────────────────────────────────────────────────
     // STEP 3: Post-process for consistent framing + subtle color lift
+    // - Auto-crop white space around subject
     // - Normalize framing so people don't appear "smaller" depending on source photo
     // - Slight saturation/contrast bump to avoid a washed-out look
     // ─────────────────────────────────────────────────────────────────────
     const rawImageBuffer = Buffer.from(generatedImageB64, 'base64');
-    const imageBuffer = await sharp(rawImageBuffer)
+    
+    // First trim white/off-white background
+    const trimmedBuffer = await sharp(rawImageBuffer)
+      .trim({ threshold: 30 })  // Trim pixels similar to white/off-white
+      .toBuffer();
+    
+    // Then apply other processing
+    const imageBuffer = await sharp(trimmedBuffer)
       // Normalize to 1024x1024, crop using attention to keep the subject prominent
       .resize(1024, 1024, { fit: 'cover', position: 'attention' })
       // Slight lift: a touch more saturation and contrast

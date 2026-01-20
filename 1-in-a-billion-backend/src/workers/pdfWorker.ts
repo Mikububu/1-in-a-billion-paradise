@@ -56,6 +56,8 @@ export class PdfWorker extends BaseWorker {
     }
 
     console.log(`📄 Generating PDF for chapter ${docNum}: ${title} (${text.length} chars)`);
+    console.log(`   📋 DocType: ${docType}`);
+    console.log(`   🔖 System: ${system}`);
 
     // Get job params to extract person names and user_id
     const { data: job, error: jobError } = await supabase
@@ -155,6 +157,19 @@ export class PdfWorker extends BaseWorker {
 
     let coupleImageUrl = existingCoupleImageUrl;
     if (!coupleImageUrl && person1PortraitUrl && person2PortraitUrl && person1Id && person2Id) {
+      // ⚠️ CRITICAL: Ensure we're using styled portraits, not original photos
+      // getPortraitUrl() prefers claymation_url, but falls back to original_photo_url
+      const isStyled1 = person1PortraitUrl.includes('/claymation.png');
+      const isStyled2 = person2PortraitUrl.includes('/claymation.png');
+      
+      if (!isStyled1 || !isStyled2) {
+        console.warn('⚠️ [PDFWorker] WARNING: Portrait URLs appear to be original photos, not styled portraits!');
+        console.warn(`   Person 1 styled: ${isStyled1} (${person1PortraitUrl})`);
+        console.warn(`   Person 2 styled: ${isStyled2} (${person2PortraitUrl})`);
+        console.warn('   Couple portraits should use styled portraits for best results.');
+        console.warn('   The system will proceed, but facial features may not be preserved correctly.');
+      }
+      
       // Ensure couple image exists for synastry PDFs (generate if missing/outdated)
       const res = await getCoupleImage(userId, person1Id, person2Id, person1PortraitUrl, person2PortraitUrl, false);
       if (res.success && res.coupleImageUrl) {
@@ -164,7 +179,12 @@ export class PdfWorker extends BaseWorker {
 
     // Generate PDF
     try {
-      // For person2 readings, swap person1 and person2 so the PDF shows the correct person
+      // ⚠️ CRITICAL: Follow TEXT_READING_SPEC.md § 3.3 - DocType Data Scoping Rule
+      // See: docs/CRITICAL_RULES_CHECKLIST.md Rule 1
+      // person1 docs → ONLY person1 data
+      // person2 docs → ONLY person2 data
+      // overlay/verdict docs → BOTH people
+      
       const isPerson2Reading = docType === 'person2';
       const isOverlayReading = docType === 'overlay' || docType === 'verdict';
       
@@ -176,16 +196,53 @@ export class PdfWorker extends BaseWorker {
       const pdfPerson2 = isOverlayReading && person2 ? person2 : undefined;
       const pdfPerson2Portrait = isOverlayReading ? person2PortraitUrl : undefined;
       
+      // ⚠️ CRITICAL VALIDATION: Ensure correct content routing
+      // This prevents the bug where same content is used for all PDFs
+      console.log(`   👤 PDF will show:`);
+      console.log(`      Person 1: ${pdfPerson1.name}`);
+      if (pdfPerson2) console.log(`      Person 2: ${pdfPerson2.name}`);
+      console.log(`   📝 Content type: ${docType}`);
+      
+      // Validate: person2 readings must have person2 data
+      if (docType === 'person2' && !person2) {
+        return { success: false, error: 'CRITICAL: person2 reading requested but no person2 in job params' };
+      }
+      
+      // Validate: overlay readings must have both people
+      if ((docType === 'overlay' || docType === 'verdict') && !person2) {
+        return { success: false, error: 'CRITICAL: overlay/verdict reading requested but no person2 in job params' };
+      }
+      
+      // ⚠️ CRITICAL: Route text to correct field based on docType
+      const chapterContent = {
+        title: title,
+        system: system,
+        person1Reading: docType === 'person1' || docType === 'individual' ? text : undefined,
+        person2Reading: docType === 'person2' ? text : undefined,
+        overlayReading: docType === 'overlay' ? text : undefined,
+        verdict: docType === 'verdict' ? text : undefined,
+      };
+      
+      // Validate: exactly ONE reading field should have content
+      const contentFields = [
+        chapterContent.person1Reading,
+        chapterContent.person2Reading,
+        chapterContent.overlayReading,
+        chapterContent.verdict,
+      ].filter(Boolean);
+      
+      if (contentFields.length === 0) {
+        return { success: false, error: `CRITICAL: No reading content assigned for docType=${docType}` };
+      }
+      if (contentFields.length > 1) {
+        return { success: false, error: `CRITICAL: Multiple reading fields assigned for docType=${docType}. Only one should have content.` };
+      }
+      
+      console.log(`   ✅ Content validation passed: 1 field assigned (${text.length} chars)`);
+      
       const { filePath, pageCount } = await generateChapterPDF(
         docNum,
-        {
-          title: title,
-          system: system,
-          person1Reading: docType === 'person1' || docType === 'individual' ? text : undefined,
-          person2Reading: docType === 'person2' ? text : undefined,
-          overlayReading: docType === 'overlay' ? text : undefined,
-          verdict: docType === 'verdict' ? text : undefined,
-        },
+        chapterContent,
         {
           name: pdfPerson1.name,
           birthDate: pdfPerson1.birthDate || '',

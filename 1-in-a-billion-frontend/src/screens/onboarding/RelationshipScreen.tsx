@@ -28,6 +28,7 @@ export const RelationshipScreen = ({ navigation }: Props) => {
   const lastValue = useRef(relationshipIntensity);
   const descriptor = describeIntensity(relationshipIntensity);
   const { isPlaying } = useMusicStore();
+  const videoRef = useRef<Video>(null);
 
   // Keep ambient music playing
   useFocusEffect(
@@ -65,17 +66,31 @@ export const RelationshipScreen = ({ navigation }: Props) => {
     }
   };
 
+  const handlePlaybackStatusUpdate = (status: AVPlaybackStatus) => {
+    if (!status.isLoaded) return;
+    
+    // Pause for 1 second at the end, then restart
+    if (status.didJustFinish) {
+      videoRef.current?.pauseAsync();
+      setTimeout(() => {
+        videoRef.current?.setPositionAsync(0);
+        videoRef.current?.playAsync();
+      }, 1000);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Video at bottom - simple loop */}
+      {/* Video at bottom - pauses 1 second at end */}
       <Video
-        source={require('../../../assets/videos/couple-laughing.mp4')}
+        ref={videoRef}
+        source={require('../../../assets/videos/couple-kissing.mp4')}
         style={styles.bottomVideo}
         resizeMode={ResizeMode.COVER}
         shouldPlay
-        isLooping
         isMuted
         rate={0.5}
+        onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
       />
 
       <BackButton onPress={handleBack} />
@@ -123,10 +138,10 @@ const styles = StyleSheet.create({
   },
   bottomVideo: {
     position: 'absolute',
-    bottom: -50,
+    bottom: -70,
     left: 0,
     right: 0,
-    height: '55%',
+    height: '66.5%',
     zIndex: 0, // Background
     opacity: 1,
   },
@@ -195,7 +210,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   footer: {
-    marginTop: -20, // Negative margin to pull button up
+    marginTop: -40, // Negative margin to pull button up
     paddingHorizontal: spacing.page,
     zIndex: 10,
   },
