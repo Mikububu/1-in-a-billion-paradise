@@ -1,11 +1,14 @@
 /**
- * COUPLE IMAGE COMPOSITION SERVICE
+ * COUPLE IMAGE SERVICE
  * 
- * Creates side-by-side couple claymation images for matched pairs
- * and synastry readings.
+ * Creates AI-generated romantic couple portraits from two individual
+ * claymation portraits using Google AI Studio.
  */
 
+import { GoogleGenAI } from '@google/genai';
 import { createSupabaseServiceClient } from './supabaseClient';
+import { getApiKey } from './apiKeys';
+import { env } from '../config/env';
 import sharp from 'sharp';
 
 const COUPLE_IMAGES_BUCKET = 'couple-claymations';
@@ -18,7 +21,8 @@ export interface CoupleImageResult {
 }
 
 /**
- * Compose two claymation images side-by-side with white background
+ * Generate a romantic couple portrait using AI
+ * Takes two individual claymation portraits and creates an intimate "lovers" composition
  */
 export async function composeCoupleImage(
   userId: string,
@@ -33,7 +37,12 @@ export async function composeCoupleImage(
   }
 
   try {
-    console.log(`👫 [Couple] Composing couple image for ${person1Id} + ${person2Id}...`);
+    const googleKey = await getApiKey('google_ai_studio', env.GOOGLE_AI_STUDIO_API_KEY || '');
+    if (!googleKey) {
+      return { success: false, error: 'Google AI Studio API key not found' };
+    }
+
+    console.log(`👫 [Couple] Generating AI couple portrait for ${person1Id} + ${person2Id}...`);
 
     // 1. Download both claymation images
     const [image1Response, image2Response] = await Promise.all([
@@ -50,59 +59,85 @@ export async function composeCoupleImage(
       image2Response.arrayBuffer(),
     ]);
 
-    // 2. Load images with sharp
-    const img1 = sharp(Buffer.from(image1Buffer));
-    const img2 = sharp(Buffer.from(image2Buffer));
+    // Convert to base64
+    const image1Base64 = Buffer.from(image1Buffer).toString('base64');
+    const image2Base64 = Buffer.from(image2Buffer).toString('base64');
 
-    // Get metadata to ensure consistent sizing
-    const [meta1, meta2] = await Promise.all([
-      img1.metadata(),
-      img2.metadata(),
-    ]);
+    // 2. Generate couple portrait with Google AI Studio
+    const ai = new GoogleGenAI({ apiKey: googleKey });
 
-    const height = 800; // Target height for each portrait
-    const width = Math.round(height * 0.75); // 3:4 aspect ratio for portraits
-
-    // 3. Resize both images to consistent size
-    const [resized1, resized2] = await Promise.all([
-      img1.resize(width, height, { fit: 'cover' }).toBuffer(),
-      img2.resize(width, height, { fit: 'cover' }).toBuffer(),
-    ]);
-
-    // 4. Compose side-by-side with very small gap (heads close together)
-    const gap = 10; // Gap between images
-    const canvasWidth = width * 2 + gap;
-    const canvasHeight = height;
-
-    const composedImage = await sharp({
-      create: {
-        width: canvasWidth,
-        height: canvasHeight,
-        channels: 3,
-        background: { r: 255, g: 255, b: 255 }, // Pure white background
+    const parts: any[] = [
+      // First person's portrait
+      {
+        inlineData: {
+          data: image1Base64,
+          mimeType: 'image/png'
+        }
       },
-    })
-      .composite([
-        {
-          input: resized1,
-          top: 0,
-          left: 0,
-        },
-        {
-          input: resized2,
-          top: 0,
-          left: width + gap,
-        },
-      ])
-      .jpeg({ quality: 90 })
+      // Second person's portrait
+      {
+        inlineData: {
+          data: image2Base64,
+          mimeType: 'image/png'
+        }
+      },
+      // Romantic couple prompt
+      {
+        text: `Create a romantic couple portrait combining these two clay sculpture people. 
+        
+Style: Same handcrafted clay sculpture aesthetic as the input images - matte clay texture, finger impressions, artisanal feel.
+
+Composition: The two people should be intimately close together, heads touching or nearly touching, like lovers. They can be looking at each other warmly, or both facing forward with heads leaning together. Romantic and tender mood.
+
+Background: Pure white.
+
+Important: Preserve each person's unique facial features and characteristics from their individual portraits. Keep the same clay sculpture style. No text or borders.`
+      }
+    ];
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: { parts },
+      config: {
+        imageConfig: {
+          aspectRatio: "1:1"
+        }
+      }
+    });
+
+    // Extract generated image
+    let generatedImageB64: string | undefined;
+    if (response.candidates?.[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData?.data) {
+          generatedImageB64 = part.inlineData.data;
+          break;
+        }
+      }
+    }
+
+    if (!generatedImageB64) {
+      console.error('❌ [Couple] No image in AI response, falling back to side-by-side composition');
+      return await composeCoupleImageFallback(userId, person1Id, person2Id, claymation1Url, claymation2Url);
+    }
+
+    console.log('✅ [Couple] AI couple portrait generated successfully');
+
+    // 3. Post-process the image
+    const rawImageBuffer = Buffer.from(generatedImageB64, 'base64');
+    const imageBuffer = await sharp(rawImageBuffer)
+      .resize(1024, 1024, { fit: 'cover', position: 'attention' })
+      .modulate({ saturation: 1.1, brightness: 1.02 })
+      .sharpen(0.3)
+      .png()
       .toBuffer();
 
-    // 5. Upload to Supabase Storage
-    const fileName = `couple-${person1Id}-${person2Id}-${Date.now()}.jpg`;
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    // 4. Upload to Supabase Storage
+    const fileName = `couple-${person1Id}-${person2Id}-${Date.now()}.png`;
+    const { error: uploadError } = await supabase.storage
       .from(COUPLE_IMAGES_BUCKET)
-      .upload(fileName, composedImage, {
-        contentType: 'image/jpeg',
+      .upload(fileName, imageBuffer, {
+        contentType: 'image/png',
         upsert: true,
       });
 
@@ -111,15 +146,15 @@ export async function composeCoupleImage(
       return { success: false, error: uploadError.message };
     }
 
-    // 6. Get public URL
+    // 5. Get public URL
     const { data: urlData } = supabase.storage
       .from(COUPLE_IMAGES_BUCKET)
       .getPublicUrl(fileName);
 
     const coupleImageUrl = urlData.publicUrl;
-    console.log(`✅ [Couple] Couple image created:`, coupleImageUrl);
+    console.log(`✅ [Couple] Couple image uploaded:`, coupleImageUrl);
 
-    // 7. Save to couple_claymations table
+    // 6. Save to couple_claymations table
     const { error: dbError } = await supabase
       .from('couple_claymations')
       .upsert({
@@ -136,7 +171,6 @@ export async function composeCoupleImage(
 
     if (dbError) {
       console.warn('⚠️ [Couple] Failed to save to database:', dbError.message);
-      // Non-fatal - we still have the image URL
     }
 
     return {
@@ -145,7 +179,111 @@ export async function composeCoupleImage(
       storagePath: fileName,
     };
   } catch (error: any) {
-    console.error('❌ [Couple] Error creating couple image:', error);
+    console.error('❌ [Couple] AI generation failed, trying fallback:', error.message);
+    return await composeCoupleImageFallback(userId, person1Id, person2Id, claymation1Url, claymation2Url);
+  }
+}
+
+/**
+ * Fallback: Simple side-by-side composition if AI generation fails
+ */
+async function composeCoupleImageFallback(
+  userId: string,
+  person1Id: string,
+  person2Id: string,
+  claymation1Url: string,
+  claymation2Url: string
+): Promise<CoupleImageResult> {
+  const supabase = createSupabaseServiceClient();
+  if (!supabase) {
+    return { success: false, error: 'Supabase not configured' };
+  }
+
+  try {
+    console.log(`👫 [Couple] Fallback: Creating side-by-side composition...`);
+
+    const [image1Response, image2Response] = await Promise.all([
+      fetch(claymation1Url),
+      fetch(claymation2Url),
+    ]);
+
+    if (!image1Response.ok || !image2Response.ok) {
+      return { success: false, error: 'Failed to download claymation images' };
+    }
+
+    const [image1Buffer, image2Buffer] = await Promise.all([
+      image1Response.arrayBuffer(),
+      image2Response.arrayBuffer(),
+    ]);
+
+    const height = 800;
+    const width = Math.round(height * 0.75);
+
+    const [resized1, resized2] = await Promise.all([
+      sharp(Buffer.from(image1Buffer)).resize(width, height, { fit: 'cover' }).toBuffer(),
+      sharp(Buffer.from(image2Buffer)).resize(width, height, { fit: 'cover' }).toBuffer(),
+    ]);
+
+    const gap = 10;
+    const composedImage = await sharp({
+      create: {
+        width: width * 2 + gap,
+        height: height,
+        channels: 3,
+        background: { r: 255, g: 255, b: 255 },
+      },
+    })
+      .composite([
+        { input: resized1, top: 0, left: 0 },
+        { input: resized2, top: 0, left: width + gap },
+      ])
+      .jpeg({ quality: 90 })
+      .toBuffer();
+
+    const fileName = `couple-fallback-${person1Id}-${person2Id}-${Date.now()}.jpg`;
+    const { error: uploadError } = await supabase.storage
+      .from(COUPLE_IMAGES_BUCKET)
+      .upload(fileName, composedImage, {
+        contentType: 'image/jpeg',
+        upsert: true,
+      });
+
+    if (uploadError) {
+      return { success: false, error: uploadError.message };
+    }
+
+    const { data: urlData } = supabase.storage
+      .from(COUPLE_IMAGES_BUCKET)
+      .getPublicUrl(fileName);
+
+    const coupleImageUrl = urlData.publicUrl;
+    console.log(`✅ [Couple] Fallback image created:`, coupleImageUrl);
+
+    const { error: dbError } = await supabase
+      .from('couple_claymations')
+      .upsert({
+        user_id: userId,
+        person1_id: person1Id,
+        person2_id: person2Id,
+        couple_image_url: coupleImageUrl,
+        person1_solo_url: claymation1Url,
+        person2_solo_url: claymation2Url,
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: 'user_id,person1_id,person2_id',
+      });
+
+    if (dbError) {
+      console.warn('⚠️ [Couple] Failed to save fallback to database:', dbError.message);
+    }
+
+    return {
+      success: true,
+      coupleImageUrl,
+      storagePath: fileName,
+    };
+  } catch (error: any) {
+    console.error('❌ [Couple] Fallback composition also failed:', error);
     return {
       success: false,
       error: error?.message || 'Unknown error',
