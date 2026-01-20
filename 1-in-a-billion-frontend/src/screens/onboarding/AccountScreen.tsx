@@ -111,7 +111,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
   const handleSupabaseExchange = async (idToken: string, provider: 'apple' | 'google') => {
     try {
       setIsCreatingAccount(true); // Show loading overlay
-      const { setFlowType } = useAuthStore.getState();
+      const { setFlowType, displayName } = useAuthStore.getState();
       setFlowType('onboarding'); // FLAG: Allow local data validation
 
       const { data, error } = await supabase.auth.signInWithIdToken({
@@ -121,6 +121,12 @@ export const AccountScreen = ({ navigation, route }: Props) => {
 
       if (error) throw error;
       if (!data?.user?.id) throw new Error('No user ID returned from authentication');
+      
+      // Use displayName from NameInputScreen if available (for OAuth signups)
+      if (displayName) {
+        useOnboardingStore.getState().setName(displayName);
+        console.log(`✅ Using displayName from NameInputScreen: ${displayName}`);
+      }
 
       // Check if user already has account (before navigating)
       if (isSupabaseConfigured) {
@@ -144,15 +150,23 @@ export const AccountScreen = ({ navigation, route }: Props) => {
       }
 
       setIsLoading(false);
+      
+      // ⚠️ CRITICAL FIX: User just signed up via OAuth, onboarding is complete
+      // Mark onboarding as complete and show dashboard
+      const onboarding = useOnboardingStore.getState();
+      onboarding.completeOnboarding(); // Set hasCompletedOnboarding = true
+      onboarding.setShowDashboard(true); // Switch to MainNavigator
+      
       if (isPostPurchase) {
         // After subscription purchase, let user choose their included reading
+        onboarding.setRedirectAfterOnboarding('MyLibrary');
         setIsCreatingAccount(false);
         navigation.replace('FreeReadingSelection');
         return;
       }
-
-      // Default: continue onboarding flow
-      navigation.replace('CoreIdentities');
+      
+      setIsCreatingAccount(false);
+      // RootNavigator will automatically switch to MainNavigator (dashboard) now
     } catch (error: any) {
       console.error(`❌ ${provider.toUpperCase()} EXCHANGE ERROR:`, error.message);
       logAuthIssue({
@@ -377,16 +391,18 @@ export const AccountScreen = ({ navigation, route }: Props) => {
         setEmail('');
         setPassword('');
 
+        // ⚠️ CRITICAL FIX: User just signed up, onboarding is complete
+        // Mark onboarding as complete and show dashboard
+        const onboarding = useOnboardingStore.getState();
+        onboarding.completeOnboarding(); // Set hasCompletedOnboarding = true
+        onboarding.setShowDashboard(true); // Switch to MainNavigator
+        
         if (isPostPurchase) {
-          const onboarding = useOnboardingStore.getState();
           onboarding.setRedirectAfterOnboarding('MyLibrary');
-          onboarding.completeOnboarding();
-          onboarding.setShowDashboard(true);
-          setIsCreatingAccount(false);
-          return;
         }
-
-        navigation.replace('CoreIdentities');
+        
+        setIsCreatingAccount(false);
+        // RootNavigator will automatically switch to MainNavigator (dashboard) now
       }
     } catch (error: any) {
       console.error(`❌ SIGNUP ERROR:`, error.message);
