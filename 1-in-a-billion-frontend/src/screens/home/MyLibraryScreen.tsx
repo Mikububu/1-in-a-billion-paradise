@@ -2106,6 +2106,14 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   const cloudPeopleCards = useMemo(() => {
     console.log('🔄 [MyLibrary] Building cloudPeopleCards from', queueJobs.length, 'queueJobs');
 
+    const findPersonIdByName = (name: string | null) => {
+      if (!name) return null;
+      const n = name.trim().toLowerCase();
+      if (!n) return null;
+      const hit = (people || []).find((p: any) => (p?.name || '').trim().toLowerCase() === n);
+      return (hit as any)?.id || null;
+    };
+
     // Include overlay/compatibility jobs (complete or processing):
     // - synastry (single system overlays like "Vedic overlay")
     // - nuclear_v2 (ultimate 16-reading package)
@@ -2117,8 +2125,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
       .map((job: any) => {
         const p1 = job?.params?.person1?.name || job?.input?.person1?.name || null;
         const p2 = job?.params?.person2?.name || job?.input?.person2?.name || null;
-        const p1Id = job?.params?.person1?.id || job?.input?.person1?.id || null;
-        const p2Id = job?.params?.person2?.id || job?.input?.person2?.id || null;
+        // Some older jobs only stored names. Fall back name -> local person id.
+        const p1Id = job?.params?.person1?.id || job?.input?.person1?.id || findPersonIdByName(p1) || null;
+        const p2Id = job?.params?.person2?.id || job?.input?.person2?.id || findPersonIdByName(p2) || null;
         const systems = job?.params?.systems || job?.input?.systems || [];
         const systemKey = systems.length > 0 ? systems.sort().join(',') : job.type;
         console.log('🔄 [MyLibrary] Job', job.id?.slice(0, 8), '→ p1:', p1, 'p2:', p2, 'type:', job.type, 'systems:', systems);
@@ -2162,7 +2171,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
     console.log('🔄 [MyLibrary] Final cloudPeopleCards:', cards.length, cards.map(c => `${c.person1}+${c.person2}+${c.systemKey}`));
     return cards;
-  }, [queueJobs]);
+  }, [queueJobs, people]);
 
   // Fetch/generate couple images for overlay cards (synastry/nuclear_v2).
   useEffect(() => {
