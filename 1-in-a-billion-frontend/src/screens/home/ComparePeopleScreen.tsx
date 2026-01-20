@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert, Animated } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert, Animated, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
@@ -15,22 +15,34 @@ type Props = NativeStackScreenProps<MainStackParamList, 'ComparePeople'>;
 const screenId = '11b';
 
 export const ComparePeopleScreen = ({ navigation }: Props) => {
+  console.log('🎨 ComparePeople: Photo upload feature active');
   const people = useProfileStore((s) => s.people);
   const updatePerson = useProfileStore((s) => s.updatePerson);
   const addPerson = useProfileStore((s) => s.addPerson);
   const deletePerson = useProfileStore((s) => s.deletePerson);
-  const userId = useAuthStore((s) => s.userId);
   const authUser = useAuthStore((s) => s.user);
+  const userId = authUser?.id;
   
   // Blinking animation for "CHOOSE ONE OR TWO PEOPLE" text
   const blinkAnim = useRef(new Animated.Value(1)).current;
   
+  // Blinking animation for camera badge
+  const badgeBlinkAnim = useRef(new Animated.Value(1)).current;
+  
   useEffect(() => {
-    // Blinking loop
+    // Blinking loop for text
     Animated.loop(
       Animated.sequence([
         Animated.timing(blinkAnim, { toValue: 0.3, duration: 800, useNativeDriver: true }),
         Animated.timing(blinkAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      ])
+    ).start();
+    
+    // Blinking loop for camera badge (fast blink to draw attention)
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(badgeBlinkAnim, { toValue: 0.2, duration: 600, useNativeDriver: true }),
+        Animated.timing(badgeBlinkAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
       ])
     ).start();
   }, []);
@@ -242,6 +254,8 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
             {candidates.map((p) => {
               const isA = personAId === p.id;
               const isB = personBId === p.id;
+              const hasPhoto = !!p.claymationUrl;
+              
               return (
                 <TouchableOpacity
                   key={`p-${p.id}`}
@@ -251,13 +265,39 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                   delayLongPress={500}
                   activeOpacity={0.85}
                 >
-                  <View style={[styles.avatar, {
-                    backgroundColor: p.gender === 'male' ? '#E8F4E4' : p.gender === 'female' ? '#FFE4E4' : colors.primary + '20'
-                  }]}>
-                    <Text style={[styles.avatarText, {
-                      color: p.gender === 'male' ? '#2E7D32' : p.gender === 'female' ? colors.primary : colors.primary
-                    }]}>{p.name.charAt(0).toUpperCase()}</Text>
-                  </View>
+                  <TouchableOpacity
+                    style={[styles.avatarContainer]}
+                    onPress={() => {
+                      // Navigate to photo upload screen
+                      navigation.navigate('PersonPhotoUpload', { 
+                        personId: p.id
+                      });
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[
+                      styles.avatar,
+                      {
+                        backgroundColor: p.gender === 'male' ? '#E8F4E4' : p.gender === 'female' ? '#FFE4E4' : colors.primary + '20',
+                      }
+                    ]}>
+                      {hasPhoto ? (
+                        <Image 
+                          source={{ uri: p.claymationUrl }} 
+                          style={styles.avatarImage}
+                        />
+                      ) : (
+                        <Text style={[styles.avatarText, {
+                          color: p.gender === 'male' ? '#2E7D32' : p.gender === 'female' ? colors.primary : colors.primary
+                        }]}>{p.name.charAt(0).toUpperCase()}</Text>
+                      )}
+                    </View>
+                    {!hasPhoto && (
+                      <Animated.View style={[styles.cameraIconHint, { opacity: badgeBlinkAnim }]}>
+                        <Text style={styles.cameraIcon}>+</Text>
+                      </Animated.View>
+                    )}
+                  </TouchableOpacity>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.rowName}>{p.name}</Text>
                     <Text style={styles.rowMeta} numberOfLines={1}>
@@ -432,6 +472,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   rowSelected: { borderColor: colors.primary },
+  avatarContainer: {
+    position: 'relative',
+    marginRight: spacing.md,
+    marginTop: 2,
+  },
   avatar: {
     width: 50,
     height: 50,
@@ -439,13 +484,35 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.md,
-    marginTop: 2,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   avatarText: {
     fontFamily: typography.headline,
     fontSize: 22,
     color: '#FFFFFF',
+  },
+  cameraIconHint: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.surface,
+  },
+  cameraIcon: {
+    fontSize: 18,
+    fontWeight: '300',
+    color: '#FFFFFF',
+    marginTop: -2,
   },
   rowName: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },
   rowMeta: { fontFamily: typography.sansRegular, fontSize: 13, color: colors.mutedText },

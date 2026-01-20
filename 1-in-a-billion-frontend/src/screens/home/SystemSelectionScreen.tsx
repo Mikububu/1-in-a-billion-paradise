@@ -380,6 +380,33 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
       const newJobId = data?.jobId;
       if (!newJobId) throw new Error('No jobId returned from backend');
 
+      // If overlay reading with both claymations, generate couple image (non-blocking)
+      if (isOverlayFlow && person2) {
+        // Get claymation URLs from profileStore
+        const p1 = profileStorePeople.find((p: any) => p.id === person1.id);
+        const p2 = profileStorePeople.find((p: any) => p.id === person2.id);
+        
+        if (p1?.claymationUrl && p2?.claymationUrl) {
+          console.log('👫 Triggering couple image generation...');
+          import('@/services/coupleImageService').then(({ getCoupleImage }) => {
+            getCoupleImage(
+              person1.id,
+              person2.id,
+              p1.claymationUrl!,
+              p2.claymationUrl!
+            ).then(result => {
+              if (result.success) {
+                console.log('✅ Couple image generated:', result.coupleImageUrl);
+              } else {
+                console.warn('⚠️ Couple image generation failed:', result.error);
+              }
+            }).catch(err => {
+              console.warn('⚠️ Couple image generation error:', err);
+            });
+          });
+        }
+      }
+
       // IMPORTANT: Always show a verifiable "receipt" (jobId) while generating.
       // This prevents "we did it / we didn't" confusion later — jobId is the source of truth.
       // Navigate to Tree of Life video first, then to GeneratingReading

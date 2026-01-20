@@ -94,6 +94,7 @@ import { MyLibraryScreen } from '@/screens/home/MyLibraryScreen';
 import { NextStepScreen } from '@/screens/home/NextStepScreen';
 import { TreeOfLifeVideoScreen } from '@/screens/home/TreeOfLifeVideoScreen';
 import { ComparePeopleScreen } from '@/screens/home/ComparePeopleScreen';
+import { PersonPhotoUploadScreen } from '@/screens/home/PersonPhotoUploadScreen';
 import { SystemsOverviewScreen } from '@/screens/home/SystemsOverviewScreen';
 import { AudioPlayerScreen } from '@/screens/home/AudioPlayerScreen';
 import { RelationshipContextScreen } from '@/screens/home/RelationshipContextScreen';
@@ -131,6 +132,7 @@ export type MainStackParamList = {
   Home: undefined;
   NextStep: undefined;
   ComparePeople: undefined;
+  PersonPhotoUpload: { personId: string };
   ProfileSignIn: undefined;
   HowMatchingWorks: undefined;
   HookSequence: {
@@ -686,6 +688,7 @@ const MainNavigator = () => {
       />
       <MainStack.Screen name="NextStep" component={NextStepScreen} />
       <MainStack.Screen name="ComparePeople" component={ComparePeopleScreen} />
+      <MainStack.Screen name="PersonPhotoUpload" component={PersonPhotoUploadScreen} />
       <MainStack.Screen name="ProfileSignIn" component={MainSignInScreenWrapper} options={{ presentation: 'fullScreenModal' }} />
       <MainStack.Screen name="SystemsOverview" component={SystemsOverviewScreen} />
       <MainStack.Screen name="MyLibrary" component={MyLibraryScreen} />
