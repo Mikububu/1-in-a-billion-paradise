@@ -71,15 +71,23 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
     const fetchVoices = async () => {
         try {
             setLoading(true);
-            const baseCandidates = [
+            // Prefer HTTPS first. iOS often blocks/slow-fails plain HTTP which can make this screen feel broken.
+            const httpsCandidates = [
                 env.CORE_API_URL,
-                // Helpful dev fallbacks if local backend is up but env points elsewhere (or vice versa)
-                'http://172.20.10.2:8787',
-                'http://localhost:8787',
-                'http://127.0.0.1:8787',
                 'https://1-in-a-billion-backend.fly.dev',
-            ];
-            const bases = Array.from(new Set(baseCandidates.filter(Boolean)));
+            ].filter((b): b is string => Boolean(b) && String(b).startsWith('https://'));
+
+            // Dev-only local fallbacks (can be useful when running a local backend).
+            const httpCandidates = __DEV__
+                ? [
+                    env.CORE_API_URL,
+                    'http://localhost:8787',
+                    'http://127.0.0.1:8787',
+                    'http://172.20.10.2:8787',
+                  ].filter((b): b is string => Boolean(b) && String(b).startsWith('http://'))
+                : [];
+
+            const bases = Array.from(new Set([...httpsCandidates, ...httpCandidates]));
 
             let lastErr: any = null;
             for (const base of bases) {

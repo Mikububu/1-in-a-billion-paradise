@@ -2,7 +2,7 @@
  * PERSON PHOTO UPLOAD SCREEN
  * 
  * Allows uploading a photo for people in Karmic Zoo.
- * Photo is transformed into claymation style via backend service.
+ * Photo is transformed into a stylized portrait via backend service.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -10,7 +10,6 @@ import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, ActivityIndicat
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
-import { Button } from '@/components/Button';
 import { BackButton } from '@/components/BackButton';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { useProfileStore } from '@/store/profileStore';
@@ -39,15 +38,19 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
   
   const person = people.find(p => p.id === personId);
   
-  const [photoUri, setPhotoUri] = useState<string | null>(person?.originalPhotoUrl || null);
+  // Local selection (temporary). Once upload finishes we clear it, so the square shows the generated portrait.
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   
   // Rotation animation for uploading indicator
   const rotateAnim = React.useRef(new Animated.Value(0)).current;
   
+  const hasGeneratedPortrait = Boolean(person?.claymationUrl);
+  const showRing = isUploading || (!hasGeneratedPortrait && !photoUri);
+
   React.useEffect(() => {
-    // Show rotating animation when no photo OR when uploading
-    if (!photoUri || isUploading) {
+    // Rotate ring before first upload, and during upload.
+    if (showRing) {
       Animated.loop(
         Animated.timing(rotateAnim, {
           toValue: 1,
@@ -58,7 +61,7 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
     } else {
       rotateAnim.setValue(0);
     }
-  }, [photoUri, isUploading]);
+  }, [showRing]);
 
   if (!person) {
     return (
@@ -70,6 +73,32 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
       </SafeAreaView>
     );
   }
+
+  const uploadSelectedPhoto = async (selectedUri: string) => {
+    setIsUploading(true);
+
+    try {
+      const result = await uploadPersonPhoto(person.id, selectedUri);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Upload failed');
+      }
+
+      // Update person in store with new URLs
+      updatePerson(person.id, {
+        originalPhotoUrl: result.originalUrl,
+        claymationUrl: result.claymationUrl,
+      });
+
+      // Clear local selection so we show the generated portrait.
+      setPhotoUri(null);
+    } catch (error: any) {
+      console.error('Photo upload error:', error);
+      Alert.alert('Upload Failed', error?.message || 'Could not upload photo. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const pickImage = async () => {
     const picker = await loadImagePicker();
@@ -99,41 +128,32 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
     });
 
     if (!result.canceled && result.assets[0]) {
-      setPhotoUri(result.assets[0].uri);
+      const selectedUri = result.assets[0].uri;
+      setPhotoUri(selectedUri);
+      // Auto-run upload/transform (no button).
+      await uploadSelectedPhoto(selectedUri);
     }
   };
 
-  const handleUpload = async () => {
-    if (!photoUri) {
-      Alert.alert('No Photo', 'Please select a photo first.');
+  const handleAvatarPress = async () => {
+    if (isUploading) return;
+
+    if (hasGeneratedPortrait) {
+      Alert.alert(
+        'Update portrait?',
+        'You can regenerate the stylized portrait by selecting a new photo.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Regenerate', style: 'destructive', onPress: () => { void pickImage(); } },
+        ]
+      );
       return;
     }
 
-    setIsUploading(true);
-
-    try {
-      const result = await uploadPersonPhoto(person.id, photoUri);
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Upload failed');
-      }
-
-      // Update person in store with new URLs
-      updatePerson(person.id, {
-        originalPhotoUrl: result.originalUrl,
-        claymationUrl: result.claymationUrl,
-      });
-
-      Alert.alert('Success', 'Photo uploaded and transformed!', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
-    } catch (error: any) {
-      console.error('Photo upload error:', error);
-      Alert.alert('Upload Failed', error?.message || 'Could not upload photo. Please try again.');
-    } finally {
-      setIsUploading(false);
-    }
+    void pickImage();
   };
+
+  const displayUri = photoUri || person.claymationUrl || person.originalPhotoUrl || null;
 
   return (
     <View style={styles.root}>
@@ -144,18 +164,18 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
         <Text style={styles.title}>Upload Photo</Text>
         <Text style={styles.subtitle}>{person.name}</Text>
         
-        <TouchableOpacity style={styles.photoPreview} onPress={pickImage} disabled={isUploading}>
-          {photoUri ? (
-            <Image source={{ uri: photoUri }} style={styles.previewImage} />
+        <TouchableOpacity style={styles.photoPreview} onPress={handleAvatarPress} disabled={isUploading}>
+          {displayUri ? (
+            <Image source={{ uri: displayUri }} style={styles.previewImage} />
           ) : (
             <View style={styles.placeholderCircle}>
               <Text style={styles.placeholderText}>{person.name.charAt(0).toUpperCase()}</Text>
-              <Text style={styles.placeholderHint}>Tap to select photo</Text>
+              <Text style={styles.placeholderHint}>Tap to choose a photo</Text>
             </View>
           )}
           
           {/* Rotating dashed border before upload and during upload */}
-          {(!photoUri || isUploading) && (
+          {showRing && (
             <Animated.View
               style={[
                 styles.uploadingBorder,
@@ -180,17 +200,6 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
           </Text>
         </View>
 
-        {photoUri && (
-          <View style={styles.buttons}>
-            <Button
-              label={isUploading ? "Uploading..." : "Upload & Transform"}
-              onPress={handleUpload}
-              variant="primary"
-              disabled={isUploading}
-            />
-          </View>
-        )}
-
         {isUploading && (
           <View style={styles.uploadingOverlay}>
             <ActivityIndicator size="large" color={colors.primary} />
@@ -201,14 +210,6 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
         )}
       </View>
     </SafeAreaView>
-
-    {/* Demo stylized portrait preview - pinned to bottom of screen */}
-    <View pointerEvents="none" style={styles.demoPreview}>
-      <Image 
-        source={require('../../../assets/demo-claymation.png')} 
-        style={styles.demoImage}
-      />
-    </View>
     </View>
   );
 };
@@ -241,9 +242,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   photoPreview: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
+    width: 320,
+    height: 320,
+    borderRadius: 28,
     overflow: 'hidden',
     marginBottom: spacing.lg,
     position: 'relative',
@@ -252,9 +253,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -8,
     left: -8,
-    width: 216,
-    height: 216,
-    borderRadius: 108,
+    width: 336,
+    height: 336,
+    borderRadius: 36,
     borderWidth: 6,
     borderStyle: 'dashed',
     borderColor: '#FF0000',
@@ -279,7 +280,7 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     fontFamily: typography.headline,
-    fontSize: 64,
+    fontSize: 76,
     color: colors.mutedText,
     marginBottom: spacing.sm,
   },
@@ -306,10 +307,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     marginBottom: spacing.lg,
   },
-  buttons: {
-    width: '100%',
-    gap: spacing.md,
-  },
   errorText: {
     fontFamily: typography.sansRegular,
     fontSize: 16,
@@ -330,23 +327,5 @@ const styles = StyleSheet.create({
     fontFamily: typography.sansSemiBold,
     fontSize: 16,
     color: colors.text,
-  },
-  demoPreview: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 320,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  demoImage: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: '100%',
-    height: 320,
-    resizeMode: 'contain',
   },
 });

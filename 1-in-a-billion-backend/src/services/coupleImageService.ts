@@ -69,8 +69,8 @@ export async function composeCoupleImage(
       img2.resize(width, height, { fit: 'cover' }).toBuffer(),
     ]);
 
-    // 4. Compose side-by-side with small gap
-    const gap = 40; // Gap between images
+    // 4. Compose side-by-side with very small gap (heads close together)
+    const gap = 10; // Gap between images
     const canvasWidth = width * 2 + gap;
     const canvasHeight = height;
 

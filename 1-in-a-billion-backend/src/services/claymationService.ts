@@ -11,6 +11,7 @@
 import { GoogleGenAI } from '@google/genai';
 import * as fs from 'fs';
 import * as path from 'path';
+import sharp from 'sharp';
 import { getApiKey } from './apiKeys';
 import { env } from '../config/env';
 import { createSupabaseServiceClient } from './supabaseClient';
@@ -144,8 +145,8 @@ export async function generateClaymationPortrait(
       }
     });
 
-    // Add text prompt (matching working code style)
-    const stylePrompt = `Transform this portrait into a professional claymation style (like Wallace & Gromit or Shaun the Sheep). Focus on tactile clay textures, visible fingerprints, and expressive clay-like features. White background.`;
+    // Add text prompt (keep it positive; aim for tactile clay + richer natural color)
+    const stylePrompt = `Transform this portrait into a handcrafted clay sculpture portrait. Emphasize tactile clay texture with visible finger impressions, matte finish, and artisanal realism. Keep real facial proportions and a natural, slightly warm color palette (not desaturated). Soft studio lighting, pure white background, clean centered composition.`;
     parts.push({ text: stylePrompt });
 
     // Generate using the SDK (matching working code structure)
@@ -184,9 +185,24 @@ export async function generateClaymationPortrait(
     console.log('✅ [Claymation] Image generated successfully with Google AI Studio');
 
     // ─────────────────────────────────────────────────────────────────────
-    // STEP 3: Upload claymation to Supabase Storage
+    // STEP 3: Post-process for consistent framing + subtle color lift
+    // - Normalize framing so people don't appear "smaller" depending on source photo
+    // - Slight saturation/contrast bump to avoid a washed-out look
     // ─────────────────────────────────────────────────────────────────────
-    const imageBuffer = Buffer.from(generatedImageB64, 'base64');
+    const rawImageBuffer = Buffer.from(generatedImageB64, 'base64');
+    const imageBuffer = await sharp(rawImageBuffer)
+      // Normalize to 1024x1024, crop using attention to keep the subject prominent
+      .resize(1024, 1024, { fit: 'cover', position: 'attention' })
+      // Slight lift: a touch more saturation and contrast
+      .modulate({ saturation: 1.12, brightness: 1.02 })
+      .linear(1.06, -4)
+      .sharpen(0.4)
+      .png()
+      .toBuffer();
+
+    // ─────────────────────────────────────────────────────────────────────
+    // STEP 4: Upload portrait to Supabase Storage
+    // ─────────────────────────────────────────────────────────────────────
     const storagePath = `${userId}/${personId || 'self'}/claymation.png`;
 
     console.log('📤 [Claymation] Uploading to storage:', storagePath);
@@ -212,7 +228,7 @@ export async function generateClaymationPortrait(
     console.log('✅ [Claymation] Uploaded to:', imageUrl);
 
     // ─────────────────────────────────────────────────────────────────────
-    // STEP 4: Update library_people record
+    // STEP 5: Update library_people record
     //
     // IMPORTANT (schema): `library_people` does NOT have an `id` column. The unique
     // identifier is (`user_id`, `client_person_id`), plus `is_user` for the self row.

@@ -559,16 +559,22 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   addPersonIcon: {
     fontFamily: typography.sansBold,
     fontSize: 28,
     color: '#FFFFFF',
+    lineHeight: 28,
+    // Slight optical centering (font glyph baseline)
+    marginTop: -2,
   },
   addPersonText: {
     fontFamily: typography.sansMedium,
     fontSize: 16,
     color: colors.primary,
+    marginLeft: spacing.md,
   },
   emptyState: { alignItems: 'center', paddingVertical: spacing.xl * 2 },
   emptyTitle: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },

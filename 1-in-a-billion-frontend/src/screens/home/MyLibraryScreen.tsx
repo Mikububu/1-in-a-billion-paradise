@@ -43,6 +43,7 @@ import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { fetchNuclearJobs, fetchJobArtifacts } from '@/services/nuclearReadingsService';
 import { normalizePlacements } from '@/services/placementsCalculator';
+import { getCoupleImage as generateCoupleImage } from '@/services/coupleImageService';
 
 // Define radii values directly to avoid import issues
 const RADIUS_CARD = 22;
@@ -131,6 +132,8 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   const [libraryPeopleById, setLibraryPeopleById] = useState<Record<string, Person>>({});
   // Track nuclear_v2 job artifacts for reading badges
   const [nuclearJobArtifacts, setNuclearJobArtifacts] = useState<Record<string, Array<{ system?: string; docType?: string }>>>({});
+  // Couple image URLs (by normalized person1Id/person2Id key)
+  const [coupleImageByKey, setCoupleImageByKey] = useState<Record<string, string>>({});
 
   // CRITICAL: Stop audio when screen loses focus (useFocusEffect runs cleanup BEFORE blur)
   useFocusEffect(
@@ -730,6 +733,11 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   const authDisplayName = useAuthStore((s) => s.displayName);
   // User name fallback (avoid generic "User" when possible)
   const userName = user?.name || authDisplayName || 'User';
+  const userPortraitUrl = (user as any)?.claymationUrl || (user as any)?.originalPhotoUrl || null;
+  const normalizeCoupleKey = (a?: string | null, b?: string | null) => {
+    if (!a || !b) return null;
+    return a < b ? `${a}__${b}` : `${b}__${a}`;
+  };
 
   // Explicit type for the merged person object
   interface LibraryPerson {
@@ -2106,6 +2114,8 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
       .map((job: any) => {
         const p1 = job?.params?.person1?.name || job?.input?.person1?.name || null;
         const p2 = job?.params?.person2?.name || job?.input?.person2?.name || null;
+        const p1Id = job?.params?.person1?.id || job?.input?.person1?.id || null;
+        const p2Id = job?.params?.person2?.id || job?.input?.person2?.id || null;
         const systems = job?.params?.systems || job?.input?.systems || [];
         const systemKey = systems.length > 0 ? systems.sort().join(',') : job.type;
         console.log('🔄 [MyLibrary] Job', job.id?.slice(0, 8), '→ p1:', p1, 'p2:', p2, 'type:', job.type, 'systems:', systems);
@@ -2113,6 +2123,8 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           jobId: job.id,
           person1: p1,
           person2: p2,
+          person1Id: p1Id,
+          person2Id: p2Id,
           type: job.type,
           systems: systems,
           systemKey: systemKey, // For deduplication: same couple + same systems = same card
@@ -2148,6 +2160,63 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
     console.log('🔄 [MyLibrary] Final cloudPeopleCards:', cards.length, cards.map(c => `${c.person1}+${c.person2}+${c.systemKey}`));
     return cards;
   }, [queueJobs]);
+
+  // Fetch/generate couple images for overlay cards (synastry/nuclear_v2).
+  useEffect(() => {
+    const uid = authUser?.id;
+    if (!uid) return;
+
+    let cancelled = false;
+    const run = async () => {
+      for (const card of cloudPeopleCards as any[]) {
+        const id1 = card.person1Id as string | null;
+        const id2 = card.person2Id as string | null;
+        const key = normalizeCoupleKey(id1, id2);
+        if (!key) continue;
+        if (coupleImageByKey[key]) continue;
+
+        const a = id1 && id2 && id1 < id2 ? id1 : id2;
+        const b = id1 && id2 && id1 < id2 ? id2 : id1;
+        if (!a || !b) continue;
+
+        // 1) Try existing stored couple image
+        try {
+          const { data, error } = await supabase
+            .from('couple_claymations')
+            .select('couple_image_url')
+            .eq('user_id', uid)
+            .eq('person1_id', a)
+            .eq('person2_id', b)
+            .maybeSingle();
+          if (!error && data?.couple_image_url) {
+            if (cancelled) return;
+            setCoupleImageByKey((prev) => ({ ...prev, [key]: data.couple_image_url }));
+            continue;
+          }
+        } catch {
+          // ignore
+        }
+
+        // 2) Generate on-demand (only if both portraits exist)
+        const p1Portrait = (libraryPeopleById[id1 || ''] as any)?.claymationUrl || null;
+        const p2Portrait = (libraryPeopleById[id2 || ''] as any)?.claymationUrl || null;
+        if (!p1Portrait || !p2Portrait) continue;
+
+        try {
+          const res = await generateCoupleImage(id1!, id2!, p1Portrait, p2Portrait);
+          if (res.success && res.coupleImageUrl) {
+            if (cancelled) return;
+            setCoupleImageByKey((prev) => ({ ...prev, [key]: res.coupleImageUrl! }));
+          }
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    run();
+    return () => { cancelled = true; };
+  }, [authUser?.id, cloudPeopleCards, libraryPeopleById, coupleImageByKey]);
 
   // Chronological feed rule: newest card first, regardless of person/system.
   // CRITICAL: Each job = separate card (Audible Principle)
@@ -2441,13 +2510,33 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                   });
                 }}
               >
-                <View style={[styles.personAvatar, {
-                  backgroundColor: person.isUser ? '#E8F4E4' : '#FFE4E4'
-                }]}>
-                  <Text style={[styles.personInitial, {
-                    color: person.isUser ? '#2E7D32' : colors.primary
-                  }]}>{person.name?.charAt(0) || '?'}</Text>
-                </View>
+                {(() => {
+                  const portraitUrl =
+                    (libraryPeopleById[person.id] as any)?.claymationUrl ||
+                    (libraryPeopleById[person.id] as any)?.originalPhotoUrl ||
+                    (person as any)?.claymationUrl ||
+                    (person as any)?.originalPhotoUrl ||
+                    null;
+
+                  if (portraitUrl) {
+                    return (
+                      <Image
+                        source={{ uri: portraitUrl }}
+                        style={styles.personAvatarImage}
+                      />
+                    );
+                  }
+
+                  return (
+                    <View style={[styles.personAvatar, {
+                      backgroundColor: person.isUser ? '#E8F4E4' : '#FFE4E4'
+                    }]}>
+                      <Text style={[styles.personInitial, {
+                        color: person.isUser ? '#2E7D32' : colors.primary
+                      }]}>{person.name?.charAt(0) || '?'}</Text>
+                    </View>
+                  );
+                })()}
                 <View style={styles.personInfo}>
                   {/* Show "Name - System" or "Name - Full Reading" format */}
                   {(() => {
@@ -2633,6 +2722,8 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             }
 
             const card = item.card as any;
+            const coupleKey = normalizeCoupleKey(card.person1Id || null, card.person2Id || null);
+            const coupleImageUrl = coupleKey ? coupleImageByKey[coupleKey] : null;
             return (
               <View key={item.key} style={styles.personCardContainer}>
               <TouchableOpacity
@@ -2646,18 +2737,22 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                   });
                 }}
               >
-                <View style={styles.compatPeopleVertical}>
-                  {/* Person 1 - GREEN (like Michael's card) - stacked vertically, close together, 50% opacity */}
-                  <View style={[styles.personAvatar, { backgroundColor: '#E8F4E8', marginBottom: -8, opacity: 0.5 }]}>
-                    <Text style={[styles.personInitial, { color: '#2E7D32' }]}>{card.person1?.charAt(0)}</Text>
+                {coupleImageUrl ? (
+                  <Image source={{ uri: coupleImageUrl }} style={styles.coupleAvatarImage} />
+                ) : (
+                  <View style={styles.compatPeopleVertical}>
+                    {/* Person 1 - GREEN (like Michael's card) - stacked vertically, close together, 50% opacity */}
+                    <View style={[styles.personAvatar, { backgroundColor: '#E8F4E8', marginBottom: -8, opacity: 0.5 }]}>
+                      <Text style={[styles.personInitial, { color: '#2E7D32' }]}>{card.person1?.charAt(0)}</Text>
+                    </View>
+                    {/* Heart - highest layer (zIndex) */}
+                    <Text style={{ fontSize: 16, marginVertical: -4, color: colors.primary, zIndex: 10, elevation: 10 }}>♡</Text>
+                    {/* Person 2 - RED (like partner's card) - stacked vertically, close together, 50% opacity */}
+                    <View style={[styles.personAvatar, { backgroundColor: '#FFE4E4', marginTop: -8, opacity: 0.5 }]}>
+                      <Text style={[styles.personInitial, { color: colors.primary }]}>{card.person2?.charAt(0)}</Text>
+                    </View>
                   </View>
-                  {/* Heart - highest layer (zIndex) */}
-                  <Text style={{ fontSize: 16, marginVertical: -4, color: colors.primary, zIndex: 10, elevation: 10 }}>♡</Text>
-                  {/* Person 2 - RED (like partner's card) - stacked vertically, close together, 50% opacity */}
-                  <View style={[styles.personAvatar, { backgroundColor: '#FFE4E4', marginTop: -8, opacity: 0.5 }]}>
-                    <Text style={[styles.personInitial, { color: colors.primary }]}>{card.person2?.charAt(0)}</Text>
-                  </View>
-                </View>
+                )}
                 <View style={styles.personInfo}>
                   <Text style={styles.personName}>{card.person1} and {card.person2}</Text>
                   <Text style={styles.personDate}>Shared Karma</Text>
@@ -2758,7 +2853,21 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           {/* Empty state when no cards */}
           {allPeopleWithReadings.length === 0 && !hasUserReadings && partners.length === 0 && cloudPeopleCards.length === 0 && !loadingQueueJobs && (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>✧</Text>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                disabled={!user?.id}
+                onPress={() => {
+                  if (!user?.id) return;
+                  navigation.navigate('PersonPhotoUpload', { personId: user.id });
+                }}
+                style={styles.emptyPortraitButton}
+              >
+                {userPortraitUrl ? (
+                  <Image source={{ uri: userPortraitUrl }} style={styles.emptyPortraitImage} />
+                ) : (
+                  <Text style={styles.emptyIcon}>✧</Text>
+                )}
+              </TouchableOpacity>
               <Text style={styles.emptyTitle}>Your library is empty</Text>
               <Text style={styles.emptySubtitle}>
                 {queueJobs.length > 0
@@ -3215,6 +3324,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     color: colors.mutedText,
   },
+  emptyPortraitButton: {
+    marginBottom: spacing.sm,
+  },
+  emptyPortraitImage: {
+    width: 140,
+    height: 140,
+    borderRadius: 0, // no frame
+  },
   emptyTitle: {
     fontFamily: typography.serifBold,
     fontSize: 22,
@@ -3279,6 +3396,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary + '20',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  personAvatarImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.primary + '10',
+  },
+  coupleAvatarImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.primary + '10',
   },
   personInitial: {
     fontFamily: typography.headline,
