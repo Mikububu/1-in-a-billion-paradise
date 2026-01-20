@@ -49,6 +49,7 @@
 3. **Onboarding Completion Flag**: `hasCompletedOnboarding` is the ONLY flag that determines if user should see Dashboard vs Onboarding.
 4. **Hook Readings as Onboarding Gate**: Hook readings (Sun/Moon/Rising) are generated during onboarding and serve as the "key" to unlock the dashboard.
 5. **Background Processing**: All heavy operations (reading generation, audio, PDF) happen via Supabase job queue with background workers.
+6. **Portraits are Privacy-Preserving Assets**: Uploaded photos are stored separately from generated portraits. The app primarily displays the generated stylized portrait for privacy and consistency.
 
 ### Related Documentation
 
@@ -62,6 +63,9 @@ For detailed specs on specific pipelines, see `1-in-a-billion-backend/docs/`:
 | Vedic Matching | `VEDIC_MATCHMAKING_SPEC.md` - Ashtakoota scoring, Dosha analysis |
 | API Contract | `API_CONTRACT.md` - All endpoints and payloads |
 | Song Generation | `SONG_GENERATION_IMPLEMENTATION.md` - MiniMax API integration |
+| Portrait Prompting | `src/prompts/image/CLAYMATION_PORTRAIT.md` - internal portrait style prompt (user-facing: “stylized portrait”) |
+| Couple Image Composition | `src/services/coupleImageService.ts` - sharp composition and caching |
+| PDF Layout | `docs/PDF_LAYOUT_SPEC.md` - PDF style and chapter layouts |
 
 ---
 

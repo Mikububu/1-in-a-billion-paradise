@@ -3,6 +3,8 @@
 ## Overview
 Complete pipeline for managing people (with Swiss Ephemeris placements) across frontend local storage, Supabase database, and LLM readings.
 
+This doc also tracks the **portrait + couple-image + PDF** pipeline (added recently) because it touches the same `library_people` records and reading/job flows.
+
 ---
 
 ## Architecture
@@ -58,6 +60,34 @@ Complete pipeline for managing people (with Swiss Ephemeris placements) across f
 │     │   • person1: { birthData, placements }                │
 │     │   • person2: { birthData, placements } (if overlay)   │
 │     └─ Send to backend → LLM receives placements            │
+└─────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│  6. UPLOAD PHOTO → STYLIZED PORTRAIT                         │
+│     ├─ Tap avatar (ComparePeople / MyLibrary empty state)     │
+│     ├─ Pick photo → auto-upload to Supabase Storage           │
+│     ├─ Backend generates stylized portrait                    │
+│     └─ Save URLs on library_people:                           │
+│         • original_photo_url                                  │
+│         • claymation_url (internal name; user-facing = stylized)│
+└─────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│  7. COUPLE IMAGE (Synastry/Overlay)                           │
+│     ├─ If person1 + person2 both have portraits               │
+│     ├─ Compose side-by-side couple image (sharp)              │
+│     └─ Save to couple_claymations + Storage bucket            │
+└─────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│  8. PDFs WITH IMAGES                                          │
+│     ├─ PDF worker reads job text artifacts                     │
+│     ├─ Looks up portrait URLs (and couple image)               │
+│     ├─ Waits briefly if portraits are still generating         │
+│     └─ Embeds images into PDF header                           │
 └─────────────────────────────────────────────────────────────┘
 ```
 

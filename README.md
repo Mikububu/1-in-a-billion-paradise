@@ -36,6 +36,9 @@ Clean rebuild of the 1-in-a-Billion astrology app, built from the "1-in-a-billio
 - **Vedic Matchmaking**: Complete Jyotish compatibility system with batch matching
 - **User Profiles**: Birth data management and library sync
 - **Audio Playback**: TTS-generated audiobooks
+- **Stylized Portraits (Photos)**: Upload photos for you + Karmic Zoo people and generate a privacy-preserving stylized portrait
+- **Couple Images**: When generating synastry/overlay readings, compose a couple image from two portraits (when both exist)
+- **PDFs with Images**: PDFs include portraits/couple images in the header and use smaller, premium typography
 
 ## Quick Start
 
@@ -54,6 +57,16 @@ cd 1-in-a-billion-frontend
 npm install
 npm start          # Start Expo dev server
 ```
+
+## Recent Updates (last 24h)
+
+- **Partner photo upload**: Karmic Zoo avatars are tappable to upload a photo; upload auto-runs and the generated stylized portrait replaces the placeholder.
+- **Couple images**: Synastry/overlay flows generate a couple image when both portraits exist; this is displayed in the library cards.
+- **PDF improvements**:
+  - Smaller typography for readability
+  - Portrait/couple images embedded into PDFs
+  - PDF worker can briefly wait for portraits to exist and will generate couple images if missing
+- **Backend deploy**: Backend deploys to Fly.io automatically from GitHub Actions (scheduled + on `main` changes).
 
 ## API Key Management
 

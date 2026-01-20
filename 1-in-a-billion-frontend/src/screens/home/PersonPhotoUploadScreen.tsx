@@ -5,7 +5,7 @@
  * Photo is transformed into a stylized portrait via backend service.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, ActivityIndicator, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -42,26 +42,49 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   
-  // Rotation animation for uploading indicator
-  const rotateAnim = React.useRef(new Animated.Value(0)).current;
+  // Subtle dotted-ring motion (avoid "spinning rectangle" feel)
+  const rotateRed = useRef(new Animated.Value(0)).current;
+  const rotateBlack = useRef(new Animated.Value(0)).current;
+  const rotateWhite = useRef(new Animated.Value(0)).current;
+  const ringAnims = useRef<Array<Animated.CompositeAnimation>>([]);
   
   const hasGeneratedPortrait = Boolean(person?.claymationUrl);
   const showRing = isUploading || (!hasGeneratedPortrait && !photoUri);
 
-  React.useEffect(() => {
-    // Rotate ring before first upload, and during upload.
+  useEffect(() => {
+    // Move the "dots" without rotating the whole rectangle aggressively.
+    // Using dotted borders + slow rotations makes it feel like a marching-stroke.
+    ringAnims.current.forEach((a) => a.stop());
+    ringAnims.current = [];
+
     if (showRing) {
-      Animated.loop(
-        Animated.timing(rotateAnim, {
-          toValue: 1,
-          duration: 2000,
-          useNativeDriver: true,
-        })
-      ).start();
+      const mk = (v: Animated.Value, duration: number, reverse?: boolean) =>
+        Animated.loop(
+          Animated.timing(v, {
+            toValue: reverse ? -1 : 1,
+            duration,
+            useNativeDriver: true,
+          })
+        );
+
+      const a1 = mk(rotateRed, 9000, false);
+      const a2 = mk(rotateBlack, 11000, true);
+      const a3 = mk(rotateWhite, 14000, false);
+      ringAnims.current = [a1, a2, a3];
+      a1.start();
+      a2.start();
+      a3.start();
     } else {
-      rotateAnim.setValue(0);
+      rotateRed.setValue(0);
+      rotateBlack.setValue(0);
+      rotateWhite.setValue(0);
     }
-  }, [showRing]);
+
+    return () => {
+      ringAnims.current.forEach((a) => a.stop());
+      ringAnims.current = [];
+    };
+  }, [showRing, rotateRed, rotateBlack, rotateWhite]);
 
   if (!person) {
     return (
@@ -176,21 +199,56 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
           
           {/* Rotating dashed border before upload and during upload */}
           {showRing && (
-            <Animated.View
-              style={[
-                styles.uploadingBorder,
-                {
-                  transform: [
-                    {
-                      rotate: rotateAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0deg', '360deg'],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
+            <>
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.ringOuter,
+                  {
+                    transform: [
+                      {
+                        rotate: rotateRed.interpolate({
+                          inputRange: [-1, 1],
+                          outputRange: ['-360deg', '360deg'],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              />
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.ringMiddle,
+                  {
+                    transform: [
+                      {
+                        rotate: rotateBlack.interpolate({
+                          inputRange: [-1, 1],
+                          outputRange: ['-360deg', '360deg'],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              />
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.ringInner,
+                  {
+                    transform: [
+                      {
+                        rotate: rotateWhite.interpolate({
+                          inputRange: [-1, 1],
+                          outputRange: ['-360deg', '360deg'],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              />
+            </>
           )}
         </TouchableOpacity>
 
@@ -249,20 +307,42 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     position: 'relative',
   },
-  uploadingBorder: {
+  ringOuter: {
     position: 'absolute',
-    top: -8,
-    left: -8,
-    width: 336,
-    height: 336,
-    borderRadius: 36,
-    borderWidth: 6,
-    borderStyle: 'dashed',
+    top: -6,
+    left: -6,
+    width: 332,
+    height: 332,
+    borderRadius: 34,
+    borderWidth: 3,
+    borderStyle: 'dotted',
     borderColor: '#FF0000',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
+    opacity: 0.9,
+  },
+  ringMiddle: {
+    position: 'absolute',
+    top: -3,
+    left: -3,
+    width: 326,
+    height: 326,
+    borderRadius: 31,
+    borderWidth: 2.5,
+    borderStyle: 'dotted',
+    borderColor: '#000000',
+    opacity: 0.55,
+  },
+  ringInner: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 320,
+    height: 320,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderStyle: 'dotted',
+    // White is too subtle on light backgrounds; use very-light gray.
+    borderColor: '#F2F2F2',
+    opacity: 0.9,
   },
   previewImage: {
     width: '100%',

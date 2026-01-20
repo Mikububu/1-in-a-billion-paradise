@@ -12,6 +12,8 @@ import { JobTask, supabase } from '../services/supabaseClient';
 import { generateChapterPDF } from '../services/pdf/pdfGenerator';
 import { getCoupleImage } from '../services/coupleImageService';
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 export class PdfWorker extends BaseWorker {
   constructor() {
     super({
@@ -122,11 +124,34 @@ export class PdfWorker extends BaseWorker {
       return null;
     };
 
-    const [person1PortraitUrl, person2PortraitUrl, existingCoupleImageUrl] = await Promise.all([
-      getPortraitUrl(person1Id),
-      getPortraitUrl(person2Id),
-      getCoupleImageUrl(person1Id, person2Id),
-    ]);
+    // If portraits are still being generated, wait briefly so PDFs can include them.
+    // This prevents "empty image" PDFs right after a new photo upload.
+    const maxWaitMs = 60_000;
+    const pollMs = 3_000;
+    const startedAt = Date.now();
+
+    let person1PortraitUrl: string | null = null;
+    let person2PortraitUrl: string | null = null;
+    let existingCoupleImageUrl: string | null = null;
+
+    while (Date.now() - startedAt < maxWaitMs) {
+      const [p1, p2, c] = await Promise.all([
+        getPortraitUrl(person1Id),
+        getPortraitUrl(person2Id),
+        getCoupleImageUrl(person1Id, person2Id),
+      ]);
+
+      person1PortraitUrl = p1;
+      person2PortraitUrl = p2;
+      existingCoupleImageUrl = c;
+
+      // For single PDFs we only need p1. For overlay PDFs we want p1+p2 (and ideally couple image).
+      const hasSingleReady = !!person1PortraitUrl;
+      const hasOverlayReady = !person2 || (!!person1PortraitUrl && !!person2PortraitUrl);
+      if (hasSingleReady && hasOverlayReady) break;
+
+      await sleep(pollMs);
+    }
 
     let coupleImageUrl = existingCoupleImageUrl;
     if (!coupleImageUrl && person1PortraitUrl && person2PortraitUrl && person1Id && person2Id) {
