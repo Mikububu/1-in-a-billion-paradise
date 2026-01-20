@@ -80,6 +80,34 @@ function normalizeToTen(value: number): number {
   return value;
 }
 
+function normalizeWhitespace(s: string): string {
+  // Fix weird spacing coming from stored artifacts (including multiple spaces / tabs / newlines)
+  return s.replace(/\r\n/g, '\n').replace(/[ \t]+/g, ' ').trim();
+}
+
+function stripLeadingMarkdownMarkers(line: string): string {
+  // Keep content but remove common markdown markers that should not show in PDFs.
+  return line
+    .replace(/^#{1,6}\s+/g, '')
+    .replace(/^[-*]\s+/g, '')
+    .trim();
+}
+
+function toParagraphs(raw: string): string[] {
+  const cleaned = raw.replace(/\r\n/g, '\n');
+  return cleaned
+    .split(/\n\s*\n/g)
+    .map((p) =>
+      normalizeWhitespace(
+        p
+          .split('\n')
+          .map(stripLeadingMarkdownMarkers)
+          .join(' ')
+      )
+    )
+    .filter(Boolean);
+}
+
 async function fetchImageBuffer(url: string): Promise<Buffer | null> {
   try {
     const controller = new AbortController();
@@ -113,6 +141,9 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
 
   return new Promise((resolve, reject) => {
     try {
+      // Use centralized margins (keeps room for multi-line footer)
+      // Note: page size is still 6×9 here; we are first fixing the "giant gaps"
+      // caused by justification and multiple spaces in generated text.
       // ============================================================
       // 6×9 US TRADE PAPERBACK (publisher-style)
       // ============================================================
@@ -336,18 +367,16 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
 
         // Person 1 reading
         if (chapter.person1Reading) {
-          // Body text - book paragraphs (first-line indent, justified)
-          const paragraphs = chapter.person1Reading
-            .split(/\n\s*\n/g)
-            .map((p) => p.trim())
-            .filter(Boolean);
+          // IMPORTANT: Avoid `align: 'justify'` because it can create huge gaps between words.
+          // Also normalize whitespace so we don't render double-spaces.
+          const paragraphs = toParagraphs(chapter.person1Reading);
 
-          doc.font('EBGaramond').fontSize(9.5).fillColor('#000000');
+          doc.font('EBGaramond').fontSize(fontSize('body')).fillColor('#000000');
           for (const p of paragraphs) {
-            doc.text(`    ${p}`, { align: 'justify', lineGap: 2 });
+            doc.text(p, { align: 'left', lineGap: 3 });
             doc.moveDown(0.6);
           }
-          doc.moveDown(1.5);
+          doc.moveDown(1.2);
         }
 
         // Person 2 reading
@@ -356,14 +385,11 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
             .text(options.person2.name);
           doc.moveDown(0.5);
 
-          const paragraphs = chapter.person2Reading
-            .split(/\n\s*\n/g)
-            .map((p) => p.trim())
-            .filter(Boolean);
+          const paragraphs = toParagraphs(chapter.person2Reading);
 
-          doc.font('EBGaramond').fontSize(9.5).fillColor('#000000');
+          doc.font('EBGaramond').fontSize(fontSize('body')).fillColor('#000000');
           for (const p of paragraphs) {
-            doc.text(`    ${p}`, { align: 'justify', lineGap: 2 });
+            doc.text(p, { align: 'left', lineGap: 3 });
             doc.moveDown(0.6);
           }
           doc.moveDown(1.5);
@@ -375,14 +401,11 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
             .text('The Space Between');
           doc.moveDown(0.5);
 
-          const paragraphs = chapter.overlayReading
-            .split(/\n\s*\n/g)
-            .map((p) => p.trim())
-            .filter(Boolean);
+          const paragraphs = toParagraphs(chapter.overlayReading);
 
-          doc.font('EBGaramond').fontSize(9.5).fillColor('#000000');
+          doc.font('EBGaramond').fontSize(fontSize('body')).fillColor('#000000');
           for (const p of paragraphs) {
-            doc.text(`    ${p}`, { align: 'justify', lineGap: 2 });
+            doc.text(p, { align: 'left', lineGap: 3 });
             doc.moveDown(0.6);
           }
           doc.moveDown(1.5);
@@ -404,10 +427,10 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
           doc.moveDown(1);
         }
 
-        doc.font('EBGaramond').fontSize(9.5).fillColor('#000000')
+        doc.font('EBGaramond').fontSize(fontSize('body')).fillColor('#000000')
           .text(options.finalVerdict, {
-            align: 'justify',
-            lineGap: 4,
+            align: 'left',
+            lineGap: 3,
           });
       }
 

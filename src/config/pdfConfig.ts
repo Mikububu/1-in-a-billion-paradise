@@ -11,10 +11,12 @@ export const PDF_CONFIG = {
   // ─────────────────────────────────────────────────────────────────────────
   pageSize: 'A4' as const,
   margins: {
-    top: 72,
-    bottom: 72,
-    left: 72,
-    right: 72,
+    // Phone-first readable A4
+    top: 56,
+    // Large bottom margin to reserve multi-line legal footer (prevents clipping)
+    bottom: 120,
+    left: 56,
+    right: 56,
   },
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -27,8 +29,8 @@ export const PDF_CONFIG = {
     sectionHeading: 14,
     subheading: 12,
     
-    // Body text (CHANGE HERE to adjust all PDF body text)
-    body: 9.5,  // User requested smaller → change to 8.5 or 9.0
+    // Body text (keep compact; avoid giant spacing from justification)
+    body: 9.5,
     
     // Special
     metadata: 9,
@@ -51,10 +53,12 @@ export const PDF_CONFIG = {
   // SPACING
   // ─────────────────────────────────────────────────────────────────────────
   spacing: {
-    paragraphGap: 12,
-    sectionGap: 24,
-    chapterGap: 36,
-    lineHeight: 1.5,
+    // PDFKit uses `lineGap` rather than true line-height.
+    // Keep these as semantic spacing knobs used by pdfGenerator.
+    paragraphGap: 8,
+    sectionGap: 18,
+    chapterGap: 26,
+    lineHeight: 1.45,
   },
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -93,22 +97,21 @@ export const PDF_CONFIG = {
   // ─────────────────────────────────────────────────────────────────────────
   footer: {
     show: true,
-    fontSize: 8,
-    color: '#999999',
+    fontSize: 8.5,
+    color: '#666666',
     showPageNumbers: true,
     showGeneratedDate: false,
     
     // Footer content (appears on ALL PDFs)
     content: {
-      disclaimer: 'This reading is for contemplation and self-discovery.',
-      copyright: '© 1 in a Billion',
       website: 'http://1-in-a-billion.app/',
       publisher: {
         name: 'SwiftBuy Solutions LLC',
         address: 'Meydan Grandstand, 6th floor, Meydan Road, Nad Al Sheba, Dubai, U.A.E.',
       },
       poweredBy: 'forbidden-yoga.com',
-      creator: 'Michael Wogenburg',
+      programIdeaAndConcept: 'Michael Wogenburg',
+      copyright: '© 1 in a Billion',
     },
   },
 
