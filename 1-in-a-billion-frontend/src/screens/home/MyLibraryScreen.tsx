@@ -2201,8 +2201,14 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         }
 
         // 2) Generate on-demand (only if both portraits exist)
-        const p1Portrait = (libraryPeopleById[id1 || ''] as any)?.claymationUrl || null;
-        const p2Portrait = (libraryPeopleById[id2 || ''] as any)?.claymationUrl || null;
+        const p1Portrait =
+          (libraryPeopleById[id1 || ''] as any)?.claymationUrl ||
+          ((people || []).find((p: any) => p?.id === id1) as any)?.claymationUrl ||
+          null;
+        const p2Portrait =
+          (libraryPeopleById[id2 || ''] as any)?.claymationUrl ||
+          ((people || []).find((p: any) => p?.id === id2) as any)?.claymationUrl ||
+          null;
         if (!p1Portrait || !p2Portrait) continue;
 
         try {
@@ -2514,9 +2520,15 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                 }}
               >
                 {(() => {
+                  const storePerson =
+                    (people || []).find((p: any) => p?.id === person.id) ||
+                    (people || []).find((p: any) => p?.name === person.name) ||
+                    null;
                   const portraitUrl =
                     (libraryPeopleById[person.id] as any)?.claymationUrl ||
                     (libraryPeopleById[person.id] as any)?.originalPhotoUrl ||
+                    (storePerson as any)?.claymationUrl ||
+                    (storePerson as any)?.originalPhotoUrl ||
                     (person as any)?.claymationUrl ||
                     (person as any)?.originalPhotoUrl ||
                     null;
