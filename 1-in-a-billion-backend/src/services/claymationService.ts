@@ -145,8 +145,8 @@ export async function generateClaymationPortrait(
       }
     });
 
-    // Add text prompt (keep it positive; aim for tactile clay + richer natural color)
-    const stylePrompt = `Transform this portrait into a handcrafted clay sculpture portrait. Emphasize tactile clay texture with visible finger impressions, matte finish, and artisanal realism. Keep real facial proportions and a natural, slightly warm color palette (not desaturated). Soft studio lighting, pure white background, clean centered composition.`;
+    // Add text prompt
+    const stylePrompt = `Exquisite artisan clay portrait. Extreme close-up. Soft, sophisticated color palette. Hand-sculpted details with visible fingerprints. Expressive glass bead eyes.`;
     parts.push({ text: stylePrompt });
 
     // Generate using the SDK (matching working code structure)

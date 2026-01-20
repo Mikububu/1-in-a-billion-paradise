@@ -83,15 +83,7 @@ export async function composeCoupleImage(
       },
       // Romantic couple prompt
       {
-        text: `Create a romantic couple portrait combining these two clay sculpture people. 
-        
-Style: Same handcrafted clay sculpture aesthetic as the input images - matte clay texture, finger impressions, artisanal feel.
-
-Composition: The two people should be intimately close together, heads touching or nearly touching, like lovers. They can be looking at each other warmly, or both facing forward with heads leaning together. Romantic and tender mood.
-
-Background: Pure white.
-
-Important: Preserve each person's unique facial features and characteristics from their individual portraits. Keep the same clay sculpture style. No text or borders.`
+        text: `Exquisite artisan clay portrait. Extreme close-up. Soft, sophisticated color palette. Hand-sculpted details with visible fingerprints. Expressive glass bead eyes. Close together in love.`
       }
     ];
 
