@@ -435,9 +435,11 @@ export async function generateChapterPDF(
   person2?: PDFGenerationOptions['person2'],
   coupleImageUrl?: string
 ): Promise<{ filePath: string; pageCount: number }> {
+  // Use the chapter title directly (no "Chapter X:" prefix)
+  // The title already contains the system name and person name (e.g., "Vedic - Akasha")
   return generateReadingPDF({
     type: person2 ? 'overlay' : 'single',
-    title: `Chapter ${chapterNumber}: ${chapter.title}`,
+    title: chapter.title,
     person1,
     person2,
     coupleImageUrl,
