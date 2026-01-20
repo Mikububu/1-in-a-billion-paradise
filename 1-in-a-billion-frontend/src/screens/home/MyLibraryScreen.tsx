@@ -27,6 +27,8 @@ import {
   GestureResponderEvent,
   LayoutChangeEvent,
   Image,
+  Animated,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -94,6 +96,36 @@ const ReadingCard = React.memo(({ reading, onPress }: {
   </TouchableOpacity>
 ));
 
+// Blinking red arrow component for portrait hint
+const BlinkingArrow = React.memo(() => {
+  const blinkAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(blinkAnim, {
+          toValue: 0.2,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(blinkAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [blinkAnim]);
+
+  return (
+    <Animated.Text style={[styles.portraitArrow, { opacity: blinkAnim }]}>
+      →
+    </Animated.Text>
+  );
+});
+
 
 
 export const MyLibraryScreen = ({ navigation }: Props) => {
@@ -134,6 +166,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   const [nuclearJobArtifacts, setNuclearJobArtifacts] = useState<Record<string, Array<{ system?: string; docType?: string }>>>({});
   // Couple image URLs (by normalized person1Id/person2Id key)
   const [coupleImageByKey, setCoupleImageByKey] = useState<Record<string, string>>({});
+  
+  // Full-screen portrait modal state
+  const [portraitModalUrl, setPortraitModalUrl] = useState<string | null>(null);
 
   // CRITICAL: Stop audio when screen loses focus (useFocusEffect runs cleanup BEFORE blur)
   useFocusEffect(
@@ -2544,10 +2579,18 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
                   if (portraitUrl) {
                     return (
-                      <Image
-                        source={{ uri: portraitUrl }}
-                        style={styles.personAvatarImage}
-                      />
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          setPortraitModalUrl(portraitUrl);
+                        }}
+                      >
+                        <Image
+                          source={{ uri: portraitUrl }}
+                          style={styles.personAvatarImage}
+                        />
+                      </TouchableOpacity>
                     );
                   }
 
@@ -2731,6 +2774,12 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                     );
                   })()}
                 </View>
+                {/* Blinking arrow when portrait exists */}
+                {(() => {
+                  const storePerson = (people || []).find((p: any) => p?.id === person.id) || (people || []).find((p: any) => p?.name === person.name) || null;
+                  const hasPortrait = (libraryPeopleById[person.id] as any)?.claymationUrl || (storePerson as any)?.claymationUrl || (person as any)?.claymationUrl;
+                  return hasPortrait ? <BlinkingArrow /> : null;
+                })()}
               </TouchableOpacity>
               {primaryJobId && (
                 <TouchableOpacity
@@ -2762,7 +2811,15 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                 }}
               >
                 {coupleImageUrl ? (
-                  <Image source={{ uri: coupleImageUrl }} style={styles.coupleAvatarImage} />
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      setPortraitModalUrl(coupleImageUrl);
+                    }}
+                  >
+                    <Image source={{ uri: coupleImageUrl }} style={styles.coupleAvatarImage} />
+                  </TouchableOpacity>
                 ) : (
                   <View style={styles.compatPeopleVertical}>
                     {/* Person 1 - GREEN (like Michael's card) - stacked vertically, close together, 50% opacity */}
@@ -2777,6 +2834,8 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                     </View>
                   </View>
                 )}
+                {/* Blinking red arrow when portrait exists */}
+                {coupleImageUrl && <BlinkingArrow />}
                 <View style={styles.personInfo}>
                   <Text style={styles.personName}>{card.person1} and {card.person2}</Text>
                   <Text style={styles.personDate}>Shared Karma</Text>
@@ -2918,6 +2977,31 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
           )}
         </View>
       </ScrollView>
+
+      {/* Full-screen portrait modal */}
+      <Modal
+        visible={!!portraitModalUrl}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPortraitModalUrl(null)}
+      >
+        <TouchableOpacity
+          style={styles.portraitModalOverlay}
+          activeOpacity={1}
+          onPress={() => setPortraitModalUrl(null)}
+        >
+          <View style={styles.portraitModalContent}>
+            {portraitModalUrl && (
+              <Image
+                source={{ uri: portraitModalUrl }}
+                style={styles.portraitModalImage}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+          <Text style={styles.portraitModalHint}>Tap anywhere to close</Text>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -3441,6 +3525,39 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 25,
     backgroundColor: colors.primary + '10',
+  },
+  // Blinking arrow for portrait hint (bottom-right of card, pointing right)
+  portraitArrow: {
+    position: 'absolute',
+    bottom: 8,
+    right: 16,
+    fontSize: 20,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  // Full-screen portrait modal
+  portraitModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  portraitModalContent: {
+    width: '90%',
+    aspectRatio: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  portraitModalImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
+  },
+  portraitModalHint: {
+    marginTop: 20,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 14,
+    fontFamily: typography.sansRegular,
   },
   personInitial: {
     fontFamily: typography.headline,
