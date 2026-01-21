@@ -990,13 +990,13 @@ ${OUTPUT_FORMAT_RULES}`;
     // SIMPLIFIED: All systems now use Claude Sonnet 4
     console.log(`🧠 Using Claude Sonnet 4 for ${system || 'reading'}`);
     
-    const text = await llmPaid.generate(prompt, label, { 
+    let text = await llmPaid.generate(prompt, label, { 
       maxTokens: 8192, 
       temperature: 0.8,
     });
     
     // 💰 LOG COST for this LLM call
-    const usageData = llmInstance.getLastUsage();
+    const usageData = llmPaid.getLastUsage();
     if (usageData) {
       await logLLMCost(
         jobId,
