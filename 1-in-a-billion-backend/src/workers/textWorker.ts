@@ -8,8 +8,7 @@
 import { BaseWorker, TaskResult } from './baseWorker';
 import { JobTask, supabase } from '../services/supabaseClient';
 import { ephemerisIsolation } from '../services/ephemerisIsolation'; // Isolated process (crash-safe)
-import { llm, llmPaid, type LLMProvider } from '../services/llm'; // Centralized LLM service
-import { getProviderForSystem, type LLMProviderName } from '../config/llmProviders';
+import { llmPaid } from '../services/llm'; // Claude Sonnet 4 for all text generation
 import { generateDramaticTitles } from '../services/titleGenerator'; // Dramatic title generation
 import {
   SYSTEMS as NUCLEAR_V2_SYSTEMS,
@@ -988,29 +987,13 @@ ${OUTPUT_FORMAT_RULES}`;
       console.log('🔍 [Vedic Debug] Prompt length:', prompt.length);
     }
 
-    // Use centralized LLM service with per-system provider config
-    // Config: src/config/llmProviders.ts (Claude for most, OpenAI for Kabbalah)
-    const configuredProvider = getProviderForSystem(system || 'western');
-    console.log(`🔧 System "${system}" → Provider: ${configuredProvider}`);
+    // SIMPLIFIED: All systems now use Claude Sonnet 4
+    console.log(`🧠 Using Claude Sonnet 4 for ${system || 'reading'}`);
     
-    let text: string;
-    let llmInstance: typeof llm | typeof llmPaid;
-    if (configuredProvider === 'claude') {
-      // Use Claude Sonnet 4 via llmPaid (unhinged, no censorship)
-      llmInstance = llmPaid;
-      text = await llmPaid.generate(prompt, label, { 
-        maxTokens: 8192, 
-        temperature: 0.8,
-      });
-    } else {
-      // Use DeepSeek (default) or OpenAI via llm with provider override
-      llmInstance = llm;
-      text = await llm.generate(prompt, label, { 
-        maxTokens: 8192, 
-        temperature: 0.8,
-        provider: configuredProvider as LLMProvider,
-      });
-    }
+    const text = await llmPaid.generate(prompt, label, { 
+      maxTokens: 8192, 
+      temperature: 0.8,
+    });
     
     // 💰 LOG COST for this LLM call
     const usageData = llmInstance.getLastUsage();
