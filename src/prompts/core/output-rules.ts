@@ -20,8 +20,8 @@ NO markdown, NO formatting, NO symbols - just pure spoken prose.
 
 PROSE STYLE:
 - ONE CONTINUOUS FLOWING ESSAY - not a document with sections
-- Start with a single poetic headline (5-8 words), then flow naturally
 - NO SECTION HEADERS OR SUBHEADLINES IN THE TEXT
+- See STORYTELLING VOICE for how to open the reading
 - ABSOLUTELY NO markdown syntax (no #, ##, *, **, __, -, etc.)
 - ABSOLUTELY NO asterisks for emphasis - this is SPOKEN
 - NO bullet points or numbered lists
@@ -49,10 +49,10 @@ TEXT CLEANUP REQUIREMENTS (MUST BE FLAWLESS FOR AUDIO):
 - NO broken words or unreadable text
 
 ESSAY STRUCTURE FOR TTS:
-- Begin with ONE poetic headline (5-8 words) that captures the essence
-- After the headline, write ONE CONTINUOUS ESSAY with NO further headers
+- Open with presence (see STORYTELLING VOICE for guidance)
+- Write ONE CONTINUOUS ESSAY with NO headers
 - Do NOT announce topics with headers like "The Shadow" or "Core Identity"
-- Flow naturally from one topic to the next like a documentary narrator
+- Flow naturally from one topic to the next - let the story unfold
 - Use paragraph breaks between topics, but NO headers announcing them
 - Use natural sentence breaks - TTS will pause at periods, commas, semicolons
 

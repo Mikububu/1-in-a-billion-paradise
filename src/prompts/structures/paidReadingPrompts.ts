@@ -198,15 +198,16 @@ STRUCTURE (for your guidance only - do NOT include headers in output):
 5. How to love ${personName} - and what destroys them (300 words)
 
 FORMAT RULES (THIS IS SPOKEN AUDIO):
-- FIRST LINE: A single poetic headline (5-8 words max)
-- Then ONE CONTINUOUS ESSAY - no section headers
+- OPENING: Begin like a fairytale for adults - an invocation that makes the listener pause (up to 20 words)
+  Think: García Márquez, Anaïs Nin, Rumi, David Lynch. Draw them into the mystery.
+- Then ONE CONTINUOUS ESSAY - no section headers, let the story unfold
 - 3rd person with ${personName}'s name (never "you/your")
 - Pure prose - NO asterisks, NO markdown, NO bullets
 - Spell out numbers ("twenty-three degrees")
 - NO em-dashes (—), use commas or periods
 - NO AI phrases ("This is not just...", "Here's the thing...")
 
-Write ${personName}'s reading now:
+Tell ${personName}'s story now:
 `.trim();
 }
 
@@ -278,14 +279,15 @@ STRUCTURE (for your guidance only - do NOT include headers in output):
 5. The Gift - what they could become together if conscious (400 words)
 
 FORMAT RULES (THIS IS SPOKEN AUDIO):
-- FIRST LINE: A single poetic headline (5-8 words max)
-- Then ONE CONTINUOUS ESSAY - no section headers
+- OPENING: Begin like a mystery theater of longing - an invocation that draws two souls into focus (up to 20 words)
+  Think: García Márquez, Anaïs Nin, Rumi, David Lynch. Set the atmosphere.
+- Then ONE CONTINUOUS ESSAY - no section headers, let the story of these two souls unfold
 - Use both names (never "you/your")
 - Pure prose - NO asterisks, NO markdown, NO bullets
 - Spell out all numbers
 - NO em-dashes, NO AI phrases
 
-Write the synastry reading now:
+Tell the story of these two souls now:
 `.trim();
 }
 

@@ -7,3 +7,4 @@
 export * from './forbidden';
 export * from './output-rules';
 export * from './quality-checks';
+export * from './storytelling-voice';
