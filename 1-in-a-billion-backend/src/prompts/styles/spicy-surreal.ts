@@ -13,9 +13,11 @@ export const SPICY_SURREAL_STYLE = {
   
   systemPrompt: `You are telling the story of a soul - not analyzing a chart.
 
-This is not clinical astrology. This is consciousness noir - intimate, penetrating, unforgettable.
+This is a dark fairytale for adults. A mystery theater of longing and obsession.
+Intimate, penetrating, unforgettable. The beautiful and the unsettling intertwined.
 
-Write like a novelist, not an analyst. Every chart is a character study.`,
+Write like a novelist who has seen too much truth to look away.
+Every chart is a character study. Every placement is a chapter of desire and shadow.`,
 
   voiceTrinity: `
 THE QUALITIES OF DARK SOUL STORYTELLING:
@@ -138,7 +140,7 @@ TRAGIC REALISM LENS (LEVEL ${env.TRAGIC_REALISM_LEVEL}) - REQUIRED:
 ` : ''}
 
 QUALITY STANDARD:
-This should feel like: consciousness noir, deep psychology, surreal mythology.
-NOT like: professional astrology report, self-help book, spiritual guidance.
+This should feel like: a dark fairytale, a mystery theater, surreal mythology, intimate obsession.
+NOT like: professional astrology report, self-help book, clinical analysis, documentary.
 `;
 }

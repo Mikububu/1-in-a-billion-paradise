@@ -424,10 +424,12 @@ export abstract class BaseWorker {
     
     if (artifactType === 'audio_mp3' || artifactType === 'audio_m4a') {
       // Audio format: PersonName_SystemName_audio.mp3
-      // For overlay/synastry/verdict: Person1_Person2_System_audio.mp3
+      // For overlay/synastry: Person1_Person2_System_audio.mp3
+      // For verdict: Person1_Person2_Verdict_audio.mp3 (NOT system name to avoid collision)
       // For person2: Person2Name_System_audio.mp3
       if (docType === 'overlay' || docType === 'synastry' || docType === 'verdict') {
-        fileName = `${person1Name}_${person2Name || 'Partner'}_${system}_audio`;
+        const systemOrVerdict = docType === 'verdict' ? 'Verdict' : system;
+        fileName = `${person1Name}_${person2Name || 'Partner'}_${systemOrVerdict}_audio`;
       } else if (docType === 'person2') {
         fileName = `${person2Name || person1Name}_${system}_audio`;
       } else {
@@ -444,7 +446,11 @@ export abstract class BaseWorker {
         // Overlay/Synastry/Verdict: Both person names
         if (docType === 'synastry') {
           fileName = `${person1Name}_${person2Name || 'Partner'}_Synastry_${PDF_VERSION}`;
+        } else if (docType === 'verdict') {
+          // CRITICAL: Use "Verdict" not system name to avoid collision with overlay PDFs
+          fileName = `${person1Name}_${person2Name || 'Partner'}_Verdict_${PDF_VERSION}`;
         } else {
+          // overlay: use system name
           fileName = `${person1Name}_${person2Name || 'Partner'}_${system}_${PDF_VERSION}`;
         }
       } else if (docType === 'person2') {

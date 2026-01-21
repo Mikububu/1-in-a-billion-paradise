@@ -310,7 +310,9 @@ export class PdfWorker extends BaseWorker {
             }
           : undefined
         ,
-        coupleImageUrl || undefined
+        // CRITICAL: Only pass couple image for overlay/verdict readings
+        // Single-person PDFs must show solo portrait, NOT couple image
+        isOverlayReading ? (coupleImageUrl || undefined) : undefined
       );
 
       // Read PDF file

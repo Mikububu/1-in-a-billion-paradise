@@ -104,8 +104,11 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
       doc.font('Garamond').fontSize(10).text(timestamp, { align: 'center' });
       doc.moveDown(1);
 
-      // Portrait image (couple if available, otherwise solo)
-      const imageToUse = couplePortrait || person1Portrait;
+      // Portrait image: solo for single-person readings, couple for overlay
+      // CRITICAL: Single person PDFs must show solo portrait, NOT couple image
+      const imageToUse = options.type === 'single' 
+        ? person1Portrait  // Single person reading = solo portrait only
+        : (couplePortrait || person1Portrait);  // Overlay/nuclear = couple if available
       if (imageToUse) {
         // Image width matches text width (page width minus left and right margins)
         const imgWidth = doc.page.width - 100 - 100; // 395pt on A4

@@ -36,7 +36,11 @@ function generatePdfFilename(
   if (docType === 'overlay' || docType === 'synastry' || docType === 'verdict') {
     if (docType === 'synastry') {
       fileName = `${person1Name}_${person2Name || 'Partner'}_Synastry_${PDF_VERSION}`;
+    } else if (docType === 'verdict') {
+      // CRITICAL: Use "Verdict" not system name to avoid collision with overlay PDFs
+      fileName = `${person1Name}_${person2Name || 'Partner'}_Verdict_${PDF_VERSION}`;
     } else {
+      // overlay: use system name
       fileName = `${person1Name}_${person2Name || 'Partner'}_${systemClean}_${PDF_VERSION}`;
     }
   } else if (docType === 'person2') {
@@ -98,9 +102,10 @@ describe('Filename Generation', () => {
       expect(filename).toBe('Akasha_Anand_Vedic_v1.0.pdf');
     });
 
-    test('verdict doc uses both names', () => {
+    test('verdict doc uses both names with "Verdict" not system name', () => {
+      // CRITICAL: Verdict must use "Verdict" not system name to avoid collision with overlay PDFs
       const filename = generatePdfFilename(params, 'verdict', 'kabbalah');
-      expect(filename).toBe('Akasha_Anand_Kabbalah_v1.0.pdf');
+      expect(filename).toBe('Akasha_Anand_Verdict_v1.0.pdf');
     });
 
     test('individual doc uses person1 name', () => {
