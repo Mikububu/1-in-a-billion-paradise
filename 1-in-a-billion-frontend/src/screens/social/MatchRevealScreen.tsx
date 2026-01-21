@@ -2,7 +2,7 @@
  * MATCH REVEAL SCREEN
  * 
  * Beautiful reveal screen when a new match is discovered.
- * Shows both users' claymation portraits with a poetic welcome message.
+ * Shows both users' AI portraits with a poetic welcome message.
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -90,7 +90,7 @@ export const MatchRevealScreen = ({ navigation, route }: Props) => {
     navigation.replace('Chat', {
       conversationId,
       otherName,
-      otherClaymationUrl,
+      otherPortraitUrl,
     });
   };
 

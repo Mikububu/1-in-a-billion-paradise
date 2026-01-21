@@ -109,16 +109,26 @@ export function useSupabaseLibraryAutoSync() {
       // Safe to sync
       console.log(`☁️ Syncing to cloud: ${localPeopleCount} people, ${localAudiosCount} audios`);
       
-      syncSavedAudiosToSupabase(userId, savedAudios || []).catch((err) => {
-        console.warn('Audio sync failed:', err);
-      });
-      syncPeopleToSupabase(userId, people || []).catch((err) => {
-        console.warn('People sync failed:', err);
-      });
+      // Sync and wait for results before updating counts
+      const [audiosResult, peopleResult] = await Promise.all([
+        syncSavedAudiosToSupabase(userId, savedAudios || []),
+        syncPeopleToSupabase(userId, people || []),
+      ]);
       
-      // Update cloud counts after successful sync
-      cloudPeopleCountRef.current = localPeopleCount;
-      cloudAudiosCountRef.current = localAudiosCount;
+      // Log results
+      if (audiosResult.success) {
+        console.log(`✅ Audio sync successful`);
+        cloudAudiosCountRef.current = localAudiosCount;
+      } else {
+        console.error(`❌ Audio sync FAILED:`, audiosResult.error);
+      }
+      
+      if (peopleResult.success) {
+        console.log(`✅ People sync successful: ${localPeopleCount} people synced`);
+        cloudPeopleCountRef.current = localPeopleCount;
+      } else {
+        console.error(`❌ People sync FAILED:`, peopleResult.error);
+      }
       
     }, 1200);
 

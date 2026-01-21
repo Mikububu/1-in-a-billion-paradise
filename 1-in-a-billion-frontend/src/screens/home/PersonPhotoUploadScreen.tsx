@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, ActivityIndicator, Animated } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, ActivityIndicator, Animated, Easing } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
@@ -42,49 +42,36 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   
-  // Subtle dotted-ring motion (avoid "spinning rectangle" feel)
-  const rotateRed = useRef(new Animated.Value(0)).current;
-  const rotateBlack = useRef(new Animated.Value(0)).current;
-  const rotateWhite = useRef(new Animated.Value(0)).current;
-  const ringAnims = useRef<Array<Animated.CompositeAnimation>>([]);
+  // Simple pulsing glow
+  const glowOpacity = useRef(new Animated.Value(0.3)).current;
   
   const hasGeneratedPortrait = Boolean(person?.portraitUrl);
   const showRing = isUploading || (!hasGeneratedPortrait && !photoUri);
 
   useEffect(() => {
-    // Move the "dots" without rotating the whole rectangle aggressively.
-    // Using dotted borders + slow rotations makes it feel like a marching-stroke.
-    ringAnims.current.forEach((a) => a.stop());
-    ringAnims.current = [];
-
     if (showRing) {
-      const mk = (v: Animated.Value, duration: number, reverse?: boolean) =>
-        Animated.loop(
-          Animated.timing(v, {
-            toValue: reverse ? -1 : 1,
-            duration,
+      const anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowOpacity, {
+            toValue: 1,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
-          })
-        );
-
-      const a1 = mk(rotateRed, 9000, false);
-      const a2 = mk(rotateBlack, 11000, true);
-      const a3 = mk(rotateWhite, 14000, false);
-      ringAnims.current = [a1, a2, a3];
-      a1.start();
-      a2.start();
-      a3.start();
+          }),
+          Animated.timing(glowOpacity, {
+            toValue: 0.3,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      anim.start();
+      return () => anim.stop();
     } else {
-      rotateRed.setValue(0);
-      rotateBlack.setValue(0);
-      rotateWhite.setValue(0);
+      glowOpacity.setValue(0.3);
     }
-
-    return () => {
-      ringAnims.current.forEach((a) => a.stop());
-      ringAnims.current = [];
-    };
-  }, [showRing, rotateRed, rotateBlack, rotateWhite]);
+  }, [showRing, glowOpacity]);
 
   if (!person) {
     return (
@@ -197,58 +184,15 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
             </View>
           )}
           
-          {/* Rotating dashed border before upload and during upload */}
+          {/* Pulsing dotted border before upload and during upload */}
           {showRing && (
-            <>
-              <Animated.View
-                pointerEvents="none"
-                style={[
-                  styles.ringOuter,
-                  {
-                    transform: [
-                      {
-                        rotate: rotateRed.interpolate({
-                          inputRange: [-1, 1],
-                          outputRange: ['-360deg', '360deg'],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              />
-              <Animated.View
-                pointerEvents="none"
-                style={[
-                  styles.ringMiddle,
-                  {
-                    transform: [
-                      {
-                        rotate: rotateBlack.interpolate({
-                          inputRange: [-1, 1],
-                          outputRange: ['-360deg', '360deg'],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              />
-              <Animated.View
-                pointerEvents="none"
-                style={[
-                  styles.ringInner,
-                  {
-                    transform: [
-                      {
-                        rotate: rotateWhite.interpolate({
-                          inputRange: [-1, 1],
-                          outputRange: ['-360deg', '360deg'],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              />
-            </>
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.glowBorder,
+                { opacity: glowOpacity }
+              ]}
+            />
           )}
         </TouchableOpacity>
 
@@ -307,42 +251,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     position: 'relative',
   },
-  ringOuter: {
-    position: 'absolute',
-    top: -6,
-    left: -6,
-    width: 332,
-    height: 332,
-    borderRadius: 34,
-    borderWidth: 3,
-    borderStyle: 'dotted',
-    borderColor: '#FF0000',
-    opacity: 0.9,
-  },
-  ringMiddle: {
-    position: 'absolute',
-    top: -3,
-    left: -3,
-    width: 326,
-    height: 326,
-    borderRadius: 31,
-    borderWidth: 2.5,
-    borderStyle: 'dotted',
-    borderColor: '#000000',
-    opacity: 0.55,
-  },
-  ringInner: {
+  glowBorder: {
     position: 'absolute',
     top: 0,
     left: 0,
     width: 320,
     height: 320,
     borderRadius: 28,
-    borderWidth: 2,
+    borderWidth: 3,
     borderStyle: 'dotted',
-    // White is too subtle on light backgrounds; use very-light gray.
-    borderColor: '#F2F2F2',
-    opacity: 0.9,
+    borderColor: '#FF6B00',
   },
   previewImage: {
     width: '100%',

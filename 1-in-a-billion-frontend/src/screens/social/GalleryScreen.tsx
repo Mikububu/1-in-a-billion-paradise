@@ -1,7 +1,7 @@
 /**
  * GALLERY SCREEN
  * 
- * Worldwide gallery of all users' claymation portraits.
+ * Worldwide gallery of all users' AI portraits.
  * A beautiful grid display of artistic clay sculptures representing real users.
  * Tap a portrait to view their profile (signs only - privacy preserved).
  */
@@ -93,7 +93,7 @@ export const GalleryScreen = ({ navigation }: Props) => {
       )}
       <View style={styles.galleryOverlay}>
         <Text style={styles.gallerySigns}>
-          ☉{item.sunSign?.slice(0, 3) || '?'}
+          ☉{item.sunSign?.slice(0, 3) || '?'} ☽{item.moonSign?.slice(0, 3) || '?'} ↑{item.risingSign?.slice(0, 3) || '?'}
         </Text>
       </View>
     </TouchableOpacity>

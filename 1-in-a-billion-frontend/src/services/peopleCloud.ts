@@ -50,33 +50,21 @@ export type LibraryPersonRow = {
   updated_at: string;
 };
 
-function toRow(userId: string, p: Person): LibraryPersonRow {
+function toRow(userId: string, p: Person): Partial<LibraryPersonRow> {
+  // Only include columns that exist in the Supabase table
   return {
     user_id: userId,
     client_person_id: p.id,
     name: p.name,
-    email: (p as any).email || '',
     is_user: Boolean(p.isUser),
-    // Preferences
-    primary_language: (p as any).primaryLanguage || null,
-    secondary_language: (p as any).secondaryLanguage || null,
-    relationship_mode: (p as any).relationshipMode || null,
-    relationship_intensity: (p as any).relationshipIntensity || null,
-    // Birth data
+    // Birth data (stored as JSON)
     birth_data: p.birthData || {},
-    birth_location: p.birthData?.birthCity || null,
-    latitude: p.birthData?.latitude ?? null,
-    longitude: p.birthData?.longitude ?? null,
-    timezone: p.birthData?.timezone || null,
     // Calculated data
     placements: p.placements || null,
     hook_readings: p.hookReadings || null,
-    hook_audio_paths: (p as any).hookAudioPaths || null,
     // Photo/portrait data
-    original_photo_url: p.originalPhotoUrl || null,
     portrait_url: p.portraitUrl || null,
-    created_at: p.createdAt || new Date().toISOString(),
-    updated_at: p.updatedAt || new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   };
 }
 
@@ -125,25 +113,28 @@ export async function syncPeopleToSupabase(userId: string, people: Person[]) {
   const selfProfiles = rows.filter(r => r.is_user === true);
   const partnerProfiles = rows.filter(r => r.is_user !== true);
 
-  // Upsert self profiles with user_id-only conflict (matches DB constraint)
-  if (selfProfiles.length > 0) {
-    const { error: selfError } = await supabase
-      .from(TABLE_PEOPLE)
-      .upsert(selfProfiles, {
-        onConflict: 'user_id',
-        ignoreDuplicates: false,
-      });
-    if (selfError) return { success: false, error: selfError.message };
+  console.log(`📤 syncPeopleToSupabase: ${selfProfiles.length} self, ${partnerProfiles.length} partners`);
+  
+  // Log partner names being synced
+  if (__DEV__) {
+    const partnerNames = partnerProfiles.map(p => p.name).join(', ');
+    console.log(`📤 Partners being synced: ${partnerNames}`);
   }
 
-  // Upsert partner profiles with (user_id, client_person_id) conflict
-  if (partnerProfiles.length > 0) {
-    const { error: partnerError } = await supabase
+  // Upsert ALL profiles using client_person_id as the unique key
+  // (Both self and partner profiles have client_person_id)
+  const allProfiles = [...selfProfiles, ...partnerProfiles];
+  
+  if (allProfiles.length > 0) {
+    const { error } = await supabase
       .from(TABLE_PEOPLE)
-      .upsert(partnerProfiles, {
+      .upsert(allProfiles, {
         onConflict: 'user_id,client_person_id',
       });
-    if (partnerError) return { success: false, error: partnerError.message };
+    if (error) {
+      console.error(`❌ People sync failed:`, error.message);
+      return { success: false, error: error.message };
+    }
   }
 
   return { success: true as const };

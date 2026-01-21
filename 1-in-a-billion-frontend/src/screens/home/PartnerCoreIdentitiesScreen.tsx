@@ -609,13 +609,13 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
       }
 
       // Non-onboarding: keep the legacy behavior (dashboard navigation + optional cloud sync).
-      const user = useProfileStore.getState().people.find(p => p.isUser);
-      const userId = user?.id;
-      if (userId) {
+      // FIX: Use auth user ID (Supabase UUID), not local person ID!
+      const authUserId = useAuthStore.getState().user?.id;
+      if (authUserId) {
         try {
           const { syncPeopleToSupabase } = await import('@/services/peopleCloud');
           const allPeople = useProfileStore.getState().people;
-          const result = await syncPeopleToSupabase(userId, allPeople);
+          const result = await syncPeopleToSupabase(authUserId, allPeople);
           if (result.success) {
             console.log(`✅ Saved ${partnerName} and readings to Supabase`);
           } else {

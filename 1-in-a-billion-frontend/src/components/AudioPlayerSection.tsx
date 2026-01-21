@@ -47,45 +47,33 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
     return `${m}:${String(sec).padStart(2, '0')}`;
   };
 
-  // Marching ants - shift dotted borders horizontally at different speeds
-  const shift1 = useRef(new Animated.Value(0)).current;
-  const shift2 = useRef(new Animated.Value(0)).current;
-  const shift3 = useRef(new Animated.Value(0)).current;
-  const marchAnims = useRef<Array<Animated.CompositeAnimation>>([]);
+  // Gentle pulsing glow - simple and works without native modules
+  const glowOpacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
-    marchAnims.current.forEach((a) => a.stop());
-    marchAnims.current = [];
-
     if (isPending) {
-      const mk = (v: Animated.Value, duration: number) =>
-        Animated.loop(
-          Animated.timing(v, {
-            toValue: 10, // Shift 10px (one dot spacing)
-            duration,
-            easing: Easing.linear,
+      const anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowOpacity, {
+            toValue: 1,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
-          })
-        );
-
-      const a1 = mk(shift1, 1000);
-      const a2 = mk(shift2, 1300);
-      const a3 = mk(shift3, 1600);
-      marchAnims.current = [a1, a2, a3];
-      a1.start();
-      a2.start();
-      a3.start();
+          }),
+          Animated.timing(glowOpacity, {
+            toValue: 0.3,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      anim.start();
+      return () => anim.stop();
     } else {
-      shift1.setValue(0);
-      shift2.setValue(0);
-      shift3.setValue(0);
+      glowOpacity.setValue(0.3);
     }
-
-    return () => {
-      marchAnims.current.forEach((a) => a.stop());
-      marchAnims.current = [];
-    };
-  }, [isPending, shift1, shift2, shift3]);
+  }, [isPending, glowOpacity]);
 
   return (
     <>
@@ -108,53 +96,13 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
 
         <View style={[styles.sliderOuter, isDisabled && !isPending && { opacity: 0.5 }]}>
           {isPending && (
-            <>
-              <Animated.View 
-                pointerEvents="none" 
-                style={[
-                  styles.dotLayer,
-                  {
-                    transform: [{
-                      translateX: shift1.interpolate({
-                        inputRange: [0, 10],
-                        outputRange: [0, 10], // Move right
-                      })
-                    }],
-                    opacity: 0.8,
-                  }
-                ]} 
-              />
-              <Animated.View 
-                pointerEvents="none" 
-                style={[
-                  styles.dotLayer,
-                  {
-                    transform: [{
-                      translateX: shift2.interpolate({
-                        inputRange: [0, 10],
-                        outputRange: [10, 0], // Move left (opposite direction!)
-                      })
-                    }],
-                    opacity: 0.6,
-                  }
-                ]} 
-              />
-              <Animated.View 
-                pointerEvents="none" 
-                style={[
-                  styles.dotLayer,
-                  {
-                    transform: [{
-                      translateX: shift3.interpolate({
-                        inputRange: [0, 10],
-                        outputRange: [0, 10], // Move right again
-                      })
-                    }],
-                    opacity: 0.4,
-                  }
-                ]} 
-              />
-            </>
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.glowBorder,
+                { opacity: glowOpacity }
+              ]}
+            />
           )}
           <View
             pointerEvents="none"
@@ -234,7 +182,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     zIndex: 1,
   },
-  dotLayer: {
+  glowBorder: {
     position: 'absolute',
     left: 0,
     right: 0,

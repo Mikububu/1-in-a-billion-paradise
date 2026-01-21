@@ -60,8 +60,8 @@ export async function composeCoupleImage(
     // ⚠️ CRITICAL VALIDATION: Ensure we're receiving styled portraits, not original photos
     // Styled portraits should be in profile-images bucket with /AI-generated-portrait.png suffix
     // or in couple-portraits bucket
-    const isStyledPortrait1 = portrait1Url.includes('/AI-generated-portrait.png') || portrait1Url.includes('couple-portraits') || portrait1Url.includes('/claymation.png') || portrait1Url.includes('couple-claymations');
-    const isStyledPortrait2 = portrait2Url.includes('/AI-generated-portrait.png') || portrait2Url.includes('couple-portraits') || portrait2Url.includes('/claymation.png') || portrait2Url.includes('couple-claymations');
+    const isStyledPortrait1 = portrait1Url.includes('/AI-generated-portrait.png') || portrait1Url.includes('couple-portraits');
+    const isStyledPortrait2 = portrait2Url.includes('/AI-generated-portrait.png') || portrait2Url.includes('couple-portraits');
     
     if (!isStyledPortrait1 || !isStyledPortrait2) {
       console.warn('⚠️ [Couple] WARNING: URLs do not appear to be styled portraits!');

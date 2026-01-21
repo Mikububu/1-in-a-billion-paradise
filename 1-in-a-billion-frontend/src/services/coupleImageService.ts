@@ -1,7 +1,7 @@
 /**
  * COUPLE IMAGE SERVICE (Frontend)
  * 
- * Handles couple claymation image generation and caching.
+ * Handles couple portrait image generation and caching.
  */
 
 import { env } from '@/config/env';

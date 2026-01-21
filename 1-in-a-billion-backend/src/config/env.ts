@@ -69,7 +69,7 @@ export const env = {
   // Google Places API (for city search) - Will be loaded from Supabase via getApiKey()
   GOOGLE_PLACES_API_KEY: process.env.GOOGLE_PLACES_API_KEY ?? '',
   
-  // Google AI Studio API (for claymation generation) - Will be loaded from Supabase via getApiKey()
+  // Google AI Studio API (for portrait generation) - Will be loaded from Supabase via getApiKey()
   GOOGLE_AI_STUDIO_API_KEY: process.env.GOOGLE_AI_STUDIO_API_KEY ?? '',
   
   // Frontend URL for email redirects

@@ -80,8 +80,8 @@ export const HomeScreen = ({ navigation }: Props) => {
   const partners = useMemo(() => allPeople.filter(p => !p.isUser), [allPeople]);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   
-  // Claymation photo upload state
-  const [claymationPhotoUrl, setClaymationPhotoUrl] = useState<string | null>(null);
+  // AI portrait upload state
+  const [portraitPhotoUrl, setPortraitPhotoUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [matchCount, setMatchCount] = useState(0);
   const blinkAnim = useRef(new Animated.Value(1)).current;
@@ -90,13 +90,13 @@ export const HomeScreen = ({ navigation }: Props) => {
   const session = useAuthStore((state) => state.session);
   const currentUserId = session?.user?.id;
 
-  // Load claymation portrait and match count on mount
+  // Load AI portrait and match count on mount
   useEffect(() => {
     const loadUserData = async () => {
       if (!authUserId) return;
 
       try {
-        // Load claymation URL from library_people
+        // Load portrait URL from library_people
         const { data } = await supabase
           .from('library_people')
           .select('portrait_url')
@@ -105,7 +105,7 @@ export const HomeScreen = ({ navigation }: Props) => {
           .single();
 
         if (data?.portrait_url) {
-          setClaymationPhotoUrl(data.portrait_url);
+          setPortraitPhotoUrl(data.portrait_url);
         }
 
         // Load match count
@@ -125,7 +125,7 @@ export const HomeScreen = ({ navigation }: Props) => {
   
   // Blinking animation for upload prompt
   useEffect(() => {
-    if (!claymationPhotoUrl) {
+    if (!portraitPhotoUrl) {
       const blink = Animated.loop(
         Animated.sequence([
           Animated.timing(blinkAnim, { toValue: 0.3, duration: 800, useNativeDriver: true }),
@@ -135,9 +135,9 @@ export const HomeScreen = ({ navigation }: Props) => {
       blink.start();
       return () => blink.stop();
     }
-  }, [claymationPhotoUrl, blinkAnim]);
+  }, [portraitPhotoUrl, blinkAnim]);
   
-  // Upload and generate claymation photo - PRODUCTION VERSION
+  // Upload and generate AI portrait photo - PRODUCTION VERSION
   const handleUploadPhoto = async () => {
     try {
       const ImagePicker = await import('expo-image-picker');
@@ -187,7 +187,7 @@ export const HomeScreen = ({ navigation }: Props) => {
       const data = await response.json();
       
       if (data.success && data.imageUrl) {
-        setClaymationPhotoUrl(data.imageUrl);
+        setPortraitPhotoUrl(data.imageUrl);
         Alert.alert('Success', 'Your stylized portrait is ready!');
       } else {
         Alert.alert('Error', data.error || 'Failed to generate stylized portrait');
@@ -1051,7 +1051,7 @@ export const HomeScreen = ({ navigation }: Props) => {
 
         {/* PROFILE PHOTO / UPLOAD BUTTON - Moved below library card */}
         <View style={styles.profilePhotoSection}>
-          {!claymationPhotoUrl ? (
+          {!portraitPhotoUrl ? (
             <TouchableOpacity 
               style={styles.uploadPhotoButton}
               onPress={handleUploadPhoto}
@@ -1074,8 +1074,8 @@ export const HomeScreen = ({ navigation }: Props) => {
                 activeOpacity={0.8}
               >
                 <Image 
-                  source={{ uri: claymationPhotoUrl }} 
-                  style={styles.claymationImageLarge}
+                  source={{ uri: portraitPhotoUrl }} 
+                  style={styles.portraitImageLarge}
                 />
               </TouchableOpacity>
               {/* Cosmic Signature Badge - 3 Signs instead of name */}
@@ -1558,7 +1558,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
   },
-  claymationImageSmall: {
+  portraitImageSmall: {
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -1594,7 +1594,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
     marginTop: spacing.xs,
   },
-  claymationImageLarge: {
+  portraitImageLarge: {
     width: 72,
     height: 72,
     borderRadius: 36,

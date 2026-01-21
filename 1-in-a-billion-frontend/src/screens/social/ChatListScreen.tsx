@@ -2,7 +2,7 @@
  * CHAT LIST SCREEN
  * 
  * Shows all conversations for the current user.
- * Each row shows the other person's claymation portrait and last message.
+ * Each row shows the other person's AI portrait and last message.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -30,7 +30,7 @@ interface Conversation {
   id: string;
   matchId: string;
   otherName: string;
-  otherClaymationUrl: string | null;
+  otherPortraitUrl: string | null;
   lastMessageAt: string | null;
   lastMessagePreview: string | null;
   unreadCount: number;
@@ -96,7 +96,7 @@ export const ChatListScreen = ({ navigation }: Props) => {
       onPress={() => navigation.navigate('Chat', {
         conversationId: item.id,
         otherName: item.otherName,
-        otherClaymationUrl: item.otherClaymationUrl,
+        otherPortraitUrl: item.otherPortraitUrl,
       })}
       activeOpacity={0.7}
     >

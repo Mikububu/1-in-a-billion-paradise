@@ -1,7 +1,7 @@
 /**
  * PERSON PHOTO SERVICE
  * 
- * Handles uploading photos for people in Karmic Zoo and generating claymation images.
+ * Handles uploading photos for people in Karmic Zoo and generating AI portrait images.
  */
 
 import { supabase } from './supabase';
@@ -10,7 +10,7 @@ import { useAuthStore } from '@/store/authStore';
 import * as FileSystem from 'expo-file-system';
 
 const PHOTOS_BUCKET = 'person-photos';
-const CLAYMATIONS_BUCKET = 'claymations';
+const PORTRAITS_BUCKET = 'portraits';
 
 export interface UploadPhotoResult {
   success: boolean;
@@ -20,7 +20,7 @@ export interface UploadPhotoResult {
 }
 
 /**
- * Upload a person's photo and generate claymation version
+ * Upload a person's photo and generate AI portrait version
  */
 export async function uploadPersonPhoto(
   personId: string,
@@ -80,8 +80,8 @@ export async function uploadPersonPhoto(
       };
     }
 
-    console.log('🎨 Requesting claymation generation from backend...');
-    const claymationResponse = await fetch(`${backendUrl}/api/profile/portrait`, {
+    console.log('🎨 Requesting AI portrait generation from backend...');
+    const portraitResponse = await fetch(`${backendUrl}/api/profile/portrait`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -93,32 +93,32 @@ export async function uploadPersonPhoto(
       }),
     });
 
-    if (!claymationResponse.ok) {
-      const errorText = await claymationResponse.text();
-      console.error('Claymation generation failed:', errorText);
+    if (!portraitResponse.ok) {
+      const errorText = await portraitResponse.text();
+      console.error('AI portrait generation failed:', errorText);
       return {
         success: false,
-        error: `Claymation generation failed: ${claymationResponse.status}`,
+        error: `AI portrait generation failed: ${portraitResponse.status}`,
         originalUrl,
       };
     }
 
-    const claymationResult = await claymationResponse.json();
+    const portraitResult = await portraitResponse.json();
     
-    if (!claymationResult.success || !claymationResult.imageUrl) {
+    if (!portraitResult.success || !portraitResult.imageUrl) {
       return {
         success: false,
-        error: claymationResult.error || 'Claymation generation failed',
+        error: portraitResult.error || 'AI portrait generation failed',
         originalUrl,
       };
     }
 
-    console.log('✅ Claymation generated:', claymationResult.imageUrl);
+    console.log('✅ AI portrait generated:', portraitResult.imageUrl);
 
     return {
       success: true,
       originalUrl,
-      portraitUrl: claymationResult.imageUrl,
+      portraitUrl: portraitResult.imageUrl,
     };
   } catch (error: any) {
     console.error('Photo upload error:', error);

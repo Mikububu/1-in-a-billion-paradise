@@ -258,7 +258,7 @@ export class AudioWorker extends BaseWorker {
   constructor() {
     super({
       taskTypes: ['audio_generation'],
-      maxConcurrentTasks: 2, // Reduced to avoid overwhelming RunPod
+      maxConcurrentTasks: 1, // One task per worker to avoid GPU memory contention
     });
 
     console.log(`🤖 AudioWorker SEQUENTIAL v1.0 initialized at ${new Date().toISOString()}`);

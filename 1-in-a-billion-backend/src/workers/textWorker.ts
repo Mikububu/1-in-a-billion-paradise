@@ -847,7 +847,9 @@ AUDIO WRITING RULES:
 - No bullet points. No lists. Only flowing, hypnotic prose.
 - Surprise them. Go deeper than they expected. This is an initiation, not a reading.
 
-**WORD COUNT: 2500-3000 WORDS MINIMUM. This becomes 15-20 minutes of audio.**
+**CRITICAL: WRITE 2500-3000 WORDS. COUNT CAREFULLY. DO NOT STOP EARLY.**
+**This must be 15-20 minutes of spoken audio. Shorter responses will be rejected.**
+**If you write less than 2500 words, you have FAILED this task.**
 
 Write continuous flowing prose. Address ${firstName} directly.
 TONE: ${spiceLevel >= 7 ? 'Uncompromising. Confrontational wisdom. Rabbi Nachman meets Nietzsche.' : 'Mystical but grounded. Honest but kind. A wise elder who sees everything.'}
@@ -989,7 +991,7 @@ ${OUTPUT_FORMAT_RULES}`;
 
     // Use configured paid LLM (see: src/config/env.ts PAID_LLM_PROVIDER)
     let text = await llmPaid.generate(prompt, label, { 
-      maxTokens: 8192, 
+      maxTokens: 12000, // Increased to ensure we can hit 2500-3000 words
       temperature: 0.8,
     });
     

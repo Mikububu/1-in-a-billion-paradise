@@ -39,7 +39,7 @@ interface Message {
 }
 
 export const ChatScreen = ({ navigation, route }: Props) => {
-  const { conversationId, otherName, otherClaymationUrl } = route.params;
+  const { conversationId, otherName, otherPortraitUrl } = route.params;
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
