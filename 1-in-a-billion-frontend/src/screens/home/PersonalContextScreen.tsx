@@ -203,7 +203,7 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                     </View>
 
                     {/* Circular Text Input - Centered */}
-                    <View style={styles.circleWrapper}>
+                    <View style={styles.circleWrapper} pointerEvents="box-none">
                         <Animated.View
                             pointerEvents="none"
                             style={[
@@ -240,29 +240,18 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                                 },
                             ]}
                         />
-                        <View style={styles.circleContainer} pointerEvents="box-only">
-                            <TextInput
-                                style={[
-                                    styles.circleInput,
-                                    isKabbalahActive && { fontSize: 12 }
-                                ]}
-                                multiline
-                                placeholder={isKabbalahActive ? "EXAMPLE: Laura Steinberg's mother, Marianne Vogel, died on 07 June 2003 at 21:45 in Munich during the birth of her second child, Daniel Steinberg." : "I will speak the truth"}
-                                placeholderTextColor={colors.mutedText}
-                                value={context}
-                                onChangeText={setContext}
-                                maxLength={MAX_CHARS}
-                                autoFocus={false}
-                                textAlignVertical="center"
-                                textAlign="center"
-                                editable={true}
-                                contextMenuHidden={false}
-                                selectTextOnFocus={false}
-                                caretHidden={false}
-                                keyboardType="default"
-                                returnKeyType="default"
-                            />
-                        </View>
+                        <TextInput
+                            style={[
+                                styles.circleInput,
+                                isKabbalahActive && { fontSize: 12 }
+                            ]}
+                            multiline
+                            placeholder={isKabbalahActive ? "EXAMPLE: Laura Steinberg's mother, Marianne Vogel, died on 07 June 2003 at 21:45 in Munich during the birth of her second child, Daniel Steinberg." : "I will speak the truth"}
+                            placeholderTextColor={colors.mutedText}
+                            value={context}
+                            onChangeText={setContext}
+                            maxLength={MAX_CHARS}
+                        />
                     </View>
                 </View>
 
