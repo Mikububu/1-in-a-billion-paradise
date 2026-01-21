@@ -115,7 +115,49 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
             }
 
             if (lastErr) {
-                throw lastErr;
+                // Network failed - use hardcoded fallback
+                console.warn('⚠️ Network fetch failed, using fallback voices:', lastErr);
+                const fallbackVoices = [
+                    {
+                        id: 'david',
+                        displayName: 'David',
+                        description: 'Warm and engaging male narrator',
+                        category: 'male',
+                        sampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/david/preview.mp3'
+                    },
+                    {
+                        id: 'elisabeth',
+                        displayName: 'Elisabeth',
+                        description: 'Elegant female narrator',
+                        category: 'female',
+                        sampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/elisabeth/preview.mp3'
+                    },
+                    {
+                        id: 'michael',
+                        displayName: 'Michael',
+                        description: 'Confident male narrator',
+                        category: 'male',
+                        sampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/michael/preview.mp3'
+                    },
+                    {
+                        id: 'peter',
+                        displayName: 'Peter',
+                        description: 'Friendly male narrator',
+                        category: 'male',
+                        sampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/peter/preview.mp3'
+                    },
+                    {
+                        id: 'victor',
+                        displayName: 'Victor',
+                        description: 'Deep male narrator',
+                        category: 'male',
+                        sampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/victor/preview.mp3'
+                    },
+                ];
+                setVoices(fallbackVoices);
+                if (!preselectedVoice && fallbackVoices.length > 0) {
+                    setSelectedVoice(fallbackVoices[0].id);
+                }
             }
         } catch (err) {
             console.error('Failed to fetch voices:', err);
