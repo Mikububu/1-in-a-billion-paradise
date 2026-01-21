@@ -1715,7 +1715,7 @@ router.get('/matches/stats', async (c) => {
     const { count: portraitCount } = await supabase
       .from('library_people')
       .select('*', { count: 'exact', head: true })
-      .not('claymation_url', 'is', null);
+      .not('portrait_url', 'is', null);
 
     const { count: activeUsers } = await supabase
       .from('library_people')
@@ -1726,7 +1726,7 @@ router.get('/matches/stats', async (c) => {
     const { count: recentUploads } = await supabase
       .from('library_people')
       .select('*', { count: 'exact', head: true })
-      .not('claymation_url', 'is', null)
+      .not('portrait_url', 'is', null)
       .gte('updated_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
 
     // Match stats
@@ -1806,7 +1806,7 @@ router.post('/matches/create', async (c) => {
 
 /**
  * GET /api/admin/gallery
- * Get gallery of claymation portraits
+ * Get gallery of AI portrait portraits
  */
 router.get('/gallery', async (c) => {
   const supabase = createSupabaseServiceClient();
@@ -1822,14 +1822,14 @@ router.get('/gallery', async (c) => {
         id,
         user_id,
         display_name,
-        claymation_url,
+        portrait_url,
         placements,
         gallery_bio,
         last_active_at,
         show_in_gallery,
         created_at
       `)
-      .not('claymation_url', 'is', null)
+      .not('portrait_url', 'is', null)
       .eq('is_self', true)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);

@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "main": "dist/server.js",
   "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:critical": "jest filenameGeneration",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
@@ -55,10 +58,13 @@
   },
   "devDependencies": {
     "@types/archiver": "^6.0.3",
+    "@types/jest": "^30.0.0",
     "@types/luxon": "^3.7.1",
     "@types/node": "^24.10.1",
     "@types/pg": "^8.16.0",
+    "jest": "^30.2.0",
     "pg": "^8.16.3",
+    "ts-jest": "^29.4.6",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.3"
   }

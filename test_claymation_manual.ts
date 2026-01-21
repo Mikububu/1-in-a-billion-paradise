@@ -1,14 +1,14 @@
 import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
-import { generateClaymationPortrait } from './src/services/claymationService';
+import { generateAIPortrait } from './src/services/aiPortraitService';
 
 /**
- * Manual test script for claymation generation
+ * Manual test script for AI portrait generation
  * Usage: ts-node test_claymation_manual.ts
  */
 async function main() {
-  console.log('🎨 Testing Claymation Pipeline\n');
+  console.log('🎨 Testing AI Portrait Pipeline\n');
   
   // Read the portrait image
   const imagePath = '/Users/michaelperinwogenburg/Desktop/working stuff/michael nice portrait.jpg';
@@ -27,24 +27,24 @@ async function main() {
   // Test user ID (Michael's account)
   const userId = 'e34061de-755c-4b5e-9b0d-a6c7aa8bddc2';
   
-  console.log('🚀 Sending to claymation service...\n');
+  console.log('🚀 Sending to AI portrait service...\n');
   
   try {
-    const result = await generateClaymationPortrait(base64Image, userId);
+    const result = await generateAIPortrait(base64Image, userId);
     
     if (result.success) {
-      console.log('✅ Claymation Generated Successfully!\n');
+      console.log('✅ AI Portrait Generated Successfully!\n');
       console.log('📊 Result:');
       console.log(`   Original Image URL: ${result.originalUrl || 'Not stored'}`);
-      console.log(`   Claymation URL: ${result.imageUrl}\n`);
+      console.log(`   AI Portrait URL: ${result.imageUrl}\n`);
       console.log(`   Storage Path: ${result.storagePath || 'N/A'}`);
       console.log(`   Cost: $${result.cost?.toFixed(4) || '0'}\n`);
       
       console.log('🎉 Test complete! Check Supabase Storage:');
-      console.log(`   - profile-images/${userId}/original-*.jpg`);
-      console.log(`   - profile-images/${userId}/claymation-*.png`);
+      console.log(`   - profile-images/${userId}/original.jpg`);
+      console.log(`   - profile-images/${userId}/self/AI-generated-portrait.png`);
     } else {
-      console.log('❌ Claymation Generation Failed\n');
+      console.log('❌ AI Portrait Generation Failed\n');
       console.log(`Error: ${result.error}`);
     }
     

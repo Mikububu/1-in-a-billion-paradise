@@ -14,7 +14,7 @@ export const PDF_CONFIG = {
     // Phone-first readable A4
     top: 56,
     // Large bottom margin to reserve multi-line legal footer (prevents clipping)
-    bottom: 120,
+    bottom: 90,
     left: 56,
     right: 56,
   },
@@ -35,7 +35,7 @@ export const PDF_CONFIG = {
     // Special
     metadata: 9,
     caption: 8,
-    footer: 8,
+    footer: 7.5,
   },
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -77,9 +77,9 @@ export const PDF_CONFIG = {
   // ─────────────────────────────────────────────────────────────────────────
   header: {
     show: true,
-    brandFontSize: 16,        // "1 in a Billion" font size
+    brandFontSize: 14,        // "1 in a Billion" font size
     dateFontSize: 9,          // Date font size
-    titleFontSize: 12,        // System + Person name font size
+    titleFontSize: 13,        // System + Person name font size
     brandColor: '#000000',
     dateColor: '#666666',
     titleColor: '#000000',
@@ -97,7 +97,7 @@ export const PDF_CONFIG = {
   // ─────────────────────────────────────────────────────────────────────────
   footer: {
     show: true,
-    fontSize: 8.5,
+    fontSize: 7.5,
     color: '#666666',
     showPageNumbers: true,
     showGeneratedDate: false,

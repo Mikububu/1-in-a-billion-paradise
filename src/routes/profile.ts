@@ -1,19 +1,19 @@
 /**
  * PROFILE ROUTES
  * 
- * Handles user profile operations including claymation portrait generation.
+ * Handles user profile operations including AI portrait generation.
  */
 
 import { Hono } from 'hono';
-import { generateClaymationPortrait, getClaymationPortrait } from '../services/claymationService';
+import { generateAIPortrait, getAIPortrait } from '../services/aiPortraitService';
 import { logCost } from '../services/costTracking';
 
 const router = new Hono();
 
 /**
- * POST /api/profile/claymation
+ * POST /api/profile/portrait
  * 
- * Generate a claymation portrait from an uploaded photo.
+ * Generate an AI portrait from an uploaded photo.
  * 
  * Body:
  * - photoBase64: Base64 encoded JPEG/PNG image
@@ -22,7 +22,7 @@ const router = new Hono();
  * Headers:
  * - X-User-Id: Required - User ID
  */
-router.post('/claymation', async (c) => {
+router.post('/portrait', async (c) => {
   const userId = c.req.header('X-User-Id');
   if (!userId) {
     return c.json({ success: false, error: 'Missing X-User-Id header' }, 401);
@@ -41,9 +41,9 @@ router.post('/claymation', async (c) => {
       return c.json({ success: false, error: 'Invalid image data' }, 400);
     }
 
-    console.log(`🎨 [Profile] Generating claymation for user ${userId}...`);
+    console.log(`🎨 [Profile] Generating AI portrait for user ${userId}...`);
 
-    const result = await generateClaymationPortrait(photoBase64, userId, personId);
+    const result = await generateAIPortrait(photoBase64, userId, personId);
 
     if (result.success && result.cost) {
       // Log the cost
@@ -52,24 +52,24 @@ router.post('/claymation', async (c) => {
         provider: 'openai',
         model: 'gpt-4o + dall-e-3',
         costUsd: result.cost,
-        label: 'claymation_portrait',
+        label: 'ai_portrait',
       });
     }
 
     return c.json(result);
 
   } catch (error: any) {
-    console.error('❌ [Profile] Claymation error:', error);
+    console.error('❌ [Profile] AI portrait error:', error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
 
 /**
- * GET /api/profile/claymation/:personId
+ * GET /api/profile/portrait/:personId
  * 
- * Get existing claymation portrait URL for a person.
+ * Get existing AI portrait URL for a person.
  */
-router.get('/claymation/:personId', async (c) => {
+router.get('/portrait/:personId', async (c) => {
   const userId = c.req.header('X-User-Id');
   if (!userId) {
     return c.json({ success: false, error: 'Missing X-User-Id header' }, 401);
@@ -78,12 +78,12 @@ router.get('/claymation/:personId', async (c) => {
   const personId = c.req.param('personId');
 
   try {
-    const imageUrl = await getClaymationPortrait(userId, personId);
+    const imageUrl = await getAIPortrait(userId, personId);
     
     if (imageUrl) {
       return c.json({ success: true, imageUrl });
     } else {
-      return c.json({ success: false, error: 'No claymation portrait found' }, 404);
+      return c.json({ success: false, error: 'No AI portrait found' }, 404);
     }
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
@@ -91,23 +91,23 @@ router.get('/claymation/:personId', async (c) => {
 });
 
 /**
- * GET /api/profile/claymation
+ * GET /api/profile/portrait
  * 
- * Get the user's own claymation portrait.
+ * Get the user's own AI portrait.
  */
-router.get('/claymation', async (c) => {
+router.get('/portrait', async (c) => {
   const userId = c.req.header('X-User-Id');
   if (!userId) {
     return c.json({ success: false, error: 'Missing X-User-Id header' }, 401);
   }
 
   try {
-    const imageUrl = await getClaymationPortrait(userId);
+    const imageUrl = await getAIPortrait(userId);
     
     if (imageUrl) {
       return c.json({ success: true, imageUrl });
     } else {
-      return c.json({ success: false, error: 'No claymation portrait found' }, 404);
+      return c.json({ success: false, error: 'No AI portrait found' }, 404);
     }
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);

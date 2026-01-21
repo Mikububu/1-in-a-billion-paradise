@@ -425,9 +425,15 @@ export abstract class BaseWorker {
     if (artifactType === 'audio_mp3' || artifactType === 'audio_m4a') {
       // Audio format: PersonName_SystemName_audio.mp3
       // For overlay/synastry: Person1_Person2_System_audio.mp3
-      if (person2Name && (docType === 'overlay' || docType === 'synastry' || docType === 'person2')) {
-        fileName = `${person1Name}_${person2Name}_${system}_audio`;
+      // For verdict: Person1_Person2_Verdict_audio.mp3 (NOT system name to avoid collision)
+      // For person2: Person2Name_System_audio.mp3
+      if (docType === 'overlay' || docType === 'synastry' || docType === 'verdict') {
+        const systemOrVerdict = docType === 'verdict' ? 'Verdict' : system;
+        fileName = `${person1Name}_${person2Name || 'Partner'}_${systemOrVerdict}_audio`;
+      } else if (docType === 'person2') {
+        fileName = `${person2Name || person1Name}_${system}_audio`;
       } else {
+        // person1 or individual
         fileName = `${person1Name}_${system}_audio`;
       }
     } else if (artifactType === 'pdf') {
@@ -435,22 +441,26 @@ export abstract class BaseWorker {
       // See: docs/CRITICAL_RULES_CHECKLIST.md Rule 1
       // PDF format: PersonName_SystemName_v1.0.pdf
       // For synastry: Person1_Person2_Synastry_v1.0.pdf
-      // For overlay: Person1_Person2_System_v1.0.pdf
-      if (person2Name && (docType === 'overlay' || docType === 'synastry')) {
+      // For overlay/verdict: Person1_Person2_System_v1.0.pdf
+      if (docType === 'overlay' || docType === 'synastry' || docType === 'verdict') {
+        // Overlay/Synastry/Verdict: Both person names
         if (docType === 'synastry') {
-          fileName = `${person1Name}_${person2Name}_Synastry_${PDF_VERSION}`;
+          fileName = `${person1Name}_${person2Name || 'Partner'}_Synastry_${PDF_VERSION}`;
+        } else if (docType === 'verdict') {
+          // CRITICAL: Use "Verdict" not system name to avoid collision with overlay PDFs
+          fileName = `${person1Name}_${person2Name || 'Partner'}_Verdict_${PDF_VERSION}`;
         } else {
-          fileName = `${person1Name}_${person2Name}_${system}_${PDF_VERSION}`;
+          // overlay: use system name
+          fileName = `${person1Name}_${person2Name || 'Partner'}_${system}_${PDF_VERSION}`;
         }
-      } else if (docType === 'person2' && person2Name) {
-        // Person 2 reading: use person2's name
-        fileName = `${person2Name}_${system}_${PDF_VERSION}`;
-      } else if (title && title !== 'Untitled' && title !== 'Reading') {
-        // Use title if available (for special documents)
-        const cleanTitle = cleanForFilename(title);
-        fileName = `${cleanTitle}_${person1Name}_${PDF_VERSION}`;
+      } else if (docType === 'person2') {
+        // Person 2 reading: use person2's name ONLY
+        fileName = `${person2Name || person1Name}_${system}_${PDF_VERSION}`;
+      } else if (docType === 'person1' || docType === 'individual') {
+        // Person 1 or individual: use person1's name
+        fileName = `${person1Name}_${system}_${PDF_VERSION}`;
       } else {
-        // Standard format: PersonName_SystemName_v1.0.pdf (person1 or individual)
+        // Unknown docType: fallback to person1 + system
         fileName = `${person1Name}_${system}_${PDF_VERSION}`;
       }
     } else {
