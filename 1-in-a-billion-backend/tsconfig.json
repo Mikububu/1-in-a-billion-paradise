@@ -4,7 +4,7 @@
     "outDir": "dist",
     "module": "commonjs",
     "target": "es2021",
-    "types": ["node"],
+    "types": ["node", "jest"],
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
