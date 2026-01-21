@@ -258,7 +258,7 @@ export class AudioWorker extends BaseWorker {
   constructor() {
     super({
       taskTypes: ['audio_generation'],
-      maxConcurrentTasks: 2, // Reduced to avoid overwhelming RunPod
+      maxConcurrentTasks: 1, // One task per worker to avoid GPU memory contention
     });
 
     console.log(`🤖 AudioWorker SEQUENTIAL v1.0 initialized at ${new Date().toISOString()}`);
@@ -423,11 +423,18 @@ export class AudioWorker extends BaseWorker {
                     }
                     throw new Error(`RunPod job completed but no audio in result. Response keys: ${Object.keys(statusData).join(', ')}`);
                   } else if (statusData.status === 'FAILED') {
-                    throw new Error(`RunPod job failed: ${statusData.error || JSON.stringify(statusData)}`);
+                    // Don't retry FAILED jobs - let the error bubble up immediately
+                    const errorMsg = statusData.error || JSON.stringify(statusData);
+                    console.error(`  ❌ RunPod job ${data.id} FAILED: ${errorMsg}`);
+                    throw new Error(`RUNPOD_FAILED: ${errorMsg}`);
                   }
                   // Continue polling for IN_QUEUE, IN_PROGRESS, etc.
                 } catch (pollError: any) {
-                  // Don't fail on individual poll errors, just log and retry
+                  // If RunPod explicitly failed the job, stop immediately
+                  if (pollError.message?.startsWith('RUNPOD_FAILED:')) {
+                    throw pollError;
+                  }
+                  // Network/timeout errors can be retried
                   if (pollAttempt % 10 === 0) {
                     console.log(`  ⚠️ Poll error (attempt ${pollAttempt + 1}): ${pollError.message}`);
                   }
@@ -492,23 +499,66 @@ export class AudioWorker extends BaseWorker {
       };
 
       const startTime = Date.now();
-      console.log(`🚀 [AudioWorker] Starting SEQUENTIAL generation of ${chunks.length} chunks...`);
+      
+      // ═══════════════════════════════════════════════════════════════════════════
+      // AUDIO GENERATION: SEQUENTIAL vs PARALLEL
+      // ═══════════════════════════════════════════════════════════════════════════
+      // Toggle via AUDIO_PARALLEL_MODE environment variable:
+      //   - "false" (default) = Sequential (old, stable, slower ~10min/doc)
+      //   - "true" = Parallel (3-5x faster, ~2-3min/doc)
+      // ═══════════════════════════════════════════════════════════════════════════
+      const useParallelMode = process.env.AUDIO_PARALLEL_MODE === 'true';
+      const concurrentLimit = parseInt(process.env.AUDIO_CONCURRENT_LIMIT || '5', 10);
+      
+      let audioBuffers: Buffer[] = [];
 
-      const audioBuffers: Buffer[] = [];
-      for (let i = 0; i < chunks.length; i++) {
-        // Process sequentially to respect RunPod rate limits
-        try {
-          const buffer = await generateChunk(chunks[i]!, i);
-          audioBuffers.push(buffer);
-        } catch (err: any) {
-          console.error(`❌ [AudioWorker] Chunk ${i + 1} failed permanently: ${err.message}`);
-          throw err; // Re-throw to fail the task
+      if (useParallelMode) {
+        // ─────────────────────────────────────────────────────────────────────────
+        // PARALLEL MODE - 3-5x faster for multi-chunk readings
+        // ─────────────────────────────────────────────────────────────────────────
+        console.log(`🚀 [AudioWorker] Starting PARALLEL generation of ${chunks.length} chunks (max ${concurrentLimit} concurrent)...`);
+        
+        const pLimit = (await import('p-limit')).default;
+        const limit = pLimit(concurrentLimit);
+        
+        const promises = chunks.map((chunk, index) => 
+          limit(async () => {
+            try {
+              const buffer = await generateChunk(chunk, index);
+              console.log(`  ✅ Chunk ${index + 1}/${chunks.length} completed`);
+              return { index, buffer };
+            } catch (err: any) {
+              console.error(`  ❌ Chunk ${index + 1} failed permanently: ${err.message}`);
+              throw err;
+            }
+          })
+        );
+        
+        const results = await Promise.all(promises);
+        results.sort((a, b) => a.index - b.index);
+        audioBuffers = results.map(r => r.buffer);
+        
+      } else {
+        // ─────────────────────────────────────────────────────────────────────────
+        // SEQUENTIAL MODE (default) - Stable, processes one chunk at a time
+        // ─────────────────────────────────────────────────────────────────────────
+        console.log(`🚀 [AudioWorker] Starting SEQUENTIAL generation of ${chunks.length} chunks...`);
+
+        for (let i = 0; i < chunks.length; i++) {
+          try {
+            const buffer = await generateChunk(chunks[i]!, i);
+            audioBuffers.push(buffer);
+          } catch (err: any) {
+            console.error(`❌ [AudioWorker] Chunk ${i + 1} failed permanently: ${err.message}`);
+            throw err;
+          }
         }
       }
 
       const elapsedMs = Date.now() - startTime;
       const elapsed = (elapsedMs / 1000).toFixed(1);
-      console.log(`✅ [AudioWorker] All ${chunks.length} chunks done in ${elapsed}s`);
+      const modeStr = useParallelMode ? `parallel, ${concurrentLimit} concurrent` : 'sequential';
+      console.log(`✅ [AudioWorker] All ${chunks.length} chunks done in ${elapsed}s (${modeStr})`);
       
       // 💰 LOG RUNPOD COST for this audio generation
       const jobId = task.job_id;
