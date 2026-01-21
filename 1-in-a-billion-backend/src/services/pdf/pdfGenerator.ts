@@ -149,6 +149,10 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
           doc.font('Garamond').fontSize(11).text(chapter.overlayReading, { align: 'justify' });
           doc.moveDown(1);
         }
+        if (chapter.verdict) {
+          doc.font('Garamond').fontSize(11).text(chapter.verdict, { align: 'justify' });
+          doc.moveDown(1);
+        }
       }
 
       // Appendix - LEFT aligned
