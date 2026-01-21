@@ -46,20 +46,20 @@ Free: PostHookOffer → Account (optional sign up) OR stays anonymous
 
 ---
 
-## Bug 3: Signed-In Users Should Go to Dashboard
+## "Bug 3": IntroScreen as Homescreen (NOT A BUG)
 
-**Problem:**
-- If a user is signed in, they should immediately see the dashboard
-- No onboarding screens, no intermediate steps
+**Initial Misunderstanding:**
+- Thought logged-in users should skip IntroScreen entirely
 
-**Current Behavior:**
-- RootNavigator checks: `hasSession && (hasCompletedOnboarding || isReturningUser)`
-- If true → MainNavigator (dashboard)
-- If false → OnboardingNavigator
+**Actual Correct Behavior:**
+- Logged-in user opens app → IntroScreen (homescreen)
+- IntroScreen shows: "Sign Out" button + "My Secret Life" button
+- User clicks "My Secret Life" → Dashboard
 
-**This should already work correctly!**
-- The fix in Bug 1 ensures all signed-up users have `hasCompletedOnboarding = true`
-- So signed-in users will always go to dashboard
+**This is WORKING AS INTENDED!**
+- IntroScreen serves as a homescreen for logged-in users
+- Gives them the choice to access dashboard or sign out
+- NO changes needed
 
 ---
 
