@@ -8,7 +8,7 @@
 import { BaseWorker, TaskResult } from './baseWorker';
 import { JobTask, supabase } from '../services/supabaseClient';
 import { ephemerisIsolation } from '../services/ephemerisIsolation'; // Isolated process (crash-safe)
-import { llmPaid } from '../services/llm'; // Claude Sonnet 4 for all text generation
+import { llmPaid } from '../services/llm'; // Paid LLM for all text generation (configured in env.ts)
 import { generateDramaticTitles } from '../services/titleGenerator'; // Dramatic title generation
 import {
   SYSTEMS as NUCLEAR_V2_SYSTEMS,
@@ -987,9 +987,7 @@ ${OUTPUT_FORMAT_RULES}`;
       console.log('🔍 [Vedic Debug] Prompt length:', prompt.length);
     }
 
-    // SIMPLIFIED: All systems now use Claude Sonnet 4
-    console.log(`🧠 Using Claude Sonnet 4 for ${system || 'reading'}`);
-    
+    // Use configured paid LLM (see: src/config/env.ts PAID_LLM_PROVIDER)
     let text = await llmPaid.generate(prompt, label, { 
       maxTokens: 8192, 
       temperature: 0.8,

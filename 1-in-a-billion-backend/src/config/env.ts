@@ -24,10 +24,9 @@ export const env = {
   OPENAI_BASE_URL: process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1/chat/completions',
   OPENAI_MODEL: process.env.OPENAI_MODEL ?? 'gpt-4o',
 
-  // POLICY: Provider for paid long-form generation (jobs: extended/synastry/nuclear/nuclear_v2)
-  // Michael (Jan 2026): Claude Sonnet 4 for unhinged overlay readings - DeepSeek is too vanilla.
-  // Override any time via:
-  //   PAID_LLM_PROVIDER=deepseek | claude | openai
+  // 🎯 ONE LINE TO CHANGE: LLM for all text generation
+  // Options: 'claude' | 'deepseek' | 'openai'
+  // Change this value or set env var PAID_LLM_PROVIDER
   PAID_LLM_PROVIDER: process.env.PAID_LLM_PROVIDER ?? 'claude',
 
   // Optional beta protection (OFF unless set)
