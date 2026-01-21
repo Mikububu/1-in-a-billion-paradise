@@ -47,44 +47,45 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
     return `${m}:${String(sec).padStart(2, '0')}`;
   };
 
-  // Dotted ring animation (same as photo upload)
-  const rotateRed = useRef(new Animated.Value(0)).current;
-  const rotateBlack = useRef(new Animated.Value(0)).current;
-  const rotateWhite = useRef(new Animated.Value(0)).current;
-  const ringAnims = useRef<Array<Animated.CompositeAnimation>>([]);
+  // Marching ants - shift dotted borders horizontally at different speeds
+  const shift1 = useRef(new Animated.Value(0)).current;
+  const shift2 = useRef(new Animated.Value(0)).current;
+  const shift3 = useRef(new Animated.Value(0)).current;
+  const marchAnims = useRef<Array<Animated.CompositeAnimation>>([]);
 
   useEffect(() => {
-    ringAnims.current.forEach((a) => a.stop());
-    ringAnims.current = [];
+    marchAnims.current.forEach((a) => a.stop());
+    marchAnims.current = [];
 
     if (isPending) {
-      const mk = (v: Animated.Value, duration: number, reverse?: boolean) =>
+      const mk = (v: Animated.Value, duration: number) =>
         Animated.loop(
           Animated.timing(v, {
-            toValue: reverse ? -1 : 1,
+            toValue: 10, // Shift 10px (one dot spacing)
             duration,
+            easing: Easing.linear,
             useNativeDriver: true,
           })
         );
 
-      const a1 = mk(rotateRed, 9000, false);
-      const a2 = mk(rotateBlack, 11000, true);
-      const a3 = mk(rotateWhite, 14000, false);
-      ringAnims.current = [a1, a2, a3];
+      const a1 = mk(shift1, 1000);
+      const a2 = mk(shift2, 1300);
+      const a3 = mk(shift3, 1600);
+      marchAnims.current = [a1, a2, a3];
       a1.start();
       a2.start();
       a3.start();
     } else {
-      rotateRed.setValue(0);
-      rotateBlack.setValue(0);
-      rotateWhite.setValue(0);
+      shift1.setValue(0);
+      shift2.setValue(0);
+      shift3.setValue(0);
     }
 
     return () => {
-      ringAnims.current.forEach((a) => a.stop());
-      ringAnims.current = [];
+      marchAnims.current.forEach((a) => a.stop());
+      marchAnims.current = [];
     };
-  }, [isPending, rotateRed, rotateBlack, rotateWhite]);
+  }, [isPending, shift1, shift2, shift3]);
 
   return (
     <>
@@ -108,48 +109,50 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
         <View style={[styles.sliderOuter, isDisabled && !isPending && { opacity: 0.5 }]}>
           {isPending && (
             <>
-              {/* Dotted rotating rings (same as photo upload) */}
-              <Animated.View
-                pointerEvents="none"
+              <Animated.View 
+                pointerEvents="none" 
                 style={[
-                  styles.ringOuter,
+                  styles.dotLayer,
                   {
                     transform: [{
-                      rotate: rotateRed.interpolate({
-                        inputRange: [-1, 1],
-                        outputRange: ['-360deg', '360deg'],
-                      }),
+                      translateX: shift1.interpolate({
+                        inputRange: [0, 10],
+                        outputRange: [0, 10], // Move right
+                      })
                     }],
-                  },
-                ]}
+                    opacity: 0.8,
+                  }
+                ]} 
               />
-              <Animated.View
-                pointerEvents="none"
+              <Animated.View 
+                pointerEvents="none" 
                 style={[
-                  styles.ringMiddle,
+                  styles.dotLayer,
                   {
                     transform: [{
-                      rotate: rotateBlack.interpolate({
-                        inputRange: [-1, 1],
-                        outputRange: ['-360deg', '360deg'],
-                      }),
+                      translateX: shift2.interpolate({
+                        inputRange: [0, 10],
+                        outputRange: [10, 0], // Move left (opposite direction!)
+                      })
                     }],
-                  },
-                ]}
+                    opacity: 0.6,
+                  }
+                ]} 
               />
-              <Animated.View
-                pointerEvents="none"
+              <Animated.View 
+                pointerEvents="none" 
                 style={[
-                  styles.ringInner,
+                  styles.dotLayer,
                   {
                     transform: [{
-                      rotate: rotateWhite.interpolate({
-                        inputRange: [-1, 1],
-                        outputRange: ['-360deg', '360deg'],
-                      }),
+                      translateX: shift3.interpolate({
+                        inputRange: [0, 10],
+                        outputRange: [0, 10], // Move right again
+                      })
                     }],
-                  },
-                ]}
+                    opacity: 0.4,
+                  }
+                ]} 
               />
             </>
           )}
@@ -159,7 +162,7 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
               styles.sliderPill,
               {
                 borderColor: isPending ? 'transparent' : (isDisabled ? '#999' : primaryColor),
-                backgroundColor: isDisabled ? '#f0f0f0' : primaryColor + '15',
+                backgroundColor: isDisabled ? '#f0f0f0' : (isPending ? '#FFF8F0' : primaryColor + '15'),
               },
             ]}
           />
@@ -231,42 +234,17 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     zIndex: 1,
   },
-  // Dotted rotating rings (same as photo upload)
-  ringOuter: {
+  dotLayer: {
     position: 'absolute',
-    top: 5,
-    left: -3,
-    right: -3,
-    height: 34,
+    left: 0,
+    right: 0,
+    top: 8,
+    height: 28,
     borderRadius: 999,
     borderWidth: 3,
     borderStyle: 'dotted',
-    borderColor: '#FF0000',
-    opacity: 0.9,
-  },
-  ringMiddle: {
-    position: 'absolute',
-    top: 6.5,
-    left: -1.5,
-    right: -1.5,
-    height: 31,
-    borderRadius: 999,
-    borderWidth: 2.5,
-    borderStyle: 'dotted',
-    borderColor: '#000000',
-    opacity: 0.55,
-  },
-  ringInner: {
-    position: 'absolute',
-    top: 8,
-    left: 0,
-    right: 0,
-    height: 28,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderStyle: 'dotted',
-    borderColor: '#F2F2F2',
-    opacity: 0.9,
+    borderColor: '#FF6B00',
+    zIndex: 2,
   },
   sliderDurationOverlay: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center', zIndex: 2 },
   sliderAbsolute: { position: 'absolute', left: 0, right: 54, height: 44, top: 0, zIndex: 100, overflow: 'visible', elevation: 10 },

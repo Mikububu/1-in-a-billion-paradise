@@ -423,11 +423,18 @@ export class AudioWorker extends BaseWorker {
                     }
                     throw new Error(`RunPod job completed but no audio in result. Response keys: ${Object.keys(statusData).join(', ')}`);
                   } else if (statusData.status === 'FAILED') {
-                    throw new Error(`RunPod job failed: ${statusData.error || JSON.stringify(statusData)}`);
+                    // Don't retry FAILED jobs - let the error bubble up immediately
+                    const errorMsg = statusData.error || JSON.stringify(statusData);
+                    console.error(`  ❌ RunPod job ${data.id} FAILED: ${errorMsg}`);
+                    throw new Error(`RUNPOD_FAILED: ${errorMsg}`);
                   }
                   // Continue polling for IN_QUEUE, IN_PROGRESS, etc.
                 } catch (pollError: any) {
-                  // Don't fail on individual poll errors, just log and retry
+                  // If RunPod explicitly failed the job, stop immediately
+                  if (pollError.message?.startsWith('RUNPOD_FAILED:')) {
+                    throw pollError;
+                  }
+                  // Network/timeout errors can be retried
                   if (pollAttempt % 10 === 0) {
                     console.log(`  ⚠️ Poll error (attempt ${pollAttempt + 1}): ${pollError.message}`);
                   }
