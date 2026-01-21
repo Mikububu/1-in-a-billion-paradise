@@ -26,16 +26,14 @@ export type ReadingSystem =
  * System to provider mapping
  * 
  * Current config (Jan 2026):
- * - Claude for Western, Vedic, Human Design, Gene Keys (unhinged overlays)
- * - OpenAI for Kabbalah (Hebrew/mystical accuracy)
- * - Claude for Verdict (synthesis needs depth)
+ * - Claude Sonnet 4 for ALL systems (unhinged, no censorship, long-form capable)
  */
 export const SYSTEM_LLM_PROVIDERS: Record<ReadingSystem, LLMProviderName> = {
   western: 'claude',
   vedic: 'claude',
   human_design: 'claude',
   gene_keys: 'claude',
-  kabbalah: 'openai',
+  kabbalah: 'claude',
   verdict: 'claude',
 };
 

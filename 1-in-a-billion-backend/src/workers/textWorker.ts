@@ -848,7 +848,9 @@ AUDIO WRITING RULES:
 - No bullet points. No lists. Only flowing, hypnotic prose.
 - Surprise them. Go deeper than they expected. This is an initiation, not a reading.
 
-FORMAT: ~2000 words of continuous prose. Address ${firstName} directly.
+**WORD COUNT: 2500-3000 WORDS MINIMUM. This becomes 15-20 minutes of audio.**
+
+Write continuous flowing prose. Address ${firstName} directly.
 TONE: ${spiceLevel >= 7 ? 'Uncompromising. Confrontational wisdom. Rabbi Nachman meets Nietzsche.' : 'Mystical but grounded. Honest but kind. A wise elder who sees everything.'}
 
 ${OUTPUT_FORMAT_RULES}`;
