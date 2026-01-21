@@ -240,7 +240,7 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                                 },
                             ]}
                         />
-                        <View style={styles.circleContainer}>
+                        <View style={styles.circleContainer} pointerEvents="box-only">
                             <TextInput
                                 style={[
                                     styles.circleInput,
@@ -252,12 +252,15 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                                 value={context}
                                 onChangeText={setContext}
                                 maxLength={MAX_CHARS}
-                                autoFocus
+                                autoFocus={false}
                                 textAlignVertical="center"
                                 textAlign="center"
                                 editable={true}
                                 contextMenuHidden={false}
                                 selectTextOnFocus={false}
+                                caretHidden={false}
+                                keyboardType="default"
+                                returnKeyType="default"
                             />
                         </View>
                     </View>
