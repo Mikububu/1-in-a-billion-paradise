@@ -205,6 +205,7 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                     {/* Circular Text Input - Centered */}
                     <View style={styles.circleWrapper}>
                         <Animated.View
+                            pointerEvents="none"
                             style={[
                                 styles.animatedCircle,
                                 styles.animatedCircle1,
@@ -216,6 +217,7 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                             ]}
                         />
                         <Animated.View
+                            pointerEvents="none"
                             style={[
                                 styles.animatedCircle,
                                 styles.animatedCircle2,
@@ -227,6 +229,7 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                             ]}
                         />
                         <Animated.View
+                            pointerEvents="none"
                             style={[
                                 styles.animatedCircle,
                                 styles.animatedCircle3,

@@ -189,6 +189,7 @@ export const RelationshipContextScreen = ({ navigation, route }: Props) => {
                     {/* Circular Text Input - Centered */}
                     <View style={styles.circleWrapper}>
                         <Animated.View
+                            pointerEvents="none"
                             style={[
                                 styles.animatedCircle,
                                 styles.animatedCircle1,
@@ -200,6 +201,7 @@ export const RelationshipContextScreen = ({ navigation, route }: Props) => {
                             ]}
                         />
                         <Animated.View
+                            pointerEvents="none"
                             style={[
                                 styles.animatedCircle,
                                 styles.animatedCircle2,
@@ -211,6 +213,7 @@ export const RelationshipContextScreen = ({ navigation, route }: Props) => {
                             ]}
                         />
                         <Animated.View
+                            pointerEvents="none"
                             style={[
                                 styles.animatedCircle,
                                 styles.animatedCircle3,
@@ -239,6 +242,9 @@ export const RelationshipContextScreen = ({ navigation, route }: Props) => {
                                 autoFocus
                                 textAlignVertical="center"
                                 textAlign="center"
+                                editable={true}
+                                contextMenuHidden={false}
+                                selectTextOnFocus={false}
                             />
                         </View>
                     </View>
