@@ -252,6 +252,9 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                                 autoFocus
                                 textAlignVertical="center"
                                 textAlign="center"
+                                editable={true}
+                                contextMenuHidden={false}
+                                selectTextOnFocus={false}
                             />
                         </View>
                     </View>
