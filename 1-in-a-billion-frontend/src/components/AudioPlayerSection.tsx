@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, TouchableOpacity, Text, ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, TouchableOpacity, Text, ActivityIndicator, ScrollView, StyleSheet, Animated, Easing } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
 import { useTextAutoScroll } from '../hooks/useTextAutoScroll';
@@ -12,6 +12,7 @@ interface AudioPlayerSectionProps {
   type: 'narration' | 'song';
   controlsDisabled?: boolean;
   textNotReady?: boolean; // True when text exists but audio/PDF aren't ready yet
+  isPending?: boolean; // True when media is still generating (shows fire animation)
 }
 
 export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
@@ -21,6 +22,7 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
   type,
   controlsDisabled = false,
   textNotReady = false,
+  isPending = false,
 }) => {
   const audio = useAudioPlayer({ audioUrl });
   const textScroll = useTextAutoScroll({
@@ -45,6 +47,45 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
     return `${m}:${String(sec).padStart(2, '0')}`;
   };
 
+  // Dotted ring animation (same as photo upload)
+  const rotateRed = useRef(new Animated.Value(0)).current;
+  const rotateBlack = useRef(new Animated.Value(0)).current;
+  const rotateWhite = useRef(new Animated.Value(0)).current;
+  const ringAnims = useRef<Array<Animated.CompositeAnimation>>([]);
+
+  useEffect(() => {
+    ringAnims.current.forEach((a) => a.stop());
+    ringAnims.current = [];
+
+    if (isPending) {
+      const mk = (v: Animated.Value, duration: number, reverse?: boolean) =>
+        Animated.loop(
+          Animated.timing(v, {
+            toValue: reverse ? -1 : 1,
+            duration,
+            useNativeDriver: true,
+          })
+        );
+
+      const a1 = mk(rotateRed, 9000, false);
+      const a2 = mk(rotateBlack, 11000, true);
+      const a3 = mk(rotateWhite, 14000, false);
+      ringAnims.current = [a1, a2, a3];
+      a1.start();
+      a2.start();
+      a3.start();
+    } else {
+      rotateRed.setValue(0);
+      rotateBlack.setValue(0);
+      rotateWhite.setValue(0);
+    }
+
+    return () => {
+      ringAnims.current.forEach((a) => a.stop());
+      ringAnims.current = [];
+    };
+  }, [isPending, rotateRed, rotateBlack, rotateWhite]);
+
   return (
     <>
       <View style={styles.mediaBlock}>
@@ -64,13 +105,60 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
           )}
         </TouchableOpacity>
 
-        <View style={[styles.sliderOuter, isDisabled && { opacity: 0.5 }]}>
+        <View style={[styles.sliderOuter, isDisabled && !isPending && { opacity: 0.5 }]}>
+          {isPending && (
+            <>
+              {/* Dotted rotating rings (same as photo upload) */}
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.ringOuter,
+                  {
+                    transform: [{
+                      rotate: rotateRed.interpolate({
+                        inputRange: [-1, 1],
+                        outputRange: ['-360deg', '360deg'],
+                      }),
+                    }],
+                  },
+                ]}
+              />
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.ringMiddle,
+                  {
+                    transform: [{
+                      rotate: rotateBlack.interpolate({
+                        inputRange: [-1, 1],
+                        outputRange: ['-360deg', '360deg'],
+                      }),
+                    }],
+                  },
+                ]}
+              />
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.ringInner,
+                  {
+                    transform: [{
+                      rotate: rotateWhite.interpolate({
+                        inputRange: [-1, 1],
+                        outputRange: ['-360deg', '360deg'],
+                      }),
+                    }],
+                  },
+                ]}
+              />
+            </>
+          )}
           <View
             pointerEvents="none"
             style={[
               styles.sliderPill,
               {
-                borderColor: isDisabled ? '#999' : primaryColor,
+                borderColor: isPending ? 'transparent' : (isDisabled ? '#999' : primaryColor),
                 backgroundColor: isDisabled ? '#f0f0f0' : primaryColor + '15',
               },
             ]}
@@ -142,6 +230,43 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 2,
     zIndex: 1,
+  },
+  // Dotted rotating rings (same as photo upload)
+  ringOuter: {
+    position: 'absolute',
+    top: 5,
+    left: -3,
+    right: -3,
+    height: 34,
+    borderRadius: 999,
+    borderWidth: 3,
+    borderStyle: 'dotted',
+    borderColor: '#FF0000',
+    opacity: 0.9,
+  },
+  ringMiddle: {
+    position: 'absolute',
+    top: 6.5,
+    left: -1.5,
+    right: -1.5,
+    height: 31,
+    borderRadius: 999,
+    borderWidth: 2.5,
+    borderStyle: 'dotted',
+    borderColor: '#000000',
+    opacity: 0.55,
+  },
+  ringInner: {
+    position: 'absolute',
+    top: 8,
+    left: 0,
+    right: 0,
+    height: 28,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderStyle: 'dotted',
+    borderColor: '#F2F2F2',
+    opacity: 0.9,
   },
   sliderDurationOverlay: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center', zIndex: 2 },
   sliderAbsolute: { position: 'absolute', left: 0, right: 54, height: 44, top: 0, zIndex: 100, overflow: 'visible', elevation: 10 },

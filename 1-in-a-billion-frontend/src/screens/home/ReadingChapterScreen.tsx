@@ -11,7 +11,6 @@ import { BackButton } from '@/components/BackButton';
 import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
 import { AudioPlayerSection } from '@/components/AudioPlayerSection';
 import { SystemEssence } from '@/components/SystemEssence';
-import { CountdownOverlay } from '@/components/CountdownOverlay';
 import { colors, layout, radii, spacing, typography } from '@/theme/tokens';
 import { useProfileStore } from '@/store/profileStore';
 
@@ -520,9 +519,6 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
 
         {/* Audio players - modular components */}
         <View style={styles.card}>
-          {/* Timer overlay should stay until MAIN reading media is ready (text + PDF + narration audio). */}
-          <CountdownOverlay jobId={jobId} allMediaReady={mainMediaReady} />
-
           <AudioPlayerSection
             audioUrl={narrationUrl}
             text={text}
@@ -531,6 +527,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             // Rule: narration must NOT play until main reading media is ready (PDF + narration + text).
             controlsDisabled={!mainMediaReady}
             textNotReady={!!text && !loadingText && !mainMediaReady}
+            isPending={!audioReady}
           />
 
           <View style={styles.musicSpacer} />
@@ -540,6 +537,7 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             loadingText={loadingSongLyrics}
             type="song"
             // Song can become playable as soon as the song audio is ready.
+            isPending={!songReady}
             controlsDisabled={!songReady}
             textNotReady={!!songLyrics && !loadingSongLyrics && !songReady}
           />

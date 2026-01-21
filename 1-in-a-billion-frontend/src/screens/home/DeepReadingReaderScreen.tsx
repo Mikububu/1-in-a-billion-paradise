@@ -18,7 +18,6 @@ import { createArtifactSignedUrl, downloadTextContent } from '@/services/nuclear
 import { splitIntoBlocks } from '@/utils/readingTextFormat';
 import { env } from '@/config/env';
 import { BackButton } from '@/components/BackButton';
-import { CountdownOverlay } from '@/components/CountdownOverlay';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'DeepReadingReader'>;
 
@@ -178,9 +177,6 @@ export const DeepReadingReaderScreen = ({ navigation, route }: Props) => {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.textCard}>
-          <CountdownOverlay jobId={jobId} allMediaReady={allMediaReady} />
-        </View>
         <Text style={styles.title} selectable>{title}</Text>
         {!!statusLine && <Text style={styles.status} selectable>{statusLine}</Text>}
 
@@ -205,7 +201,6 @@ export const DeepReadingReaderScreen = ({ navigation, route }: Props) => {
         </View>
 
         <View style={[styles.textCard, { position: 'relative' }]}>
-          <CountdownOverlay jobId={jobId} allMediaReady={allMediaReady} />
           {blocks.length === 0 ? (
             <Text style={[styles.textBody, !allMediaReady && { opacity: 0.5 }]} selectable>{text || 'Text not ready yet.'}</Text>
           ) : (

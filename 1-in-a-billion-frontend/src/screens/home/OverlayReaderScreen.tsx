@@ -18,7 +18,6 @@ import { createArtifactSignedUrl, downloadTextContent } from '@/services/nuclear
 import { splitIntoBlocks } from '@/utils/readingTextFormat';
 import { env } from '@/config/env';
 import { BackButton } from '@/components/BackButton';
-import { CountdownOverlay } from '@/components/CountdownOverlay';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'OverlayReader'>;
 
