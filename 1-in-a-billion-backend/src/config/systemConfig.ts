@@ -55,6 +55,20 @@ export const SYSTEMS: Record<string, SystemMetadata> = {
     description: 'Ancient Chinese divination system',
     icon: '☯️',
   },
+  human_design: {
+    slug: 'human_design',
+    displayName: 'Human Design',
+    shortName: 'Human Design',
+    description: 'Synthesis of astrology, I Ching, Kabbalah, and chakra system',
+    icon: '🔷',
+  },
+  gene_keys: {
+    slug: 'gene_keys',
+    displayName: 'Gene Keys',
+    shortName: 'Gene Keys',
+    description: 'Contemplative system derived from Human Design and I Ching',
+    icon: '🧬',
+  },
 } as const;
 
 /**

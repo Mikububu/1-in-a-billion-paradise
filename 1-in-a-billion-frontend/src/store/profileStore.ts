@@ -112,9 +112,9 @@ export type Person = {
   personalContext?: string; // User-provided context for readings (up to 600 chars for Kabbalah)
   hookReadings?: HookReading[]; // Sun/Moon/Rising free preview readings
   hookAudioPaths?: Partial<Record<HookReading['type'], string>>; // Supabase Storage paths for hook audios (optional)
-  // Photo/claymation fields
+  // Photo/portrait fields
   originalPhotoUrl?: string; // Original uploaded photo URL (Supabase Storage)
-  claymationUrl?: string; // AI-generated claymation image URL
+  portraitUrl?: string; // AI-generated portrait image URL
   readings: Reading[];
   jobIds?: string[]; // Job IDs associated with this person (for quick lookup)
   createdAt: string;

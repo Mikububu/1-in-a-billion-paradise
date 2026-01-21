@@ -29,7 +29,7 @@
 ### Changing Artistic Style
 
 **Files to Update:**
-1. `src/services/claymationService.ts` - Solo portrait prompt
+1. `src/services/aiPortraitService.ts` - Solo portrait prompt
 2. `src/services/coupleImageService.ts` - Couple composition prompt
 3. `docs/IMAGE_DESIGN_PROMPTS.md` - Documentation
 
@@ -78,7 +78,7 @@ When we generate couple portraits directly from original photos, AI creates gene
 
 ## Key Services
 
-- **claymationService.ts** - Generates individual styled portraits from original photos
+- **aiPortraitService.ts** - Generates individual styled portraits from original photos
 - **coupleImageService.ts** - Composes couple portraits from styled portraits
 - **pdfGenerator.ts** - Creates PDFs with styled portraits and reading text
 - **apiKeys.ts** - Manages API keys from Supabase

@@ -14,7 +14,7 @@ export interface GalleryPerson {
   id: string;
   userId: string;
   displayName: string;
-  claymationUrl: string | null;
+  portraitUrl: string | null;
   sunSign: string | null;
   moonSign: string | null;
   risingSign: string | null;
@@ -27,7 +27,7 @@ export interface Match {
   otherUserId: string;
   otherPersonId: string;
   otherName: string;
-  otherClaymationUrl: string | null;
+  otherPortraitUrl: string | null;
   compatibilityScore: number | null;
   matchReason: string | null;
   systemsMatched: string[];
@@ -40,7 +40,7 @@ export interface Conversation {
   id: string;
   matchId: string;
   otherName: string;
-  otherClaymationUrl: string | null;
+  otherPortraitUrl: string | null;
   lastMessageAt: string | null;
   lastMessagePreview: string | null;
   unreadCount: number;
@@ -82,11 +82,11 @@ export async function getGallery(options?: {
       user_id,
       client_person_id,
       name,
-      claymation_url,
+      portrait_url,
       placements,
       updated_at
     `)
-    .not('claymation_url', 'is', null)
+    .not('portrait_url', 'is', null)
     .eq('is_user', true)
     .order('updated_at', { ascending: false, nullsFirst: false })
     .range(offset, offset + limit - 1);
@@ -106,7 +106,7 @@ export async function getGallery(options?: {
     id: p.client_person_id, // Use client_person_id as the unique identifier
     userId: p.user_id,
     displayName: p.name,
-    claymationUrl: p.claymation_url,
+    portraitUrl: p.portrait_url,
     sunSign: p.placements?.sunSign || null,
     moonSign: p.placements?.moonSign || null,
     risingSign: p.placements?.risingSign || null,
@@ -129,11 +129,11 @@ export async function getRandomGallery(count: number = 20, excludeUserId?: strin
       user_id,
       client_person_id,
       name,
-      claymation_url,
+      portrait_url,
       placements,
       updated_at
     `)
-    .not('claymation_url', 'is', null)
+    .not('portrait_url', 'is', null)
     .eq('is_user', true)
     .limit(count * 3);
 
@@ -225,8 +225,8 @@ export async function getUserMatches(userId: string): Promise<Match[]> {
       user1_seen_at,
       user2_seen_at,
       created_at,
-      person1:person1_id (display_name, claymation_url),
-      person2:person2_id (display_name, claymation_url)
+      person1:person1_id (display_name, portrait_url),
+      person2:person2_id (display_name, portrait_url)
     `)
     .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
     .order('created_at', { ascending: false });
@@ -245,7 +245,7 @@ export async function getUserMatches(userId: string): Promise<Match[]> {
       otherUserId: isUser1 ? m.user2_id : m.user1_id,
       otherPersonId: isUser1 ? m.person2_id : m.person1_id,
       otherName: otherPerson?.display_name || 'Unknown',
-      otherClaymationUrl: otherPerson?.claymation_url || null,
+      otherPortraitUrl: otherPerson?.portrait_url || null,
       compatibilityScore: m.compatibility_score,
       matchReason: m.match_reason,
       systemsMatched: m.systems_matched || [],
@@ -306,8 +306,8 @@ export async function getUserConversations(userId: string): Promise<Conversation
       match:match_id (
         user1_id,
         user2_id,
-        person1:person1_id (display_name, claymation_url),
-        person2:person2_id (display_name, claymation_url)
+        person1:person1_id (display_name, portrait_url),
+        person2:person2_id (display_name, portrait_url)
       )
     `)
     .order('last_message_at', { ascending: false, nullsFirst: false });
@@ -328,7 +328,7 @@ export async function getUserConversations(userId: string): Promise<Conversation
         id: c.id,
         matchId: c.match_id,
         otherName: otherPerson?.display_name || 'Unknown',
-        otherClaymationUrl: otherPerson?.claymation_url || null,
+        otherPortraitUrl: otherPerson?.portrait_url || null,
         lastMessageAt: c.last_message_at,
         lastMessagePreview: c.last_message_preview,
         unreadCount: isUser1 ? c.user1_unread_count : c.user2_unread_count,

@@ -311,7 +311,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
               placements: normalizedPlacements,
               // Portrait fields (used for avatars + couple images)
               originalPhotoUrl: row.original_photo_url || undefined,
-              claymationUrl: row.claymation_url || undefined,
+              portraitUrl: row.portrait_url || undefined,
               readings: [],
               jobIds: [],
               createdAt: row.created_at || new Date().toISOString(),
@@ -771,7 +771,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
   const authDisplayName = useAuthStore((s) => s.displayName);
   // User name fallback (avoid generic "User" when possible)
   const userName = user?.name || authDisplayName || 'User';
-  const userPortraitUrl = (user as any)?.claymationUrl || (user as any)?.originalPhotoUrl || null;
+  const userPortraitUrl = (user as any)?.portraitUrl || (user as any)?.originalPhotoUrl || null;
   const normalizeCoupleKey = (a?: string | null, b?: string | null) => {
     if (!a || !b) return null;
     return a < b ? `${a}__${b}` : `${b}__${a}`;
@@ -2229,7 +2229,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         // 1) Try existing stored couple image
         try {
           const { data, error } = await supabase
-            .from('couple_claymations')
+            .from('couple_portraits')
             .select('couple_image_url')
             .eq('user_id', uid)
             .eq('person1_id', a)
@@ -2246,12 +2246,12 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
         // 2) Generate on-demand (only if both portraits exist)
         const p1Portrait =
-          (libraryPeopleById[id1 || ''] as any)?.claymationUrl ||
-          ((people || []).find((p: any) => p?.id === id1) as any)?.claymationUrl ||
+          (libraryPeopleById[id1 || ''] as any)?.portraitUrl ||
+          ((people || []).find((p: any) => p?.id === id1) as any)?.portraitUrl ||
           null;
         const p2Portrait =
-          (libraryPeopleById[id2 || ''] as any)?.claymationUrl ||
-          ((people || []).find((p: any) => p?.id === id2) as any)?.claymationUrl ||
+          (libraryPeopleById[id2 || ''] as any)?.portraitUrl ||
+          ((people || []).find((p: any) => p?.id === id2) as any)?.portraitUrl ||
           null;
         if (!p1Portrait || !p2Portrait) continue;
 
@@ -2569,11 +2569,11 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                     (people || []).find((p: any) => p?.name === person.name) ||
                     null;
                   const portraitUrl =
-                    (libraryPeopleById[person.id] as any)?.claymationUrl ||
+                    (libraryPeopleById[person.id] as any)?.portraitUrl ||
                     (libraryPeopleById[person.id] as any)?.originalPhotoUrl ||
-                    (storePerson as any)?.claymationUrl ||
+                    (storePerson as any)?.portraitUrl ||
                     (storePerson as any)?.originalPhotoUrl ||
-                    (person as any)?.claymationUrl ||
+                    (person as any)?.portraitUrl ||
                     (person as any)?.originalPhotoUrl ||
                     null;
 
@@ -2777,7 +2777,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                 {/* Blinking arrow when portrait exists */}
                 {(() => {
                   const storePerson = (people || []).find((p: any) => p?.id === person.id) || (people || []).find((p: any) => p?.name === person.name) || null;
-                  const hasPortrait = (libraryPeopleById[person.id] as any)?.claymationUrl || (storePerson as any)?.claymationUrl || (person as any)?.claymationUrl;
+                  const hasPortrait = (libraryPeopleById[person.id] as any)?.portraitUrl || (storePerson as any)?.portraitUrl || (person as any)?.portraitUrl;
                   return hasPortrait ? <BlinkingArrow /> : null;
                 })()}
               </TouchableOpacity>

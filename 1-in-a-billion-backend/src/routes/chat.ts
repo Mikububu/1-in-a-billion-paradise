@@ -2,7 +2,7 @@
  * CHAT & MATCHING ROUTES
  * 
  * API endpoints for:
- * - Gallery of claymation portraits
+ * - Gallery of AI portrait portraits
  * - User matches
  * - Chat conversations and messages
  */
@@ -28,7 +28,7 @@ const router = new Hono();
 
 /**
  * GET /api/chat/gallery
- * Get worldwide gallery of claymation portraits
+ * Get worldwide gallery of AI portrait portraits
  */
 router.get('/gallery', async (c) => {
   const userId = c.req.header('X-User-Id');
@@ -46,7 +46,7 @@ router.get('/gallery', async (c) => {
 
 /**
  * GET /api/chat/gallery/random
- * Get random selection of claymation portraits
+ * Get random selection of AI portrait portraits
  * NOTE: Includes the user's own profile so they can view it
  */
 router.get('/gallery/random', async (c) => {

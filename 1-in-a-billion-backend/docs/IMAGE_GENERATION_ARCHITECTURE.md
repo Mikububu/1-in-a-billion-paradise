@@ -43,15 +43,15 @@ By using already-styled portraits as inputs for the couple composition, we ensur
 ### Code Implementation
 
 **Services:**
-- `src/services/claymationService.ts` - Generates individual styled portraits
+- `src/services/aiPortraitService.ts` - Generates individual styled portraits
 - `src/services/coupleImageService.ts` - Composes couple portraits from individual portraits
 - `src/workers/pdfWorker.ts` - Uses this for ALL job types (extended, synastry, nuclear_v2)
 
 **Key Functions:**
 ```typescript
 // Step 1: Generate individual portraits
-await generateClaymationPortrait(originalPhoto1, userId, personId)
-await generateClaymationPortrait(originalPhoto2, userId, personId)
+await generateAIPortrait(originalPhoto1, userId, personId)
+await generateAIPortrait(originalPhoto2, userId, personId)
 
 // Step 2: Compose couple portrait using the styled portraits (NOT original photos)
 await composeCoupleImage(userId, person1Id, person2Id, styledPortrait1Url, styledPortrait2Url)
@@ -84,7 +84,7 @@ await composeCoupleImage(userId, person1Id, person2Id, styledPortrait1Url, style
 To change from linoleum to a new style (e.g., watercolor):
 
 ### 1. Update Solo Portrait Prompt
-Edit `src/services/claymationService.ts`:
+Edit `src/services/aiPortraitService.ts`:
 ```typescript
 const stylePrompt = `New watercolor style description here...`;
 ```
@@ -162,7 +162,7 @@ When testing a new artistic style:
 
 ## References
 
-- Solo Portrait Service: `src/services/claymationService.ts`
+- Solo Portrait Service: `src/services/aiPortraitService.ts`
 - Couple Portrait Service: `src/services/coupleImageService.ts`
 - Style Prompts: `docs/IMAGE_DESIGN_PROMPTS.md`
 - PDF Generation: `src/services/pdf/pdfGenerator.ts`

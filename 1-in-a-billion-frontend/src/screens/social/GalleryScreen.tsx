@@ -31,7 +31,7 @@ interface GalleryPerson {
   id: string;
   userId: string;
   displayName: string;
-  claymationUrl: string | null;
+  portraitUrl: string | null;
   sunSign: string | null;
   moonSign: string | null;
   risingSign: string | null;
@@ -82,8 +82,8 @@ export const GalleryScreen = ({ navigation }: Props) => {
       onPress={() => setSelectedPerson(item)}
       activeOpacity={0.8}
     >
-      {item.claymationUrl ? (
-        <Image source={{ uri: item.claymationUrl }} style={styles.galleryImage} />
+      {item.portraitUrl ? (
+        <Image source={{ uri: item.portraitUrl }} style={styles.galleryImage} />
       ) : (
         <View style={[styles.galleryImage, styles.placeholderImage]}>
           <Text style={styles.placeholderText}>
@@ -109,9 +109,9 @@ export const GalleryScreen = ({ navigation }: Props) => {
         onPress={() => setSelectedPerson(null)}
       >
         <View style={styles.profileModal}>
-          {selectedPerson.claymationUrl && (
+          {selectedPerson.portraitUrl && (
             <Image
-              source={{ uri: selectedPerson.claymationUrl }}
+              source={{ uri: selectedPerson.portraitUrl }}
               style={styles.profileImage}
             />
           )}

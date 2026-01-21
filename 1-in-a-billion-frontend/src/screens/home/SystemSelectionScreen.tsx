@@ -386,14 +386,14 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
         const p1 = profileStorePeople.find((p: any) => p.id === person1.id);
         const p2 = profileStorePeople.find((p: any) => p.id === person2.id);
         
-        if (p1?.claymationUrl && p2?.claymationUrl) {
+        if (p1?.portraitUrl && p2?.portraitUrl) {
           console.log('👫 Triggering couple image generation...');
           import('@/services/coupleImageService').then(({ getCoupleImage }) => {
             getCoupleImage(
               person1.id,
               person2.id,
-              p1.claymationUrl!,
-              p2.claymationUrl!
+              p1.portraitUrl!,
+              p2.portraitUrl!
             ).then(result => {
               if (result.success) {
                 console.log('✅ Couple image generated:', result.coupleImageUrl);

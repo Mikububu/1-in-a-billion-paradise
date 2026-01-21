@@ -254,7 +254,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
             {candidates.map((p) => {
               const isA = personAId === p.id;
               const isB = personBId === p.id;
-              const hasPhoto = !!p.claymationUrl;
+              const hasPhoto = !!p.portraitUrl;
               
               return (
                 <TouchableOpacity
@@ -283,7 +283,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                     ]}>
                       {hasPhoto ? (
                         <Image 
-                          source={{ uri: p.claymationUrl }} 
+                          source={{ uri: p.portraitUrl }} 
                           style={styles.avatarImage}
                         />
                       ) : (

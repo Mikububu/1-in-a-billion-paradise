@@ -6,7 +6,7 @@
  * 
  * ⚠️ CRITICAL - DO NOT CHANGE THIS APPROACH:
  * 
- * This service MUST take already-styled portraits (from claymationService.ts)
+ * This service MUST take already-styled portraits (from aiPortraitService.ts)
  * as inputs, NOT original photos. This is the ONLY way to ensure facial 
  * features are preserved in couple portraits regardless of artistic style.
  * 
@@ -25,7 +25,7 @@ import { getApiKey } from './apiKeys';
 import { env } from '../config/env';
 import sharp from 'sharp';
 
-const COUPLE_IMAGES_BUCKET = 'couple-claymations';
+const COUPLE_IMAGES_BUCKET = 'couple-portraits';
 
 export interface CoupleImageResult {
   success: boolean;
@@ -37,7 +37,7 @@ export interface CoupleImageResult {
 /**
  * Generate a romantic couple portrait using AI
  * 
- * Takes two already-generated styled portraits (e.g., linoleum/claymation style) 
+ * Takes two already-generated styled portraits (e.g., linoleum/AI portrait style) 
  * and composes them into an intimate "lovers" composition.
  * 
  * The AI preserves the facial features from both input portraits while creating
@@ -48,8 +48,8 @@ export async function composeCoupleImage(
   userId: string,
   person1Id: string,
   person2Id: string,
-  claymation1Url: string,
-  claymation2Url: string
+  portrait1Url: string,
+  portrait2Url: string
 ): Promise<CoupleImageResult> {
   const supabase = createSupabaseServiceClient();
   if (!supabase) {
@@ -58,16 +58,16 @@ export async function composeCoupleImage(
 
   try {
     // ⚠️ CRITICAL VALIDATION: Ensure we're receiving styled portraits, not original photos
-    // Styled portraits should be in profile-images bucket with /claymation.png suffix
-    // or in couple-claymations bucket
-    const isStyledPortrait1 = claymation1Url.includes('/claymation.png') || claymation1Url.includes('couple-claymations');
-    const isStyledPortrait2 = claymation2Url.includes('/claymation.png') || claymation2Url.includes('couple-claymations');
+    // Styled portraits should be in profile-images bucket with /AI-generated-portrait.png suffix
+    // or in couple-portraits bucket
+    const isStyledPortrait1 = portrait1Url.includes('/AI-generated-portrait.png') || portrait1Url.includes('couple-portraits') || portrait1Url.includes('/claymation.png') || portrait1Url.includes('couple-claymations');
+    const isStyledPortrait2 = portrait2Url.includes('/AI-generated-portrait.png') || portrait2Url.includes('couple-portraits') || portrait2Url.includes('/claymation.png') || portrait2Url.includes('couple-claymations');
     
     if (!isStyledPortrait1 || !isStyledPortrait2) {
       console.warn('⚠️ [Couple] WARNING: URLs do not appear to be styled portraits!');
-      console.warn('   Person 1 URL:', claymation1Url);
-      console.warn('   Person 2 URL:', claymation2Url);
-      console.warn('   Expected URLs to contain "/claymation.png"');
+      console.warn('   Person 1 URL:', portrait1Url);
+      console.warn('   Person 2 URL:', portrait2Url);
+      console.warn('   Expected URLs to contain "/AI-generated-portrait.png"');
       console.warn('   Couple portraits MUST be composed from styled portraits, not original photos!');
       // Don't fail completely, but log the warning
     }
@@ -79,14 +79,14 @@ export async function composeCoupleImage(
 
     console.log(`👫 [Couple] Generating AI couple portrait for ${person1Id} + ${person2Id}...`);
 
-    // 1. Download both claymation images
+    // 1. Download both portrait images
     const [image1Response, image2Response] = await Promise.all([
-      fetch(claymation1Url),
-      fetch(claymation2Url),
+      fetch(portrait1Url),
+      fetch(portrait2Url),
     ]);
 
     if (!image1Response.ok || !image2Response.ok) {
-      return { success: false, error: 'Failed to download claymation images' };
+      return { success: false, error: 'Failed to download portrait images' };
     }
 
     const [image1Buffer, image2Buffer] = await Promise.all([
@@ -145,7 +145,7 @@ export async function composeCoupleImage(
 
     if (!generatedImageB64) {
       console.error('❌ [Couple] No image in AI response, falling back to side-by-side composition');
-      return await composeCoupleImageFallback(userId, person1Id, person2Id, claymation1Url, claymation2Url);
+      return await composeCoupleImageFallback(userId, person1Id, person2Id, portrait1Url, portrait2Url);
     }
 
     console.log('✅ [Couple] AI couple portrait generated successfully');
@@ -188,16 +188,16 @@ export async function composeCoupleImage(
     const coupleImageUrl = urlData.publicUrl;
     console.log(`✅ [Couple] Couple image uploaded:`, coupleImageUrl);
 
-    // 6. Save to couple_claymations table
+    // 6. Save to couple_portraits table
     const { error: dbError } = await supabase
-      .from('couple_claymations')
+      .from('couple_portraits')
       .upsert({
         user_id: userId,
         person1_id: person1Id,
         person2_id: person2Id,
         couple_image_url: coupleImageUrl,
-        person1_solo_url: claymation1Url,
-        person2_solo_url: claymation2Url,
+        person1_solo_url: portrait1Url,
+        person2_solo_url: portrait2Url,
         updated_at: new Date().toISOString(),
       }, {
         onConflict: 'user_id,person1_id,person2_id',
@@ -214,7 +214,7 @@ export async function composeCoupleImage(
     };
   } catch (error: any) {
     console.error('❌ [Couple] AI generation failed, trying fallback:', error.message);
-    return await composeCoupleImageFallback(userId, person1Id, person2Id, claymation1Url, claymation2Url);
+    return await composeCoupleImageFallback(userId, person1Id, person2Id, portrait1Url, portrait2Url);
   }
 }
 
@@ -225,8 +225,8 @@ async function composeCoupleImageFallback(
   userId: string,
   person1Id: string,
   person2Id: string,
-  claymation1Url: string,
-  claymation2Url: string
+  portrait1Url: string,
+  portrait2Url: string
 ): Promise<CoupleImageResult> {
   const supabase = createSupabaseServiceClient();
   if (!supabase) {
@@ -237,12 +237,12 @@ async function composeCoupleImageFallback(
     console.log(`👫 [Couple] Fallback: Creating side-by-side composition...`);
 
     const [image1Response, image2Response] = await Promise.all([
-      fetch(claymation1Url),
-      fetch(claymation2Url),
+      fetch(portrait1Url),
+      fetch(portrait2Url),
     ]);
 
     if (!image1Response.ok || !image2Response.ok) {
-      return { success: false, error: 'Failed to download claymation images' };
+      return { success: false, error: 'Failed to download portrait images' };
     }
 
     const [image1Buffer, image2Buffer] = await Promise.all([
@@ -294,14 +294,14 @@ async function composeCoupleImageFallback(
     console.log(`✅ [Couple] Fallback image created:`, coupleImageUrl);
 
     const { error: dbError } = await supabase
-      .from('couple_claymations')
+      .from('couple_portraits')
       .upsert({
         user_id: userId,
         person1_id: person1Id,
         person2_id: person2Id,
         couple_image_url: coupleImageUrl,
-        person1_solo_url: claymation1Url,
-        person2_solo_url: claymation2Url,
+        person1_solo_url: portrait1Url,
+        person2_solo_url: portrait2Url,
         updated_at: new Date().toISOString(),
       }, {
         onConflict: 'user_id,person1_id,person2_id',
@@ -332,8 +332,8 @@ export async function getCoupleImage(
   userId: string,
   person1Id: string,
   person2Id: string,
-  claymation1Url: string,
-  claymation2Url: string,
+  portrait1Url: string,
+  portrait2Url: string,
   forceRegenerate: boolean = false
 ): Promise<CoupleImageResult> {
   const supabase = createSupabaseServiceClient();
@@ -344,13 +344,13 @@ export async function getCoupleImage(
   try {
     // Normalize person IDs (always store in alphabetical order for consistency)
     const [id1, id2, url1, url2] = person1Id < person2Id
-      ? [person1Id, person2Id, claymation1Url, claymation2Url]
-      : [person2Id, person1Id, claymation2Url, claymation1Url];
+      ? [person1Id, person2Id, portrait1Url, portrait2Url]
+      : [person2Id, person1Id, portrait2Url, portrait1Url];
 
     // Check if couple image already exists
     if (!forceRegenerate) {
       const { data, error } = await supabase
-        .from('couple_claymations')
+        .from('couple_portraits')
         .select('couple_image_url, person1_solo_url, person2_solo_url')
         .eq('user_id', userId)
         .eq('person1_id', id1)

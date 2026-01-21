@@ -812,7 +812,7 @@ export const RootNavigator = () => {
   // ROUTING LOGIC PREP: Calculate values needed for routing decisions
   const shouldContinueOnboarding = hasSession && !hasCompletedOnboarding;
   const isPaidUser = people.some((p: any) => p.isUser && p.hasPaidReading);
-  const hasUploadedPhoto = people.some((p: any) => p.isUser && p.claymationUrl);
+  const hasUploadedPhoto = people.some((p: any) => p.isUser && p.portraitUrl);
   const isReturningUser = isPaidUser || hasUploadedPhoto || hasHookReadings;
 
   // Block rendering until Bootstrap determines if we have a valid session AND persist has hydrated

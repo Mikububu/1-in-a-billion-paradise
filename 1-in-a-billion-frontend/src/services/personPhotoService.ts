@@ -15,7 +15,7 @@ const CLAYMATIONS_BUCKET = 'claymations';
 export interface UploadPhotoResult {
   success: boolean;
   originalUrl?: string;
-  claymationUrl?: string;
+  portraitUrl?: string;
   error?: string;
 }
 
@@ -81,7 +81,7 @@ export async function uploadPersonPhoto(
     }
 
     console.log('🎨 Requesting claymation generation from backend...');
-    const claymationResponse = await fetch(`${backendUrl}/api/profile/claymation`, {
+    const claymationResponse = await fetch(`${backendUrl}/api/profile/portrait`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -118,7 +118,7 @@ export async function uploadPersonPhoto(
     return {
       success: true,
       originalUrl,
-      claymationUrl: claymationResult.imageUrl,
+      portraitUrl: claymationResult.imageUrl,
     };
   } catch (error: any) {
     console.error('Photo upload error:', error);

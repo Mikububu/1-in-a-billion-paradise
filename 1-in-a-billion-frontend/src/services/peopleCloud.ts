@@ -43,9 +43,9 @@ export type LibraryPersonRow = {
   placements: any | null;
   hook_readings: any | null;
   hook_audio_paths: any | null;
-  // Photo/claymation data
+  // Photo/portrait data
   original_photo_url: string | null;
-  claymation_url: string | null;
+  portrait_url: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -72,9 +72,9 @@ function toRow(userId: string, p: Person): LibraryPersonRow {
     placements: p.placements || null,
     hook_readings: p.hookReadings || null,
     hook_audio_paths: (p as any).hookAudioPaths || null,
-    // Photo/claymation data
+    // Photo/portrait data
     original_photo_url: p.originalPhotoUrl || null,
-    claymation_url: p.claymationUrl || null,
+    portrait_url: p.portraitUrl || null,
     created_at: p.createdAt || new Date().toISOString(),
     updated_at: p.updatedAt || new Date().toISOString(),
   };
@@ -102,9 +102,9 @@ function fromRow(r: LibraryPersonRow): Person {
     placements: normalizedPlacements,
     hookReadings: (r.hook_readings || undefined) as any,
     hookAudioPaths: (r.hook_audio_paths || undefined) as any,
-    // Photo/claymation data
+    // Photo/portrait data
     originalPhotoUrl: r.original_photo_url || undefined,
-    claymationUrl: r.claymation_url || undefined,
+    portraitUrl: r.portrait_url || undefined,
     readings: [],
     createdAt: r.created_at || now,
     updatedAt: r.updated_at || now,

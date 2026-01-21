@@ -99,13 +99,13 @@ export const HomeScreen = ({ navigation }: Props) => {
         // Load claymation URL from library_people
         const { data } = await supabase
           .from('library_people')
-          .select('claymation_url')
+          .select('portrait_url')
           .eq('user_id', authUserId)
           .eq('is_user', true)
           .single();
 
-        if (data?.claymation_url) {
-          setClaymationPhotoUrl(data.claymation_url);
+        if (data?.portrait_url) {
+          setClaymationPhotoUrl(data.portrait_url);
         }
 
         // Load match count
@@ -175,7 +175,7 @@ export const HomeScreen = ({ navigation }: Props) => {
       }
 
       // Upload to backend
-      const response = await fetch(`${env.CORE_API_URL}/api/profile/claymation`, {
+      const response = await fetch(`${env.CORE_API_URL}/api/profile/portrait`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

@@ -48,7 +48,7 @@ Compose these two stylized portraits into a romantic couple portrait. Keep the e
 - **Format**: PNG
 
 ### Source Files
-- Solo: `src/services/claymationService.ts`
+- Solo: `src/services/aiPortraitService.ts`
 - Couple: `src/services/coupleImageService.ts`
 
 ---

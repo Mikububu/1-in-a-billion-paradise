@@ -53,7 +53,7 @@ async function generateLinoleumPortrait(imageBuffer: Buffer, name: string, googl
   
   const base64Data = imageBuffer.toString('base64');
   
-  // Build parts array (matching working claymationService.ts)
+  // Build parts array (matching working aiPortraitService.ts)
   const parts: any[] = [
     {
       inlineData: {

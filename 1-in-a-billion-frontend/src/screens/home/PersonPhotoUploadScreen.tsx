@@ -48,7 +48,7 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
   const rotateWhite = useRef(new Animated.Value(0)).current;
   const ringAnims = useRef<Array<Animated.CompositeAnimation>>([]);
   
-  const hasGeneratedPortrait = Boolean(person?.claymationUrl);
+  const hasGeneratedPortrait = Boolean(person?.portraitUrl);
   const showRing = isUploading || (!hasGeneratedPortrait && !photoUri);
 
   useEffect(() => {
@@ -110,7 +110,7 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
       // Update person in store with new URLs
       updatePerson(person.id, {
         originalPhotoUrl: result.originalUrl,
-        claymationUrl: result.claymationUrl,
+        portraitUrl: result.portraitUrl,
       });
 
       // Clear local selection so we show the generated portrait.
@@ -176,7 +176,7 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
     void pickImage();
   };
 
-  const displayUri = photoUri || person.claymationUrl || person.originalPhotoUrl || null;
+  const displayUri = photoUri || person.portraitUrl || person.originalPhotoUrl || null;
 
   return (
     <View style={styles.root}>

@@ -657,10 +657,10 @@ export const FullReadingScreen = ({ navigation, route }: Props) => {
       const resolvePortraitUrl = () => {
         const me = getUser();
         if (!me) return null;
-        if (!forPartner) return (me as any)?.claymationUrl || (me as any)?.originalPhotoUrl || null;
+        if (!forPartner) return (me as any)?.portraitUrl || (me as any)?.originalPhotoUrl || null;
         const all = useProfileStore.getState().people || [];
         const match = all.find((p: any) => (p?.name || '').toLowerCase() === (partnerName || '').toLowerCase());
-        return (match as any)?.claymationUrl || (match as any)?.originalPhotoUrl || null;
+        return (match as any)?.portraitUrl || (match as any)?.originalPhotoUrl || null;
       };
 
       const portraitUrl = resolvePortraitUrl();
