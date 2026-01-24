@@ -1,9 +1,0 @@
-google-tts-credentials.json
-.env
-node_modules/
-dist/
-jobs-data/
-generated-pdfs/
-benchmarks/
-_backups/
-.env

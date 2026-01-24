@@ -218,29 +218,16 @@ async function runFfmpeg(args: string[]): Promise<void> {
   });
 }
 
-async function convertWavToMp3(wav: Buffer): Promise<Buffer> {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'iab-audio-'));
-  const inPath = path.join(dir, 'in.wav');
-  const outPath = path.join(dir, 'out.mp3');
-  try {
-    await fs.writeFile(inPath, wav);
-    await runFfmpeg(['-i', inPath, '-vn', '-c:a', 'libmp3lame', '-b:a', '128k', outPath]);
-    const mp3 = await fs.readFile(outPath);
-    console.log(`WAV->MP3: ${Math.round(wav.length / 1024)}KB -> ${Math.round(mp3.length / 1024)}KB`);
-    return mp3;
-  } finally {
-    await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
-  }
-}
-
 async function convertWavToM4a(wav: Buffer): Promise<Buffer> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'iab-audio-'));
   const inPath = path.join(dir, 'in.wav');
   const outPath = path.join(dir, 'out.m4a');
   try {
     await fs.writeFile(inPath, wav);
-    await runFfmpeg(['-i', inPath, '-vn', '-c:a', 'aac', '-b:a', '128k', outPath]);
-    return await fs.readFile(outPath);
+    await runFfmpeg(['-i', inPath, '-vn', '-c:a', 'aac', '-b:a', '96k', outPath]);
+    const m4a = await fs.readFile(outPath);
+    console.log(`WAV->M4A: ${Math.round(wav.length / 1024)}KB -> ${Math.round(m4a.length / 1024)}KB`);
+    return m4a;
   } finally {
     await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
   }
@@ -485,21 +472,10 @@ export class AudiobookQueueWorker {
       console.log(`   Concatenating ${audioChunks.length} audio chunks...`);
       const concatenatedWav = concatenateWavBuffers(audioChunks);
 
-      // Convert to MP3 (with M4A fallback)
-      let finalAudio: Buffer;
-      let audioFormat: 'mp3' | 'm4a';
-      let storageExtension: string;
-
-      try {
-        finalAudio = await convertWavToMp3(concatenatedWav);
-        audioFormat = 'mp3';
-        storageExtension = 'mp3';
-      } catch (mp3Error: any) {
-        console.warn(`⚠️ MP3 conversion failed, trying M4A: ${mp3Error.message}`);
-        finalAudio = await convertWavToM4a(concatenatedWav);
-        audioFormat = 'm4a';
-        storageExtension = 'm4a';
-      }
+      // Convert to M4A (primary format only, no MP3)
+      const finalAudio = await convertWavToM4a(concatenatedWav);
+      const audioFormat = 'm4a' as const;
+      const storageExtension = 'm4a';
 
       console.log(`   Final audio: ${Math.round(finalAudio.length / 1024)}KB (${audioFormat})`);
 
@@ -516,7 +492,7 @@ export class AudiobookQueueWorker {
 
       // Upload to Storage
       const storagePath = `${job.user_id}/${chapter.job_id}/chapters/${chapter.chapter_id}.${storageExtension}`;
-      const contentType = audioFormat === 'mp3' ? 'audio/mpeg' : 'audio/mp4';
+      const contentType = 'audio/mp4';
 
       const { error: uploadError } = await supabase.storage
         .from('job-artifacts')

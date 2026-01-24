@@ -18,6 +18,8 @@ export interface AudioDocument {
     text: string;
     jobId: string;
     sequence: number;
+    system?: string | null;
+    docType?: string | null;
 }
 
 /**
@@ -58,6 +60,8 @@ export async function triggerAsyncAudioGeneration(
                         text: doc.text,
                         title: doc.title,
                         documentId: doc.id,
+                        system: doc.system ?? null,
+                        docType: doc.docType ?? null,
                     },
                 });
 

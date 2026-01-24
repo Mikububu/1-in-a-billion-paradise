@@ -61,7 +61,7 @@ await composeCoupleImage(userId, person1Id, person2Id, styledPortrait1Url, style
 ```typescript
 // pdfWorker.ts handles this for all job types:
 // 1. Waits for individual styled portraits to be generated
-// 2. Fetches styled portrait URLs from library_people.claymation_url
+// 2. Fetches styled portrait URLs from library_people.portrait_url
 // 3. Calls getCoupleImage() which uses composeCoupleImage()
 // 4. Generates PDF with the couple portrait
 
@@ -72,9 +72,9 @@ await composeCoupleImage(userId, person1Id, person2Id, styledPortrait1Url, style
 ```
 
 **Safeguards:**
-- Runtime validation in `coupleImageService.ts` checks if URLs contain `/claymation.png`
+- Runtime validation in `coupleImageService.ts` checks if URLs contain `/AI-generated-portrait.png`
 - Runtime validation in `pdfWorker.ts` warns if original photos are used
-- Function parameter names (`claymation1Url`) make intent clear
+- Function parameter names (`portrait1Url`) make intent clear
 - Documentation warnings throughout
 
 ---
@@ -110,28 +110,46 @@ Edit `docs/IMAGE_DESIGN_PROMPTS.md` with new prompts.
 ### Individual Portrait Generation
 ```
 1. User uploads original photo
-2. Store original in Supabase Storage (profile-images bucket)
+2. Store original in Supabase Storage (profile-images/{userId}/{personId}/original.jpg)
 3. Send original photo to AI with style prompt
 4. Apply post-processing:
    - Auto-trim white space (sharp.trim())
    - Resize to 1024x1024
    - Color adjustments
    - Sharpen
-5. Store styled portrait in Supabase Storage
-6. Update library_people.claymation_url
+5. Store styled portrait in Supabase Storage (profile-images/{userId}/{personId}/AI-generated-portrait.png)
+6. Update library_people.portrait_url
 ```
+
+### Storage Naming Convention
+```
+profile-images/
+  {userId}/
+    {client_person_id}/
+      original.jpg              # Original uploaded photo
+      AI-generated-portrait.png  # AI-styled portrait
+    self/
+      original.jpg              # User's own original photo  
+      AI-generated-portrait.png  # User's own AI portrait
+```
+
+### Database Columns
+- `library_people.portrait_url` - URL to AI-generated portrait
+- `library_people.original_photo_url` - URL to original photo
+
+**NOTE:** Old naming "claymation" has been deprecated. Use "portrait" everywhere.
 
 ### Couple Portrait Generation
 ```
-1. Fetch styled portrait URLs for both people from Supabase
+1. Fetch styled portrait URLs for both people from library_people.portrait_url
 2. Download both styled portraits
 3. Send BOTH STYLED PORTRAITS to AI with composition prompt
 4. Apply post-processing:
    - Auto-trim white space
    - Resize to 1024x1024
    - Color adjustments
-5. Store couple portrait in Supabase Storage (couple-claymations bucket)
-6. Update couple_claymations table
+5. Store couple portrait in Supabase Storage (couple-portraits bucket)
+6. Update couple_portraits table
 ```
 
 ---

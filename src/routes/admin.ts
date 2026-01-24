@@ -526,6 +526,95 @@ router.get('/dashboard/stats', requirePermission('analytics', 'read'), async (c)
   }
 });
 
+/**
+ * GET /api/admin/dashboard/job-logs
+ * Get job execution logs with tasks, costs, and performance metrics
+ */
+router.get('/dashboard/job-logs', requirePermission('analytics', 'read'), async (c) => {
+  const supabase = createSupabaseServiceClient();
+  if (!supabase) {
+    return c.json({ error: 'Database connection failed' }, 500);
+  }
+
+  try {
+    const filter = c.req.query('filter') || 'all';
+    const limit = parseInt(c.req.query('limit') || '50');
+
+    // Build job query based on filter
+    let jobQuery = supabase
+      .from('jobs')
+      .select('id, type, status, created_at, completed_at, total_cost_usd, cost_breakdown')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (filter === 'success') {
+      jobQuery = jobQuery.eq('status', 'complete');
+    } else if (filter === 'failed') {
+      jobQuery = jobQuery.eq('status', 'failed');
+    } else if (filter === 'running') {
+      jobQuery = jobQuery.in('status', ['pending', 'processing']);
+    }
+
+    const { data: jobs, error: jobsError } = await jobQuery;
+
+    if (jobsError) {
+      console.error('Error fetching jobs:', jobsError);
+      return c.json({ error: 'Failed to fetch jobs' }, 500);
+    }
+
+    // Fetch tasks for each job
+    const jobIds = jobs?.map((j: any) => j.id) || [];
+    const { data: tasks, error: tasksError } = await supabase
+      .from('job_tasks')
+      .select('id, job_id, type, status, error_message, cost_data, created_at, completed_at')
+      .in('job_id', jobIds);
+
+    if (tasksError) {
+      console.error('Error fetching tasks:', tasksError);
+      return c.json({ error: 'Failed to fetch tasks' }, 500);
+    }
+
+    // Group tasks by job
+    const tasksByJob = (tasks || []).reduce((acc: any, task: any) => {
+      if (!acc[task.job_id]) acc[task.job_id] = [];
+      
+      // Calculate execution time
+      const executionTime = task.completed_at && task.created_at
+        ? new Date(task.completed_at).getTime() - new Date(task.created_at).getTime()
+        : 0;
+
+      acc[task.job_id].push({
+        task_id: task.id,
+        task_type: task.type,
+        task_status: task.status,
+        execution_time_ms: executionTime,
+        error_message: task.error_message,
+        cost_data: task.cost_data || {},
+        created_at: task.created_at,
+        completed_at: task.completed_at,
+      });
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    // Format response
+    const jobLogs = (jobs || []).map((job: any) => ({
+      job_id: job.id,
+      job_type: job.type,
+      job_status: job.status,
+      job_created_at: job.created_at,
+      job_completed_at: job.completed_at,
+      total_cost_usd: job.total_cost_usd || 0,
+      cost_breakdown: job.cost_breakdown || {},
+      tasks: tasksByJob[job.id] || [],
+    }));
+
+    return c.json(jobLogs);
+  } catch (err: any) {
+    console.error('Error fetching job logs:', err);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
 // ───────────────────────────────────────────────────────────────────────────
 // LLM PROVIDER CONFIGURATION
 // ───────────────────────────────────────────────────────────────────────────

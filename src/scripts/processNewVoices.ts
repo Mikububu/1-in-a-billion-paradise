@@ -185,7 +185,7 @@ async function processNewVoices() {
         console.log(`\n🎤 ${voiceFile.displayName} (${voiceFile.voiceId})`);
 
         // Upload MP3 to voice-samples bucket (for previews)
-        const mp3Path = `voice-samples/${voiceFile.voiceId}/henry_miller_sample.mp3`;
+        const mp3Path = `voice-samples/${voiceFile.voiceId}/preview.mp3`;
         console.log(`   📤 Uploading MP3 preview...`);
         const mp3Url = await uploadFile(
             supabase,

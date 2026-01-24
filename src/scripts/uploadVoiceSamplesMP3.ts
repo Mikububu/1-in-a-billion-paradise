@@ -4,10 +4,7 @@
  * Uploads MP3 voice samples needed for the app to run.
  * 
  * Required MP3 files:
- * - voice-samples/anabella/henry_miller_sample.mp3
- * - voice-samples/dorothy/henry_miller_sample.mp3
- * - voice-samples/ludwig/henry_miller_sample.mp3
- * - voice-samples/grandpa/henry_miller_sample.mp3
+ * - voice-samples/{voiceId}/preview.mp3
  * 
  * These MP3 files are used for:
  * 1. Frontend previews (voice selection UI)
@@ -124,8 +121,8 @@ async function uploadVoiceSamplesMP3() {
         voiceId: voice.id,
         displayName: voice.displayName,
         bucket: 'voice-samples',
-        path: `voice-samples/${voice.id}/henry_miller_sample.mp3`,
-        filename: `henry_miller_sample.mp3`,
+        path: `voice-samples/${voice.id}/preview.mp3`,
+        filename: `preview.mp3`,
     }));
 
     const missingFiles: typeof requiredFiles = [];
@@ -157,7 +154,7 @@ async function uploadVoiceSamplesMP3() {
             const possibleNames = [
                 `${file.voiceId}.mp3`,
                 `${file.displayName}.mp3`,
-                `henry_miller_sample.mp3`,
+                `preview.mp3`,
                 file.filename,
             ];
 

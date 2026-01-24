@@ -191,8 +191,8 @@ export class PdfWorker extends BaseWorker {
     if (!coupleImageUrl && person1PortraitUrl && person2PortraitUrl && person1Id && person2Id) {
       // ⚠️ CRITICAL: Ensure we're using styled portraits, not original photos
       // getPortraitUrl() prefers portrait_url, but falls back to original_photo_url
-      const isStyled1 = person1PortraitUrl.includes('/AI-generated-portrait.png') || person1PortraitUrl.includes('/claymation.png');
-      const isStyled2 = person2PortraitUrl.includes('/AI-generated-portrait.png') || person2PortraitUrl.includes('/claymation.png');
+      const isStyled1 = person1PortraitUrl.includes('/AI-generated-portrait.png');
+      const isStyled2 = person2PortraitUrl.includes('/AI-generated-portrait.png');
       
       if (!isStyled1 || !isStyled2) {
         console.warn('⚠️ [PDFWorker] WARNING: Portrait URLs appear to be original photos, not styled portraits!');

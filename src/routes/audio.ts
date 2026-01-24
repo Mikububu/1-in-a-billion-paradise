@@ -7,6 +7,7 @@ import axios from 'axios';
 import { execSync } from 'child_process';
 import { audioService } from '../services/audioService';
 import { getApiKey } from '../services/apiKeys';
+import { apiKeys } from '../services/apiKeysHelper';
 
 const router = new Hono();
 
@@ -318,34 +319,19 @@ function concatenateWavBuffers(buffers: Buffer[]): Buffer {
   return result;
 }
 
-// Helper: Convert WAV buffer to a compressed format.
-// Prefer MP3 (best compatibility). If libmp3lame isn't available, fall back to AAC in M4A.
-function wavToCompressed(wavBuffer: Buffer): { buffer: Buffer; format: 'mp3' | 'm4a'; mime: 'audio/mpeg' | 'audio/mp4' } {
+// Helper: Convert WAV buffer to M4A (AAC). Primary format only, no MP3.
+function wavToCompressed(wavBuffer: Buffer): { buffer: Buffer; format: 'm4a'; mime: 'audio/mp4' } {
   const nonce = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
   const tmpWav = `/tmp/tts_${nonce}.wav`;
-  const tmpMp3 = `/tmp/tts_${nonce}.mp3`;
   const tmpM4a = `/tmp/tts_${nonce}.m4a`;
 
   const cleanup = () => {
     try { fs.unlinkSync(tmpWav); } catch { }
-    try { fs.unlinkSync(tmpMp3); } catch { }
     try { fs.unlinkSync(tmpM4a); } catch { }
   };
 
   try {
     fs.writeFileSync(tmpWav, wavBuffer);
-
-    // MP3 first
-    try {
-      execSync(`ffmpeg -y -i "${tmpWav}" -codec:a libmp3lame -b:a 128k "${tmpMp3}" 2>/dev/null`);
-      const mp3Buffer = fs.readFileSync(tmpMp3);
-      console.log(`WAV->MP3: ${Math.round(wavBuffer.length / 1024)}KB -> ${Math.round(mp3Buffer.length / 1024)}KB`);
-      return { buffer: mp3Buffer, format: 'mp3', mime: 'audio/mpeg' };
-    } catch {
-      // Common on minimal images: ffmpeg built without libmp3lame
-    }
-
-    // Fallback: M4A (AAC)
     execSync(`ffmpeg -y -i "${tmpWav}" -vn -ac 1 -ar 24000 -c:a aac -b:a 96k "${tmpM4a}" 2>/dev/null`);
     const m4aBuffer = fs.readFileSync(tmpM4a);
     console.log(`WAV->M4A: ${Math.round(wavBuffer.length / 1024)}KB -> ${Math.round(m4aBuffer.length / 1024)}KB`);
@@ -363,10 +349,11 @@ router.post('/generate-tts', async (c) => {
 
   // CHATTERBOX via RunPod (self-hosted, voice cloning)
   if (parsed.provider === 'chatterbox') {
-    // Keys are stored in Supabase assistant_config/api_keys and cached via getApiKey().
-    // Local dev often doesn't have RUNPOD_* in .env, so fall back to Supabase key store.
-    const runpodApiKey = env.RUNPOD_API_KEY || (await getApiKey('runpod')) || '';
-    const runpodEndpointId = env.RUNPOD_ENDPOINT_ID || (await getApiKey('runpod_endpoint')) || '';
+    // SINGLE SOURCE OF TRUTH: Supabase api_keys table
+    // This ensures endpoint ID changes (e.g., after RunPod restore) apply immediately
+    // without requiring Fly.io secret updates or redeployment.
+    const runpodApiKey = await apiKeys.runpod();
+    const runpodEndpointId = await apiKeys.runpodEndpoint();
 
     if (!runpodApiKey || !runpodEndpointId) {
       return c.json({
@@ -547,7 +534,7 @@ router.post('/generate-tts', async (c) => {
       // Concatenate all chunks into WAV
       const wavAudio = concatenateWavBuffers(audioBuffers);
 
-      // Convert to compressed audio (MP3 primary, M4A fallback)
+      // Convert to M4A (primary format only)
       const { buffer: compressedAudio, format, mime } = wavToCompressed(wavAudio);
       const base64Audio = compressedAudio.toString('base64');
 
@@ -670,9 +657,14 @@ router.get('/stream/:id', async (c) => {
 // Client can start playing immediately while remaining chunks generate
 router.post('/generate-tts-stream', async (c) => {
   const parsed = ttsPayloadSchema.parse(await c.req.json());
-  const { env } = await import('../config/env');
 
-  if (!env.RUNPOD_API_KEY || !env.RUNPOD_ENDPOINT_ID) {
+  // SINGLE SOURCE OF TRUTH: Supabase api_keys table
+  let runpodApiKey: string;
+  let runpodEndpointId: string;
+  try {
+    runpodApiKey = await apiKeys.runpod();
+    runpodEndpointId = await apiKeys.runpodEndpoint();
+  } catch (err) {
     return c.json({ success: false, message: 'RunPod not configured' }, 500);
   }
 
@@ -704,7 +696,7 @@ router.post('/generate-tts-stream', async (c) => {
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
             const response = await axios.post(
-              `https://api.runpod.ai/v2/${env.RUNPOD_ENDPOINT_ID}/runsync`,
+              `https://api.runpod.ai/v2/${runpodEndpointId}/runsync`,
               {
                 input: {
                   text: chunk,
@@ -715,7 +707,7 @@ router.post('/generate-tts-stream', async (c) => {
               },
               {
                 headers: {
-                  'Authorization': `Bearer ${env.RUNPOD_API_KEY}`,
+                  'Authorization': `Bearer ${runpodApiKey}`,
                   'Content-Type': 'application/json',
                 },
                 timeout: 180000,
@@ -795,7 +787,6 @@ const hookAudioSchema = z.object({
 router.post('/hook-audio/generate', async (c) => {
   try {
     const parsed = hookAudioSchema.parse(await c.req.json());
-    const { env } = await import('../config/env');
     const { supabase } = await import('../services/supabaseClient');
 
     if (!supabase) {
@@ -806,14 +797,17 @@ router.post('/hook-audio/generate', async (c) => {
     const userId = parsed.userId || 'temp';
     console.log(`🎤 Hook audio generation: ${parsed.type} for user ${userId} (${parsed.text.length} chars)`);
 
-    // Get RunPod keys
-    const runpodApiKey = env.RUNPOD_API_KEY || (await getApiKey('runpod')) || '';
-    const runpodEndpointId = env.RUNPOD_ENDPOINT_ID || (await getApiKey('runpod_endpoint')) || '';
-
-    if (!runpodApiKey || !runpodEndpointId) {
+    // SINGLE SOURCE OF TRUTH: Supabase api_keys table
+    // This ensures endpoint ID changes (e.g., after RunPod restore) apply immediately
+    let runpodApiKey: string;
+    let runpodEndpointId: string;
+    try {
+      runpodApiKey = await apiKeys.runpod();
+      runpodEndpointId = await apiKeys.runpodEndpoint();
+    } catch (err) {
       return c.json({
         success: false,
-        error: 'RunPod not configured (RUNPOD_API_KEY and RUNPOD_ENDPOINT_ID required)',
+        error: 'RunPod not configured (check Supabase api_keys table)',
       }, 500);
     }
 
@@ -879,7 +873,7 @@ router.post('/hook-audio/generate', async (c) => {
     const storagePath = parsed.userId 
       ? `hook-audio/${parsed.userId}/${parsed.type}.${format}`
       : `hook-audio/temp/${parsed.type}_${Date.now()}.${format}`;
-    const contentType = format === 'mp3' ? 'audio/mpeg' : 'audio/mp4';
+    const contentType = 'audio/mp4';
 
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('library')

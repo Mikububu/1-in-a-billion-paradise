@@ -5,6 +5,13 @@
  * Each voice has a unique ID, display name, and sample audio for cloning.
  */
 
+export interface TurboVoiceSettings {
+    temperature?: number;
+    top_p?: number;
+    cfg_weight?: number;
+    exaggeration?: number;
+}
+
 export interface Voice {
     id: string;              // Unique identifier (kebab-case, used in URLs and storage)
     displayName: string;     // User-facing name (e.g., "David", "Elisabeth")
@@ -13,13 +20,17 @@ export interface Voice {
     previewSampleUrl?: string; // Optional: MP3 URL for frontend previews (if different from sampleAudioUrl)
     category?: 'male' | 'female' | 'neutral';
     enabled?: boolean;       // Allow disabling voices without removing them
+    isTurboPreset?: boolean; // True if this is a Chatterbox Turbo built-in voice (no cloning needed)
+    turboVoiceId?: string;   // Turbo voice ID for API calls (e.g., "alloy", "echo")
+    turboSettings?: TurboVoiceSettings; // Custom settings for Turbo voices
 }
 
 /**
  * Standard quote used for all voice samples.
- * From Henry Miller's "Tropic of Cancer"
+ * From Anaïs Nin's "House of Incest"
+ * See: docs/PREVIEW_Speaker_text.md for full text
  */
-export const VOICE_SAMPLE_QUOTE = `I need to be alone. I need to ponder my shame and my despair in seclusion; I need the sunshine and the paving stones of the streets without companions, without conversation, face to face with myself, with only the music of my heart for company.`;
+export const VOICE_SAMPLE_QUOTE = `My first vision of earth was water veiled. I am of the race of men and women who see things through this curtain of sea, and my eyes are the color of water. I looked with chameleon eyes upon the changing face of the world, looked with anonymous vision upon my uncompleted self. I remember my first birth in water. All round me a sulphurous transparency and my bones move as if made of rubber. I sway and float, stand on boneless toes listening for distant sounds, sounds beyond the reach of human ears, see things beyond the reach of human eyes. Born full of memories of the bells of Atlantide. Always listening for lost sounds and searching for lost colors, standing forever on the threshold like one troubled with memories, and walking with a swimming stride. I cut the air with wideslicing fins, and swim through wall-less rooms. The night surrounded me, a photograph unglued from its frame. The lining of a coat ripped open like the two shells of an oyster. The day and night unglued, and I falling in between not knowing on which layer I was resting, whether it was the cold upper leaf of dawn, or the dark layer of night.`;
 
 /**
  * All available voices for the application.
@@ -29,7 +40,7 @@ export const VOICE_SAMPLE_QUOTE = `I need to be alone. I need to ponder my shame
  * 
  * To add a new voice:
  * 1. Upload WAV voice sample to Supabase Storage (voices/{voice_id}.wav)
- * 2. Upload MP3 preview sample to voice-samples/{voice_id}/henry_miller_sample.mp3
+ * 2. Upload MP3 preview sample to voice-samples/{voice_id}/preview.mp3
  * 3. Add a new entry to this array with:
  *    - id: unique identifier (lowercase, kebab-case)
  *    - displayName: user-facing name (e.g., "David", "Elisabeth")
@@ -50,6 +61,8 @@ export const VOICES: Voice[] = [
         previewSampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/david/preview.mp3',
         category: 'male',
         enabled: true,
+        // Custom voice cloning via reference_audio
+        turboSettings: { temperature: 0.7 },
     },
     {
         id: 'elisabeth',
@@ -59,6 +72,7 @@ export const VOICES: Voice[] = [
         previewSampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/elisabeth/preview.mp3',
         category: 'female',
         enabled: true,
+        turboSettings: { temperature: 0.7 },
     },
     {
         id: 'michael',
@@ -68,6 +82,7 @@ export const VOICES: Voice[] = [
         previewSampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/michael/preview.mp3',
         category: 'male',
         enabled: true,
+        turboSettings: { temperature: 0.7 },
     },
     {
         id: 'peter',
@@ -77,6 +92,7 @@ export const VOICES: Voice[] = [
         previewSampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/peter/preview.mp3',
         category: 'male',
         enabled: true,
+        turboSettings: { temperature: 0.7 },
     },
     {
         id: 'victor',
@@ -86,6 +102,135 @@ export const VOICES: Voice[] = [
         previewSampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/victor/preview.mp3',
         category: 'male',
         enabled: true,
+        turboSettings: { temperature: 0.7 },
+    },
+    // ═════════════════════════════════════════════════════════════════════════
+    // CHATTERBOX TURBO BUILT-IN VOICES (No voice cloning needed)
+    // Valid API voices: Aaron, Abigail, Anaya, Andy, Archer, Brian, Chloe, Dylan,
+    // Emmanuel, Ethan, Evelyn, Gavin, Gordon, Ivan, Laura, Lucy, Madison, Marisol, Meera, Walter
+    // ═════════════════════════════════════════════════════════════════════════
+    {
+        id: 'turbo-aaron',
+        displayName: 'Aaron',
+        description: 'Steady, reliable male narrator',
+        sampleAudioUrl: '',
+        category: 'male',
+        enabled: true,
+        isTurboPreset: true,
+        turboVoiceId: 'Aaron',
+    },
+    {
+        id: 'turbo-abigail',
+        displayName: 'Abigail',
+        description: 'Professional, confident female voice',
+        sampleAudioUrl: '',
+        category: 'female',
+        enabled: true,
+        isTurboPreset: true,
+        turboVoiceId: 'Abigail',
+        turboSettings: { temperature: 0.8, top_p: 0.95 },
+    },
+    {
+        id: 'turbo-andy',
+        displayName: 'Andy',
+        description: 'Casual, approachable male voice',
+        sampleAudioUrl: '',
+        category: 'male',
+        enabled: true,
+        isTurboPreset: true,
+        turboVoiceId: 'Andy',
+        turboSettings: { temperature: 0.8, top_p: 0.95 },
+    },
+    {
+        id: 'turbo-brian',
+        displayName: 'Brian',
+        description: 'Analytical, clear male voice',
+        sampleAudioUrl: '',
+        category: 'male',
+        enabled: true,
+        isTurboPreset: true,
+        turboVoiceId: 'Brian',
+    },
+    {
+        id: 'turbo-emmanuel',
+        displayName: 'Emmanuel',
+        description: 'Resonant, commanding male voice',
+        sampleAudioUrl: '',
+        category: 'male',
+        enabled: true,
+        isTurboPreset: true,
+        turboVoiceId: 'Emmanuel',
+    },
+    {
+        id: 'turbo-evelyn',
+        displayName: 'Evelyn',
+        description: 'Elegant, sophisticated female voice',
+        sampleAudioUrl: '',
+        category: 'female',
+        enabled: true,
+        isTurboPreset: true,
+        turboVoiceId: 'Evelyn',
+    },
+    {
+        id: 'turbo-gavin',
+        displayName: 'Gavin',
+        description: 'Smooth, conversational male voice',
+        sampleAudioUrl: '',
+        category: 'male',
+        enabled: true,
+        isTurboPreset: true,
+        turboVoiceId: 'Gavin',
+    },
+    {
+        id: 'turbo-gordon',
+        displayName: 'Gordon',
+        description: 'Authoritative, mature male voice',
+        sampleAudioUrl: '',
+        category: 'male',
+        enabled: true,
+        isTurboPreset: true,
+        turboVoiceId: 'Gordon',
+    },
+    {
+        id: 'turbo-ivan',
+        displayName: 'Ivan',
+        description: 'Deep, dramatic male voice',
+        sampleAudioUrl: '',
+        category: 'male',
+        enabled: true,
+        isTurboPreset: true,
+        turboVoiceId: 'Ivan',
+    },
+    {
+        id: 'turbo-laura',
+        displayName: 'Laura',
+        description: 'Professional, clear female voice',
+        sampleAudioUrl: '',
+        category: 'female',
+        enabled: true,
+        isTurboPreset: true,
+        turboVoiceId: 'Laura',
+        turboSettings: { temperature: 0.8, top_p: 0.95 },
+    },
+    {
+        id: 'turbo-lucy',
+        displayName: 'Lucy',
+        description: 'Bright, cheerful female voice',
+        sampleAudioUrl: '',
+        category: 'female',
+        enabled: true,
+        isTurboPreset: true,
+        turboVoiceId: 'Lucy',
+    },
+    {
+        id: 'turbo-walter',
+        displayName: 'Walter',
+        description: 'Distinguished, wise male voice',
+        sampleAudioUrl: '',
+        category: 'male',
+        enabled: true,
+        isTurboPreset: true,
+        turboVoiceId: 'Walter',
     },
 ];
 
@@ -108,10 +253,32 @@ export function getEnabledVoices(): Voice[] {
  */
 export function getVoiceSampleUrl(voiceId: string): string {
     const voice = getVoiceById(voiceId);
-    // Use previewSampleUrl if available, otherwise fall back to sampleAudioUrl
+    // Use previewSampleUrl if available
     if (voice?.previewSampleUrl) {
         return voice.previewSampleUrl;
     }
-    // Fallback to MP3 in voice-samples bucket
+    // Fallback to MP3 in voice-samples bucket (works for both custom and Turbo voices)
     return `https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/${voiceId}/preview.mp3`;
+}
+
+/**
+ * Check if voice is a Turbo preset (no cloning needed)
+ */
+export function isTurboPresetVoice(voiceId: string): boolean {
+    const voice = getVoiceById(voiceId);
+    return voice?.isTurboPreset === true;
+}
+
+/**
+ * Get custom voices only (exclude Turbo presets)
+ */
+export function getCustomVoices(): Voice[] {
+    return VOICES.filter((v) => v.enabled !== false && !v.isTurboPreset);
+}
+
+/**
+ * Get Turbo preset voices only
+ */
+export function getTurboPresetVoices(): Voice[] {
+    return VOICES.filter((v) => v.enabled !== false && v.isTurboPreset === true);
 }

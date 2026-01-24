@@ -18,11 +18,23 @@ import { spawn } from 'child_process';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
+import Replicate from 'replicate';
 import { BaseWorker, TaskResult } from './baseWorker';
 import { JobTask, supabase } from '../services/supabaseClient';
 import { env } from '../config/env';
 import { apiKeys } from '../services/apiKeysHelper';
 import { logRunPodCost } from '../services/costTracking';
+import { getVoiceById, isTurboPresetVoice } from '../config/voices';
+
+const INTRO_SILENCE_SEC = 0.5; // Silence before intro starts
+const POST_INTRO_SILENCE_SEC = 3.0; // Pause after intro ends (breath before reading)
+const INTRO_SYSTEM_NAMES: Record<string, string> = {
+  western: 'Western Astrology',
+  vedic: 'Vedic Astrology',
+  human_design: 'Human Design',
+  gene_keys: 'Gene Keys',
+  kabbalah: 'Kabbalah',
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Audio Format Detection
@@ -201,6 +213,52 @@ function concatenateWavBuffers(buffers: Buffer[]): Buffer {
   return Buffer.concat([wavHeader, ...audioDataChunks]);
 }
 
+function buildSilenceWav(durationSec: number, sampleRate = 24000, numChannels = 1): Buffer {
+  const totalSamples = Math.max(1, Math.round(durationSec * sampleRate));
+  const pcmData = Buffer.alloc(totalSamples * numChannels * 2); // 16-bit PCM
+  const wavHeader = Buffer.alloc(44);
+  wavHeader.write('RIFF', 0);
+  wavHeader.writeUInt32LE(36 + pcmData.length, 4);
+  wavHeader.write('WAVE', 8);
+  wavHeader.write('fmt ', 12);
+  wavHeader.writeUInt32LE(16, 16);
+  wavHeader.writeUInt16LE(1, 20);
+  wavHeader.writeUInt16LE(numChannels, 22);
+  wavHeader.writeUInt32LE(sampleRate, 24);
+  wavHeader.writeUInt32LE(sampleRate * numChannels * 2, 28);
+  wavHeader.writeUInt16LE(numChannels * 2, 32);
+  wavHeader.writeUInt16LE(16, 34);
+  wavHeader.write('data', 36);
+  wavHeader.writeUInt32LE(pcmData.length, 40);
+  return Buffer.concat([wavHeader, pcmData]);
+}
+
+function formatOrdinalDate(d: Date): string {
+  const day = d.getDate();
+  const month = d.toLocaleString('en-US', { month: 'long' });
+  const year = d.getFullYear();
+  const suffix =
+    day % 10 === 1 && day % 100 !== 11 ? 'st' :
+    day % 10 === 2 && day % 100 !== 12 ? 'nd' :
+    day % 10 === 3 && day % 100 !== 13 ? 'rd' : 'th';
+  return `${month} ${day}${suffix}, ${year}`;
+}
+
+export function buildIntroText(params: {
+  person1Name: string;
+  person2Name?: string | null;
+  systems: string[];
+  isSynastry: boolean;
+  timestamp: Date;
+}): string {
+  const systems = params.systems.map((s) => INTRO_SYSTEM_NAMES[s] || s).join(', ');
+  const ts = formatOrdinalDate(params.timestamp);
+  if (params.isSynastry && params.person2Name) {
+    return `This is an introduction to a personalized synastry reading for ${params.person1Name} and ${params.person2Name}, created through the lens of ${systems}. The reading was generated on ${ts} by the One in a Billion app and is powered by forbidden-yoga.com.`;
+  }
+  return `This is an introduction to a personalized soul reading for ${params.person1Name}, created through the lens of ${systems}. The reading was generated on ${ts} by the One in a Billion app and is powered by forbidden-yoga.com.`;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // FFmpeg Conversion
 // ─────────────────────────────────────────────────────────────────────────────
@@ -218,29 +276,24 @@ async function runFfmpeg(args: string[]): Promise<void> {
   });
 }
 
-async function convertWavToMp3(wav: Buffer): Promise<Buffer> {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'iab-audio-'));
-  const inPath = path.join(dir, 'in.wav');
-  const outPath = path.join(dir, 'out.mp3');
-  try {
-    await fs.writeFile(inPath, wav);
-    await runFfmpeg(['-i', inPath, '-vn', '-c:a', 'libmp3lame', '-b:a', '128k', outPath]);
-    const mp3 = await fs.readFile(outPath);
-    console.log(`WAV->MP3: ${Math.round(wav.length / 1024)}KB -> ${Math.round(mp3.length / 1024)}KB`);
-    return mp3;
-  } finally {
-    await fs.rm(dir, { recursive: true, force: true }).catch(() => { });
-  }
-}
-
 async function convertWavToM4a(wav: Buffer): Promise<Buffer> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'iab-audio-'));
   const inPath = path.join(dir, 'in.wav');
   const outPath = path.join(dir, 'out.m4a');
   try {
     await fs.writeFile(inPath, wav);
-    await runFfmpeg(['-i', inPath, '-vn', '-c:a', 'aac', '-b:a', '128k', outPath]);
-    return await fs.readFile(outPath);
+    // Volume normalization (loudnorm) + AAC 96k — M4A primary, no MP3 fallback
+    await runFfmpeg([
+      '-i', inPath,
+      '-vn',
+      '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11',
+      '-c:a', 'aac',
+      '-b:a', '96k',
+      outPath
+    ]);
+    const m4a = await fs.readFile(outPath);
+    console.log(`WAV->M4A (normalized): ${Math.round(wav.length / 1024)}KB -> ${Math.round(m4a.length / 1024)}KB`);
+    return m4a;
   } finally {
     await fs.rm(dir, { recursive: true, force: true }).catch(() => { });
   }
@@ -286,345 +339,352 @@ export class AudioWorker extends BaseWorker {
 
         const storagePath = String(task.input.textArtifactPath);
         console.log(`📥 [AudioWorker] Downloading text: ${storagePath}`);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audioWorker.ts:287',message:'Downloading text from storage',data:{taskId:task.id,storagePath},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
         const { data, error } = await supabase.storage.from('job-artifacts').download(storagePath);
         if (error || !data) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audioWorker.ts:290',message:'Storage download failed',data:{taskId:task.id,storagePath,errorMessage:error?.message,errorCode:error?.statusCode,errorDetails:JSON.stringify(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
           return { success: false, error: `Download failed: ${error?.message}` };
         }
 
         text = Buffer.from(await data.arrayBuffer()).toString('utf-8');
         console.log(`✅ [AudioWorker] Downloaded ${text.length} chars`);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audioWorker.ts:294',message:'Storage download succeeded',data:{taskId:task.id,storagePath,textLength:text.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
       }
 
       if (!text) {
         return { success: false, error: 'No text found' };
       }
 
+      // Chunk size (Turbo supports 500 chars, Original supports 300)
+      const chunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || '500', 10);
+
       // ─────────────────────────────────────────────────────────────────────
-      // CHUNK TEXT (Chatterbox has ~300 char limit before truncation)
+      // CHUNK TEXT (Turbo supports 500 chars, Original supports 300)
       // ─────────────────────────────────────────────────────────────────────
-      const chunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || '300', 10);
       const chunks = splitIntoChunks(text, chunkSize);
       console.log(`📦 [AudioWorker] Chunking ${text.length} chars -> ${chunks.length} chunks (max ${chunkSize} chars)`);
 
       // ─────────────────────────────────────────────────────────────────────
-      // FETCH RUNPOD KEYS FROM SUPABASE (with env fallback)
-      // Always try Supabase first - env fallback only if Supabase returns null
+      // ALL VOICES NOW USE REPLICATE CHATTERBOX TURBO
+      // - Turbo presets: Use `voice` parameter (Aaron, Abigail, etc.)
+      // - Custom voices: Use `reference_audio` parameter (David, Elisabeth, etc.)
       // ─────────────────────────────────────────────────────────────────────
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audioWorker.ts:312',message:'Fetching RunPod keys',data:{taskId:task.id,jobId:task.job_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      let runpodKey = await apiKeys.runpod().catch(() => null);
-      if (!runpodKey) {
-        console.warn('⚠️ [AudioWorker] Supabase api_keys lookup failed, using env fallback');
-        runpodKey = this.runpodApiKey;
-      }
-      let runpodEndpoint = await apiKeys.runpodEndpoint().catch(() => null);
-      if (!runpodEndpoint) {
-        console.warn('⚠️ [AudioWorker] Supabase api_keys lookup failed for endpoint, using env fallback');
-        runpodEndpoint = this.runpodEndpointId;
-      }
+      console.log('\n' + '═'.repeat(70));
+      console.log('🎵 REPLICATE AUDIO GENERATION STARTING');
+      console.log('═'.repeat(70));
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audioWorker.ts:325',message:'RunPod keys retrieved',data:{hasKey:!!runpodKey,hasEndpoint:!!runpodEndpoint,endpointId:runpodEndpoint,keySource:runpodKey===this.runpodApiKey?'env':'supabase',endpointSource:runpodEndpoint===this.runpodEndpointId?'env':'supabase',keyLength:runpodKey?.length,endpointLength:runpodEndpoint?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
+      const voiceId = task.input.voiceId || task.input.voice || 'david';
+      const voice = getVoiceById(voiceId);
+      const isTurboPreset = voice?.isTurboPreset || false;
       
-      if (!runpodKey || !runpodEndpoint) {
-        throw new Error('RunPod API key or endpoint ID not found (check Supabase api_keys table or .env)');
+      
+      console.log(`🚀 [AudioWorker] Using REPLICATE for ${isTurboPreset ? 'Turbo preset' : 'custom voice'}: ${voice?.displayName || voiceId}`);
+
+      // Get Replicate API token
+      console.log(`🔑 [AudioWorker] Fetching Replicate API token...`);
+      const replicateToken = await apiKeys.replicate().catch(() => null) || env.REPLICATE_API_TOKEN;
+      if (!replicateToken) {
+        console.error(`❌ [AudioWorker] REPLICATE TOKEN NOT FOUND!`);
+        throw new Error('Replicate API token not found (check Supabase api_keys table or REPLICATE_API_TOKEN env var)');
       }
+      console.log(`✅ [AudioWorker] Replicate token found: ${replicateToken.substring(0, 10)}...`);
+      
+      const replicate = new Replicate({ auth: replicateToken });
+      console.log(`✅ [AudioWorker] Replicate client initialized`);
+      
+      // Get voice-specific settings from config (or use defaults)
+      // Chatterbox Turbo parameters: temperature, top_p, top_k, repetition_penalty
+      const voiceSettings = voice?.turboSettings || {};
+      const temperature = voiceSettings.temperature ?? 0.7;
+      const top_p = voiceSettings.top_p ?? 0.95;
+      
+      console.log(`🎤 [AudioWorker] Voice settings:`, { temperature, top_p, isTurboPreset });
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audioWorker.ts:330',message:'RunPod configuration validated',data:{endpointId:runpodEndpoint,constructedUrl:`https://api.runpod.ai/v2/${runpodEndpoint}/runsync`},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-
-      // ─────────────────────────────────────────────────────────────────────
-      // GENERATE AUDIO FOR EACH CHUNK (SEQUENTIAL - respects RunPod limits)
-      // ─────────────────────────────────────────────────────────────────────
-      const generateChunk = async (chunk: string, index: number): Promise<Buffer> => {
-        const maxRetries = 3;
+      // Replicate chunk generator (works for both preset + custom voices)
+      const generateChunkReplicate = async (chunk: string, index: number): Promise<Buffer> => {
+        const maxRetries = 5; // Increased for rate limit retries
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
           try {
-            console.log(`  Chunk ${index + 1}/${chunks.length} (${chunk.length} chars) attempt ${attempt}`);
-
-            const runpodUrl = `https://api.runpod.ai/v2/${runpodEndpoint}/run`;
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audioWorker.ts:339',message:'Making RunPod request',data:{chunkIndex:index+1,totalChunks:chunks.length,attempt,url:runpodUrl,endpointId:runpodEndpoint,endpointIdLength:runpodEndpoint?.length,chunkLength:chunk.length,chunkPreview:chunk.substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion
-            const response = await axios.post(
-              runpodUrl,
-              {
-                input: {
-                  text: chunk,
-                  audio_url: task.input.audioUrl || this.voiceSampleUrl,
-                  exaggeration: task.input.exaggeration || 0.3,
-                  cfg_weight: 0.5,
-                },
-              },
-              {
-                headers: {
-                  Authorization: `Bearer ${runpodKey}`,
-                  'Content-Type': 'application/json',
-                },
-                timeout: 10000, // Reduced timeout since we're using async /run endpoint
-              }
+            console.log(`  [Replicate] Chunk ${index + 1}/${chunks.length} (${chunk.length} chars) attempt ${attempt}`);
+            
+            // Build input with voice-specific settings
+            const input: any = {
+              text: chunk,
+              temperature,
+              top_p,
+            };
+            
+            // TURBO PRESET: Use voice parameter
+            if (isTurboPreset) {
+              input.voice = voice?.turboVoiceId || 'alloy';
+            }
+            // CUSTOM VOICE: Use reference_audio parameter for voice cloning
+            else {
+              input.reference_audio = voice?.sampleAudioUrl || task.input.audioUrl || this.voiceSampleUrl;
+              console.log(`  [Replicate] Custom voice cloning with reference_audio: ${input.reference_audio.substring(0, 80)}...`);
+            }
+            
+            console.log(`  🎯 [Replicate] Calling API with model: resemble-ai/chatterbox-turbo`);
+            console.log(`  📝 [Replicate] Input:`, JSON.stringify({
+              ...input,
+              text: `${input.text.substring(0, 50)}...`,
+              reference_audio: input.reference_audio ? `${input.reference_audio.substring(0, 40)}...` : undefined
+            }));
+            
+            const startTime = Date.now();
+            
+            // Add 5-minute timeout to prevent hanging forever
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Replicate API timeout after 5 minutes')), 300000)
             );
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audioWorker.ts:353',message:'RunPod request succeeded',data:{chunkIndex:index+1,status:response.status,hasData:!!response.data,dataKeys:Object.keys(response.data||{}),hasId:!!response.data?.id,hasStatus:!!response.data?.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion
+            
+            const output = await Promise.race([
+              replicate.run('resemble-ai/chatterbox-turbo', { input }),
+              timeoutPromise
+            ]);
+            
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+            console.log(`  ⏱️  [Replicate] API call completed in ${elapsed}s`);
 
-            const data = response.data || {};
 
-            // Handle async RunPod job (returns {id, status} instead of immediate result)
-            if (data.id && data.status && data.status !== 'COMPLETED') {
-              console.log(`  ⏳ RunPod async job ${data.id}, status: ${data.status}, polling...`);
-              // Poll for completion
-              // Increased to 60 minutes to handle RunPod cold starts (was 10 min)
-              const maxPollAttempts = 720; // 720 * 5s = 60 minutes max (handles cold starts)
-              for (let pollAttempt = 0; pollAttempt < maxPollAttempts; pollAttempt++) {
-                await this.sleep(5000); // Poll every 5 seconds (reduce API load)
-                try {
-                  const statusResp = await axios.get(
-                    `https://api.runpod.ai/v2/${runpodEndpoint}/status/${data.id}`,
-                    {
-                      headers: { Authorization: `Bearer ${runpodKey}` },
-                      timeout: 15000,
-                    }
-                  );
-                  const statusData = statusResp.data || {};
+            console.log(`  📦 [Replicate] Response type: ${typeof output}, isStream: ${output instanceof ReadableStream}, isBuffer: ${Buffer.isBuffer(output)}, isString: ${typeof output === 'string'}`);
 
-                  // Log status every 10 attempts for debugging
-                  if (pollAttempt % 10 === 0) {
-                    console.log(`  🔍 Poll attempt ${pollAttempt + 1}/${maxPollAttempts}: status=${statusData.status}`);
-                  }
+              // Output is a ReadableStream or URL - handle both
+              let audioBuffer: Buffer;
+              if (output instanceof ReadableStream || (output as any).getReader) {
+                console.log(`  🌊 [Replicate] Processing as ReadableStream...`);
+                // It's a stream
+                const reader = (output as ReadableStream).getReader();
+                const chunks: Uint8Array[] = [];
+                while (true) {
+                  const { done, value } = await reader.read();
+                  if (done) break;
+                  chunks.push(value);
+                }
+                audioBuffer = Buffer.concat(chunks);
+                console.log(`  ✅ [Replicate] Stream processed: ${chunks.length} chunks, ${audioBuffer.length} bytes`);
+              } else if (typeof output === 'string') {
+                // It's a URL - fetch it
+                console.log(`  🔗 [Replicate] Processing as URL: ${(output as string).substring(0, 60)}...`);
+                const response = await axios.get(output, { responseType: 'arraybuffer' });
+                audioBuffer = Buffer.from(response.data);
+                console.log(`  ✅ [Replicate] URL fetched: ${audioBuffer.length} bytes`);
+              } else if (Buffer.isBuffer(output)) {
+                console.log(`  📦 [Replicate] Direct buffer received: ${output.length} bytes`);
+                audioBuffer = output;
+              } else {
+                // Try to read as stream-like object
+                console.log(`  ⚠️  [Replicate] Unknown output type, attempting arrayBuffer conversion...`);
+                const data = await (output as any).arrayBuffer?.() || output;
+                audioBuffer = Buffer.from(data);
+                console.log(`  ✅ [Replicate] Converted to buffer: ${audioBuffer.length} bytes`);
+              }
 
-                  if (statusData.status === 'COMPLETED') {
-                    console.log(`  ✅ RunPod job ${data.id} completed after ${(pollAttempt + 1) * 5}s`);
-                    // Result is in the same response
-                    if (statusData.output?.audio_base64) {
-                      console.log(`  ✅ Chunk ${index + 1} done (async base64)`);
-                      return Buffer.from(statusData.output.audio_base64, 'base64');
-                    }
-                    if (statusData.output?.audio_url) {
-                      const audioResp = await axios.get<ArrayBuffer>(statusData.output.audio_url, {
-                        responseType: 'arraybuffer',
-                        timeout: 60000,
-                      });
-                      const buf = Buffer.from(audioResp.data);
-                      console.log(`  ✅ Chunk ${index + 1} done (async audio_url, ${buf.length} bytes)`);
-                      return buf;
-                    }
-                    throw new Error(`RunPod job completed but no audio in result. Response keys: ${Object.keys(statusData).join(', ')}`);
-                  } else if (statusData.status === 'FAILED') {
-                    // Don't retry FAILED jobs - let the error bubble up immediately
-                    const errorMsg = statusData.error || JSON.stringify(statusData);
-                    console.error(`  ❌ RunPod job ${data.id} FAILED: ${errorMsg}`);
-                    throw new Error(`RUNPOD_FAILED: ${errorMsg}`);
-                  }
-                  // Continue polling for IN_QUEUE, IN_PROGRESS, etc.
-                } catch (pollError: any) {
-                  // If RunPod explicitly failed the job, stop immediately
-                  if (pollError.message?.startsWith('RUNPOD_FAILED:')) {
-                    throw pollError;
-                  }
-                  // Network/timeout errors can be retried
-                  if (pollAttempt % 10 === 0) {
-                    console.log(`  ⚠️ Poll error (attempt ${pollAttempt + 1}): ${pollError.message}`);
-                  }
-                  if (pollAttempt === maxPollAttempts - 1) {
-                    throw new Error(`Polling failed: ${pollError.message}`);
-                  }
+              console.log(`  ✅ [Replicate] Chunk ${index + 1} completed: ${audioBuffer.length} bytes`);
+              return audioBuffer;
+              
+            } catch (error: any) {
+              const is429 = error.message?.includes('429') || error.message?.includes('throttled') || error.message?.includes('rate limit');
+              const isAuthError = error.message?.includes('401') || error.message?.includes('authentication') || error.message?.includes('Unauthorized');
+              const isBadRequest = error.message?.includes('400') || error.message?.includes('422') || error.message?.includes('invalid');
+              
+              // Parse retry_after from error message if present
+              let retryAfter = attempt * 3; // default exponential backoff
+              if (is429) {
+                const retryMatch = error.message.match(/"retry_after":(\d+)/);
+                if (retryMatch) {
+                  retryAfter = Math.max(parseInt(retryMatch[1]) + 1, retryAfter);
+                } else {
+                  // Replicate rate limit: 6 req/min with <$5 credit = ~10s between requests
+                  retryAfter = 12;
                 }
               }
-              throw new Error(`RunPod job ${data.id} timed out after ${maxPollAttempts * 5}s (status remained: ${data.status})`);
-            }
-
-            // Handle synchronous response (immediate result)
-            if (data?.output?.audio_base64) {
-              console.log(`  ✅ Chunk ${index + 1} done`);
-              return Buffer.from(data.output.audio_base64, 'base64');
-            }
-
-            // Check alternative response structures
-            if (data?.audio_base64) {
-              console.log(`  ✅ Chunk ${index + 1} done (direct audio_base64)`);
-              return Buffer.from(data.audio_base64, 'base64');
-            }
-            if (data?.output?.audio) {
-              console.log(`  ✅ Chunk ${index + 1} done (audio field)`);
-              return Buffer.from(data.output.audio, 'base64');
-            }
-
-            const audioUrl =
-              data?.output?.audio_url ||
-              data?.audio_url ||
-              data?.output?.url ||
-              data?.url;
-            if (audioUrl && typeof audioUrl === 'string') {
-              try {
-                console.log(`  🌐 Fetching audio_url for chunk ${index + 1}`);
-                const audioResp = await axios.get<ArrayBuffer>(audioUrl, {
-                  responseType: 'arraybuffer',
-                  timeout: 60000,
-                });
-                const buf = Buffer.from(audioResp.data);
-                console.log(`  ✅ Chunk ${index + 1} done (downloaded audio_url, ${buf.length} bytes)`);
-                return buf;
-              } catch (e: any) {
-                console.log(`  ⚠️ audio_url fetch failed: ${e.message}`);
+              
+              console.error(`  ❌ [Replicate] Chunk ${index + 1} attempt ${attempt} failed: ${error.message}`);
+              
+              // ABORT IMMEDIATELY on auth or bad request errors (no retry)
+              if (isAuthError || isBadRequest) {
+                console.error(`\n${'═'.repeat(70)}`);
+                console.error(`🚨 CRITICAL REPLICATE ERROR - ABORTING ENTIRE JOB`);
+                console.error(`${'═'.repeat(70)}`);
+                console.error(`Error Type: ${isAuthError ? 'Authentication' : 'Bad Request'}`);
+                console.error(`Message: ${error.message}`);
+                console.error(`Chunk: ${index + 1}/${chunks.length}`);
+                console.error(`${'═'.repeat(70)}\n`);
+                throw new Error(`REPLICATE ABORT: ${error.message}`);
+              }
+              
+              if (attempt < maxRetries) {
+                console.log(`  ⏳ Retrying in ${retryAfter}s...${is429 ? ' (rate limited)' : ''}`);
+                await this.sleep(retryAfter * 1000);
+              } else {
+                console.error(`\n${'═'.repeat(70)}`);
+                console.error(`🚨 REPLICATE FAILED AFTER ${maxRetries} ATTEMPTS - ABORTING JOB`);
+                console.error(`${'═'.repeat(70)}`);
+                console.error(`Chunk: ${index + 1}/${chunks.length}`);
+                console.error(`Error: ${error.message}`);
+                console.error(`${'═'.repeat(70)}\n`);
+                throw new Error(`REPLICATE ABORT: Chunk ${index + 1} failed after ${maxRetries} attempts: ${error.message}`);
               }
             }
+          }
+          throw new Error(`Chunk ${index + 1} exhausted retries`);
+        };
 
-            throw new Error(data?.error || `No audio_base64 in response. Response keys: ${Object.keys(data || {}).join(', ')}`);
-          } catch (error: any) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audioWorker.ts:454',message:'RunPod request failed',data:{chunkIndex:index+1,attempt,errorMessage:error.message,statusCode:error.response?.status,statusText:error.response?.statusText,responseData:error.response?.data,requestUrl:error.config?.url,requestMethod:error.config?.method,requestHeaders:error.config?.headers,endpointId:runpodEndpoint,endpointIdLength:runpodEndpoint?.length,fullError:JSON.stringify(error,Object.getOwnPropertyNames(error))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-            // #endregion
-            if (attempt < maxRetries) {
-              console.log(`  ⚠️ Chunk ${index + 1} retry in ${attempt * 5}s...`);
-              await this.sleep(attempt * 5000);
-            } else {
-              throw new Error(`Chunk ${index + 1} failed: ${error.message}`);
-            }
+      // Intro: spoken preface with brief silence before and after (narration only)
+      let introBuffers: Buffer[] = [];
+      try {
+        if (supabase) {
+          const { data: jobRow } = await supabase
+            .from('jobs')
+            .select('params, created_at, type')
+            .eq('id', task.job_id)
+            .single();
+          const params: any = (jobRow as any)?.params || {};
+          const person1Name = params?.person1?.name || 'Person 1';
+          const person2Name = params?.person2?.name || null;
+          const rawSystems: string[] = Array.isArray(params?.systems) && params.systems.length
+            ? params.systems
+            : ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'];
+          const docType = (task.input as any)?.docType || null;
+          const isSynastry =
+            (!!person2Name && (docType === 'overlay' || docType === 'verdict')) ||
+            (jobRow as any)?.type === 'synastry';
+          const isPerson2Doc = docType === 'person2' && !!person2Name;
+          // For person2 docs, it's a solo reading about person2, NOT synastry
+          const finalIsSynastry = isPerson2Doc ? false : isSynastry;
+          const finalPerson2Name = isPerson2Doc ? null : (isSynastry ? person2Name : null);
+          const introText = buildIntroText({
+            person1Name: isPerson2Doc ? person2Name! : person1Name,
+            person2Name: finalPerson2Name,
+            systems: rawSystems,
+            isSynastry: finalIsSynastry,
+            timestamp: new Date(),
+          });
+          const introChunks = splitIntoChunks(introText, chunkSize);
+          for (let i = 0; i < introChunks.length; i++) {
+            const buf = await generateChunkReplicate(introChunks[i]!, i);
+            introBuffers.push(buf);
           }
         }
-        throw new Error(`Chunk ${index + 1} exhausted retries`);
-      };
-
-      const startTime = Date.now();
-      
-      // ═══════════════════════════════════════════════════════════════════════════
-      // AUDIO GENERATION: SEQUENTIAL vs PARALLEL
-      // ═══════════════════════════════════════════════════════════════════════════
-      // Toggle via AUDIO_PARALLEL_MODE environment variable:
-      //   - "false" (default) = Sequential (old, stable, slower ~10min/doc)
-      //   - "true" = Parallel (3-5x faster, ~2-3min/doc)
-      // ═══════════════════════════════════════════════════════════════════════════
-      const useParallelMode = process.env.AUDIO_PARALLEL_MODE === 'true';
-      const concurrentLimit = parseInt(process.env.AUDIO_CONCURRENT_LIMIT || '5', 10);
-      
-      let audioBuffers: Buffer[] = [];
-
-      if (useParallelMode) {
-        // ─────────────────────────────────────────────────────────────────────────
-        // PARALLEL MODE - 3-5x faster for multi-chunk readings
-        // ─────────────────────────────────────────────────────────────────────────
-        console.log(`🚀 [AudioWorker] Starting PARALLEL generation of ${chunks.length} chunks (max ${concurrentLimit} concurrent)...`);
-        
-        const pLimit = (await import('p-limit')).default;
-        const limit = pLimit(concurrentLimit);
-        
-        const promises = chunks.map((chunk, index) => 
-          limit(async () => {
-            try {
-              const buffer = await generateChunk(chunk, index);
-              console.log(`  ✅ Chunk ${index + 1}/${chunks.length} completed`);
-              return { index, buffer };
-            } catch (err: any) {
-              console.error(`  ❌ Chunk ${index + 1} failed permanently: ${err.message}`);
-              throw err;
-            }
-          })
-        );
-        
-        const results = await Promise.all(promises);
-        results.sort((a, b) => a.index - b.index);
-        audioBuffers = results.map(r => r.buffer);
-        
-      } else {
-        // ─────────────────────────────────────────────────────────────────────────
-        // SEQUENTIAL MODE (default) - Stable, processes one chunk at a time
-        // ─────────────────────────────────────────────────────────────────────────
-        console.log(`🚀 [AudioWorker] Starting SEQUENTIAL generation of ${chunks.length} chunks...`);
-
-        for (let i = 0; i < chunks.length; i++) {
-          try {
-            const buffer = await generateChunk(chunks[i]!, i);
-            audioBuffers.push(buffer);
-          } catch (err: any) {
-            console.error(`❌ [AudioWorker] Chunk ${i + 1} failed permanently: ${err.message}`);
-            throw err;
-          }
-        }
+      } catch (e) {
+        console.warn('⚠️ [AudioWorker] Intro prep failed, continuing without intro:', (e as any)?.message || e);
+        introBuffers = [];
       }
+
+        // Generate all chunks with Replicate
+        const startTime = Date.now();
+        // Default to SEQUENTIAL mode for rate limit safety
+        const useParallelMode = process.env.AUDIO_PARALLEL_MODE === 'true';
+        const concurrentLimit = parseInt(process.env.AUDIO_CONCURRENT_LIMIT || '2', 10);
+        // Inter-chunk delay to respect Replicate rate limits (6 req/min with <$5 credit)
+        const chunkDelayMs = parseInt(process.env.REPLICATE_CHUNK_DELAY_MS || '11000', 10);
+        
+        let audioBuffers: Buffer[] = [];
+
+        if (useParallelMode) {
+          console.log(`🚀 [AudioWorker] Starting PARALLEL Replicate generation of ${chunks.length} chunks (limit: ${concurrentLimit})...`);
+          console.warn(`⚠️  PARALLEL mode may hit rate limits. Consider AUDIO_PARALLEL_MODE=false for safer generation.`);
+          const pLimit = (await import('p-limit')).default;
+          const limit = pLimit(concurrentLimit);
+          
+          const promises = chunks.map((chunk, index) => 
+            limit(async () => {
+              const buffer = await generateChunkReplicate(chunk, index);
+              // Add delay between parallel batches
+              if (chunkDelayMs > 0) await this.sleep(chunkDelayMs);
+              return { index, buffer };
+            })
+          );
+          
+          const results = await Promise.all(promises);
+          results.sort((a, b) => a.index - b.index);
+          audioBuffers = results.map(r => r.buffer);
+        } else {
+          console.log(`🚀 [AudioWorker] Starting SEQUENTIAL Replicate generation of ${chunks.length} chunks (${chunkDelayMs}ms delay)...`);
+          for (let i = 0; i < chunks.length; i++) {
+            const buffer = await generateChunkReplicate(chunks[i]!, i);
+            audioBuffers.push(buffer);
+            
+            // Add delay between chunks (except after last chunk)
+            if (i < chunks.length - 1 && chunkDelayMs > 0) {
+              console.log(`  ⏱️  Waiting ${chunkDelayMs}ms before next chunk (rate limit pacing)...`);
+              await this.sleep(chunkDelayMs);
+            }
+          }
+        }
 
       const elapsedMs = Date.now() - startTime;
       const elapsed = (elapsedMs / 1000).toFixed(1);
-      const modeStr = useParallelMode ? `parallel, ${concurrentLimit} concurrent` : 'sequential';
-      console.log(`✅ [AudioWorker] All ${chunks.length} chunks done in ${elapsed}s (${modeStr})`);
       
-      // 💰 LOG RUNPOD COST for this audio generation
-      const jobId = task.job_id;
-      await logRunPodCost(jobId, task.id, elapsedMs, `audio_${task.input?.system || 'unknown'}_${task.input?.docType || 'unknown'}`);
+      console.log('\n' + '═'.repeat(70));
+      console.log('✅ REPLICATE AUDIO GENERATION COMPLETE');
+      console.log('═'.repeat(70));
+      console.log(`  📊 Summary:`);
+      console.log(`     • Total chunks: ${chunks.length}`);
+      console.log(`     • Time elapsed: ${elapsed}s`);
+      console.log(`     • Voice: ${voice?.displayName || voiceId} (${isTurboPreset ? 'Turbo preset' : 'Custom clone'})`);
+      console.log(`     • Text length: ${text.length} chars`);
+      console.log(`     • Provider: Replicate Chatterbox Turbo`);
+      console.log('═'.repeat(70) + '\n');
 
-      // ─────────────────────────────────────────────────────────────────────
-      // CONCATENATE WAV CHUNKS
-      // ─────────────────────────────────────────────────────────────────────
-      const wavAudio = concatenateWavBuffers(audioBuffers);
+      // Concatenate and convert to M4A (primary format only, no MP3 fallback)
+      const silence = buildSilenceWav(INTRO_SILENCE_SEC);
+      const postIntroSilence = buildSilenceWav(POST_INTRO_SILENCE_SEC);
+      const wavAudio = introBuffers.length
+        ? concatenateWavBuffers([silence, ...introBuffers, postIntroSilence, ...audioBuffers])
+        : concatenateWavBuffers(audioBuffers);
+      const m4a = await convertWavToM4a(wavAudio);
+      const duration = Math.ceil((wavAudio.length - 44) / 48000);
 
-      // ─────────────────────────────────────────────────────────────────────
-      // CONVERT TO MP3
-      // ─────────────────────────────────────────────────────────────────────
-      try {
-        const mp3 = await convertWavToMp3(wavAudio);
-        const duration = Math.ceil((wavAudio.length - 44) / 48000); // 24kHz * 2 bytes * 1 channel
-        console.log(`🎵 [AudioWorker] Final: ${Math.round(mp3.length / 1024)}KB MP3, ~${duration}s from ${chunks.length} chunks`);
+      console.log(`🎵 [AudioWorker] Final: ${Math.round(m4a.length / 1024)}KB M4A, ~${duration}s from ${chunks.length} chunks (Replicate)`);
 
-        return {
-          success: true,
-          output: { size: mp3.length, chunks: chunks.length, duration },
-          artifacts: [
-            {
-              type: 'audio_mp3',
-              buffer: mp3,
-              contentType: 'audio/mpeg',
-              metadata: { 
-                textLength: text.length, 
-                chunks: chunks.length, 
-                duration, 
-                format: 'mp3',
-                // CRITICAL: Include docNum/system/docType so audio can be matched to correct document
-                docNum: task.input?.docNum,
-                system: task.input?.system,
-                docType: task.input?.docType,
-              },
+      return {
+        success: true,
+        output: {
+          size: m4a.length,
+          chunks: chunks.length,
+          duration,
+          provider: 'replicate',
+          processingTime: elapsedMs,
+        },
+        artifacts: [
+          {
+            type: 'audio_m4a',
+            buffer: m4a,
+            contentType: 'audio/mp4',
+            metadata: {
+              textLength: text.length,
+              chunks: chunks.length,
+              duration,
+              format: 'm4a',
+              provider: 'replicate',
+              voice: voiceId,
+              voiceType: isTurboPreset ? 'turbo-preset' : 'custom-clone',
+              docNum: task.input?.docNum,
+              system: task.input?.system,
+              docType: task.input?.docType,
             },
-          ],
-        };
-      } catch (e: any) {
-        console.warn(`⚠️ MP3 failed, trying M4A: ${e.message}`);
-        const m4a = await convertWavToM4a(wavAudio);
-        return {
-          success: true,
-          output: { size: m4a.length, chunks: chunks.length },
-          artifacts: [
-            {
-              type: 'audio_m4a',
-              buffer: m4a,
-              contentType: 'audio/mp4',
-              metadata: { 
-                textLength: text.length, 
-                chunks: chunks.length, 
-                format: 'm4a',
-                // CRITICAL: Include docNum/system/docType so audio can be matched to correct document
-                docNum: task.input?.docNum,
-                system: task.input?.system,
-                docType: task.input?.docType,
-              },
-            },
-          ],
-        };
-      }
+          },
+        ],
+      };
 
     } catch (error: any) {
-      console.error('❌ [AudioWorker] Failed:', error.message);
+      
+      // Check if this is a Replicate abort
+      const isReplicateAbort = error.message?.includes('REPLICATE ABORT');
+      
+      if (isReplicateAbort) {
+        console.error('\n' + '═'.repeat(70));
+        console.error('🚨 AUDIO GENERATION ABORTED DUE TO REPLICATE ERROR');
+        console.error('═'.repeat(70));
+        console.error(`Task ID: ${task.id}`);
+        console.error(`Job ID: ${task.job_id}`);
+        console.error(`Error: ${error.message}`);
+        console.error('This task will be marked as FAILED.');
+        console.error('The job will NOT continue with audio generation.');
+        console.error('═'.repeat(70) + '\n');
+      } else {
+        console.error('❌ [AudioWorker] Failed:', error.message);
+      }
+      
       return { success: false, error: error.message };
     }
   }
