@@ -91,16 +91,42 @@ export async function generateLyrics(input: LyricsGenerationInput): Promise<Lyri
       throw new Error('No lyrics generated');
     }
 
-    console.log('🎵 LLM Response (first 300 chars):', response.substring(0, 300));
+    console.log('🎵 LLM Response (first 500 chars):', response.substring(0, 500));
+    console.log('🎵 LLM Response (last 200 chars):', response.substring(Math.max(0, response.length - 200)));
 
-    // Extract JSON from response
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    // Extract JSON from response - try multiple strategies
+    let jsonMatch = response.match(/\{[\s\S]*\}/);
+    
+    // If no match, try to find JSON wrapped in markdown code blocks
+    if (!jsonMatch) {
+      const codeBlockMatch = response.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+      if (codeBlockMatch) {
+        jsonMatch = [codeBlockMatch[1]];
+      }
+    }
+    
+    // If still no match, try to find JSON after common prefixes
+    if (!jsonMatch) {
+      const afterPrefixMatch = response.match(/(?:Here|Here's|JSON|Response):\s*(\{[\s\S]*\})/i);
+      if (afterPrefixMatch) {
+        jsonMatch = [afterPrefixMatch[1]];
+      }
+    }
+    
     if (!jsonMatch) {
       console.error('❌ No JSON found in LLM response');
+      console.error('❌ Full response:', response);
       throw new Error('LLM did not return valid JSON');
     }
 
-    const result = JSON.parse(jsonMatch[0]);
+    let result;
+    try {
+      result = JSON.parse(jsonMatch[0]);
+    } catch (parseError: any) {
+      console.error('❌ JSON parse error:', parseError.message);
+      console.error('❌ JSON string:', jsonMatch[0].substring(0, 500));
+      throw new Error(`Failed to parse JSON: ${parseError.message}`);
+    }
 
     // Validate required fields
     if (!result.lyrics || !result.minimaxPrompt) {

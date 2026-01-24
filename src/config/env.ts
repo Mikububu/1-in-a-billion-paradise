@@ -48,7 +48,8 @@ export const env = {
   REPLICATE_API_TOKEN: process.env.REPLICATE_API_TOKEN ?? '',
   
   // Chunk size for TTS generation (300 for original Chatterbox, 500 for Turbo)
-  CHATTERBOX_CHUNK_SIZE: Number(process.env.CHATTERBOX_CHUNK_SIZE ?? 500),
+  // Set to 450 to improve reliability and fix end-of-audio issues
+  CHATTERBOX_CHUNK_SIZE: Number(process.env.CHATTERBOX_CHUNK_SIZE ?? 450),
 
   
   // Supabase (for Queue V2) - Required for api_keys table access

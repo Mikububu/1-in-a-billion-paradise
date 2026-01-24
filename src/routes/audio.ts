@@ -368,7 +368,7 @@ router.post('/generate-tts', async (c) => {
       // TESTED: 350 chars still had truncation, reverting to 300 chars (original safe limit)
       // This ensures no truncation - can be increased if API limits change
       const textLength = parsed.text.length;
-      const chunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || '300', 10);
+      const chunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || '450', 10);
       const chunks = splitIntoChunks(parsed.text, chunkSize);
       console.log(`📦 Chunking ${textLength} chars into ${chunks.length} pieces (max ${chunkSize} chars/chunk)`);
 

@@ -353,7 +353,8 @@ export class AudioWorker extends BaseWorker {
       }
 
       // Chunk size (Turbo supports 500 chars, Original supports 300)
-      const chunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || '500', 10);
+      // Using 450 as safe default to avoid end-of-audio issues
+      const chunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || '450', 10);
 
       // ─────────────────────────────────────────────────────────────────────
       // CHUNK TEXT (Turbo supports 500 chars, Original supports 300)
