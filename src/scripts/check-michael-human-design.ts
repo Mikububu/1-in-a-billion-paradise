@@ -54,10 +54,10 @@ async function main() {
     console.log(`   Created: ${new Date(job.created_at).toLocaleString()}`);
     console.log(`   Updated: ${new Date(job.updated_at).toLocaleString()}`);
 
-    // Get all tasks
+    // Get all tasks with detailed info
     const { data: tasks, error: tasksError } = await supabase
       .from('job_tasks')
-      .select('id, task_type, status, sequence, input, error, created_at, started_at, completed_at')
+      .select('id, task_type, status, sequence, input, error, created_at, started_at, completed_at, last_heartbeat, worker_id, attempts, max_attempts, heartbeat_timeout_seconds')
       .eq('job_id', job.id)
       .order('sequence', { ascending: true });
 
@@ -115,9 +115,24 @@ async function main() {
           : task.created_at
           ? Math.floor((Date.now() - new Date(task.created_at).getTime()) / 1000 / 60)
           : 0;
+        const heartbeatAge = task.last_heartbeat
+          ? Math.floor((Date.now() - new Date(task.last_heartbeat).getTime()) / 1000)
+          : null;
+        const timeout = task.heartbeat_timeout_seconds || 900;
+        
         console.log(`      - Task ${task.id.substring(0, 8)}: ${docType} / ${system} → ${task.status} (${age}m ago)`);
+        console.log(`        Worker: ${task.worker_id || 'NONE'}`);
+        console.log(`        Attempts: ${task.attempts}/${task.max_attempts}`);
+        if (task.last_heartbeat) {
+          console.log(`        Last heartbeat: ${heartbeatAge}s ago (timeout: ${timeout}s)`);
+          if (heartbeatAge && heartbeatAge > timeout) {
+            console.log(`        ⚠️  HEARTBEAT TIMEOUT! Task is stuck!`);
+          }
+        } else {
+          console.log(`        Last heartbeat: NEVER`);
+        }
         if (task.error) {
-          console.log(`        Error: ${task.error.substring(0, 150)}`);
+          console.log(`        Error: ${task.error.substring(0, 200)}`);
         }
         if (task.started_at) {
           console.log(`        Started: ${new Date(task.started_at).toLocaleString()}`);
