@@ -10,15 +10,15 @@ import { JobTask, supabase } from '../services/supabaseClient';
 import { ephemerisIsolation } from '../services/ephemerisIsolation'; // Isolated process (crash-safe)
 import { llmPaid } from '../services/llm'; // Paid LLM for all text generation (configured in env.ts)
 import { generateDramaticTitles } from '../services/titleGenerator'; // Dramatic title generation
-import { buildIntroText } from './audioWorker'; // For prepending audio intro to text (karaoke sync)
+// NOTE: We intentionally do NOT prepend audio introductions to text.
 import {
   SYSTEMS as NUCLEAR_V2_SYSTEMS,
   SYSTEM_DISPLAY_NAMES as NUCLEAR_V2_SYSTEM_NAMES,
   buildPersonPrompt,
-  buildOverlayPrompt as buildNuclearV2OverlayPrompt,
+  buildOverlayPrompt,
   buildVerdictPrompt,
+  type SystemName,
 } from '../prompts/structures/paidReadingPrompts';
-import { buildIndividualPrompt, buildOverlayPrompt } from '../prompts';
 import { SpiceLevel } from '../prompts/spice/levels';
 import { gematriaService } from '../services/kabbalah/GematriaService';
 import { hebrewCalendarService } from '../services/kabbalah/HebrewCalendarService';
@@ -893,8 +893,8 @@ ${OUTPUT_FORMAT_RULES}`;
           if (!person2 || !p2BirthData || !p2Placements) {
             throw new Error(`Overlay doc requires person2, but person2 is missing for job ${jobId}`);
           }
-          prompt = buildNuclearV2OverlayPrompt({
-            system: system as any,
+          prompt = buildOverlayPrompt({
+            system: system as SystemName,
             person1Name: person1.name,
             person2Name: person2.name,
             chartData,
@@ -938,43 +938,37 @@ ${OUTPUT_FORMAT_RULES}`;
         }
 
         if (docType === 'overlay') {
-          const chartDataObj: any = { synastry: chartData, [chartKey]: chartData };
           prompt = buildOverlayPrompt({
-            type: 'overlay',
-            style,
+            system: system as SystemName,
+            person1Name: person1.name,
+            person2Name: person2.name,
+            chartData,
             spiceLevel,
-            system: system as any,
-            person1: { name: person1.name, ...p1BirthData } as any,
-            person2: { name: person2.name, ...p2BirthData } as any,
-            chartData: chartDataObj,
+            style,
             relationshipContext: params.relationshipContext,
-          } as any);
+          });
           label += `:synastry:overlay:${system}`;
         } else if (docType === 'person1') {
-          const chartDataObj: any = { [chartKey]: chartData };
-          prompt = buildIndividualPrompt({
-            type: 'individual',
-            style,
+          prompt = buildPersonPrompt({
+            system: system as SystemName,
+            personName: person1.name,
+            personData: p1BirthData,
+            chartData,
             spiceLevel,
-            system: system as any,
-            voiceMode: 'other',
-            person: { name: person1.name, ...p1BirthData } as any,
-            chartData: chartDataObj,
+            style,
             personalContext: params.personalContext,
-          } as any);
+          });
           label += `:synastry:p1:${system}`;
         } else if (docType === 'person2') {
-          const chartDataObj: any = { [chartKey]: chartData };
-          prompt = buildIndividualPrompt({
-            type: 'individual',
-            style,
+          prompt = buildPersonPrompt({
+            system: system as SystemName,
+            personName: person2.name,
+            personData: p2BirthData,
+            chartData,
             spiceLevel,
-            system: system as any,
-            voiceMode: 'other',
-            person: { name: person2.name, ...p2BirthData } as any,
-            chartData: chartDataObj,
+            style,
             personalContext: params.personalContext,
-          } as any);
+          });
           label += `:synastry:p2:${system}`;
         } else {
           throw new Error(`Unknown docType for synastry: ${docType}`);
@@ -983,17 +977,15 @@ ${OUTPUT_FORMAT_RULES}`;
         if (docType !== 'individual') {
           throw new Error(`Extended jobs should only create 'individual' docs (got ${docType})`);
         }
-        const chartDataObj: any = { [chartKey]: chartData };
-        prompt = buildIndividualPrompt({
-          type: 'individual',
-          style,
+        prompt = buildPersonPrompt({
+          system: system as SystemName,
+          personName: person1.name,
+          personData: p1BirthData,
+          chartData,
           spiceLevel,
-          system: system as any,
-          voiceMode: 'other',
-          person: { name: person1.name, ...p1BirthData } as any,
-          chartData: chartDataObj,
+          style,
           personalContext: params.personalContext,
-        } as any);
+        });
         label += `:individual:${system}`;
       } else {
         throw new Error(`Unhandled job.type: ${job.type}`);
@@ -1092,19 +1084,7 @@ ${OUTPUT_FORMAT_RULES}`;
     console.log(`   📖 Reading: "${dramaticTitles.readingTitle}"`);
     console.log(`   🎵 Song: "${dramaticTitles.songTitle}"`);
 
-    // Prepend audio intro to text for karaoke synchronization
-    // (Audio has intro spoken, so text must start with same intro for sync)
-    const systems = (params.systems || [system]).filter(Boolean);
-    const isSynastryReading = docType === 'overlay' || docType === 'verdict';
-    const introText = buildIntroText({
-      person1Name: docType === 'person2' && person2 ? person2.name : person1.name,
-      person2Name: isSynastryReading ? person2?.name : null,
-      systems,
-      isSynastry: isSynastryReading,
-      timestamp: new Date(),
-    });
-    const textWithIntro = `${introText}\n\n${text}`;
-    console.log(`   📄 Prepended intro (${introText.length} chars) to text for karaoke sync`);
+    const textWithIntro = text;
 
     // Match BaseWorker storage path logic for output (so SQL trigger can enqueue audio tasks)
     const artifactType = 'text' as const;

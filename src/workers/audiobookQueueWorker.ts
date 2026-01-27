@@ -28,6 +28,7 @@ import path from 'path';
 import { supabase } from '../services/supabaseClient';
 import { env } from '../config/env';
 import { apiKeys } from '../services/apiKeysHelper';
+import { splitIntoChunks, concatenateWavBuffers, AUDIO_CONFIG } from '../services/audioProcessing';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -42,164 +43,9 @@ interface AudiobookChapter {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Text Chunking (same as audioWorker)
+// NOTE: Text chunking and WAV concatenation logic now imported from shared audioProcessing module
+// To adjust chunking or crossfade behavior, edit: src/services/audioProcessing.ts
 // ─────────────────────────────────────────────────────────────────────────────
-
-function splitIntoChunks(text: string, maxChunkLength: number = 300): string[] {
-  const sentenceRegex = /[^.!?]*[.!?]+|[^.!?]+$/g;
-  const sentences = text.match(sentenceRegex) || [text];
-  const chunks: string[] = [];
-  let currentChunk = '';
-
-  for (const sentence of sentences) {
-    const trimmedSentence = sentence.trim();
-    if (!trimmedSentence) continue;
-
-    if (currentChunk && (currentChunk.length + 1 + trimmedSentence.length > maxChunkLength)) {
-      chunks.push(currentChunk.trim());
-      currentChunk = '';
-    }
-
-    if (trimmedSentence.length > maxChunkLength) {
-      if (currentChunk) {
-        chunks.push(currentChunk.trim());
-        currentChunk = '';
-      }
-      const words = trimmedSentence.split(/\s+/);
-      let wordChunk = '';
-      for (const word of words) {
-        if (wordChunk && (wordChunk.length + 1 + word.length > maxChunkLength)) {
-          chunks.push(wordChunk.trim());
-          wordChunk = '';
-        }
-        wordChunk = wordChunk ? `${wordChunk} ${word}` : word;
-      }
-      if (wordChunk) {
-        currentChunk = wordChunk;
-      }
-    } else {
-      currentChunk = currentChunk ? `${currentChunk} ${trimmedSentence}` : trimmedSentence;
-    }
-  }
-
-  if (currentChunk.trim()) {
-    chunks.push(currentChunk.trim());
-  }
-
-  return chunks.filter(c => c.length > 0);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// WAV Processing (same as audioWorker)
-// ─────────────────────────────────────────────────────────────────────────────
-
-function parseWavHeader(buffer: Buffer): { audioFormat: number; numChannels: number; sampleRate: number; bitsPerSample: number; dataOffset: number; dataSize: number } | null {
-  if (buffer.length < 44) return null;
-  if (buffer.toString('ascii', 0, 4) !== 'RIFF') return null;
-  if (buffer.toString('ascii', 8, 12) !== 'WAVE') return null;
-  
-  let offset = 12;
-  let audioFormat = 1, numChannels = 1, sampleRate = 24000, bitsPerSample = 16;
-  let dataOffset = 0, dataSize = 0;
-  
-  while (offset < buffer.length - 8) {
-    const chunkId = buffer.toString('ascii', offset, offset + 4);
-    const chunkSize = buffer.readUInt32LE(offset + 4);
-    
-    if (chunkId === 'fmt ') {
-      audioFormat = buffer.readUInt16LE(offset + 8);
-      numChannels = buffer.readUInt16LE(offset + 10);
-      sampleRate = buffer.readUInt32LE(offset + 12);
-      bitsPerSample = buffer.readUInt16LE(offset + 22);
-    } else if (chunkId === 'data') {
-      dataOffset = offset + 8;
-      dataSize = chunkSize;
-      break;
-    }
-    
-    offset += 8 + chunkSize;
-    if (chunkSize % 2 === 1) offset++;
-  }
-  
-  if (dataOffset === 0) return null;
-  
-  return { audioFormat, numChannels, sampleRate, bitsPerSample, dataOffset, dataSize };
-}
-
-function convertFloatWavToPcm(buffer: Buffer): Buffer {
-  const header = parseWavHeader(buffer);
-  if (!header) return buffer;
-  
-  if (header.audioFormat === 3) {
-    const floatData = buffer.slice(header.dataOffset, header.dataOffset + header.dataSize);
-    const pcmData = Buffer.alloc(floatData.length / 4 * 2);
-    
-    for (let i = 0; i < floatData.length / 4; i++) {
-      const float = floatData.readFloatLE(i * 4);
-      const sample = Math.max(-1, Math.min(1, float));
-      const int16 = Math.round(sample * 32767);
-      pcmData.writeInt16LE(int16, i * 2);
-    }
-    
-    const wavHeader = Buffer.alloc(44);
-    wavHeader.write('RIFF', 0);
-    wavHeader.writeUInt32LE(36 + pcmData.length, 4);
-    wavHeader.write('WAVE', 8);
-    wavHeader.write('fmt ', 12);
-    wavHeader.writeUInt32LE(16, 16);
-    wavHeader.writeUInt16LE(1, 20);
-    wavHeader.writeUInt16LE(header.numChannels, 22);
-    wavHeader.writeUInt32LE(header.sampleRate, 24);
-    wavHeader.writeUInt32LE(header.sampleRate * header.numChannels * 2, 28);
-    wavHeader.writeUInt16LE(header.numChannels * 2, 32);
-    wavHeader.writeUInt16LE(16, 34);
-    wavHeader.write('data', 36);
-    wavHeader.writeUInt32LE(pcmData.length, 40);
-    
-    return Buffer.concat([wavHeader, pcmData]);
-  }
-  
-  return buffer;
-}
-
-function concatenateWavBuffers(buffers: Buffer[]): Buffer {
-  if (buffers.length === 0) return Buffer.alloc(0);
-  if (buffers.length === 1) return convertFloatWavToPcm(buffers[0]!);
-  
-  const audioDataChunks: Buffer[] = [];
-  let sampleRate = 24000;
-  let numChannels = 1;
-  
-  for (const buf of buffers) {
-    const converted = convertFloatWavToPcm(buf);
-    const header = parseWavHeader(converted);
-    if (header) {
-      sampleRate = header.sampleRate;
-      numChannels = header.numChannels;
-      audioDataChunks.push(converted.slice(header.dataOffset, header.dataOffset + header.dataSize));
-    }
-  }
-  
-  const totalDataSize = audioDataChunks.reduce((sum, chunk) => sum + chunk.length, 0);
-  
-  const wavHeader = Buffer.alloc(44);
-  wavHeader.write('RIFF', 0);
-  wavHeader.writeUInt32LE(36 + totalDataSize, 4);
-  wavHeader.write('WAVE', 8);
-  wavHeader.write('fmt ', 12);
-  wavHeader.writeUInt32LE(16, 16);
-  wavHeader.writeUInt16LE(1, 20);
-  wavHeader.writeUInt16LE(numChannels, 22);
-  wavHeader.writeUInt32LE(sampleRate, 24);
-  wavHeader.writeUInt32LE(sampleRate * numChannels * 2, 28);
-  wavHeader.writeUInt16LE(numChannels * 2, 32);
-  wavHeader.writeUInt16LE(16, 34);
-  wavHeader.write('data', 36);
-  wavHeader.writeUInt32LE(totalDataSize, 40);
-  
-  console.log(`WAV concatenation: ${buffers.length} chunks -> ${totalDataSize} bytes audio data`);
-  return Buffer.concat([wavHeader, ...audioDataChunks]);
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FFmpeg Conversion
@@ -442,7 +288,7 @@ export class AudiobookQueueWorker {
       }
 
       // Chunk text
-      const chunks = splitIntoChunks(text, 300);
+      const chunks = splitIntoChunks(text, AUDIO_CONFIG.CHUNK_MAX_LENGTH);
       console.log(`   Split into ${chunks.length} chunks`);
 
       // Fetch RunPod keys from Supabase (with env fallback)

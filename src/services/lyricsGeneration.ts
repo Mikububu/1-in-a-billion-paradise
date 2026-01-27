@@ -7,7 +7,6 @@
  */
 
 import { llm } from './llm';
-import { PersonData } from '../prompts';
 import fs from 'fs';
 import path from 'path';
 
@@ -39,7 +38,8 @@ function loadMusicPrompt(system: string): string {
     'human_design': 'human-design-music-prompt.md',
     'gene_keys': 'gene-keys-music-prompt.md',
     kabbalah: 'kabbalah-music-prompt.md',
-    // verdict: 'final-verdict-music-prompt.md', // TODO: Add verdict prompt
+    verdict: 'final-verdict-music-prompt.md',
+    'final_verdict': 'final-verdict-music-prompt.md',
   };
 
   const fileName = systemMap[system] || systemMap['western']; // Default to Western
@@ -116,6 +116,27 @@ export async function generateLyrics(input: LyricsGenerationInput): Promise<Lyri
     if (!jsonMatch) {
       console.error('❌ No JSON found in LLM response');
       console.error('❌ Full response:', response);
+      
+      // FALLBACK: Try to extract lyrics from plain text response
+      // Sometimes the LLM writes lyrics without JSON wrapper
+      console.log('🔄 Attempting fallback: extracting lyrics from plain text...');
+      const lines = response.split('\n').filter(l => l.trim() && !l.startsWith('#') && !l.startsWith('*') && !l.includes('```'));
+      if (lines.length >= 8) {
+        // Looks like lyrics - use them with default settings
+        console.log('✅ Fallback: Found lyrics in plain text format');
+        return {
+          lyrics: lines.join('\n').trim(),
+          title: `${personName}'s Song`,
+          style: system === 'vedic' ? 'Indian classical fusion' : '70s piano ballad',
+          musicStyle: system === 'vedic' ? 'Indian classical fusion' : '70s piano ballad',
+          vocalist: 'Female',
+          emotion: 'contemplative',
+          minimaxPrompt: system === 'vedic' 
+            ? 'A contemplative Indian classical fusion song. Sitar, bansuri flute, tabla, tanpura drone. Slow tempo, introspective vocals. Music to listen to while reading.'
+            : 'A quiet, introspective song in the poetic style of Leonard Cohen. Sparse instrumentation - acoustic guitar or minimal piano. Contemplative, low-key vocal delivery.',
+        };
+      }
+      
       throw new Error('LLM did not return valid JSON');
     }
 
@@ -152,6 +173,50 @@ export async function generateLyrics(input: LyricsGenerationInput): Promise<Lyri
     };
   } catch (error: any) {
     console.error('❌ Lyrics generation failed:', error);
+    
+    // RETRY with simpler prompt that's more likely to return valid JSON
+    console.log('🔄 Retrying with simplified prompt...');
+    try {
+      const simplePrompt = `Write a short, contemplative song for ${personName}. 
+
+Based on this reading excerpt:
+${readingExcerpt.substring(0, 2000)}
+
+Return ONLY this JSON (no other text):
+{
+  "lyrics": "verse 1 line 1\\nverse 1 line 2\\nverse 1 line 3\\nverse 1 line 4\\n\\nchorus line 1\\nchorus line 2\\nchorus line 3\\nchorus line 4\\n\\nverse 2 line 1\\nverse 2 line 2\\nverse 2 line 3\\nverse 2 line 4",
+  "title": "Song Title",
+  "musicStyle": "${system === 'vedic' ? 'Indian classical fusion' : '70s piano ballad'}",
+  "vocalist": "Female",
+  "emotion": "contemplative",
+  "minimaxPrompt": "${system === 'vedic' ? 'Contemplative Indian classical fusion. Sitar, bansuri flute, tabla. Slow, introspective.' : 'Quiet piano ballad in Leonard Cohen style. Acoustic, contemplative.'}"
+}`;
+
+      const retryResponse = await llm.generate(simplePrompt, 'lyrics-generation-retry', {
+        maxTokens: 1500,
+        temperature: 0.7,
+      });
+
+      const retryJsonMatch = retryResponse?.match(/\{[\s\S]*\}/);
+      if (retryJsonMatch) {
+        const retryResult = JSON.parse(retryJsonMatch[0]);
+        if (retryResult.lyrics) {
+          console.log('✅ Retry succeeded!');
+          return {
+            lyrics: String(retryResult.lyrics).trim(),
+            title: String(retryResult.title || `${personName}'s Song`).trim(),
+            style: String(retryResult.musicStyle || '70s piano ballad').trim(),
+            musicStyle: String(retryResult.musicStyle || '70s piano ballad').trim(),
+            vocalist: String(retryResult.vocalist || 'Female').trim(),
+            emotion: String(retryResult.emotion || 'contemplative').trim(),
+            minimaxPrompt: String(retryResult.minimaxPrompt || 'Quiet, contemplative song. Acoustic instrumentation.').trim(),
+          };
+        }
+      }
+    } catch (retryError: any) {
+      console.error('❌ Retry also failed:', retryError.message);
+    }
+    
     throw new Error(`Failed to generate lyrics: ${error.message}`);
   }
 }
