@@ -48,6 +48,43 @@ interface AudiobookChapter {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
+// WAV Header Parsing (for duration calculation)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function parseWavHeader(buffer: Buffer): { audioFormat: number; numChannels: number; sampleRate: number; bitsPerSample: number; dataOffset: number; dataSize: number } | null {
+  if (buffer.length < 44) return null;
+  if (buffer.toString('ascii', 0, 4) !== 'RIFF') return null;
+  if (buffer.toString('ascii', 8, 12) !== 'WAVE') return null;
+  
+  let offset = 12;
+  let audioFormat = 1, numChannels = 1, sampleRate = 24000, bitsPerSample = 16;
+  let dataOffset = 0, dataSize = 0;
+  
+  while (offset < buffer.length - 8) {
+    const chunkId = buffer.toString('ascii', offset, offset + 4);
+    const chunkSize = buffer.readUInt32LE(offset + 4);
+    
+    if (chunkId === 'fmt ') {
+      audioFormat = buffer.readUInt16LE(offset + 8);
+      numChannels = buffer.readUInt16LE(offset + 10);
+      sampleRate = buffer.readUInt32LE(offset + 12);
+      bitsPerSample = buffer.readUInt16LE(offset + 22);
+    } else if (chunkId === 'data') {
+      dataOffset = offset + 8;
+      dataSize = chunkSize;
+      break;
+    }
+    
+    offset += 8 + chunkSize;
+    if (chunkSize % 2 === 1) offset++;
+  }
+  
+  if (dataOffset === 0) return null;
+  
+  return { audioFormat, numChannels, sampleRate, bitsPerSample, dataOffset, dataSize };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // FFmpeg Conversion
 // ─────────────────────────────────────────────────────────────────────────────
 
