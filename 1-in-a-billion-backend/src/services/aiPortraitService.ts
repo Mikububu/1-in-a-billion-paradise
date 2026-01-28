@@ -121,7 +121,34 @@ export async function generateAIPortrait(
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // Generate AI portrait directly with Google AI Studio (image-to-image)
+    // STEP 1: Resize input image to max 2000px (Google AI Studio limit)
+    // ─────────────────────────────────────────────────────────────────────
+    console.log('📐 [AI Portrait] Resizing input image to max 2000px for Google AI Studio...');
+    
+    const originalImageBuffer = Buffer.from(photoBase64.includes(',') ? photoBase64.split(',')[1] : photoBase64, 'base64');
+    
+    // Get image metadata to check dimensions
+    const metadata = await sharp(originalImageBuffer).metadata();
+    const maxDimension = Math.max(metadata.width || 0, metadata.height || 0);
+    
+    let resizedForAPI: Buffer;
+    if (maxDimension > 2000) {
+      console.log(`   Original size: ${metadata.width}x${metadata.height}, resizing to max 2000px...`);
+      // Resize to max 2000px on longest side, maintaining aspect ratio
+      resizedForAPI = await sharp(originalImageBuffer)
+        .resize(2000, 2000, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 90 })
+        .toBuffer();
+      
+      const resizedMetadata = await sharp(resizedForAPI).metadata();
+      console.log(`   Resized to: ${resizedMetadata.width}x${resizedMetadata.height}`);
+    } else {
+      console.log(`   Image size OK: ${metadata.width}x${metadata.height} (under 2000px limit)`);
+      resizedForAPI = originalImageBuffer;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // STEP 2: Generate AI portrait directly with Google AI Studio (image-to-image)
     // ─────────────────────────────────────────────────────────────────────
     console.log('🎨 [AI Portrait] Generating AI portrait with Google AI Studio...');
 
@@ -130,11 +157,11 @@ export async function generateAIPortrait(
     // Build parts array: image first, then text (matching working code)
     const parts: any[] = [];
     
-    // Add image (remove data:image/jpeg;base64, prefix if present)
-    const base64Data = photoBase64.includes(',') ? photoBase64.split(',')[1] : photoBase64;
+    // Add resized image (convert to base64)
+    const resizedBase64 = resizedForAPI.toString('base64');
     parts.push({
       inlineData: {
-        data: base64Data,
+        data: resizedBase64,
         mimeType: 'image/jpeg'
       }
     });

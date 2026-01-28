@@ -1,10 +1,11 @@
-// Unified base background. Use slight transparency so the global leather texture shows through
-// consistently across all screens (one-click control via TexturedBackground).
-const UNIFIED_BG = 'rgba(247, 246, 243, 0.88)';
+// ═══════════════════════════════════════════════════════════════════════════
+// VINTAGE TINT - Change this ONE value to adjust warmth across ALL screens
+// ═══════════════════════════════════════════════════════════════════════════
+const VINTAGE_TINT = 'rgba(252, 248, 235, 0.88)'; // Warm vintage cream background
 
 export const colors = {
-  background: UNIFIED_BG,
-  // Canonical "broken white" surfaces for cards + inputs
+  background: VINTAGE_TINT,
+  // Canonical "broken white" surfaces for cards + inputs (keep neutral so they pop)
   surface: '#ECEAE6',
   text: '#1A1A1A',
   mutedText: '#6B6B6B',

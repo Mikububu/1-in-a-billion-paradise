@@ -10,16 +10,20 @@
  */
 
 import { StyleSheet, View, Image } from 'react-native';
-import { colors } from '@/theme/tokens';
 
 type Props = {
   children: React.ReactNode;
   style?: object;
 };
 
+// ═══════════════════════════════════════════════════════════════════════════
+// VINTAGE BACKGROUND - Change this ONE value to adjust warmth
+// ═══════════════════════════════════════════════════════════════════════════
+const BACKGROUND_COLOR = '#F5EDD6'; // Vintage yellowish cream behind texture
+
 /**
  * Main textured background component
- * Uses actual leather texture image with 30% opacity over base background color
+ * Uses actual leather texture image with 38% opacity over background color
  */
 export const TexturedBackground = ({ children, style }: Props) => {
   return (
@@ -31,7 +35,7 @@ export const TexturedBackground = ({ children, style }: Props) => {
         resizeMode="cover"
         pointerEvents="none"
       />
-      {/* Content on top */}
+      {/* Content */}
       <View style={styles.content}>
         {children}
       </View>
@@ -48,7 +52,7 @@ export const LeatherBackground = TexturedBackground;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: BACKGROUND_COLOR,
   },
   content: {
     flex: 1,

@@ -94,9 +94,42 @@ export async function composeCoupleImage(
       image2Response.arrayBuffer(),
     ]);
 
+    // 1.5. Resize images to max 2000px if needed (Google AI Studio limit)
+    console.log('📐 [Couple] Checking image dimensions for Google AI Studio limit...');
+    
+    const image1Buf = Buffer.from(image1Buffer);
+    const image2Buf = Buffer.from(image2Buffer);
+    
+    const [meta1, meta2] = await Promise.all([
+      sharp(image1Buf).metadata(),
+      sharp(image2Buf).metadata()
+    ]);
+    
+    const maxDim1 = Math.max(meta1.width || 0, meta1.height || 0);
+    const maxDim2 = Math.max(meta2.width || 0, meta2.height || 0);
+    
+    let processed1 = image1Buf;
+    let processed2 = image2Buf;
+    
+    if (maxDim1 > 2000) {
+      console.log(`   Resizing image 1: ${meta1.width}x${meta1.height} → max 2000px`);
+      processed1 = await sharp(image1Buf)
+        .resize(2000, 2000, { fit: 'inside', withoutEnlargement: true })
+        .png()
+        .toBuffer();
+    }
+    
+    if (maxDim2 > 2000) {
+      console.log(`   Resizing image 2: ${meta2.width}x${meta2.height} → max 2000px`);
+      processed2 = await sharp(image2Buf)
+        .resize(2000, 2000, { fit: 'inside', withoutEnlargement: true })
+        .png()
+        .toBuffer();
+    }
+
     // Convert to base64
-    const image1Base64 = Buffer.from(image1Buffer).toString('base64');
-    const image2Base64 = Buffer.from(image2Buffer).toString('base64');
+    const image1Base64 = processed1.toString('base64');
+    const image2Base64 = processed2.toString('base64');
 
     // 2. Generate couple portrait with Google AI Studio
     const ai = new GoogleGenAI({ apiKey: googleKey });

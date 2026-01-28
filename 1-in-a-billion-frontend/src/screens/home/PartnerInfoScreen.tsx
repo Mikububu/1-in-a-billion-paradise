@@ -64,6 +64,22 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
   // mode already derived above; keep a typed alias if needed elsewhere
   const flowMode = (route?.params as any)?.mode as string | undefined;
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HARD LOCK: Only allow ONE free third person hook reading during onboarding
+  // ═══════════════════════════════════════════════════════════════════════════
+  const existingFreePartner = people.find((p) => !p.isUser && p.hookReadings && p.hookReadings.length === 3);
+  
+  useEffect(() => {
+    if (isPrepayOnboarding && existingFreePartner) {
+      // Already have a free partner hook reading - block creating another
+      Alert.alert(
+        'Already Created',
+        'You already have a free third person reading. You can view it from your hook readings.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
+    }
+  }, [isPrepayOnboarding, existingFreePartner, navigation]);
+
   // City search state
   const [cityQuery, setCityQuery] = useState('');
   const [citySuggestions, setCitySuggestions] = useState<CityOption[]>([]);
@@ -101,6 +117,12 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
 
   const upsertPersonFromForm = async (): Promise<{ personId?: string; cityToUse?: CityOption }> => {
     if (!canContinue) return {};
+
+    // HARD LOCK: Block creating second free partner during onboarding
+    if (isPrepayOnboarding && existingFreePartner) {
+      Alert.alert('Already Created', 'You already have a free third person reading.');
+      return {};
+    }
 
     if (!birthTime) {
       Alert.alert('Birth time required', 'Please add a birth time. Compatibility requires Rising sign accuracy.');

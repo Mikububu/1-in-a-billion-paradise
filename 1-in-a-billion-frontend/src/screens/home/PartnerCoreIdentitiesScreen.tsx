@@ -411,16 +411,18 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         risingSign = risingSign || moonData.placements.risingSign;
       }
       
-      // Start Moon audio generation (run in background)
+      // Start Moon audio generation (returns promise for later awaiting)
+      let moonAudioPromise: Promise<void> | null = null;
       if (moonData?.reading) {
         console.log(`🎵 Starting ${name}'s MOON audio generation...`);
-        audioApi.generateTTS(
+        moonAudioPromise = audioApi.generateTTS(
           `${moonData.reading.intro}\n\n${moonData.reading.main}`,
           { exaggeration: AUDIO_CONFIG.exaggeration }
         )
           .then((result) => {
             if (result.success && result.audioBase64) {
               // Store base64 directly in memory for immediate playback
+              moonAudioBase64 = result.audioBase64;
               setPartnerAudio('moon', result.audioBase64);
               console.log(`✅ ${name}'s MOON audio ready (in memory)`);
               
@@ -442,7 +444,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
               }
             }
           })
-          .catch(() => console.log('Moon audio generation failed'));
+          .catch((err) => console.log('Moon audio generation failed:', err));
       }
       setProgress(60);
       await delay(3000);
@@ -467,16 +469,18 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         risingSign = risingSign || risingData.placements.risingSign;
       }
       
-      // Start Rising audio generation (run in background)
+      // Start Rising audio generation (returns promise for later awaiting)
+      let risingAudioPromise: Promise<void> | null = null;
       if (risingData?.reading) {
         console.log(`🎵 Starting ${name}'s RISING audio generation...`);
-        audioApi.generateTTS(
+        risingAudioPromise = audioApi.generateTTS(
           `${risingData.reading.intro}\n\n${risingData.reading.main}`,
           { exaggeration: AUDIO_CONFIG.exaggeration }
         )
           .then((result) => {
             if (result.success && result.audioBase64) {
               // Store base64 directly in memory for immediate playback
+              risingAudioBase64 = result.audioBase64;
               setPartnerAudio('rising', result.audioBase64);
               console.log(`✅ ${name}'s RISING audio ready (in memory)`);
               
@@ -500,14 +504,28 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
           })
           .catch(() => console.log('Rising audio generation failed'));
       }
-      setProgress(90);
-      await delay(3000);
+      setProgress(85);
+
+      // ========== WAIT FOR ALL AUDIO BEFORE NAVIGATING ==========
+      setStatusText(`Giving ${name}'s reading a voice…`);
+      
+      // Wait for Moon and Rising audio (Sun was already awaited earlier)
+      console.log(`🎵 Waiting for ${name}'s Moon and Rising audio...`);
+      await Promise.all([
+        moonAudioPromise || Promise.resolve(),
+        risingAudioPromise || Promise.resolve(),
+      ]);
+      console.log(`✅ All ${name}'s audio ready!`);
+      
+      setProgress(95);
+      setStatusText('All readings ready!');
+      await delay(1500);
 
       // SCREEN 5: Back to intro briefly
       setCurrentScreen('intro');
       setStatusText('Chart complete!');
       setProgress(100);
-      await delay(2000);
+      await delay(1000);
 
       // Ensure we reuse the person created in PartnerInfoScreen to avoid duplicates.
       // (PartnerInfo creates/reuses the partner row and passes partnerId here.)

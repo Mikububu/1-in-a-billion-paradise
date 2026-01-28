@@ -44,6 +44,32 @@ Before making any deployment or architecture decisions, **always read**:
 ❌ Creating new files when editing existing ones would work
 ❌ Suggesting time estimates for tasks
 
+## CRITICAL: File Deletion Rules
+
+**NEVER delete files unless:**
+1. User explicitly requests deletion (e.g., "delete this file", "remove X")
+2. File is clearly marked as temporary/test (e.g., `test_*.ts`, `debug_*.ts`, `*.tmp`)
+3. You're cleaning up files YOU just created in this session
+
+**If a commit would delete more than 10 files:**
+- ⚠️ **STOP immediately** and ask for explicit confirmation
+- Explain exactly what will be deleted and why
+- Show the list of files that would be deleted
+- **Never proceed without explicit user approval**
+
+**Commit message accuracy:**
+- Commit messages MUST accurately describe what changed
+- If deleting files, the commit message must clearly state:
+  - What was deleted
+  - Why it was deleted
+  - How many files were affected
+- Example: "Delete 719 files: Cleanup of duplicate backend/frontend folders" (NOT "Fix: Intro text")
+
+**What happened before (Jan 25, 2026):**
+- Commit 00f415b7 claimed to "Fix: Intro text" but deleted 719 files (271 frontend + 435 backend)
+- This caused massive data loss and required restore from backup
+- **This must never happen again**
+
 ## When User is Frustrated
 
 - Acknowledge the mistake clearly

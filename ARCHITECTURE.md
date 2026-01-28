@@ -1027,6 +1027,38 @@ function buildSilenceWav(durationSec: number, sampleRate = 24000, numChannels = 
 }
 ```
 
+### Hook Audio Pre-Rendering (CRITICAL)
+
+**Purpose**: Pre-render all 3 hook audios (Sun, Moon, Rising) during the waiting screen so audio plays instantly when user taps play.
+
+**Implementation:**
+
+| Screen | Store | Behavior |
+|--------|-------|----------|
+| `CoreIdentitiesScreen` (1st person) | `onboardingStore.hookAudio` | Waits for ALL 3 audios before navigating |
+| `PartnerCoreIdentitiesScreen` (3rd person) | `onboardingStore.partnerAudio` | Waits for ALL 3 audios before navigating |
+
+**Flow:**
+1. During waiting animation, start generating Sun reading + audio
+2. When Sun screen shows, start Moon reading + audio in background
+3. When Moon screen shows, start Rising reading + audio in background
+4. **CRITICAL**: Before navigating to HookSequence/PartnerReadings, await ALL audio promises
+5. Status text shows: "Giving your reading a voice…" → "All readings ready!"
+
+**Why this matters:**
+- Without pre-rendering: User taps play → sees loading spinner → waits 5-10s for TTS
+- With pre-rendering: User taps play → audio plays instantly
+
+**Fallback:**
+- If audio generation fails, the destination screen (`HookSequenceScreen` / `PartnerReadingsScreen`) has fallback logic to generate audio on-demand
+- This is a degraded UX but ensures the app doesn't break
+
+**Code locations:**
+- `1-in-a-billion-frontend/src/screens/onboarding/CoreIdentitiesScreen.tsx` (lines 619-691)
+- `1-in-a-billion-frontend/src/screens/home/PartnerCoreIdentitiesScreen.tsx` (lines 500-520)
+
+---
+
 ### Replicate Integration
 
 **Purpose**: Audio generation via Chatterbox Turbo TTS
@@ -1195,6 +1227,12 @@ flowchart LR
 - All audio is M4A (AAC 96kbps)
 - No MP3 fallback
 - All narration audio includes spoken intro
+
+**INVARIANT 11: One Free Third Person Hook Reading**
+- Users can only create ONE free third person hook reading during onboarding
+- Check: `people.find((p) => !p.isUser && p.hookReadings && p.hookReadings.length === 3)`
+- Enforced in: `AddThirdPersonPromptScreen` (redirects to existing) and `PartnerInfoScreen` (blocks creation)
+- After onboarding, users can add unlimited people (paid feature)
 
 **INVARIANT 11: Job Buffer (40-job cap)**
 - Frontend maintains max 40 job receipts in AsyncStorage
