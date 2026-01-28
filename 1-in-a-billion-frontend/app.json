@@ -62,9 +62,7 @@
       }
     },
     "owner": "michaelpw",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/eced09a0-1038-41f6-a46c-1ec085690182",
       "checkAutomatically": "ON_LOAD",
