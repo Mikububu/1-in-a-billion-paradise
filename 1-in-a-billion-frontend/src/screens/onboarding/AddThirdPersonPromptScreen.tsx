@@ -72,19 +72,8 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
     <SafeAreaView style={styles.container}>
       <BackButton
         onPress={() => {
-          // If user has already done third person readings, go back to last compatibility screen
-          if (existingPartner && existingPartnerCity) {
-            navigation.navigate('SynastryPreview', {
-              partnerName: existingPartner.name,
-              partnerBirthDate: existingPartner.birthData?.birthDate,
-              partnerBirthTime: existingPartner.birthData?.birthTime,
-              partnerBirthCity: existingPartnerCity,
-              onboardingNext: 'PostHookOffer',
-            } as any);
-          } else {
-            // Otherwise, go back to their own Rising sign (page 2 of HookSequence)
-            navigation.navigate('HookSequence', { initialReading: 'rising' } as any);
-          }
+          // Always go back to user's own hook readings (Rising sign page)
+          navigation.navigate('HookSequence', { initialReading: 'rising' } as any);
         }}
       />
       <Animated.View
