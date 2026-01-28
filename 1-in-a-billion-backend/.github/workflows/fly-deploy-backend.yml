@@ -1,0 +1,35 @@
+name: Deploy backend to Fly.io
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "1-in-a-billion-backend/**"
+      - ".github/workflows/fly-deploy-backend.yml"
+  workflow_dispatch: {}
+  schedule:
+    # Periodic redeploy (safety) — adjust/remove if undesired
+    - cron: "17 3 * * *"
+
+concurrency:
+  group: fly-deploy-backend
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 1-in-a-billion-backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: flyctl deploy --config fly.toml --remote-only
+

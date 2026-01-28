@@ -44,13 +44,16 @@ if [ -d "1-in-a-billion-frontend" ]; then
     
     # Check if eas.json exists
     if [ -f "eas.json" ] || [ -f ".eas.json" ]; then
-        echo "Running EAS build..."
-        eas build --platform all --non-interactive || {
-            echo -e "${YELLOW}⚠️  EAS build failed or EAS CLI not configured${NC}"
-            echo "   Make sure you have:"
-            echo "   - EAS CLI installed: npm install -g eas-cli"
-            echo "   - EAS account configured: eas login"
-            echo "   - eas.json configured"
+        echo "Running EAS build (Android)..."
+        eas build --platform android --non-interactive || {
+            echo -e "${YELLOW}⚠️  Android build failed${NC}"
+        }
+        
+        echo ""
+        echo "Running EAS build (iOS)..."
+        eas build --platform ios --non-interactive || {
+            echo -e "${YELLOW}⚠️  iOS build failed (may need interactive credentials setup)${NC}"
+            echo "   Run manually: cd 1-in-a-billion-frontend && eas build --platform ios"
         }
     else
         echo -e "${YELLOW}⚠️  eas.json not found. Skipping EAS build.${NC}"
