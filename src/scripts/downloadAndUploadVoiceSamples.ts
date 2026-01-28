@@ -29,7 +29,7 @@ config({ path: join(__dirname, '../../.env') });
  */
 async function downloadFromGitHub(
     repo: string, // e.g., "owner/repo"
-    path: string, // e.g., "audio/preview.mp3"
+    path: string, // e.g., "audio/henry_miller_sample.mp3"
     branch: string = 'main'
 ): Promise<Buffer> {
     return new Promise((resolve, reject) => {
@@ -145,7 +145,7 @@ async function downloadAndUploadVoiceSamples() {
         console.log(`\n🎤 ${voice.displayName} (${voice.id})`);
         
         let fileBuffer: Buffer | null = null;
-        const targetPath = `voice-samples/${voice.id}/preview.mp3`;
+        const targetPath = `voice-samples/${voice.id}/henry_miller_sample.mp3`;
 
         // Try to get file from GitHub or local directory
         if (githubRepo && githubPath) {
@@ -154,8 +154,8 @@ async function downloadAndUploadVoiceSamples() {
                 const possibleNames = [
                     `${voice.id}.mp3`,
                     `${voice.displayName}.mp3`,
-                    `preview.mp3`,
-                    `${voice.id}_preview.mp3`,
+                    `henry_miller_sample.mp3`,
+                    `${voice.id}_henry_miller_sample.mp3`,
                 ];
 
                 for (const filename of possibleNames) {
@@ -185,8 +185,8 @@ async function downloadAndUploadVoiceSamples() {
             const possibleNames = [
                 `${voice.id}.mp3`,
                 `${voice.displayName}.mp3`,
-                `preview.mp3`,
-                `${voice.id}_preview.mp3`,
+                `henry_miller_sample.mp3`,
+                `${voice.id}_henry_miller_sample.mp3`,
             ];
 
             let found = false;

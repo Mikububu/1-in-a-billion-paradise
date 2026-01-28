@@ -144,7 +144,7 @@ async function uploadWAVAndGenerateMP3() {
     console.log('   npx ts-node src/scripts/generate_voice_samples.ts\n');
     console.log('This will:');
     console.log('  1. Use the WAV files we just uploaded');
-    console.log('  2. Generate MP3 samples with the Anaïs Nin quote');
+    console.log('  2. Generate MP3 samples with the Henry Miller quote');
     console.log('  3. Upload them to voice-samples bucket\n');
 }
 

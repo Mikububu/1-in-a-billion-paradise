@@ -6,10 +6,12 @@
 
 Go to: https://supabase.com/dashboard/project/qdfikbgwuauertfmkmzk/settings/api
 
-Copy these values:
+Open the **API Keys** tab (not Legacy). Copy:
 - **Project URL** → `SUPABASE_URL`
-- **service_role key** → `SUPABASE_SERVICE_ROLE_KEY` (secret!)
-- **anon public key** → `SUPABASE_ANON_KEY`
+- **Secret key** (`sb_secret_...`) → `SUPABASE_SERVICE_ROLE_KEY` (secret!)
+- **Publishable key** (`sb_publishable_...`) → `SUPABASE_ANON_KEY` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+
+If you disabled legacy keys, use these new keys only. Same env var names. See `docs/SUPABASE_LEGACY_KEYS_DISABLED.md`.
 
 ### 2. Add to Backend .env
 

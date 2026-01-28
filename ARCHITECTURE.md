@@ -1,23 +1,42 @@
-# 1-in-a-Billion - Complete Architecture Documentation
+# 1-in-a-Billion - Complete Architecture & UX Documentation
 
-> **Purpose**: This document serves as the single source of truth for understanding the complete app flow, navigation logic, state management, and data persistence. AI agents should reference this document first before making any changes to understand the system architecture.
+> **Purpose**: This document serves as the **single source of truth** for understanding the complete app flow, navigation logic, state management, data persistence, and screen-by-screen UX. AI agents should reference this document first before making any changes to understand the system architecture.
+
+**Version:** 2.0 (Merged)  
+**Last Updated:** January 24, 2026  
+**Previous Versions:** ARCHITECTURE.md v1.x + UX_SYSTEM_DOCUMENTATION.md v1.6
 
 ---
 
 ## Table of Contents
 
+### Part I: Executive Summary & User Flow
 1. [Executive Summary](#executive-summary)
-2. [Complete User Flow](#complete-user-flow)
-3. [Navigation Architecture](#navigation-architecture)
-4. [State Management](#state-management)
-5. [Data Persistence Flow](#data-persistence-flow)
-6. [Onboarding Flow (Detailed)](#onboarding-flow-detailed)
-7. [Dashboard Complexity](#dashboard-complexity)
-8. [Backend Architecture](#backend-architecture)
-9. [Critical Invariants](#critical-invariants)
-10. [Common Pitfalls & Solutions](#common-pitfalls--solutions)
+2. [App Launch Flow (CRITICAL)](#app-launch-flow-critical)
+3. [Complete User Flow](#complete-user-flow)
+4. [Navigation Architecture](#navigation-architecture)
+
+### Part II: Screen-by-Screen Reference
+5. [Screen Numbering System](#screen-numbering-system)
+6. [Onboarding Screens (S1-S9)](#onboarding-screens-s1-s9)
+7. [Dashboard Screens (S10+)](#dashboard-screens-s10)
+8. [Navigation Flow Maps](#navigation-flow-maps)
+
+### Part III: Technical Architecture
+9. [State Management](#state-management)
+10. [Data Persistence Flow](#data-persistence-flow)
+11. [Backend Architecture](#backend-architecture)
+12. [Audio Generation Pipeline](#audio-generation-pipeline)
+13. [Product Tiers & Job System](#product-tiers--job-system)
+
+### Part IV: Critical Rules & Debugging
+14. [Critical Invariants](#critical-invariants)
+15. [Common Pitfalls & Solutions](#common-pitfalls--solutions)
+16. [Debugging Guide](#debugging-guide)
 
 ---
+
+## Part I: Executive Summary & User Flow
 
 ## Executive Summary
 
@@ -38,18 +57,20 @@
 - Hono.js (Node.js) on Fly.io
 - Supabase (Postgres) for database
 - Supabase Queue V2 for job processing
-- RunPod Serverless for audio generation workers
+- Replicate Chatterbox Turbo for TTS (via Replicate API)
 - DeepSeek (primary) / Claude (backup) for LLM
-- Chatterbox via RunPod for TTS
+- FFmpeg for audio processing (M4A AAC 96kbps)
 
 ### Key Architectural Decisions
 
 1. **Single Source of Truth**: Supabase is the authoritative data store. Local Zustand stores are caches that sync with Supabase.
 2. **State-Based Navigation**: Navigation decisions are based on Zustand store state, not URL or screen history.
-3. **Onboarding Completion Flag**: `hasCompletedOnboarding` is the ONLY flag that determines if user should see Dashboard vs Onboarding.
-4. **Hook Readings as Onboarding Gate**: Hook readings (Sun/Moon/Rising) are generated during onboarding and serve as the "key" to unlock the dashboard.
+3. **Intro Gate**: App always lands on Intro; logged-in users must tap **"My Secret Life"** to reach Dashboard.
+4. **showDashboard Gate**: `showDashboard` is the only flag that switches to MainNavigator; no auto-dashboard on reopen.
 5. **Background Processing**: All heavy operations (reading generation, audio, PDF) happen via Supabase job queue with background workers.
 6. **Portraits are Privacy-Preserving Assets**: Uploaded photos are stored separately from generated portraits. The app primarily displays the generated stylized portrait for privacy and consistency.
+7. **Audio Format**: M4A (AAC 96kbps) is the primary format. No MP3 fallback. Supports HTTP Range requests for seeking.
+8. **Spoken Audio Intro**: All narration audio includes a spoken intro (0.5s silence before/after) with person name, systems, timestamp, and "forbiddenyoga dot com".
 
 ### Related Documentation
 
@@ -63,9 +84,56 @@ For detailed specs on specific pipelines, see `1-in-a-billion-backend/docs/`:
 | Vedic Matching | `VEDIC_MATCHMAKING_SPEC.md` - Ashtakoota scoring, Dosha analysis |
 | API Contract | `API_CONTRACT.md` - All endpoints and payloads |
 | Song Generation | `SONG_GENERATION_IMPLEMENTATION.md` - MiniMax API integration |
-| Portrait Prompting | `src/prompts/image/CLAYMATION_PORTRAIT.md` - internal portrait style prompt (user-facing: “stylized portrait”) |
+| Portrait Prompting | `src/prompts/image/CLAYMATION_PORTRAIT.md` - internal portrait style prompt (user-facing: "stylized portrait") |
 | Couple Image Composition | `src/services/coupleImageService.ts` - sharp composition and caching |
 | PDF Layout | `docs/PDF_LAYOUT_SPEC.md` - PDF style and chapter layouts |
+| Deployment | `DEPLOYMENT_INSTRUCTIONS.md` - How to deploy to Fly/EAS correctly |
+
+---
+
+## App Launch Flow (CRITICAL)
+
+### How App Routing Works
+
+**When app launches (cold start or reopen):**
+
+1. **No session exists:**
+   - → Always goes to `S1_INTRO` (Screen 1)
+   - Shows: "Log In" + "Get Started" buttons
+
+2. **Session exists (user is logged in):**
+   - → Always goes to `S1_INTRO` (Screen 1)
+   - Shows: "Log Out" + "My Secret Life" buttons
+   - User must tap **"My Secret Life"** to enter the dashboard
+   - **App background/foreground:** `showDashboard` resets on background, so returning always lands on Intro
+
+### The showDashboard Flag
+
+**Authoritative dashboard gate**
+
+- `showDashboard` in `onboardingStore` is the switch from Intro → MainNavigator.
+- Routing rule in `RootNavigator` is:
+  - **If no session → Intro**
+  - **If session exists + showDashboard = false → Intro**
+  - **If session exists + showDashboard = true → MainNavigator**
+
+### Sign Out Behavior
+
+- **Location:** Only available on `S1_INTRO` when signed in
+- **Warning:** "By signing out you would delete all your user data and history. Are you sure?"
+- **Action:** 
+  - Deletes ALL data via `DELETE /api/account/purge`
+  - Clears all local stores
+  - Signs out from Supabase
+  - Resets `showDashboard = false`
+- **Purpose:** Prevents account switching confusion - if user wants different account, must delete everything first
+
+### Why This Design?
+
+- **Consistency:** Every app launch starts at the same place (Screen 1)
+- **Data Safety:** Sign Out = Delete All prevents accidental account mixing
+- **User Control:** User explicitly chooses to go to Dashboard via "My Secret Life"
+- **Clean State:** App always returns to Intro on reopen, giving user fresh start
 
 ---
 
@@ -76,11 +144,8 @@ This is the exact flow a user experiences from signup to dashboard:
 ```mermaid
 flowchart TD
     Start([User Opens App]) --> CheckSession{Has Session?}
-    CheckSession -->|No| Intro[IntroScreen]
-    CheckSession -->|Yes| CheckOnboarding{Onboarding Complete?}
-    
-    CheckOnboarding -->|No| CoreIdentities[CoreIdentitiesScreen<br/>Waiting Animation]
-    CheckOnboarding -->|Yes| Dashboard[HomeScreen Dashboard]
+    CheckSession -->|No| Intro[IntroScreen<br/>Log In / Get Started]
+    CheckSession -->|Yes| IntroLoggedIn[IntroScreen<br/>Log Out / My Secret Life]
     
     Intro --> Relationship[RelationshipScreen]
     Relationship --> BirthInfo[BirthInfoScreen]
@@ -109,7 +174,8 @@ flowchart TD
     SavePartner --> SaveUser
     
     SaveUser --> SetComplete[Set hasCompletedOnboarding=true]
-    SetComplete --> Dashboard
+    SetComplete --> IntroLoggedIn
+    IntroLoggedIn --> Dashboard[HomeScreen Dashboard<br/>My Secret Life button]
     
     Dashboard --> ComplexFeatures[All Complexity Begins:<br/>- Reading Generation<br/>- Vedic Matchmaking<br/>- Library Management<br/>- Compatibility Analysis]
 ```
@@ -120,11 +186,13 @@ flowchart TD
 - User enters name, email, password
 - Creates Supabase auth session via `/api/auth/signup`
 - Profile created in `library_people` table with `is_user=true`
-- **State**: `hasSession = true`, `hasCompletedOnboarding = false`
+- **State**: `hasSession = true`
+- **Navigation**: Returns to **IntroScreen** (logged-in state)
 
-#### 2. Navigation Routes to CoreIdentitiesScreen
-- **RootNavigator** checks: `hasSession && !hasCompletedOnboarding` → Routes to `CoreIdentities`
-- Shows beautiful waiting animation (ARTS system - Animated Reasoning Typography System)
+#### 2. User Starts Onboarding (Get Started)
+- Only **logged-out** users can enter onboarding
+- User taps **Get Started** on Intro → Relationship → BirthInfo → Languages → Account → CoreIdentities
+- CoreIdentities shows waiting animation (ARTS system - Animated Reasoning Typography System)
 - Generates Sun, Moon, Rising readings via API calls:
   - `POST /api/reading/sun`
   - `POST /api/reading/moon`
@@ -152,7 +220,8 @@ flowchart TD
 - **If NO**: 
   - Calls `safeSaveAndComplete()`
   - Saves user data to Supabase and local ProfileStore
-  - Completes onboarding → Routes to Dashboard
+  - Completes onboarding → Returns to Intro (logged-in)
+  - User taps **My Secret Life** to enter Dashboard
 
 #### 5. If YES (3rd Person Flow)
 - User enters partner birth data in `PartnerInfoScreen`
@@ -160,7 +229,7 @@ flowchart TD
   - `CoreIdentitiesScreen` (waiting animation for partner)
   - `HookSequenceScreen` (partner's Sun/Moon/Rising)
 - Partner readings saved to `library_people` with `is_user=false`
-- Then completes onboarding → Routes to Dashboard
+- Then completes onboarding → Returns to Intro (logged-in) → "My Secret Life" to Dashboard
 
 #### 6. Dashboard (HomeScreen)
 - **All complexity begins here**
@@ -179,7 +248,7 @@ flowchart TD
 
 **Location**: `1-in-a-billion-frontend/src/navigation/RootNavigator.tsx`
 
-The `RootNavigator` is the top-level router that decides which navigator to render based on authentication and onboarding state.
+The `RootNavigator` is the top-level router that decides which navigator to render based on authentication state and the **Intro gate** (`showDashboard`).
 
 ```mermaid
 stateDiagram-v2
@@ -188,34 +257,26 @@ stateDiagram-v2
     CheckAuth --> NoSession: No Session
     CheckAuth --> HasSession: Has Session
     
-    NoSession --> OnboardingNavigator: initialRouteName=Intro
-    HasSession --> CheckOnboarding: Check hasCompletedOnboarding
+    NoSession --> Intro: IntroScreen (Log In / Get Started)
+    HasSession --> Intro: IntroScreen (Log Out / My Secret Life)
     
-    CheckOnboarding --> OnboardingNavigator: !hasCompletedOnboarding<br/>initialRouteName=CoreIdentities or HookSequence
-    CheckOnboarding --> MainNavigator: hasCompletedOnboarding=true<br/>initialRouteName=Home
-    
-    OnboardingNavigator --> MainNavigator: completeOnboarding() called
+    Intro --> MainNavigator: My Secret Life button (sets showDashboard=true)
+    Intro --> OnboardingNavigator: Get Started (only when logged out)
 ```
 
 ### Routing Logic
 
 ```typescript
-// CRITICAL INVARIANT: Only check hasCompletedOnboarding, NOT hasHookReadings
-const shouldContinueOnboarding = hasSession && !hasCompletedOnboarding;
-
-if (shouldContinueOnboarding) {
-  // If readings exist, go directly to HookSequence
-  // If readings don't exist, go to CoreIdentities (waiting animation)
-  const initialRoute = hasHookReadings ? 'HookSequence' : 'CoreIdentities';
-  return <OnboardingNavigator initialRouteName={initialRoute} />;
+// Intro is always the landing page
+if (!hasSession) {
+  return <OnboardingNavigator initialRouteName="Intro" />;
 }
 
-// If onboarding complete, show Dashboard
-if (hasSession && hasCompletedOnboarding) {
+// Logged-in users stay on Intro until they tap "My Secret Life"
+if (hasSession && showDashboard) {
   return <MainNavigator />;
 }
 
-// If no session, show onboarding from start
 return <OnboardingNavigator initialRouteName="Intro" />;
 ```
 
@@ -223,11 +284,12 @@ return <OnboardingNavigator initialRouteName="Intro" />;
 
 **CRITICAL RULES - NEVER VIOLATE:**
 
-1. **Session Existence = Primary Authority**: If `hasSession = true`, user is authenticated. Navigation should respect this.
-2. **Onboarding Flag = Secondary Authority**: `hasCompletedOnboarding` is the ONLY flag that determines Dashboard vs Onboarding.
-3. **Hook Readings ≠ Onboarding Complete**: Having hook readings does NOT mean onboarding is complete. User must explicitly complete onboarding.
-4. **Bootstrap Sets Onboarding Flag**: `useSupabaseAuthBootstrap` checks if user has hook readings in Supabase. Only if they exist, it sets `hasCompletedOnboarding = true`.
-5. **No Profile Check in Routing**: Profile existence in Supabase does NOT determine routing. Only `hasCompletedOnboarding` does.
+1. **Intro Gate Is Always First**: App always lands on Intro (logged in or not).
+2. **showDashboard Is The Only Dashboard Gate**: Only "My Secret Life" should set `showDashboard = true`.
+3. **Onboarding Is Log-Out Only**: Users can only re-enter onboarding after logging out.
+4. **Session Presence ≠ Auto Dashboard**: Logged-in users must still pass the Intro gate.
+5. **No Profile Check in Routing**: Profile existence does NOT determine routing.
+6. **Background Reset**: `showDashboard` resets when app goes to background/inactive.
 
 ### OnboardingNavigator Flow
 
@@ -255,6 +317,339 @@ After onboarding, user enters the main app:
 - And 50+ other screens for reading generation, matching, etc.
 
 ---
+
+## Part II: Screen-by-Screen Reference
+
+## Screen Numbering System
+
+### ONBOARDING FLOW (Screens 1-9)
+
+**Screen 1: Intro** (`IntroScreen`)
+- **Handler:** `S1_INTRO`
+- **Purpose:** Welcome screen, app introduction - **ALWAYS the landing page on app launch**
+- **Navigation From:** 
+  - App launch (always - both signed-in and not signed-in users)
+  - App reopen (always returns to Screen 1)
+- **Navigation To:** 
+  - If **not signed in:**
+    - `S2_RELATIONSHIP` ("Get Started" button)
+    - `S2_SIGNIN` ("Log In" button)
+  - If **signed in:**
+    - `S10_HOME` ("My Secret Life" button – legacy wording; in other screens this is now "My Souls Library")
+    - Sign Out flow ("Sign Out" button - deletes all data)
+- **Backend:** 
+  - `DELETE /api/account/purge` - When user confirms Sign Out (deletes all user data)
+- **Data Stored:** 
+  - `onboardingStore.showDashboard` exists, but routing does not depend on it
+  - When "Sign Out" pressed: Deletes all Supabase data + clears local stores
+- **Special Behavior:**
+- **CRITICAL (current):** Intro is always the landing page. Logged-in users stay on Intro until they tap **"My Secret Life"**.
+  - Signed-in users see: "Sign Out" + "My Secret Life" buttons
+  - Not signed-in users see: "Log In" + "Get Started" buttons
+  - Sign Out shows warning: "By signing out you would delete all your user data and history. Are you sure?"
+  - Sign Out is destructive - deletes ALL data to prevent account switching confusion
+
+**Screen 2: Relationship** (`RelationshipScreen`)
+- **Handler:** `S2_RELATIONSHIP`
+- **Purpose:** Collect relationship intensity (0-10) and mode (sensual/romantic/platonic)
+- **Navigation From:** `S1_INTRO`
+- **Navigation To:** `S3_BIRTHINFO` (Continue button)
+- **Backend:** None
+- **Data Stored:** `onboardingStore.relationshipIntensity`, `onboardingStore.relationshipMode`
+
+**Screen 3: Birth Info** (`BirthInfoScreen`)
+- **Handler:** `S3_BIRTHINFO`
+- **Purpose:** Collect birth date, time, and city (with timezone/lat/lon)
+- **Navigation From:** `S2_RELATIONSHIP`
+- **Navigation To:** `S4_LANGUAGES` (Continue button)
+- **Backend:** 
+  - `GET /api/cities/search` - Google Places API for city suggestions
+- **Data Stored:** `onboardingStore.birthDate`, `onboardingStore.birthTime`, `onboardingStore.birthCity`
+
+**Screen 4: Languages** (`LanguagesScreen`)
+- **Handler:** `S4_LANGUAGES`
+- **Purpose:** Select primary language (required) and secondary language (optional), plus importance (0-10)
+- **Navigation From:** `S3_BIRTHINFO`
+- **Navigation To:** `S5_ACCOUNT` (Continue button)
+- **Backend:** None
+- **Data Stored:** `onboardingStore.primaryLanguage`, `onboardingStore.secondaryLanguage`, `onboardingStore.languageImportance`
+
+**Screen 5: Account** (`AccountScreen`)
+- **Handler:** `S5_ACCOUNT`
+- **Purpose:** User signup (Email, Google, Apple) - **Sign-up only screen (post-onboarding)**
+- **Navigation From:** `S4_LANGUAGES`
+- **Navigation To:** 
+  - `S6_CORE_IDENTITIES` (after successful signup)
+  - `S1_INTRO` (if signup fails/cancelled)
+- **Backend:** 
+  - `POST /api/auth/signup` - Email signup
+  - Supabase OAuth (Google/Apple) - handled client-side
+  - Creates Supabase auth user
+- **Data Stored:** 
+  - Supabase auth session
+  - `authStore.user`, `authStore.session`
+  - On signup success, saves onboarding data to Supabase `profiles` table
+- **Button Layout:**
+  - **Same order as SignInScreen:** Google → Apple → Email (all in same section)
+  - Button labels: "Sign up with Google", "Sign up with Apple", "Sign up with Email"
+  - Matches SignInScreen layout exactly for consistency
+
+**Screen 6: Core Identities** (`CoreIdentitiesScreen`)
+- **Handler:** `S6_CORE_IDENTITIES`
+- **Purpose:** Waiting screen - generates Sun/Moon/Rising hook readings and Sun audio
+- **Navigation From:** `S5_ACCOUNT` (after signup)
+- **Navigation To:** `S7_HOOK_SEQUENCE` (auto-navigate when Sun audio ready)
+- **Backend:** 
+  - `POST /api/reading/sun?provider=deepseek` - Generate Sun reading
+  - `POST /api/reading/moon?provider=deepseek` - Generate Moon reading (parallel)
+  - `POST /api/reading/rising?provider=deepseek` - Generate Rising reading (parallel)
+  - `POST /api/audio/hook-audio/generate` - Generate Sun audio (stored in Supabase Storage)
+- **Data Stored:** 
+  - `onboardingStore.hookReadings.sun/moon/rising` (reading text)
+  - `onboardingStore.hookAudio.sun` (base64 audio, persisted to AsyncStorage)
+  - User placements (sunSign, moonSign, risingSign) saved to `profileStore`
+- **Reading Style:**
+  - Uses poetic language for degree positions (e.g., "where the sign is still forming itself" instead of "1st decan")
+  - Avoids technical jargon like "decan" in favor of natural descriptions
+  - Example: "Your Virgo energy emerges at its very point of origin" for 0-10 degrees
+- **Fly.io Impact:** 
+  - Backend calculates astro placements using Swiss Ephemeris
+  - Calls DeepSeek API for LLM text generation with poetic degree descriptions
+  - Calls Replicate Chatterbox Turbo for audio generation
+  - Uploads audio to Supabase Storage bucket `library` (background, non-blocking)
+- **Supabase Impact:** 
+  - Uploads audio to `library/hook-audio/{userId}/{personId}/sun.mp3`
+  - Background upload (fire-and-forget, non-blocking)
+- **PDF Impact:** None (hook readings don't generate PDFs)
+
+**Screen 7: Hook Sequence** (`HookSequenceScreen`)
+- **Handler:** `S7_HOOK_SEQUENCE`
+- **Purpose:** Interactive carousel showing Sun → Moon → Rising readings with audio playback
+- **Navigation From:** `S6_CORE_IDENTITIES` (auto-navigate)
+- **Navigation To:** 
+  - `S8_POST_HOOK_OFFER` (after viewing all 3 readings)
+  - `S5_ACCOUNT` (if user taps sign in on gateway page)
+- **Backend:** 
+  - `POST /api/audio/hook-audio/generate` - Pre-renders Moon audio (while on Sun page)
+  - `POST /api/audio/hook-audio/generate` - Pre-renders Rising audio (while on Moon page)
+  - `POST /api/reading/{type}?provider={provider}` - Regenerate readings (if user changes provider)
+- **Data Stored:** 
+  - `onboardingStore.hookAudio.moon` (URL, pre-rendered)
+  - `onboardingStore.hookAudio.rising` (URL, pre-rendered)
+- **Fly.io Impact:** 
+  - Same as S6 for audio generation (Replicate TTS)
+- **Supabase Impact:** 
+  - Stores Moon audio at `hook-audio/{userId}/moon.mp3`
+  - Stores Rising audio at `hook-audio/{userId}/rising.mp3`
+- **PDF Impact:** None
+
+**Screen 8: Post Hook Offer** (`PostHookOfferScreen`)
+- **Handler:** `S8_POST_HOOK_OFFER`
+- **Purpose:** Ask user if they want to add a partner (3rd person) for compatibility readings
+- **Message:** "Add a third person to unlock a free reading and a two person compatibility analysis."
+- **Navigation From:** `S7_HOOK_SEQUENCE` (after all 3 readings viewed)
+- **Navigation To:** 
+  - `S10_HOME` (if "No" - completes onboarding, shows "TRANSFERRING YOU..." with spinner)
+  - `S9_PARTNER_INFO` (if "Yes" - via `redirectAfterOnboarding` flag)
+- **Backend:** 
+  - `POST /api/user-readings` - Saves hook readings to Supabase `user_readings` table
+  - Saves user profile to Supabase `library_people` table
+  - Uploads hook audio (Sun/Moon/Rising) to Supabase Storage
+- **Data Stored:** 
+  - `onboardingStore.hasCompletedOnboarding = true`
+  - `onboardingStore.redirectAfterOnboarding = 'PartnerInfo'` (if Yes)
+  - `onboardingStore.hookAudio` - Persisted to AsyncStorage (survives app restarts)
+- **UX Features:**
+  - "TRANSFERRING YOU..." loading state with spinner (non-blinking) during dashboard transition
+  - Loading state prevents user interaction during data persistence
+- **Fly.io Impact:** None
+- **Supabase Impact:** 
+  - Inserts rows into `user_readings` table (sun, moon, rising)
+  - Uploads audio to `library/hook-audio/{userId}/{personId}/{type}.mp3`
+  - Creates/updates user profile in `library_people` table
+  - Audio URLs already stored in Storage from S6/S7
+- **PDF Impact:** None
+
+**Screen 9: Partner Info** (`PartnerInfoScreen`) - Optional
+- **Handler:** `S9_PARTNER_INFO`
+- **Purpose:** Collect partner's birth info (date, time, city)
+- **Navigation From:** `S8_POST_HOOK_OFFER` (if user said Yes)
+- **Navigation To:** 
+  - `S10_PARTNER_CORE_IDENTITIES` (Continue button)
+  - `S10_HOME` (Skip button)
+- **Backend:** 
+  - `GET /api/cities/search` - Google Places API for city suggestions
+- **Data Stored:** 
+  - `profileStore.people[]` - Creates new person entry
+  - Partner birth data stored locally
+- **Fly.io Impact:** None
+- **Supabase Impact:** None (stored locally until readings generated)
+- **PDF Impact:** None
+
+---
+
+### MAIN DASHBOARD FLOW (Screens 10+)
+
+**Screen 10: Home / Secret Life Dashboard** (`HomeScreen`)
+- **Handler:** `S10_HOME`
+- **Purpose:** Main dashboard with hook reading carousel, overlay cards, navigation
+- **Navigation From:** 
+  - `S8_POST_HOOK_OFFER` (onboarding complete)
+  - `S9_PARTNER_INFO` (if skipped partner)
+  - App launch (if session exists)
+- **Navigation To:** 
+  - `S11_YOUR_CHART` (Your Chart button)
+  - `S12_MY_LIBRARY` (Library button)
+  - `S13_MATCHES` (Matches button)
+  - `S14_PARTNER_CORE_IDENTITIES` (if partner added from S9)
+  - `S15_PERSON_PROFILE` (tap on person card)
+  - `S16_SYSTEM_SELECTION` (tap "Get Reading" on overlay card)
+  - `S17_AUDIO_PLAYER` (tap play on hook audio)
+  - `S18_SETTINGS` (Settings button)
+- **Backend:** 
+  - `GET /api/jobs/v2/user/:userId/jobs` - Fetch user's jobs (for overlay cards)
+  - Reads `hookAudio` from `onboardingStore` (URLs from Supabase Storage)
+- **Data Stored:** None (reads from stores)
+- **Fly.io Impact:** None (read-only)
+- **Supabase Impact:** 
+  - Queries `jobs` table for user's completed/processing jobs
+  - Reads audio URLs from Storage (already generated in S6/S7)
+- **PDF Impact:** None (displays existing PDFs from jobs)
+
+**Screen 12: My Library** (`MyLibraryScreen`)
+- **Handler:** `S12_MY_LIBRARY`
+- **Purpose:** Browse all saved readings, people, and compatibility overlays
+- **Navigation From:** `S10_HOME`
+- **Navigation To:** 
+  - `S19_PERSON_READINGS` (tap on person)
+  - `S20_OVERLAY_READER` (tap on overlay card)
+  - `S17_AUDIO_PLAYER` (tap play on audio)
+  - `S10_HOME` (Back button)
+- **Backend:** 
+  - `GET /api/jobs/v2/user/:userId/jobs` - Fetch all user jobs
+  - Reads artifacts from Supabase Storage
+- **Data Stored:** None
+- **Fly.io Impact:** None (read-only)
+- **Supabase Impact:** 
+  - Queries `jobs` table
+  - Reads PDF/audio artifacts from Storage buckets
+- **PDF Impact:** Displays PDF download links from Storage
+- **CRITICAL DISPLAY RULES - EACH JOB = SEPARATE RECEIPT:**
+  - ✅ **Each job must be a separate card** (even if same person/people)
+  - ✅ **Jobs are NEVER merged or aggregated**
+  - ✅ **Chronological order** (newest first)
+  - ❌ **NEVER show one card per person with mixed data from multiple jobs**
+  - **Example:** If user generates "Michael (Nuclear)" on Jan 10 and again on Jan 12:
+    - Card 1: "Michael - Jan 12, 2026" (newest job)
+    - Card 2: "Michael - Jan 10, 2026" (older job)
+    - NOT: One "Michael" card showing mixed artifacts from both jobs
+  - **Why:** Users may want to compare readings over time, old readings have value (like Audible purchases), new jobs should never "overwrite" old ones
+
+**Screen 19: Person Readings** (`PersonReadingsScreen`)
+- **Handler:** `S19_PERSON_READINGS`
+- **Purpose:** View all readings for a person (individual or overlay) **FOR A SPECIFIC JOB**
+- **Navigation From:** 
+  - `S15_PERSON_PROFILE` (View Readings)
+  - `S12_MY_LIBRARY` (tap person card - **MUST pass jobId in route params**)
+- **Navigation To:** 
+  - `S35_DEEP_READING_READER` (tap on reading)
+  - `S20_OVERLAY_READER` (tap on overlay)
+  - `S17_AUDIO_PLAYER` (tap play)
+  - `S10_HOME` (Back button)
+- **Backend:** 
+  - `GET /api/jobs/v2/:jobId` - Fetch job details
+  - `GET /api/jobs/v2/:jobId/tasks` - Fetch task status
+- **Data Stored:** None
+- **Fly.io Impact:** None (read-only)
+- **Supabase Impact:** 
+  - Queries `jobs` and `job_tasks` tables
+  - Reads artifacts from Storage
+- **PDF Impact:** Displays PDF download links
+- **CRITICAL: jobId must be passed in route params**
+  - ❌ **NEVER use fallback to `person.jobIds[0]`** - this causes old readings to show for new jobs
+  - ✅ **Always require explicit jobId from navigation**
+  - ✅ **Each job = separate receipt** - user taps a specific job card, sees that job's readings
+- **Display Rules:**
+  - Only shows readings that have at least one artifact (PDF, audio, or song)
+  - Placeholder entries without actual data are hidden
+  - If ALL readings are placeholders (job has no artifacts yet), shows placeholders as fallback
+- **Button Enabling Rules (CRITICAL):**
+  - **PDF Button:** Enabled as soon as PDF artifact is generated (do NOT wait for audio/song)
+  - **Audio Button:** Enabled as soon as audio artifact is generated (independent of PDF/song status)
+  - **Song Button:** Enabled as soon as song artifact is generated (independent of PDF/audio status)
+  - **Progressive Loading:** Each button enables individually when its artifact completes - buttons MUST NOT be greyed out waiting for other artifacts to finish
+
+**Screen 28: Generating Reading** (`GeneratingReadingScreen`)
+- **Handler:** `S28_GENERATING_READING`
+- **Purpose:** Waiting screen - shows job progress while reading generates
+- **Navigation From:** 
+  - `S16_SYSTEM_SELECTION` (after selection)
+  - `S25_RELATIONSHIP_CONTEXT` (Continue)
+  - `S26_PERSONAL_CONTEXT` (Continue)
+- **Navigation To:** 
+  - `S35_DEEP_READING_READER` (auto-navigate when complete)
+  - `S20_OVERLAY_READER` (if overlay, auto-navigate)
+  - `S39_JOB_DETAIL` (View Details button)
+- **Backend:** 
+  - `POST /api/jobs/v2/start` - Start reading generation job
+  - `GET /api/jobs/v2/:jobId` - Poll job status
+  - `GET /api/jobs/v2/:jobId/tasks` - Poll task progress
+- **Data Stored:** 
+  - Job ID in navigation params
+- **Fly.io Impact:** 
+  - **CRITICAL SCREEN** - This triggers the entire generation pipeline:
+    1. Backend receives job request
+    2. Creates job row in Supabase `jobs` table
+    3. Enqueues tasks in Supabase Queue V2 (`job_queue_v2` / `job_tasks`)
+    4. Text worker (on Fly.io) claims tasks, calls DeepSeek API
+    5. PDF worker (on Fly.io) generates PDFs, uploads to Storage
+    6. Audio worker (on Fly.io) generates audio via Replicate, uploads to Storage
+- **Supabase Impact:** 
+  - Creates `jobs` row with status `processing`
+  - Creates `job_tasks` rows (text_generation, pdf_generation, audio_generation)
+  - Workers update task status as they complete
+  - Final artifacts stored in Storage bucket `job-artifacts` (private)
+- **PDF Impact:** 
+  - **PDF GENERATION HAPPENS HERE**
+  - PDF worker generates PDF from reading text
+  - Uploads to Supabase Storage in `job-artifacts` (PDF artifacts)
+  - Updates job artifact metadata
+
+---
+
+## Navigation Flow Maps
+
+### Primary Onboarding Flow
+```
+S1_INTRO → S2_RELATIONSHIP → S3_BIRTHINFO → S4_LANGUAGES → S5_ACCOUNT 
+→ S6_CORE_IDENTITIES → S7_HOOK_SEQUENCE → S8_POST_HOOK_OFFER 
+→ [S9_PARTNER_INFO (optional)] → S10_HOME
+```
+
+### Reading Generation Flow
+```
+S10_HOME → S15_PERSON_PROFILE → S16_SYSTEM_SELECTION 
+→ [S25_RELATIONSHIP_CONTEXT (if overlay)] 
+→ [S26_PERSONAL_CONTEXT (if individual)]
+→ [S27_VOICE_SELECTION (optional)]
+→ S28_GENERATING_READING → S35_DEEP_READING_READER
+```
+
+### Partner Onboarding Flow
+```
+S9_PARTNER_INFO → S14_PARTNER_CORE_IDENTITIES → S22_PARTNER_READINGS 
+→ S36_SYNASTRY_PREVIEW → S40_SYNASTRY_OPTIONS → S16_SYSTEM_SELECTION 
+→ S28_GENERATING_READING → S20_OVERLAY_READER
+```
+
+### Library Browsing Flow
+```
+S10_HOME → S12_MY_LIBRARY → S19_PERSON_READINGS → S35_DEEP_READING_READER
+```
+
+---
+
+## Part III: Technical Architecture
 
 ## State Management
 
@@ -319,6 +714,9 @@ The app uses three main Zustand stores, all persisted to AsyncStorage:
   // Critical flag
   hasCompletedOnboarding: boolean;  // ← THE KEY FLAG
   
+  // Dashboard gate
+  showDashboard: boolean; // ← THE DASHBOARD GATE
+  
   // People & readings library (also in profileStore)
   people: PersonProfile[];
   readings: ReadingRecord[];
@@ -330,13 +728,12 @@ The app uses three main Zustand stores, all persisted to AsyncStorage:
 - `setHookAudio(type, audioBase64)`: Save hook audio
 - `completeOnboarding()`: Set `hasCompletedOnboarding = true`
 - `setHasCompletedOnboarding(value)`: Direct setter (used by bootstrap)
+- `setShowDashboard(value)`: Control dashboard gate
 
-**Critical Flag**: `hasCompletedOnboarding`
-- `false`: User sees onboarding flow
-- `true`: User sees Dashboard
-- Set to `true` when:
-  1. User completes HookSequence and PostHookOffer
-  2. Bootstrap finds user has hook readings in Supabase
+**Onboarding Progress Flag**: `hasCompletedOnboarding`
+- Tracks onboarding completion only
+- Does **not** auto-route to Dashboard
+- Dashboard is gated by `showDashboard` (Intro → "My Secret Life")
 
 **Persistence**: Fully persisted to AsyncStorage. Rehydrated on app start.
 
@@ -511,123 +908,151 @@ sequenceDiagram
 
 ---
 
-## Onboarding Flow (Detailed)
+## Backend Architecture
 
-### Screen Sequence
+### Server Structure
+
+**Location**: `1-in-a-billion-backend/src/server.ts`
+
+**Main Components:**
+- Hono.js app with CORS middleware
+- Route handlers for all API endpoints
+- Background workers (text, audio, PDF, song)
+- API key preloader
+
+### API Endpoints
 
 ```
-1. IntroScreen
-   ↓
-2. RelationshipScreen (collect intensity, mode)
-   ↓
-3. BirthInfoScreen (collect date, time, city)
-   ↓
-4. LanguagesScreen (collect primary/secondary language)
-   ↓
-5. AccountScreen (sign up - creates Supabase session)
-   ↓
-6. CoreIdentitiesScreen (waiting animation + generate readings)
-   ↓
-7. HookSequenceScreen (display Sun/Moon/Rising)
-   ↓
-8. PostHookOfferScreen (ask about 3rd person)
-   ↓
-9. [If YES] PartnerInfoScreen → CoreIdentities → HookSequence
-   ↓
-10. Dashboard (HomeScreen)
+/api/reading/*          - Hook reading generation (sun/moon/rising)
+/api/jobs/*             - Job creation and status
+/api/auth/*             - Authentication (signup, signin, password reset)
+/api/account/*          - Account management (delete)
+/api/vedic/*            - Vedic matchmaking
+/api/vedic-v2/*         - Vedic matchmaking v2 (vectorized)
+/api/audio/*            - Audio generation
+/api/pdf/*              - PDF generation
+/api/voices/*           - Voice management
+/api/admin/*            - Admin endpoints
 ```
 
-### CoreIdentitiesScreen - The Waiting Animation
+### Job Queue System
 
-**Location**: `1-in-a-billion-frontend/src/screens/onboarding/CoreIdentitiesScreen.tsx`
-
-**Purpose**: Beautiful waiting screen that generates hook readings in the background.
-
-**ARTS System** (Animated Reasoning Typography System):
-- Shows animated typography with rotating symbols
-- Displays progress: "Preparing your chart..." → "Analyzing Sun..." → "Analyzing Moon..." → "Analyzing Rising..." → "Ready!"
-- Generates readings via API calls
-- Pre-generates Sun audio in background (non-blocking)
+**Location**: Supabase `jobs` table
 
 **Process:**
-1. Show intro screen (10 seconds)
-2. Fetch Sun reading → Save to `onboardingStore.hookReadings.sun`
-3. Show Sun screen → Fetch Moon reading → Save to store
-4. Show Moon screen → Fetch Rising reading → Save to store
-5. Show Rising screen → Navigate to `HookSequenceScreen`
+1. Frontend creates job via `POST /api/jobs`
+2. Backend enqueues tasks in `job_tasks` table
+3. Workers poll `job_tasks` table for pending tasks
+4. Workers process tasks and update status
+5. Frontend polls job status via `GET /api/jobs/:id`
 
-**Critical**: Placements (sunSign, moonSign, risingSign) are calculated by backend and saved to `profileStore` during this process.
+**Task Types:**
+- `text_generation`: LLM text generation
+- `pdf_generation`: PDF creation
+- `audio_generation`: TTS audio generation
+- `song_generation`: Music + lyrics generation
 
-### HookSequenceScreen - Display Readings
-
-**Location**: `1-in-a-billion-frontend/src/screens/onboarding/HookSequenceScreen.tsx`
-
-**Purpose**: Display the 3 hook readings (Sun, Moon, Rising) with text and audio.
-
-**Features:**
-- Swipeable pages (FlatList)
-- Each page shows: sign, intro text, main text, audio button
-- Audio pre-generated or generates on-demand
-- Last page is "gateway" page with sign-in options
-- When complete, navigates to `PostHookOfferScreen`
-
-**Audio Generation:**
-- Sun audio: Pre-generated during CoreIdentitiesScreen
-- Moon audio: Generated when viewing Sun page (background)
-- Rising audio: Generated when viewing Moon page (background)
-
-**Completion:**
-- User swipes through all pages
-- On gateway page, if not signed in, user signs in
-- After sign-in, `completeOnboarding()` is called
-- Navigates to `PostHookOfferScreen`
-
-### PostHookOfferScreen - 3rd Person Offer
-
-**Location**: `1-in-a-billion-frontend/src/screens/onboarding/PostHookOfferScreen.tsx`
-
-**Purpose**: Ask user if they want to generate a free reading for a 3rd person.
-
-**Flow:**
-- **YES**: 
-  - Calls `safeSaveAndComplete('PartnerInfo')`
-  - Sets `redirectAfterOnboarding = 'PartnerInfo'`
-  - Completes onboarding → Routes to `PartnerInfoScreen`
-- **NO**: 
-  - Calls `safeSaveAndComplete()`
-  - Saves user to Supabase and local store
-  - Completes onboarding → Routes to Dashboard
-
-**Critical**: `safeSaveAndComplete()` saves user data to both Supabase and local ProfileStore before completing onboarding.
+**Workers:**
+- **TextWorker**: Runs on Fly.io, processes text tasks
+- **AudioWorker**: Runs on Fly.io, processes audio tasks (calls Replicate API)
+- **PDFWorker**: Runs on Fly.io, processes PDF tasks
+- **SongWorker**: Runs on Fly.io, processes song tasks
 
 ---
 
-## Dashboard Complexity
+## Audio Generation Pipeline
 
-Once user reaches the Dashboard (HomeScreen), the full app complexity begins:
+### Audio Format Strategy
 
-### Main Features
+**Primary Format: M4A (AAC 96kbps)**
+- No MP3 fallback
+- Smaller file size than MP3
+- Better quality at lower bitrate
+- Supports HTTP Range requests (seeking/scrubbing)
+- Used by Audible and most streaming services
 
-1. **Library Management**
-   - View all people (user + partners)
-   - View all readings (individual + compatibility)
-   - Manage audio files and PDFs
+### Audio Intro Feature
 
-2. **Reading Generation** (see [Product Tiers](#product-tiers) below)
-   - Single Reading (1 person, 1 system)
-   - Combined Package (1 person, 5 systems)
-   - Nuclear Package (2 people + overlay, 5 systems)
-   - Compatibility readings (overlays)
+**All narration audio includes a spoken intro:**
 
-3. **Vedic Matchmaking**
-   - Ashtakoota compatibility scoring
-   - Batch matching
-   - Dosha detection
+**Template (Individual Reading):**
+```
+This audio is an introduction to a personalized soul reading for [Person Name], 
+created through the lens of [Western Astrology, Vedic Astrology, Human Design, Gene Keys, Kabbalah]. 
+The reading was generated on [January 24th, 2026] by the One in a Billion app 
+and is powered by forbiddenyoga dot com.
+```
 
-4. **Compatibility Analysis**
-   - Synastry charts
-   - Overlay readings
-   - Compatibility slider
+**Template (Synastry Reading):**
+```
+This audio is an introduction to a personalized synastry reading for [Person 1] and [Person 2], 
+created through the lens of [Western Astrology, Vedic Astrology, Human Design, Gene Keys, Kabbalah]. 
+The reading was generated on [January 24th, 2026] by the One in a Billion app 
+and is powered by forbiddenyoga dot com.
+```
+
+**Implementation:**
+- Location: `1-in-a-billion-backend/src/workers/audioWorker.ts`
+- 0.5 seconds silence before intro
+- Intro spoken by same voice as narration
+- 0.5 seconds silence after intro
+- Intro is NOT written in PDF (audio-only)
+- Date format: "January 24th, 2026" (ordinal suffix: st/nd/rd/th)
+- Systems: Always uses full names (Western Astrology, Vedic Astrology, Human Design, Gene Keys, Kabbalah)
+- Domain: "forbiddenyoga dot com" (spoken, not written)
+
+**Code Structure:**
+```typescript
+const INTRO_SILENCE_SEC = 0.5;
+const INTRO_SYSTEM_NAMES: Record<string, string> = {
+  western: 'Western Astrology',
+  vedic: 'Vedic Astrology',
+  human_design: 'Human Design',
+  gene_keys: 'Gene Keys',
+  kabbalah: 'Kabbalah',
+};
+
+function buildIntroText(params: {
+  person1Name: string;
+  person2Name?: string | null;
+  systems: string[];
+  isSynastry: boolean;
+  timestamp: Date;
+}): string {
+  // Returns intro text based on template
+}
+
+function buildSilenceWav(durationSec: number, sampleRate = 24000, numChannels = 1): Buffer {
+  // Generates silent WAV buffer
+}
+```
+
+### Replicate Integration
+
+**Purpose**: Audio generation via Chatterbox Turbo TTS
+
+**Process:**
+1. Audio task created in `job_tasks`
+2. AudioWorker claims task
+3. Generates intro text (if narration)
+4. Chunks text into 500-char segments
+5. Sends each chunk to Replicate API
+6. Receives WAV audio buffers
+7. Concatenates WAV chunks (with intro if present)
+8. Converts to M4A (AAC 96kbps) with loudnorm filter
+9. Saves to Supabase Storage
+10. Updates job with audio artifact
+
+**Audio Processing:**
+- Input: Text chunks (500 chars max)
+- TTS: Replicate Chatterbox Turbo
+- Output: WAV (24kHz, mono, 16-bit PCM)
+- Conversion: FFmpeg (loudnorm + AAC 96k)
+- Final: M4A (AAC 96kbps)
+
+---
+
+## Product Tiers & Job System
 
 ### Product Tiers
 
@@ -645,7 +1070,7 @@ Text (LLM) → PDF (generated) → Audio (Chatterbox TTS) → Song (MiniMax)
 ```
 Each document's text is:
 1. Converted to PDF
-2. Converted to audio (TTS narration)
+2. Converted to audio (TTS narration with intro)
 3. Sent to LLM for lyrics → MiniMax for personalized song
 
 #### Single Reading (1 document)
@@ -708,99 +1133,34 @@ flowchart LR
 
 **Workers:**
 - **TextWorker**: Processes text generation tasks (calls DeepSeek/Claude)
-- **PDFWorker**: Generates PDFs from text
-- **AudioWorker**: Generates audio via RunPod (Chatterbox)
+- **PDFWorker**: Generates PDFs from text (with image optimization)
+- **AudioWorker**: Generates audio via Replicate (Chatterbox Turbo)
 - **SongWorker**: Generates songs via MiniMax API
 
 ---
 
-## Backend Architecture
-
-### Server Structure
-
-**Location**: `1-in-a-billion-backend/src/server.ts`
-
-**Main Components:**
-- Hono.js app with CORS middleware
-- Route handlers for all API endpoints
-- Background workers (text, song)
-- RunPod auto-scaler
-- API key preloader
-
-### API Endpoints
-
-```
-/api/reading/*          - Hook reading generation (sun/moon/rising)
-/api/jobs/*             - Job creation and status
-/api/auth/*             - Authentication (signup, signin, password reset)
-/api/account/*          - Account management (delete)
-/api/vedic/*            - Vedic matchmaking
-/api/vedic-v2/*         - Vedic matchmaking v2 (vectorized)
-/api/audio/*            - Audio generation
-/api/pdf/*              - PDF generation
-/api/voices/*           - Voice management
-/api/admin/*            - Admin endpoints
-```
-
-### Job Queue System
-
-**Location**: Supabase `jobs` table
-
-**Process:**
-1. Frontend creates job via `POST /api/jobs`
-2. Backend enqueues tasks in `job_tasks` table
-3. Workers poll `job_tasks` table for pending tasks
-4. Workers process tasks and update status
-5. Frontend polls job status via `GET /api/jobs/:id`
-
-**Task Types:**
-- `text_generation`: LLM text generation
-- `pdf_generation`: PDF creation
-- `audio_generation`: TTS audio generation
-- `song_generation`: Music + lyrics generation
-
-**Workers:**
-- **TextWorker**: Runs on Fly.io, processes text tasks
-- **AudioWorker**: Runs on RunPod Serverless, processes audio tasks
-- **SongWorker**: Runs on Fly.io, processes song tasks
-
-### RunPod Integration
-
-**Purpose**: Audio generation via Chatterbox TTS
-
-**Process:**
-1. Audio task created in `job_tasks`
-2. RunPod auto-scaler detects pending audio tasks
-3. Creates/activates RunPod endpoint
-4. Sends text to RunPod for TTS generation
-5. Receives audio (base64 or URL)
-6. Saves to Supabase Storage
-7. Updates job with audio artifact
-
----
+## Part IV: Critical Rules & Debugging
 
 ## Critical Invariants
 
 ### Navigation Invariants
 
-**INVARIANT 1: Session Existence = Primary Authority**
-- If `hasSession = true`, user is authenticated
-- Navigation must respect this - authenticated users should NOT see Intro screen
+**INVARIANT 1: Intro Gate Is Always First**
+- App always lands on Intro (logged in or not)
+- Logged-in users must tap **"My Secret Life"** to reach Dashboard
 
-**INVARIANT 2: Onboarding Flag = Secondary Authority**
-- `hasCompletedOnboarding` is the ONLY flag that determines Dashboard vs Onboarding
-- DO NOT check `hasHookReadings` for routing decisions
-- Having hook readings does NOT mean onboarding is complete
+**INVARIANT 2: showDashboard Is the Dashboard Gate**
+- `showDashboard = true` is the ONLY flag that routes to MainNavigator
+- `showDashboard` is set by the Intro "My Secret Life" button
+- `showDashboard` resets when app goes to background/inactive
 
-**INVARIANT 3: Bootstrap Sets Onboarding Flag**
-- `useSupabaseAuthBootstrap` checks if user has hook readings in Supabase
-- Only if hook readings exist, it sets `hasCompletedOnboarding = true`
-- If no hook readings, it sets `hasCompletedOnboarding = false`
+**INVARIANT 3: Onboarding Is Log-Out Only**
+- Users can only re-enter onboarding after logging out
+- Logged-in users do not auto-resume onboarding steps
 
 **INVARIANT 4: No Profile Check in Routing**
 - Profile existence in Supabase does NOT determine routing
-- Only `hasCompletedOnboarding` determines routing
-- Profile creation happens asynchronously
+- Routing is controlled by `hasSession` + `showDashboard`
 
 ### State Management Invariants
 
@@ -831,26 +1191,29 @@ flowchart LR
 - Hook readings saved to Supabase `user_readings` table during HookSequenceScreen (after sign-in)
 - Hook readings saved to `library_people.hook_readings` during PostHookOfferScreen
 
+**INVARIANT 10: Audio Format**
+- All audio is M4A (AAC 96kbps)
+- No MP3 fallback
+- All narration audio includes spoken intro
+
+**INVARIANT 11: Job Buffer (40-job cap)**
+- Frontend maintains max 40 job receipts in AsyncStorage
+- Oldest jobs auto-deleted when limit exceeded
+- Associated local media (PDFs, audio, songs) deleted with job
+
 ---
 
 ## Common Pitfalls & Solutions
 
-### Pitfall 1: Routing to Dashboard Instead of HookSequence
+### Pitfall 1: Auto-routing to Dashboard on Reopen
 
-**Symptom**: After signup, user goes directly to Dashboard instead of seeing hook readings.
+**Symptom**: Logged‑in users return to the Dashboard instead of Intro.
 
-**Root Cause**: `useSupabaseAuthBootstrap` sets `hasCompletedOnboarding = true` just because user has a profile, even if they don't have hook readings.
+**Root Cause**: Routing logic bypasses the Intro gate (showDashboard).
 
-**Solution**: Only set `hasCompletedOnboarding = true` if user has hook readings in Supabase:
-```typescript
-if (profile.hook_readings && profile.hook_readings.length > 0) {
-  setHasCompletedOnboarding(true);
-} else {
-  setHasCompletedOnboarding(false);
-}
-```
+**Solution**: Only allow MainNavigator when `showDashboard = true` (set by Intro "My Secret Life"), and reset `showDashboard` on background.
 
-**File**: `1-in-a-billion-frontend/src/hooks/useSupabaseAuthBootstrap.ts`
+**File**: `1-in-a-billion-frontend/src/navigation/RootNavigator.tsx`
 
 ### Pitfall 2: Infinite Navigation Loop
 
@@ -912,14 +1275,32 @@ useEffect(() => {
 - `1-in-a-billion-frontend/src/hooks/useSupabaseLibraryAutoSync.ts`
 - `1-in-a-billion-frontend/src/services/profileUpsert.ts`
 
+### Pitfall 6: Fly Deploy from Wrong Folder
+
+**Symptom**: Fly deploy takes 10+ minutes and uploads 245 MB.
+
+**Root Cause**: Running `fly deploy` from parent folder instead of `1-in-a-billion-backend/`.
+
+**Solution**: Always run from backend folder:
+```bash
+cd 1-in-a-billion-backend
+fly deploy
+```
+
+**File**: `DEPLOYMENT_INSTRUCTIONS.md`
+
+---
+
+## Debugging Guide
+
 ### Debugging Navigation Issues
 
 **Step 1**: Check RootNavigator logs
 ```typescript
 console.log('🧭 RootNavigator State:', {
   hasSession,
+  showDashboard,
   hasCompletedOnboarding,
-  hasHookReadings,
   isHydrated
 });
 ```
@@ -937,6 +1318,7 @@ console.log('🔄 Bootstrap: User has profile but no hook readings - onboarding 
 const state = useOnboardingStore.getState();
 console.log('Onboarding State:', {
   hasCompletedOnboarding: state.hasCompletedOnboarding,
+  showDashboard: state.showDashboard,
   hookReadings: state.hookReadings
 });
 ```
@@ -967,6 +1349,23 @@ useAuthStore.getState().signOut();
 useProfileStore.getState().reset();
 ```
 
+### Debugging Audio Issues
+
+**Check audio artifacts:**
+```sql
+-- Check job artifacts
+SELECT artifacts FROM jobs WHERE id = 'JOB_ID';
+
+-- Check audio files in Storage
+SELECT * FROM storage.objects WHERE bucket_id = 'job-artifacts' AND name LIKE '%audio%';
+```
+
+**Check audio worker logs:**
+```bash
+# On Fly.io
+fly logs -a 1-in-a-billion-backend --region sin
+```
+
 ---
 
 ## Conclusion
@@ -980,13 +1379,17 @@ This architecture document serves as the single source of truth for understandin
 
 **Key Takeaways:**
 - Navigation is state-based, not URL-based
-- `hasCompletedOnboarding` is the ONLY flag for Dashboard vs Onboarding
+- `showDashboard` is the ONLY flag for Dashboard vs Intro
 - Supabase is the source of truth, local stores are caches
 - Always write to both local and cloud
 - Hook readings are the "key" to unlock the dashboard
+- All narration audio includes spoken intro (0.5s silence before/after)
+- Audio format is M4A (AAC 96kbps), no MP3 fallback
+- Each job = separate receipt (never aggregate jobs)
 
 ---
 
-**Last Updated**: Current Session
-**Maintainer**: Update this document when architecture changes
+**Last Updated**: January 24, 2026  
+**Maintainer**: Update this document when architecture changes  
+**Previous Files Merged**: ARCHITECTURE.md + UX_SYSTEM_DOCUMENTATION.md
 

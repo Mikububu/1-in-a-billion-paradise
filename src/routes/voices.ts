@@ -6,7 +6,7 @@ const router = new Hono();
 /**
  * GET /api/voices/samples
  * 
- * Returns list of all available voices with their Anaïs Nin quote samples.
+ * Returns list of all available voices with their Henry Miller quote samples.
  * Frontend uses this to display voice selector with preview audio.
  */
 router.get('/samples', async (c) => {
@@ -16,23 +16,13 @@ router.get('/samples', async (c) => {
         description: voice.description,
         category: voice.category,
         sampleUrl: voice.previewSampleUrl || getVoiceSampleUrl(voice.id),
-        isTurboPreset: voice.isTurboPreset || false,
-        turboVoiceId: voice.turboVoiceId,
     }));
-
-    // Sort: Custom voices first, then Turbo presets (alphabetically within each group)
-    voices.sort((a, b) => {
-        if (a.isTurboPreset !== b.isTurboPreset) {
-            return a.isTurboPreset ? 1 : -1; // Custom first
-        }
-        return a.displayName.localeCompare(b.displayName);
-    });
 
     return c.json({
         success: true,
         voices,
-        quote: 'My first vision of earth was water veiled...',
-        quoteAuthor: 'Anaïs Nin, House of Incest',
+        quote: 'I need to be alone. I need to ponder my shame and my despair in seclusion...',
+        quoteAuthor: 'Henry Miller, Tropic of Cancer',
     });
 });
 

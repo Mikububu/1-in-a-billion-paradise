@@ -3,10 +3,13 @@
  * 
  * Maps each reading system to its LLM provider.
  * 
- * NOTE: Currently all systems use the same provider (configured in env.ts PAID_LLM_PROVIDER)
- * This file remains for future per-system configuration if needed.
+ * Providers:
+ * - 'claude' = Claude Sonnet 4 (unhinged, no censorship)
+ * - 'deepseek' = DeepSeek (fast, cheap, but vanilla/censored)
+ * - 'openai' = OpenAI GPT-4o (balanced)
  * 
- * Available providers: 'claude' | 'deepseek' | 'openai'
+ * Change these values and redeploy to switch providers.
+ * Future: Runtime config via admin panel (Option C)
  */
 
 export type LLMProviderName = 'claude' | 'deepseek' | 'openai';
@@ -22,14 +25,17 @@ export type ReadingSystem =
 /**
  * System to provider mapping
  * 
- * Current config: All systems use 'claude' (actual LLM configured in env.ts)
+ * Current config (Jan 2026):
+ * - Claude for Western, Vedic, Human Design, Gene Keys (unhinged overlays)
+ * - OpenAI for Kabbalah (Hebrew/mystical accuracy)
+ * - Claude for Verdict (synthesis needs depth)
  */
 export const SYSTEM_LLM_PROVIDERS: Record<ReadingSystem, LLMProviderName> = {
   western: 'claude',
   vedic: 'claude',
   human_design: 'claude',
   gene_keys: 'claude',
-  kabbalah: 'claude',
+  kabbalah: 'openai',
   verdict: 'claude',
 };
 

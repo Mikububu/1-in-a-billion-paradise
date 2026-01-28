@@ -24,8 +24,7 @@
     "test:e2e": "ts-node src/scripts/testEndToEndJob.ts",
     "test:vedic": "ts-node src/scripts/testVedicModules.ts",
     "test:vedic:reference": "ts-node src/scripts/verifyVedicReference.ts",
-    "setup:email": "ts-node src/scripts/setupEmailConfig.ts",
-    "regenerate:michael-audio": "ts-node src/scripts/regenerateMichaelAudioTest.ts"
+    "setup:email": "ts-node src/scripts/setupEmailConfig.ts"
   },
   "keywords": [],
   "author": "",
@@ -50,7 +49,6 @@
     "p-limit": "^7.2.0",
     "pdfkit": "^0.17.2",
     "puppeteer": "^24.32.1",
-    "replicate": "^1.4.0",
     "resend": "^6.7.0",
     "sharp": "^0.34.5",
     "stripe": "^20.1.2",

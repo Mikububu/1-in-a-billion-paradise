@@ -1,6 +1,5 @@
 #!/bin/bash
 # HEINEKEN - Total Save, EAS Build, and Git Commit
-# Codeword script for complete deployment workflow
 
 set -e
 
@@ -8,63 +7,46 @@ echo "🍺 HEINEKEN - Starting complete deployment workflow..."
 echo "═══════════════════════════════════════════════════════════════"
 echo ""
 
-# Colors
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Step 1: Save everything to Git
 echo -e "${BLUE}📦 Step 1: Saving all changes to Git...${NC}"
 git add -A
 echo -e "${GREEN}✅ All files staged${NC}"
 echo ""
 
-# Step 2: Check if there are changes to commit
 if git diff --staged --quiet; then
     echo -e "${YELLOW}⚠️  No changes to commit${NC}"
 else
     echo -e "${BLUE}💾 Step 2: Committing changes...${NC}"
     TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
-    git commit -m "Heineken deployment: $TIMESTAMP" || echo -e "${YELLOW}⚠️  Commit skipped (no changes or already committed)${NC}"
+    git commit -m "Heineken deployment: $TIMESTAMP" || echo -e "${YELLOW}⚠️  Commit skipped${NC}"
     echo -e "${GREEN}✅ Changes committed${NC}"
     echo ""
 fi
 
-# Step 3: Push to Git
 echo -e "${BLUE}🚀 Step 3: Pushing to Git...${NC}"
-git push || echo -e "${YELLOW}⚠️  Push skipped (no remote or already up to date)${NC}"
+git push || echo -e "${YELLOW}⚠️  Push skipped${NC}"
 echo -e "${GREEN}✅ Pushed to Git${NC}"
 echo ""
 
-# Step 4: EAS Build (if frontend exists)
 if [ -d "1-in-a-billion-frontend" ]; then
     echo -e "${BLUE}📱 Step 4: Building with EAS...${NC}"
     cd 1-in-a-billion-frontend
     
-    # Check if eas.json exists
-    if [ -f "eas.json" ] || [ -f ".eas.json" ]; then
+    if [ -f "eas.json" ]; then
         echo "Running EAS build (Android)..."
-        eas build --platform android --non-interactive || {
-            echo -e "${YELLOW}⚠️  Android build failed${NC}"
-        }
+        eas build --platform android --non-interactive || echo -e "${YELLOW}⚠️  Android build failed${NC}"
         
         echo ""
         echo "Running EAS build (iOS)..."
-        eas build --platform ios --non-interactive || {
-            echo -e "${YELLOW}⚠️  iOS build failed (may need interactive credentials setup)${NC}"
-            echo "   Run manually: cd 1-in-a-billion-frontend && eas build --platform ios"
-        }
+        eas build --platform ios --non-interactive || echo -e "${YELLOW}⚠️  iOS build failed${NC}"
     else
-        echo -e "${YELLOW}⚠️  eas.json not found. Skipping EAS build.${NC}"
-        echo "   To enable EAS builds, create eas.json in the frontend directory"
+        echo -e "${YELLOW}⚠️  eas.json not found${NC}"
     fi
-    
     cd ..
-    echo ""
-else
-    echo -e "${YELLOW}⚠️  Frontend directory not found. Skipping EAS build.${NC}"
-    echo ""
 fi
 
 echo -e "${GREEN}🍺 HEINEKEN deployment complete!${NC}"

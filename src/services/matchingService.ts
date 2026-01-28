@@ -63,7 +63,7 @@ export interface Message {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Get gallery of all users with AI portraits
+ * Get gallery of all users with claymation portraits
  */
 export async function getGallery(options?: {
   limit?: number;
@@ -155,7 +155,7 @@ export async function getRandomGallery(count: number = 20, excludeUserId?: strin
     id: p.client_person_id, // Use client_person_id as the unique identifier
     userId: p.user_id,
     displayName: p.name,
-    portraitUrl: p.portrait_url,
+    claymationUrl: p.claymation_url,
     sunSign: p.placements?.sunSign || null,
     moonSign: p.placements?.moonSign || null,
     risingSign: p.placements?.risingSign || null,

@@ -1,0 +1,92 @@
+# Cursor AI Rules for 1-in-a-Billion Project
+
+## CRITICAL: Read These Files First
+
+Before making any deployment or architecture decisions, **always read**:
+1. `DEPLOYMENT_INSTRUCTIONS.md` - How to deploy correctly
+2. `ARCHITECTURE.md` - Complete architecture & UX (merged single source of truth)
+
+## Deployment Rules
+
+### Fly.io (Backend)
+- **ALWAYS** run `fly deploy` from `1-in-a-billion-backend/` folder
+- **NEVER** run from parent folder (uploads 245 MB instead of 2 MB)
+- Every deploy is a full Docker rebuild (2-3 minutes is normal)
+- No incremental updates exist
+
+### EAS (Frontend)
+- Run from `1-in-a-billion-frontend/` folder
+- Use `bash ./scripts/publish-eas-update.sh`
+
+### Git
+- Always commit and push before deploying
+- Use descriptive commit messages
+
+## Code Style
+
+- TypeScript strict mode enabled
+- Prefer explicit types over `any`
+- Use `console.log` for backend debugging (not `console.error` unless actual error)
+- Follow existing patterns in the codebase
+
+## Architecture Invariants
+
+1. **Intro Gate**: Logged-in users always land on Intro screen first
+2. **showDashboard Gate**: Only flag that routes to MainNavigator
+3. **Background Reset**: `showDashboard` resets when app goes to background
+4. **No Auto-Dashboard**: Never auto-route to dashboard on relaunch
+
+## Common Mistakes to Avoid
+
+❌ Running `fly deploy` from parent folder
+❌ Suggesting "incremental Docker updates" (doesn't exist)
+❌ Changing routing logic without reading `ARCHITECTURE.md`
+❌ Creating new files when editing existing ones would work
+❌ Suggesting time estimates for tasks
+
+## When User is Frustrated
+
+- Acknowledge the mistake clearly
+- Explain what went wrong in simple terms
+- Provide the correct solution immediately
+- Don't make excuses or deflect
+
+## Magic Keyword: "heineken"
+
+**When user says "heineken", execute the full deployment pipeline:**
+
+1. **Git**: Stage all changes, commit with descriptive message, push to `main`
+2. **Fly**: Deploy backend from `1-in-a-billion-backend/` folder (with `FLY_API_TOKEN` from user secrets)
+3. **EAS**: Publish frontend update from `1-in-a-billion-frontend/` folder
+4. **Backup**: Sync to desktop backup folder `1-in-a-billion-app`
+
+**Steps:**
+```bash
+# 1. Git
+git add .
+git commit -m "Deploy: [auto-generated summary of changes]"
+git push origin main
+
+# 2. Fly (from backend folder)
+cd 1-in-a-billion-backend
+FLY_API_TOKEN='[from user]' fly deploy
+
+# 3. EAS (from frontend folder)
+cd ../1-in-a-billion-frontend
+bash ./scripts/publish-eas-update.sh
+
+# 4. Backup (rsync to desktop)
+cd ../..
+rsync -av --delete "/Users/michaelperinwogenburg/Desktop/big challenge/1 in a Billion/" "/Users/michaelperinwogenburg/Desktop/1-in-a-billion-app/" --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='.DS_Store'
+```
+
+**Important:**
+- Always check `git status` first to see what's being committed
+- Summarize changes in commit message (don't use generic "updates")
+- Run all four steps sequentially (Git → Fly → EAS → Backup)
+- Report success/failure for each step
+- Backup excludes: `.git`, `node_modules`, `dist`, `.DS_Store`
+
+---
+
+**If you're unsure about deployment, read `DEPLOYMENT_INSTRUCTIONS.md` first.**

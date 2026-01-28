@@ -5,10 +5,10 @@
  * Looks for MP3 files with various naming patterns.
  * 
  * Required MP3 files:
- * - anabella/preview.mp3 (or anabella.mp3, etc.)
- * - dorothy/preview.mp3
- * - ludwig/preview.mp3
- * - grandpa/preview.mp3
+ * - anabella/henry_miller_sample.mp3 (or anabella.mp3, etc.)
+ * - dorothy/henry_miller_sample.mp3
+ * - ludwig/henry_miller_sample.mp3
+ * - grandpa/henry_miller_sample.mp3
  * 
  * Usage:
  *   # From local directory:
@@ -106,9 +106,9 @@ function findMP3File(localDir: string, voiceId: string, displayName: string): st
     const possibleNames = [
         `${voiceId}.mp3`,
         `${displayName}.mp3`,
-        `preview.mp3`,
-        `${voiceId}_preview.mp3`,
-        `${displayName}_preview.mp3`,
+        `henry_miller_sample.mp3`,
+        `${voiceId}_henry_miller_sample.mp3`,
+        `${displayName}_henry_miller_sample.mp3`,
         // Poetic names (user mentioned)
         `${voiceId}_sample.mp3`,
         `${displayName}_sample.mp3`,
@@ -197,7 +197,7 @@ async function uploadVoiceMP3sOnly() {
         console.log(`\n🎤 ${voice.displayName} (${voice.id})`);
         
         let fileBuffer: Buffer | null = null;
-        const targetPath = `voice-samples/${voice.id}/preview.mp3`;
+        const targetPath = `voice-samples/${voice.id}/henry_miller_sample.mp3`;
 
         // Try to get MP3 file
         if (githubRepo && githubPath) {
@@ -205,7 +205,7 @@ async function uploadVoiceMP3sOnly() {
             const possibleNames = [
                 `${voice.id}.mp3`,
                 `${voice.displayName}.mp3`,
-                `preview.mp3`,
+                `henry_miller_sample.mp3`,
             ];
 
             for (const filename of possibleNames) {

@@ -1,6 +1,0 @@
-CREATE OR REPLACE FUNCTION link_dependent_tasks_on_text_complete() RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$ DECLARE v_text_path TEXT; v_doc_num INTEGER; v_job_id UUID; BEGIN IF NEW.task_type = 'text_generation' AND NEW.status = 'complete' AND OLD.status != 'complete' AND NEW.output IS NOT NULL AND NEW.output->>'textArtifactPath' IS NOT NULL THEN v_text_path := NEW.output->>'textArtifactPath'; v_doc_num := (NEW.input->>'docNum')::INTEGER; v_job_id := NEW.job_id; UPDATE job_tasks SET input = jsonb_set(COALESCE(input, '{}'), '{textArtifactPath}', to_jsonb(v_text_path)), updated_at = now() WHERE job_id = v_job_id AND task_type = 'audio_generation' AND (input->>'docNum')::INTEGER = v_doc_num AND status = 'pending'; UPDATE job_tasks SET input = jsonb_set(COALESCE(input, '{}'), '{textArtifactPath}', to_jsonb(v_text_path)), updated_at = now() WHERE job_id = v_job_id AND task_type = 'pdf_generation' AND (input->>'docNum')::INTEGER = v_doc_num AND status = 'pending'; END IF; RETURN NEW; END; $$;
-
-DROP TRIGGER IF EXISTS trigger_link_dependent_tasks ON job_tasks;
-
-CREATE TRIGGER trigger_link_dependent_tasks AFTER UPDATE ON job_tasks FOR EACH ROW EXECUTE FUNCTION link_dependent_tasks_on_text_complete();
-w

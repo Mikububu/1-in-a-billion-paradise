@@ -62,9 +62,5 @@ export const apiKeys = {
   async resend(): Promise<string | null> {
     return await getApiKey('resend', process.env.RESEND_API_KEY || undefined);
   },
-
-  async replicate(): Promise<string | null> {
-    return await getApiKey('replicate', env.REPLICATE_API_TOKEN);
-  },
 };
 

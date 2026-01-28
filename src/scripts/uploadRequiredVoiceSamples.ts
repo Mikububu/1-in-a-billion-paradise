@@ -11,7 +11,7 @@
  *    - grandpa_15sec.wav
  * 
  * 2. Generated preview samples in 'voice-samples' bucket (can be regenerated):
- *    - voice-samples/{voiceId}/preview.mp3
+ *    - voice-samples/{voiceId}/henry_miller_sample.mp3
  * 
  * Usage:
  *   # Upload from local files (if you have them):
@@ -194,7 +194,7 @@ async function uploadRequiredVoiceSamples() {
     let missingPreviews = 0;
 
     for (const voice of enabledVoices) {
-        const previewPath = `voice-samples/${voice.id}/preview.mp3`;
+        const previewPath = `voice-samples/${voice.id}/henry_miller_sample.mp3`;
         const exists = await fileExists(supabase, 'voice-samples', previewPath);
         
         if (exists) {

@@ -26,12 +26,12 @@ React Native/Expo astrology app combining **Western** and **Vedic (Jyotish)** sy
 
 ### Stack
 - **Frontend:** React Native / Expo SDK 54 / TypeScript / Zustand
-- **Backend:** Hono.js (Node.js) / TypeScript
+- **Backend:** Hono.js (Node.js) / TypeScript deployed on Fly.io
 - **Database:** Supabase (Postgres) - job queue + user data
 - **Storage:** Supabase Storage (`job-artifacts` bucket)
-- **Workers:** RunPod Serverless (auto-scales 0-50 workers)
-- **TTS:** Chatterbox via RunPod (self-hosted)
-- **LLM:** Claude 3.5 Sonnet (primary) / DeepSeek (backup)
+- **Workers:** Fly.io machines (textWorker, audioWorker, pdfWorker, watchdog)
+- **TTS:** Chatterbox Turbo via Replicate (voice cloning)
+- **LLM:** Claude Sonnet 4 (primary) / DeepSeek (backup) / OpenAI (Kabbalah)
 
 ### Key Directories
 ```
@@ -39,7 +39,7 @@ React Native/Expo astrology app combining **Western** and **Vedic (Jyotish)** sy
 ├── src/
 │   ├── routes/          # API endpoints (jobs.ts, audio.ts)
 │   ├── services/        # Core logic (swissEphemeris, jobQueueV2)
-│   ├── workers/         # RunPod workers (textWorker, audioWorker)
+│   ├── workers/         # Fly.io workers (textWorker, audioWorker, pdfWorker)
 │   └── prompts/         # LLM prompt templates
 ├── migrations/          # Supabase SQL migrations
 ├── scripts/             # stress_test_parallel_readings.ts
@@ -135,6 +135,23 @@ Compatibility analysis per system:
 ### Final Verdict (1 doc)
 11. Combined synthesis of all systems
 
+### User Flow (Karmic Zoo → Nuclear Package)
+1. **Karmic Zoo** (ComparePeopleScreen) → Select 2 people → "Continue to Packages"
+2. **System Selection** → Tap "All 5 Systems" (Best Choice)
+3. **System Explainer** → Tap "Get Reading" → Calls `initiatePurchaseFlow()`
+4. **Relationship Context** → Enter optional context → "Continue"
+5. **Voice Selection** → Select narrator → Creates job via `/api/jobs/v2/start`
+6. **Tree of Life Video** → Plays transition animation
+7. **Generating Reading** → Shows progress, polls job status
+8. **Souls Library** → Reading appears when complete
+
+**Developer Account Bypass:** Payment is skipped for `michael@1-in-a-billion.app`, `dev@1-in-a-billion.app`, `test@1-in-a-billion.app` (see PurchaseScreen.tsx line 293-301)
+
+**Safety Checks (Added 2026-01-23):**
+- TreeOfLifeVideoScreen validates jobId exists before navigating
+- VoiceSelectionScreen logs job creation success/failure for debugging
+- If jobId missing, redirects to Home instead of showing error screen
+
 ---
 
 ## 🔄 JOB QUEUE V2 (Supabase + RunPod)
@@ -146,9 +163,9 @@ Compatibility analysis per system:
 
 ### Flow
 1. API creates job + 16 `text_generation` tasks
-2. RunPod TextWorker claims tasks, generates text, uploads to Storage
+2. Fly.io TextWorker claims tasks, generates text, uploads to Storage
 3. SQL trigger auto-enqueues `audio_generation` task when text completes
-4. RunPod AudioWorker generates MP3 from text
+4. Fly.io AudioWorker generates MP3 via Replicate Chatterbox Turbo
 5. Job auto-completes when all tasks done
 
 ### Key RPC Functions
@@ -212,6 +229,7 @@ All backups at: `/Users/michaelperinwogenburg/Desktop/1-IN-A-BILLION-BACKUPS/`
 3. **Never switch LLM providers** (Claude ↔ DeepSeek) without Michael's explicit approval.
 4. **Audio playback:** Use QuickTime Player, not Apple Music.
 5. **Be proactive:** Start servers, run tests, commit code automatically.
+6. **LLM Prompt Instructions for Length:** NEVER use "THINK DEEPLY FIRST" or similar cautionary language in prompts. Claude interprets this as needing to be careful/brief. Instead use "WRITE LONG", "KEEP GOING", "Double the length" to encourage volume and flow. (Fixed Jan 23, 2026 after commit 617d09c caused 1500-word outputs instead of 3000-4000 words.)
 
 ---
 

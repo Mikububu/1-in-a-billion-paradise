@@ -24,9 +24,10 @@ export const env = {
   OPENAI_BASE_URL: process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1/chat/completions',
   OPENAI_MODEL: process.env.OPENAI_MODEL ?? 'gpt-4o',
 
-  // 🎯 ONE LINE TO CHANGE: LLM for all text generation
-  // Options: 'claude' | 'deepseek' | 'openai'
-  // Change this value or set env var PAID_LLM_PROVIDER
+  // POLICY: Provider for paid long-form generation (jobs: extended/synastry/nuclear/nuclear_v2)
+  // Michael (Jan 2026): Claude Sonnet 4 for unhinged overlay readings - DeepSeek is too vanilla.
+  // Override any time via:
+  //   PAID_LLM_PROVIDER=deepseek | claude | openai
   PAID_LLM_PROVIDER: process.env.PAID_LLM_PROVIDER ?? 'claude',
 
   // Optional beta protection (OFF unless set)
@@ -42,14 +43,6 @@ export const env = {
   RUNPOD_ENDPOINT_GUARD_NAME_CONTAINS: process.env.RUNPOD_ENDPOINT_GUARD_NAME_CONTAINS ?? '',
   RUNPOD_ENDPOINT_GUARD_TEMPLATE_ID: process.env.RUNPOD_ENDPOINT_GUARD_TEMPLATE_ID ?? '',
   VOICE_SAMPLE_URL: process.env.VOICE_SAMPLE_URL ?? '',
-  
-  // TTS - Replicate (Chatterbox Turbo for built-in voices)
-  // Used for Turbo preset voices (no voice cloning needed)
-  REPLICATE_API_TOKEN: process.env.REPLICATE_API_TOKEN ?? '',
-  
-  // Chunk size for TTS generation (300 for original Chatterbox, 500 for Turbo)
-  // Set to 450 to improve reliability and fix end-of-audio issues
-  CHATTERBOX_CHUNK_SIZE: Number(process.env.CHATTERBOX_CHUNK_SIZE ?? 450),
 
   
   // Supabase (for Queue V2) - Required for api_keys table access
@@ -77,7 +70,7 @@ export const env = {
   // Google Places API (for city search) - Will be loaded from Supabase via getApiKey()
   GOOGLE_PLACES_API_KEY: process.env.GOOGLE_PLACES_API_KEY ?? '',
   
-  // Google AI Studio API (for portrait generation) - Will be loaded from Supabase via getApiKey()
+  // Google AI Studio API (for claymation generation) - Will be loaded from Supabase via getApiKey()
   GOOGLE_AI_STUDIO_API_KEY: process.env.GOOGLE_AI_STUDIO_API_KEY ?? '',
   
   // Frontend URL for email redirects

@@ -1,15 +1,10 @@
 import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import path from 'path';
-import sharp from 'sharp';
 
 // Font path
 const FONTS_DIR = path.resolve(__dirname, '../../../assets/fonts');
 const GARAMOND = path.join(FONTS_DIR, 'EBGaramond-Regular.ttf');
-
-/** Max width/height for embedded images (≈2× A4 display). Keeps PDFs small. */
-const PDF_IMAGE_MAX_PX = 800;
-const PDF_IMAGE_JPEG_QUALITY = 82;
 
 /**
  * ⚠️ CRITICAL: ChapterContent must have EXACTLY ONE reading field with content
@@ -61,17 +56,6 @@ async function fetchImageBuffer(url: string): Promise<Buffer | null> {
   }
 }
 
-/**
- * Resize and re-encode image for PDF embedding. Reduces file size (often 10×) by
- * capping resolution and using JPEG instead of full-res PNG.
- */
-async function prepareImageForPdf(raw: Buffer): Promise<Buffer> {
-  return sharp(raw)
-    .resize(PDF_IMAGE_MAX_PX, PDF_IMAGE_MAX_PX, { fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: PDF_IMAGE_JPEG_QUALITY })
-    .toBuffer();
-}
-
 export async function generateReadingPDF(options: PDFGenerationOptions): Promise<{
   filePath: string;
   pageCount: number;
@@ -88,19 +72,6 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
     options.person2?.portraitUrl ? fetchImageBuffer(options.person2.portraitUrl) : Promise.resolve(null),
     options.coupleImageUrl ? fetchImageBuffer(options.coupleImageUrl) : Promise.resolve(null),
   ]);
-
-  const imageToUse = options.type === 'single'
-    ? person1Portrait
-    : (couplePortrait || person1Portrait);
-  let imageForPdf: Buffer | null = null;
-  if (imageToUse) {
-    try {
-      imageForPdf = await prepareImageForPdf(imageToUse);
-    } catch (e) {
-      console.warn('[pdfGenerator] prepareImageForPdf failed, using raw image:', e);
-      imageForPdf = imageToUse;
-    }
-  }
 
   return new Promise((resolve, reject) => {
     try {
@@ -133,24 +104,33 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
       doc.font('Garamond').fontSize(10).text(timestamp, { align: 'center' });
       doc.moveDown(1);
 
-      // Portrait image: solo for single-person readings, couple for overlay (resized + JPEG for smaller PDFs)
-      if (imageForPdf) {
-        const imgWidth = doc.page.width - 100 - 100;
-        const imgX = 100;
-        const imgY = doc.y + 20;
-        const imgHeight = imgWidth;
-        const radius = 20;
+      // Portrait image: solo for single-person readings, couple for overlay
+      // CRITICAL: Single person PDFs must show solo portrait, NOT couple image
+      const imageToUse = options.type === 'single' 
+        ? person1Portrait  // Single person reading = solo portrait only
+        : (couplePortrait || person1Portrait);  // Overlay/nuclear = couple if available
+      if (imageToUse) {
+        // Image width matches text width (page width minus left and right margins)
+        const imgWidth = doc.page.width - 100 - 100; // 395pt on A4
+        const imgX = 100; // Same as left margin
+        const imgY = doc.y + 20; // Space above image
+        const imgHeight = imgWidth; // Assume square-ish image
+        const radius = 20; // Rounded corner radius
         
         try {
+          // Create rounded rectangle clipping path
           doc.save();
           doc.roundedRect(imgX, imgY, imgWidth, imgHeight, radius).clip();
-          doc.image(imageForPdf, imgX, imgY, { width: imgWidth });
+          doc.image(imageToUse, imgX, imgY, { width: imgWidth });
           doc.restore();
-          doc.y = imgY + imgHeight + 20;
+          
+          // Move cursor below the image
+          doc.y = imgY + imgHeight + 20; // Image height + padding
         } catch {
           // ignore image errors
         }
-        doc.moveDown(2);
+        
+        doc.moveDown(2); // Space below image
       } else {
         doc.moveDown(1);
       }
@@ -167,10 +147,6 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
         }
         if (chapter.overlayReading) {
           doc.font('Garamond').fontSize(11).text(chapter.overlayReading, { align: 'justify' });
-          doc.moveDown(1);
-        }
-        if (chapter.verdict) {
-          doc.font('Garamond').fontSize(11).text(chapter.verdict, { align: 'justify' });
           doc.moveDown(1);
         }
       }

@@ -1,17 +1,21 @@
 /**
  * PAID READING PROMPTS
  * 
- * Builds prompts for all paid/deep readings - individual, overlay, and verdict.
+ * Prompts for all paid/deep readings - individual, overlay, and verdict.
+ * Can be used for single-system purchases or the full "nuclear" package.
  * 
- * ARCHITECTURE:
- * - The MD file (deep-reading-prompt.md) is the SINGLE SOURCE OF TRUTH for voice/style
- * - Language instruction is injected for non-English output
- * - TypeScript handles ONLY data interpolation, language routing, and provocations
+ * KEY PHILOSOPHY: Questions provoke thought. Instructions provoke compliance.
+ * These prompts ask the LLM to THINK deeply before writing, not just follow rules.
  */
 
 import { env } from '../../config/env';
-import { loadMasterPrompt } from '../promptLoader';
-import { OutputLanguage, DEFAULT_OUTPUT_LANGUAGE, getLanguageInstruction } from '../../config/languages';
+import { buildForbiddenSection } from '../core/forbidden';
+import { 
+  buildPersonProvocations, 
+  buildOverlayProvocations, 
+  buildVerdictProvocations,
+  getProvocationIntensity 
+} from '../core/psychological-provocations';
 
 export const SYSTEMS = ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'] as const;
 export type SystemName = typeof SYSTEMS[number];
@@ -26,10 +30,31 @@ export const SYSTEM_DISPLAY_NAMES: Record<SystemName, string> = {
 
 export type DocType = 'person1' | 'person2' | 'overlay';
 
-// ═══════════════════════════════════════════════════════════════════════════
-// NUCLEAR DOCS STRUCTURE
-// ═══════════════════════════════════════════════════════════════════════════
+function tragicRealismLensBlock(context: 'person' | 'overlay' | 'verdict'): string {
+  const level = env.TRAGIC_REALISM_LEVEL ?? 0;
+  if (level <= 0) return '';
+  const focus =
+    context === 'overlay'
+      ? `Overlay focus: Comfort Trap vs Evolution Path. Name the predictable failure mechanism and the sacrifice required to evolve.`
+      : context === 'verdict'
+        ? `Verdict focus: Do not sell comfort as love. If it's convenient, say what it costs. If it's transformative, name the price and the conditions.`
+        : `Person focus: Name the cost of the gift, the repeating loop, and the fate-pressure that tightens when they avoid truth.`;
 
+  return `
+TRAGIC REALISM LENS (LEVEL ${level}) - REQUIRED:
+- Poetic and brutal honesty. No whitewash. No spiritual comfort language.
+- The tragedy must be EARNED by the chart. Every hard statement must be traceable to a system mechanism.
+- Name the COST OF THE GIFT: what must be sacrificed to live it cleanly (comfort, status, snobbery, numbness, control, addiction).
+- Name the LOOP: the repeating failure pattern and the trigger that starts it.
+- Speak in destiny language without fatalism: conditional inevitability, not prophecy.
+  "If they keep choosing the comfort of X, the consequence will be Y."
+  "If they refuse the sacrifice, the pattern repeats."
+- Allow taboo truth (death, grief, addiction, compulsion, sexual shadow). No euphemism. No moral sermon. Clarity.
+- ${focus}
+`.trim();
+}
+
+// For backwards compatibility with nuclear package structure
 export interface NuclearDoc {
   id: string;
   system: SystemName;
@@ -38,6 +63,7 @@ export interface NuclearDoc {
   wordTarget: number;
 }
 
+// Generate the 15 system documents (for full package)
 export const NUCLEAR_DOCS: NuclearDoc[] = (() => {
   const docs: NuclearDoc[] = [];
   let id = 1;
@@ -91,165 +117,31 @@ export function getDocInfo(docNum: number): { title: string; wordTarget: number;
   return doc;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// PSYCHOLOGICAL PROVOCATIONS
-// Questions force deep thinking. Instructions force compliance.
-// ═══════════════════════════════════════════════════════════════════════════
-
-function buildPersonProvocations(personName: string, spiceLevel: number): string {
-  const base = `
-BEFORE YOU WRITE, CONTEMPLATE THESE ABOUT ${personName.toUpperCase()}:
-
-FEAR & SHADOW:
-1. What is ${personName} actually terrified of - the fear they've never admitted?
-2. What do they do to avoid feeling that terror? What patterns numb it?
-3. What loop have they repeated in every relationship, and why can't they stop?
-`;
-
-  const sex = spiceLevel >= 4 ? `
-SEX & DESIRE:
-4. What does ${personName} need sexually that they've never asked for?
-5. What hunger lives in them that they hide - maybe even from themselves?
-6. Does their sexuality lead toward liberation or destruction?
-7. What would their sex life reveal about their psychology?
-` : `
-LONGING & DESIRE:
-4. What does ${personName} secretly long for that they'd never admit?
-5. What need have they buried so deep they've forgotten it exists?
-`;
-
-  const truth = `
-TRUTH & SACRIFICE:
-8. What truth about ${personName} would make them weep if spoken aloud?
-9. What must they sacrifice to become who they were born to be?
-
-YOUR TASK: Tell ${personName}'s story. Not the chart - the PERSON inside the chart.
-`;
-
-  return `${base}${sex}${truth}`;
-}
-
-function buildOverlayProvocations(person1Name: string, person2Name: string, spiceLevel: number): string {
-  const base = `
-BEFORE YOU WRITE, CONTEMPLATE THESE ABOUT ${person1Name.toUpperCase()} AND ${person2Name.toUpperCase()}:
-
-THE MEETING:
-1. What does each person see in the other that they can't find in themselves?
-2. What wound in one fits perfectly into the wound of the other?
-3. What will they use each other for - consciously or not?
-`;
-
-  const sex = spiceLevel >= 5 ? `
-SEX BETWEEN THEM:
-4. Who dominates? Who submits? Who pretends?
-5. Is the sex a doorway to transformation or a drug to avoid intimacy?
-6. What fetish or hunger does one awaken in the other?
-7. How could the sex destroy them? How could it liberate them?
-` : `
-INTIMACY BETWEEN THEM:
-4. How do they affect each other emotionally?
-5. What do they unlock in each other that was previously closed?
-`;
-
-  const danger = `
-THE DANGER:
-8. How could this connection destroy them both?
-9. When they're unconscious, how do they use each other's wounds as weapons?
-
-THE POSSIBILITY:
-10. What could they become together that neither could become alone?
-11. Is this a comfort trap or a crucible that transforms?
-
-YOUR TASK: Tell the story of these two souls colliding.
-`;
-
-  return `${base}${sex}${danger}`;
-}
-
-function buildVerdictProvocations(person1Name: string, person2Name: string, spiceLevel: number): string {
-  return `
-THE FINAL QUESTIONS:
-
-You have seen ${person1Name} and ${person2Name} through every lens. Now answer honestly:
-
-1. Is this connection a doorway to evolution, or a comfortable trap?
-2. If they stay together, what will they become in 10 years?
-3. If they walk away, what will each lose - and what will each gain?
-4. What is the ONE TRUTH about this relationship that neither wants to hear?
-
-YOUR VERDICT MUST BE HONEST:
-- If it's toxic, say so. Don't sugarcoat.
-- If it's golden, say so. Don't manufacture problems.
-- If it's conditional, name the exact conditions.
-
-The worst thing you can do is be polite. Tell the truth.
-`;
-}
-
-function getSpiceCalibration(spiceLevel: number): string {
-  if (spiceLevel <= 3) {
-    return `SPICE: ${spiceLevel}/10 | Shadow: 25% | Sex: implied, psychological`;
-  }
-  if (spiceLevel <= 6) {
-    return `SPICE: ${spiceLevel}/10 | Shadow: 35% | Sex: direct but not graphic`;
-  }
-  return `SPICE: ${spiceLevel}/10 | Shadow: 40-50% | Sex: direct, specific, unflinching`;
-}
-
-function tragicRealismBlock(): string {
-  const level = env.TRAGIC_REALISM_LEVEL ?? 0;
-  if (level <= 0) return '';
-  
-  return `
-TRAGIC REALISM (LEVEL ${level}):
-- Name the COST OF THE GIFT: what must be sacrificed to live it cleanly
-- Name the LOOP: the repeating failure pattern
-- Speak in destiny language: "If they keep choosing X, fate delivers Y"
-- Allow taboo truth: death, grief, addiction, sexual shadow. No euphemism.
-`;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// PROMPT BUILDERS
-// Combine: MD file (voice) + Data (interpolation) + Provocations + Language
-// ═══════════════════════════════════════════════════════════════════════════
-
 /**
  * Build prompt for individual person reading
+ * 
+ * KEY CHANGE: Uses psychological provocations to force deep thinking
+ * instead of just instruction-following.
  */
 export function buildPersonPrompt(params: {
   system: SystemName;
   personName: string;
-  personData: { birthDate: string; birthTime: string; birthPlace: string };
+  personData: {
+    birthDate: string;
+    birthTime: string;
+    birthPlace: string;
+  };
   chartData: string;
   spiceLevel: number;
   style: 'production' | 'spicy_surreal';
   personalContext?: string;
-  outputLanguage?: OutputLanguage;
 }): string {
-  const { 
-    system, 
-    personName, 
-    personData, 
-    chartData, 
-    spiceLevel, 
-    personalContext,
-    outputLanguage = DEFAULT_OUTPUT_LANGUAGE 
-  } = params;
+  const { system, personName, personData, chartData, spiceLevel, style, personalContext } = params;
   const systemName = SYSTEM_DISPLAY_NAMES[system];
-  
-  // Load master prompt (the perfume - always English)
-  const masterPrompt = loadMasterPrompt();
-  
-  // Get language instruction (empty for English)
-  const languageInstruction = getLanguageInstruction(outputLanguage);
+  const intensity = getProvocationIntensity(spiceLevel);
 
   return `
-${masterPrompt}
-
-═══════════════════════════════════════════════════════════════════════════════
-READING: ${personName} through ${systemName}
-═══════════════════════════════════════════════════════════════════════════════
+DEEP READING: ${personName} through ${systemName}
 
 PERSON DATA:
 - Name: ${personName}
@@ -259,17 +151,63 @@ PERSON DATA:
 CHART DATA:
 ${chartData}
 ${personalContext ? `
-PERSONAL CONTEXT (7% weight): "${personalContext}"
+PERSONAL CONTEXT: "${personalContext}"
+(Use this for ~7% subtle framing. The reading remains 93% chart-driven.)
 ` : ''}
+
+═══════════════════════════════════════════════════════════════════════════════
+PSYCHOLOGICAL PROVOCATIONS - THINK BEFORE YOU WRITE
+═══════════════════════════════════════════════════════════════════════════════
 
 ${buildPersonProvocations(personName, spiceLevel)}
 
-${getSpiceCalibration(spiceLevel)}
-${tragicRealismBlock()}
+═══════════════════════════════════════════════════════════════════════════════
+STYLE & INTENSITY
+═══════════════════════════════════════════════════════════════════════════════
 
-WORD TARGET: 2500-3000 words (15-20 minutes audio)
-${languageInstruction}
-Begin directly with the reading. No preamble.
+STYLE: ${style === 'spicy_surreal' ? 'DARK SOUL STORYTELLING' : 'LITERARY DOCUMENTARY'}
+SPICE LEVEL: ${spiceLevel}/10
+SHADOW PERCENTAGE: ${intensity.shadowPercentage}%
+SEX EXPLICITNESS: ${intensity.sexExplicitness}
+HONESTY LEVEL: ${intensity.honestyLevel}
+
+${style === 'spicy_surreal' ? `
+Write like you're telling the story of a soul, not analyzing a chart.
+Use visceral language: devour, consume, shatter, burn, dissolve, possess.
+Include body language: blood, bone, flesh, nerve, marrow, skin.
+Sex is a doorway - explore whether it leads to liberation or destruction for this person.
+` : `
+Write like a literary documentary - sophisticated, psychologically deep, unflinching but elegant.
+`}
+
+${tragicRealismLensBlock('person')}
+
+${buildForbiddenSection(style)}
+
+═══════════════════════════════════════════════════════════════════════════════
+OUTPUT REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════════════
+
+**WORD COUNT: 2500-3000 WORDS MINIMUM. This becomes 15-20 minutes of audio.**
+
+STRUCTURE (for your guidance only - do NOT include headers in output):
+1. Who ${personName} fundamentally IS (600 words)
+2. How ${personName} loves, attaches, and relates (700 words)
+3. ${personName}'s shadow - wounds, patterns, self-sabotage, sexual shadow (800 words)
+4. ${personName}'s gifts when conscious (400 words)
+5. How to love ${personName} - and what destroys them (300 words)
+
+FORMAT RULES (THIS IS SPOKEN AUDIO):
+- OPENING: Begin like a fairytale for adults - an invocation that makes the listener pause (up to 20 words)
+  Think: García Márquez, Anaïs Nin, Rumi, David Lynch. Draw them into the mystery.
+- Then ONE CONTINUOUS ESSAY - no section headers, let the story unfold
+- 3rd person with ${personName}'s name (never "you/your")
+- Pure prose - NO asterisks, NO markdown, NO bullets
+- Spell out numbers ("twenty-three degrees")
+- NO em-dashes (—), use commas or periods
+- NO AI phrases ("This is not just...", "Here's the thing...")
+
+Tell ${personName}'s story now:
 `.trim();
 }
 
@@ -284,46 +222,72 @@ export function buildOverlayPrompt(params: {
   spiceLevel: number;
   style: 'production' | 'spicy_surreal';
   relationshipContext?: string;
-  outputLanguage?: OutputLanguage;
 }): string {
-  const { 
-    system, 
-    person1Name, 
-    person2Name, 
-    chartData, 
-    spiceLevel, 
-    relationshipContext,
-    outputLanguage = DEFAULT_OUTPUT_LANGUAGE 
-  } = params;
+  const { system, person1Name, person2Name, chartData, spiceLevel, style, relationshipContext } = params;
   const systemName = SYSTEM_DISPLAY_NAMES[system];
-  
-  // Load master prompt (the perfume - always English)
-  const masterPrompt = loadMasterPrompt();
-  
-  // Get language instruction (empty for English)
-  const languageInstruction = getLanguageInstruction(outputLanguage);
+  const intensity = getProvocationIntensity(spiceLevel);
 
   return `
-${masterPrompt}
-
-═══════════════════════════════════════════════════════════════════════════════
-SYNASTRY: ${person1Name} & ${person2Name} through ${systemName}
-═══════════════════════════════════════════════════════════════════════════════
+SYNASTRY READING: ${person1Name} & ${person2Name} through ${systemName}
 
 COMBINED CHART DATA:
 ${chartData}
 ${relationshipContext ? `
-RELATIONSHIP CONTEXT (7% weight): "${relationshipContext}"
+RELATIONSHIP CONTEXT: "${relationshipContext}"
+(Use this for ~7% subtle framing. The reading remains 93% chart-driven.)
 ` : ''}
+
+═══════════════════════════════════════════════════════════════════════════════
+PSYCHOLOGICAL PROVOCATIONS - THINK BEFORE YOU WRITE
+═══════════════════════════════════════════════════════════════════════════════
 
 ${buildOverlayProvocations(person1Name, person2Name, spiceLevel)}
 
-${getSpiceCalibration(spiceLevel)}
-${tragicRealismBlock()}
+═══════════════════════════════════════════════════════════════════════════════
+STYLE & INTENSITY
+═══════════════════════════════════════════════════════════════════════════════
 
-WORD TARGET: 3000+ words (18-20 minutes audio)
-${languageInstruction}
-Begin directly with the reading. No preamble.
+STYLE: ${style === 'spicy_surreal' ? 'DARK SOUL STORYTELLING' : 'LITERARY DOCUMENTARY'}
+SPICE LEVEL: ${spiceLevel}/10
+SHADOW PERCENTAGE: ${intensity.shadowPercentage}%
+SEX EXPLICITNESS: ${intensity.sexExplicitness}
+HONESTY LEVEL: ${intensity.honestyLevel}
+
+${style === 'spicy_surreal' ? `
+Write like you're telling the story of two souls colliding, not analyzing charts.
+Sex is central - who dominates, who surrenders, what they unlock, what they destroy.
+Show how they could transform each other AND how they could annihilate each other.
+` : `
+Write like a literary documentary about two souls meeting.
+`}
+
+${tragicRealismLensBlock('overlay')}
+
+${buildForbiddenSection(style)}
+
+═══════════════════════════════════════════════════════════════════════════════
+OUTPUT REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════════════
+
+**WORD COUNT: 3000+ WORDS MINIMUM. This becomes 18-20 minutes of audio.**
+
+STRUCTURE (for your guidance only - do NOT include headers in output):
+1. The Attraction - what draws them together magnetically (700 words)
+2. The Friction - where they clash and what drives them crazy (600 words)
+3. Sex & Power - who dominates, who surrenders, bedroom as battlefield and sanctuary (600 words)
+4. The Shadow Dance - how they wound each other, destruction potential (700 words)
+5. The Gift - what they could become together if conscious (400 words)
+
+FORMAT RULES (THIS IS SPOKEN AUDIO):
+- OPENING: Begin like a mystery theater of longing - an invocation that draws two souls into focus (up to 20 words)
+  Think: García Márquez, Anaïs Nin, Rumi, David Lynch. Set the atmosphere.
+- Then ONE CONTINUOUS ESSAY - no section headers, let the story of these two souls unfold
+- Use both names (never "you/your")
+- Pure prose - NO asterisks, NO markdown, NO bullets
+- Spell out all numbers
+- NO em-dashes, NO AI phrases
+
+Tell the story of these two souls now:
 `.trim();
 }
 
@@ -336,41 +300,55 @@ export function buildVerdictPrompt(params: {
   allReadingsSummary: string;
   spiceLevel: number;
   style: 'production' | 'spicy_surreal';
-  outputLanguage?: OutputLanguage;
 }): string {
-  const { 
-    person1Name, 
-    person2Name, 
-    allReadingsSummary, 
-    spiceLevel,
-    outputLanguage = DEFAULT_OUTPUT_LANGUAGE 
-  } = params;
-  
-  // Load master prompt (the perfume - always English)
-  const masterPrompt = loadMasterPrompt();
-  
-  // Get language instruction (empty for English)
-  const languageInstruction = getLanguageInstruction(outputLanguage);
+  const { person1Name, person2Name, allReadingsSummary, spiceLevel, style } = params;
+  const intensity = getProvocationIntensity(spiceLevel);
 
   return `
-${masterPrompt}
-
-═══════════════════════════════════════════════════════════════════════════════
 FINAL VERDICT: ${person1Name} & ${person2Name}
-═══════════════════════════════════════════════════════════════════════════════
 
 You have analyzed this couple through all 5 systems. Now deliver the FINAL VERDICT.
 
 SUMMARY OF ALL READINGS:
 ${allReadingsSummary}
 
+═══════════════════════════════════════════════════════════════════════════════
+PSYCHOLOGICAL PROVOCATIONS - THINK BEFORE YOU WRITE
+═══════════════════════════════════════════════════════════════════════════════
+
 ${buildVerdictProvocations(person1Name, person2Name, spiceLevel)}
 
-${getSpiceCalibration(spiceLevel)}
-${tragicRealismBlock()}
+═══════════════════════════════════════════════════════════════════════════════
+STYLE & INTENSITY
+═══════════════════════════════════════════════════════════════════════════════
 
-WORD TARGET: 2800+ words (18-20 minutes audio)
-${languageInstruction}
-Deliver the verdict now. No preamble.
+STYLE: ${style === 'spicy_surreal' ? 'UNFLINCHING TRUTH' : 'SOPHISTICATED HONESTY'}
+SPICE LEVEL: ${spiceLevel}/10
+HONESTY LEVEL: ${intensity.honestyLevel}
+
+${tragicRealismLensBlock('verdict')}
+
+${buildForbiddenSection(style)}
+
+═══════════════════════════════════════════════════════════════════════════════
+OUTPUT REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════════════
+
+**WORD COUNT: 2800+ WORDS MINIMUM. This becomes 18-20 minutes of audio.**
+
+STRUCTURE (for your guidance only - do NOT include headers in output):
+1. The Synthesis - what all 5 systems agree on, the undeniable truth (700 words)
+2. The Verdict - GO / CONDITIONAL / NO GO with honest explanation (300 words)
+3. If They Proceed - what they MUST do, non-negotiables, warning signs (400 words)
+4. The Closing - final truth, what this is FOR, end with a line that lands (400 words)
+
+FORMAT RULES (THIS IS SPOKEN AUDIO):
+- Start directly with the synthesis, NO headline for verdict
+- ONE CONTINUOUS ESSAY - no section headers
+- Pure prose, NO markdown, NO asterisks
+- Spell out all numbers
+- UNFLINCHING HONESTY - if it's toxic, say so. If it's golden, say so.
+
+Deliver the verdict:
 `.trim();
 }

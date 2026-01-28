@@ -1,14 +1,3 @@
-/**
- * CORE TYPES
- * 
- * Shared type definitions for the backend.
- */
-
-import { OutputLanguage } from './config/languages';
-
-// Re-export for convenience
-export type { OutputLanguage };
-
 export type RelationshipMode = 'family' | 'sensual';
 
 export type ReadingPayload = {
@@ -19,11 +8,10 @@ export type ReadingPayload = {
   longitude: number;
   relationshipIntensity: number;
   relationshipMode: RelationshipMode;
-  primaryLanguage: string;      // User's spoken language preference
-  secondaryLanguage?: string;
-  subjectName?: string;
-  isPartnerReading?: boolean;
-  outputLanguage?: OutputLanguage;  // Language for generated content (defaults to 'en')
+  primaryLanguage: string;
+  secondaryLanguage?: string | undefined;
+  subjectName?: string | undefined;
+  isPartnerReading?: boolean | undefined;
 };
 
 export type HookReading = {
@@ -49,7 +37,6 @@ export type ReadingResponse = {
     cacheHit: boolean;
     generatedAt: string;
     source: 'deepseek' | 'fallback';
-    outputLanguage?: OutputLanguage;  // Track what language was generated
   };
 };
 
@@ -60,7 +47,7 @@ export type MatchCard = {
   city: string;
   score: number;
   tags: string[];
-  photoUrl?: string;
+  photoUrl?: string | undefined;
   fitSummary: string;
 };
 
@@ -76,34 +63,3 @@ export type MatchDetail = MatchCard & {
   };
 };
 
-/**
- * Job parameters for reading generation.
- * This is stored in jobs.params JSONB column.
- */
-export type JobParams = {
-  person1: {
-    id: string;
-    name: string;
-    birthDate: string;
-    birthTime: string;
-    timezone?: string;
-    latitude?: number;
-    longitude?: number;
-  };
-  person2?: {
-    id: string;
-    name: string;
-    birthDate: string;
-    birthTime: string;
-    timezone?: string;
-    latitude?: number;
-    longitude?: number;
-  };
-  systems: string[];
-  spiceLevel: number;
-  voiceId?: string;
-  audioUrl?: string;
-  relationshipContext?: string;
-  personalContext?: string;
-  outputLanguage: OutputLanguage;  // Required - defaults handled at creation
-};

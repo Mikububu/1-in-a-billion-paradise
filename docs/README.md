@@ -64,15 +64,10 @@ When we generate couple portraits directly from original photos, AI creates gene
 
 **This is enforced in code with:**
 - Documentation warnings in multiple files
-- Function naming (`portrait1Url`, `portrait2Url`)
+- Function naming (`claymation1Url`, `claymation2Url`)
 - Runtime validation in `coupleImageService.ts` (warns if URLs don't look like styled portraits)
 - Runtime validation in `pdfWorker.ts` (warns if original photos detected)
 - Comments throughout the codebase
-
-### Naming Convention
-- **Database column:** `library_people.portrait_url` (NOT claymation_url)
-- **Storage file:** `AI-generated-portrait.png` (NOT claymation.png)
-- **Storage path:** `profile-images/{userId}/{client_person_id}/`
 
 **Workflow location:**
 - All job types go through `pdfWorker.ts`

@@ -1,7 +1,7 @@
 import { env } from '../../config/env';
 import { HookReading, ReadingPayload } from '../../types';
 import { SYSTEM_PROMPT, buildReadingPrompt, PromptContext } from './prompts';
-import { llm, llmWithFallback } from '../llm'; // Centralized LLM service with fallback
+import { llm } from '../llm'; // Centralized LLM service
 
 // ═══════════════════════════════════════════════════════════════════════════
 // READINGS CLIENT - Uses centralized LLM service (provider via LLM_PROVIDER env)
@@ -105,22 +105,12 @@ export const deepSeekClient = {
     };
 
     try {
-      // Use centralized LLM service with automatic fallback (REQUIREMENT #8)
-      // If DeepSeek fails or refuses, automatically tries Claude, then OpenAI
+      // Use centralized LLM service (provider set by LLM_PROVIDER env)
       const fullPrompt = `${SYSTEM_PROMPT}\n\n${buildReadingPrompt(ctx)}`;
-      const { text: rawContent, provider, usedFallback } = await llmWithFallback.generateWithFallback(
-        fullPrompt, 
-        `hook-${type}`, 
-        {
-          maxTokens: 500,
-          temperature: 0.7,
-          retriesPerProvider: 2,
-        }
-      );
-
-      if (usedFallback) {
-        console.log(`🔄 Hook reading [${type}] used fallback provider: ${provider}`);
-      }
+      const rawContent = await llm.generate(fullPrompt, `hook-${type}`, {
+        maxTokens: 500,
+        temperature: 0.7,
+      });
 
       const normalized = rawContent.replace(/```json|```/g, '').trim();
       
@@ -132,7 +122,7 @@ export const deepSeekClient = {
           intro: cleanText(parsed.preamble || parsed.intro),
           main: cleanText(parsed.analysis || parsed.main),
         };
-        return { reading, source: usedFallback ? 'fallback' : 'deepseek' };
+        return { reading, source: 'deepseek' };
       } catch (parseError) {
         console.error('Failed to parse LLM response:', normalized);
         return {
@@ -141,10 +131,9 @@ export const deepSeekClient = {
         };
       }
     } catch (error) {
-      // All providers failed - this is a hard failure
-      console.error('All LLM providers failed for hook reading:', error);
+      console.error('LLM API error:', error);
       return {
-        reading: { type, sign, intro: 'Service temporarily unavailable', main: 'Please try again in a moment.' },
+        reading: { type, sign, intro: 'API error', main: cleanText(String(error)) },
         source: 'fallback',
       };
     }

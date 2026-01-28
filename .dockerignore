@@ -9,10 +9,6 @@ npm-debug.log*
 docs/
 generated-pdfs/
 assets/example-claymation/
-# Nested duplicate folders (prevent 750MB deploy bloat)
-1-in-a-billion-frontend/
-1-in-a-billion-backend/
-admin-panel/
 *.ts
 !src/**/*.ts
 generate_*.ts

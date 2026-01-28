@@ -20,19 +20,17 @@ import { env } from '../config/env';
 import axios from 'axios';
 import { llm, llmPaid } from '../services/llm'; // llm = DeepSeek (hooks), llmPaid = Claude (deep readings)
 import { checkUserSubscription, markIncludedReadingUsed } from '../services/subscriptionService';
-import {
-  SYSTEMS as NUCLEAR_V2_SYSTEMS,
-  SYSTEM_DISPLAY_NAMES as NUCLEAR_V2_SYSTEM_NAMES,
-  type SystemName as NuclearV2SystemName,
-  NUCLEAR_DOCS,
-  VERDICT_DOC,
-  buildPersonPrompt,
-  buildOverlayPrompt,
-  buildVerdictPrompt,
-} from '../prompts/structures/paidReadingPrompts';
+import { SYSTEMS as NUCLEAR_V2_SYSTEMS, SYSTEM_DISPLAY_NAMES as NUCLEAR_V2_SYSTEM_NAMES, type SystemName as NuclearV2SystemName, NUCLEAR_DOCS, VERDICT_DOC, buildPersonPrompt, buildOverlayPrompt as buildNuclearV2OverlayPrompt, buildVerdictPrompt } from '../prompts/structures/paidReadingPrompts';
 import archiver from 'archiver';
 import { PassThrough, Readable } from 'node:stream';
-import { SpiceLevel, StyleName } from '../prompts/spice/levels';
+import {
+  buildIndividualPrompt,
+  buildOverlayPrompt,
+  PersonData,
+  ChartData,
+  StyleName,
+  SpiceLevel,
+} from '../prompts';
 import { generateChapterPDF } from '../services/pdf/pdfGenerator';
 
 const router = new Hono();
@@ -143,7 +141,7 @@ const getJobHandler = async (c: any) => {
         (artifactsByDoc[docNum] as any).text = artifact;
       } else if (artifact.artifact_type === 'pdf') {
         (artifactsByDoc[docNum] as any).pdf = artifact;
-      } else if (artifact.artifact_type === 'audio' || artifact.artifact_type === 'audio_mp3' || artifact.artifact_type === 'audio_m4a') {
+      } else if (artifact.artifact_type === 'audio' || artifact.artifact_type === 'audio_mp3') {
         (artifactsByDoc[docNum] as any).audio = artifact;
       } else if (artifact.artifact_type === 'audio_song') {
         (artifactsByDoc[docNum] as any).song = artifact;
@@ -405,32 +403,7 @@ router.delete('/v2/:jobId', async (c) => {
   const { createClient } = await import('@supabase/supabase-js');
   const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY!);
 
-  // Get job to find user_id for storage path
-  const { data: job } = await supabase.from('jobs').select('user_id').eq('id', jobId).single();
-  const userId = job?.user_id;
-
-  // Delete storage artifacts BEFORE deleting database record
-  if (userId) {
-    const storagePath = `${userId}/${jobId}`;
-    try {
-      // List all files in job folder
-      const { data: folders } = await supabase.storage.from('job-artifacts').list(storagePath);
-      for (const folder of folders || []) {
-        const folderPath = `${storagePath}/${folder.name}`;
-        const { data: files } = await supabase.storage.from('job-artifacts').list(folderPath);
-        if (files && files.length > 0) {
-          const filePaths = files.map((f: any) => `${folderPath}/${f.name}`);
-          await supabase.storage.from('job-artifacts').remove(filePaths);
-        }
-      }
-      console.log(`🗑️ Cleaned storage artifacts for job ${jobId}`);
-    } catch (storageErr) {
-      console.warn(`⚠️ Storage cleanup failed for job ${jobId}:`, storageErr);
-      // Continue with job deletion even if storage cleanup fails
-    }
-  }
-
-  // Delete job (cascades to tasks and artifacts in DB)
+  // Delete job (cascades to tasks and artifacts)
   const { error } = await supabase.from('jobs').delete().eq('id', jobId);
   if (error) {
     return c.json({ success: false, error: error.message }, 500);
@@ -495,6 +468,9 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
   const docNum = parseInt(c.req.param('docNum'), 10);
   const rangeHeader = c.req.header('range') || c.req.header('Range') || null;
   
+  // #region agent log
+  import('fs').then(fs=>fs.promises.appendFile('/Users/michaelperinwogenburg/Desktop/big challenge/1 in a Billion/.cursor/debug.log',JSON.stringify({location:'jobs.ts:465',message:'Audio endpoint called',data:{jobId:jobId.substring(0,8),docNum},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})+'\n').catch(()=>{}));
+  // #endregion
   
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return c.json({ success: false, error: 'Supabase not configured' }, 500);
@@ -535,6 +511,9 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
     // Find artifact matching docNum (from metadata or derive from task sequence)
     let audioArtifact = artifacts.find(a => a.metadata?.docNum === docNum);
     
+    // #region agent log
+    import('fs').then(fs=>fs.promises.appendFile('/Users/michaelperinwogenburg/Desktop/big challenge/1 in a Billion/.cursor/debug.log',JSON.stringify({location:'jobs.ts:507',message:'Audio artifact search',data:{jobId:jobId.substring(0,8),requestedDocNum:docNum,totalArtifacts:artifacts.length,artifactMetadata:artifacts.map(a=>({docNum:a.metadata?.docNum,system:a.metadata?.system,docType:a.metadata?.docType})),foundMatch:!!audioArtifact,matchedDocNum:audioArtifact?.metadata?.docNum},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})+'\n').catch(()=>{}));
+    // #endregion
     
     // If not found by metadata, try to match by task sequence
     if (!audioArtifact) {
@@ -578,8 +557,7 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
       return c.json({ success: false, error: 'Failed to generate signed URL' }, 500);
     }
 
-    // Proxy stream (do not redirect): iOS AVPlayer has issues with redirects when streaming.
-    // PDF uses redirect (client downloads directly from Supabase) for faster download.
+    // Stream the audio bytes directly (iOS AVPlayer has issues with redirects).
     // IMPORTANT: Support HTTP Range requests so seeking works.
     console.log(
       `🎵 Streaming audio from: ${signedUrl.substring(0, 80)}...${rangeHeader ? ` (Range: ${rangeHeader})` : ''}`
@@ -617,6 +595,9 @@ router.get('/v2/:jobId/song/:docNum', async (c) => {
   const docNum = parseInt(c.req.param('docNum'), 10);
   const rangeHeader = c.req.header('range') || c.req.header('Range') || null;
   
+  // #region agent log
+  import('fs').then(fs=>fs.promises.appendFile('/Users/michaelperinwogenburg/Desktop/big challenge/1 in a Billion/.cursor/debug.log',JSON.stringify({location:'jobs.ts:580',message:'Song endpoint called',data:{jobId:jobId.substring(0,8),docNum},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})+'\n').catch(()=>{}));
+  // #endregion
   
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return c.json({ success: false, error: 'Supabase not configured' }, 500);
@@ -805,21 +786,33 @@ router.get('/v2/:jobId/pdf/:docNum', async (c) => {
 
     console.log(`✅ Found PDF artifact for docNum ${docNum}: ${pdfArtifact.storage_path}`);
 
-    // Get signed URL (prefer public, fallback to signed)
-    let signedUrl = pdfArtifact.public_url;
-    if (!signedUrl) {
-      signedUrl = await getSignedArtifactUrl(pdfArtifact.storage_path, 3600);
+    // Get the URL to fetch from (prefer public, fallback to signed)
+    let fetchUrl = pdfArtifact.public_url;
+    if (!fetchUrl) {
+      fetchUrl = await getSignedArtifactUrl(pdfArtifact.storage_path, 3600);
     }
-
-    if (!signedUrl) {
+    
+    if (!fetchUrl) {
       return c.json({ success: false, error: 'Failed to generate URL' }, 500);
     }
 
-    // Redirect to signed URL so client downloads directly from Supabase.
-    // Previously we proxied: backend fetched full PDF from Supabase then streamed to client,
-    // which caused ~1 min delay (two full transfers). Redirect = one transfer, much faster.
-    console.log(`📄 Redirecting PDF to signed URL (direct Supabase download)`);
-    return c.redirect(signedUrl, 302);
+    // Stream the PDF bytes directly
+    console.log(`📄 Streaming PDF from: ${fetchUrl.substring(0, 80)}...`);
+    const pdfResponse = await fetch(fetchUrl);
+    
+    if (!pdfResponse.ok) {
+      console.error(`❌ Failed to fetch PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
+      return c.json({ success: false, error: 'Failed to fetch PDF from storage' }, 500);
+    }
+
+    const headers = new Headers();
+    headers.set('content-type', 'application/pdf');
+    const contentLength = pdfResponse.headers.get('content-length');
+    if (contentLength) headers.set('content-length', contentLength);
+    headers.set('cache-control', 'public, max-age=3600');
+
+    // Return PDF stream
+    return new Response(pdfResponse.body, { status: 200, headers });
   } catch (error: any) {
     console.error('Error in PDF endpoint:', error);
     return c.json({ success: false, error: error.message || 'Internal server error' }, 500);
@@ -1253,15 +1246,6 @@ router.get('/:jobId', async (c) => {
 // HELPER: Build ChartData from Swiss Ephemeris placements
 // ═══════════════════════════════════════════════════════════════════════════
 
-interface ChartData {
-  western?: string;
-  vedic?: string;
-  geneKeys?: string;
-  humanDesign?: string;
-  kabbalah?: string;
-  synastry?: string;
-}
-
 function buildChartData(
   name: string,
   placements: any,
@@ -1353,7 +1337,8 @@ jobQueue.registerProcessor('extended', async (job, updateProgress) => {
 
     const chartData = buildChartData(person1.name, placements);
 
-    const p1BirthData = {
+    const p1Data: PersonData = {
+      name: person1.name,
       birthDate: person1.birthDate,
       birthTime: person1.birthTime,
       birthPlace: `${person1.latitude.toFixed(2)}°N, ${person1.longitude.toFixed(2)}°E`,
@@ -1374,13 +1359,14 @@ jobQueue.registerProcessor('extended', async (job, updateProgress) => {
         currentStep: `${system} - Claude API call`,
       });
 
-      const prompt = buildPersonPrompt({
-        system: system as NuclearV2SystemName,
-        personName: person1.name,
-        personData: p1BirthData,
-        chartData: JSON.stringify(chartData),
-        spiceLevel,
+      const prompt = buildIndividualPrompt({
+        type: 'individual',
         style: writingStyle,
+        spiceLevel,
+        system: system as any,
+        voiceMode: 'other', // 3rd person (using NAME)
+        person: p1Data,
+        chartData,
       });
 
       const reading = await llmPaid.generate(prompt, `extended-${system}`);
@@ -1468,6 +1454,20 @@ jobQueue.registerProcessor('synastry', async (job, updateProgress) => {
 
     const chartData = buildChartData(person1.name, p1Placements, p2Placements, person2.name);
 
+    const p1Data: PersonData = {
+      name: person1.name,
+      birthDate: person1.birthDate,
+      birthTime: person1.birthTime,
+      birthPlace: `${person1.latitude.toFixed(2)}°N, ${person1.longitude.toFixed(2)}°E`,
+    };
+
+    const p2Data: PersonData = {
+      name: person2.name,
+      birthDate: person2.birthDate,
+      birthTime: person2.birthTime,
+      birthPlace: `${person2.latitude.toFixed(2)}°N, ${person2.longitude.toFixed(2)}°E`,
+    };
+
     updateProgress({
       percent: 20,
       phase: 'text',
@@ -1476,12 +1476,13 @@ jobQueue.registerProcessor('synastry', async (job, updateProgress) => {
     });
 
     const prompt = buildOverlayPrompt({
-      system: system as NuclearV2SystemName,
-      person1Name: person1.name,
-      person2Name: person2.name,
-      chartData: JSON.stringify(chartData),
-      spiceLevel,
+      type: 'overlay',
       style: writingStyle,
+      spiceLevel,
+      system: system as any,
+      person1: p1Data,
+      person2: p2Data,
+      chartData,
     });
 
     const reading = await llmPaid.generate(prompt, `synastry-${system}`);
@@ -1648,7 +1649,7 @@ jobQueue.registerProcessor('nuclear_v2', async (job, updateProgress) => {
         callsTotal: totalDocs,
       });
 
-      const overlayPrompt = buildOverlayPrompt({
+      const overlayPrompt = buildNuclearV2OverlayPrompt({
         system,
         person1Name: person1.name,
         person2Name: person2.name,
@@ -1733,8 +1734,6 @@ jobQueue.registerProcessor('nuclear_v2', async (job, updateProgress) => {
       text: d.text,
       jobId: job.id,
       sequence: idx,
-      system: (d as any).system ?? null,
-      docType: (d as any).docType ?? null,
     }));
 
     triggerAsyncAudioGeneration(job.id, audioDocuments).catch(err => {

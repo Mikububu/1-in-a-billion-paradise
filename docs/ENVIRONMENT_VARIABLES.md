@@ -14,10 +14,12 @@ SUPABASE_URL=https://your-project.supabase.co
 
 # Service Role Key (SECRET! Never commit or expose to client)
 # Used by workers to bypass RLS and claim tasks from any user's jobs
+# Use new Secret key (sb_secret_...) if legacy keys are disabled. Same var.
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 # Anon Key (PUBLIC - safe to use in client-facing API)
 # Used by API to respect RLS (users can only see their own jobs)
+# Use new Publishable key (sb_publishable_...) if legacy keys are disabled. Same var.
 SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 
@@ -83,13 +85,12 @@ DATADOG_API_KEY=...
 
 ### Supabase Credentials
 
-1. Go to [Supabase Dashboard](https://app.supabase.com/)
-2. Select your project
-3. Go to **Settings → API**
-4. Copy:
+1. Go to [Supabase Dashboard](https://app.supabase.com/) → your project → **Settings → API**
+2. **API Keys** tab (not Legacy):
    - **Project URL** → `SUPABASE_URL`
-   - **anon public** → `SUPABASE_ANON_KEY`
-   - **service_role secret** → `SUPABASE_SERVICE_ROLE_KEY` ⚠️ KEEP SECRET!
+   - **Publishable key** (`sb_publishable_...`) → `SUPABASE_ANON_KEY` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+   - **Secret key** (`sb_secret_...`) → `SUPABASE_SERVICE_ROLE_KEY` ⚠️ KEEP SECRET!
+3. If you disabled legacy keys, you *must* use the new keys. See `docs/SUPABASE_LEGACY_KEYS_DISABLED.md`.
 
 ### RunPod Credentials
 

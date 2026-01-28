@@ -2,8 +2,8 @@
 /**
  * VOICE SAMPLE GENERATION SCRIPT
  * 
- * Generates voice samples for all voices using the Anaïs Nin quote.
- * Samples are stored in Supabase Storage at: voice-samples/{voice_id}/preview.mp3
+ * Generates voice samples for all voices using the standard Henry Miller quote.
+ * Samples are stored in Supabase Storage at: voice-samples/{voice_id}/henry_miller_sample.mp3
  * 
  * Usage:
  *   npx ts-node src/scripts/generate_voice_samples.ts              # Generate all voices
@@ -80,7 +80,7 @@ async function generateVoiceSample(voiceId: string, voiceSampleUrl: string): Pro
  * Upload audio buffer to Supabase Storage
  */
 async function uploadToStorage(voiceId: string, audioBuffer: Buffer): Promise<string> {
-    const storagePath = `voice-samples/${voiceId}/preview.mp3`;
+    const storagePath = `voice-samples/${voiceId}/henry_miller_sample.mp3`;
 
     console.log(`💾 Uploading to storage: ${storagePath}`);
 
@@ -169,7 +169,7 @@ async function main() {
     console.log('╚════════════════════════════════════════════════════════════╝');
     console.log('\nStandard Quote:');
     console.log(`"${VOICE_SAMPLE_QUOTE}"`);
-    console.log('\n― Anaïs Nin, House of Incest\n');
+    console.log('\n― Henry Miller, Tropic of Cancer\n');
 
     // Parse arguments
     const args = process.argv.slice(2);

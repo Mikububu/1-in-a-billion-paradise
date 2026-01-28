@@ -9,7 +9,7 @@
 import { supabase } from '../services/supabaseClient';
 import { notifyJobComplete } from '../services/notificationService';
 
-const INTERVAL_MS = 60 * 1000; // 1 minute
+const INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 async function reclaimStaleTasks() {
   if (!supabase) {
