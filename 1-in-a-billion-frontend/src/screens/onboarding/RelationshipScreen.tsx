@@ -3,7 +3,6 @@ import { SimpleSlider } from '@/components/SimpleSlider';
 // We will mock it inline or use a simple view.
 import * as Haptics from 'expo-haptics';
 import { useRef, useCallback } from 'react';
-import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/Button';
 import { useOnboardingStore } from '@/store/onboardingStore';
@@ -12,7 +11,7 @@ import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { describeIntensity } from '@/utils/intensity';
 
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { AmbientMusic } from '@/services/ambientMusic';
@@ -28,7 +27,6 @@ export const RelationshipScreen = ({ navigation }: Props) => {
   const lastValue = useRef(relationshipIntensity);
   const descriptor = describeIntensity(relationshipIntensity);
   const { isPlaying } = useMusicStore();
-  const videoRef = useRef<Video>(null);
 
   // Keep ambient music playing
   useFocusEffect(
@@ -66,32 +64,14 @@ export const RelationshipScreen = ({ navigation }: Props) => {
     }
   };
 
-  const handlePlaybackStatusUpdate = (status: AVPlaybackStatus) => {
-    if (!status.isLoaded) return;
-    
-    // Pause for 1 second at the end, then restart
-    if (status.didJustFinish) {
-      videoRef.current?.pauseAsync();
-      setTimeout(() => {
-        videoRef.current?.setPositionAsync(0);
-        videoRef.current?.playAsync();
-      }, 1000);
-    }
-  };
-
   return (
     <SafeAreaView style={styles.container}>
-      {/* Video at bottom - pauses 1 second at end */}
+      {/* Gif at bottom - loops automatically */}
       <View style={styles.videoWrapper}>
-        <Video
-          ref={videoRef}
-          source={require('../../../assets/videos/couple-laughing.mp4')}
+        <Image
+          source={require('../../../assets/videos/couple-laughing-boomerang.gif')}
           style={styles.bottomVideo}
-          resizeMode={ResizeMode.COVER}
-          shouldPlay
-          isMuted
-          rate={0.5}
-          onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
+          resizeMode="cover"
         />
       </View>
 
