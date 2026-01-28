@@ -108,8 +108,8 @@ export async function composeCoupleImage(
     const maxDim1 = Math.max(meta1.width || 0, meta1.height || 0);
     const maxDim2 = Math.max(meta2.width || 0, meta2.height || 0);
     
-    let processed1 = image1Buf;
-    let processed2 = image2Buf;
+    let processed1: Buffer = image1Buf;
+    let processed2: Buffer = image2Buf;
     
     if (maxDim1 > 2000) {
       console.log(`   Resizing image 1: ${meta1.width}x${meta1.height} → max 2000px`);
