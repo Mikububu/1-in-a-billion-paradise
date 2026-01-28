@@ -570,13 +570,6 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
                             >
                               <Text style={styles.continueBtnText}>Compare Charts →</Text>
                             </TouchableOpacity>
-
-                            <TouchableOpacity
-                              style={styles.secondaryBtn}
-                              onPress={() => navigation.navigate('PostHookOffer' as any)}
-                            >
-                              <Text style={styles.secondaryBtnText}>Skip for now</Text>
-                            </TouchableOpacity>
                           </View>
 
                           {/* Bottom video slot (replace source with your excentric_couple.mp4 once added to assets/videos) */}
