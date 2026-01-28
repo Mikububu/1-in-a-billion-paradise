@@ -1,0 +1,169 @@
+/**
+ * SUPABASE PEOPLE SYNC (CLIENT)
+ *
+ * Purpose: keep "My People" (including 3rd-persons) available across devices/re-installs.
+ * We sync person metadata: name + birthData + placements + hookReadings.
+ *
+ * Table (recommended): public.library_people
+ * - user_id (uuid)              -- auth.users.id
+ * - client_person_id (text)     -- stable ID from app (Person.id)
+ * - name (text)
+ * - is_user (bool)
+ * - birth_data (jsonb)
+ * - placements (jsonb)
+ * - hook_readings (jsonb)
+ * - created_at (timestamptz)
+ * - updated_at (timestamptz)
+ */
+
+import { supabase, isSupabaseConfigured } from '@/services/supabase';
+import type { Person } from '@/store/profileStore';
+import { normalizePlacements } from './placementsCalculator';
+
+const TABLE_PEOPLE = 'library_people';
+
+export type LibraryPersonRow = {
+  user_id: string;
+  client_person_id: string;
+  name: string;
+  email: string;
+  is_user: boolean;
+  // Preferences
+  primary_language: string | null;
+  secondary_language: string | null;
+  relationship_mode: string | null;
+  relationship_intensity: number | null;
+  // Birth data
+  birth_data: any;
+  birth_location: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  timezone: string | null;
+  // Calculated data
+  placements: any | null;
+  hook_readings: any | null;
+  hook_audio_paths: any | null;
+  // Photo/portrait data
+  original_photo_url: string | null;
+  portrait_url: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function toRow(userId: string, p: Person): Partial<LibraryPersonRow> {
+  // Only include columns that exist in the Supabase table
+  const row: Partial<LibraryPersonRow> = {
+    user_id: userId,
+    client_person_id: p.id,
+    name: p.name,
+    is_user: Boolean(p.isUser),
+    // Birth data (stored as JSON)
+    birth_data: p.birthData || {},
+    // Calculated data
+    placements: p.placements || null,
+    hook_readings: p.hookReadings || null,
+    updated_at: new Date().toISOString(),
+  };
+  
+  // IMPORTANT: Only include portrait URLs if they have actual values.
+  // This prevents overwriting existing cloud values with null when the
+  // local state doesn't have the URLs (e.g., after app reinstall).
+  if (p.portraitUrl) {
+    row.portrait_url = p.portraitUrl;
+  }
+  if (p.originalPhotoUrl) {
+    row.original_photo_url = p.originalPhotoUrl;
+  }
+  
+  return row;
+}
+
+function fromRow(r: LibraryPersonRow): Person {
+  const now = new Date().toISOString();
+  
+  // Normalize placements to ensure consistent format (sunSign, moonSign, risingSign)
+  const normalizedPlacements = normalizePlacements(r.placements) || r.placements;
+  
+  return {
+    id: r.client_person_id,
+    name: r.name,
+    email: r.email,
+    isUser: Boolean(r.is_user),
+    // Preferences (stored as extended properties)
+    primaryLanguage: r.primary_language,
+    secondaryLanguage: r.secondary_language,
+    relationshipMode: r.relationship_mode,
+    relationshipIntensity: r.relationship_intensity,
+    // Birth data
+    birthData: (r.birth_data || {}) as any,
+    // Calculated data
+    placements: normalizedPlacements,
+    hookReadings: (r.hook_readings || undefined) as any,
+    hookAudioPaths: (r.hook_audio_paths || undefined) as any,
+    // Photo/portrait data
+    originalPhotoUrl: r.original_photo_url || undefined,
+    portraitUrl: r.portrait_url || undefined,
+    readings: [],
+    createdAt: r.created_at || now,
+    updatedAt: r.updated_at || now,
+  } as any; // Cast to any since new fields are not in Person type yet
+}
+
+export async function syncPeopleToSupabase(userId: string, people: Person[]) {
+  if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' as const };
+  if (!userId) return { success: false, error: 'Missing userId' as const };
+
+  const rows = (people || [])
+    .filter((p) => Boolean(p?.id))
+    .map((p) => toRow(userId, p));
+
+  if (rows.length === 0) return { success: true as const };
+
+  // Split self profiles and partner profiles
+  const selfProfiles = rows.filter(r => r.is_user === true);
+  const partnerProfiles = rows.filter(r => r.is_user !== true);
+
+  console.log(`📤 syncPeopleToSupabase: ${selfProfiles.length} self, ${partnerProfiles.length} partners`);
+  
+  // Log partner names being synced
+  if (__DEV__) {
+    const partnerNames = partnerProfiles.map(p => p.name).join(', ');
+    console.log(`📤 Partners being synced: ${partnerNames}`);
+  }
+
+  // Upsert ALL profiles using client_person_id as the unique key
+  // (Both self and partner profiles have client_person_id)
+  const allProfiles = [...selfProfiles, ...partnerProfiles];
+  
+  if (allProfiles.length > 0) {
+    const { error } = await supabase
+      .from(TABLE_PEOPLE)
+      .upsert(allProfiles, {
+        onConflict: 'user_id,client_person_id',
+      });
+    if (error) {
+      console.error(`❌ People sync failed:`, error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  return { success: true as const };
+}
+
+export async function fetchPeopleFromSupabase(userId: string) {
+  if (!isSupabaseConfigured)
+    return { success: false, error: 'Supabase not configured' as const, people: [] as Person[] };
+  if (!userId) return { success: false, error: 'Missing userId' as const, people: [] as Person[] };
+
+  const { data, error } = await supabase
+    .from(TABLE_PEOPLE)
+    .select('*')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false });
+
+  if (error) return { success: false, error: error.message, people: [] as Person[] };
+  const people = (data as any[]).map((r) => fromRow(r as LibraryPersonRow));
+  return { success: true as const, people };
+}
+
+
