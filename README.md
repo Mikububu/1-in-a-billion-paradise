@@ -164,6 +164,21 @@ npm run android    # Run on Android
 4. **Comprehensive Testing**: Test scripts for all components
 5. **Better Error Handling**: Graceful fallbacks throughout
 
+## Deployment
+
+### 🍺 HEINEKEN - Complete Deployment Workflow
+
+Run the HEINEKEN script for a complete deployment:
+- Saves all changes to Git
+- Commits and pushes to remote
+- Builds mobile app with EAS
+
+```bash
+./heineken.sh
+```
+
+See [docs/HEINEKEN_DEPLOYMENT.md](./docs/HEINEKEN_DEPLOYMENT.md) for full documentation.
+
 ## Notes
 
 - This is a clean rebuild from "1-in-a-billion-all 2"
