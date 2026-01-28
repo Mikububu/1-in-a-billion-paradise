@@ -54,6 +54,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
   const [birthTime, setBirthTime] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Get people from store to check for duplicates
 
@@ -284,7 +285,13 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
   };
 
   const handleContinue = async () => {
-    await upsertPersonFromForm();
+    if (isSubmitting) return; // Prevent double-clicks
+    setIsSubmitting(true);
+    try {
+      await upsertPersonFromForm();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const formatDate = (date: Date | null) => {
@@ -426,7 +433,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
         <Button
           label={isAddPersonOnly ? 'Save Person' : 'Calculate Compatibility'}
           onPress={handleContinue}
-          disabled={!canContinue}
+          disabled={!canContinue || isSubmitting}
         />
       </View>
       </SafeAreaView>
