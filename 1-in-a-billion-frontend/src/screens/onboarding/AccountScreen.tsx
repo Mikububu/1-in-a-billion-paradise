@@ -21,6 +21,9 @@ import {
   Image,
   TextInput,
   Dimensions,
+  KeyboardAvoidingView,
+  ScrollView,
+  BackHandler,
 } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { useFocusEffect } from '@react-navigation/native';
@@ -61,6 +64,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
   const isSigningUp = true;
   const [showEmailInput, setShowEmailInput] = useState(false);
   const isPostPurchase = !!route?.params?.postPurchase;
+  const passwordInputRef = useRef<TextInput>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -69,6 +73,21 @@ export const AccountScreen = ({ navigation, route }: Props) => {
       }
     }, [isPlaying])
   );
+
+  // Android back button handler
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (showEmailInput) {
+        setShowEmailInput(false);
+        return true; // Prevent default back
+      }
+      return false; // Allow default back
+    });
+    
+    return () => backHandler.remove();
+  }, [showEmailInput]);
 
   // Check if user already has account (for Google OAuth flow which uses deep link)
   useEffect(() => {
@@ -475,8 +494,16 @@ export const AccountScreen = ({ navigation, route }: Props) => {
 
       <BackButton onPress={() => navigation.goBack()} />
 
-      <View style={styles.contentContainer}>
-        <View style={styles.authSection}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoid}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.authSection}>
           {!showEmailInput ? (
             <>
               <TouchableOpacity
@@ -520,18 +547,26 @@ export const AccountScreen = ({ navigation, route }: Props) => {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                autoComplete="email"
+                returnKeyType="next"
+                onSubmitEditing={() => passwordInputRef.current?.focus()}
                 editable={emailAuthState !== 'loading'}
+                blurOnSubmit={false}
               />
 
               <TextInput
+                ref={passwordInputRef}
                 style={styles.emailInput}
-                placeholder="Password (min 8 characters, 1 letter, 1 number)"
+                placeholder="Password"
                 placeholderTextColor={colors.mutedText}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
+                autoComplete="password"
+                returnKeyType="done"
+                onSubmitEditing={handleEmailAuth}
                 editable={emailAuthState !== 'loading'}
               />
               
@@ -574,8 +609,9 @@ export const AccountScreen = ({ navigation, route }: Props) => {
               </View>
             </>
           )}
-        </View>
-      </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Full-Screen Loading Overlay */}
       {isCreatingAccount && (
@@ -621,8 +657,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: typography.sansMedium,
   },
-  contentContainer: {
+  keyboardAvoid: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: spacing.page,
     paddingBottom: spacing.xl,
   },
@@ -648,7 +687,8 @@ const styles = StyleSheet.create({
   },
   authSection: {
     gap: spacing.sm,
-    paddingTop: 140, // Position below Back button (top: 60) without overlap
+    paddingTop: Platform.OS === 'ios' ? 140 : 100, // Less padding on Android for better keyboard handling
+    minHeight: Dimensions.get('window').height - 200, // Ensure content is tall enough to scroll
   },
   authButton: {
     paddingVertical: spacing.md,
