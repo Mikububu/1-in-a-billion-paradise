@@ -33,7 +33,7 @@ By using our app, you agree to the collection and use of information in accordan
 • **Relationship Preferences**: Your relationship intensity and mode preferences
 • **Language Preferences**: Primary and secondary languages
 • **Account Information**: Email address (if you create an account)
-• **Payment Information**: Processed securely through **Stripe** (we do not store your credit card details)
+• **Payment Information**: Processed securely through the **App Store** or **Google Play** (we do not store your credit card details)
 
 We do NOT collect:
 • Photos or images from your device

@@ -6,7 +6,7 @@ import { colors, spacing, typography } from '@/theme/tokens';
 import { Button } from '@/components/Button';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { useFocusEffect } from '@react-navigation/native';
-import { createYearlySubscriptionIntent, getPaymentConfig } from '@/services/payments';
+import { getOfferings, purchasePackage } from '@/services/revenuecat';
 import { useAuthStore } from '@/store/authStore';
 import { Video, ResizeMode, Audio } from 'expo-av';
 
@@ -325,99 +325,45 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         }
 
         try {
-            let stripeModule: any;
-            try {
-                stripeModule = require('@stripe/stripe-react-native');
-            } catch (err) {
-                console.warn('Stripe module not available:', err);
-                // In dev, bypass payment instead of showing error
-                if (__DEV__) {
-                    setIsPaying(false);
-                    navigation.navigate('NameInput', { postPurchase: true });
-                    return;
-                }
+            // Get RevenueCat offerings
+            const offering = await getOfferings();
+            if (!offering?.availablePackages?.length) {
                 Alert.alert(
-                    'Payments Not Available',
-                    'Apple Pay / Google Pay requires a full app build (TestFlight / production).',
+                    'Products Not Available',
+                    'Unable to load subscription options. Please try again later.',
                     [{ text: 'OK' }]
                 );
                 setIsPaying(false);
                 return;
             }
 
-            // Check if Stripe module is properly loaded
-            if (!stripeModule || typeof stripeModule.initStripe !== 'function') {
-                console.warn('Stripe module loaded but initStripe not available');
+            // Find the yearly subscription package
+            const yearlyPackage = offering.availablePackages.find(
+                (p: any) => p.identifier === 'yearly_subscription' || p.packageType === 'ANNUAL'
+            );
+
+            if (!yearlyPackage) {
                 Alert.alert(
-                    'Payments Not Available', 
-                    'Payment processing requires a native build. This feature is not available in Expo Go.',
+                    'Subscription Not Available',
+                    'The yearly subscription is not currently available. Please try again later.',
                     [{ text: 'OK' }]
                 );
                 setIsPaying(false);
                 return;
             }
 
-            const cfg = await getPaymentConfig();
-            const publishableKey = cfg?.publishableKey?.trim();
-            if (!publishableKey) {
-                Alert.alert('Payments Not Configured', 'Stripe publishable key is missing on backend.', [{ text: 'OK' }]);
-                setIsPaying(false);
-                return;
+            // Attempt purchase via RevenueCat
+            console.log('💳 Starting RevenueCat subscription purchase');
+            const customerInfo = await purchasePackage(yearlyPackage);
+            
+            if (customerInfo) {
+                // Payment successful → navigate to NameInput screen
+                console.log('✅ Subscription purchase successful!');
+                navigation.navigate('NameInput', { postPurchase: true });
+            } else {
+                // User cancelled
+                console.log('ℹ️ Subscription cancelled by user');
             }
-
-            try {
-                await stripeModule.initStripe({
-                    publishableKey,
-                    merchantIdentifier: 'merchant.com.oneinabillion.app',
-                    urlScheme: 'oneinabillion',
-                });
-            } catch (initErr: any) {
-                console.warn('Stripe initialization failed:', initErr);
-                Alert.alert(
-                    'Payment Initialization Failed',
-                    'This feature requires a native build and cannot run in Expo Go.',
-                    [{ text: 'OK' }]
-                );
-                setIsPaying(false);
-                return;
-            }
-
-            const sub = await createYearlySubscriptionIntent({
-                userId,
-                userEmail: userEmail || undefined,
-            });
-            if (!sub.success || !sub.paymentIntentClientSecret || !sub.customerId || !sub.ephemeralKeySecret) {
-                throw new Error(sub.error || 'Failed to start subscription payment');
-            }
-
-            const initPaymentSheet = stripeModule.initPaymentSheet;
-            const presentPaymentSheet = stripeModule.presentPaymentSheet;
-            if (typeof initPaymentSheet !== 'function' || typeof presentPaymentSheet !== 'function') {
-                throw new Error('Stripe PaymentSheet API not available. Rebuild the app with Stripe native modules.');
-            }
-
-            const { error: initError } = await initPaymentSheet({
-                paymentIntentClientSecret: sub.paymentIntentClientSecret,
-                customerId: sub.customerId,
-                customerEphemeralKeySecret: sub.ephemeralKeySecret,
-                merchantDisplayName: '1 in a Billion',
-                applePay: { merchantCountryCode: 'US' },
-                googlePay: { merchantCountryCode: 'US', testEnv: __DEV__ },
-                returnURL: 'oneinabillion://stripe-redirect',
-            });
-            if (initError) throw new Error(initError.message);
-
-            const { error: presentError } = await presentPaymentSheet();
-            if (presentError) {
-                if (presentError.code === 'Canceled') {
-                    setIsPaying(false);
-                    return;
-                }
-                throw new Error(presentError.message);
-            }
-
-            // Payment successful → ask for name, then create account (Supabase) and land in My Library
-            navigation.navigate('NameInput', { postPurchase: true });
         } catch (err: any) {
             Alert.alert('Payment Failed', err?.message || 'Payment failed.', [{ text: 'OK' }]);
         } finally {

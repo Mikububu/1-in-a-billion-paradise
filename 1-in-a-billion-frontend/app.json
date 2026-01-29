@@ -47,14 +47,7 @@
       "expo-apple-authentication",
       "expo-image-picker",
       "expo-document-picker",
-      "expo-dev-client",
-      [
-        "@stripe/stripe-react-native",
-        {
-          "merchantIdentifier": "merchant.com.oneinabillion.app",
-          "enableGooglePay": true
-        }
-      ]
+      "expo-dev-client"
     ],
     "extra": {
       "eas": {

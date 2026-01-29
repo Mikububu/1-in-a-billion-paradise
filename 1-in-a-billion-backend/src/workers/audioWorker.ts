@@ -3,14 +3,14 @@
  *
  * Processes audio_generation tasks:
  * - Reads text from Storage artifact (full reading ~8000 chars)
- * - Chunks text into 300-char segments (Chatterbox has input limits)
- * - Processes chunks SEQUENTIALLY via RunPod (respects concurrency limits)
+ * - Chunks text into 450-char segments (Chatterbox has input limits)
+ * - Processes chunks SEQUENTIALLY via Replicate (respects rate limits)
  * - Concatenates WAV chunks into single audio
  * - Converts to MP3 (with M4A fallback)
  * - Uploads artifact to Supabase Storage
  * 
  * IMPORTANT: Chunks are processed sequentially, not in parallel, to avoid
- * overwhelming RunPod serverless endpoints which have hard concurrency limits.
+ * overwhelming Replicate API rate limits.
  */
 
 import axios from 'axios';
@@ -23,7 +23,6 @@ import { BaseWorker, TaskResult } from './baseWorker';
 import { JobTask, supabase } from '../services/supabaseClient';
 import { env } from '../config/env';
 import { apiKeys } from '../services/apiKeysHelper';
-import { logRunPodCost } from '../services/costTracking';
 import { getVoiceById, isTurboPresetVoice } from '../config/voices';
 import { splitIntoChunks, concatenateWavBuffers, AUDIO_CONFIG } from '../services/audioProcessing';
 

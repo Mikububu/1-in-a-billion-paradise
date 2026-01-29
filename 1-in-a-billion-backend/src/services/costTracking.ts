@@ -3,7 +3,7 @@
  * 
  * Tracks and calculates costs for all API calls:
  * - LLM providers (Claude, DeepSeek, OpenAI)
- * - RunPod GPU time
+ * - Replicate API (TTS audio generation)
  * - MiniMax song generation
  * 
  * Pricing as of Jan 2026 (per 1M tokens unless noted):
@@ -36,8 +36,8 @@ export const LLM_PRICING = {
   },
 };
 
-// RunPod pricing (approximate, depends on GPU type)
-export const RUNPOD_PRICING = {
+// Replicate pricing (approximate, based on execution time)
+export const REPLICATE_PRICING = {
   perSecond: 0.00039, // ~$0.00039/sec for typical GPU
   perMinute: 0.0234,  // ~$0.0234/min
 };
@@ -58,7 +58,7 @@ export interface LLMUsage {
   model?: string;
 }
 
-export interface RunPodUsage {
+export interface ReplicateUsage {
   executionTimeMs: number;
   gpuType?: string;
 }
@@ -75,9 +75,9 @@ export function calculateLLMCost(usage: LLMUsage): number {
   return inputCost + outputCost;
 }
 
-export function calculateRunPodCost(usage: RunPodUsage): number {
+export function calculateReplicateCost(usage: ReplicateUsage): number {
   const seconds = usage.executionTimeMs / 1000;
-  return seconds * RUNPOD_PRICING.perSecond;
+  return seconds * REPLICATE_PRICING.perSecond;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -158,27 +158,31 @@ export async function logLLMCost(
 }
 
 /**
- * Log RunPod cost with automatic calculation
+ * Log Replicate cost with automatic calculation
  */
-export async function logRunPodCost(
+export async function logReplicateCost(
   jobId: string,
   taskId: string | undefined,
   executionTimeMs: number,
   label?: string
 ): Promise<number> {
-  const cost = calculateRunPodCost({ executionTimeMs });
+  const cost = calculateReplicateCost({ executionTimeMs });
   
   await logCost({
     jobId,
     taskId,
-    provider: 'runpod',
+    provider: 'replicate',
     executionTimeMs,
     costUsd: cost,
     label,
   });
-
+  
   return cost;
 }
+
+// Legacy alias for backward compatibility
+export const logRunPodCost = logReplicateCost;
+export const calculateRunPodCost = calculateReplicateCost;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // COST REPORTING

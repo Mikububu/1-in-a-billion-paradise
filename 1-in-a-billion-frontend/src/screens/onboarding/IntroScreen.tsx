@@ -40,19 +40,19 @@ export const IntroScreen = ({ navigation }: Props) => {
     // Load music once
     AmbientMusic.load();
 
-    // Wake up RunPod TTS service in background (prevents cold start later)
-    // By the time user reaches waiting screen (2-3 min), RunPod will be warm
-    const wakeRunPod = async () => {
+    // Wake up Replicate TTS service in background (prevents cold start later)
+    // By the time user reaches waiting screen (2-3 min), Replicate will be warm
+    const wakeReplicate = async () => {
       try {
-        console.log('🔥 Warming up TTS service...');
+        console.log('🔥 Warming up TTS service (Replicate)...');
         await audioApi.generateTTS('Hello', { exaggeration: 0.3 });
-        console.log('✅ TTS service ready');
+        console.log('✅ TTS service ready (Replicate)');
       } catch (err) {
         // Non-blocking - don't care if it fails
         console.log('⚠️ TTS warmup failed (non-critical)');
       }
     };
-    wakeRunPod(); // Fire and forget
+    wakeReplicate(); // Fire and forget
 
     // Word highlight animation - Random word selection instead of sequential
     const wordInterval = setInterval(() => {

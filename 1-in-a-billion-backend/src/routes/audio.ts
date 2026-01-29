@@ -257,20 +257,20 @@ router.post('/generate-tts', async (c) => {
 
       return c.json({
         success: true,
-        message: 'Audio generated successfully (Chatterbox via RunPod)',
+        message: 'Audio generated successfully (Chatterbox via Replicate)',
         audioBase64: base64Audio,
         audioUrl: `data:${mime};base64,${base64Audio}`,
         durationSeconds: estimatedDuration,
         format,
-        provider: 'chatterbox-runpod',
+        provider: 'chatterbox-replicate',
         chunks: chunks.length,
       });
 
     } catch (error: any) {
-      console.error('RunPod Chatterbox error:', error.response?.data || error.message);
+      console.error('Replicate Chatterbox error:', error.response?.data || error.message);
       return c.json({
         success: false,
-        message: `Chatterbox (RunPod) failed: ${error.message}`,
+        message: `Chatterbox (Replicate) failed: ${error.message}`,
         error: error.response?.data || error.message,
       }, 500);
     }

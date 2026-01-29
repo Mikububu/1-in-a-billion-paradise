@@ -186,7 +186,7 @@ export const audioApi = {
     }
   },
 
-  // Generate TTS audio using Chatterbox (via RunPod)
+  // Generate TTS audio using Chatterbox (via Replicate)
   generateTTS: async (text: string, options?: {
     exaggeration?: number;
     audioUrl?: string; // Custom voice sample URL
@@ -205,7 +205,7 @@ export const audioApi = {
         exaggeration: options?.exaggeration ?? 0.5,
         audioUrl: options?.audioUrl && options.audioUrl.length > 0 ? options.audioUrl : undefined, // For custom voice cloning
       }, {
-        timeout: 240000, // 4 minute timeout (RunPod cold start ~30s + chunked generation + network)
+        timeout: 240000, // 4 minute timeout (Replicate cold start ~30s + chunked generation + network)
       });
       return response.data;
     } catch (error: any) {

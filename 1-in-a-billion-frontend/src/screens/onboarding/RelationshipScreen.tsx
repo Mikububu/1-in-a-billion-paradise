@@ -69,7 +69,7 @@ export const RelationshipScreen = ({ navigation }: Props) => {
       {/* Gif at bottom - loops automatically */}
       <View style={styles.videoWrapper}>
         <Image
-          source={require('../../../assets/videos/couple-laughing-boomerang.gif')}
+          source={require('../../../assets/videos/couple-laughing-small.gif')}
           style={styles.bottomVideo}
           resizeMode="cover"
         />
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     bottom: -70,
     left: 0,
     right: 0,
-    height: '59.85%', // 10% smaller (66.5% * 0.9)
+    height: '53.87%', // 10% smaller than 59.85% (59.85% * 0.9)
     zIndex: 0, // Background
     opacity: 1, // Back to full opacity
   },

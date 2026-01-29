@@ -2,7 +2,7 @@ import 'react-native-gesture-handler';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { NavigationContainer, DefaultTheme as NavigationDefaultTheme } from '@react-navigation/native';
 import { navigationRef } from '@/navigation/navigationRef';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -30,6 +30,9 @@ export default function App() {
   const user = useAuthStore((state: any) => state.user);
   const isAuthReady = useAuthStore((state: any) => state.isAuthReady);
   const hasSession = !!user;
+
+  // RevenueCat is initialized lazily when needed (in purchase screens)
+  // This avoids NativeEventEmitter errors in Expo Go / dev builds
 
   const [fontsLoaded] = useFonts({
     PlayfairDisplay_600SemiBold,
@@ -66,8 +69,7 @@ export default function App() {
     return null; // Or return a loading screen component
   }
 
-  // Note: Stripe is initialized on-demand in PurchaseScreen, not at app root
-  // This avoids native module crashes in Expo Go
+  // RevenueCat is initialized at app start (see useEffect above)
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>

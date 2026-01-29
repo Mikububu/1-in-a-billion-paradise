@@ -4,15 +4,10 @@
  * Shows different products based on WHERE user came from (mode param).
  * Never shows everything at once - always contextual.
  * 
- * PAYMENT: Stripe (Apple Pay, Google Pay, Cards)
- * REFUND POLICY: All sales final. Manual fixes for technical issues only.
- * Support: contact@1-in-a-billion.app
- * 
- * NOTE: Stripe native modules require a development build (not Expo Go).
- * Developer bypass works regardless of Stripe availability.
+ * PAYMENT: RevenueCat (Apple Pay, Google Pay via native stores)
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -24,13 +19,12 @@ import { useProfileStore, selectPartners } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
 import { PRODUCTS, formatAudioDuration } from '@/config/products';
 import { BackButton } from '@/components/BackButton';
-import {
-  createPaymentIntent,
-  createYearlySubscriptionIntent,
-  mapToProductId,
-  extractSystemFromProductId,
-  getPaymentConfig,
-} from '@/services/payments';
+import { 
+  getOfferings, 
+  purchasePackage, 
+  hasPremiumAccess,
+  restorePurchases,
+} from '@/services/revenuecat';
 
 // Developer bypass emails (for testing without payment)
 const DEV_BYPASS_EMAILS = [
@@ -56,6 +50,7 @@ type Product = {
   price: number;
   meta: string;
   isBundle?: boolean;
+  rcPackage?: any; // RevenueCat package if available
 };
 
 const SYSTEMS = ['Western', 'Vedic', 'Human Design', 'Gene Keys', 'Kabbalah'] as const;
@@ -65,6 +60,8 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
   const [selectedProduct, setSelectedProduct] = useState<string | null>(preselectedProduct || null);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [rcPackages, setRcPackages] = useState<any[]>([]);
+  const [isLoadingOfferings, setIsLoadingOfferings] = useState(true);
 
   // Auth store for user ID and email
   const authUser = useAuthStore(state => state.user);
@@ -80,6 +77,24 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
   const partners = useProfileStore(selectPartners);
   const partnerName = routePartnerName || partners[0]?.name || 'Partner';
 
+  // Load RevenueCat offerings on mount
+  useEffect(() => {
+    const loadOfferings = async () => {
+      try {
+        const offering = await getOfferings();
+        if (offering?.availablePackages) {
+          setRcPackages(offering.availablePackages);
+          console.log('📦 RevenueCat packages loaded:', offering.availablePackages.length);
+        }
+      } catch (error) {
+        console.error('Failed to load offerings:', error);
+      } finally {
+        setIsLoadingOfferings(false);
+      }
+    };
+    loadOfferings();
+  }, []);
+
   // Build products based on mode
   const { title, subtitle, products } = useMemo(() => {
     switch (mode) {
@@ -94,6 +109,7 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
               price: 9.9,
               meta: 'Weekly matching + 1 personal reading',
               isBundle: true,
+              rcPackage: rcPackages.find(p => p.identifier === 'yearly_subscription'),
             },
           ],
         };
@@ -107,6 +123,7 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
               name: `${sys} Deep Dive`,
               price: PRODUCTS.single_system.priceUSD,
               meta: `${PRODUCTS.single_system.pagesMin} page PDF · ${PRODUCTS.single_system.audioMinutes} min audio`,
+              rcPackage: rcPackages.find(p => p.identifier === 'single_system'),
             })),
             {
               id: 'user_all_five',
@@ -114,6 +131,7 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
               price: PRODUCTS.complete_reading.priceUSD,
               meta: `${PRODUCTS.complete_reading.pagesMin} pages · ${formatAudioDuration(PRODUCTS.complete_reading.audioMinutes)} audio · Save $${PRODUCTS.complete_reading.savingsUSD}`,
               isBundle: true,
+              rcPackage: rcPackages.find(p => p.identifier === 'complete_reading'),
             },
           ],
         };
@@ -128,6 +146,7 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
               name: `${sys} Deep Dive`,
               price: PRODUCTS.single_system.priceUSD,
               meta: `${PRODUCTS.single_system.pagesMin} page PDF · ${PRODUCTS.single_system.audioMinutes} min audio`,
+              rcPackage: rcPackages.find(p => p.identifier === 'single_system'),
             })),
             {
               id: 'partner_all_five',
@@ -135,6 +154,7 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
               price: PRODUCTS.complete_reading.priceUSD,
               meta: `${PRODUCTS.complete_reading.pagesMin} pages · ${formatAudioDuration(PRODUCTS.complete_reading.audioMinutes)} audio · Save $${PRODUCTS.complete_reading.savingsUSD}`,
               isBundle: true,
+              rcPackage: rcPackages.find(p => p.identifier === 'complete_reading'),
             },
           ],
         };
@@ -149,6 +169,7 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
               name: `${sys} Overlay`,
               price: PRODUCTS.compatibility_overlay.priceUSD,
               meta: `${PRODUCTS.compatibility_overlay.pagesMin} pages · ${PRODUCTS.compatibility_overlay.audioMinutes} min audio`,
+              rcPackage: rcPackages.find(p => p.identifier === 'compatibility_overlay'),
             })),
             {
               id: 'nuclear_package',
@@ -156,6 +177,7 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
               price: PRODUCTS.nuclear_package.priceUSD,
               meta: `${PRODUCTS.nuclear_package.pagesMin} pages · ${formatAudioDuration(PRODUCTS.nuclear_package.audioMinutes)} audio`,
               isBundle: true,
+              rcPackage: rcPackages.find(p => p.identifier === 'nuclear_package'),
             },
           ],
         };
@@ -171,6 +193,7 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
               price: PRODUCTS.nuclear_package.priceUSD,
               meta: `${PRODUCTS.nuclear_package.pagesMin} pages · ${formatAudioDuration(PRODUCTS.nuclear_package.audioMinutes)} audio`,
               isBundle: true,
+              rcPackage: rcPackages.find(p => p.identifier === 'nuclear_package'),
             },
           ],
         };
@@ -190,7 +213,7 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
           ],
         };
     }
-  }, [mode, userName, partnerName, partners.length]);
+  }, [mode, userName, partnerName, partners.length, rcPackages]);
 
   const selectedProductInfo = products.find(p => p.id === selectedProduct);
 
@@ -290,7 +313,7 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
 
     try {
       // DEVELOPER BYPASS: Skip payment for dev accounts
-      if (isDeveloperAccount) {
+      if (isDeveloperAccount || __DEV__) {
         console.log('🔧 DEV BYPASS: Skipping payment for developer account');
         Alert.alert(
           'Developer Mode',
@@ -301,153 +324,34 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
         return;
       }
 
-      // Try to load Stripe dynamically
-      let stripeModule: any;
-      try {
-        stripeModule = require('@stripe/stripe-react-native');
-      } catch (e) {
-        // Stripe not available - show message
-        Alert.alert(
-          'Payments Not Available',
-          'Payment processing requires a full app build. Please use TestFlight or the production app to make purchases.\n\nNeed help? Contact contact@1-in-a-billion.app',
-          [{ text: 'OK' }]
-        );
-        setIsPurchasing(false);
-        return;
-      }
-
-      // Fetch publishable key (must match secret mode: test vs live)
-      const cfg = await getPaymentConfig();
-      const publishableKey = cfg?.publishableKey?.trim();
-      if (!publishableKey) {
-        Alert.alert(
-          'Payments Not Configured',
-          'Stripe publishable key is missing. This must be configured on the backend (test key for sandbox).\n\nContact contact@1-in-a-billion.app if you need help.',
-          [{ text: 'OK' }]
-        );
-        setIsPurchasing(false);
-        return;
-      }
-
-      // Initialize Stripe native SDK (required for PaymentSheet)
-      // NOTE: This requires a dev build / TestFlight build (Expo Go will not have native modules).
-      if (typeof stripeModule.initStripe === 'function') {
-        await stripeModule.initStripe({
-          publishableKey,
-          merchantIdentifier: 'merchant.com.oneinabillion.app',
-          // Must match app.json scheme for 3DS redirects
-          urlScheme: 'oneinabillion',
-        });
-      }
-
-      const isSubscription = mode === 'subscription' || selectedProduct === 'yearly_subscription';
-
-      // Determine person/partner IDs
-      const isOverlay = selectedProduct.startsWith('overlay_') || selectedProduct === 'nuclear_package';
-      const isPartner = selectedProduct.startsWith('partner_');
+      // Get the RevenueCat package for this product
+      const rcPackage = (selectedProductInfo as Product).rcPackage;
       
-      let paymentIntentClientSecret: string;
-      let customerId: string | undefined;
-      let customerEphemeralKeySecret: string | undefined;
+      if (!rcPackage) {
+        // No RevenueCat package configured - show message
+        Alert.alert(
+          'Product Not Available',
+          'This product is not yet available for purchase. Please try again later or contact support.',
+          [{ text: 'OK' }]
+        );
+        setIsPurchasing(false);
+        return;
+      }
 
-      if (isSubscription) {
-        console.log('💳 Creating yearly subscription...');
-        const sub = await createYearlySubscriptionIntent({
-          userId: userId || 'anonymous',
-          userEmail: userEmail || undefined,
-        });
-        if (!sub.success || !sub.paymentIntentClientSecret || !sub.customerId || !sub.ephemeralKeySecret) {
-          throw new Error(sub.error || 'Failed to create subscription');
-        }
-        paymentIntentClientSecret = sub.paymentIntentClientSecret;
-        customerId = sub.customerId;
-        customerEphemeralKeySecret = sub.ephemeralKeySecret;
+      // Attempt purchase via RevenueCat
+      console.log('💳 Starting RevenueCat purchase for:', rcPackage.identifier);
+      const customerInfo = await purchasePackage(rcPackage);
+      
+      if (customerInfo) {
+        // Purchase successful!
+        console.log('✅ Purchase successful!');
+        setIsPurchasing(false);
+        handlePurchaseSuccess();
       } else {
-        // Map frontend product to backend product ID
-        const backendProductId = mapToProductId(selectedProduct);
-        const systemId = extractSystemFromProductId(selectedProduct);
-
-        // 1. Create PaymentIntent on backend
-        console.log('💳 Creating PaymentIntent for:', backendProductId);
-        const intentResult = await createPaymentIntent({
-          userId,
-          productId: backendProductId,
-          systemId: systemId || undefined,
-          personId: isPartner ? partners[0]?.id : user?.id,
-          partnerId: isOverlay ? partners[0]?.id : undefined,
-          readingType: isOverlay ? 'overlay' : 'individual',
-          userEmail,
-        });
-
-        if (!intentResult.success || !intentResult.clientSecret) {
-          throw new Error(intentResult.error || 'Failed to create payment');
-        }
-
-        paymentIntentClientSecret = intentResult.clientSecret;
-        console.log('💳 PaymentIntent created:', intentResult.paymentIntentId);
+        // User cancelled
+        console.log('ℹ️ Purchase cancelled by user');
+        setIsPurchasing(false);
       }
-      
-      // 2. Initialize Payment Sheet using imperative API
-      const initPaymentSheet = stripeModule.initPaymentSheet;
-      const presentPaymentSheet = stripeModule.presentPaymentSheet;
-      if (typeof initPaymentSheet !== 'function' || typeof presentPaymentSheet !== 'function') {
-        throw new Error('Stripe PaymentSheet API not available. Rebuild the app with Stripe native modules.');
-      }
-      
-      const { error: initError } = await initPaymentSheet({
-        paymentIntentClientSecret: paymentIntentClientSecret,
-        ...(customerId && customerEphemeralKeySecret
-          ? { customerId, customerEphemeralKeySecret }
-          : {}),
-        merchantDisplayName: '1 in a Billion',
-        // Apple Pay configuration
-        applePay: {
-          merchantCountryCode: 'US',
-        },
-        // Google Pay configuration
-        googlePay: {
-          merchantCountryCode: 'US',
-          testEnv: __DEV__, // Use test environment in development
-        },
-        // Appearance customization to match app theme
-        appearance: {
-          colors: {
-            primary: colors.primary,
-            background: colors.background,
-            componentBackground: colors.surface,
-            componentBorder: colors.border,
-            componentDivider: colors.border,
-            primaryText: colors.text,
-            secondaryText: colors.mutedText,
-            placeholderText: colors.mutedText,
-          },
-        },
-        // Return URL for 3DS/redirects
-        returnURL: 'oneinabillion://stripe-redirect',
-      });
-      
-      if (initError) {
-        throw new Error(initError.message);
-      }
-      
-      // 3. Present Payment Sheet
-      console.log('💳 Presenting Payment Sheet...');
-      const { error: presentError } = await presentPaymentSheet();
-      
-      if (presentError) {
-        if (presentError.code === 'Canceled') {
-          // User cancelled - not an error
-          console.log('💳 User cancelled payment');
-          setIsPurchasing(false);
-          return;
-        }
-        throw new Error(presentError.message);
-      }
-      
-      // 4. Payment successful!
-      console.log('✅ Payment successful!');
-      setIsPurchasing(false);
-      handlePurchaseSuccess();
       
     } catch (error: any) {
       console.error('❌ Payment error:', error);
@@ -459,6 +363,25 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
         `${error.message || 'An error occurred during payment.'}\n\nNeed help? Contact contact@1-in-a-billion.app`,
         [{ text: 'OK' }]
       );
+    }
+  };
+
+  const handleRestorePurchases = async () => {
+    setIsPurchasing(true);
+    try {
+      const customerInfo = await restorePurchases();
+      if (customerInfo) {
+        const hasPremium = await hasPremiumAccess();
+        if (hasPremium) {
+          Alert.alert('Purchases Restored', 'Your previous purchases have been restored.', [{ text: 'OK' }]);
+        } else {
+          Alert.alert('No Purchases Found', 'No previous purchases were found for this account.', [{ text: 'OK' }]);
+        }
+      }
+    } catch (error: any) {
+      Alert.alert('Restore Failed', error.message || 'Failed to restore purchases.', [{ text: 'OK' }]);
+    } finally {
+      setIsPurchasing(false);
     }
   };
 
@@ -529,6 +452,13 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
             );
           })}
         </View>
+
+        {/* Restore purchases link */}
+        {mode !== 'all' && (
+          <Pressable onPress={handleRestorePurchases} style={styles.restoreLink}>
+            <Text style={styles.restoreLinkText}>Restore previous purchases</Text>
+          </Pressable>
+        )}
       </ScrollView>
 
       {/* Footer - only show if not in navigation mode */}
@@ -536,7 +466,7 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
         <View style={styles.footer}>
           {selectedProduct && selectedProductInfo ? (
             <>
-              {isDeveloperAccount && (
+              {(isDeveloperAccount || __DEV__) && (
                 <View style={styles.devBadge}>
                   <Text style={styles.devBadgeText}>🔧 DEV MODE - Payment Bypassed</Text>
                 </View>
@@ -632,5 +562,17 @@ const styles = StyleSheet.create({
     fontFamily: typography.sansSemiBold,
     fontSize: 12,
     color: '#856404',
+  },
+
+  // Restore purchases link
+  restoreLink: {
+    marginTop: spacing.lg,
+    alignItems: 'center',
+  },
+  restoreLinkText: {
+    fontFamily: typography.sansRegular,
+    fontSize: 14,
+    color: colors.primary,
+    textDecorationLine: 'underline',
   },
 });

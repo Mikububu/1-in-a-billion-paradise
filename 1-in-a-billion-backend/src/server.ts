@@ -23,7 +23,6 @@ import peopleRouter from './routes/people';
 import profileRouter from './routes/profile';
 import couplesRouter from './routes/couples';
 import chatRouter from './routes/chat';
-import { startAutoScaling } from './services/runpodScaler';
 import { preloadApiKeys } from './services/apiKeys';
 import './services/jobHealthCheck'; // Auto-starts job health check service
 
@@ -88,13 +87,6 @@ if (process.env.ENABLE_TEXT_WORKER !== 'false') {
 preloadApiKeys().catch(err => {
   console.warn('⚠️ API key preload failed (will use env fallback):', err.message);
 });
-
-// Start RunPod auto-scaler (monitors queue depth and scales workers)
-if (process.env.ENABLE_AUTO_SCALER !== 'false') {
-  startAutoScaling().catch(err => {
-    console.warn('⚠️ Auto-scaler failed to start:', err.message);
-  });
-}
 
 serve({
   fetch: app.fetch,

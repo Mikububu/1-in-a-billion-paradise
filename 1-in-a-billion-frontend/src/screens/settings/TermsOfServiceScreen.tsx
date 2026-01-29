@@ -56,7 +56,7 @@ We reserve the right to suspend or terminate accounts that violate these Terms.`
   },
   {
     content: `**Payments**:
-• All purchases for horoscope readings and premium features are processed through **Stripe**
+• All purchases for horoscope readings and premium features are processed through the **App Store** (iOS) or **Google Play** (Android)
 • Prices are displayed in your local currency
 • Due to the personalized nature of our digital content, **all purchases are final and non-refundable**
 

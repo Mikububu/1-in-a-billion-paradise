@@ -1,9 +1,8 @@
 import { SimpleSlider } from '@/components/SimpleSlider';
 import { useMemo, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Video, ResizeMode } from 'expo-av';
 import { Button } from '@/components/Button';
 import { AutocompleteInput, AutocompleteOption } from '@/components/AutocompleteInput';
 import { languages } from '@/data/languages';
@@ -57,15 +56,11 @@ export const LanguagesScreen = ({ navigation }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Video at bottom - fills edges (Background Layer) */}
-      <Video
-        source={require('../../../assets/videos/mouth.mp4')}
-        style={styles.bottomVideo}
-        resizeMode={ResizeMode.COVER}
-        shouldPlay
-        isLooping
-        isMuted
-        rate={0.5}
+      {/* Animated mouth GIF at bottom */}
+      <Image
+        source={require('../../../assets/images/mouth-veo-transparent_1.gif')}
+        style={styles.bottomImage}
+        resizeMode="contain"
       />
 
       {/* Back Button */}
@@ -186,12 +181,14 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm, // Reduced to move button higher
     marginBottom: spacing.xl,
   },
-  bottomVideo: {
+  bottomImage: {
     position: 'absolute',
-    bottom: -30, // Moved up significantly
+    bottom: 0,
     left: 0,
     right: 0,
-    height: '40%', // Smaller height
+    height: '44%',
+    width: '100%',
+    alignSelf: 'center',
     zIndex: 0,
   },
   sliderCard: {
