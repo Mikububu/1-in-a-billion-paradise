@@ -277,14 +277,15 @@ const styles = StyleSheet.create({
   number: {
     fontFamily: typography.headline,
     fontSize: 140,
-    lineHeight: 140,
+    lineHeight: Platform.OS === 'android' ? 120 : 140,
     color: colors.text,
+    marginBottom: Platform.OS === 'android' ? -25 : -10,
   },
   brand: {
     fontFamily: typography.headline,
     fontSize: 32,
     color: colors.text,
-    marginTop: -spacing.sm,
+    marginTop: Platform.OS === 'android' ? 0 : -spacing.sm,
   },
   copyContainer: {
     flexDirection: 'row',
