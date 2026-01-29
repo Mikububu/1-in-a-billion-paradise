@@ -12,6 +12,12 @@ set -euo pipefail
 BRANCH="${1:-main}"
 MSG="${2:-"chore: OTA update via EAS"}"
 
+# Load EXPO_TOKEN from .env.local or .env if not already set (files are gitignored)
+if [[ -z "${EXPO_TOKEN:-}" ]]; then
+  if [[ -f .env.local ]]; then set -a; source .env.local; set +a; fi
+  if [[ -z "${EXPO_TOKEN:-}" && -f .env ]]; then set -a; source .env; set +a; fi
+fi
+
 echo "Publishing EAS update to branch: $BRANCH"
 echo "Message: $MSG"
 

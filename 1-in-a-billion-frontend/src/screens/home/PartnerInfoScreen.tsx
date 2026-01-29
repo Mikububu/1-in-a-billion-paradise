@@ -75,7 +75,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
       // Already have a free partner hook reading - block creating another
       Alert.alert(
         'Already Created',
-        'You already have a free third person reading. You can view it from your hook readings.',
+        'You already have a free third person reading. You can view it in Your Readings.',
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     }
@@ -121,7 +121,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
 
     // HARD LOCK: Block creating second free partner during onboarding
     if (isPrepayOnboarding && existingFreePartner) {
-      Alert.alert('Already Created', 'You already have a free third person reading.');
+      Alert.alert('Already Created', 'You already have a free third person reading. You can view it in Your Readings.');
       return {};
     }
 

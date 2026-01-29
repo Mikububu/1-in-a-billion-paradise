@@ -328,12 +328,15 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
             // Get RevenueCat offerings
             const offering = await getOfferings();
             if (!offering?.availablePackages?.length) {
+                setIsPaying(false);
                 Alert.alert(
                     'Products Not Available',
                     'Unable to load subscription options. Please try again later.',
-                    [{ text: 'OK' }]
+                    [
+                        { text: 'Retry', onPress: () => handleBuy() },
+                        { text: 'Continue without subscribing', onPress: () => navigation.navigate('NameInput', { postPurchase: false }) },
+                    ]
                 );
-                setIsPaying(false);
                 return;
             }
 
@@ -343,12 +346,15 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
             );
 
             if (!yearlyPackage) {
+                setIsPaying(false);
                 Alert.alert(
                     'Subscription Not Available',
                     'The yearly subscription is not currently available. Please try again later.',
-                    [{ text: 'OK' }]
+                    [
+                        { text: 'Retry', onPress: () => handleBuy() },
+                        { text: 'Continue without subscribing', onPress: () => navigation.navigate('NameInput', { postPurchase: false }) },
+                    ]
                 );
-                setIsPaying(false);
                 return;
             }
 
