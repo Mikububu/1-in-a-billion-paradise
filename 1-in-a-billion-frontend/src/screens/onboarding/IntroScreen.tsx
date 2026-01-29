@@ -279,13 +279,13 @@ const styles = StyleSheet.create({
     fontSize: 140,
     lineHeight: Platform.OS === 'android' ? 120 : 140,
     color: colors.text,
-    marginBottom: Platform.OS === 'android' ? -25 : -10,
+    marginBottom: Platform.OS === 'android' ? 10 : 0,
   },
   brand: {
     fontFamily: typography.headline,
     fontSize: 32,
     color: colors.text,
-    marginTop: Platform.OS === 'android' ? 0 : -spacing.sm,
+    marginTop: Platform.OS === 'android' ? spacing.sm : -spacing.sm,
   },
   copyContainer: {
     flexDirection: 'row',
