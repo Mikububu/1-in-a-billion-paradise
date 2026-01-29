@@ -375,6 +375,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
       console.log(`✅ Sign up successful`);
 
       if (data.session) {
+        setEmailAuthState('idle'); // Clear button loading state
         setIsCreatingAccount(true); // Show loading overlay
         
         const { error: sessionError } = await supabase.auth.setSession({
