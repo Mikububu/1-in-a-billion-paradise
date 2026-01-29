@@ -64,10 +64,7 @@ export async function getApiKey(
         'fly_io': 'FLY_ACCESS_TOKEN', // Fly.io deployment token
         'minimax': 'MINIMAX_API_KEY', // MiniMax API for music generation
         'resend': 'RESEND_API_KEY', // Resend API for email notifications
-        'stripe': 'STRIPE_SECRET_KEY', // Stripe payment processing
-        'stripe_publishable': 'STRIPE_PUBLISHABLE_KEY', // Stripe publishable key for mobile SDK
-        'stripe_webhook_secret': 'STRIPE_WEBHOOK_SECRET', // Stripe webhook verification
-        'stripe_subscription_price_id': 'STRIPE_SUBSCRIPTION_PRICE_ID', // Stripe price id for $9.90/year subscription
+        'revenuecat_secret': 'REVENUECAT_SECRET_KEY', // RevenueCat secret – webhook Authorization: Bearer <key>
       };
 
       const configKey = keyMapping[service];
@@ -137,9 +134,7 @@ export async function preloadApiKeys() {
     'runpod_endpoint',
     'google_places',
     'minimax',
-    'stripe',
-    'stripe_publishable',
-    'stripe_subscription_price_id',
+    'revenuecat_secret',
   ];
 
   console.log('🔄 [API Keys] Preloading keys from Supabase...');

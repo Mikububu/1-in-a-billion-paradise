@@ -1,17 +1,18 @@
 /**
  * REVENUECAT SERVICE - In-App Purchases
- * 
+ *
  * Handles subscription and purchase management via RevenueCat.
  * RevenueCat wraps StoreKit (iOS) and Google Play Billing (Android).
- * 
- * API Keys:
- * - iOS: Use Apple API key from RevenueCat dashboard
- * - Android: Use Google API key from RevenueCat dashboard
- * 
- * Test API Key: sk_HmzWzcdMUKYgIhyLmcJXeqGyDKuwt (for backend/webhooks)
+ *
+ * Test bypass: In __DEV__, premium is granted so you can test the app like Stripe test mode.
+ * Set EXPO_PUBLIC_REVENUECAT_TEST_BYPASS=false to test real RevenueCat in dev.
  */
 
 import { Platform } from 'react-native';
+
+// When true, premium is granted in dev without calling RevenueCat (same as Stripe test mode).
+// Set EXPO_PUBLIC_REVENUECAT_TEST_BYPASS=false in .env to test real RevenueCat in dev.
+const TEST_BYPASS = __DEV__ && (typeof process === 'undefined' || process.env?.EXPO_PUBLIC_REVENUECAT_TEST_BYPASS !== 'false');
 
 // Lazy load RevenueCat to avoid NativeEventEmitter errors in dev builds
 let Purchases: any = null;
@@ -118,6 +119,9 @@ export async function logOutUser(): Promise<void> {
  * Get current customer info (subscription status, entitlements)
  */
 export async function getCustomerInfo(): Promise<any | null> {
+  if (TEST_BYPASS) {
+    return { entitlements: { active: { [ENTITLEMENT_ID]: {} } }, activeSubscriptions: [] };
+  }
   if (!loadRevenueCat() || !isInitialized) return null;
   try {
     const customerInfo = await Purchases.getCustomerInfo();
@@ -130,8 +134,10 @@ export async function getCustomerInfo(): Promise<any | null> {
 
 /**
  * Check if user has premium access
+ * In __DEV__ (test bypass): returns true so you can test the app like Stripe test mode.
  */
 export async function hasPremiumAccess(): Promise<boolean> {
+  if (TEST_BYPASS) return true;
   if (!loadRevenueCat() || !isInitialized) return false;
   try {
     const customerInfo = await Purchases.getCustomerInfo();
@@ -144,14 +150,27 @@ export async function hasPremiumAccess(): Promise<boolean> {
 
 /**
  * Get available offerings (products configured in RevenueCat)
+ * In __DEV__ with test bypass, returns mock offering so purchase screen doesn't break.
  */
 export async function getOfferings(): Promise<any | null> {
-  // Initialize if not already done
+  if (TEST_BYPASS) {
+    // Match identifiers that PurchaseScreen and PostHookOfferScreen look for
+    return {
+      identifier: 'default',
+      serverDescription: '',
+      availablePackages: [
+        { identifier: 'yearly_subscription', packageType: 'ANNUAL', product: { identifier: PRODUCT_IDS.yearly_subscription, title: 'Yearly (Test)' } },
+        { identifier: 'single_system', packageType: 'MONTHLY', product: { identifier: PRODUCT_IDS.single_system, title: 'Single System (Test)' } },
+        { identifier: 'complete_reading', packageType: 'LIFETIME', product: { identifier: PRODUCT_IDS.complete_reading, title: 'Complete (Test)' } },
+        { identifier: 'compatibility_overlay', packageType: 'MONTHLY', product: { identifier: PRODUCT_IDS.compatibility_overlay, title: 'Overlay (Test)' } },
+        { identifier: 'nuclear_package', packageType: 'LIFETIME', product: { identifier: PRODUCT_IDS.nuclear_package, title: 'Nuclear (Test)' } },
+      ],
+    };
+  }
   if (!isInitialized) {
     const success = await initializeRevenueCat();
     if (!success) return null;
   }
-  
   try {
     const offerings = await Purchases.getOfferings();
     if (offerings.current) {
@@ -167,9 +186,13 @@ export async function getOfferings(): Promise<any | null> {
 
 /**
  * Purchase a package
- * Returns CustomerInfo if successful, null if cancelled or failed
+ * In __DEV__ with test bypass, simulates success so flow works when testing.
  */
 export async function purchasePackage(pkg: any): Promise<any | null> {
+  if (TEST_BYPASS) {
+    console.log('🧪 Test bypass: simulating successful purchase');
+    return { entitlements: { active: { [ENTITLEMENT_ID]: {} } }, activeSubscriptions: [] };
+  }
   if (!loadRevenueCat() || !isInitialized) {
     throw new Error('RevenueCat not available');
   }
