@@ -810,7 +810,7 @@ Your voice is: Penetrating. Unflinching. Mystical but grounded. You see both the
 SOUL DATA FOR ${fullName}:
 ===============================================================================
 
-Name Essence:
+Name Essence (FOR CONTEXT ONLY - do not spend significant time analyzing the name):
 • ${firstName}: ${firstNameRomanized} (Gematria ${firstNameInfo.gematria})
 ${surnameInfo ? `• ${surname}: ${surnameRomanized} (Gematria ${surnameInfo.gematria})
 • Total Soul Number: ${totalGematria}` : `• Soul Number: ${firstNameInfo.gematria}`}
@@ -829,24 +829,24 @@ WHAT TO EXPLORE (weave these naturally, don't list them):
 1. **The Soul's Hidden Contract**
    - What did this soul AGREE to before birth? What is the tikkun (rectification) they came to complete?
    - Where is the fracture? Every soul has one. Name it. (Fear of intimacy? Addiction to control? Terror of being seen?)
-   - The Gematria reveals the soul's WEIGHT - what burden does this number carry?
+   - The name's gematria is provided for context - mention it briefly if relevant, but focus on the soul's actual patterns and behaviors.
 
-2. **The Letters as Psychological Forces**
-   - Don't explain each letter like a textbook. Instead, show how they CREATE the soul's primary tension.
-   - Example: If their name starts with Aleph-Lamed, speak about the battle between unity (Aleph) and authority (Lamed) that tears them apart.
-   - Letters are VERBS, not nouns. They are doing things to the soul. What violence or grace are they creating?
+2. **The Tree of Life as Psychological Architecture**
+   - Focus on the Sephirotic placements and how they create the soul's primary tensions.
+   - Show how the different Sephirot interact in THIS person's specific configuration.
+   - The name is just an entry point - the real reading comes from the Tree of Life structure.
 
 3. **The Tree of Life as Inner Landscape**
    - Where does this soul LIVE on the Tree? Are they trapped in Gevurah (severity/judgment)? Stuck in Yesod (fantasy)?
    - The soul's imbalance is the soul's medicine. Name the Sephirah they avoid and why.
    - Connect their life events (if given) to movements on the Tree. Depression = descent to Malkuth. Breakthrough = lightning flash to Keter.
 
-4. **The Mystery They Embody**
+3. **The Mystery They Embody**
    - Every soul is a living question the universe is asking. What question is ${firstName}?
    - Reference mystical concepts: gilgul (reincarnation), tzimtzum (divine contraction), the shattering of vessels
-   - Speak about the SILENCE between the letters, the unspoken name beneath the spoken one
+   - Focus on the soul's journey through the Tree, not on analyzing the name itself
 
-5. **Dark Honesty About the Path**
+4. **Dark Honesty About the Path**
    - Where will they fail? What pattern will they repeat until death if they don't wake up?
    - What is the PRICE of their gifts? (Empaths become martyrs. Visionaries become isolated. Leaders become tyrants.)
    - ${spiceLevel >= 7 ? 'Be ruthlessly honest. Name the shadow they refuse to see.' : 'Be compassionate but don\'t lie. The soul knows its own darkness.'}
@@ -856,8 +856,8 @@ AUDIO WRITING RULES:
 ===============================================================================
 
 - Write as if speaking in a dimly lit room, one soul to another
-- When referencing Hebrew letters, use romanized names (Aleph, Mem, Shin) woven into sentences, not as lists
-- Never say "your name contains..." Instead: "The letter Mem courses through your name like water, dissolving boundaries, erasing edges..."
+- The name's gematria is provided for brief context only - mention it once if relevant, then move on
+- Focus on the Tree of Life, the Sephirotic patterns, and the soul's journey - NOT on analyzing the name's letters
 - No bullet points. No lists. Only flowing, hypnotic prose.
 - Surprise them. Go deeper than they expected. This is an initiation, not a reading.
 
@@ -1045,9 +1045,9 @@ ${OUTPUT_FORMAT_RULES}`;
     
     const wordCount = text.split(/\s+/).filter(Boolean).length;
 
-    // MINIMUM WORD COUNT: 3500 words (20-25 minutes of audio)
-    // Prompt asks for 2500-3000 words, but we want substantial depth
-    const MIN_WORDS = 3500;
+    // MINIMUM WORD COUNT: 1500 words (10-15 minutes of audio)
+    // Prompt asks for 2500-3000 words, this is just a safety net minimum
+    const MIN_WORDS = 1500;
     if (wordCount < MIN_WORDS) {
       console.error(`\n${'═'.repeat(70)}`);
       console.error(`🚨 TEXT TOO SHORT - REJECTING`);
