@@ -800,7 +800,7 @@ NOTE: The name's gematria is context only. Focus your reading on the Tree of Lif
       prompt = buildPersonPrompt({
         system: 'kabbalah' as SystemName,
         personName: targetPerson.name,
-        personData: targetBirthData,
+        personData: targetBirthData || { birthDate: '', birthTime: '', birthPlace: '' },
         chartData: kabbalachChartData,
         spiceLevel,
         style,
