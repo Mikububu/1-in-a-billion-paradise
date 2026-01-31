@@ -3,14 +3,14 @@
  *
  * Processes audio_generation tasks:
  * - Reads text from Storage artifact (full reading ~8000 chars)
- * - Chunks text into 300-char segments (Chatterbox has input limits)
- * - Processes chunks SEQUENTIALLY via RunPod (respects concurrency limits)
+ * - Chunks text into 450-char segments (Chatterbox has input limits)
+ * - Processes chunks SEQUENTIALLY via Replicate (respects rate limits)
  * - Concatenates WAV chunks into single audio
  * - Converts to MP3 (with M4A fallback)
  * - Uploads artifact to Supabase Storage
  * 
  * IMPORTANT: Chunks are processed sequentially, not in parallel, to avoid
- * overwhelming RunPod serverless endpoints which have hard concurrency limits.
+ * overwhelming Replicate API rate limits.
  */
 
 import axios from 'axios';
@@ -23,18 +23,8 @@ import { BaseWorker, TaskResult } from './baseWorker';
 import { JobTask, supabase } from '../services/supabaseClient';
 import { env } from '../config/env';
 import { apiKeys } from '../services/apiKeysHelper';
-import { logRunPodCost } from '../services/costTracking';
 import { getVoiceById, isTurboPresetVoice } from '../config/voices';
-
-const INTRO_SILENCE_SEC = 0.5; // Silence before intro starts
-const POST_INTRO_SILENCE_SEC = 3.0; // Pause after intro ends (breath before reading)
-const INTRO_SYSTEM_NAMES: Record<string, string> = {
-  western: 'Western Astrology',
-  vedic: 'Vedic Astrology',
-  human_design: 'Human Design',
-  gene_keys: 'Gene Keys',
-  kabbalah: 'Kabbalah',
-};
+import { splitIntoChunks, concatenateWavBuffers, AUDIO_CONFIG } from '../services/audioProcessing';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Audio Format Detection
@@ -51,55 +41,9 @@ function isMp3(buf: Buffer): boolean {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Text Chunking (300 chars max to avoid Chatterbox truncation)
+// NOTE: Text chunking and WAV concatenation logic now imported from shared audioProcessing module
+// To adjust chunking or crossfade behavior, edit: src/services/audioProcessing.ts
 // ─────────────────────────────────────────────────────────────────────────────
-
-function splitIntoChunks(text: string, maxChunkLength: number = 300): string[] {
-  // Match sentences ending with punctuation, OR any remaining text at the end
-  const sentenceRegex = /[^.!?]*[.!?]+|[^.!?]+$/g;
-  const sentences = text.match(sentenceRegex) || [text];
-  const chunks: string[] = [];
-  let currentChunk = '';
-
-  for (const sentence of sentences) {
-    const trimmedSentence = sentence.trim();
-    if (!trimmedSentence) continue;
-
-    // If adding this sentence exceeds limit, save current chunk and start new one
-    if (currentChunk && (currentChunk.length + 1 + trimmedSentence.length > maxChunkLength)) {
-      chunks.push(currentChunk.trim());
-      currentChunk = '';
-    }
-
-    // If single sentence exceeds limit, split at word boundaries
-    if (trimmedSentence.length > maxChunkLength) {
-      if (currentChunk) {
-        chunks.push(currentChunk.trim());
-        currentChunk = '';
-      }
-      const words = trimmedSentence.split(/\s+/);
-      let wordChunk = '';
-      for (const word of words) {
-        if (wordChunk && (wordChunk.length + 1 + word.length > maxChunkLength)) {
-          chunks.push(wordChunk.trim());
-          wordChunk = '';
-        }
-        wordChunk = wordChunk ? `${wordChunk} ${word}` : word;
-      }
-      if (wordChunk) {
-        currentChunk = wordChunk;
-      }
-    } else {
-      currentChunk = currentChunk ? `${currentChunk} ${trimmedSentence}` : trimmedSentence;
-    }
-  }
-
-  if (currentChunk.trim()) {
-    chunks.push(currentChunk.trim());
-  }
-
-  return chunks.filter(c => c.length > 0);
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WAV Processing (IEEE Float to PCM conversion, concatenation)
@@ -173,45 +117,7 @@ function convertFloatWavToPcm(buffer: Buffer): Buffer {
   return buffer;
 }
 
-function concatenateWavBuffers(buffers: Buffer[]): Buffer {
-  if (buffers.length === 0) return Buffer.alloc(0);
-  if (buffers.length === 1) return convertFloatWavToPcm(buffers[0]!);
-
-  const audioDataChunks: Buffer[] = [];
-  let sampleRate = 24000;
-  let numChannels = 1;
-
-  for (const buf of buffers) {
-    const converted = convertFloatWavToPcm(buf);
-    const header = parseWavHeader(converted);
-    if (header) {
-      sampleRate = header.sampleRate;
-      numChannels = header.numChannels;
-      audioDataChunks.push(converted.slice(header.dataOffset, header.dataOffset + header.dataSize));
-    }
-  }
-
-  const totalDataSize = audioDataChunks.reduce((sum, chunk) => sum + chunk.length, 0);
-
-  // Create WAV header
-  const wavHeader = Buffer.alloc(44);
-  wavHeader.write('RIFF', 0);
-  wavHeader.writeUInt32LE(36 + totalDataSize, 4);
-  wavHeader.write('WAVE', 8);
-  wavHeader.write('fmt ', 12);
-  wavHeader.writeUInt32LE(16, 16);
-  wavHeader.writeUInt16LE(1, 20); // PCM
-  wavHeader.writeUInt16LE(numChannels, 22);
-  wavHeader.writeUInt32LE(sampleRate, 24);
-  wavHeader.writeUInt32LE(sampleRate * numChannels * 2, 28);
-  wavHeader.writeUInt16LE(numChannels * 2, 32);
-  wavHeader.writeUInt16LE(16, 34);
-  wavHeader.write('data', 36);
-  wavHeader.writeUInt32LE(totalDataSize, 40);
-
-  console.log(`WAV concatenation: ${buffers.length} chunks -> ${totalDataSize} bytes audio data`);
-  return Buffer.concat([wavHeader, ...audioDataChunks]);
-}
+// NOTE: concatenateWavBuffers is now imported from shared audioProcessing module
 
 function buildSilenceWav(durationSec: number, sampleRate = 24000, numChannels = 1): Buffer {
   const totalSamples = Math.max(1, Math.round(durationSec * sampleRate));
@@ -231,32 +137,6 @@ function buildSilenceWav(durationSec: number, sampleRate = 24000, numChannels = 
   wavHeader.write('data', 36);
   wavHeader.writeUInt32LE(pcmData.length, 40);
   return Buffer.concat([wavHeader, pcmData]);
-}
-
-function formatOrdinalDate(d: Date): string {
-  const day = d.getDate();
-  const month = d.toLocaleString('en-US', { month: 'long' });
-  const year = d.getFullYear();
-  const suffix =
-    day % 10 === 1 && day % 100 !== 11 ? 'st' :
-    day % 10 === 2 && day % 100 !== 12 ? 'nd' :
-    day % 10 === 3 && day % 100 !== 13 ? 'rd' : 'th';
-  return `${month} ${day}${suffix}, ${year}`;
-}
-
-export function buildIntroText(params: {
-  person1Name: string;
-  person2Name?: string | null;
-  systems: string[];
-  isSynastry: boolean;
-  timestamp: Date;
-}): string {
-  const systems = params.systems.map((s) => INTRO_SYSTEM_NAMES[s] || s).join(', ');
-  const ts = formatOrdinalDate(params.timestamp);
-  if (params.isSynastry && params.person2Name) {
-    return `This is an introduction to a personalized synastry reading for ${params.person1Name} and ${params.person2Name}, created through the lens of ${systems}. The reading was generated on ${ts} by the One in a Billion app and is powered by forbidden-yoga.com.`;
-  }
-  return `This is an introduction to a personalized soul reading for ${params.person1Name}, created through the lens of ${systems}. The reading was generated on ${ts} by the One in a Billion app and is powered by forbidden-yoga.com.`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -353,8 +233,8 @@ export class AudioWorker extends BaseWorker {
       }
 
       // Chunk size (Turbo supports 500 chars, Original supports 300)
-      // Using 450 as safe default to avoid end-of-audio issues
-      const chunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || '450', 10);
+      // Using config default or env override
+      const chunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || String(AUDIO_CONFIG.CHUNK_MAX_LENGTH), 10);
 
       // ─────────────────────────────────────────────────────────────────────
       // CHUNK TEXT (Turbo supports 500 chars, Original supports 300)
@@ -395,8 +275,11 @@ export class AudioWorker extends BaseWorker {
       const voiceSettings = voice?.turboSettings || {};
       const temperature = voiceSettings.temperature ?? 0.7;
       const top_p = voiceSettings.top_p ?? 0.95;
+      // CRITICAL: Higher repetition_penalty reduces duplicate sentences (default 1.2, max 2.0)
+      // Increased from default to fix "sentences said twice" bug
+      const repetition_penalty = voiceSettings.repetition_penalty ?? 1.5;
       
-      console.log(`🎤 [AudioWorker] Voice settings:`, { temperature, top_p, isTurboPreset });
+      console.log(`🎤 [AudioWorker] Voice settings:`, { temperature, top_p, repetition_penalty, isTurboPreset });
 
       // Replicate chunk generator (works for both preset + custom voices)
       const generateChunkReplicate = async (chunk: string, index: number): Promise<Buffer> => {
@@ -410,6 +293,7 @@ export class AudioWorker extends BaseWorker {
               text: chunk,
               temperature,
               top_p,
+              repetition_penalty, // Reduces duplicate sentences
             };
             
             // TURBO PRESET: Use voice parameter
@@ -431,15 +315,9 @@ export class AudioWorker extends BaseWorker {
             
             const startTime = Date.now();
             
-            // Add 5-minute timeout to prevent hanging forever
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Replicate API timeout after 5 minutes')), 300000)
-            );
-            
-            const output = await Promise.race([
-              replicate.run('resemble-ai/chatterbox-turbo', { input }),
-              timeoutPromise
-            ]);
+            // Call Replicate API - it handles timeouts internally
+            // replicate.run() returns the output directly (or array, need to handle both)
+            const output = await replicate.run('resemble-ai/chatterbox-turbo', { input });
             
             const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
             console.log(`  ⏱️  [Replicate] API call completed in ${elapsed}s`);
@@ -529,46 +407,7 @@ export class AudioWorker extends BaseWorker {
           throw new Error(`Chunk ${index + 1} exhausted retries`);
         };
 
-      // Intro: spoken preface with brief silence before and after (narration only)
-      let introBuffers: Buffer[] = [];
-      try {
-        if (supabase) {
-          const { data: jobRow } = await supabase
-            .from('jobs')
-            .select('params, created_at, type')
-            .eq('id', task.job_id)
-            .single();
-          const params: any = (jobRow as any)?.params || {};
-          const person1Name = params?.person1?.name || 'Person 1';
-          const person2Name = params?.person2?.name || null;
-          const rawSystems: string[] = Array.isArray(params?.systems) && params.systems.length
-            ? params.systems
-            : ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'];
-          const docType = (task.input as any)?.docType || null;
-          const isSynastry =
-            (!!person2Name && (docType === 'overlay' || docType === 'verdict')) ||
-            (jobRow as any)?.type === 'synastry';
-          const isPerson2Doc = docType === 'person2' && !!person2Name;
-          // For person2 docs, it's a solo reading about person2, NOT synastry
-          const finalIsSynastry = isPerson2Doc ? false : isSynastry;
-          const finalPerson2Name = isPerson2Doc ? null : (isSynastry ? person2Name : null);
-          const introText = buildIntroText({
-            person1Name: isPerson2Doc ? person2Name! : person1Name,
-            person2Name: finalPerson2Name,
-            systems: rawSystems,
-            isSynastry: finalIsSynastry,
-            timestamp: new Date(),
-          });
-          const introChunks = splitIntoChunks(introText, chunkSize);
-          for (let i = 0; i < introChunks.length; i++) {
-            const buf = await generateChunkReplicate(introChunks[i]!, i);
-            introBuffers.push(buf);
-          }
-        }
-      } catch (e) {
-        console.warn('⚠️ [AudioWorker] Intro prep failed, continuing without intro:', (e as any)?.message || e);
-        introBuffers = [];
-      }
+      // NOTE: We intentionally do NOT generate any spoken introductions.
 
         // Generate all chunks with Replicate
         const startTime = Date.now();
@@ -600,9 +439,22 @@ export class AudioWorker extends BaseWorker {
           audioBuffers = results.map(r => r.buffer);
         } else {
           console.log(`🚀 [AudioWorker] Starting SEQUENTIAL Replicate generation of ${chunks.length} chunks (${chunkDelayMs}ms delay)...`);
+          const generationStartTime = Date.now();
           for (let i = 0; i < chunks.length; i++) {
+            const chunkStartTime = Date.now();
+            console.log(`\n${'═'.repeat(70)}`);
+            console.log(`🎵 [AudioWorker] Chunk ${i + 1}/${chunks.length} (${chunks[i]!.length} chars)`);
+            console.log(`   Preview: ${chunks[i]!.substring(0, 80)}...`);
+            console.log(`${'═'.repeat(70)}\n`);
+            
             const buffer = await generateChunkReplicate(chunks[i]!, i);
             audioBuffers.push(buffer);
+            
+            const chunkElapsed = ((Date.now() - chunkStartTime) / 1000).toFixed(1);
+            const totalElapsed = ((Date.now() - generationStartTime) / 1000 / 60).toFixed(1);
+            const avgTimePerChunk = ((Date.now() - generationStartTime) / 1000 / (i + 1)).toFixed(1);
+            const estimatedRemaining = ((chunks.length - i - 1) * parseFloat(avgTimePerChunk) / 60).toFixed(1);
+            console.log(`✅ [AudioWorker] Chunk ${i + 1}/${chunks.length} done in ${chunkElapsed}s | Total: ${totalElapsed}m | Est. remaining: ${estimatedRemaining}m`);
             
             // Add delay between chunks (except after last chunk)
             if (i < chunks.length - 1 && chunkDelayMs > 0) {
@@ -627,11 +479,8 @@ export class AudioWorker extends BaseWorker {
       console.log('═'.repeat(70) + '\n');
 
       // Concatenate and convert to M4A (primary format only, no MP3 fallback)
-      const silence = buildSilenceWav(INTRO_SILENCE_SEC);
-      const postIntroSilence = buildSilenceWav(POST_INTRO_SILENCE_SEC);
-      const wavAudio = introBuffers.length
-        ? concatenateWavBuffers([silence, ...introBuffers, postIntroSilence, ...audioBuffers])
-        : concatenateWavBuffers(audioBuffers);
+      const wavAudio = concatenateWavBuffers(audioBuffers);
+
       const m4a = await convertWavToM4a(wavAudio);
       const duration = Math.ceil((wavAudio.length - 44) / 48000);
 

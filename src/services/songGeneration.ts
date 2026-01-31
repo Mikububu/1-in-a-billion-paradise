@@ -4,12 +4,20 @@
  * Generates a full song with vocals using MiniMax Music API.
  * Takes lyrics and generates a 3-minute song with deep male vocals,
  * dark poetic style (70% Leonard Cohen, 20% Paul Simon, 10% Tom Waits).
+ * 
+ * Updated January 2026 for Music 2.5:
+ * - New API endpoint: api.minimax.io (not platform.minimax.io)
+ * - Enhanced structure tags: [Intro], [Verse], [Pre Chorus], [Chorus], 
+ *   [Interlude], [Bridge], [Outro], [Post Chorus], [Transition], [Break],
+ *   [Hook], [Build Up], [Inst], [Solo]
+ * - Better vocal performance with humanized timbre
+ * - Improved instrumentation and mixing
  */
 
 import { apiKeys } from './apiKeysHelper';
 import axios from 'axios';
 
-// CORRECT API endpoint per MiniMax docs: https://platform.minimax.io/docs/api-reference/music-generation
+// Updated API endpoint (January 2026) - api.minimax.io is the correct domain
 const MINIMAX_MUSIC_BASE_URL = 'https://api.minimax.io';
 
 export interface Persona {
@@ -83,7 +91,7 @@ export async function generateSong(input: SongGenerationInput): Promise<SongGene
         'Content-Type': 'application/json',
       },
       data: {
-        model: 'music-2.0', // Updated per MiniMax docs
+        model: 'music-2.5', // Use music-2.5 (latest model per MiniMax docs)
         prompt,
         lyrics,
         output_format: 'url', // Get URL instead of hex-encoded audio

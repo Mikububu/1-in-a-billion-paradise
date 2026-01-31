@@ -10,6 +10,7 @@ export interface TurboVoiceSettings {
     top_p?: number;
     cfg_weight?: number;
     exaggeration?: number;
+    repetition_penalty?: number; // Reduces duplicate sentences (default 1.2, range 1.0-2.0)
 }
 
 export interface Voice {

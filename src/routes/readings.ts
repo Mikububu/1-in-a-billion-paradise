@@ -140,6 +140,7 @@ router.post('/placements', async (c) => {
 
 router.post('/sun', async (c) => {
   const parsed = payloadSchema.parse(await c.req.json());
+  const nocache = c.req.query('nocache') === 'true';
   
   // DEBUG: Log incoming data
   console.log('☉ [Sun] Incoming request:', {
@@ -148,6 +149,7 @@ router.post('/sun', async (c) => {
     timezone: parsed.timezone,
     lat: parsed.latitude,
     lng: parsed.longitude,
+    nocache,
   });
   
   // VALIDATION: Reject invalid coordinates
@@ -157,8 +159,15 @@ router.post('/sun', async (c) => {
   }
   
   const cacheKey = JSON.stringify({ type: 'sun', parsed });
-  const cached = sunCache.get(cacheKey);
-  if (cached) return c.json({ ...cached, metadata: { ...cached.metadata, cacheHit: true } });
+  if (!nocache) {
+    const cached = sunCache.get(cacheKey);
+    if (cached) {
+      console.log('✅ [Sun] Returning CACHED reading');
+      return c.json({ ...cached, metadata: { ...cached.metadata, cacheHit: true } });
+    }
+  } else {
+    console.log('🔥 [Sun] NOCACHE mode - bypassing cache, generating fresh reading');
+  }
 
   const placements = await swissEngine.computePlacements(parsed);
   const { reading, source } = await deepSeekClient.generateHookReading({ 
@@ -174,6 +183,7 @@ router.post('/sun', async (c) => {
 
 router.post('/moon', async (c) => {
   const parsed = payloadSchema.parse(await c.req.json());
+  const nocache = c.req.query('nocache') === 'true';
   
   // DEBUG: Log incoming data
   console.log('☽ [Moon] Incoming request:', {
@@ -182,6 +192,7 @@ router.post('/moon', async (c) => {
     timezone: parsed.timezone,
     lat: parsed.latitude,
     lng: parsed.longitude,
+    nocache,
   });
   
   // VALIDATION: Reject invalid coordinates
@@ -191,8 +202,15 @@ router.post('/moon', async (c) => {
   }
   
   const cacheKey = JSON.stringify({ type: 'moon', parsed });
-  const cached = moonCache.get(cacheKey);
-  if (cached) return c.json({ ...cached, metadata: { ...cached.metadata, cacheHit: true } });
+  if (!nocache) {
+    const cached = moonCache.get(cacheKey);
+    if (cached) {
+      console.log('✅ [Moon] Returning CACHED reading');
+      return c.json({ ...cached, metadata: { ...cached.metadata, cacheHit: true } });
+    }
+  } else {
+    console.log('🔥 [Moon] NOCACHE mode - bypassing cache, generating fresh reading');
+  }
 
   const placements = await swissEngine.computePlacements(parsed);
   const { reading, source } = await deepSeekClient.generateHookReading({ 
@@ -208,6 +226,7 @@ router.post('/moon', async (c) => {
 
 router.post('/rising', async (c) => {
   const parsed = payloadSchema.parse(await c.req.json());
+  const nocache = c.req.query('nocache') === 'true';
   
   // DEBUG: Log incoming data
   console.log('↑ [Rising] Incoming request:', {
@@ -216,6 +235,7 @@ router.post('/rising', async (c) => {
     timezone: parsed.timezone,
     lat: parsed.latitude,
     lng: parsed.longitude,
+    nocache,
   });
   
   // VALIDATION: Reject invalid coordinates
@@ -225,8 +245,15 @@ router.post('/rising', async (c) => {
   }
   
   const cacheKey = JSON.stringify({ type: 'rising', parsed });
-  const cached = risingCache.get(cacheKey);
-  if (cached) return c.json({ ...cached, metadata: { ...cached.metadata, cacheHit: true } });
+  if (!nocache) {
+    const cached = risingCache.get(cacheKey);
+    if (cached) {
+      console.log('✅ [Rising] Returning CACHED reading');
+      return c.json({ ...cached, metadata: { ...cached.metadata, cacheHit: true } });
+    }
+  } else {
+    console.log('🔥 [Rising] NOCACHE mode - bypassing cache, generating fresh reading');
+  }
 
   const placements = await swissEngine.computePlacements(parsed);
   const { reading, source } = await deepSeekClient.generateHookReading({ 

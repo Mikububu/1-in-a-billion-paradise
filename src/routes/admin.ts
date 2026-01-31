@@ -14,7 +14,7 @@ import { SYSTEM_LLM_PROVIDERS, type LLMProviderName, type ReadingSystem } from '
 import { llm, llmPaid } from '../services/llm';
 import { apiKeys } from '../services/apiKeysHelper';
 import { env } from '../config/env';
-import { getTodayCosts, getMonthCosts, getCostSummary, LLM_PRICING, RUNPOD_PRICING } from '../services/costTracking';
+import { getTodayCosts, getMonthCosts, getCostSummary, LLM_PRICING, REPLICATE_PRICING } from '../services/costTracking';
 
 const router = new Hono();
 
@@ -1650,7 +1650,7 @@ router.get('/costs/logs', requirePermission('analytics', 'read'), async (c) => {
 router.get('/costs/pricing', requirePermission('analytics', 'read'), async (c) => {
   return c.json({
     llm: LLM_PRICING,
-    runpod: RUNPOD_PRICING,
+    replicate: REPLICATE_PRICING,
     note: 'Prices in USD. LLM prices are per 1M tokens.',
   });
 });

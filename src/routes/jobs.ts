@@ -20,17 +20,19 @@ import { env } from '../config/env';
 import axios from 'axios';
 import { llm, llmPaid } from '../services/llm'; // llm = DeepSeek (hooks), llmPaid = Claude (deep readings)
 import { checkUserSubscription, markIncludedReadingUsed } from '../services/subscriptionService';
-import { SYSTEMS as NUCLEAR_V2_SYSTEMS, SYSTEM_DISPLAY_NAMES as NUCLEAR_V2_SYSTEM_NAMES, type SystemName as NuclearV2SystemName, NUCLEAR_DOCS, VERDICT_DOC, buildPersonPrompt, buildOverlayPrompt as buildNuclearV2OverlayPrompt, buildVerdictPrompt } from '../prompts/structures/paidReadingPrompts';
+import {
+  SYSTEMS as NUCLEAR_V2_SYSTEMS,
+  SYSTEM_DISPLAY_NAMES as NUCLEAR_V2_SYSTEM_NAMES,
+  type SystemName as NuclearV2SystemName,
+  NUCLEAR_DOCS,
+  VERDICT_DOC,
+  buildPersonPrompt,
+  buildOverlayPrompt,
+  buildVerdictPrompt,
+} from '../prompts/structures/paidReadingPrompts';
 import archiver from 'archiver';
 import { PassThrough, Readable } from 'node:stream';
-import {
-  buildIndividualPrompt,
-  buildOverlayPrompt,
-  PersonData,
-  ChartData,
-  StyleName,
-  SpiceLevel,
-} from '../prompts';
+import { SpiceLevel, StyleName } from '../prompts/spice/levels';
 import { generateChapterPDF } from '../services/pdf/pdfGenerator';
 
 const router = new Hono();
@@ -1251,6 +1253,15 @@ router.get('/:jobId', async (c) => {
 // HELPER: Build ChartData from Swiss Ephemeris placements
 // ═══════════════════════════════════════════════════════════════════════════
 
+interface ChartData {
+  western?: string;
+  vedic?: string;
+  geneKeys?: string;
+  humanDesign?: string;
+  kabbalah?: string;
+  synastry?: string;
+}
+
 function buildChartData(
   name: string,
   placements: any,
@@ -1342,8 +1353,7 @@ jobQueue.registerProcessor('extended', async (job, updateProgress) => {
 
     const chartData = buildChartData(person1.name, placements);
 
-    const p1Data: PersonData = {
-      name: person1.name,
+    const p1BirthData = {
       birthDate: person1.birthDate,
       birthTime: person1.birthTime,
       birthPlace: `${person1.latitude.toFixed(2)}°N, ${person1.longitude.toFixed(2)}°E`,
@@ -1364,14 +1374,13 @@ jobQueue.registerProcessor('extended', async (job, updateProgress) => {
         currentStep: `${system} - Claude API call`,
       });
 
-      const prompt = buildIndividualPrompt({
-        type: 'individual',
-        style: writingStyle,
+      const prompt = buildPersonPrompt({
+        system: system as NuclearV2SystemName,
+        personName: person1.name,
+        personData: p1BirthData,
+        chartData: JSON.stringify(chartData),
         spiceLevel,
-        system: system as any,
-        voiceMode: 'other', // 3rd person (using NAME)
-        person: p1Data,
-        chartData,
+        style: writingStyle,
       });
 
       const reading = await llmPaid.generate(prompt, `extended-${system}`);
@@ -1459,20 +1468,6 @@ jobQueue.registerProcessor('synastry', async (job, updateProgress) => {
 
     const chartData = buildChartData(person1.name, p1Placements, p2Placements, person2.name);
 
-    const p1Data: PersonData = {
-      name: person1.name,
-      birthDate: person1.birthDate,
-      birthTime: person1.birthTime,
-      birthPlace: `${person1.latitude.toFixed(2)}°N, ${person1.longitude.toFixed(2)}°E`,
-    };
-
-    const p2Data: PersonData = {
-      name: person2.name,
-      birthDate: person2.birthDate,
-      birthTime: person2.birthTime,
-      birthPlace: `${person2.latitude.toFixed(2)}°N, ${person2.longitude.toFixed(2)}°E`,
-    };
-
     updateProgress({
       percent: 20,
       phase: 'text',
@@ -1481,13 +1476,12 @@ jobQueue.registerProcessor('synastry', async (job, updateProgress) => {
     });
 
     const prompt = buildOverlayPrompt({
-      type: 'overlay',
-      style: writingStyle,
+      system: system as NuclearV2SystemName,
+      person1Name: person1.name,
+      person2Name: person2.name,
+      chartData: JSON.stringify(chartData),
       spiceLevel,
-      system: system as any,
-      person1: p1Data,
-      person2: p2Data,
-      chartData,
+      style: writingStyle,
     });
 
     const reading = await llmPaid.generate(prompt, `synastry-${system}`);
@@ -1654,7 +1648,7 @@ jobQueue.registerProcessor('nuclear_v2', async (job, updateProgress) => {
         callsTotal: totalDocs,
       });
 
-      const overlayPrompt = buildNuclearV2OverlayPrompt({
+      const overlayPrompt = buildOverlayPrompt({
         system,
         person1Name: person1.name,
         person2Name: person2.name,

@@ -351,16 +351,151 @@ class LLMService {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// EXPORT TWO INSTANCES
+// FALLBACK LLM SERVICE (REQUIREMENT #8)
+// ═══════════════════════════════════════════════════════════════════════════
+// If one LLM fails, automatically try the next in the chain.
+// Modular design allows adding new providers (GPT, Minimax) without rewriting.
+
+/**
+ * Default fallback order - can be customized per use case
+ */
+const DEFAULT_FALLBACK_CHAIN: LLMProvider[] = ['deepseek', 'claude', 'openai'];
+const PAID_FALLBACK_CHAIN: LLMProvider[] = ['claude', 'deepseek', 'openai'];
+
+class FallbackLLMService {
+  private primaryProvider: LLMProvider;
+  private fallbackChain: LLMProvider[];
+
+  constructor(primaryProvider: LLMProvider, fallbackChain?: LLMProvider[]) {
+    this.primaryProvider = primaryProvider;
+    this.fallbackChain = fallbackChain || [primaryProvider, ...DEFAULT_FALLBACK_CHAIN.filter(p => p !== primaryProvider)];
+    console.log(`🔄 Fallback LLM initialized: ${this.fallbackChain.join(' → ')}`);
+  }
+
+  /**
+   * Generate with automatic fallback to next provider on failure
+   * 
+   * Tries each provider in the fallback chain until one succeeds.
+   * Each provider gets its own retry attempts before moving to next.
+   */
+  async generateWithFallback(prompt: string, label: string, options?: {
+    maxTokens?: number;
+    temperature?: number;
+    retriesPerProvider?: number;
+  }): Promise<{ text: string; provider: LLMProvider; usedFallback: boolean }> {
+    const retriesPerProvider = options?.retriesPerProvider || 2; // 2 retries per provider before fallback
+    let lastError: Error | null = null;
+
+    for (let i = 0; i < this.fallbackChain.length; i++) {
+      const provider = this.fallbackChain[i];
+      const config = PROVIDER_CONFIG[provider];
+      const isFirstProvider = i === 0;
+
+      if (!isFirstProvider) {
+        console.log(`🔄 FALLBACK: Trying ${config.emoji} ${config.name} (${i + 1}/${this.fallbackChain.length})`);
+      }
+
+      try {
+        const llmInstance = new LLMService(provider);
+        const text = await llmInstance.generate(prompt, label, {
+          maxTokens: options?.maxTokens,
+          temperature: options?.temperature,
+          maxRetries: retriesPerProvider,
+          provider,
+        });
+
+        // Success!
+        if (!isFirstProvider) {
+          console.log(`✅ FALLBACK SUCCESS: ${config.name} worked after ${this.fallbackChain.slice(0, i).join(', ')} failed`);
+        }
+
+        return {
+          text,
+          provider,
+          usedFallback: !isFirstProvider,
+        };
+
+      } catch (error: any) {
+        lastError = error;
+        const isRefusal = error.message?.includes('refuse') || 
+                         error.message?.includes('cannot') ||
+                         error.message?.includes('inappropriate');
+        
+        if (isRefusal) {
+          console.warn(`⚠️ ${config.name} refused the request (content policy), trying next provider...`);
+        } else {
+          console.warn(`⚠️ ${config.name} failed: ${error.message?.slice(0, 100)}, trying next provider...`);
+        }
+      }
+    }
+
+    // All providers failed
+    console.error(`❌ ALL LLM PROVIDERS FAILED for [${label}]. Last error:`, lastError?.message);
+    throw new Error(`All LLM providers failed (tried: ${this.fallbackChain.join(', ')}). Last error: ${lastError?.message}`);
+  }
+
+  /**
+   * Streaming generation with fallback
+   * Note: Fallback only happens before streaming starts. Once streaming begins,
+   * a failure mid-stream will not fallback (to avoid partial duplicate content).
+   */
+  async generateStreamingWithFallback(prompt: string, label: string, options?: {
+    maxTokens?: number;
+    temperature?: number;
+    onChunk?: (chunk: string) => void;
+  }): Promise<{ text: string; provider: LLMProvider; usedFallback: boolean }> {
+    let lastError: Error | null = null;
+
+    for (let i = 0; i < this.fallbackChain.length; i++) {
+      const provider = this.fallbackChain[i];
+      const config = PROVIDER_CONFIG[provider];
+      const isFirstProvider = i === 0;
+
+      if (!isFirstProvider) {
+        console.log(`🔄 STREAMING FALLBACK: Trying ${config.emoji} ${config.name}`);
+      }
+
+      try {
+        const llmInstance = new LLMService(provider);
+        const text = await llmInstance.generateStreaming(prompt, label, options);
+
+        return {
+          text,
+          provider,
+          usedFallback: !isFirstProvider,
+        };
+
+      } catch (error: any) {
+        lastError = error;
+        console.warn(`⚠️ ${config.name} streaming failed: ${error.message?.slice(0, 100)}`);
+      }
+    }
+
+    throw new Error(`All LLM providers failed for streaming [${label}]. Last error: ${lastError?.message}`);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EXPORT INSTANCES
 // ═══════════════════════════════════════════════════════════════════════════
 
-// Default instance for hook readings (fast, cheap)
+// Default instance for hook readings (fast, cheap) - with fallback chain
 export const llm = new LLMService();
+
+// Fallback-enabled instance for hook readings
+export const llmWithFallback = new FallbackLLMService('deepseek', DEFAULT_FALLBACK_CHAIN);
 
 // Paid instance for deep readings (extended, nuclear_v2, synastry, overlays)
 // 🎯 ONE LINE TO CHANGE: Set PAID_LLM_PROVIDER in env.ts
 export const llmPaid = new LLMService(env.PAID_LLM_PROVIDER as LLMProvider);
 
+// Fallback-enabled paid instance - tries Claude first, then others
+export const llmPaidWithFallback = new FallbackLLMService(
+  (env.PAID_LLM_PROVIDER as LLMProvider) || 'claude',
+  PAID_FALLBACK_CHAIN
+);
+
 // Export types for external use
 export type { LLMProvider };
+export { FallbackLLMService };
 

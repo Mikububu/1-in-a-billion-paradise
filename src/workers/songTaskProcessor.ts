@@ -308,8 +308,59 @@ export async function processSongTask(task: { id: string; job_id: string; input:
 
     console.log(`✅ Song task ${task.id} (doc ${docNum}) completed successfully!`);
   } catch (error: any) {
+    // ========================================================================
+    // REQUIREMENT #9: Graceful Minimax Failure Handling
+    // ========================================================================
+    // Instead of failing the task completely, create a "failed" artifact
+    // so the frontend can still show readings/audio with an error message
+    // for the song component.
+    // ========================================================================
     console.error(`❌ Song task ${task.id} (doc ${docNum}) failed:`, error);
-    throw error;
+    
+    const errorMessage = error.message?.slice(0, 200) || 'Unknown error';
+    const isMinimaxError = errorMessage.includes('MiniMax') || 
+                          errorMessage.includes('song') ||
+                          errorMessage.includes('audio');
+    
+    // Create a "failed" artifact so frontend knows this song failed
+    // but can still display the rest of the reading
+    try {
+      const { error: artifactError } = await supabase!
+        .from('job_artifacts')
+        .insert({
+          job_id: job_id,
+          task_id: task.id,
+          artifact_type: 'audio_song',
+          storage_path: null, // No file
+          public_url: null,   // No URL
+          metadata: {
+            docNum,
+            docType,
+            system,
+            title: `Song Generation Failed`,
+            lyrics: null,
+            duration: 0,
+            // CRITICAL: Include error info for frontend
+            error: true,
+            errorMessage: isMinimaxError 
+              ? 'Song generation is temporarily unavailable. Your reading and narration are still available below.'
+              : `Song generation failed: ${errorMessage}. Your reading and narration are still available.`,
+            failedAt: new Date().toISOString(),
+          },
+        });
+
+      if (artifactError) {
+        console.error('Failed to create error artifact:', artifactError);
+      } else {
+        console.log(`📝 Created fallback artifact for failed song (doc ${docNum})`);
+      }
+    } catch (fallbackError) {
+      console.error('Failed to create fallback artifact:', fallbackError);
+    }
+    
+    // Don't throw - the task "succeeds" with an error artifact
+    // This prevents the job from being stuck in "processing" state
+    console.log(`⚠️ Song task ${task.id} (doc ${docNum}) completed with error artifact`);
   }
 }
 

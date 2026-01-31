@@ -63,78 +63,21 @@ router.post('/signup', async (c) => {
             ? { full_name: name.trim() }
             : {};
 
-        // DEV MODE: Auto-confirm email (bypasses email confirmation)
-        // PRODUCTION: Require email confirmation
-        if (env.DEV_AUTO_CONFIRM_EMAIL) {
-            console.log('⚠️ DEV MODE: Auto-confirming email (bypassing email confirmation)');
-            
-            // Use admin API to create pre-confirmed user
-            const { data: createData, error: createError } = await supabase.auth.admin.createUser({
-                email,
-                password,
-                email_confirm: true, // Auto-confirm in DEV mode
-                user_metadata: userMetadata,
-            });
-
-            if (createError) {
-                console.error('❌ Signup error:', createError.message);
-                const msg = (createError.message || '').toLowerCase();
-                if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('duplicate')) {
-                    return c.json({
-                        success: false,
-                        code: 'ACCOUNT_EXISTS',
-                        error: 'Account already exists. Please sign in.',
-                    }, 409);
-                }
-                return c.json({
-                    success: false,
-                    error: createError.message
-                }, 400);
-            }
-
-            // Auto sign-in after creating account
-            const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-                email,
-                password,
-            });
-
-            if (signInError) {
-                console.error('❌ Auto sign-in error:', signInError.message);
-                return c.json({
-                    success: false,
-                    error: 'Account created but sign-in failed: ' + signInError.message
-                }, 400);
-            }
-
-            console.log('✅ DEV MODE: Account created and auto-signed in');
-
-            return c.json({
-                success: true,
-                user: signInData.user,
-                session: signInData.session,
-                devMode: true, // Indicate this was DEV mode
-                clearLocalStorage: true, // Signal frontend to clear AsyncStorage for fresh start
-            });
-        }
-
-        // PRODUCTION MODE: Create user with email confirmation required
-        // User will receive confirmation email
-        console.log('📧 PRODUCTION MODE: Email confirmation required');
-        const { data: createData, error: createError } = await supabase.auth.signUp({
+        // ALWAYS auto-confirm email (no email confirmation required)
+        console.log('✅ Auto-confirming email (no confirmation email required)');
+        
+        // Use admin API to create pre-confirmed user
+        const { data: createData, error: createError } = await supabase.auth.admin.createUser({
             email,
             password,
-            options: {
-                emailRedirectTo: `${env.FRONTEND_URL || 'oneinabillion://auth/confirm'}`,
-                data: userMetadata, // Store name in user_metadata
-            },
+            email_confirm: true, // Auto-confirm email
+            user_metadata: userMetadata,
         });
 
         if (createError) {
             console.error('❌ Signup error:', createError.message);
-            // Make this deterministic for the frontend:
-            // Supabase commonly returns "User already registered"
             const msg = (createError.message || '').toLowerCase();
-            if (msg.includes('already registered') || msg.includes('already exists')) {
+            if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('duplicate')) {
                 return c.json({
                     success: false,
                     code: 'ACCOUNT_EXISTS',
@@ -147,14 +90,27 @@ router.post('/signup', async (c) => {
             }, 400);
         }
 
-        console.log('✅ Account created - email confirmation required');
+        // Auto sign-in after creating account
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
 
-        // User needs to confirm email before signing in
+        if (signInError) {
+            console.error('❌ Auto sign-in error:', signInError.message);
+            return c.json({
+                success: false,
+                error: 'Account created but sign-in failed: ' + signInError.message
+            }, 400);
+        }
+
+        console.log('✅ Account created and auto-signed in');
+
         return c.json({
             success: true,
-            message: 'Account created. Please check your email to confirm your account.',
-            user: createData.user,
-            requiresConfirmation: !createData.session, // No session if email not confirmed
+            user: signInData.user,
+            session: signInData.session,
+            clearLocalStorage: true, // Signal frontend to clear AsyncStorage for fresh start
         });
 
     } catch (error: any) {
