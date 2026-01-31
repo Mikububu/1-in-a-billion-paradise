@@ -39,6 +39,9 @@ COPY --from=builder /app/node_modules ./node_modules
 # Copy assets (fonts for PDF generation)
 COPY --from=builder /app/assets ./assets
 
+# CRITICAL: Copy prompts folder (required by promptLoader.ts for deep readings)
+COPY --from=builder /app/prompts ./prompts
+
 # Copy runtime files
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh

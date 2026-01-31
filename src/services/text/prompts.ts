@@ -349,11 +349,14 @@ STRUCTURE (3RD PERSON - use "${name}" not "you"):
 
 "preamble": (40-50 words):
   ${ctx.type === 'sun'
-        ? `"${name}, born on ${formattedDate}..." (COPY DATE EXACTLY)
-  MUST include exact position: "${sunPos}" (${sunDecan})${sunHouse ? `, ${sunHouse}` : ''}
+        ? `Start with factual birth statement: "${name}, born on ${formattedDate}${ctx.birthPlace ? ` in ${ctx.birthPlace}` : ''}..." (COPY DATE AND CITY EXACTLY)
+  MUST include exact position: "${sunPos}" - use poetic language like "${sunDecan}"
+  ${sunHouse ? `MUST mention ${sunHouse}` : ''}
+  NEVER use the word "decan" - use the poetic description instead
   Emphasize this is SPECIFIC to ${sunDeg?.degree || '?'} degrees, not generic ${sign}`
         : `Explain what ${ctx.type === 'moon' ? 'Moon sign' : 'Rising sign'} reveals about ${name}.
   MUST include exact position: "${partnerCurrentPos}" (${partnerCurrentDecan})${partnerCurrentHouse ? `, ${partnerCurrentHouse}` : ''}
+  NEVER use the word "decan" - use the poetic description instead
   Emphasize this is SPECIFIC to ${ctx.type === 'moon' ? moonDeg?.degree : risingDeg?.degree || '?'} degrees, not generic ${sign}
   NO birthday.`}
 
@@ -431,11 +434,14 @@ STRUCTURE:
 
 "preamble": (40-50 words):
   ${ctx.type === 'sun'
-      ? `Start directly with psychological observation (use examples like: "${greetingOptions}")
-  MUST include: "born on ${formattedDate}" (COPY THIS EXACTLY)
-  MUST include the exact degree: "${sunPos}" (${sunDecan})${sunHouse ? `, ${sunHouse}` : ''}
+      ? `Start with a poetic, atmospheric opening about their birth moment.
+  Example tone (DO NOT COPY): "Your eyes opened in [city] on [date], the Sun at [position]..."
+  MUST include: "born on ${formattedDate}${ctx.birthPlace ? ` in ${ctx.birthPlace}` : ''}" (COPY DATE AND CITY EXACTLY)
+  MUST include the exact degree: "${sunPos}" - use poetic language like "${sunDecan}"
+  ${sunHouse ? `MUST mention ${sunHouse}` : ''}
+  NEVER use the word "decan" - use the poetic description instead
   Emphasize this is SPECIFIC to ${sunDeg?.degree || '?'} degrees, not generic ${sign}
-  NO spiritual bypassing - be direct, psychological`
+  Create your own unique atmospheric opening - be spiritual but not bypassing`
       : `Start directly with psychological observation (use examples like: "${greetingOptions}")
   Explain what ${ctx.type === 'moon' ? 'Moon sign' : 'Rising sign'} reveals.
   MUST include exact position: "${currentPos}" (${currentDecan})${currentHouse ? `, ${currentHouse}` : ''}

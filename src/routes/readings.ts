@@ -13,6 +13,7 @@ const payloadSchema = z.object({
   timezone: z.string(),
   latitude: z.number(),
   longitude: z.number(),
+  birthPlace: z.string().optional(), // City name for poetic intro
   relationshipIntensity: z.number().min(0).max(10),
   relationshipMode: z.enum(['family', 'sensual']),
   primaryLanguage: z.string(),

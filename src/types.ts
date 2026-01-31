@@ -17,6 +17,7 @@ export type ReadingPayload = {
   timezone: string;
   latitude: number;
   longitude: number;
+  birthPlace?: string;          // City name for poetic intro
   relationshipIntensity: number;
   relationshipMode: RelationshipMode;
   primaryLanguage: string;      // User's spoken language preference

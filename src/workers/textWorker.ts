@@ -1045,9 +1045,9 @@ ${OUTPUT_FORMAT_RULES}`;
     
     const wordCount = text.split(/\s+/).filter(Boolean).length;
 
-    // MINIMUM WORD COUNT: 1500 words (10-15 minutes of audio)
-    // Prompt asks for 3000-4000 words, but synastry readings are naturally shorter
-    const MIN_WORDS = 1500;
+    // MINIMUM WORD COUNT: 3500 words (20-25 minutes of audio)
+    // Prompt asks for 2500-3000 words, but we want substantial depth
+    const MIN_WORDS = 3500;
     if (wordCount < MIN_WORDS) {
       console.error(`\n${'═'.repeat(70)}`);
       console.error(`🚨 TEXT TOO SHORT - REJECTING`);

@@ -88,6 +88,7 @@ export const deepSeekClient = {
       sign,
       birthDate: payload.birthDate,
       birthTime: payload.birthTime,
+      birthPlace: payload.birthPlace, // City name for poetic intro
       intensity: payload.relationshipIntensity,
       mode: payload.relationshipMode,
       subjectName: payload.subjectName,
