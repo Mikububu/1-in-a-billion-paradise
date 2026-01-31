@@ -1045,9 +1045,9 @@ ${OUTPUT_FORMAT_RULES}`;
     
     const wordCount = text.split(/\s+/).filter(Boolean).length;
 
-    // MINIMUM WORD COUNT: 2500 words (15-20 minutes of audio)
-    // Prompt asks for 2500-3000 words, enforce this minimum strictly
-    const MIN_WORDS = 2500;
+    // MINIMUM WORD COUNT: 1500 words (safety net only)
+    // Prompt asks for 2500-3000 words as target, but we don't enforce it strictly
+    const MIN_WORDS = 1500;
     if (wordCount < MIN_WORDS) {
       console.error(`\n${'═'.repeat(70)}`);
       console.error(`🚨 TEXT TOO SHORT - REJECTING`);
