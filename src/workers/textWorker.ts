@@ -863,9 +863,9 @@ AUDIO WRITING RULES:
 
 **CRITICAL INSTRUCTIONS - READ CAREFULLY:**
 
-1. WRITE LONG. This is a 3000-4000 word deep dive. Start writing and don't stop until you've explored every angle. This becomes a 20-30 minute audio experience.
-   - If you write less than 3000 words, you have FAILED.
-   - More is better. 4000-5000 words is ideal.
+1. WRITE LONG. This is a 2500-3000 word deep dive. Start writing and don't stop until you've explored every angle. This becomes a 15-20 minute audio experience.
+   - If you write less than 2500 words, you have FAILED.
+   - More is better. 3000-3500 words is ideal.
    - This is a book chapter, not a blog post.
 
 2. KEEP GOING. When you think you're done, you're only halfway. Double the length you initially planned. Layer insight upon insight.
@@ -1045,9 +1045,9 @@ ${OUTPUT_FORMAT_RULES}`;
     
     const wordCount = text.split(/\s+/).filter(Boolean).length;
 
-    // MINIMUM WORD COUNT: 1500 words (10-15 minutes of audio)
-    // Prompt asks for 2500-3000 words, this is just a safety net minimum
-    const MIN_WORDS = 1500;
+    // MINIMUM WORD COUNT: 2500 words (15-20 minutes of audio)
+    // Prompt asks for 2500-3000 words, enforce this minimum strictly
+    const MIN_WORDS = 2500;
     if (wordCount < MIN_WORDS) {
       console.error(`\n${'═'.repeat(70)}`);
       console.error(`🚨 TEXT TOO SHORT - REJECTING`);
