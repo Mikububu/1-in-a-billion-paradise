@@ -283,6 +283,7 @@ export abstract class BaseWorker {
             completed_at: new Date().toISOString(),
           })
           .eq('id', jobId);
+        console.log(`[PIPELINE] jobId=${jobId} phase=error percent=${percent} tasks=${complete + failed}/${total}`);
       } else if (total > 0 && complete === total) {
         await supabase
           .from('jobs')
@@ -299,6 +300,7 @@ export abstract class BaseWorker {
             completed_at: new Date().toISOString(),
           })
           .eq('id', jobId);
+        console.log(`[PIPELINE] jobId=${jobId} phase=complete percent=100 tasks=${complete}/${total}`);
       } else if (total > 0) {
         await supabase
           .from('jobs')
@@ -314,6 +316,7 @@ export abstract class BaseWorker {
             },
           })
           .eq('id', jobId);
+        console.log(`[PIPELINE] jobId=${jobId} phase=processing percent=${percent} tasks=${complete}/${total}`);
       }
     } catch {
       // Best-effort; don't fail tasks for sync errors.

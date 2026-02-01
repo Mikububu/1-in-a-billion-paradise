@@ -291,7 +291,7 @@ export const jobQueue = {
     
     jobs.set(id, job);
     saveJobToDisk(job);  // PERSIST
-    console.log(`📋 Job created: ${id} (${type})`);
+    console.log(`[PIPELINE] created jobId=${id} type=${type} (legacy)`);
     
     // Start processing immediately (async)
     this.processJob(id);

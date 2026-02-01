@@ -54,7 +54,7 @@ export class JobQueueV2 {
       throw new Error(`Failed to create job: ${jobError?.message}`);
     }
 
-    console.log(`📋 Job created: ${job.id} (${type})`);
+    console.log(`[PIPELINE] created jobId=${job.id} type=${type} user=${userId}`);
 
     // Create tasks if provided
     if (tasks.length > 0) {
@@ -187,7 +187,7 @@ export class JobQueueV2 {
       return false;
     }
 
-    console.log(`✅ Job complete: ${jobId}`);
+    console.log(`[PIPELINE] jobId=${jobId} phase=complete (manual complete)`);
 
     // Auto-extract essences (fire and forget - don't block completion)
     this.extractEssencesAsync(jobId).catch((err) => {

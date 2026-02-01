@@ -45,8 +45,9 @@ export const AUDIO_CONFIG = {
  * @returns Array of text chunks
  */
 export function splitIntoChunks(text: string, maxChunkLength: number = AUDIO_CONFIG.CHUNK_MAX_LENGTH): string[] {
-  // Match sentences ending with punctuation, OR any remaining text at the end
-  const sentenceRegex = /[^.!?]*[.!?]+|[^.!?]+$/g;
+  // Match sentences: one or more non-punctuation chars + punctuation, OR remaining text at end
+  // This ensures we capture actual sentence content, not just punctuation/spaces
+  const sentenceRegex = /[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g;
   const sentences = text.match(sentenceRegex) || [text];
   const chunks: string[] = [];
   let currentChunk = '';
