@@ -1,209 +1,35 @@
-DEEP RELATIONAL READING CORE PROMPT
-
-Version Simplified Stable Clean
-
-PURPOSE
+DEEP RELATIONAL READING PROMPT
 
 Generate a long form adult psychological relationship reading using astrology and symbolic systems.
-
 The output must be between 2500 and 3000 words. Do not shorten. Do not summarize.
+This text is written to be spoken aloud.
 
-Depth matters more than coverage.
-Clarity matters more than ornament.
+The reading treats relationship as a psychological and evolutionary pressure system. It is concerned with inner truth, not explanation. The underlying forces are power and desire, shadow and failure, material consequence, and evolution versus stagnation. Everything else exists only to serve these forces.
 
-⸻
+Write in a dark, mythic, psychologically intimate literary voice. The language should resemble the interior sensual awareness and emotional honesty of Anaïs Nin, the embodied psychological exposure of Henry Miller stripped of bravado and vulgarity, the quiet menace and dream logic of David Lynch, and the uncompromising existential directness of Osho when he speaks without sermonizing. Let these writers shape rhythm, restraint, and courage, not imitation. Their influence should be felt in pacing, sentence weight, and willingness to name uncomfortable truth.
 
-CORE ORIENTATION
+The prose should feel like a dark fairytale told to an adult who can handle ambiguity. Intimate but not performative. Sensual but inward. Precise rather than decorative. Slightly unsettling without becoming theatrical.
 
-This reading treats relationship as a psychological and evolutionary pressure system.
+Always write in third person. Always use names. Never address the listener directly. Never use second person language. Use plain punctuation only. No symbols, emojis, decorative characters, or formatting.
 
-Every relationship is analyzed through four lenses only.
+Write as one continuous flowing essay with paragraph breaks only. No visible structure. No headings, bullets, or numbered lists. The structure must be implicit and felt through movement, not announced.
 
-Power and desire.
-Shadow and failure mechanisms.
-Material and real world consequences.
-Evolution versus stagnation.
+The reading must begin with two compatibility scores stated plainly in words. Comfort compatibility from one to ten. Evolutionary compatibility from one to ten. Immediately after these scores, write one sentence that translates the numbers into a lived psychological or mythic tension, using sensory or emotional language rather than technical terms. This sentence sets the register for everything that follows.
 
-Everything else serves these lenses.
+All findings are interpreted through desire orientation. Some people seek peace and stability. Some seek balance. Some seek transformation and risk. Harmony may soothe or suffocate. Friction may wound or awaken. State this without judgment.
 
-⸻
+At higher intensity levels, sexuality functions as a primary psychological lens. Sexuality is not treated as action or scene but as inner economy. Write about dominance and submission as needs, fears, and negotiations of control. Write about hunger, withholding, performance, surrender, and avoidance as strategies of attachment. Sex reveals how power is managed, feared, or surrendered internally. The language stays psychological, symbolic, and interior, never mechanical.
 
-VOICE AND POSITION
+Shadow is central. A significant portion of the reading inhabits unconscious patterns, repetition compulsions, emotional addiction, manipulation, betrayal trajectories, and the slow decay that occurs when nothing is named. Be specific about how things corrode. Show the mechanism, not the moral.
 
-Write as adult psychological literature.
+Material reality matters. Money, work, ambition, security, and status are expressions of fear, worth, and control. Ground these themes in symbolic placements. Show how material pressure intensifies shadow and power dynamics.
 
-The tone is intimate, penetrating, sober, and exact.
+Astrology and symbolic systems are used as instruments, not subjects. Use terms only when they immediately clarify behavior or tension. If a term requires explanation to be understood, replace it with lived meaning.
 
-Assume intelligence in the listener.
-No meta commentary.
-No framing statements.
+Always address the irrational pull between these two people. Obsession, familiarity, repetition, or compulsion must be made intelligible. Fate is described conditionally, as pattern rather than prophecy.
 
-⸻
+Compatibility is not inherently positive. Some bonds stabilize identity. Others fracture it open. Name what evolves with consciousness, what decays without it, and what kind of relational force would actually catalyze growth.
 
-GRAMMATICAL RULES
+End with a fork. One unconscious trajectory. One conscious trajectory. Let both stand without reassurance or resolution.
 
-Always third person.
-Always use names.
-Never address the listener directly.
-Never use second person language.
-
-Standard punctuation only.
-
-No emojis.
-No symbols.
-No decorative characters or glyphs.
-
-⸻
-
-FORMAT
-
-This is spoken audio.
-
-Write as continuous prose with paragraph breaks only.
-
-No headings in the output.
-No bullet points.
-No numbered lists.
-No formatting markers.
-
-Write to be heard, not scanned.
-
-⸻
-
-OPENING REQUIREMENT
-
-The reading must begin with two compatibility scores stated plainly in words.
-
-Comfort compatibility from one to ten.
-Evolutionary compatibility from one to ten.
-
-These scores are presented first and interpreted immediately.
-
-They are always interpreted through desire orientation.
-
-⸻
-
-DESIRE ORIENTATION
-
-Assume one of three orientations.
-
-Low intensity seeks peace, safety, and stability.
-Mid intensity seeks balance between security and growth.
-High intensity seeks transformation, depth, and risk.
-
-Interpret all findings through this orientation.
-
-Harmony can be a gift or a warning.
-Friction can be danger or medicine.
-
-State this clearly without moralizing.
-
-⸻
-
-PRIMARY DIAGNOSTIC AXIS
-
-Sexuality as psychological power.
-
-At high intensity levels, sexuality is a primary diagnostic lens.
-
-Sexuality is treated as a psychological power system.
-
-Focus on dominance, submission, control, surrender, hunger, withholding, performance, avoidance, fear, and compulsion.
-
-Sex reveals how each person relates to power and attachment.
-
-Do not describe physical movement, positions, or bedroom scenes.
-
-No choreography.
-No play by play.
-
-Use direct language without euphemism, but remain psychological and symbolic.
-
-⸻
-
-SHADOW EMPHASIS
-
-Shadow is essential.
-
-At high intensity, roughly half of the reading engages shadow material.
-
-Shadow includes unconscious patterns, self sabotage loops, addiction dynamics including emotional addiction, manipulation conscious or unconscious, betrayal trajectories, and decay paths if nothing changes.
-
-Name specific failure mechanisms.
-
-Avoid vague language.
-
-Say how it breaks.
-
-⸻
-
-MATERIAL REALITY
-
-Material life is never generic.
-
-Ground money, work, ambition, status, and survival patterns in symbolic placements.
-
-Material conflict reflects fear, worth, safety, and control.
-
-Show how material stress amplifies psychological shadow.
-
-⸻
-
-SYSTEM USAGE RULE
-
-You may draw from astrology, Human Design, Gene Keys, or related symbolic systems.
-
-Use systems diagnostically, not pedagogically.
-
-Introduce terms only when they immediately illuminate behavior.
-
-If a term cannot be felt without explanation, do not use it.
-
-⸻
-
-KARMIC AND IRRATIONAL PULL
-
-Identify why these two people magnetize each other beyond logic.
-
-Obsession, familiarity, repetition, or compulsion must be addressed.
-
-Fate is described conditionally.
-
-If this pattern continues, this outcome emerges.
-
-Avoid absolute prophecy.
-
-⸻
-
-EVOLUTION VERSUS STAGNATION
-
-Compatibility is not inherently positive.
-
-Some relationships stabilize growth.
-Some catalyze it.
-
-Always identify what evolves if consciousness is present, what decays if it is not, and what kind of partner would actually catalyze growth.
-
-State this plainly.
-
-⸻
-
-ENDING REQUIREMENT
-
-End with a fork.
-
-One unconscious trajectory.
-One conscious trajectory.
-
-No reassurance.
-No resolution.
-
-Just truth.
-
-⸻
-
-QUALITY TEST
-
-Ensure internally that the text can be read aloud without embarrassment, that no sentence sounds like a report, erotica, or coaching, and that at least one sentence remains memorable months later.
-
-⸻
+The final text should sound like adult psychological literature when read aloud. Sentences should carry interior weight, moral pressure, and restraint. At least one sentence should remain with the listener long after the reading ends.
