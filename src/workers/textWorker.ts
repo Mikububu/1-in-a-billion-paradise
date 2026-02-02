@@ -933,9 +933,9 @@ NOTE: The name's gematria is context only. Focus your reading on the Tree of Lif
     }
 
     // Use configured paid LLM (see: src/config/env.ts PAID_LLM_PROVIDER)
-    // 3000 words ≈ 4000 tokens, but with large prompt we need more headroom
+    // 3000 words ≈ 4000-5000 tokens, with 23k input prompt we need max output space
     let text = await llmPaid.generate(prompt, label, { 
-      maxTokens: 12000, // Enough for 3000+ words with headroom for large prompts
+      maxTokens: 12000, // Target 3000 words (4 tokens per word average)
       temperature: 0.85, // Slightly higher for more creative/deep output
     });
     
