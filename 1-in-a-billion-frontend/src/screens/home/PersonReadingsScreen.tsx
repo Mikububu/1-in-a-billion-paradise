@@ -1289,14 +1289,25 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
             if (!reading.docNum) continue;
             const cached = cachedPaths.get(reading.docNum);
             if (cached) {
-              if (cached.audioPath && !reading.localAudioPath) {
-                reading.localAudioPath = cached.audioPath;
+              // IMPORTANT: local*Path must ONLY be set when a verified local file exists.
+              // Some caches may store remote URLs; those must NOT enable buttons.
+              const isLikelyLocalFile = (p?: string | null) =>
+                !!p && !p.startsWith('http') && (p.startsWith('file://') || p.startsWith('/'));
+
+              if (cached.audioPath && !reading.localAudioPath && isLikelyLocalFile(cached.audioPath)) {
+                if (await fileExistsNonEmpty(cached.audioPath)) {
+                  reading.localAudioPath = cached.audioPath;
+                }
               }
-              if (cached.pdfPath && !reading.localPdfPath) {
-                reading.localPdfPath = cached.pdfPath;
+              if (cached.pdfPath && !reading.localPdfPath && isLikelyLocalFile(cached.pdfPath)) {
+                if (await fileExistsNonEmpty(cached.pdfPath)) {
+                  reading.localPdfPath = cached.pdfPath;
+                }
               }
-              if (cached.songPath && !reading.localSongPath) {
-                reading.localSongPath = cached.songPath;
+              if (cached.songPath && !reading.localSongPath && isLikelyLocalFile(cached.songPath)) {
+                if (await fileExistsNonEmpty(cached.songPath)) {
+                  reading.localSongPath = cached.songPath;
+                }
               }
             }
           }

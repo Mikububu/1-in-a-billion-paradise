@@ -7,3 +7,9 @@ generated-pdfs/
 benchmarks/
 _backups/
 .env
+.DS_Store
+**/.DS_Store
+
+# Frontend local/dev artifacts
+1-in-a-billion-frontend/.env.local
+1-in-a-billion-frontend/.expo/

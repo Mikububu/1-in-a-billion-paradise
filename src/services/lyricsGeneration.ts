@@ -14,7 +14,10 @@ export interface LyricsGenerationInput {
   personName: string;
   readingText: string; // Text from the reading document
   relationshipContext?: string; // Optional context for relationship readings
-  systemContext?: string; // Which astrological system (e.g., "Western", "Vedic")
+  // Prefer passing a stable system key (prevents Western fallback)
+  systemKey?: 'western' | 'vedic' | 'human_design' | 'gene_keys' | 'kabbalah' | 'verdict' | 'final_verdict';
+  // Legacy/optional: free-form system descriptor (e.g. "This is a vedic astrology reading.")
+  systemContext?: string;
 }
 
 export interface LyricsResult {
@@ -67,13 +70,39 @@ const DEFAULT_WESTERN_PROMPT = `You are a masterful songwriter in the quiet, poe
  * Generate personalized song lyrics from reading data
  */
 export async function generateLyrics(input: LyricsGenerationInput): Promise<LyricsResult> {
-  const { personName, readingText, relationshipContext, systemContext } = input;
+  const { personName, readingText, relationshipContext, systemKey, systemContext } = input;
 
   // Extract key themes from reading (first 5000 chars to avoid token limits)
   const readingExcerpt = readingText.substring(0, 5000);
   
-  // Load system-specific music prompt from MD file
-  const system = (systemContext || 'western').toLowerCase().replace(/ /g, '_');
+  // Load system-specific music prompt from MD file.
+  // IMPORTANT: systemKey must be a stable key; do NOT derive the key from a sentence.
+  const allowedSystems = [
+    'western',
+    'vedic',
+    'human_design',
+    'gene_keys',
+    'kabbalah',
+    'verdict',
+    'final_verdict',
+  ] as const;
+
+  const normalizeSystem = (): (typeof allowedSystems)[number] => {
+    if (systemKey && (allowedSystems as readonly string[]).includes(systemKey)) return systemKey;
+
+    const raw = (systemContext || '').toLowerCase();
+    // Common case: systemContext is a full sentence like "This is a vedic astrology reading."
+    for (const s of allowedSystems) {
+      if (raw.includes(s)) return s;
+    }
+    // Back-compat: handle "human design" / "gene keys" etc.
+    if (raw.includes('human design')) return 'human_design';
+    if (raw.includes('gene keys')) return 'gene_keys';
+    if (raw.includes('final verdict') || raw.includes('verdict')) return 'verdict';
+    return 'western';
+  };
+
+  const system = normalizeSystem();
   const promptTemplate = loadMusicPrompt(system);
   
   // Replace placeholders in template

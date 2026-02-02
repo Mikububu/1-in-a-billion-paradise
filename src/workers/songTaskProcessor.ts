@@ -143,7 +143,9 @@ export async function processSongTask(task: { id: string; job_id: string; input:
       personName,
       readingText,
       relationshipContext: input.relationshipContext,
-      // Add context about which system this is for
+      // Pass the stable system key so per-system music prompts load correctly.
+      systemKey: (system || 'verdict') as any,
+      // Keep legacy context for logging / future use (but do NOT rely on parsing this).
       systemContext: system ? `This is a ${system} astrology reading.` : 'This is the final synthesis.',
     });
 
