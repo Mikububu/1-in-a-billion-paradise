@@ -1628,7 +1628,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     let safetyTimeout: NodeJS.Timeout | null = null;
 
     try {
-      // If this reading is playing, pause it
+      // If this reading is playing, pause/resume it (no loading indicator needed)
       if (playingId === reading.id && soundRef.current) {
         const status = await soundRef.current.getStatusAsync();
         if (status.isLoaded && status.isPlaying) {
@@ -1641,6 +1641,9 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           return;
         }
       }
+
+      // Show loading immediately for responsive feel
+      setLoadingAudioId(reading.id);
 
       // ALWAYS stop and unload current audio FIRST before loading new one
       if (soundRef.current) {
@@ -1671,9 +1674,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       // Small delay to ensure cleanup is complete
       await new Promise(resolve => setTimeout(resolve, 50));
 
-      // Start new audio - prefer LOCAL file for instant playback, fallback to streaming
-      setLoadingAudioId(reading.id);
-      
       // PRIORITY: Use local cached file if available (instant playback)
       // Otherwise fall back to streaming URL (slower, requires buffering)
       const url = reading.localAudioPath || reading.audioPath;
@@ -1780,7 +1780,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     isSongPlayingMutex.current = true;
 
     try {
-      // If this song is playing, pause/resume
+      // If this song is playing, pause/resume (no loading indicator needed)
       if (playingSongId === reading.id && songSoundRef.current) {
         const status = await songSoundRef.current.getStatusAsync();
         if (status.isLoaded && status.isPlaying) {
@@ -1791,6 +1791,9 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           return;
         }
       }
+
+      // Show loading immediately for responsive feel
+      setLoadingSongId(reading.id);
 
       // Stop any current song
       if (songSoundRef.current) {
@@ -1816,8 +1819,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
       }
 
       await new Promise(resolve => setTimeout(resolve, 100));
-
-      setLoadingSongId(reading.id);
 
       const { sound } = await Audio.Sound.createAsync(
         { uri: songUrl },
@@ -2415,10 +2416,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         // Auto-load text when audio starts (for karaoke sync)
         ensureTextLoaded(reading);
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:handlePlayPress',message:'Play button pressed',data:{name:reading.name,hasLocalAudioPath:!!reading.localAudioPath,hasAudioPath:!!reading.audioPath,localAudioPath:reading.localAudioPath?.substring(0,80),audioPath:reading.audioPath?.substring(0,80)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3E'})}).catch(()=>{});
-        // #endregion
-        
         // Check if we have a valid local file
         let localPath = reading.localAudioPath;
         if (localPath && !(await fileExistsNonEmpty(localPath))) {
@@ -2427,19 +2424,17 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
         }
         
         if (localPath) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:handlePlayPress:local',message:'Playing LOCAL audio',data:{name:reading.name,localAudioPath:localPath?.substring(0,80)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3E'})}).catch(()=>{});
-          // #endregion
+          // Play from local cache (instant)
+          console.log(`🎵 [handlePlayPress] Playing from local cache`);
           await togglePlay({ ...reading, audioPath: localPath });
         } else if (reading.audioPath) {
-          // No local file - download first, then play
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/c57797a3-6ffd-4efa-8ba1-8119a00b829d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PersonReadingsScreen.tsx:handlePlayPress:downloading',message:'Downloading audio before play',data:{name:reading.name,audioPath:reading.audioPath?.substring(0,80)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3E'})}).catch(()=>{});
-          // #endregion
-          console.log(`🎵 [handlePlayPress] No local file, downloading first...`);
-          const downloadedPath = await ensureLocalAudio(reading);
-          console.log(`🎵 [handlePlayPress] Download complete, playing: ${downloadedPath}`);
-          await togglePlay({ ...reading, audioPath: downloadedPath });
+          // Stream directly from remote URL (no download wait)
+          // togglePlay handles streaming with downloadFirst=false
+          console.log(`🎵 [handlePlayPress] Streaming from remote URL`);
+          await togglePlay(reading);
+          
+          // Background download for next time (non-blocking)
+          ensureLocalAudio(reading).catch(() => {});
         } else {
           Alert.alert('Audio', 'Audio not ready yet');
         }
@@ -2852,9 +2847,9 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           <View style={styles.readingsList}>
             {readings.map((reading, index) => {
               const isPlaying = playingId === reading.id;
-              const hasAudioRemote = !!reading.localAudioPath; // ✅ Only enable when downloaded locally
-              const hasPdfRemote = !!reading.localPdfPath;     // ✅ Only enable when downloaded locally
-              const hasSongRemote = !!reading.localSongPath;   // ✅ Only enable when downloaded locally
+              const hasAudioRemote = !!reading.audioPath;
+              const hasPdfRemote = !!reading.pdfPath;
+              const hasSongRemote = !!reading.songPath;
               const hasAudioLocal = !!reading.localAudioPath;
               const hasPdfLocal = !!reading.localPdfPath;
               const hasSongLocal = !!reading.localSongPath;
