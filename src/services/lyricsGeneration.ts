@@ -124,6 +124,28 @@ export async function generateLyrics(input: LyricsGenerationInput): Promise<Lyri
       if (lines.length >= 8) {
         // Looks like lyrics - use them with default settings
         console.log('✅ Fallback: Found lyrics in plain text format');
+        // Generate fallback minimaxPrompt based on system
+        let fallbackMinimaxPrompt = '';
+        switch (system) {
+          case 'vedic':
+            fallbackMinimaxPrompt = 'A contemplative Indian classical fusion song. 40% Anoushka Shankar (sitar, emotional modern classical), 40% Hariprasad Chaurasia (bansuri flute, meditative flow), 20% West Bengal Kali Mantra (traditional devotional chanting). Sparse instrumentation: sitar, bansuri flute, tabla, tanpura drone. Slow tempo, introspective vocals. Music to listen to while reading - background, not foreground. Never commercial or pop-oriented.';
+            break;
+          case 'western':
+            fallbackMinimaxPrompt = 'A quiet, introspective song in the poetic style of Leonard Cohen or Tom Waits. Sparse instrumentation - acoustic guitar or minimal piano. Contemplative, low-key vocal delivery. Music to listen to while reading - never nervous or pop-oriented.';
+            break;
+          case 'human_design':
+            fallbackMinimaxPrompt = 'Ethereal ambient soundscape. Synthesizers, soft pads, minimal percussion. Contemplative vocals. Music to listen to while reading - background, meditative, not foreground.';
+            break;
+          case 'gene_keys':
+            fallbackMinimaxPrompt = 'Contemplative world fusion. Blend of acoustic instruments and subtle electronics. Introspective vocals. Music to listen to while reading - background, not pop-oriented.';
+            break;
+          case 'kabbalah':
+            fallbackMinimaxPrompt = 'Mystical Jewish-inspired music. Blend of traditional and contemporary. Contemplative vocals. Music to listen to while reading - spiritual, meditative, not commercial.';
+            break;
+          default:
+            fallbackMinimaxPrompt = 'A quiet, introspective song. Sparse instrumentation. Contemplative vocals. Music to listen to while reading.';
+        }
+        
         return {
           lyrics: lines.join('\n').trim(),
           title: `${personName}'s Song`,
@@ -131,9 +153,7 @@ export async function generateLyrics(input: LyricsGenerationInput): Promise<Lyri
           musicStyle: system === 'vedic' ? 'Indian classical fusion' : '70s piano ballad',
           vocalist: 'Female',
           emotion: 'contemplative',
-          minimaxPrompt: system === 'vedic' 
-            ? 'A contemplative Indian classical fusion song. Sitar, bansuri flute, tabla, tanpura drone. Slow tempo, introspective vocals. Music to listen to while reading.'
-            : 'A quiet, introspective song in the poetic style of Leonard Cohen. Sparse instrumentation - acoustic guitar or minimal piano. Contemplative, low-key vocal delivery.',
+          minimaxPrompt: fallbackMinimaxPrompt,
         };
       }
       
