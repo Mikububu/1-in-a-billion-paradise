@@ -2852,12 +2852,14 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
           <View style={styles.readingsList}>
             {readings.map((reading, index) => {
               const isPlaying = playingId === reading.id;
-              const hasAudioRemote = !!reading.localAudioPath; // ✅ Only enable when downloaded locally
-              const hasPdfRemote = !!reading.localPdfPath;     // ✅ Only enable when downloaded locally
-              const hasSongRemote = !!reading.localSongPath;   // ✅ Only enable when downloaded locally
+              // Buttons only enabled when files are downloaded locally (not streaming)
               const hasAudioLocal = !!reading.localAudioPath;
               const hasPdfLocal = !!reading.localPdfPath;
               const hasSongLocal = !!reading.localSongPath;
+              // Use local paths for button enable state (grey until downloaded)
+              const hasAudioRemote = hasAudioLocal;
+              const hasPdfRemote = hasPdfLocal;
+              const hasSongRemote = hasSongLocal;
               const isGenerating =
                 !hasPdfRemote &&
                 !hasAudioRemote &&

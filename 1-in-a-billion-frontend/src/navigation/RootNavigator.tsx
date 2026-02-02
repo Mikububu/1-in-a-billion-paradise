@@ -10,7 +10,6 @@ import { useSupabaseLibraryAutoSync } from '@/hooks/useSupabaseLibraryAutoSync';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeArtifactSync';
 import { enforceJobBufferCap } from '@/services/jobBuffer';
 import { TexturedBackground } from '@/components/TexturedBackground';
-import { LoadingScreen } from '@/components/LoadingScreen';
 import { SignInScreen } from '@/screens/auth/SignInScreen';
 // Onboarding screens
 import { IntroScreen } from '@/screens/onboarding/IntroScreen';
@@ -820,7 +819,7 @@ export const RootNavigator = () => {
         console.warn('⚠️ RootNavigator: Hydration timeout - proceeding anyway');
         setHydrationTimeout(true);
       }
-    }, 3000); // 3 second timeout
+    }, 5000); // 5 second timeout
 
     return () => clearTimeout(timer);
   }, [isHydrated]);
@@ -875,11 +874,7 @@ export const RootNavigator = () => {
 
   if (!isAuthReady && !hydrationTimeout) {
     console.log('⏳ RootNavigator: Waiting for Auth Bootstrap...');
-    return (
-      <TexturedBackground style={{ flex: 1 }}>
-        <LoadingScreen />
-      </TexturedBackground>
-    );
+    return null;
   }
 
   // ROUTING LOGIC:
