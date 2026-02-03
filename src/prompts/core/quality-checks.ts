@@ -1,3 +1,5 @@
+import { WORD_COUNT_LIMITS } from '../config/wordCounts';
+
 /**
  * QUALITY CHECKS
  * 
@@ -61,13 +63,13 @@ export const INDIVIDUAL_QUALITY_CHECKS = [
 ];
 
 /**
- * Word count checks by reading type
+ * Word count checks by reading type - ALL use same standard
  */
 export const WORD_COUNT_TARGETS = {
-  individual: { min: 7500, target: 8000, max: 8500 },
-  overlay: { min: 11000, target: 12000, max: 13000 },
-  nuclear_part: { min: 5000, target: 6000, max: 7000 },
-  nuclear_total: { min: 28000, target: 30000, max: 32000 },
+  individual: WORD_COUNT_LIMITS,
+  overlay: WORD_COUNT_LIMITS,
+  nuclear_part: WORD_COUNT_LIMITS,
+  verdict: WORD_COUNT_LIMITS,
 };
 
 /**
@@ -101,7 +103,7 @@ export function buildQualitySection(
       if (partNumber) {
         wordCount = `Part ${partNumber}: ${WORD_COUNT_TARGETS.nuclear_part.min}-${WORD_COUNT_TARGETS.nuclear_part.max} words`;
       } else {
-        wordCount = `Total: ${WORD_COUNT_TARGETS.nuclear_total.min}-${WORD_COUNT_TARGETS.nuclear_total.max} words`;
+        wordCount = `Package: 16 readings × ~3000 words = ~48,000 words total`;
       }
       break;
   }

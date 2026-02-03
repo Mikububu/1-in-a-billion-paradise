@@ -27,6 +27,7 @@ import { ReadingType } from './structures';
 
 import { buildSystemWeavingSection } from './techniques/system-weaving';
 import { env } from '../config/env';
+import { getWordTarget } from './config/wordCounts';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -146,6 +147,8 @@ CHART DATA (${systemName}):
 ${chartSection || '[Chart data to be provided]'}
 
 ${buildQualitySection(style, 'individual')}
+
+${getWordTarget()}
 
 ═══════════════════════════════════════════════════════════════════════════════
 NOW GENERATE THE INDIVIDUAL ANALYSIS.
@@ -312,6 +315,8 @@ SYNASTRY DATA:
 ${synastrySection || '[Synastry data to be provided]'}${contextSection}
 
 ${buildQualitySection(style, 'overlay')}
+
+${getWordTarget()}
 
 ═══════════════════════════════════════════════════════════════════════════════
 NOW GENERATE THE OVERLAY ANALYSIS.
