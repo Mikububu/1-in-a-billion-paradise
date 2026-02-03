@@ -6,8 +6,8 @@
     "assignee": "backend-eng"
   },
   {
-    "title": "Fix RunPod worker workflow and enable persistent GPU workers",
-    "body": "Investigate current RunPod integration (reported broken). Ensure workers claim tasks reliably, document persistent deployment strategy, and add runbooks for GPU autoscaling.",
+    "title": "Fix worker workflow and document current infrastructure",
+    "body": "Update worker deployment docs to reflect current infrastructure (post-RunPod). Ensure workers claim tasks reliably from Supabase queue, document deployment strategy, and add runbooks for scaling.",
     "labels": ["infra","high-priority"],
     "assignee": "ops"
   },
