@@ -4,11 +4,12 @@
 -- First, ensure the api_keys table exists (if not, run migration 003 first)
 -- Then insert or update the MiniMax key:
 
+-- SECURITY: Never commit real API keys! Add via Supabase Dashboard.
 INSERT INTO api_keys (service, key_name, token, description) 
 VALUES (
   'minimax', 
   'main', 
-  'sk-api-xWT7nhj_tK-5XckrK03LCM_CSAlQuzODSgicp0RvVuZc6rtNpjAaT3FhEHvgHg2kDTEJ1c-XLSZO86DWa6bUtvo-IKqIuXDG_dzYLuarZhlm5yo9M7cS7P0',
+  'YOUR_MINIMAX_API_KEY_HERE',  -- Get from MiniMax dashboard
   'MiniMax API key for music/song generation'
 ) 
 ON CONFLICT (service) DO UPDATE SET 

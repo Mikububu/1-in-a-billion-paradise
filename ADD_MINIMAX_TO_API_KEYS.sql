@@ -12,12 +12,13 @@ CREATE TABLE IF NOT EXISTS api_keys (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- SECURITY: Never commit real API keys! Add via Supabase Dashboard.
 -- Insert or update MiniMax API key
 INSERT INTO api_keys (service, key_name, token, description) 
 VALUES (
   'minimax', 
   'main', 
-  'sk-api-xWT7nhj_tK-5XckrK03LCM_CSAlQuzODSgicp0RvVuZc6rtNpjAaT3FhEHvgHg2kDTEJ1c-XLSZO86DWa6bUtvo-IKqIuXDG_dzYLuarZhlm5yo9M7cS7P0',
+  'YOUR_MINIMAX_API_KEY_HERE',  -- Get from MiniMax dashboard
   'MiniMax API key for music/song generation'
 ) 
 ON CONFLICT (service) DO UPDATE SET 
