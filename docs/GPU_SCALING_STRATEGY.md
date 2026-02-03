@@ -38,7 +38,7 @@ You autoscale based on queue depth.
 This can be implemented in:
 • a small control service
 • or a cron-like scheduler
-• or RunPod API calls
+• or Fly.io scaling API
 
 The worker pods are stateless so scaling is safe.
 
@@ -104,18 +104,18 @@ This is exactly what you want.
 
 ## Implementation Status
 
-✅ **Step 1:** Implemented - Single persistent GPU pod for testing
-✅ **Step 2:** Implemented - `runpodScaler.ts` monitors queue depth and scales workers
-✅ **Step 3:** Implemented - Max workers capped at 50 in `runpodScaler.ts`
-✅ **Step 4:** Implemented - Serverless used only for short previews, persistent pods for audiobooks
+✅ **Step 1:** Implemented - Workers run on Fly.io
+✅ **Step 2:** Implemented - Queue-based scaling via Supabase job queue
+✅ **Step 3:** Implemented - Rate limits handled via Replicate API
+✅ **Step 4:** Implemented - Audio via Replicate (Chatterbox Turbo), Songs via MiniMax
 
 ## Current Configuration
 
-See `src/services/runpodScaler.ts` for the current autoscaling implementation:
-- 0 pending tasks → 0 workers
-- 1-10 pending → 1 worker
-- 11-50 pending → 2-5 workers
-- 51-200 pending → 5-20 workers
-- 201+ pending → 20-50 workers (max)
+**Infrastructure:**
+- **Text Workers:** Fly.io (horizontal scaling)
+- **Audio/TTS:** Replicate API (Chatterbox Turbo) - rate-limited, sequential processing
+- **Song Generation:** MiniMax Music 2.5 API
+
+See `REPLICATE_RATE_LIMITS.md` for audio rate limit handling.
 
 

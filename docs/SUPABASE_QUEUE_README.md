@@ -9,14 +9,15 @@ A **production-grade distributed job queue** system designed to scale from **1 �
 ```
 ┌──────────┐     ┌──────────┐     ┌─────────────┐     ┌──────────┐
 │  Client  │────▶│   API    │────▶│  Supabase   │◀────│ Workers  │
-│   App    │     │ (Hono)   │     │  Postgres   │     │ (RunPod) │
+│   App    │     │ (Hono)   │     │  Postgres   │     │ (Fly.io) │
 └──────────┘     └──────────┘     └─────────────┘     └──────────┘
                                           │
-                                          ▼
-                                   ┌─────────────┐
-                                   │  Supabase   │
-                                   │  Storage    │
-                                   └─────────────┘
+                       ┌──────────────────┼──────────────────┐
+                       ▼                  ▼                  ▼
+                ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
+                │  Supabase   │   │  Replicate  │   │   MiniMax   │
+                │  Storage    │   │  (TTS)      │   │   (Songs)   │
+                └─────────────┘   └─────────────┘   └─────────────┘
 ```
 
 ### Key Features
@@ -122,8 +123,8 @@ npm run worker:audio
 - Scale to 50%, then 100%
 
 ### Week 3: Workers
-- Deploy 1 audio worker to RunPod
-- Scale to 3-5 workers
+- Deploy workers to Fly.io
+- Configure Replicate and MiniMax API keys
 
 ### Week 4: Storage
 - Migrate base64 → Storage
@@ -232,14 +233,18 @@ WHERE status IN ('claimed', 'processing')
 - Bandwidth: 250GB included + $0.09/GB overage
 - **Total: ~$35-50/month**
 
-### RunPod Workers
-- 1 worker (A10G): $210/month
-- 3 workers: $630/month
-- 5 workers: $1,050/month
-- **Total: $210-1,050/month** (scale as needed)
+### External APIs (pay-per-use)
+- **Replicate (TTS):** ~$0.001-0.01 per audio chunk
+- **MiniMax (Songs):** ~$0.05-0.10 per song
+- **DeepSeek/Claude (Text):** ~$0.01-0.05 per reading
+- **Total:** Variable based on usage, typically $50-500/month
 
-### Grand Total: $245-1,100/month
-(vs local: $0 but no scale, no reliability)
+### Fly.io Workers
+- Base: ~$5-20/month (scales to zero when idle)
+- Active processing: ~$0.50-2/hour per worker
+
+### Grand Total: $90-600/month
+(scales with usage, pay for what you use)
 
 ---
 
@@ -310,7 +315,9 @@ pm2 logs iab-backend
 
 ### External Resources
 - [Supabase Docs](https://supabase.com/docs)
-- [RunPod Docs](https://docs.runpod.io)
+- [Fly.io Docs](https://fly.io/docs)
+- [Replicate Docs](https://replicate.com/docs)
+- [MiniMax API](https://www.minimax.chat/)
 - [Postgres FOR UPDATE SKIP LOCKED](https://www.postgresql.org/docs/current/sql-select.html#SQL-FOR-UPDATE-SHARE)
 
 ---

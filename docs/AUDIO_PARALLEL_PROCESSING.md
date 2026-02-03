@@ -88,7 +88,7 @@ Total: ~30-45 seconds
 - **Large readings (9+ chunks):** Parallel with `CONCURRENT_LIMIT=5` ✅ (current setting)
 - **Very large readings (50+ chunks):** Parallel with `CONCURRENT_LIMIT=5-8`
 
-⚠️  **Don't set too high (>10):** RunPod has rate limits. Exceeding them causes queue delays.
+⚠️  **Don't set too high (>10):** Replicate has rate limits (6 req/min for accounts < $5 credit). See `REPLICATE_RATE_LIMITS.md`.
 
 ---
 
@@ -99,7 +99,7 @@ Before enabling in production, test:
 - [ ] **Short reading (1-2 chunks)** - Should work in both modes
 - [ ] **Medium reading (5-7 chunks)** - Should be 3-5x faster in parallel
 - [ ] **Long reading (10+ chunks)** - Check for timeouts or rate limits
-- [ ] **Error handling** - Kill RunPod pod mid-generation, verify retry works
+- [ ] **Error handling** - Simulate Replicate timeout, verify retry works
 - [ ] **Audio quality** - Listen to full output, ensure no gaps/glitches
 - [ ] **Concurrent requests** - Multiple users generating audio simultaneously
 
@@ -129,9 +129,9 @@ Before enabling in production, test:
 
 **Solution:** Check logs - parallel mode sorts results by original index before stitching.
 
-### **Problem:** RunPod rate limit errors
+### **Problem:** Replicate rate limit errors
 
-**Solution:** Reduce `AUDIO_CONCURRENT_LIMIT` to 2 or switch back to sequential.
+**Solution:** Increase `REPLICATE_CHUNK_DELAY_MS` (default 11000ms) or add $5+ credit to your Replicate account.
 
 ### **Problem:** Audio has gaps or glitches
 
@@ -168,8 +168,8 @@ Then restart backend.
 - Added parallel mode support matching the routes implementation
 - Feature flag: `process.env.AUDIO_PARALLEL_MODE`
 - Concurrent limit: `process.env.AUDIO_CONCURRENT_LIMIT` (default: 5)
-- Reduced `maxConcurrentTasks` from 2 to 1 (one task per worker to avoid GPU memory contention)
-- Improved error handling: RUNPOD_FAILED errors stop immediately instead of retrying
+- Reduced `maxConcurrentTasks` from 2 to 1 (one task per worker to avoid rate limits)
+- Improved error handling: Replicate errors handled with retry and backoff
 
 **Commit:** `c512a29 Add parallel mode to audioWorker for 3-5x faster audio generation`
 

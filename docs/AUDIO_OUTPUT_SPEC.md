@@ -17,7 +17,7 @@ This document serves as the **AUTHORITATIVE CONTRACT** for Audio generation. The
   - **Within Chapter (Paragraphs):** Natural pauses (handled by TTS model).
 
 ## 2. Voice Settings
-- **Provider:** Chatterbox (RunPod).
+- **Provider:** Chatterbox Turbo (Replicate).
 - **Voice Clone:** `voice_10sec` (Reference URL from env).
 - **Stability:** 0.3 (Exaggeration).
 - **Clarity:** 0.5 (CFG Weight).

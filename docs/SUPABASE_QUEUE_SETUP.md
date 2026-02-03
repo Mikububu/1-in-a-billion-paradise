@@ -22,7 +22,9 @@ Add to `.env`:
 SUPABASE_URL=https://qdfikbgwuauertfmkmzk.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... (your key)
 SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... (your key)
-RUNPOD_WORKER_ENDPOINT_ID=your-endpoint-id (optional, for auto-scaling)
+REPLICATE_API_TOKEN=your-replicate-token (for audio/TTS)
+MINIMAX_API_KEY=your-minimax-key (for songs)
+MINIMAX_GROUP_ID=your-group-id (for songs)
 ```
 
 ### 3. Run SQL Migration
@@ -75,12 +77,12 @@ curl -X POST http://localhost:8787/api/jobs/v2/start \
   }'
 ```
 
-### 6. Auto-Scaling
+### 6. Workers
 
-Once configured, the auto-scaler will:
-- Monitor queue depth every 30 seconds
-- Scale RunPod workers: 0-50 based on pending tasks
-- Automatically start when backend runs in production mode
+Once configured, the workers will:
+- Poll queue every 5 seconds for pending tasks
+- Process tasks using external APIs (Replicate for TTS, MiniMax for songs)
+- Store artifacts in Supabase Storage
 
 ## Verification
 

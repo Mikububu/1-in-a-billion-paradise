@@ -38,9 +38,10 @@
 - Hono.js (Node.js) on Fly.io
 - Supabase (Postgres) for database
 - Supabase Queue V2 for job processing
-- RunPod Serverless for audio generation workers
+- Fly.io for text generation workers
+- Replicate for audio/TTS (Chatterbox Turbo)
+- MiniMax Music 2.5 for song generation
 - DeepSeek (primary) / Claude (backup) for LLM
-- Chatterbox via RunPod for TTS
 
 ### Key Architectural Decisions
 
@@ -57,7 +58,7 @@ For detailed specs on specific pipelines, see `1-in-a-billion-backend/docs/`:
 
 | Topic | Document |
 |-------|----------|
-| Audio/GPU Strategy | `RUNPOD_STRATEGY.md` - Cold starts expected, on-demand GPUs |
+| Audio Strategy | `REPLICATE_RATE_LIMITS.md` - Rate limit handling for Chatterbox TTS |
 | Job Queue | `SUPABASE_QUEUE_ARCHITECTURE.md` - Eventually consistent, stateless workers |
 | Scaling | `SCALING_ARCHITECTURE.md` - 0-50 workers auto-scaling |
 | Vedic Matching | `VEDIC_MATCHMAKING_SPEC.md` - Ashtakoota scoring, Dosha analysis |
@@ -709,8 +710,8 @@ flowchart LR
 **Workers:**
 - **TextWorker**: Processes text generation tasks (calls DeepSeek/Claude)
 - **PDFWorker**: Generates PDFs from text
-- **AudioWorker**: Generates audio via RunPod (Chatterbox)
-- **SongWorker**: Generates songs via MiniMax API
+- **AudioWorker**: Generates audio via Replicate (Chatterbox Turbo)
+- **SongWorker**: Generates songs via MiniMax Music 2.5 API
 
 ---
 
@@ -723,8 +724,7 @@ flowchart LR
 **Main Components:**
 - Hono.js app with CORS middleware
 - Route handlers for all API endpoints
-- Background workers (text, song)
-- RunPod auto-scaler
+- Background workers (text, audio, song)
 - API key preloader
 
 ### API Endpoints
@@ -761,21 +761,34 @@ flowchart LR
 
 **Workers:**
 - **TextWorker**: Runs on Fly.io, processes text tasks
-- **AudioWorker**: Runs on RunPod Serverless, processes audio tasks
-- **SongWorker**: Runs on Fly.io, processes song tasks
+- **AudioWorker**: Runs on Fly.io, calls Replicate API (Chatterbox Turbo) for TTS
+- **SongWorker**: Runs on Fly.io, calls MiniMax Music 2.5 API for song generation
 
-### RunPod Integration
+### Replicate Integration (Audio/TTS)
 
-**Purpose**: Audio generation via Chatterbox TTS
+**Purpose**: Audio generation via Chatterbox Turbo TTS
 
 **Process:**
 1. Audio task created in `job_tasks`
-2. RunPod auto-scaler detects pending audio tasks
-3. Creates/activates RunPod endpoint
-4. Sends text to RunPod for TTS generation
-5. Receives audio (base64 or URL)
-6. Saves to Supabase Storage
-7. Updates job with audio artifact
+2. AudioWorker polls for pending audio tasks
+3. Sends text to Replicate (Chatterbox Turbo model)
+4. Receives audio URL from Replicate
+5. Downloads and saves to Supabase Storage
+6. Updates job with audio artifact
+
+**Rate Limits**: See `REPLICATE_RATE_LIMITS.md` for handling low-credit accounts
+
+### MiniMax Integration (Songs)
+
+**Purpose**: Song generation via MiniMax Music 2.5
+
+**Process:**
+1. Song task created in `job_tasks`
+2. SongWorker polls for pending song tasks
+3. Sends lyrics and music prompt to MiniMax API
+4. Receives song URL from MiniMax
+5. Downloads and saves to Supabase Storage
+6. Updates job with song artifact
 
 ---
 

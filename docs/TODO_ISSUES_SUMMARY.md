@@ -15,9 +15,9 @@ This file extracts high-value TODO/checklist items from docs and proposes Issue 
 - Suggested owner: frontend-eng
 - Priority: Medium
 
-3) Persistent GPU workers + RunPod processing fix
-- Title: "Fix RunPod worker workflow and enable persistent GPU workers"
-- Description: Investigate current RunPod integration (reported as broken), ensure workers claim tasks reliably, and document persistent deployment strategy for GPU workers.
+3) Worker infrastructure documentation
+- Title: "Fix worker workflow and document current infrastructure"
+- Description: Update worker deployment docs to reflect current infrastructure (Fly.io for text workers, Replicate for audio/TTS, MiniMax for songs). Ensure workers claim tasks reliably from Supabase queue and document deployment strategy.
 - Suggested owner: infra-eng / ops
 - Priority: High
 

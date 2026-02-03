@@ -68,8 +68,8 @@ Synced via: `libraryCloud.ts`
 
 **What's stored:**
 - ✅ Saved audio metadata (title, system, duration, file size)
-- ✅ Remote URLs (RunPod) or local paths
-- ❌ Audio binaries NOT stored (too large, stay in RunPod or local cache)
+- ✅ Remote URLs (Supabase Storage) or local paths
+- ❌ Audio binaries NOT stored locally (stay in Supabase Storage or local cache)
 
 **When synced:**
 - When user saves a reading to library
@@ -102,7 +102,7 @@ Synced via: `peopleCloud.ts` (likely)
 ### 3. **API Keys**
 - Status: ✅ Stored in `api_keys` table
 - Access: Backend only (service role)
-- Keys: RunPod, Google Places, MiniMax
+- Keys: Replicate, MiniMax, Google Places, DeepSeek, Anthropic, etc.
 
 ---
 

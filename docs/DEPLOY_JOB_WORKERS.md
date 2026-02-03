@@ -42,7 +42,7 @@ Updated `fly.toml` with proper entrypoints:
 ### 3. `audiobook-worker` (Audio Worker)
 - **Command**: `node dist/workers/audioWorker.js`
 - **Purpose**: Claims and processes `audio_generation` tasks
-- **Tasks**: Generates audio from text using TTS (RunPod or local)
+- **Tasks**: Generates audio from text using TTS (Replicate Chatterbox Turbo)
 - **Scaling**: Can scale to 0 when no audio jobs
 
 ## Prerequisites
@@ -112,12 +112,20 @@ flyctl secrets set \
   --app 1-in-a-billion-backend
 ```
 
-For audio workers (if using RunPod):
+For audio workers (Replicate):
 ```bash
 flyctl secrets set \
-  RUNPOD_API_KEY="your-runpod-key" \
-  RUNPOD_ENDPOINT_ID="your-endpoint-id" \
+  REPLICATE_API_TOKEN="your-replicate-token" \
+  REPLICATE_CHUNK_DELAY_MS="11000" \
   VOICE_SAMPLE_URL="https://..." \
+  --app 1-in-a-billion-backend
+```
+
+For song workers (MiniMax):
+```bash
+flyctl secrets set \
+  MINIMAX_API_KEY="your-minimax-key" \
+  MINIMAX_GROUP_ID="your-group-id" \
   --app 1-in-a-billion-backend
 ```
 
@@ -178,8 +186,9 @@ When a worker claims a task:
 
 ### Audio Jobs Not Processing
 - Audio workers are separate (`audiobook-worker` process group)
-- They may be on RunPod instead of Fly.io (see `DEPLOY_AUDIOBOOK_WORKER.md`)
+- Audio workers use Replicate (Chatterbox Turbo) for TTS generation
 - For Fly.io audio workers, ensure `audiobook-worker` process group is scaled up
+- Check `REPLICATE_API_TOKEN` is set and account has credit
 
 ## Architecture Notes
 

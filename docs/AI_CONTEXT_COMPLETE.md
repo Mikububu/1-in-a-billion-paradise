@@ -9,7 +9,7 @@
 
 **MICHAEL'S LAPTOP MUST NOT BE NEEDED FOR THE APP TO WORK.**
 
-- ALL backend processes run in the cloud (Fly.io/RunPod)
+- ALL backend processes run in the cloud (Fly.io + Replicate + MiniMax)
 - ALL calculations, readings, audio generation happen on remote servers
 - NO local dependencies - app works 24/7 whether Michael's laptop is on or off
 - Local development is ONLY for testing/UI changes, NEVER for production operations
@@ -29,9 +29,10 @@ React Native/Expo astrology app combining **Western** and **Vedic (Jyotish)** sy
 - **Backend:** Hono.js (Node.js) / TypeScript
 - **Database:** Supabase (Postgres) - job queue + user data
 - **Storage:** Supabase Storage (`job-artifacts` bucket)
-- **Workers:** RunPod Serverless (auto-scales 0-50 workers)
-- **TTS:** Chatterbox via RunPod (self-hosted)
-- **LLM:** Claude 3.5 Sonnet (primary) / DeepSeek (backup)
+- **Workers:** Fly.io (text workers)
+- **TTS:** Chatterbox Turbo via Replicate
+- **Songs:** MiniMax Music 2.5
+- **LLM:** DeepSeek (primary) / Claude 3.5 Sonnet (backup)
 
 ### Key Directories
 ```
@@ -39,7 +40,7 @@ React Native/Expo astrology app combining **Western** and **Vedic (Jyotish)** sy
 ├── src/
 │   ├── routes/          # API endpoints (jobs.ts, audio.ts)
 │   ├── services/        # Core logic (swissEphemeris, jobQueueV2)
-│   ├── workers/         # RunPod workers (textWorker, audioWorker)
+│   ├── workers/         # Workers (textWorker, audioWorker, songWorker)
 │   └── prompts/         # LLM prompt templates
 ├── migrations/          # Supabase SQL migrations
 ├── scripts/             # stress_test_parallel_readings.ts
@@ -55,7 +56,8 @@ React Native/Expo astrology app combining **Western** and **Vedic (Jyotish)** sy
 | **Supabase** | `https://qdfikbgwuauertfmkmzk.supabase.co` | Database, Auth, Storage |
 | **Claude** | `sk-ant-api03-...vNEgAA` | LLM for all readings |
 | **DeepSeek** | `sk-a0730e46...` | Backup LLM |
-| **RunPod TTS** | Endpoint `tyj2436ozcz419` | Chatterbox audio |
+| **Replicate TTS** | Chatterbox Turbo model | Audio generation |
+| **MiniMax** | Music 2.5 API | Song generation |
 | **Fal.ai** | `aaae1e11-...` | Alternative TTS (deprecated) |
 
 ### Supabase Test User
@@ -137,19 +139,20 @@ Compatibility analysis per system:
 
 ---
 
-## 🔄 JOB QUEUE V2 (Supabase + RunPod)
+## 🔄 JOB QUEUE V2 (Supabase + Fly.io Workers)
 
 ### Tables
 - `jobs` - Main job record (user_id, type, status, progress, params)
-- `job_tasks` - Individual tasks (text_generation, audio_generation)
-- `job_artifacts` - Storage references (MP3, PDF, text files)
+- `job_tasks` - Individual tasks (text_generation, audio_generation, song_generation)
+- `job_artifacts` - Storage references (MP3, PDF, text files, songs)
 
 ### Flow
 1. API creates job + 16 `text_generation` tasks
-2. RunPod TextWorker claims tasks, generates text, uploads to Storage
+2. Fly.io TextWorker claims tasks, generates text, uploads to Storage
 3. SQL trigger auto-enqueues `audio_generation` task when text completes
-4. RunPod AudioWorker generates MP3 from text
-5. Job auto-completes when all tasks done
+4. AudioWorker calls Replicate (Chatterbox Turbo) for TTS
+5. SongWorker calls MiniMax Music 2.5 for song generation
+6. Job auto-completes when all tasks done
 
 ### Key RPC Functions
 - `claim_tasks(worker_id, max_tasks, task_types)` - Worker claims work
@@ -186,9 +189,15 @@ CLAUDE_API_KEY=sk-ant-api03-...
 DEEPSEEK_API_KEY=sk-a0730e46...
 PAID_LLM_PROVIDER=claude
 
-# RunPod
-RUNPOD_API_KEY=...
-RUNPOD_ENDPOINT_ID=tyj2436ozcz419
+# Replicate (Audio/TTS)
+REPLICATE_API_TOKEN=...
+REPLICATE_CHUNK_DELAY_MS=11000
+
+# MiniMax (Songs)
+MINIMAX_API_KEY=...
+MINIMAX_GROUP_ID=...
+
+# Voice Sample
 VOICE_SAMPLE_URL=https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/voice_10sec.wav
 ```
 
@@ -218,7 +227,7 @@ All backups at: `/Users/michaelperinwogenburg/Desktop/1-IN-A-BILLION-BACKUPS/`
 ## 🔗 GITHUB
 
 - **Repo:** `Mikububu/1-in-a-billion-backend`
-- **Actions:** Auto-deploys to RunPod on push to `main`
+- **Actions:** Auto-deploys to Fly.io on push to `main`
 
 ---
 
@@ -241,81 +250,43 @@ LLM_PROVIDER=openai     # For GPT-4
 
 ---
 
-## 🚨 CRITICAL ARCHITECTURAL DECISION (Dec 27, 2025)
+## 🚨 CRITICAL ARCHITECTURAL DECISION (Dec 27, 2025) - RESOLVED
 
-### The Problem: RunPod Serverless Audio Generation Fails at Scale
+### The Problem: RunPod Serverless Audio Generation Failed at Scale
 
 **What We Discovered:**
-- Audio generation jobs stuck in `IN_QUEUE` for hours
-- RunPod `/runsync` endpoint returns async job IDs (`{id, status: 'IN_QUEUE'}`) instead of synchronous audio
-- Small jobs (free readings: 3 chunks) work fine
-- Large jobs (audiobooks: 30-40 chunks) fail completely
-- Jobs never progress from `IN_QUEUE` → `COMPLETED`
+- Audio generation jobs stuck in `IN_QUEUE` for hours on RunPod
+- Serverless endpoints have hard concurrency limits
+- Large jobs (audiobooks: 30-40 chunks) failed completely
 
-**Root Cause Analysis (via GPT-4):**
-1. **`/runsync` is not a guarantee** - It's a "best effort" synchronous shortcut that degrades to async when jobs exceed internal sync execution window
-2. **Serverless endpoints have hard concurrency limits** (10-50 jobs) - We were submitting 30-40 chunks in parallel per user, overwhelming the endpoint
-3. **Parallel chunking at scheduler level** - We chunked text and submitted chunks in parallel, multiplying concurrency by 30-40x
-4. **Serverless is for short bursts, not sustained batch workloads** - Audiobooks require long GPU occupancy, not quick inference
-5. **No explicit backpressure** - When capacity exceeded, jobs were accepted but never scheduled, causing silent failure
+### The Solution: Replicate + Rate-Limited Sequential Processing
 
-**The Fundamental Mistake:**
-We treated audiobook generation as a **synchronous request/response problem** instead of a **batch processing problem**. This forced us into serverless `/runsync`, parallel chunking, and polling patterns that are incompatible with long-running GPU work at scale.
+**Current Architecture (Implemented):**
+- **Audio/TTS**: Replicate Chatterbox Turbo with rate-limit handling
+- **Songs**: MiniMax Music 2.5 API
+- **Text Workers**: Fly.io
 
-### The Solution: Persistent GPU Workers + Queue Architecture
+**Key Changes:**
+1. Moved from RunPod to Replicate for TTS (simpler API, better reliability)
+2. Sequential chunk processing with configurable delays (`REPLICATE_CHUNK_DELAY_MS`)
+3. Rate-limit aware processing (accounts with < $5 credit get 6 requests/minute)
 
-**New Architecture (Not Yet Implemented):**
-
-```
-Users → API (Job Creation) → Queue (Redis/Postgres) → Persistent GPU Workers → Storage
-```
-
-**Key Components:**
-1. **Intake Layer** - API creates job records immediately, returns job_id (no GPU work)
-2. **Queue Layer** - Jobs wait in durable queue (Redis Streams or Postgres-based)
-3. **Execution Layer** - Persistent GPU pods on RunPod, each processes 1 chapter at a time
-4. **Delivery Layer** - Audio stored in object storage, clients poll for status
-
-**Why This Works:**
-- User concurrency ≠ GPU concurrency (1000 users can queue jobs, only 20 GPUs process them)
-- Explicit backpressure (queue depth controls GPU scaling)
-- Deterministic throughput (N pods = N concurrent chapters)
-- No silent queue starvation (jobs wait safely in queue)
-- Linear scalability (add pods = add throughput)
-
-**Hybrid Approach:**
-- Keep serverless `/runsync` ONLY for short previews (< 1000 chars) - instant UX
-- Route all audiobook generation to queue → persistent workers
-- This keeps UX fast for previews while protecting backend from collapse
-
-**Recommended Implementation Plan:**
-1. Database schema: `audiobook_jobs` + `audiobook_chapters` tables
-2. Queue system: Redis Streams or Postgres-based queue
-3. Persistent GPU workers: Node.js/Python workers that pull from queue, process 1 chapter at a time
-4. Autoscaler: Scale GPU pods based on queue depth (start with 1 pod, scale up as queue fills)
-5. Replace current `audioWorker.ts` serverless calls with queue-based approach
-
-**Status:** Architecture decision made, implementation not yet started. Current system still uses serverless `/runsync` (broken for large jobs).
-
-**References:**
-- GPT-4 architectural analysis (Dec 27, 2025)
-- RunPod serverless endpoint limitations
-- Industry standard: All serious TTS/audiobook platforms use persistent workers + queue
+**See `REPLICATE_RATE_LIMITS.md` for detailed rate limit handling**
 
 ---
 
-## ✅ CURRENT STATUS (Dec 27, 2025)
+## ✅ CURRENT STATUS (Feb 2026)
 
 - [x] Supabase configured (keys in .env)
-- [x] SQL migrations run (001 + 002 + 003 + 004)
+- [x] SQL migrations run (001 through 017+)
 - [x] Storage bucket `job-artifacts` created
 - [x] Test user created in Supabase Auth
-- [x] LLM code centralized (one provider, one env var)
+- [x] LLM code centralized (DeepSeek primary, Claude backup)
 - [x] **Job progress tracking FIXED** (Migration 004)
-- [x] **Architectural decision made** - Moving to persistent GPU workers + queue (see above)
-- [ ] Persistent GPU workers + queue implementation (NOT STARTED - next priority)
-- [ ] RunPod workers processing jobs (CURRENTLY BROKEN - see above)
-- [ ] GitHub Secrets configured for production deploy
+- [x] **Audio generation via Replicate** (Chatterbox Turbo)
+- [x] **Song generation via MiniMax** (Music 2.5)
+- [x] Workers deployed to Fly.io
+- [x] GitHub Actions auto-deploy on push to `main`
 
 ---
 

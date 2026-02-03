@@ -24,9 +24,10 @@ Clean rebuild of the 1-in-a-Billion astrology app, built from the "1-in-a-billio
 - **Framework**: Hono.js (Node.js)
 - **Database**: Supabase (Postgres)
 - **Queue System**: Supabase Queue V2
-- **Workers**: RunPod Serverless
+- **Workers**: Fly.io (text workers)
 - **LLM**: DeepSeek (primary) / Claude (backup)
-- **TTS**: Chatterbox via RunPod
+- **TTS**: Chatterbox via Replicate
+- **Songs**: MiniMax Music 2.5
 - **Vedic Matchmaking**: Full Ashtakoota system with vectorized engines
 
 ## Features
@@ -83,7 +84,8 @@ The backend automatically:
 - ✅ DeepSeek API key
 - ✅ Claude/Anthropic API key
 - ✅ OpenAI API key
-- ✅ RunPod API key & endpoint ID
+- ✅ Replicate API token (for TTS)
+- ✅ MiniMax API key & Group ID (for songs)
 - ✅ Google Places API key
 - ✅ Fly.io access token
 - ✅ Plus 17 more keys
@@ -130,7 +132,7 @@ npm run test:vedic
 - ✅ API keys integrated with Supabase
 - ✅ Vedic routes registered and working
 - ✅ FileSystem API errors fixed
-- ✅ RunPod workers fixed (sequential processing)
+- ✅ Audio workers fixed (sequential processing via Replicate)
 - ✅ All critical bugs fixed
 
 ### ⚠️ Minor Issues (Non-Critical)
@@ -160,7 +162,7 @@ npm run android    # Run on Android
 
 1. **Centralized API Keys**: All keys in Supabase `assistant_config` table
 2. **Vedic Matchmaking**: Full Jyotish system with vectorized engines
-3. **Sequential Audio Processing**: Fixed RunPod concurrency issues
+3. **Sequential Audio Processing**: Fixed Replicate concurrency/rate-limit issues
 4. **Comprehensive Testing**: Test scripts for all components
 5. **Better Error Handling**: Graceful fallbacks throughout
 
@@ -168,7 +170,7 @@ npm run android    # Run on Android
 
 - This is a clean rebuild from "1-in-a-billion-all 2"
 - Supabase MCP server configured for Cursor IDE
-- All backend processes run in the cloud (Fly.io/RunPod)
+- All backend processes run in the cloud (Fly.io + Replicate + MiniMax)
 - API keys automatically loaded from Supabase at startup
 
 ---

@@ -52,7 +52,7 @@ LIMIT 5;
 
 ### Possible Causes
 1. **Audio task stuck/failed** - Check task status in database
-2. **RunPod cold start timeout** - Audio tasks can take 60 minutes
+2. **Replicate rate limit / timeout** - Audio tasks can take time due to rate limits
 3. **Missing voice configuration** - Related to Bug #1
 
 ### How to Debug
@@ -93,7 +93,7 @@ ORDER BY created_at;
 **Step 4: Check backend logs**
 ```bash
 # Look for AudioWorker errors
-grep -i "akasha\|audioworker\|runpod" backend-logs.txt
+grep -i "akasha\|audioworker\|replicate" backend-logs.txt
 ```
 
 ### Possible Fixes

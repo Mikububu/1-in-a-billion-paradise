@@ -2,32 +2,33 @@
 
 ## 🎯 The Solution I Chose
 
-**GitHub Actions → GitHub Container Registry → RunPod API → Auto-Scaling Workers**
+**GitHub Actions → Fly.io Deploy → Supabase Queue → External APIs (Replicate + MiniMax)**
 
 **Why this is the best:**
-- ✅ **FREE** (GitHub Container Registry is free, unlimited)
-- ✅ **Auto-scales** (0-50 workers based on queue depth)
-- ✅ **Zero downtime** (new workers spin up before old ones stop)
-- ✅ **No SSH needed** (all via API)
+- ✅ **Cost-effective** (Fly.io scales to zero when idle)
+- ✅ **Auto-scales** (workers scale based on queue depth)
+- ✅ **Zero downtime** (rolling deploys)
+- ✅ **Managed APIs** (Replicate for TTS, MiniMax for songs)
 - ✅ **Uses Supabase Queue** (already designed for this)
 
 ## 🏗️ Architecture
 
 ```
-User Request → Backend API (RunPod Pod)
+User Request → Backend API (Fly.io)
                 ↓
          Creates Job in Supabase Queue
                 ↓
     Supabase Queue (Postgres)
                 ↓
-    Auto-Scaling Workers (RunPod Serverless)
-    - Min: 0 workers (saves money when idle)
-    - Max: 50 workers (handles 10k+ users)
-    - Scales based on queue depth
-                ↓
-    Workers process jobs in parallel
-                ↓
-    Results stored in Supabase Storage
+    Workers (Fly.io) ────────┬──────────────┬────────────────┐
+         │                   │              │                │
+    Text Tasks          Audio Tasks    Song Tasks      PDF Tasks
+         │                   │              │                │
+    DeepSeek/Claude    Replicate API   MiniMax API    Local Gen
+         │                   │              │                │
+         └───────────────────┴──────────────┴────────────────┘
+                                    ↓
+                    Results stored in Supabase Storage
 ```
 
 ## 📊 How It Scales
@@ -49,22 +50,20 @@ User Request → Backend API (RunPod Pod)
 
 ## 🔧 Components
 
-### 1. Backend API (RunPod Pod)
-- **Role:** Receives requests, creates jobs
-- **Scaling:** Single instance (lightweight)
-- **Cost:** ~$0.20/hour (always on)
+### 1. Backend API (Fly.io)
+- **Role:** Receives requests, creates jobs, runs workers
+- **Scaling:** Auto-scale based on traffic
+- **Cost:** ~$5-20/month (scales to zero when idle)
 
 ### 2. Supabase Queue (Postgres)
 - **Role:** Job queue, task distribution
 - **Scaling:** Automatic (Supabase handles it)
 - **Cost:** Included in Supabase plan
 
-### 3. Workers (RunPod Serverless)
-- **Role:** Process jobs (audio generation, etc.)
-- **Scaling:** 0-50 workers (auto-scale)
-- **Cost:** Pay per second of GPU time
-  - Idle: $0 (workers = 0)
-  - Active: ~$0.20/hour per worker
+### 3. External APIs
+- **Replicate (Audio/TTS):** Chatterbox Turbo model, pay-per-use
+- **MiniMax (Songs):** Music 2.5 API, pay-per-generation
+- **DeepSeek/Claude (Text):** LLM APIs, pay-per-token
 
 ## 💰 Cost Estimate
 
@@ -82,10 +81,9 @@ User Request → Backend API (RunPod Pod)
 ## 🚀 Deployment Flow
 
 1. **You push code** → GitHub Actions triggers
-2. **Builds Docker image** → Pushes to GitHub Container Registry (free)
-3. **Updates Backend Pod** → Via RunPod API
-4. **Updates Worker Endpoints** → Auto-scaling workers get new image
-5. **Zero downtime** → Old workers finish jobs, new workers start
+2. **Builds and deploys** → Via Fly.io CLI (`flyctl deploy`)
+3. **Rolling update** → New instances start, old ones drain
+4. **Zero downtime** → Traffic shifts gradually to new instances
 
 ## ✅ What's Already Done
 
@@ -100,14 +98,14 @@ User Request → Backend API (RunPod Pod)
    - Run SQL migration: `migrations/001_supabase_job_queue.sql`
    - Create Storage bucket: `job-artifacts`
 
-2. **Configure RunPod:**
-   - Set `RUNPOD_API_KEY` in GitHub Secrets
-   - Workers will auto-scale based on queue
+2. **Configure Fly.io:**
+   - Set secrets via `flyctl secrets set`
+   - `REPLICATE_API_TOKEN`, `MINIMAX_API_KEY`, `MINIMAX_GROUP_ID`
 
 3. **Test:**
-   - Push code → Watch workers scale up
-   - Send 100 jobs → See 10 workers spin up
-   - Jobs complete → Workers scale down to 0
+   - Push code → Auto-deploys to Fly.io
+   - Send jobs → Workers process via queue
+   - Monitor via Fly.io dashboard
 
 ## 🎯 Result
 

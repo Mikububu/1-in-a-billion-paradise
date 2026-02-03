@@ -35,11 +35,11 @@ SUPABASE_QUEUE_ROLLOUT_PERCENT=10
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# WORKER CONFIGURATION
+# WORKER CONFIGURATION (Fly.io)
 # ═══════════════════════════════════════════════════════════════════════════
 
 # Worker ID (auto-generated if not set: worker-{hostname}-{pid})
-WORKER_ID=worker-runpod-001
+WORKER_ID=worker-fly-001
 
 # Max concurrent tasks per worker (default: 5)
 WORKER_MAX_CONCURRENT_TASKS=5
@@ -52,17 +52,26 @@ WORKER_MAX_POLLING_INTERVAL_MS=30000
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# RUNPOD TTS (for Audio Workers)
+# REPLICATE (for Audio/TTS Generation - Chatterbox Turbo)
 # ═══════════════════════════════════════════════════════════════════════════
 
-# RunPod API Key (from https://www.runpod.io/console/user/settings)
-RUNPOD_API_KEY=your-runpod-api-key
+# Replicate API Token (from https://replicate.com/account/api-tokens)
+REPLICATE_API_TOKEN=your-replicate-api-token
 
-# RunPod Endpoint ID (from Serverless → Endpoints)
-RUNPOD_ENDPOINT_ID=your-endpoint-id
+# Chunk delay in ms to avoid rate limits (default: 11000 for low-credit accounts)
+# Can reduce to 3000-5000ms with $5+ account credit
+REPLICATE_CHUNK_DELAY_MS=11000
 
-# Voice sample URL for Chatterbox TTS
-VOICE_SAMPLE_URL=https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/voice_sample.mp3
+
+# ═══════════════════════════════════════════════════════════════════════════
+# MINIMAX (for Song/Music Generation - MiniMax Music 2.5)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# MiniMax API Key (from https://www.minimax.chat/)
+MINIMAX_API_KEY=your-minimax-api-key
+
+# MiniMax Group ID (from your MiniMax dashboard)
+MINIMAX_GROUP_ID=your-group-id
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -99,13 +108,17 @@ Some docs and command-line steps use a Postgres connection string (for `psql`) i
 - You can find the Postgres connection string in Supabase Dashboard → Settings → Database → Connection string. It looks like `postgres://<user>:<password>@db.<project>.supabase.co:5432/postgres`.
 - Do NOT expose this connection string publicly. Treat it as a secret and store it in GitHub Secrets or Fly.io secrets.
 
-### RunPod Credentials
+### Replicate Credentials (Audio/TTS)
 
-1. Go to [RunPod Console](https://www.runpod.io/console)
-2. Go to **User Settings**
-3. Copy **API Key** → `RUNPOD_API_KEY`
-4. Go to **Serverless → Endpoints**
-5. Copy your endpoint ID → `RUNPOD_ENDPOINT_ID`
+1. Go to [Replicate Account](https://replicate.com/account/api-tokens)
+2. Create or copy your **API Token** → `REPLICATE_API_TOKEN`
+3. Note: Accounts with < $5 credit are rate-limited to 6 requests/minute
+
+### MiniMax Credentials (Song/Music)
+
+1. Go to [MiniMax Console](https://www.minimax.chat/)
+2. Get your **API Key** → `MINIMAX_API_KEY`
+3. Get your **Group ID** → `MINIMAX_GROUP_ID`
 
 ## Environment-Specific Configurations
 
@@ -120,7 +133,7 @@ WORKER_MAX_CONCURRENT_TASKS=2
 LOG_LEVEL=debug
 ```
 
-### Production (RunPod)
+### Production (Fly.io)
 
 ```bash
 SUPABASE_URL=https://your-project.supabase.co
@@ -128,6 +141,9 @@ SUPABASE_SERVICE_ROLE_KEY=<SUPABASE_SERVICE_ROLE_KEY>
 SUPABASE_ANON_KEY=<SUPABASE_ANON_KEY>
 SUPABASE_QUEUE_ENABLED=true
 WORKER_MAX_CONCURRENT_TASKS=5
+REPLICATE_API_TOKEN=<REPLICATE_API_TOKEN>
+MINIMAX_API_KEY=<MINIMAX_API_KEY>
+MINIMAX_GROUP_ID=<MINIMAX_GROUP_ID>
 LOG_LEVEL=info
 SENTRY_DSN=<SENTRY_DSN>
 ```
@@ -149,8 +165,9 @@ In GitHub repo → Settings → Secrets → Actions:
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_ANON_KEY`
-- `RUNPOD_API_KEY`
-- `RUNPOD_ENDPOINT_ID`
+- `REPLICATE_API_TOKEN`
+- `MINIMAX_API_KEY`
+- `MINIMAX_GROUP_ID`
 
 ### ✅ Use different keys per environment
 
@@ -176,8 +193,9 @@ const requiredVars = [
   'SUPABASE_URL',
   'SUPABASE_SERVICE_ROLE_KEY',
   'SUPABASE_ANON_KEY',
-  'RUNPOD_API_KEY',
-  'RUNPOD_ENDPOINT_ID',
+  'REPLICATE_API_TOKEN',
+  'MINIMAX_API_KEY',
+  'MINIMAX_GROUP_ID',
 ];
 
 for (const varName of requiredVars) {
@@ -197,13 +215,14 @@ console.log('\n✅ All required environment variables are set!');
 - [ ] Set `SUPABASE_URL`
 - [ ] Set `SUPABASE_SERVICE_ROLE_KEY`
 - [ ] Set `SUPABASE_ANON_KEY`
-- [ ] Set `RUNPOD_API_KEY`
-- [ ] Set `RUNPOD_ENDPOINT_ID`
+- [ ] Set `REPLICATE_API_TOKEN`
+- [ ] Set `MINIMAX_API_KEY`
+- [ ] Set `MINIMAX_GROUP_ID`
 - [ ] Set `SUPABASE_QUEUE_ENABLED=false` (start disabled)
 - [ ] Test with `npm run check-env`
 - [ ] Gradually enable with `SUPABASE_QUEUE_ROLLOUT_PERCENT=10`
 - [ ] Scale to 100%
-- [ ] Deploy workers to RunPod
+- [ ] Deploy workers to Fly.io
 - [ ] Monitor logs and metrics
 
 

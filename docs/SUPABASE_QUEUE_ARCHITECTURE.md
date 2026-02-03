@@ -5,7 +5,8 @@
 Scale from **1 → 1,000,000 clients** without rewriting by using:
 - ✅ Supabase Postgres for queue/state (ACID + RLS)
 - ✅ Supabase Storage for artifacts (MP3/PDF/JSON)
-- ✅ Stateless workers on RunPod (horizontal scale)
+- ✅ Stateless workers on Fly.io (horizontal scale)
+- ✅ External APIs for heavy lifting (Replicate TTS, MiniMax songs)
 - ✅ **Zero base64 blobs in database** (all artifacts in Storage)
 
 ## 📐 System Architecture
@@ -38,11 +39,11 @@ Scale from **1 → 1,000,000 clients** without rewriting by using:
                        │
                        ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                  STATELESS WORKERS (RunPod)                      │
+│                  STATELESS WORKERS (Fly.io)                      │
 │                                                                   │
-│  Worker 1: claim_tasks() → process → upload → complete_task()  │
-│  Worker 2: claim_tasks() → process → upload → complete_task()  │
-│  Worker N: claim_tasks() → process → upload → complete_task()  │
+│  TextWorker: claim_tasks() → LLM API → upload → complete_task() │
+│  AudioWorker: claim_tasks() → Replicate → upload → complete()   │
+│  SongWorker: claim_tasks() → MiniMax → upload → complete()      │
 └──────────────────────┬───────────────────────────────────────────┘
                        │
                        ▼
@@ -317,7 +318,13 @@ const { data, error } = await supabase.storage
 3. **Audio Generation Worker**
    - Claims `audio_generation` tasks
    - Reads text from previous task.output
-   - Calls Chatterbox TTS (RunPod)
+   - Calls Chatterbox Turbo (Replicate API)
+   - Uploads MP3 to Storage → creates artifact
+
+4. **Song Generation Worker**
+   - Claims `song_generation` tasks
+   - Reads lyrics from previous task.output
+   - Calls MiniMax Music 2.5 API
    - Uploads MP3 to Storage → creates artifact
 
 ### Worker Polling Loop
@@ -449,8 +456,8 @@ const pendingTasks = await supabase
   .eq('status', 'pending');
 
 if (pendingTasks.count > 100) {
-  // Spin up more RunPod workers
-  await runpod.scaleEndpoint(endpointId, { minWorkers: 5 });
+  // Scale up Fly.io workers
+  await flyctl.scale({ app: 'backend', count: 5 });
 }
 ```
 
