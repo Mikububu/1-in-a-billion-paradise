@@ -45,6 +45,22 @@ Updated `fly.toml` with proper entrypoints:
 - **Tasks**: Generates audio from text using TTS (RunPod or local)
 - **Scaling**: Can scale to 0 when no audio jobs
 
+## Prerequisites
+
+Before deploying, ensure the following tools and access are available on the machine you use (local or CI):
+
+- `node` (v16+ recommended) and `npm`
+- `psql` (for running local SQL or applying migrations) — https://www.postgresql.org/download/
+- `flyctl` for Fly.io deployments — https://fly.io/docs/hands-on/install-flyctl/
+- `supabase` CLI (optional for SQL + functions) — https://supabase.com/docs/guides/cli
+- Logged-in sessions for CLIs: `flyctl auth login` and `supabase login`
+- Access to the Supabase project and ability to run SQL editor queries
+- CI alternative: If CLIs are not available in CI runners, use the Supabase SQL editor and GitHub Actions with `supabase`/`flyio` actions
+
+Notes:
+- Add required secrets as deployment-level secrets (Fly.io `flyctl secrets set` or GitHub Actions secrets) and do NOT commit them to the repo. Use placeholders like `<SUPABASE_SERVICE_ROLE_KEY>` in docs.
+- Verify `migrations/` have been applied in staging before applying to production.
+
 ## Deployment Steps
 
 ### 1. Build TypeScript

@@ -14,11 +14,11 @@ SUPABASE_URL=https://your-project.supabase.co
 
 # Service Role Key (SECRET! Never commit or expose to client)
 # Used by workers to bypass RLS and claim tasks from any user's jobs
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+SUPABASE_SERVICE_ROLE_KEY=<SUPABASE_SERVICE_ROLE_KEY>
 
 # Anon Key (PUBLIC - safe to use in client-facing API)
 # Used by API to respect RLS (users can only see their own jobs)
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+SUPABASE_ANON_KEY=<SUPABASE_ANON_KEY>
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -91,6 +91,14 @@ DATADOG_API_KEY=...
    - **anon public** → `SUPABASE_ANON_KEY`
    - **service_role secret** → `SUPABASE_SERVICE_ROLE_KEY` ⚠️ KEEP SECRET!
 
+### Database Connection String (for psql / migrations)
+
+Some docs and command-line steps use a Postgres connection string (for `psql`) instead of the Supabase REST `SUPABASE_URL`.
+
+- Use `DATABASE_URL` (or set `DATABASE_URL` in your shell) when running `psql` commands such as migrations or direct DB queries.
+- You can find the Postgres connection string in Supabase Dashboard → Settings → Database → Connection string. It looks like `postgres://<user>:<password>@db.<project>.supabase.co:5432/postgres`.
+- Do NOT expose this connection string publicly. Treat it as a secret and store it in GitHub Secrets or Fly.io secrets.
+
 ### RunPod Credentials
 
 1. Go to [RunPod Console](https://www.runpod.io/console)
@@ -105,8 +113,8 @@ DATADOG_API_KEY=...
 
 ```bash
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
-SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=<SUPABASE_SERVICE_ROLE_KEY>
+SUPABASE_ANON_KEY=<SUPABASE_ANON_KEY>
 SUPABASE_QUEUE_ENABLED=true
 WORKER_MAX_CONCURRENT_TASKS=2
 LOG_LEVEL=debug
@@ -116,12 +124,12 @@ LOG_LEVEL=debug
 
 ```bash
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
-SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=<SUPABASE_SERVICE_ROLE_KEY>
+SUPABASE_ANON_KEY=<SUPABASE_ANON_KEY>
 SUPABASE_QUEUE_ENABLED=true
 WORKER_MAX_CONCURRENT_TASKS=5
 LOG_LEVEL=info
-SENTRY_DSN=https://...
+SENTRY_DSN=<SENTRY_DSN>
 ```
 
 ## Security Best Practices

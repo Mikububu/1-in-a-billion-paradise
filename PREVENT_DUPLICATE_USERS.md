@@ -185,8 +185,8 @@ This prevents duplicates at the database level. Even if frontend bugs exist, Sup
 ### Optional: Database Constraint
 
 ```bash
-# If not already applied:
-psql $SUPABASE_DATABASE_URL -f migrations/add_unique_user_profile_constraint.sql
+# If not already applied: use your Postgres connection string in `DATABASE_URL` (see docs/ENVIRONMENT_VARIABLES.md)
+psql "$DATABASE_URL" -f migrations/add_unique_user_profile_constraint.sql
 ```
 
 ---

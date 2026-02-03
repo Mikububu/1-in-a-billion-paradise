@@ -75,8 +75,8 @@ npm install @supabase/supabase-js
 ```bash
 # .env
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
-SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=<SUPABASE_SERVICE_ROLE_KEY>
+SUPABASE_ANON_KEY=<SUPABASE_ANON_KEY>
 SUPABASE_QUEUE_ENABLED=false  # Start disabled
 ```
 

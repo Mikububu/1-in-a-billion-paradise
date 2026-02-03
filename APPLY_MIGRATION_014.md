@@ -33,8 +33,9 @@ Total: ~60 minutes
 ### Option 2: Command Line (If you have psql access)
 
 ```bash
+# Use your Postgres connection string in `DATABASE_URL` (see docs/ENVIRONMENT_VARIABLES.md)
 cd 1-in-a-billion-backend
-psql $SUPABASE_DB_URL -f migrations/014_parallel_post_text_tasks.sql
+psql "$DATABASE_URL" -f migrations/014_parallel_post_text_tasks.sql
 ```
 
 ---
