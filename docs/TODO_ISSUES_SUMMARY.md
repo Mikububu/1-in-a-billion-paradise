@@ -9,11 +9,11 @@ This file extracts high-value TODO/checklist items from docs and proposes Issue 
 - Suggested owner: backend-eng
 - Priority: High
 
-2) Add Song display to reading screens
-- Title: "Add song generation UI to FullReadingScreen / DeepReadingReaderScreen"
-- Description: Integrate generated song artifacts into `FullReadingScreen` and `DeepReadingReaderScreen`. Add player UI, streaming via signed URL, and tests for playback.
-- Suggested owner: frontend-eng
-- Priority: Medium
+2) ✅ DONE - Song display in reading screens
+- Song UI is fully implemented in:
+  - `PersonReadingsScreen.tsx` - Full player with lyrics, scrubbing, auto-scroll
+  - `ReadingChapterScreen.tsx` - AudioPlayerSection component for songs
+  - `DeepReadingReaderScreen.tsx` - Song button navigates to AudioPlayer
 
 3) Worker infrastructure documentation
 - Title: "Fix worker workflow and document current infrastructure"

@@ -77,10 +77,10 @@ The system randomly selects from a pool of 50 iconic artists/groups to infuse in
    - Added `audio_song` to `JobArtifact` type
    - Added song metadata (lyrics, duration, style)
 
-2. **Display** (TODO: Add to FullReadingScreen or DeepReadingReaderScreen)
-   - Show "Your Song" section with play button
-   - Display lyrics if available
-   - Download option
+2. **Display** ✅ IMPLEMENTED
+   - `PersonReadingsScreen.tsx` - Full song player with lyrics, scrubbing, auto-scroll sync
+   - `ReadingChapterScreen.tsx` - Uses `AudioPlayerSection` component for songs with lyrics
+   - `DeepReadingReaderScreen.tsx` - Song button navigates to AudioPlayer
 
 ## Flow
 
