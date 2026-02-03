@@ -381,7 +381,7 @@ export const useOnboardingStore = create<OnboardingState>()(
         hasCompletedOnboarding: state.hasCompletedOnboarding,
         redirectAfterOnboarding: state.redirectAfterOnboarding,
         lastActiveTimestamp: state.lastActiveTimestamp, // Persist for inactivity tracking
-        // showDashboard is NOT persisted - always starts as false on app launch
+        showDashboard: state.showDashboard, // Persist showDashboard to remember after signup
         _hasHydrated: state._hasHydrated,
       } as any),
       onRehydrateStorage: () => (state) => {

@@ -277,9 +277,9 @@ export function buildReadingPrompt(ctx: PromptContext): string {
   // These are EXAMPLES - AI should create unique variations each time
   // NO SPIRITUAL BYPASSING - use psychological, direct language
   const greetingExamples: Record<ReadingType, string[]> = {
-    sun: ['Your Sun in', 'Born with the Sun in', 'The Sun in', 'Your core identity, the Sun in'],
-    moon: ['Your Moon in', 'The Moon in', 'Emotionally, the Moon in', 'Your emotional architecture, the Moon in'],
-    rising: ['Your Rising in', 'The Rising sign', 'First impressions: the Rising in', 'The mask you wear, Rising in']
+    sun: ['Dear child of the sun', 'Beloved soul of light', 'Sweet one born under golden rays', 'Radiant heart'],
+    moon: ['Keeper of hidden waters', 'Tender soul of the inner tides', 'Dear one of the emotional depths', 'Gentle heart'],
+    rising: ['Face of the rising dawn', 'Soul who greets the world', 'Dear one of first impressions', 'Bright presence']
   };
 
   const typeMeaning: Record<ReadingType, string> = {
