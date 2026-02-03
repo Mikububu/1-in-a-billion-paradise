@@ -8,17 +8,17 @@
 import { BaseWorker, TaskResult } from './baseWorker';
 import { JobTask, supabase } from '../services/supabaseClient';
 import { ephemerisIsolation } from '../services/ephemerisIsolation'; // Isolated process (crash-safe)
-import { llmPaid } from '../services/llm'; // Paid LLM for all text generation (configured in env.ts)
+import { llm, llmPaid, type LLMProvider } from '../services/llm'; // Centralized LLM service
+import { getProviderForSystem, type LLMProviderName } from '../config/llmProviders';
 import { generateDramaticTitles } from '../services/titleGenerator'; // Dramatic title generation
-// NOTE: We intentionally do NOT prepend audio introductions to text.
 import {
   SYSTEMS as NUCLEAR_V2_SYSTEMS,
   SYSTEM_DISPLAY_NAMES as NUCLEAR_V2_SYSTEM_NAMES,
   buildPersonPrompt,
-  buildOverlayPrompt,
+  buildOverlayPrompt as buildNuclearV2OverlayPrompt,
   buildVerdictPrompt,
-  type SystemName,
 } from '../prompts/structures/paidReadingPrompts';
+import { buildIndividualPrompt, buildOverlayPrompt } from '../prompts';
 import { SpiceLevel } from '../prompts/spice/levels';
 import { gematriaService } from '../services/kabbalah/GematriaService';
 import { hebrewCalendarService } from '../services/kabbalah/HebrewCalendarService';
@@ -714,9 +714,12 @@ export class TextWorker extends BaseWorker {
 
     } else if (system === 'kabbalah') {
       // ===========================================================================
-      // KABBALAH - Hebrew Name Conversion + Gematria (chart data only)
-      // Uses standard buildPersonPrompt() with master deep-reading-prompt.md
+      // KABBALAH FULL PIPELINE - Hebrew Name Conversion + Gematria
       // ===========================================================================
+      // 1. Convert name to Hebrew letters
+      // 2. Calculate Gematria values
+      // 3. Convert birth date to Hebrew calendar
+      // 4. Send structured data to OpenAI (best for Kabbalah interpretation)
       console.log(`🔯 [TextWorker] Running Kabbalah reading for ${docType} with Hebrew preprocessing...`);
       
       const targetPerson = docType === 'person2' ? person2 : person1;
@@ -776,36 +779,79 @@ export class TextWorker extends BaseWorker {
         console.warn(`🔯 [Kabbalah] Hebrew date conversion failed:`, e);
       }
       
-      // Build Kabbalah-specific chart data (just the data, not the prompt instructions)
-      const kabbalachChartData = `
-KABBALAH SOUL DATA:
+      // Get personal context (life events, etc.)
+      const contextText = params.personalContext || params.lifeEvents || '';
+      
+      // Build comprehensive Kabbalah prompt with Hebrew data
+      prompt = `⚠️  CRITICAL: Write pure flowing prose. NO asterisks, markdown, bullet points, or formatting. This becomes audio.
 
-Name Essence (FOR CONTEXT ONLY - mention briefly, then focus on Tree of Life):
+===============================================================================
+YOU ARE A MASTER KABBALIST
+===============================================================================
+
+You stand in the ancient tradition of Jewish mysticism. You see the hidden architecture of souls. You read the invisible blueprints written before birth. You speak not as a teacher, but as one who has walked the Tree of Life and returned with dark, honest truths about the human soul.
+
+Your voice is: Penetrating. Unflinching. Mystical but grounded. You see both the light and the shadow. You honor the mystery while revealing uncomfortable truths about the soul's journey. You are Carl Jung meets the Zohar, weaving psychological depth with Kabbalistic wisdom.
+
+===============================================================================
+SOUL DATA FOR ${fullName}:
+===============================================================================
+
+Name Essence:
 • ${firstName}: ${firstNameRomanized} (Gematria ${firstNameInfo.gematria})
 ${surnameInfo ? `• ${surname}: ${surnameRomanized} (Gematria ${surnameInfo.gematria})
 • Total Soul Number: ${totalGematria}` : `• Soul Number: ${firstNameInfo.gematria}`}
 
 ${hasValidBirthDate ? `Entry Point: Born ${hebrewDateStr} (${targetBirthData?.birthDate || ''})` : `Entry Point: Unknown birth date - the soul entered through mystery`}
 
-Kabbalistic Framework:
-- The Tree of Life (10 Sephirot): Keter (Crown), Chokmah (Wisdom), Binah (Understanding), Chesed (Mercy), Gevurah (Severity), Tiferet (Beauty), Netzach (Victory), Hod (Glory), Yesod (Foundation), Malkuth (Kingdom)
-- The soul's journey through these spheres reveals patterns of light and shadow
-- Focus on Sephirotic imbalances, Klipothic patterns (shadow shells), and tikkun (soul repair)
-- Reference concepts: gilgul (reincarnation), tzimtzum (divine contraction), shattering of vessels
+${contextText ? `Life Context:\n${contextText}\n` : ''}
+===============================================================================
+YOUR TASK: REVEAL THE SOUL'S DARK AND LIGHT ARCHITECTURE
+===============================================================================
 
-NOTE: The name's gematria is context only. Focus your reading on the Tree of Life structure, Sephirotic patterns, and the soul's journey through Kabbalistic wisdom.
-`.trim();
+Write an audiobook-quality Kabbalistic reading that cuts to the core of ${firstName}'s soul. This is NOT a pleasant personality reading. This is psychological excavation through the lens of Jewish mysticism.
 
-      // Use standard buildPersonPrompt with master deep-reading-prompt.md
-      prompt = buildPersonPrompt({
-        system: 'kabbalah' as SystemName,
-        personName: targetPerson.name,
-        personData: targetBirthData || { birthDate: '', birthTime: '', birthPlace: '' },
-        chartData: kabbalachChartData,
-        spiceLevel,
-        style,
-        personalContext: params.personalContext,
-      });
+WHAT TO EXPLORE (weave these naturally, don't list them):
+
+1. **The Soul's Hidden Contract**
+   - What did this soul AGREE to before birth? What is the tikkun (rectification) they came to complete?
+   - Where is the fracture? Every soul has one. Name it. (Fear of intimacy? Addiction to control? Terror of being seen?)
+   - The Gematria reveals the soul's WEIGHT - what burden does this number carry?
+
+2. **The Letters as Psychological Forces**
+   - Don't explain each letter like a textbook. Instead, show how they CREATE the soul's primary tension.
+   - Example: If their name starts with Aleph-Lamed, speak about the battle between unity (Aleph) and authority (Lamed) that tears them apart.
+   - Letters are VERBS, not nouns. They are doing things to the soul. What violence or grace are they creating?
+
+3. **The Tree of Life as Inner Landscape**
+   - Where does this soul LIVE on the Tree? Are they trapped in Gevurah (severity/judgment)? Stuck in Yesod (fantasy)?
+   - The soul's imbalance is the soul's medicine. Name the Sephirah they avoid and why.
+   - Connect their life events (if given) to movements on the Tree. Depression = descent to Malkuth. Breakthrough = lightning flash to Keter.
+
+4. **The Mystery They Embody**
+   - Every soul is a living question the universe is asking. What question is ${firstName}?
+   - Reference mystical concepts: gilgul (reincarnation), tzimtzum (divine contraction), the shattering of vessels
+   - Speak about the SILENCE between the letters, the unspoken name beneath the spoken one
+
+5. **Dark Honesty About the Path**
+   - Where will they fail? What pattern will they repeat until death if they don't wake up?
+   - What is the PRICE of their gifts? (Empaths become martyrs. Visionaries become isolated. Leaders become tyrants.)
+   - ${spiceLevel >= 7 ? 'Be ruthlessly honest. Name the shadow they refuse to see.' : 'Be compassionate but don\'t lie. The soul knows its own darkness.'}
+
+===============================================================================
+AUDIO WRITING RULES:
+===============================================================================
+
+- Write as if speaking in a dimly lit room, one soul to another
+- When referencing Hebrew letters, use romanized names (Aleph, Mem, Shin) woven into sentences, not as lists
+- Never say "your name contains..." Instead: "The letter Mem courses through your name like water, dissolving boundaries, erasing edges..."
+- No bullet points. No lists. Only flowing, hypnotic prose.
+- Surprise them. Go deeper than they expected. This is an initiation, not a reading.
+
+FORMAT: ~2000 words of continuous prose. Address ${firstName} directly.
+TONE: ${spiceLevel >= 7 ? 'Uncompromising. Confrontational wisdom. Rabbi Nachman meets Nietzsche.' : 'Mystical but grounded. Honest but kind. A wise elder who sees everything.'}
+
+${OUTPUT_FORMAT_RULES}`;
 
       label += `:kabbalah:${docType}`;
       
@@ -821,8 +867,8 @@ NOTE: The name's gematria is context only. Focus your reading on the Tree of Lif
           if (!person2 || !p2BirthData || !p2Placements) {
             throw new Error(`Overlay doc requires person2, but person2 is missing for job ${jobId}`);
           }
-          prompt = buildOverlayPrompt({
-            system: system as SystemName,
+          prompt = buildNuclearV2OverlayPrompt({
+            system: system as any,
             person1Name: person1.name,
             person2Name: person2.name,
             chartData,
@@ -866,37 +912,43 @@ NOTE: The name's gematria is context only. Focus your reading on the Tree of Lif
         }
 
         if (docType === 'overlay') {
+          const chartDataObj: any = { synastry: chartData, [chartKey]: chartData };
           prompt = buildOverlayPrompt({
-            system: system as SystemName,
-            person1Name: person1.name,
-            person2Name: person2.name,
-            chartData,
-            spiceLevel,
+            type: 'overlay',
             style,
+            spiceLevel,
+            system: system as any,
+            person1: { name: person1.name, ...p1BirthData } as any,
+            person2: { name: person2.name, ...p2BirthData } as any,
+            chartData: chartDataObj,
             relationshipContext: params.relationshipContext,
-          });
+          } as any);
           label += `:synastry:overlay:${system}`;
         } else if (docType === 'person1') {
-          prompt = buildPersonPrompt({
-            system: system as SystemName,
-            personName: person1.name,
-            personData: p1BirthData,
-            chartData,
-            spiceLevel,
+          const chartDataObj: any = { [chartKey]: chartData };
+          prompt = buildIndividualPrompt({
+            type: 'individual',
             style,
+            spiceLevel,
+            system: system as any,
+            voiceMode: 'other',
+            person: { name: person1.name, ...p1BirthData } as any,
+            chartData: chartDataObj,
             personalContext: params.personalContext,
-          });
+          } as any);
           label += `:synastry:p1:${system}`;
         } else if (docType === 'person2') {
-          prompt = buildPersonPrompt({
-            system: system as SystemName,
-            personName: person2.name,
-            personData: p2BirthData,
-            chartData,
-            spiceLevel,
+          const chartDataObj: any = { [chartKey]: chartData };
+          prompt = buildIndividualPrompt({
+            type: 'individual',
             style,
+            spiceLevel,
+            system: system as any,
+            voiceMode: 'other',
+            person: { name: person2.name, ...p2BirthData } as any,
+            chartData: chartDataObj,
             personalContext: params.personalContext,
-          });
+          } as any);
           label += `:synastry:p2:${system}`;
         } else {
           throw new Error(`Unknown docType for synastry: ${docType}`);
@@ -905,15 +957,17 @@ NOTE: The name's gematria is context only. Focus your reading on the Tree of Lif
         if (docType !== 'individual') {
           throw new Error(`Extended jobs should only create 'individual' docs (got ${docType})`);
         }
-        prompt = buildPersonPrompt({
-          system: system as SystemName,
-          personName: person1.name,
-          personData: p1BirthData,
-          chartData,
-          spiceLevel,
+        const chartDataObj: any = { [chartKey]: chartData };
+        prompt = buildIndividualPrompt({
+          type: 'individual',
           style,
+          spiceLevel,
+          system: system as any,
+          voiceMode: 'other',
+          person: { name: person1.name, ...p1BirthData } as any,
+          chartData: chartDataObj,
           personalContext: params.personalContext,
-        });
+        } as any);
         label += `:individual:${system}`;
       } else {
         throw new Error(`Unhandled job.type: ${job.type}`);
@@ -932,15 +986,32 @@ NOTE: The name's gematria is context only. Focus your reading on the Tree of Lif
       console.log('🔍 [Vedic Debug] Prompt length:', prompt.length);
     }
 
-    // Use configured paid LLM (see: src/config/env.ts PAID_LLM_PROVIDER)
-    // 3000 words ≈ 4000-5000 tokens, with 23k input prompt we need max output space
-    let text = await llmPaid.generate(prompt, label, { 
-      maxTokens: 12000, // Target 3000 words (4 tokens per word average)
-      temperature: 0.85, // Slightly higher for more creative/deep output
-    });
+    // Use centralized LLM service with per-system provider config
+    // Config: src/config/llmProviders.ts (Claude for most, OpenAI for Kabbalah)
+    const configuredProvider = getProviderForSystem(system || 'western');
+    console.log(`🔧 System "${system}" → Provider: ${configuredProvider}`);
+    
+    let text: string;
+    let llmInstance: typeof llm | typeof llmPaid;
+    if (configuredProvider === 'claude') {
+      // Use Claude Sonnet 4 via llmPaid (unhinged, no censorship)
+      llmInstance = llmPaid;
+      text = await llmPaid.generate(prompt, label, { 
+        maxTokens: 8192, 
+        temperature: 0.8,
+      });
+    } else {
+      // Use DeepSeek (default) or OpenAI via llm with provider override
+      llmInstance = llm;
+      text = await llm.generate(prompt, label, { 
+        maxTokens: 8192, 
+        temperature: 0.8,
+        provider: configuredProvider as LLMProvider,
+      });
+    }
     
     // 💰 LOG COST for this LLM call
-    const usageData = llmPaid.getLastUsage();
+    const usageData = llmInstance.getLastUsage();
     if (usageData) {
       await logLLMCost(
         jobId,
@@ -974,21 +1045,9 @@ NOTE: The name's gematria is context only. Focus your reading on the Tree of Lif
     
     const wordCount = text.split(/\s+/).filter(Boolean).length;
 
-    // MINIMUM WORD COUNT: 1500 words (safety net only)
-    // Prompt asks for 2500-3000 words as target, but we don't enforce it strictly
-    const MIN_WORDS = 1500;
-    if (wordCount < MIN_WORDS) {
-      console.error(`\n${'═'.repeat(70)}`);
-      console.error(`🚨 TEXT TOO SHORT - REJECTING`);
-      console.error(`${'═'.repeat(70)}`);
-      console.error(`Required: ${MIN_WORDS} words minimum`);
-      console.error(`Received: ${wordCount} words`);
-      console.error(`Shortage: ${MIN_WORDS - wordCount} words missing`);
-      console.error(`${'═'.repeat(70)}\n`);
-      throw new Error(`LLM returned too little text: ${wordCount} words (minimum ${MIN_WORDS} required)`);
+    if (wordCount < 200) {
+      throw new Error(`LLM returned too little text (${wordCount} words)`);
     }
-    
-    console.log(`✅ Word count validation passed: ${wordCount} words (minimum ${MIN_WORDS})`);
 
     // Extract headline from first line of text
     const lines = text.split('\n').filter(line => line.trim());
@@ -1013,8 +1072,6 @@ NOTE: The name's gematria is context only. Focus your reading on the Tree of Lif
     console.log(`   📖 Reading: "${dramaticTitles.readingTitle}"`);
     console.log(`   🎵 Song: "${dramaticTitles.songTitle}"`);
 
-    const textWithIntro = text;
-
     // Match BaseWorker storage path logic for output (so SQL trigger can enqueue audio tasks)
     const artifactType = 'text' as const;
     const extension = 'txt';
@@ -1031,18 +1088,11 @@ NOTE: The name's gematria is context only. Focus your reading on the Tree of Lif
         excerpt,
         textArtifactPath,
         headline, // Add headline to output
-        // LLM metrics for cost tracking
-        llmMetrics: usageData ? {
-          provider: usageData.provider,
-          inputTokens: usageData.usage.inputTokens,
-          outputTokens: usageData.usage.outputTokens,
-          durationMs: usageData.durationMs,
-        } : undefined,
       },
       artifacts: [
         {
           type: 'text',
-          buffer: Buffer.from(textWithIntro, 'utf-8'),
+          buffer: Buffer.from(text, 'utf-8'),
           contentType: 'text/plain; charset=utf-8',
           metadata: {
             jobId,

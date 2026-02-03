@@ -1,7 +1,10 @@
 /**
  * CORE MODULES INDEX
  * 
- * Output rules for TTS formatting.
+ * Exports all core prompt building blocks.
  */
 
+export * from './forbidden';
 export * from './output-rules';
+export * from './quality-checks';
+export * from './storytelling-voice';

@@ -1,45 +1,63 @@
 /**
- * PROMPT SYSTEM
+ * MODULAR PROMPT SYSTEM
  * 
- * ARCHITECTURE:
- * - The MD file (prompts/deep-reading-prompt.md) is the SINGLE SOURCE OF TRUTH
- *   for all voice, style, and instructions ("the perfume")
- * - TypeScript handles ONLY: data interpolation, type definitions, LLM routing
- * - Both paid deep readings AND free hook readings inherit from the same MD file
+ * Main entry point for the prompt generation system.
+ * 
+ * This system is:
+ * - LLM-agnostic (works with Claude, GPT, Gemini, etc.)
+ * - Modular (change style in one place, affects everything)
+ * - Maintainable (each concern in its own file)
+ * 
+ * Source: Michael's gold prompt documents
+ * Architecture: docs/PROMPT_SYSTEM_ARCHITECTURE.md
  */
 
-// ═══════════════════════════════════════════════════════════════════════════
-// PROMPT LOADER - Reads the MD file
-// ═══════════════════════════════════════════════════════════════════════════
-
+// Main builder functions
 export {
-  loadMasterPrompt,
-  getCondensedVoice,
-  buildDeepReadingPrompt,
-} from './promptLoader';
-
-// ═══════════════════════════════════════════════════════════════════════════
-// PAID READING PROMPTS - Builds prompts for Claude (paid readings)
-// ═══════════════════════════════════════════════════════════════════════════
-
-export {
-  buildPersonPrompt,
+  buildPrompt,
+  buildIndividualPrompt,
+  buildSimpleIndividualPrompt,
   buildOverlayPrompt,
-  buildVerdictPrompt,
-  SYSTEMS,
+  buildNuclearPromptOverview,
+  buildNuclearPartPrompt,
+  buildSimpleNuclearPartPrompt,
+  type PromptConfig,
+  type IndividualPromptConfig,
+  type OverlayPromptConfig,
+  type NuclearPromptConfig,
+  type NuclearPartPromptConfig,
+  type PersonData,
+  type ChartData,
+} from './builder';
+
+// Core modules
+export * from './core';
+
+// Styles
+export { StyleName, buildStyleSection, getStyleConfig } from './styles';
+
+// Spice levels
+export { SpiceLevel, buildSpiceSection, getSpiceConfig, getShadowPercent } from './spice';
+
+// Systems
+export { 
+  AstroSystem, 
+  ALL_SYSTEMS, 
   SYSTEM_DISPLAY_NAMES,
-  NUCLEAR_DOCS,
-  VERDICT_DOC,
-  TOTAL_DOCS,
-  getDocInfo,
-  type SystemName,
-  type DocType,
-  type NuclearDoc,
-} from './structures/paidReadingPrompts';
+  buildSystemSection,
+  buildAllSystemsSection,
+} from './systems';
 
-// ═══════════════════════════════════════════════════════════════════════════
-// TYPES AND UTILITIES
-// ═══════════════════════════════════════════════════════════════════════════
+// Structures
+export { 
+  ReadingType, 
+  READING_CONFIGS,
+  NUCLEAR_PARTS,
+  getNuclearPart,
+} from './structures';
 
-export { SpiceLevel, StyleName, getShadowPercent, getSpiceConfig, buildSpiceSection } from './spice/levels';
-export { OUTPUT_FORMAT_RULES } from './core/output-rules';
+// Examples
+export { TRANSFORMATIONS, buildTransformationsSection } from './examples';
+
+// Techniques
+export { buildSystemWeavingSection } from './techniques';
