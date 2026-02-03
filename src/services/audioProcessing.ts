@@ -243,10 +243,39 @@ export function concatenateWavBuffers(buffers: Buffer[]): Buffer {
   const audioDataChunks: Buffer[] = [];
   let totalDataSize = 0;
 
+  // Determine format from the FIRST buffer (keeps original sample rate/channels)
+  let sampleRate = AUDIO_CONFIG.DEFAULT_SAMPLE_RATE;
+  let numChannels = AUDIO_CONFIG.DEFAULT_NUM_CHANNELS;
+  let bitsPerSample = AUDIO_CONFIG.DEFAULT_BITS_PER_SAMPLE;
+
   for (let i = 0; i < buffers.length; i++) {
     const buf = buffers[i]!;
     // Convert IEEE Float to 16-bit PCM if needed
     const pcmBuf = convertFloatWavToPcm(buf);
+
+    // Capture format from the first (converted) buffer
+    if (i === 0) {
+      try {
+        const fmt = getWavFormat(pcmBuf);
+        sampleRate = fmt.sampleRate || sampleRate;
+        numChannels = fmt.numChannels || numChannels;
+        bitsPerSample = fmt.bitsPerSample || bitsPerSample;
+        if (fmt.sampleRate !== AUDIO_CONFIG.DEFAULT_SAMPLE_RATE || fmt.numChannels !== AUDIO_CONFIG.DEFAULT_NUM_CHANNELS) {
+          console.log(`⚠️  Using source format for stitching: ${fmt.sampleRate}Hz, ${fmt.numChannels}ch, ${fmt.bitsPerSample}-bit`);
+        }
+      } catch (err) {
+        console.warn('Could not read WAV fmt chunk, falling back to defaults:', err);
+      }
+    } else {
+      // Sanity check for format drift between chunks
+      try {
+        const fmt = getWavFormat(pcmBuf);
+        if (fmt.sampleRate !== sampleRate || fmt.numChannels !== numChannels) {
+          console.warn(`⚠️  Chunk ${i + 1} format mismatch (${fmt.sampleRate}Hz/${fmt.numChannels}ch) vs base (${sampleRate}Hz/${numChannels}ch). Proceeding without resample.`);
+        }
+      } catch { /* ignore */ }
+    }
+
     const { dataOffset, dataSize } = findWavDataChunk(pcmBuf);
     const audioData = pcmBuf.slice(dataOffset, dataOffset + dataSize);
     console.log(`Chunk ${i + 1} audio data: ${dataSize} bytes (offset: ${dataOffset}, total buffer: ${pcmBuf.length})`);
@@ -254,28 +283,11 @@ export function concatenateWavBuffers(buffers: Buffer[]): Buffer {
     totalDataSize += audioData.length;
   }
 
-  // Create a simple WAV file with standard 44-byte header
-  const result = Buffer.alloc(44 + totalDataSize);
-
-  // Write WAV header
-  result.write('RIFF', 0);
-  result.writeUInt32LE(36 + totalDataSize, 4); // ChunkSize
-  result.write('WAVE', 8);
-  result.write('fmt ', 12);
-  result.writeUInt32LE(16, 16); // Subchunk1Size (PCM)
-  result.writeUInt16LE(1, 20); // AudioFormat (PCM)
-  result.writeUInt16LE(AUDIO_CONFIG.DEFAULT_NUM_CHANNELS, 22); // NumChannels
-  result.writeUInt32LE(AUDIO_CONFIG.DEFAULT_SAMPLE_RATE, 24); // SampleRate
-  result.writeUInt32LE(AUDIO_CONFIG.DEFAULT_SAMPLE_RATE * AUDIO_CONFIG.DEFAULT_NUM_CHANNELS * 2, 28); // ByteRate
-  result.writeUInt16LE(AUDIO_CONFIG.DEFAULT_NUM_CHANNELS * 2, 32); // BlockAlign
-  result.writeUInt16LE(AUDIO_CONFIG.DEFAULT_BITS_PER_SAMPLE, 34); // BitsPerSample
-  result.write('data', 36);
-  result.writeUInt32LE(totalDataSize, 40); // Subchunk2Size
-
   // IMPROVED CROSSFADE: Blend overlapping regions for seamless transitions
   const fadeMs = AUDIO_CONFIG.CROSSFADE_DURATION_MS;
-  const fadeSamples = Math.floor((AUDIO_CONFIG.DEFAULT_SAMPLE_RATE * fadeMs) / 1000);
-  const fadeBytes = fadeSamples * 2; // 16-bit = 2 bytes per sample
+  const bytesPerSample = bitsPerSample / 8;
+  const fadeSamples = Math.floor((sampleRate * fadeMs) / 1000);
+  const fadeBytes = fadeSamples * bytesPerSample * numChannels;
 
   // First pass: calculate total size accounting for crossfade overlap
   let crossfadeTotalSize = audioDataChunks[0]?.length || 0;
@@ -287,13 +299,22 @@ export function concatenateWavBuffers(buffers: Buffer[]): Buffer {
     crossfadeTotalSize += chunk.length - overlapBytes;
   }
 
-  // Reallocate result buffer with correct size
+  // Allocate result buffer with correct size
   const crossfadeResult = Buffer.alloc(44 + crossfadeTotalSize);
 
-  // Copy WAV header
-  result.copy(crossfadeResult, 0, 0, 44);
-  // Update data size in header
+  // Write WAV header with source format
+  crossfadeResult.write('RIFF', 0);
   crossfadeResult.writeUInt32LE(36 + crossfadeTotalSize, 4); // ChunkSize
+  crossfadeResult.write('WAVE', 8);
+  crossfadeResult.write('fmt ', 12);
+  crossfadeResult.writeUInt32LE(16, 16); // Subchunk1Size (PCM)
+  crossfadeResult.writeUInt16LE(1, 20); // AudioFormat (PCM)
+  crossfadeResult.writeUInt16LE(numChannels, 22); // NumChannels
+  crossfadeResult.writeUInt32LE(sampleRate, 24); // SampleRate
+  crossfadeResult.writeUInt32LE(sampleRate * numChannels * bytesPerSample, 28); // ByteRate
+  crossfadeResult.writeUInt16LE(numChannels * bytesPerSample, 32); // BlockAlign
+  crossfadeResult.writeUInt16LE(bitsPerSample, 34); // BitsPerSample
+  crossfadeResult.write('data', 36);
   crossfadeResult.writeUInt32LE(crossfadeTotalSize, 40); // Subchunk2Size
 
   let writeOffset = 44;
@@ -308,16 +329,19 @@ export function concatenateWavBuffers(buffers: Buffer[]): Buffer {
       const prevChunk = audioDataChunks[i - 1]!;
       const overlapBytes = Math.min(fadeBytes, chunk.length, prevChunk.length);
 
-      if (overlapBytes >= 4) {
+      if (overlapBytes >= bytesPerSample * numChannels) {
         // CROSSFADE: Blend the overlap region
         // The overlap region is at the END of what we've written and START of current chunk
         const blendStart = writeOffset - overlapBytes;
 
-        for (let j = 0; j < overlapBytes; j += 2) {
-          // Read sample from previous chunk (already in result buffer)
-          const prevSample = crossfadeResult.readInt16LE(blendStart + j);
-          // Read sample from current chunk
-          const currSample = chunk.readInt16LE(j);
+        for (let j = 0; j < overlapBytes; j += bytesPerSample * numChannels) {
+          // Read sample(s) from previous chunk (already in result buffer)
+          const prevSample = bitsPerSample === 16
+            ? crossfadeResult.readInt16LE(blendStart + j)
+            : crossfadeResult.readInt8(blendStart + j);
+          const currSample = bitsPerSample === 16
+            ? chunk.readInt16LE(j)
+            : chunk.readInt8(j);
 
           // Crossfade ratio: prev fades out (1->0), curr fades in (0->1)
           const t = j / overlapBytes; // 0.0 to 1.0
@@ -327,9 +351,15 @@ export function concatenateWavBuffers(buffers: Buffer[]): Buffer {
 
           // Blend samples
           const blended = Math.round(prevSample * prevGain + currSample * currGain);
-          // Clamp to int16 range
-          const clamped = Math.max(-32768, Math.min(32767, blended));
-          crossfadeResult.writeInt16LE(clamped, blendStart + j);
+          // Clamp to int range
+          const maxVal = bitsPerSample === 16 ? 32767 : 127;
+          const minVal = bitsPerSample === 16 ? -32768 : -128;
+          const clamped = Math.max(minVal, Math.min(maxVal, blended));
+          if (bitsPerSample === 16) {
+            crossfadeResult.writeInt16LE(clamped, blendStart + j);
+          } else {
+            crossfadeResult.writeInt8(clamped, blendStart + j);
+          }
         }
 
         // Copy rest of current chunk (after overlap region)
@@ -345,7 +375,7 @@ export function concatenateWavBuffers(buffers: Buffer[]): Buffer {
     }
   }
 
-  console.log(`WAV concatenation: ${buffers.length} chunks -> ${crossfadeTotalSize} bytes audio data (with ${fadeMs}ms crossfade)`);
+  console.log(`WAV concatenation: ${buffers.length} chunks -> ${crossfadeTotalSize} bytes audio data (with ${fadeMs}ms crossfade, ${sampleRate}Hz, ${numChannels}ch)`);
 
   return crossfadeResult;
 }
