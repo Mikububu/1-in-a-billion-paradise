@@ -10,6 +10,7 @@
  */
 
 import { env } from '../../config/env';
+import { getWordTarget, STANDARD_READING } from '../config/wordCounts';
 import { loadMasterPrompt } from '../promptLoader';
 import { OutputLanguage, DEFAULT_OUTPUT_LANGUAGE, getLanguageInstruction } from '../../config/languages';
 
@@ -48,14 +49,14 @@ export const NUCLEAR_DOCS: NuclearDoc[] = (() => {
       system,
       docType: 'person1' as DocType,
       title: `${SYSTEM_DISPLAY_NAMES[system]} - Person 1`,
-      wordTarget: 2000,
+      wordTarget: STANDARD_READING.target,
     });
     docs.push({
       id: `${id++}`,
       system,
       docType: 'person2' as DocType,
       title: `${SYSTEM_DISPLAY_NAMES[system]} - Person 2`,
-      wordTarget: 2000,
+      wordTarget: STANDARD_READING.target,
     });
   }
 
@@ -65,7 +66,7 @@ export const NUCLEAR_DOCS: NuclearDoc[] = (() => {
       system,
       docType: 'overlay' as DocType,
       title: `${SYSTEM_DISPLAY_NAMES[system]} - Synastry`,
-      wordTarget: 2000,
+      wordTarget: STANDARD_READING.target,
     });
   }
 
@@ -267,7 +268,7 @@ ${buildPersonProvocations(personName, spiceLevel)}
 ${getSpiceCalibration(spiceLevel)}
 ${tragicRealismBlock()}
 
-WORD TARGET: 2500-3000 words (15-20 minutes audio)
+${getWordTarget()}
 ${languageInstruction}
 Begin directly with the reading. No preamble.
 `.trim();
@@ -321,7 +322,7 @@ ${buildOverlayProvocations(person1Name, person2Name, spiceLevel)}
 ${getSpiceCalibration(spiceLevel)}
 ${tragicRealismBlock()}
 
-WORD TARGET: 3000+ words (18-20 minutes audio)
+${getWordTarget()}
 ${languageInstruction}
 Begin directly with the reading. No preamble.
 `.trim();
@@ -369,7 +370,7 @@ ${buildVerdictProvocations(person1Name, person2Name, spiceLevel)}
 ${getSpiceCalibration(spiceLevel)}
 ${tragicRealismBlock()}
 
-WORD TARGET: 2800+ words (18-20 minutes audio)
+${getWordTarget()}
 ${languageInstruction}
 Deliver the verdict now. No preamble.
 `.trim();
