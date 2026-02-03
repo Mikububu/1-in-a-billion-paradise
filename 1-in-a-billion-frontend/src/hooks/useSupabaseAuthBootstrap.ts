@@ -62,15 +62,6 @@ export function useSupabaseAuthBootstrap() {
 
     console.log('🚀 useSupabaseAuthBootstrap: Hook mounted, isSupabaseConfigured:', isSupabaseConfigured);
 
-    // Safety: never hang forever if getSession() or network stalls
-    const AUTH_BOOTSTRAP_TIMEOUT_MS = 8000;
-    const timeoutId = setTimeout(() => {
-      if (!mounted) return;
-      console.warn('⚠️ Bootstrap: Timeout - proceeding so app does not stay stuck on loading');
-      setIsLoading(false);
-      setIsAuthReady(true);
-    }, AUTH_BOOTSTRAP_TIMEOUT_MS);
-
     const run = async () => {
       try {
         if (!isSupabaseConfigured) {
@@ -330,7 +321,7 @@ export function useSupabaseAuthBootstrap() {
 
     run();
 
-    if (!isSupabaseConfigured) return () => { mounted = false; clearTimeout(timeoutId); };
+    if (!isSupabaseConfigured) return () => { };
 
     // 3. Listen for auth changes (sign-in, sign-out, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -419,7 +410,6 @@ export function useSupabaseAuthBootstrap() {
 
     return () => {
       mounted = false;
-      clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
   }, []); // Empty deps - Zustand setters are stable, and we only want this to run once on mount

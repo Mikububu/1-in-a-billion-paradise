@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "In A Billion",
+    "name": "1 In A Billion Cursor",
     "slug": "in-a-billion",
     "scheme": "oneinabillion",
     "version": "1.0.0",
@@ -17,7 +17,15 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.oneinabillion.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSExceptionDomains": {
+            "localhost": {
+              "NSExceptionAllowsInsecureHTTPLoads": true
+            }
+          }
+        }
       }
     },
     "android": {
