@@ -5,11 +5,10 @@
  * so deeply SEEN that they NEED to explore more. Not generic astrology - a mirror.
  * 
  * ARCHITECTURE:
- * - The MD file (deep-reading-prompt.md) is the SINGLE SOURCE OF TRUTH for voice/style
- * - Hook readings inherit the same "perfume" but in condensed form
- * - This keeps voice consistent between free hooks and paid deep readings
+ * - TypeScript defines voice/style directly (no MD file dependency)
+ * - Hook readings are short (120-140 words) for phone screens
  * 
- * TONE: Dark Soul Storytelling (from MD file) - condensed for phone screens.
+ * TONE: Dark Soul Storytelling - condensed for phone screens.
  * NO WHITEWASH - obsession, compulsion, fixation, hunger, shadow.
  * 
  * FORMAT:
@@ -19,7 +18,6 @@
  */
 
 import { env } from '../../config/env';
-import { getCondensedVoice } from '../../prompts/promptLoader';
 
 export type ReadingType = 'sun' | 'moon' | 'rising';
 
@@ -73,26 +71,10 @@ function formatBirthDate(dateStr: string): string {
 
 /**
  * Build the system prompt for hook readings.
- * Inherits voice/style from the master MD file (condensed for short readings).
- * This ensures hook readings have the same "perfume" as deep readings.
+ * Voice/style defined directly in TypeScript (no MD file dependency).
  */
 export function getSystemPrompt(): string {
-  // Try to load condensed voice from MD file
-  let condensedVoice = '';
-  try {
-    condensedVoice = getCondensedVoice();
-  } catch {
-    // Fallback if MD file not available (during tests, etc.)
-    condensedVoice = '';
-  }
-
   return `You are a psychoanalyst using astrology. Write like Carl Jung meets David Lynch.
-
-${condensedVoice ? `
-═══ VOICE (inherited from master prompt) ═══
-${condensedVoice.slice(0, 800)}
-═══════════════════════════════════════════
-` : ''}
 
 THIS IS A DATING APP. Focus on: attachment style, defense mechanisms, childhood wounds, erotic psychology, sabotage patterns.
 

@@ -4,15 +4,20 @@
  * Builds prompts for all paid/deep readings - individual, overlay, and verdict.
  * 
  * ARCHITECTURE:
- * - The MD file (deep-reading-prompt.md) is the SINGLE SOURCE OF TRUTH for voice/style
+ * - TypeScript is the SINGLE SOURCE OF TRUTH for voice/style (no MD file)
  * - Language instruction is injected for non-English output
- * - TypeScript handles ONLY data interpolation, language routing, and provocations
+ * - Modular functions build each section
  */
 
 import { env } from '../../config/env';
 import { getWordTarget, STANDARD_READING } from '../config/wordCounts';
-import { loadMasterPrompt } from '../promptLoader';
 import { OutputLanguage, DEFAULT_OUTPUT_LANGUAGE, getLanguageInstruction } from '../../config/languages';
+import { buildForbiddenSection } from '../core/forbidden';
+import { buildStyleSection } from '../styles';
+import { buildSpiceSection } from '../spice/levels';
+import { buildSystemSection } from '../systems';
+import { buildIndividualStructure } from './individual';
+import { buildOverlayStructure } from './overlay';
 
 export const SYSTEMS = ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'] as const;
 export type SystemName = typeof SYSTEMS[number];
@@ -212,7 +217,7 @@ TRAGIC REALISM (LEVEL ${level}):
 
 // ═══════════════════════════════════════════════════════════════════════════
 // PROMPT BUILDERS
-// Combine: MD file (voice) + Data (interpolation) + Provocations + Language
+// TypeScript-based modular prompts (no MD file)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
@@ -234,30 +239,44 @@ export function buildPersonPrompt(params: {
     personData, 
     chartData, 
     spiceLevel, 
+    style,
     personalContext,
     outputLanguage = DEFAULT_OUTPUT_LANGUAGE 
   } = params;
   const systemName = SYSTEM_DISPLAY_NAMES[system];
   
-  // Load master prompt (the perfume - always English)
-  const masterPrompt = loadMasterPrompt();
-  
   // Get language instruction (empty for English)
   const languageInstruction = getLanguageInstruction(outputLanguage);
 
   return `
-${masterPrompt}
+${getWordTarget()}
 
 ═══════════════════════════════════════════════════════════════════════════════
-READING: ${personName} through ${systemName}
+INDIVIDUAL DEEP DIVE: ${systemName}
+${personName}
 ═══════════════════════════════════════════════════════════════════════════════
 
-PERSON DATA:
-- Name: ${personName}
-- Born: ${personData.birthDate} at ${personData.birthTime}
-- Location: ${personData.birthPlace}
+${buildStyleSection(style)}
 
-CHART DATA:
+${buildForbiddenSection(style)}
+
+${buildSpiceSection(spiceLevel as any, style)}
+
+${buildSystemSection(system as any, false, spiceLevel)}
+
+${buildIndividualStructure(personName)}
+
+═══════════════════════════════════════════════════════════════════════════════
+BIRTH DATA:
+═══════════════════════════════════════════════════════════════════════════════
+Name: ${personName}
+Birth Date: ${personData.birthDate}
+Birth Time: ${personData.birthTime}
+Birth Place: ${personData.birthPlace}
+
+═══════════════════════════════════════════════════════════════════════════════
+CHART DATA (${systemName}):
+═══════════════════════════════════════════════════════════════════════════════
 ${chartData}
 ${personalContext ? `
 PERSONAL CONTEXT (7% weight): "${personalContext}"
@@ -293,25 +312,36 @@ export function buildOverlayPrompt(params: {
     person2Name, 
     chartData, 
     spiceLevel, 
+    style,
     relationshipContext,
     outputLanguage = DEFAULT_OUTPUT_LANGUAGE 
   } = params;
   const systemName = SYSTEM_DISPLAY_NAMES[system];
   
-  // Load master prompt (the perfume - always English)
-  const masterPrompt = loadMasterPrompt();
-  
   // Get language instruction (empty for English)
   const languageInstruction = getLanguageInstruction(outputLanguage);
 
   return `
-${masterPrompt}
+${getWordTarget()}
 
 ═══════════════════════════════════════════════════════════════════════════════
-SYNASTRY: ${person1Name} & ${person2Name} through ${systemName}
+SYNASTRY OVERLAY: ${systemName}
+${person1Name} & ${person2Name}
 ═══════════════════════════════════════════════════════════════════════════════
 
-COMBINED CHART DATA:
+${buildStyleSection(style)}
+
+${buildForbiddenSection(style)}
+
+${buildSpiceSection(spiceLevel as any, style)}
+
+${buildSystemSection(system as any, true, spiceLevel)}
+
+${buildOverlayStructure(person1Name, person2Name)}
+
+═══════════════════════════════════════════════════════════════════════════════
+COMBINED CHART DATA (${systemName}):
+═══════════════════════════════════════════════════════════════════════════════
 ${chartData}
 ${relationshipContext ? `
 RELATIONSHIP CONTEXT (7% weight): "${relationshipContext}"
@@ -344,21 +374,23 @@ export function buildVerdictPrompt(params: {
     person2Name, 
     allReadingsSummary, 
     spiceLevel,
+    style,
     outputLanguage = DEFAULT_OUTPUT_LANGUAGE 
   } = params;
-  
-  // Load master prompt (the perfume - always English)
-  const masterPrompt = loadMasterPrompt();
   
   // Get language instruction (empty for English)
   const languageInstruction = getLanguageInstruction(outputLanguage);
 
   return `
-${masterPrompt}
+${getWordTarget()}
 
 ═══════════════════════════════════════════════════════════════════════════════
 FINAL VERDICT: ${person1Name} & ${person2Name}
 ═══════════════════════════════════════════════════════════════════════════════
+
+${buildStyleSection(style)}
+
+${buildForbiddenSection(style)}
 
 You have analyzed this couple through all 5 systems. Now deliver the FINAL VERDICT.
 
