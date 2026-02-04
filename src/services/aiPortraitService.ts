@@ -90,6 +90,7 @@ export async function generateAIPortrait(
     }
 
     console.log('🎨 [AI Portrait] Starting portrait generation with Google AI Studio...');
+    console.log('🔑 [AI Portrait] Key length:', googleKey.length, 'prefix:', googleKey.substring(0, 15) + '...');
     
     // Ensure example images are loaded
     loadExampleImages();

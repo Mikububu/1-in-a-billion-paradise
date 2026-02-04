@@ -330,6 +330,8 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
               placeholderTextColor={colors.mutedText}
               value={name}
               onChangeText={setName}
+              autoCapitalize="words"
+              autoCorrect={false}
             />
           </View>
 

@@ -133,6 +133,7 @@ export async function preloadApiKeys() {
     'runpod',
     'runpod_endpoint',
     'google_places',
+    'google_ai_studio',
     'minimax',
     'revenuecat_secret',
   ];
