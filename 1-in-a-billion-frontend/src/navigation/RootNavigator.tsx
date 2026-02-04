@@ -10,6 +10,7 @@ import { useSupabaseLibraryAutoSync } from '@/hooks/useSupabaseLibraryAutoSync';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeArtifactSync';
 import { enforceJobBufferCap } from '@/services/jobBuffer';
 import { TexturedBackground } from '@/components/TexturedBackground';
+import { AudioProvider } from '@/contexts/AudioContext';
 import { SignInScreen } from '@/screens/auth/SignInScreen';
 // Onboarding screens
 import { IntroScreen } from '@/screens/onboarding/IntroScreen';
@@ -891,12 +892,14 @@ export const RootNavigator = () => {
   }
 
   return (
-    <TexturedBackground style={{ flex: 1 }}>
-      {hasSession && showDashboard ? (
-        <MainNavigator />
-      ) : (
-        <OnboardingNavigator initialRouteName="Intro" />
-      )}
-    </TexturedBackground>
+    <AudioProvider>
+      <TexturedBackground style={{ flex: 1 }}>
+        {hasSession && showDashboard ? (
+          <MainNavigator />
+        ) : (
+          <OnboardingNavigator initialRouteName="Intro" />
+        )}
+      </TexturedBackground>
+    </AudioProvider>
   );
 };

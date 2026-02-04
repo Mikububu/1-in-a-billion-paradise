@@ -1,7 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, TouchableOpacity, Text, ActivityIndicator, ScrollView, StyleSheet, Animated, Easing } from 'react-native';
 import Slider from '@react-native-community/slider';
-import { useAudioPlayer } from '../hooks/useAudioPlayer';
+import { useAudioContext } from '../contexts/AudioContext';
 import { useTextAutoScroll } from '../hooks/useTextAutoScroll';
 import { colors, typography, radii } from '@/theme/tokens';
 
@@ -24,22 +24,60 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
   textNotReady = false,
   isPending = false,
 }) => {
-  const audio = useAudioPlayer({ audioUrl });
+  const audioCtx = useAudioContext();
+  const [seeking, setSeeking] = useState(false);
+  
+  // Register this audio with the context
+  useEffect(() => {
+    if (audioUrl) {
+      audioCtx.registerAudio(type, audioUrl);
+      return () => audioCtx.unregisterAudio(type);
+    }
+  }, [audioUrl, type]);
+  
+  // Get state from context
+  const state = audioCtx.getState(type);
+  const playing = state?.playing ?? false;
+  const loading = state?.loading ?? false;
+  const buffering = state?.buffering ?? false;
+  const pos = state?.pos ?? 0;
+  const dur = state?.dur ?? 0;
+  const available = state?.available ?? null;
+  
   const textScroll = useTextAutoScroll({
-    playing: audio.playing,
-    seeking: audio.seeking,
-    pos: audio.pos,
-    dur: audio.dur,
+    playing,
+    seeking,
+    pos,
+    dur,
   });
+  
+  // Slider handlers with optimistic updates for smooth scrubbing
+  const handleSlidingStart = useCallback(() => {
+    setSeeking(true);
+    audioCtx.startSeeking(type);
+  }, [audioCtx, type]);
+  
+  const handleValueChange = useCallback((v: number) => {
+    audioCtx.updateSeekPosition(type, v);
+  }, [audioCtx, type]);
+  
+  const handleSlidingComplete = useCallback(async (v: number) => {
+    setSeeking(false);
+    await audioCtx.finishSeeking(type, v);
+  }, [audioCtx, type]);
+  
+  const togglePlayback = useCallback(() => {
+    audioCtx.togglePlayback(type);
+  }, [audioCtx, type]);
 
   const isNarration = type === 'narration';
   const primaryColor = isNarration ? colors.primary : '#B8860B'; // Dark goldenrod
   
   // Disable controls if audio not available yet (null = checking, false = not ready)
-  const isDisabled = controlsDisabled || audio.available !== true;
+  const isDisabled = controlsDisabled || available !== true;
   
   // Same icons but greyed out when disabled
-  const icon = isNarration ? (audio.playing ? '❚❚' : '▶') : '♪';
+  const icon = isNarration ? (playing ? '❚❚' : '▶') : '♪';
 
   const fmt = (s: number) => {
     const m = Math.floor(s / 60);
@@ -82,12 +120,12 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
           style={[
             styles.playButton,
             { borderColor: isDisabled ? '#999' : primaryColor, backgroundColor: isDisabled ? '#f5f5f5' : primaryColor + '20' },
-            audio.playing && { backgroundColor: primaryColor + '30' },
+            playing && { backgroundColor: primaryColor + '30' },
           ]}
-          onPress={audio.togglePlayback}
+          onPress={togglePlayback}
           disabled={isDisabled}
         >
-          {audio.loading || audio.buffering ? (
+          {loading || buffering ? (
             <ActivityIndicator color={isDisabled ? '#999' : primaryColor} />
           ) : (
             <Text style={[styles.playIcon, { color: isDisabled ? '#999' : primaryColor }]}>{icon}</Text>
@@ -116,21 +154,20 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
           />
           <View pointerEvents="none" style={styles.sliderDurationOverlay}>
             <Text style={[styles.sliderDurationText, isDisabled && { color: '#999' }]}>
-              {audio.playing || audio.seeking ? fmt(audio.pos) : (audio.dur ? fmt(audio.dur) : '--:--')}
+              {playing || seeking ? fmt(pos) : (dur ? fmt(dur) : '--:--')}
             </Text>
           </View>
           <Slider
             style={styles.sliderAbsolute}
-            value={audio.dur > 0 ? Math.min(audio.pos, audio.dur) : 0}
+            value={dur > 0 ? Math.min(pos, dur) : 0}
             minimumValue={0}
-            maximumValue={audio.dur || 1}
+            maximumValue={dur || 1}
             minimumTrackTintColor={isDisabled ? '#999' : primaryColor}
             maximumTrackTintColor="transparent"
             thumbTintColor={isDisabled ? '#999' : primaryColor}
-            thumbStyle={{ width: 24, height: 24, borderRadius: 12 }}
-            onSlidingStart={audio.handleSlidingStart}
-            onValueChange={audio.handleValueChange}
-            onSlidingComplete={audio.handleSlidingComplete}
+            onSlidingStart={handleSlidingStart}
+            onValueChange={handleValueChange}
+            onSlidingComplete={handleSlidingComplete}
             disabled={isDisabled}
           />
         </View>
