@@ -5,8 +5,8 @@
  * Uses SVG with animated strokeDashoffset for the marching ants effect.
  */
 
-import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, LayoutChangeEvent } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedProps,
@@ -31,6 +31,7 @@ export const MarchingAntsButton: React.FC<MarchingAntsButtonProps> = ({
   color = colors.primary,
 }) => {
   const dashOffset = useSharedValue(0);
+  const [buttonWidth, setButtonWidth] = useState(0);
 
   useEffect(() => {
     // Animate the dash offset to create marching ants effect
@@ -48,6 +49,10 @@ export const MarchingAntsButton: React.FC<MarchingAntsButtonProps> = ({
     strokeDashoffset: dashOffset.value,
   }));
 
+  const handleLayout = (e: LayoutChangeEvent) => {
+    setButtonWidth(e.nativeEvent.layout.width);
+  };
+
   const borderRadius = radii.button;
   const strokeWidth = 2;
   const height = 50;
@@ -58,30 +63,32 @@ export const MarchingAntsButton: React.FC<MarchingAntsButtonProps> = ({
       activeOpacity={0.8}
       style={styles.touchable}
     >
-      <View style={styles.container}>
+      <View style={styles.container} onLayout={handleLayout}>
         {/* Off-white background */}
         <View style={[styles.background, { borderRadius }]} />
         
-        {/* SVG border with marching ants */}
-        <Svg
-          width="100%"
-          height={height}
-          style={StyleSheet.absoluteFill}
-        >
-          <AnimatedRect
-            x={strokeWidth / 2}
-            y={strokeWidth / 2}
-            width="99%"
-            height={height - strokeWidth}
-            rx={borderRadius}
-            ry={borderRadius}
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeDasharray="10 5"
-            fill="transparent"
-            animatedProps={animatedProps}
-          />
-        </Svg>
+        {/* SVG border with marching ants - only render when we have width */}
+        {buttonWidth > 0 && (
+          <Svg
+            width={buttonWidth}
+            height={height}
+            style={StyleSheet.absoluteFill}
+          >
+            <AnimatedRect
+              x={strokeWidth / 2}
+              y={strokeWidth / 2}
+              width={buttonWidth - strokeWidth}
+              height={height - strokeWidth}
+              rx={borderRadius}
+              ry={borderRadius}
+              stroke={color}
+              strokeWidth={strokeWidth}
+              strokeDasharray="10 5"
+              fill="transparent"
+              animatedProps={animatedProps}
+            />
+          </Svg>
+        )}
         
         {/* Button text */}
         <Text style={[styles.label, { color }]}>{label}</Text>
@@ -99,7 +106,6 @@ const styles = StyleSheet.create({
     height: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
   },
   background: {
     ...StyleSheet.absoluteFillObject,
