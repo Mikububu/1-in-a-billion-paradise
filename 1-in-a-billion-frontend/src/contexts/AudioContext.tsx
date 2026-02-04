@@ -10,11 +10,13 @@
 
 import React, { createContext, useContext, useRef, useState, useCallback, useEffect } from 'react';
 import { Audio, AVPlaybackStatus } from 'expo-av';
+import { getLocalArtifactPaths } from '../services/artifactCacheService';
 
 type AudioType = 'narration' | 'song';
 
 interface AudioState {
   url: string;
+  playableUrl: string; // Local file path if cached, otherwise remote URL
   type: AudioType;
   playing: boolean;
   loading: boolean;
@@ -22,6 +24,7 @@ interface AudioState {
   pos: number;
   dur: number;
   available: boolean | null; // null = checking, true = ready, false = not ready
+  isLocal: boolean; // True if using local cached file
 }
 
 interface AudioContextValue {
@@ -69,6 +72,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   
   const createDefaultState = (url: string, type: AudioType): AudioState => ({
     url,
+    playableUrl: url,
     type,
     playing: false,
     loading: false,
@@ -76,7 +80,21 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     pos: 0,
     dur: 0,
     available: null,
+    isLocal: false,
   });
+  
+  // Parse jobId and docNum from URL like: /api/jobs/v2/{jobId}/audio/{docNum}
+  const parseAudioUrl = (url: string): { jobId: string; docNum: number; isSong: boolean } | null => {
+    const audioMatch = url.match(/\/jobs\/v2\/([^/]+)\/audio\/(\d+)/);
+    if (audioMatch) {
+      return { jobId: audioMatch[1], docNum: parseInt(audioMatch[2], 10), isSong: false };
+    }
+    const songMatch = url.match(/\/jobs\/v2\/([^/]+)\/song\/(\d+)/);
+    if (songMatch) {
+      return { jobId: songMatch[1], docNum: parseInt(songMatch[2], 10), isSong: true };
+    }
+    return null;
+  };
   
   const updateState = useCallback((type: AudioType, patch: Partial<AudioState>) => {
     const instance = instancesRef.current.get(type);
@@ -86,15 +104,32 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [rerender]);
   
-  const prefetchAudio = useCallback(async (type: AudioType, url: string, abort: AbortController) => {
+  const checkAudioAvailable = useCallback(async (type: AudioType, url: string, abort: AbortController) => {
     try {
-      console.log(`🎵 Prefetching ${type}: ${url.substring(0, 60)}...`);
-      const response = await fetch(url, { method: 'GET', signal: abort.signal });
+      console.log(`🎵 Checking ${type} availability: ${url.substring(0, 60)}...`);
+      
+      // Step 1: Check local cache first (instant if cached)
+      const parsed = parseAudioUrl(url);
+      if (parsed) {
+        const localPaths = await getLocalArtifactPaths(parsed.jobId);
+        const docPaths = localPaths.get(parsed.docNum);
+        const localPath = parsed.isSong ? docPaths?.songPath : docPaths?.audioPath;
+        
+        if (localPath) {
+          console.log(`📱 ${type} found in local cache: ${localPath}`);
+          if (!abort.signal.aborted) {
+            updateState(type, { available: true, playableUrl: localPath, isLocal: true });
+          }
+          return;
+        }
+      }
+      
+      // Step 2: Not cached - check remote availability via HEAD
+      const response = await fetch(url, { method: 'HEAD', signal: abort.signal });
       if (response.ok) {
-        await response.blob(); // Full download for iPhone
         if (!abort.signal.aborted) {
-          updateState(type, { available: true });
-          console.log(`✅ ${type} prefetched and ready`);
+          updateState(type, { available: true, playableUrl: url, isLocal: false });
+          console.log(`✅ ${type} available (remote)`);
         }
       } else {
         if (!abort.signal.aborted) {
@@ -103,15 +138,22 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setTimeout(() => {
             const instance = instancesRef.current.get(type);
             if (instance && instance.url === url && !instance.state.available) {
-              prefetchAudio(type, url, abort);
+              checkAudioAvailable(type, url, abort);
             }
           }, 15000);
         }
       }
     } catch (e: any) {
       if (!abort.signal.aborted) {
-        console.log(`⏳ ${type} prefetch failed: ${e.message}`);
+        console.log(`⏳ ${type} not yet available: ${e.message}`);
         updateState(type, { available: false });
+        // Retry after 15s
+        setTimeout(() => {
+          const instance = instancesRef.current.get(type);
+          if (instance && instance.url === url && !instance.state.available) {
+            checkAudioAvailable(type, url, abort);
+          }
+        }, 15000);
       }
     }
   }, [updateState]);
@@ -151,9 +193,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     instancesRef.current.set(type, instance);
     rerender();
     
-    // Start prefetch
-    prefetchAudio(type, url, abort);
-  }, [prefetchAudio, rerender]);
+    // Start availability check
+    checkAudioAvailable(type, url, abort);
+  }, [checkAudioAvailable, rerender]);
   
   const unregisterAudio = useCallback((type: AudioType) => {
     const instance = instancesRef.current.get(type);
@@ -194,9 +236,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Fresh load - stop other audio first
       await stopOtherAudio(type);
       
-      console.log(`🔄 Loading ${type} audio...`);
+      const playUrl = instance.state.playableUrl || instance.url;
+      console.log(`🔄 Loading ${type} audio from ${instance.state.isLocal ? 'local cache' : 'remote'}...`);
       const { sound } = await Audio.Sound.createAsync(
-        { uri: instance.url },
+        { uri: playUrl },
         { shouldPlay: true, progressUpdateIntervalMillis: 100 }, // Faster updates for smoother slider
         (status: AVPlaybackStatus) => {
           if (!status.isLoaded) return;

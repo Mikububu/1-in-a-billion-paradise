@@ -18,13 +18,13 @@ export const useAudioPlayer = ({ audioUrl, onPlaybackEnd }: UseAudioPlayerOption
   const [seeking, setSeeking] = useState(false);
   const [available, setAvailable] = useState<boolean | null>(null); // null = checking, true = ready, false = not ready
 
-  // Prefetch audio file (full download) before enabling slider
-  // This fixes iPhone issue where seeking fails if audio isn't buffered
+  // Check if audio file exists (HEAD request - fast)
+  // expo-av handles streaming/buffering when playback starts
   useEffect(() => {
     let cancelled = false;
     let retryTimer: NodeJS.Timeout | null = null;
     
-    const prefetchAudio = async (isRetry = false) => {
+    const checkAvailability = async (isRetry = false) => {
       if (!audioUrl) {
         console.warn('⚠️ useAudioPlayer: No audioUrl provided');
         setAvailable(false);
@@ -32,33 +32,30 @@ export const useAudioPlayer = ({ audioUrl, onPlaybackEnd }: UseAudioPlayerOption
       }
       if (!isRetry) setAvailable(null);
       try {
-        console.log(`🎵 ${isRetry ? 'Retrying' : 'Prefetching'} audio: ${audioUrl.substring(0, 60)}...`);
-        // Full GET request to actually download the audio (fixes iPhone seeking)
-        const response = await fetch(audioUrl, { method: 'GET' });
+        console.log(`🎵 ${isRetry ? 'Retrying' : 'Checking'} audio: ${audioUrl.substring(0, 60)}...`);
+        // HEAD request - just check if file exists, don't download
+        const response = await fetch(audioUrl, { method: 'HEAD' });
         if (cancelled) return;
         if (response.ok) {
-          // Read the body to ensure full download (iPhone needs this)
-          await response.blob();
-          if (cancelled) return;
           setAvailable(true);
-          console.log(`✅ Audio prefetched and ready`);
+          console.log(`✅ Audio available (HEAD check passed)`);
         } else {
           console.log(`⏳ Audio not yet available: ${response.status}`);
           setAvailable(false);
           if (!cancelled) {
-            retryTimer = setTimeout(() => prefetchAudio(true), 15000);
+            retryTimer = setTimeout(() => checkAvailability(true), 15000);
           }
         }
       } catch (e: any) {
         if (cancelled) return;
-        console.log(`⏳ Audio prefetch failed: ${e.message}`);
+        console.log(`⏳ Audio check failed: ${e.message}`);
         setAvailable(false);
         if (!cancelled) {
-          retryTimer = setTimeout(() => prefetchAudio(true), 15000);
+          retryTimer = setTimeout(() => checkAvailability(true), 15000);
         }
       }
     };
-    prefetchAudio();
+    checkAvailability();
     return () => { 
       cancelled = true; 
       if (retryTimer) clearTimeout(retryTimer);
