@@ -503,7 +503,7 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
             ref={videoRef}
             source={require('../../../assets/videos/plastilin.mp4')}
             style={styles.plastilinVideo}
-            resizeMode={ResizeMode.COVER}
+            resizeMode={ResizeMode.CONTAIN}
             shouldPlay
             isLooping
             isMuted
