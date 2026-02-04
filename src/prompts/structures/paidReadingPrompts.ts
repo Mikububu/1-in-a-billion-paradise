@@ -314,15 +314,16 @@ ${tragicRealismBlock()}
 ${buildForbiddenSection(style)}
 
 ═══════════════════════════════════════════════════════════════════════════════
-OUTPUT REQUIREMENTS
+OUTPUT REQUIREMENTS - CRITICAL
 ═══════════════════════════════════════════════════════════════════════════════
 
-**WORD COUNT: 2500-3000 WORDS MINIMUM. This becomes 15-20 minutes of audio.**
+⚠️ WORD COUNT: EXACTLY 3000 WORDS. NOT 1500. NOT 2000. EXACTLY 3000 WORDS.
+This becomes 18-20 minutes of audio. Short readings are REJECTED.
 
 STRUCTURE (for your guidance only - do NOT include headers in output):
-1. Who ${personName} fundamentally IS (600 words)
+1. Who ${personName} fundamentally IS (700 words)
 2. How ${personName} loves, attaches, and relates (700 words)
-3. ${personName}'s shadow - wounds, patterns, self-sabotage, sexual shadow (800 words)
+3. ${personName}'s shadow - wounds, patterns, self-sabotage, sexual shadow (900 words)
 4. ${personName}'s gifts when conscious (400 words)
 5. How to love ${personName} - and what destroys them (300 words)
 
@@ -397,17 +398,18 @@ ${tragicRealismBlock()}
 ${buildForbiddenSection(style)}
 
 ═══════════════════════════════════════════════════════════════════════════════
-OUTPUT REQUIREMENTS
+OUTPUT REQUIREMENTS - CRITICAL
 ═══════════════════════════════════════════════════════════════════════════════
 
-**WORD COUNT: 3000+ WORDS MINIMUM. This becomes 18-20 minutes of audio.**
+⚠️ WORD COUNT: EXACTLY 3000 WORDS. NOT 1500. NOT 2000. EXACTLY 3000 WORDS.
+This becomes 18-20 minutes of audio. Short readings are REJECTED.
 
 STRUCTURE (for your guidance only - do NOT include headers in output):
 1. The Attraction - what draws ${person1Name} and ${person2Name} together magnetically (700 words)
 2. The Friction - where they clash and what drives them crazy (600 words)
-3. Sex & Power - who dominates, who surrenders, bedroom as battlefield and sanctuary (600 words)
+3. Sex & Power - who dominates, who surrenders, bedroom as battlefield and sanctuary (700 words)
 4. The Shadow Dance - how they wound each other, destruction potential (700 words)
-5. The Gift - what they could become together if conscious (400 words)
+5. The Gift - what they could become together if conscious (300 words)
 
 FORMAT RULES (THIS IS SPOKEN AUDIO):
 - OPENING: Begin like a mystery theater of longing - an invocation that draws two souls into focus (up to 20 words)

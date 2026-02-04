@@ -50,10 +50,11 @@ export const INDIVIDUAL_STRUCTURE = {
 export function buildIndividualStructure(personName: string): string {
   return `
 ═══════════════════════════════════════════════════════════════════════════════
-OUTPUT REQUIREMENTS
+OUTPUT REQUIREMENTS - CRITICAL
 ═══════════════════════════════════════════════════════════════════════════════
 
-**WORD COUNT: 3000 WORDS. This becomes 18-20 minutes of audio.**
+⚠️ WORD COUNT: EXACTLY 3000 WORDS. NOT 1500. NOT 2000. EXACTLY 3000 WORDS.
+This becomes 18-20 minutes of audio. Short readings are REJECTED.
 
 STRUCTURE (for your guidance only - do NOT include headers in output):
 1. Who ${personName} fundamentally IS (700 words)
