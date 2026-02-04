@@ -272,10 +272,9 @@ export class AudioWorker extends BaseWorker {
       
       // Get voice-specific settings from config (or use defaults)
       // Chatterbox Turbo parameters: temperature, top_p, top_k, repetition_penalty
-      // REDUCED temperature from 0.7 to 0.5 for more stable output (less gibberish)
       const voiceSettings = voice?.turboSettings || {};
-      const temperature = voiceSettings.temperature ?? 0.5;  // Lowered for stability
-      const top_p = voiceSettings.top_p ?? 0.9;              // Slightly lower for stability
+      const temperature = voiceSettings.temperature ?? 0.7;  // Default
+      const top_p = voiceSettings.top_p ?? 0.95;             // Default
       // CRITICAL: Higher repetition_penalty reduces duplicate sentences (default 1.2, max 2.0)
       // Increased from default to fix "sentences said twice" bug
       const repetition_penalty = voiceSettings.repetition_penalty ?? 1.5;
