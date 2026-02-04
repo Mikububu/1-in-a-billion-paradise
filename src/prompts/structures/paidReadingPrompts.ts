@@ -102,6 +102,26 @@ export function getDocInfo(docNum: number): { title: string; wordTarget: number;
 // Questions force deep thinking. Instructions force compliance.
 // ═══════════════════════════════════════════════════════════════════════════
 
+function getProvocationIntensity(spiceLevel: number): {
+  shadowPercentage: number;
+  sexExplicitness: 'implied' | 'suggestive' | 'direct' | 'unflinching';
+  honestyLevel: 'gentle' | 'balanced' | 'honest' | 'raw' | 'nuclear';
+} {
+  if (spiceLevel <= 2) {
+    return { shadowPercentage: 20, sexExplicitness: 'implied', honestyLevel: 'gentle' };
+  }
+  if (spiceLevel <= 4) {
+    return { shadowPercentage: 25, sexExplicitness: 'suggestive', honestyLevel: 'balanced' };
+  }
+  if (spiceLevel <= 6) {
+    return { shadowPercentage: 30, sexExplicitness: 'suggestive', honestyLevel: 'honest' };
+  }
+  if (spiceLevel <= 8) {
+    return { shadowPercentage: 40, sexExplicitness: 'direct', honestyLevel: 'raw' };
+  }
+  return { shadowPercentage: 50, sexExplicitness: 'unflinching', honestyLevel: 'nuclear' };
+}
+
 function buildPersonProvocations(personName: string, spiceLevel: number): string {
   const base = `
 BEFORE YOU WRITE, CONTEMPLATE THESE ABOUT ${personName.toUpperCase()}:
@@ -244,6 +264,7 @@ export function buildPersonPrompt(params: {
     outputLanguage = DEFAULT_OUTPUT_LANGUAGE 
   } = params;
   const systemName = SYSTEM_DISPLAY_NAMES[system];
+  const intensity = getProvocationIntensity(spiceLevel);
   
   // Get language instruction (empty for English)
   const languageInstruction = getLanguageInstruction(outputLanguage);
@@ -273,8 +294,20 @@ ${buildPersonProvocations(personName, spiceLevel)}
 STYLE & INTENSITY
 ═══════════════════════════════════════════════════════════════════════════════
 
-${buildStyleSection(style)}
-${buildSpiceSection(spiceLevel as any, style)}
+STYLE: ${style === 'spicy_surreal' ? 'DARK SOUL STORYTELLING' : 'LITERARY DOCUMENTARY'}
+SPICE LEVEL: ${spiceLevel}/10
+SHADOW PERCENTAGE: ${intensity.shadowPercentage}%
+SEX EXPLICITNESS: ${intensity.sexExplicitness}
+HONESTY LEVEL: ${intensity.honestyLevel}
+
+${style === 'spicy_surreal' ? `
+Write like you're telling the story of a soul, not analyzing a chart.
+Use visceral language: devour, consume, shatter, burn, dissolve, possess.
+Include body language: blood, bone, flesh, nerve, marrow, skin.
+Sex is a doorway - explore whether it leads to liberation or destruction for this person.
+` : `
+Write like a literary documentary - sophisticated, psychologically deep, unflinching but elegant.
+`}
 
 ${tragicRealismBlock()}
 
@@ -304,8 +337,6 @@ FORMAT RULES (THIS IS SPOKEN AUDIO):
 - NO AI phrases ("This is not just...", "Here's the thing...")
 
 ${languageInstruction}
-CRITICAL: Write AT LEAST 2800 words. This is a paid product - short readings are unacceptable.
-
 Tell ${personName}'s story now:
 `.trim();
 }
@@ -388,8 +419,6 @@ FORMAT RULES (THIS IS SPOKEN AUDIO):
 - NO em-dashes, NO AI phrases
 
 ${languageInstruction}
-CRITICAL: Write AT LEAST 2800 words. This is a paid product - short readings are unacceptable.
-
 Tell the story of these two souls now:
 `.trim();
 }
@@ -456,8 +485,6 @@ FORMAT RULES (THIS IS SPOKEN AUDIO):
 - UNFLINCHING HONESTY - if it's toxic, say so. If it's golden, say so.
 
 ${languageInstruction}
-CRITICAL: Write AT LEAST 2800 words. This is a paid product - short readings are unacceptable.
-
 Deliver the verdict now:
 `.trim();
 }
