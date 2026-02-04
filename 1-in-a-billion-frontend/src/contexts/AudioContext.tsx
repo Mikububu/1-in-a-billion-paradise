@@ -175,7 +175,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           instance.sound = null;
         }
         // Also reset loading state so the other audio can be clicked again
-        updateState(type, { playing: false, pos: 0, loading: false, downloadProgress: 0 });
+        // Reset dur to 0 so slider resets to start position
+        updateState(type, { playing: false, pos: 0, dur: 0, loading: false, downloadProgress: 0 });
       }
     }
     setActiveType(keepType);
