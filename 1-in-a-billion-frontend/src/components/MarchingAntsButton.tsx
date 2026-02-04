@@ -1,12 +1,11 @@
 /**
- * MARCHING ANTS BUTTON
+ * PROMINENT DASHED BUTTON
  * 
- * A button with an animated dashed border that appears to move around the edge.
- * Uses a simple pulsing scale animation since SVG marching ants is problematic.
+ * A button with dashed border, off-white background, and subtle pulse animation.
  */
 
 import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -31,11 +30,11 @@ export const MarchingAntsButton: React.FC<MarchingAntsButtonProps> = ({
   const scale = useSharedValue(1);
 
   useEffect(() => {
-    // Subtle pulsing animation
+    // Subtle breathing/pulse animation
     scale.value = withRepeat(
       withSequence(
-        withTiming(1.02, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+        withTiming(1.015, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) })
       ),
       -1,
       false
