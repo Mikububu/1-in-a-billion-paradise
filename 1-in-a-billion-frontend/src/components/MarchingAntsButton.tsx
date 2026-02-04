@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     left: BORDER_WIDTH,
     right: BORDER_WIDTH,
     bottom: BORDER_WIDTH,
-    backgroundColor: '#FAF8F5',
+    backgroundColor: '#ECEAE6',
     borderRadius: radii.button - BORDER_WIDTH,
     justifyContent: 'center',
     alignItems: 'center',
