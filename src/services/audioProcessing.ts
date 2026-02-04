@@ -20,7 +20,7 @@ export const AUDIO_CONFIG = {
   CHUNK_WORD_SPLIT_THRESHOLD: 2.0, // Only split at word boundaries if sentence exceeds this factor (2.0 = 2x max)
   
   // Audio crossfade
-  CROSSFADE_DURATION_MS: 80,       // Crossfade duration in milliseconds (80ms = smooth, 30ms = fast)
+  CROSSFADE_DURATION_MS: 0,        // DISABLED - crossfade causes gibberish/amplitude dips at chunk boundaries
   
   // WAV format
   DEFAULT_SAMPLE_RATE: 24000,      // 24kHz sample rate
