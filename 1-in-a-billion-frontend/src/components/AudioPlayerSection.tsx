@@ -3,7 +3,7 @@ import { View, TouchableOpacity, Text, ActivityIndicator, ScrollView, StyleSheet
 import Slider from '@react-native-community/slider';
 import { useAudioContext } from '../contexts/AudioContext';
 import { useTextAutoScroll } from '../hooks/useTextAutoScroll';
-import { ShimmerSliderAnimation } from './AudioLoadingAnimation';
+import { ShimmerSliderAnimation, CircularShimmerAnimation } from './AudioLoadingAnimation';
 import { colors, typography, radii } from '@/theme/tokens';
 
 interface AudioPlayerSectionProps {
@@ -108,10 +108,8 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
     <>
       <View style={styles.mediaBlock}>
         {isPending ? (
-          /* Static circle with red border while audio is generating */
-          <View style={[styles.playButton, { borderColor: primaryColor, backgroundColor: '#fff' }]}>
-            <ActivityIndicator color={primaryColor} size="small" />
-          </View>
+          /* Rotating stroke animation while audio is generating */
+          <CircularShimmerAnimation size={50} baseColor="#FFFFFF" highlightColor={primaryColor} />
         ) : (
           <TouchableOpacity
             style={[
