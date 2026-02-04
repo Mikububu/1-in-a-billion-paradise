@@ -15,7 +15,10 @@
 
 export const AUDIO_CONFIG = {
   // Text chunking
-  CHUNK_MAX_LENGTH: 450,           // Max chars per chunk (default: 450 for Chatterbox Turbo)
+  // REDUCED from 450 to 300 to fix gibberish/hallucination issues
+  // Chatterbox Turbo claims 500 char limit but produces gibberish on longer chunks
+  // Original Chatterbox uses 300 - more stable
+  CHUNK_MAX_LENGTH: 300,           // Max chars per chunk (reduced for stability)
   CHUNK_OVERFLOW_TOLERANCE: 1.5,   // Allow chunks to exceed by this factor to complete sentences (1.5 = 50% over)
   CHUNK_WORD_SPLIT_THRESHOLD: 2.0, // Only split at word boundaries if sentence exceeds this factor (2.0 = 2x max)
   
