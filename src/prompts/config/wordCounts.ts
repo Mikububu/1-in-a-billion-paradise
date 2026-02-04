@@ -15,7 +15,20 @@ export const STANDARD_READING = {
 };
 
 export function getWordTarget(): string {
-  return `WORD TARGET: ${STANDARD_READING.min}-${STANDARD_READING.max} words (${STANDARD_READING.audioMinutes} minutes audio)`;
+  return `
+═══════════════════════════════════════════════════════════════════════════════
+⚠️ CRITICAL WORD COUNT REQUIREMENT - NON-NEGOTIABLE ⚠️
+═══════════════════════════════════════════════════════════════════════════════
+You MUST write EXACTLY ${STANDARD_READING.target} words (minimum ${STANDARD_READING.min}, maximum ${STANDARD_READING.max}).
+This produces ${STANDARD_READING.audioMinutes} minutes of audio narration.
+
+DO NOT write less than ${STANDARD_READING.min} words. The reading will be REJECTED if too short.
+DO NOT summarize. DO NOT be concise. EXPAND every insight with examples and depth.
+Each section should be THOROUGH and COMPREHENSIVE.
+
+COUNT YOUR WORDS. If you're under ${STANDARD_READING.min}, ADD MORE CONTENT.
+═══════════════════════════════════════════════════════════════════════════════
+`.trim();
 }
 
 // For validation (quality checks) - all reading types use same limits
