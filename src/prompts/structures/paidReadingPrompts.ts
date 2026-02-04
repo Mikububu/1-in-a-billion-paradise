@@ -419,6 +419,8 @@ FORMAT RULES (THIS IS SPOKEN AUDIO):
 - Spell out all numbers
 - UNFLINCHING HONESTY - if it's toxic, say so. If it's golden, say so.
 
+REMEMBER: You MUST write exactly 3000 words. Count as you write. Each section has a specific word count - follow it precisely.
+
 ${languageInstruction}
 Deliver the verdict now:
 `.trim();

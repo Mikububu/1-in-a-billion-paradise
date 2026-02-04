@@ -72,6 +72,8 @@ FORMAT RULES (THIS IS SPOKEN AUDIO):
 - NO em-dashes (—), use commas or periods
 - NO AI phrases ("This is not just...", "Here's the thing...")
 
+REMEMBER: You MUST write exactly 3000 words. Count as you write. Each section has a specific word count - follow it precisely.
+
 Tell ${personName}'s story now:
 `;
 }
