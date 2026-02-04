@@ -22,16 +22,12 @@ const AnimatedRect = Animated.createAnimatedComponent(Rect);
 interface MarchingAntsButtonProps {
   label: string;
   onPress: () => void;
-  width?: number;
-  height?: number;
   color?: string;
 }
 
 export const MarchingAntsButton: React.FC<MarchingAntsButtonProps> = ({
   label,
   onPress,
-  width = 300,
-  height = 50,
   color = colors.primary,
 }) => {
   const dashOffset = useSharedValue(0);
@@ -54,20 +50,28 @@ export const MarchingAntsButton: React.FC<MarchingAntsButtonProps> = ({
 
   const borderRadius = radii.button;
   const strokeWidth = 2;
+  const height = 50;
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
-      <View style={[styles.container, { width, height }]}>
+    <TouchableOpacity 
+      onPress={onPress} 
+      activeOpacity={0.8}
+      style={styles.touchable}
+    >
+      <View style={styles.container}>
+        {/* Off-white background */}
+        <View style={[styles.background, { borderRadius }]} />
+        
         {/* SVG border with marching ants */}
         <Svg
-          width={width}
+          width="100%"
           height={height}
           style={StyleSheet.absoluteFill}
         >
           <AnimatedRect
             x={strokeWidth / 2}
             y={strokeWidth / 2}
-            width={width - strokeWidth}
+            width="99%"
             height={height - strokeWidth}
             rx={borderRadius}
             ry={borderRadius}
@@ -87,10 +91,19 @@ export const MarchingAntsButton: React.FC<MarchingAntsButtonProps> = ({
 };
 
 const styles = StyleSheet.create({
+  touchable: {
+    width: '100%',
+    marginTop: spacing.md,
+  },
   container: {
+    height: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  background: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#FAF8F5', // off-white matching the app background
   },
   label: {
     fontFamily: typography.sansSemiBold,

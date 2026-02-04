@@ -446,9 +446,6 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
         <MarchingAntsButton
           label="My Soul Library Readings"
           onPress={handleGoToMySecretLife}
-          width={320}
-          height={50}
-          color={colors.primary}
         />
 
         {/* My People's Zoo Button → navigates to Home (Karmic Zoo) */}
