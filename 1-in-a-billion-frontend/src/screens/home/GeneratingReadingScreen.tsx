@@ -851,8 +851,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   plastilinVideo: {
-    width: Dimensions.get('window').width - spacing.page * 2,
-    height: 200,
+    width: Dimensions.get('window').width,
+    height: 220,
   },
 });
 
