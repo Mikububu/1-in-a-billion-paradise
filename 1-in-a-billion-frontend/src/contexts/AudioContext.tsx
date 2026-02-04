@@ -225,14 +225,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Check this BEFORE stopping other audio to allow pause to work
     if (instance.sound) {
       try {
-        // Use cached playing state for instant response - don't await getStatusAsync
-        if (instance.state.playing) {
-          // INSTANT pause - update UI immediately, then pause audio
+        // Get ACTUAL status from the sound object to avoid race conditions
+        const status = await instance.sound.getStatusAsync();
+        const isActuallyPlaying = status.isLoaded && status.isPlaying;
+        
+        console.log(`🎵 ${type} toggle: cached=${instance.state.playing}, actual=${isActuallyPlaying}`);
+        
+        if (isActuallyPlaying) {
+          // PAUSE - update UI immediately, then pause audio
           console.log(`⏸️ Pausing ${type}...`);
           updateState(type, { playing: false });
           await instance.sound.pauseAsync();
           return;
-        } else {
+        } else if (status.isLoaded) {
           // Resume - stop other audio first, then play
           await stopOtherAudio(type);
           console.log(`▶️ Resuming ${type}...`);
@@ -242,7 +247,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       } catch (e) {
         // Sound might be in bad state, fall through to reload
-        console.log(`⚠️ ${type} sound error, will reload`);
+        console.log(`⚠️ ${type} sound error, will reload:`, e);
         instance.sound = null;
       }
     }
