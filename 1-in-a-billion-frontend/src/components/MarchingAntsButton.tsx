@@ -69,7 +69,7 @@ export const MarchingAntsButton: React.FC<MarchingAntsButtonProps> = ({
   );
 };
 
-const BORDER_WIDTH = 2;
+const BORDER_WIDTH = 3;
 
 const styles = StyleSheet.create({
   wrapper: {
