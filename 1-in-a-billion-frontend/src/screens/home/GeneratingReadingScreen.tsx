@@ -27,6 +27,7 @@ import { useAuthStore } from '@/store/authStore';
 import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { enableNotificationsForJob } from '@/services/pushNotifications';
+import { MarchingAntsButton } from '@/components/MarchingAntsButton';
 import { 
   estimateAudioGenerationTime, 
   calculateRemainingTime, 
@@ -128,7 +129,6 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const dotAnim = useRef(new Animated.Value(0)).current;
   const blinkAnim = useRef(new Animated.Value(1)).current;
-  const buttonPulseAnim = useRef(new Animated.Value(1)).current;
 
   // Blinking animation for "Generating in background"
   useEffect(() => {
@@ -149,26 +149,6 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
     blink.start();
     return () => blink.stop();
   }, [blinkAnim]);
-
-  // Pulsing animation for "My Soul Library Readings" button
-  useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(buttonPulseAnim, {
-          toValue: 1.03,
-          duration: 1200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(buttonPulseAnim, {
-          toValue: 1,
-          duration: 1200,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, [buttonPulseAnim]);
 
   // Add job to 40-job buffer (auto-deletes oldest + local media when exceeding cap).
   useEffect(() => {
@@ -462,12 +442,14 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
           </Text>
         </TouchableOpacity>
 
-        {/* My Soul Library Readings Button - Animated RED dashed stroke → navigates to Souls Library */}
-        <Animated.View style={{ transform: [{ scale: buttonPulseAnim }], width: '100%' }}>
-          <TouchableOpacity style={styles.redDashedButton} onPress={handleGoToMySecretLife}>
-            <Text style={styles.redDashedButtonText}>My Soul Library Readings</Text>
-          </TouchableOpacity>
-        </Animated.View>
+        {/* My Soul Library Readings Button - SVG marching ants animation */}
+        <MarchingAntsButton
+          label="My Soul Library Readings"
+          onPress={handleGoToMySecretLife}
+          width={320}
+          height={50}
+          color={colors.primary}
+        />
 
         {/* My People's Zoo Button → navigates to Home (Karmic Zoo) */}
         <TouchableOpacity style={styles.libraryButton} onPress={handleGoToKarmicZoo}>

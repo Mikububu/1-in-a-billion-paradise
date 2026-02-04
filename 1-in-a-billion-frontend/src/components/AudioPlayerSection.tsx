@@ -108,8 +108,10 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
     <>
       <View style={styles.mediaBlock}>
         {isPending ? (
-          /* Circular shimmer while audio is generating */
-          <CircularShimmerAnimation size={50} baseColor="#FFFFFF" highlightColor={primaryColor} />
+          /* Simple static circle while audio is generating - no distracting animation */
+          <View style={[styles.playButton, { borderColor: '#ccc', backgroundColor: '#fff' }]}>
+            <ActivityIndicator color="#ccc" size="small" />
+          </View>
         ) : (
           <TouchableOpacity
             style={[
