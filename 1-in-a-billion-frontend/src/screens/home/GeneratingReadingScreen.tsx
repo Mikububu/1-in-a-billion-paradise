@@ -607,6 +607,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     marginTop: spacing.md,
     width: '100%',
+    backgroundColor: '#FAF8F5',
   },
   notifyButtonActive: {
     backgroundColor: colors.primary,
@@ -658,7 +659,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     width: '100%',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: '#FAF8F5',
     borderRadius: radii.button,
     borderWidth: 1,
     borderColor: colors.text,
