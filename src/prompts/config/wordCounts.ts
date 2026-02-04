@@ -16,27 +16,7 @@ export const STANDARD_READING = {
 
 export function getWordTarget(): string {
   return `
-███████████████████████████████████████████████████████████████████████████████
-██  MANDATORY LENGTH: ${STANDARD_READING.min}-${STANDARD_READING.max} WORDS (TARGET: ${STANDARD_READING.target})  ██
-███████████████████████████████████████████████████████████████████████████████
-
-THIS IS A PAID PREMIUM READING. The client expects ${STANDARD_READING.audioMinutes} MINUTES of audio.
-
-FAILURE CONDITIONS (reading will be REJECTED and regenerated):
-❌ Under ${STANDARD_READING.min} words = TOO SHORT = REJECTED
-❌ Summarizing instead of expanding = REJECTED  
-❌ Being concise = REJECTED
-❌ Skipping depth for brevity = REJECTED
-
-SUCCESS CONDITIONS:
-✅ Write ${STANDARD_READING.target}+ words
-✅ EXPAND every insight with examples, metaphors, and psychological depth
-✅ Each section should be 400-600 words minimum
-✅ Use flowing prose, not bullet points
-✅ Go DEEP into shadow work, patterns, and transformation
-
-YOU ARE BEING PAID FOR LENGTH AND DEPTH. DELIVER BOTH.
-███████████████████████████████████████████████████████████████████████████████
+**WORD COUNT: ${STANDARD_READING.min}-${STANDARD_READING.max} words (${STANDARD_READING.audioMinutes} minutes audio)**
 `.trim();
 }
 

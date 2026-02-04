@@ -1004,11 +1004,12 @@ ${OUTPUT_FORMAT_RULES}`;
     
     if (configuredProvider === 'claude') {
       // Use Claude Sonnet 4 via llmPaid (unhinged, no censorship)
-      // maxTokens: 16384 = ~12,000 words capacity (we need 3000)
+      // maxTokens: 16000 = ~4000+ words capacity (matching CLAUDE version)
+      // temperature: 0.85 = slightly higher for more creative/deep output
       llmInstance = llmPaid;
       text = await llmPaid.generate(prompt, label, { 
-        maxTokens: 16384, 
-        temperature: 0.8,
+        maxTokens: 16000, 
+        temperature: 0.85,
       });
     } else {
       // Use DeepSeek (default) or OpenAI via llm with provider override
@@ -1055,9 +1056,21 @@ ${OUTPUT_FORMAT_RULES}`;
     
     const wordCount = text.split(/\s+/).filter(Boolean).length;
 
-    if (wordCount < 200) {
-      throw new Error(`LLM returned too little text (${wordCount} words)`);
+    // MINIMUM WORD COUNT: 1500 words (10-15 minutes of audio)
+    // Prompt asks for 2500-3500 words, but this catches severely short outputs
+    const MIN_WORDS = 1500;
+    if (wordCount < MIN_WORDS) {
+      console.error(`\n${'═'.repeat(70)}`);
+      console.error(`🚨 TEXT TOO SHORT - REJECTING`);
+      console.error(`${'═'.repeat(70)}`);
+      console.error(`Required: ${MIN_WORDS} words minimum`);
+      console.error(`Received: ${wordCount} words`);
+      console.error(`Shortage: ${MIN_WORDS - wordCount} words missing`);
+      console.error(`${'═'.repeat(70)}\n`);
+      throw new Error(`LLM returned too little text: ${wordCount} words (minimum ${MIN_WORDS} required)`);
     }
+    
+    console.log(`✅ Word count validation passed: ${wordCount} words (minimum ${MIN_WORDS})`);
 
     // Extract headline from first line of text
     const lines = text.split('\n').filter(line => line.trim());

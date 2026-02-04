@@ -53,44 +53,32 @@ export const OVERLAY_STRUCTURE = {
 
 /**
  * Build structure instructions for Overlay reading
+ * Matches "b4 Cowork" version with personName interpolation
  */
 export function buildOverlayStructure(person1Name: string, person2Name: string): string {
-  const sections = OVERLAY_STRUCTURE.sections
-    .map(s => {
-      let name = s.name;
-      if (name === 'Person A Profile') name = `${person1Name}'s Profile`;
-      if (name === 'Person B Profile') name = `${person2Name}'s Profile`;
-      return `**${name}** (${s.words} words)${s.isShadow ? ' ← SHADOW SECTION' : ''}
-${s.description}`;
-    })
-    .join('\n\n');
-
   return `
 ═══════════════════════════════════════════════════════════════════════════════
-STRUCTURE: ${OVERLAY_STRUCTURE.name}
-${person1Name} & ${person2Name}
+OUTPUT REQUIREMENTS
 ═══════════════════════════════════════════════════════════════════════════════
 
-Total: ~${OVERLAY_STRUCTURE.totalWords} words (~${OVERLAY_STRUCTURE.audioMinutes} minutes audio)
+**WORD COUNT: 3000+ WORDS MINIMUM. This becomes 18-20 minutes of audio.**
 
-The structure below is FOR YOUR GUIDANCE ONLY - do NOT include section headers in output.
+STRUCTURE (for your guidance only - do NOT include headers in output):
+1. The Attraction - what draws ${person1Name} and ${person2Name} together magnetically (700 words)
+2. The Friction - where they clash and what drives them crazy (600 words)
+3. Sex & Power - who dominates, who surrenders, bedroom as battlefield and sanctuary (600 words)
+4. The Shadow Dance - how they wound each other, destruction potential (700 words)
+5. The Gift - what they could become together if conscious (400 words)
 
-⚠️ THIS IS SPOKEN AUDIO - every word will be heard aloud via TTS
+FORMAT RULES (THIS IS SPOKEN AUDIO):
+- OPENING: Begin like a mystery theater of longing - an invocation that draws two souls into focus (up to 20 words)
+  Think: García Márquez, Anaïs Nin, Rumi, David Lynch. Set the atmosphere.
+- Then ONE CONTINUOUS ESSAY - no section headers, let the story of these two souls unfold
+- Use both names (never "you/your")
+- Pure prose - NO asterisks, NO markdown, NO bullets
+- Spell out all numbers
+- NO em-dashes, NO AI phrases
 
-OUTPUT RULES:
-- Open with presence - an invocation, not a headline (up to 20 words that draw the listener in)
-- Then ONE CONTINUOUS ESSAY - no section headers, no "The Dynamic" or "Shadow Work" labels
-- Let the story unfold naturally - you are a storyteller, not an analyst
-- Use both names in 3rd person (never "you/your")
-- Pure prose ONLY - NO asterisks, NO markdown, NO bullets, NO formatting
-- Audio-ready: spell out numbers ("twenty-three degrees" not "23°")
-- NO em-dashes (—), use commas or periods
-
-CONTENT GUIDANCE:
-${sections}
-
-NOTE: Analyze each person INDEPENDENTLY before examining the dynamic.
-Shadow section should be 25-35% of total content.
-State shadow fully BEFORE offering transformation potential.
+Tell the story of these two souls now:
 `;
 }
