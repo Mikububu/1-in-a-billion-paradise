@@ -7,7 +7,7 @@
 import { supabase } from './supabase';
 import { env } from '@/config/env';
 import { useAuthStore } from '@/store/authStore';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const PHOTOS_BUCKET = 'person-photos';
 const PORTRAITS_BUCKET = 'portraits';
