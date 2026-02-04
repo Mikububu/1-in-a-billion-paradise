@@ -8,7 +8,7 @@
  * - 5 overlay readings (1 per system)
  * - 1 final verdict
  * 
- * Each call targets ~2000 words output.
+ * Each call targets ~3000 words output.
  * 
  * STYLE: "Dark Soul Storytelling" - psychological depth, surreal metaphor,
  * consciousness noir. NOT newspaper astrology.
@@ -90,7 +90,7 @@ KILL THESE IMMEDIATELY:
 
 const OUTPUT_RULES = `
 OUTPUT RULES (CRITICAL - FOLLOW EXACTLY):
-- Write approximately 2000 words of LITERARY PROSE
+- Write approximately 3000 words of LITERARY PROSE
 - This is a CONSCIOUSNESS DOCUMENTARY, not a horoscope
 - Flowing prose paragraphs ONLY
 - NO markdown (no #, ##, **, etc.)

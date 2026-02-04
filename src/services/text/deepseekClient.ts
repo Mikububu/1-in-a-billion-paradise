@@ -262,34 +262,34 @@ CHART DATA:
 - Moon: ${placements.moonSign} (${formatDegree(placements.moonDegree)})
 - Rising/Ascendant: ${placements.risingSign} (${formatDegree(placements.ascendantDegree)})
 
-**CRITICAL: WRITE EXACTLY 2000 WORDS. THIS IS NON-NEGOTIABLE.**
+**CRITICAL: WRITE EXACTLY 3000 WORDS. THIS IS NON-NEGOTIABLE.**
 
 This is a DEEP DIVE psychological analysis. Not a surface reading.
-The client is paying premium for a comprehensive analysis. DELIVER THE FULL 2000 WORDS.
+The client is paying premium for a comprehensive analysis. DELIVER THE FULL 3000 WORDS.
 
 Write a comprehensive reading that includes ALL of the following sections:
 
-1. CORE IDENTITY WOUND (400 words)
+1. CORE IDENTITY WOUND (600 words)
    - The foundational psychological wound from childhood
    - How this wound shapes ALL relationship patterns
    - The defense mechanisms built around this wound
 
-2. SHADOW PATTERNS IN LOVE (400 words)
+2. SHADOW PATTERNS IN LOVE (600 words)
    - Jealousy triggers and possessive patterns
    - How they sabotage intimacy when it gets too close
    - The unconscious repetition compulsion in partner selection
 
-3. DARK DESIRES & TABOOS (400 words)
+3. DARK DESIRES & TABOOS (600 words)
    - What they secretly crave but fear to admit
    - The forbidden aspects of their sexuality
    - How shame shapes their erotic expression
 
-4. BETRAYAL & TRUST ARCHITECTURE (400 words)
+4. BETRAYAL & TRUST ARCHITECTURE (600 words)
    - How they betray partners (and themselves)
    - The specific ways they invite betrayal
    - Their relationship to commitment and fidelity
 
-5. TRANSFORMATION PATHWAY (400 words)
+5. TRANSFORMATION PATHWAY (600 words)
    - What must die for them to love fully
    - The specific inner work required
    - The dangerous beauty that emerges when shadows are integrated
@@ -304,24 +304,24 @@ Be psychologically precise. Literary voice like David Attenborough narrating a h
 NO em dashes (—). NO generic platitudes. NO AI phrases like "here's the thing" or "let me show you".
 Each section should flow naturally without numbered headers.
 
-**WORD COUNT REQUIREMENT: 2000 WORDS MINIMUM. COUNT THEM.**
+**WORD COUNT REQUIREMENT: 3000 WORDS MINIMUM. COUNT THEM.**
 
 Start directly with the reading content, opening with ${subjectName}'s name.
 `.trim();
 
-    // Use modular LLM service with STREAMING for 2000-word readings
+    // Use modular LLM service with STREAMING for 3000-word readings
     const { llm } = await import('../llm');
     
     try {
-      console.log(`📝 Starting extended ${systemName} reading for ${subjectName} (2000 words) via ${llm.getProvider()} STREAMING...`);
+      console.log(`📝 Starting extended ${systemName} reading for ${subjectName} (3000 words) via ${llm.getProvider()} STREAMING...`);
       const startTime = Date.now();
       
-      const systemPromptText = 'You are an expert astrologer and depth psychologist specializing in shadow work. Write comprehensive, insightful analyses. You MUST write exactly 2000 words. This is a premium reading.';
+      const systemPromptText = 'You are an expert astrologer and depth psychologist specializing in shadow work. Write comprehensive, insightful analyses. You MUST write exactly 3000 words. This is a premium reading.';
       const fullPrompt = `${systemPromptText}\n\n${prompt}`;
       
       // 🚀 USE STREAMING to prevent timeout on long-form content
       const content = await llm.generateStreaming(fullPrompt, `extended-${system}`, {
-        maxTokens: 5000, // Allow up to 5000 tokens for 2000+ words
+        maxTokens: 8000, // Allow up to 8000 tokens for 3000+ words
         temperature: 0.8,
       });
 
