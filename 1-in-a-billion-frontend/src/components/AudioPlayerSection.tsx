@@ -3,7 +3,7 @@ import { View, TouchableOpacity, Text, ActivityIndicator, ScrollView, StyleSheet
 import Slider from '@react-native-community/slider';
 import { useAudioContext } from '../contexts/AudioContext';
 import { useTextAutoScroll } from '../hooks/useTextAutoScroll';
-import { AnimatedGradientBorder } from './AnimatedGradientBorder';
+import { ShimmerSliderAnimation } from './AudioLoadingAnimation';
 import { colors, typography, radii } from '@/theme/tokens';
 
 interface AudioPlayerSectionProps {
@@ -136,15 +136,15 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
 
         <View style={[styles.sliderOuter, isDisabled && !isPending && { opacity: 0.5 }]} onLayout={handleSliderLayout}>
           {isPending ? (
-            <AnimatedGradientBorder
-              color={primaryColor}
-              borderWidth={2}
-              borderRadius={14}
-              height={28}
-              style={{ width: sliderWidth }}
-            >
-              <Text style={{ fontSize: 12, color: '#999' }}>Generating...</Text>
-            </AnimatedGradientBorder>
+            <View style={styles.shimmerContainer}>
+              <ShimmerSliderAnimation 
+                width={sliderWidth} 
+                height={28} 
+                borderRadius={14}
+                baseColor="#F3F4F6"
+                highlightColor="#FFFFFF"
+              />
+            </View>
           ) : (
             <View
               pointerEvents="none"
