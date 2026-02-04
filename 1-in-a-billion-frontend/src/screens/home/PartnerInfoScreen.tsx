@@ -330,7 +330,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
               placeholderTextColor={colors.mutedText}
               value={name}
               onChangeText={setName}
-              autoCapitalize="words"
+              autoCapitalize="none"
               autoCorrect={false}
             />
           </View>
@@ -397,7 +397,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
                 setShowCitySuggestions(true);
               }}
               onFocus={() => setShowCitySuggestions(true)}
-              autoCapitalize="words"
+              autoCapitalize="none"
               autoCorrect={false}
             />
           </View>
