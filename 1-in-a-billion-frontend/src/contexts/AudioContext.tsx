@@ -164,14 +164,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   
   const stopOtherAudio = useCallback(async (keepType: AudioType) => {
     for (const [type, instance] of instancesRef.current.entries()) {
-      if (type !== keepType && instance.sound) {
-        try {
-          console.log(`🛑 Stopping ${type} for ${keepType}`);
-          await instance.sound.stopAsync();
-          await instance.sound.unloadAsync();
-        } catch {}
-        instance.sound = null;
-        updateState(type, { playing: false, pos: 0 });
+      if (type !== keepType) {
+        // Stop any loaded sound
+        if (instance.sound) {
+          try {
+            console.log(`🛑 Stopping ${type} for ${keepType}`);
+            await instance.sound.stopAsync();
+            await instance.sound.unloadAsync();
+          } catch {}
+          instance.sound = null;
+        }
+        // Also reset loading state so the other audio can be clicked again
+        updateState(type, { playing: false, pos: 0, loading: false, downloadProgress: 0 });
       }
     }
     setActiveType(keepType);
@@ -239,13 +243,17 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }
     
-    // Only show loading for fresh load (not for play/pause toggle)
+    // If THIS audio is already loading, ignore (prevent double-tap)
+    // But allow switching to a DIFFERENT audio type - stopOtherAudio will handle cleanup
     if (instance.state.loading) return;
+    
+    // Stop any other audio that might be loading or playing
+    await stopOtherAudio(type);
+    
     updateState(type, { loading: true });
     
     try {
-      // Fresh load - stop other audio first
-      await stopOtherAudio(type);
+      // stopOtherAudio already called above
       
       let playUrl = instance.state.playableUrl || instance.url;
       const isLocal = instance.state.isLocal;
