@@ -61,7 +61,7 @@ export function buildOverlayStructure(person1Name: string, person2Name: string):
 OUTPUT REQUIREMENTS
 ═══════════════════════════════════════════════════════════════════════════════
 
-**WORD COUNT: 3000+ WORDS MINIMUM. This becomes 18-20 minutes of audio.**
+**WORD COUNT: 3000 WORDS. This becomes 18-20 minutes of audio.**
 
 STRUCTURE (for your guidance only - do NOT include headers in output):
 1. The Attraction - what draws ${person1Name} and ${person2Name} together magnetically (700 words)

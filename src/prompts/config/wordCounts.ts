@@ -8,10 +8,10 @@
  */
 
 export const STANDARD_READING = {
-  min: 2500,
+  min: 2800,
   target: 3000,
-  max: 3500,
-  audioMinutes: '17-23',
+  max: 3200,
+  audioMinutes: '18-20',
 };
 
 export function getWordTarget(): string {

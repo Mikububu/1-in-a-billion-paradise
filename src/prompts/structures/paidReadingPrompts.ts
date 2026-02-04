@@ -382,8 +382,6 @@ export function buildVerdictPrompt(params: {
   const languageInstruction = getLanguageInstruction(outputLanguage);
 
   return `
-${getWordTarget()}
-
 ═══════════════════════════════════════════════════════════════════════════════
 FINAL VERDICT: ${person1Name} & ${person2Name}
 ═══════════════════════════════════════════════════════════════════════════════
@@ -402,8 +400,26 @@ ${buildVerdictProvocations(person1Name, person2Name, spiceLevel)}
 ${getSpiceCalibration(spiceLevel)}
 ${tragicRealismBlock()}
 
-${getWordTarget()}
+═══════════════════════════════════════════════════════════════════════════════
+OUTPUT REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════════════
+
+**WORD COUNT: 3000 WORDS. This becomes 18-20 minutes of audio.**
+
+STRUCTURE (for your guidance only - do NOT include headers in output):
+1. The Synthesis - what all 5 systems agree on, the undeniable truth (1000 words)
+2. The Verdict - GO / CONDITIONAL / NO GO with honest explanation (500 words)
+3. If They Proceed - what they MUST do, non-negotiables, warning signs (800 words)
+4. The Closing - final truth, what this is FOR, end with a line that lands (700 words)
+
+FORMAT RULES (THIS IS SPOKEN AUDIO):
+- Start directly with the synthesis, NO headline for verdict
+- ONE CONTINUOUS ESSAY - no section headers
+- Pure prose, NO markdown, NO asterisks
+- Spell out all numbers
+- UNFLINCHING HONESTY - if it's toxic, say so. If it's golden, say so.
+
 ${languageInstruction}
-Deliver the verdict now. No preamble.
+Deliver the verdict now:
 `.trim();
 }

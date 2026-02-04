@@ -53,12 +53,12 @@ export function buildIndividualStructure(personName: string): string {
 OUTPUT REQUIREMENTS
 ═══════════════════════════════════════════════════════════════════════════════
 
-**WORD COUNT: 2500-3000 WORDS MINIMUM. This becomes 15-20 minutes of audio.**
+**WORD COUNT: 3000 WORDS. This becomes 18-20 minutes of audio.**
 
 STRUCTURE (for your guidance only - do NOT include headers in output):
-1. Who ${personName} fundamentally IS (600 words)
+1. Who ${personName} fundamentally IS (700 words)
 2. How ${personName} loves, attaches, and relates (700 words)
-3. ${personName}'s shadow - wounds, patterns, self-sabotage, sexual shadow (800 words)
+3. ${personName}'s shadow - wounds, patterns, self-sabotage, sexual shadow (900 words)
 4. ${personName}'s gifts when conscious (400 words)
 5. How to love ${personName} - and what destroys them (300 words)
 
