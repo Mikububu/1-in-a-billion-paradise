@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions, Animated } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions, Animated, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -499,14 +499,10 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             <View style={styles.titleButtonsCol}>
               <TouchableOpacity 
                 style={styles.headerYellowButton} 
-                onPress={async () => {
-                  try {
-                    const { Linking } = await import('react-native');
-                    await Linking.openURL(pdfUrl);
-                  } catch (e: any) {
-                    const { Alert } = await import('react-native');
+                onPress={() => {
+                  Linking.openURL(pdfUrl).catch(() => {
                     Alert.alert('Error', 'Could not open PDF');
-                  }
+                  });
                 }}
               >
                 <Text style={styles.headerYellowText}>PDF</Text>
