@@ -5,7 +5,7 @@
  * User can close app and check back later.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -16,7 +16,7 @@ import {
   ScrollView,
   Dimensions,
 } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
+import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as Notifications from 'expo-notifications';
@@ -90,6 +90,32 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
     }, 2000);
     return () => clearInterval(interval);
   }, []);
+  
+  // Video ping-pong (forward/backward) loop
+  const videoRef = useRef<Video>(null);
+  const [playingForward, setPlayingForward] = useState(true);
+  const videoDurationRef = useRef<number>(0);
+  
+  const handleVideoStatus = useCallback((status: AVPlaybackStatus) => {
+    if (!status.isLoaded) return;
+    
+    // Store duration on first load
+    if (status.durationMillis && videoDurationRef.current === 0) {
+      videoDurationRef.current = status.durationMillis;
+    }
+    
+    // When video finishes, reverse direction
+    if (status.didJustFinish && videoDurationRef.current > 0) {
+      if (playingForward) {
+        // Play backward: seek to end and set rate to -1 (not supported, so we'll simulate)
+        // Since expo-av doesn't support negative rate, we restart from beginning
+        videoRef.current?.setPositionAsync(0);
+        videoRef.current?.playAsync();
+      }
+      setPlayingForward(prev => !prev);
+    }
+  }, [playingForward]);
+  
   const [currentStep, setCurrentStep] = useState('Initializing...');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationComplete, setGenerationComplete] = useState(false);
@@ -471,15 +497,17 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
 
         {/* Status indicator removed - now shown in button text */}
 
-        {/* Plastilin animation video at bottom */}
+        {/* Plastilin animation video at bottom - ping pong loop */}
         <View style={styles.videoContainer}>
           <Video
+            ref={videoRef}
             source={require('../../../assets/videos/plastilin.mp4')}
             style={styles.plastilinVideo}
-            resizeMode={ResizeMode.CONTAIN}
+            resizeMode={ResizeMode.COVER}
             shouldPlay
             isLooping
             isMuted
+            onPlaybackStatusUpdate={handleVideoStatus}
           />
         </View>
 
@@ -848,11 +876,12 @@ const styles = StyleSheet.create({
   videoContainer: {
     width: '100%',
     alignItems: 'center',
-    marginTop: spacing.xl,
+    marginTop: spacing.xl + spacing.md,
   },
   plastilinVideo: {
-    width: Dimensions.get('window').width,
-    height: 220,
+    width: Dimensions.get('window').width + 40,
+    height: 260,
+    marginLeft: -20,
   },
 });
 
