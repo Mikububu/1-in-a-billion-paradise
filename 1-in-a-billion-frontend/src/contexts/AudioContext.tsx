@@ -10,6 +10,8 @@
 
 import React, { createContext, useContext, useRef, useState, useCallback, useEffect } from 'react';
 import { Audio, AVPlaybackStatus } from 'expo-av';
+import * as FileSystem from 'expo-file-system/legacy';
+import { getDocumentDirectory } from '../utils/fileSystem';
 import { getLocalArtifactPaths } from '../services/artifactCacheService';
 
 type AudioType = 'narration' | 'song';
@@ -25,6 +27,7 @@ interface AudioState {
   dur: number;
   available: boolean | null; // null = checking, true = ready, false = not ready
   isLocal: boolean; // True if using local cached file
+  downloadProgress: number; // 0-1, download progress when loading remote audio
 }
 
 interface AudioContextValue {
@@ -81,6 +84,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     dur: 0,
     available: null,
     isLocal: false,
+    downloadProgress: 0,
   });
   
   // Parse jobId and docNum from URL like: /api/jobs/v2/{jobId}/audio/{docNum}
@@ -210,37 +214,89 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   
   const togglePlayback = useCallback(async (type: AudioType) => {
     const instance = instancesRef.current.get(type);
-    if (!instance || instance.state.loading) return;
+    if (!instance) return;
     
+    // If already loaded, toggle play/pause INSTANTLY (no loading state)
+    if (instance.sound) {
+      try {
+        // Use cached playing state for instant response - don't await getStatusAsync
+        if (instance.state.playing) {
+          // INSTANT pause - update UI immediately, then pause audio
+          updateState(type, { playing: false });
+          await instance.sound.pauseAsync();
+          return;
+        } else {
+          // Resume - update UI immediately
+          updateState(type, { playing: true });
+          await stopOtherAudio(type);
+          await instance.sound.playAsync();
+          return;
+        }
+      } catch (e) {
+        // Sound might be in bad state, fall through to reload
+        console.log(`⚠️ ${type} sound error, will reload`);
+        instance.sound = null;
+      }
+    }
+    
+    // Only show loading for fresh load (not for play/pause toggle)
+    if (instance.state.loading) return;
     updateState(type, { loading: true });
     
     try {
-      // If already loaded, toggle play/pause
-      if (instance.sound) {
-        const status = await instance.sound.getStatusAsync();
-        if (status.isLoaded) {
-          if (status.isPlaying) {
-            await instance.sound.pauseAsync();
-            updateState(type, { playing: false, loading: false });
-            return;
-          } else {
-            // Resume - but first stop other audio
-            await stopOtherAudio(type);
-            await instance.sound.playAsync();
-            updateState(type, { playing: true, loading: false });
-            return;
-          }
-        }
-      }
-      
       // Fresh load - stop other audio first
       await stopOtherAudio(type);
       
-      const playUrl = instance.state.playableUrl || instance.url;
-      console.log(`🔄 Loading ${type} audio from ${instance.state.isLocal ? 'local cache' : 'remote'}...`);
+      let playUrl = instance.state.playableUrl || instance.url;
+      const isLocal = instance.state.isLocal;
+      
+      // Set audio mode for better streaming performance
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: true,
+      });
+      
+      // If remote, download to temp file first for faster playback on iOS
+      // iOS buffers the entire file anyway, so downloading first is actually faster
+      if (!isLocal && playUrl.startsWith('http')) {
+        console.log(`📥 Downloading ${type} audio for faster playback...`);
+        const docDir = getDocumentDirectory() || '';
+        const tempPath = `${docDir}temp_${type}_${Date.now()}.m4a`;
+        try {
+          // Use createDownloadResumable for progress tracking
+          const downloadResumable = FileSystem.createDownloadResumable(
+            playUrl,
+            tempPath,
+            {},
+            (progress) => {
+              const pct = progress.totalBytesWritten / progress.totalBytesExpectedToWrite;
+              updateState(type, { downloadProgress: pct });
+              if (progress.totalBytesWritten % 500000 < 50000) { // Log every ~500KB
+                console.log(`📥 ${type} download: ${Math.round(pct * 100)}%`);
+              }
+            }
+          );
+          const result = await downloadResumable.downloadAsync();
+          if (result?.status === 200) {
+            playUrl = result.uri;
+            console.log(`✅ Downloaded ${type} to temp file`);
+          }
+          updateState(type, { downloadProgress: 1 });
+        } catch (e) {
+          console.log(`⚠️ Download failed, falling back to streaming`);
+          updateState(type, { downloadProgress: 0 });
+        }
+      }
+      
+      console.log(`🔄 Loading ${type} audio from ${isLocal ? 'local cache' : 'temp file'}...`);
       const { sound } = await Audio.Sound.createAsync(
         { uri: playUrl },
-        { shouldPlay: true, progressUpdateIntervalMillis: 100 }, // Faster updates for smoother slider
+        { 
+          shouldPlay: true, 
+          progressUpdateIntervalMillis: 100,
+          androidImplementation: 'MediaPlayer',
+        },
         (status: AVPlaybackStatus) => {
           if (!status.isLoaded) return;
           

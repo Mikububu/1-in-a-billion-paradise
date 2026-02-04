@@ -168,7 +168,7 @@ export const HD_CHANNELS: HDChannelConfig[] = [
   { id: '39-55', name: 'Emoting', gate1: 39, gate2: 55, center1: 'Root', center2: 'Solar Plexus' },
   { id: '42-53', name: 'Maturation', gate1: 42, gate2: 53, center1: 'Sacral', center2: 'Root' },
   { id: '47-64', name: 'Abstraction', gate1: 47, gate2: 64, center1: 'Ajna', center2: 'Head' },
-  { id: '57-34', name: 'Archetype', gate1: 57, gate2: 34, center1: 'Spleen', center2: 'Sacral' }
+  // Note: 57-34 is same as 34-57, removed duplicate
 ];
 
 const ALL_CENTERS: HDCenterType[] = [

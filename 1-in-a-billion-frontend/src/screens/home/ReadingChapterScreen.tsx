@@ -72,8 +72,12 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
       .filter((line) => {
         const t = line.trim();
         if (!t) return true;
+        // Filter out structure tags like [Verse], [Chorus], etc.
         if (/^\[[^\]]+\]$/.test(t)) return false;
-        if (/^(verse|chorus|bridge|intro|outro)\s*\d*\s*:?\s*$/i.test(t)) return false;
+        // Filter out standalone section labels
+        if (/^(verse|chorus|bridge|intro|outro|hook|build up|interlude|pre chorus)\s*\d*\s*:?\s*$/i.test(t)) return false;
+        // Filter out stage directions in parentheses (music production instructions)
+        if (/^\([^)]+\)$/.test(t)) return false;
         return true;
       })
       .join('\n')
@@ -141,13 +145,20 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
     return () => { mounted = false; };
   }, [jobId, systemId, docNum]);
 
-  // Load song lyrics from artifact metadata
+  // Load song lyrics from artifact metadata (with polling since song is created after text)
   useEffect(() => {
     let mounted = true;
-    (async () => {
+    let retryCount = 0;
+    const maxRetries = 10; // Poll for up to ~50 seconds (10 * 5s)
+    let retryTimeout: any;
+    
+    const loadLyrics = async () => {
+      if (!mounted) return;
       try {
-        setLoadingSongLyrics(true);
-        console.log(`🎵 Loading song lyrics for jobId=${jobId}, systemId=${systemId}, docNum=${docNum}`);
+        if (retryCount === 0) setLoadingSongLyrics(true);
+        console.log(`🎵 Loading song lyrics for jobId=${jobId}, systemId=${systemId}, docNum=${docNum} (attempt ${retryCount + 1})`);
+        
+        // First try Supabase artifacts
         const artifacts = await fetchJobArtifacts(jobId, ['audio_song']);
         console.log(`🎶 Found ${artifacts.length} song artifacts`);
         const songArtifact = artifacts.find((a) => {
@@ -159,21 +170,58 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
           if (sysMatch) console.log(`✅ Found matching song artifact`);
           return sysMatch;
         });
-        const lyrics = (songArtifact?.metadata as any)?.lyrics;
-        if (mounted) {
+        
+        let lyrics = (songArtifact?.metadata as any)?.lyrics;
+        
+        // Fallback: fetch from backend API if no artifact yet
+        if (!lyrics && retryCount < maxRetries) {
+          try {
+            const res = await fetch(`${env.CORE_API_URL}/api/jobs/v2/${jobId}`);
+            const payload = await res.json();
+            const songArtifactFromApi = payload?.job?.artifacts?.find((a: any) => {
+              if (a.artifact_type !== 'audio_song') return false;
+              const meta = a.metadata || {};
+              if (Number(meta?.docNum) !== Number(docNum)) return false;
+              return systemId === 'verdict' 
+                ? (meta?.docType === 'verdict' || !meta?.system)
+                : meta?.system === systemId;
+            });
+            lyrics = songArtifactFromApi?.metadata?.lyrics;
+            if (lyrics) console.log(`✅ Found lyrics from backend API`);
+          } catch (e) {
+            console.log(`⚠️ Backend API fallback failed`);
+          }
+        }
+        
+        if (lyrics && mounted) {
           const cleaned = typeof lyrics === 'string' ? cleanupLyricsForDisplay(lyrics) : '';
           console.log(`✅ Song lyrics loaded: ${cleaned.length} chars`);
           setSongLyrics(cleaned);
+          setLoadingSongLyrics(false);
+        } else if (retryCount < maxRetries && mounted) {
+          // Song artifact not ready yet, retry after delay
+          retryCount++;
+          console.log(`⏳ Song lyrics not ready, retrying in 5s...`);
+          retryTimeout = setTimeout(loadLyrics, 5000);
+        } else if (mounted) {
+          console.log(`⚠️ Song lyrics not found after ${maxRetries} attempts`);
+          setSongLyrics('');
+          setLoadingSongLyrics(false);
         }
       } catch (error: any) {
         console.error(`❌ Failed to load song lyrics:`, error.message);
-        // Fallback: Leave empty for now (song lyrics are less critical than main text)
-        if (mounted) setSongLyrics('');
-      } finally {
-        if (mounted) setLoadingSongLyrics(false);
+        if (mounted) {
+          setSongLyrics('');
+          setLoadingSongLyrics(false);
+        }
       }
-    })();
-    return () => { mounted = false; };
+    };
+    
+    loadLyrics();
+    return () => { 
+      mounted = false; 
+      if (retryTimeout) clearTimeout(retryTimeout);
+    };
   }, [jobId, systemId, docNum]);
 
   // Check if PDF is ready (by checking artifacts table)

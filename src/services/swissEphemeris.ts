@@ -530,16 +530,47 @@ export class SwissEphemerisEngine {
 
     // ═══════════════════════════════════════════════════════════════════════════
     // HUMAN DESIGN & GENE KEYS CALCULATION
+    // Using hdkit algorithm: https://github.com/jdempcy/hdkit
     // ═══════════════════════════════════════════════════════════════════════════
     try {
       console.log('[Swiss Ephemeris] Calculating Human Design & Gene Keys...');
 
-      // 1. Calculate Design time (88 days ≈ 3 months before birth)
-      // Human Design uses "Design" positions from ~88 days before birth (Imprinting)
-      const DESIGN_OFFSET_DAYS = 88;
-      const designJdUt = jdUt - DESIGN_OFFSET_DAYS;
-
-      console.log(`[Swiss Ephemeris] Design JD: ${designJdUt} (${DESIGN_OFFSET_DAYS} days before birth)`);
+      // 1. Calculate Design date using hdkit's binary search algorithm
+      // Human Design uses the moment when Sun was EXACTLY 88° behind birth Sun position
+      // This is NOT simply 88 days - the Sun's speed varies throughout the year
+      // hdkit searches between 84-96 days before birth with high precision
+      const birthSunDegrees = sunLongitude;
+      let startJd = jdUt - 96; // 96 days before birth
+      let endJd = jdUt - 84;   // 84 days before birth
+      let designJdUt = jdUt - 88; // Initial estimate
+      const MAX_ITERATIONS = 100;
+      const TOLERANCE = 0.00001; // ~0.036 arc seconds precision (hdkit uses 0.00001)
+      
+      for (let i = 0; i < MAX_ITERATIONS; i++) {
+        const midJd = (startJd + endJd) / 2;
+        const midSunResult = swe.swe_calc_ut(midJd, swe.SE_SUN, flags);
+        if ('error' in midSunResult) break;
+        
+        const midSunDegrees = (midSunResult as { longitude: number }).longitude;
+        let difference = Math.abs(birthSunDegrees - midSunDegrees);
+        if (difference > 180) difference = 360 - difference;
+        
+        if (difference < 88 + TOLERANCE && difference > 88 - TOLERANCE) {
+          // Found the design date with required precision
+          designJdUt = midJd;
+          break;
+        } else if (difference > 88) {
+          // Sun is more than 88° away, need to move closer to birth
+          startJd = midJd;
+        } else {
+          // Sun is less than 88° away, need to move further from birth
+          endJd = midJd;
+        }
+        designJdUt = midJd;
+      }
+      
+      const daysBeforeBirth = jdUt - designJdUt;
+      console.log(`[Swiss Ephemeris] Design date: ${daysBeforeBirth.toFixed(2)} days before birth (88° Sun offset)`);
 
       // 2. Calculate planetary positions for Design time
       const getDesignPosition = (planet: number): number => {

@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { View, TouchableOpacity, Text, ActivityIndicator, ScrollView, StyleSheet, Animated, Easing } from 'react-native';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { View, TouchableOpacity, Text, ActivityIndicator, ScrollView, StyleSheet, LayoutChangeEvent } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { useAudioContext } from '../contexts/AudioContext';
 import { useTextAutoScroll } from '../hooks/useTextAutoScroll';
+import { ShimmerSliderAnimation, CircularShimmerAnimation } from './AudioLoadingAnimation';
 import { colors, typography, radii } from '@/theme/tokens';
 
 interface AudioPlayerSectionProps {
@@ -26,6 +27,8 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
 }) => {
   const audioCtx = useAudioContext();
   const [seeking, setSeeking] = useState(false);
+  const [localSeekPos, setLocalSeekPos] = useState<number | null>(null); // Local position during scrubbing
+  const lastUpdateRef = useRef(0);
   
   // Register this audio with the context
   useEffect(() => {
@@ -43,6 +46,7 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
   const pos = state?.pos ?? 0;
   const dur = state?.dur ?? 0;
   const available = state?.available ?? null;
+  const downloadProgress = state?.downloadProgress ?? 0;
   
   const textScroll = useTextAutoScroll({
     playing,
@@ -54,15 +58,24 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
   // Slider handlers with optimistic updates for smooth scrubbing
   const handleSlidingStart = useCallback(() => {
     setSeeking(true);
+    setLocalSeekPos(pos); // Initialize local position
     audioCtx.startSeeking(type);
-  }, [audioCtx, type]);
+  }, [audioCtx, type, pos]);
   
   const handleValueChange = useCallback((v: number) => {
-    audioCtx.updateSeekPosition(type, v);
+    // Update local position immediately for smooth visual feedback
+    setLocalSeekPos(v);
+    // Throttle context updates to reduce re-renders (every 50ms)
+    const now = Date.now();
+    if (now - lastUpdateRef.current > 50) {
+      lastUpdateRef.current = now;
+      audioCtx.updateSeekPosition(type, v);
+    }
   }, [audioCtx, type]);
   
   const handleSlidingComplete = useCallback(async (v: number) => {
     setSeeking(false);
+    setLocalSeekPos(null); // Clear local position
     await audioCtx.finishSeeking(type, v);
   }, [audioCtx, type]);
   
@@ -85,81 +98,72 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
     return `${m}:${String(sec).padStart(2, '0')}`;
   };
 
-  // Gentle pulsing glow - simple and works without native modules
-  const glowOpacity = useRef(new Animated.Value(0.3)).current;
-
-  useEffect(() => {
-    if (isPending) {
-      const anim = Animated.loop(
-        Animated.sequence([
-          Animated.timing(glowOpacity, {
-            toValue: 1,
-            duration: 1000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(glowOpacity, {
-            toValue: 0.3,
-            duration: 1000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      anim.start();
-      return () => anim.stop();
-    } else {
-      glowOpacity.setValue(0.3);
-    }
-  }, [isPending, glowOpacity]);
+  // Track slider width for shimmer animation
+  const [sliderWidth, setSliderWidth] = useState(200);
+  const handleSliderLayout = useCallback((e: LayoutChangeEvent) => {
+    setSliderWidth(e.nativeEvent.layout.width);
+  }, []);
 
   return (
     <>
       <View style={styles.mediaBlock}>
-        <TouchableOpacity
-          style={[
-            styles.playButton,
-            { borderColor: isDisabled ? '#999' : primaryColor, backgroundColor: isDisabled ? '#f5f5f5' : primaryColor + '20' },
-            playing && { backgroundColor: primaryColor + '30' },
-          ]}
-          onPress={togglePlayback}
-          disabled={isDisabled}
-        >
-          {loading || buffering ? (
-            <ActivityIndicator color={isDisabled ? '#999' : primaryColor} />
-          ) : (
-            <Text style={[styles.playIcon, { color: isDisabled ? '#999' : primaryColor }]}>{icon}</Text>
-          )}
-        </TouchableOpacity>
+        {isPending ? (
+          /* Circular shimmer while audio is generating */
+          <CircularShimmerAnimation size={50} baseColor="#FFFFFF" highlightColor={primaryColor} />
+        ) : (
+          <TouchableOpacity
+            style={[
+              styles.playButton,
+              { borderColor: isDisabled ? '#999' : primaryColor, backgroundColor: isDisabled ? '#f5f5f5' : primaryColor + '20' },
+              playing && { backgroundColor: primaryColor + '30' },
+            ]}
+            onPress={togglePlayback}
+            disabled={isDisabled}
+          >
+            {loading || buffering ? (
+              downloadProgress > 0 && downloadProgress < 1 ? (
+                <Text style={[styles.downloadProgress, { color: primaryColor }]}>{Math.round(downloadProgress * 100)}%</Text>
+              ) : (
+                <ActivityIndicator color={isDisabled ? '#999' : primaryColor} />
+              )
+            ) : (
+              <Text style={[styles.playIcon, { color: isDisabled ? '#999' : primaryColor }]}>{icon}</Text>
+            )}
+          </TouchableOpacity>
+        )}
 
-        <View style={[styles.sliderOuter, isDisabled && !isPending && { opacity: 0.5 }]}>
-          {isPending && (
-            <Animated.View
+        <View style={[styles.sliderOuter, isDisabled && !isPending && { opacity: 0.5 }]} onLayout={handleSliderLayout}>
+          {isPending ? (
+            /* Modern shimmer animation while audio is generating */
+            <View style={styles.shimmerContainer}>
+              <ShimmerSliderAnimation 
+                width={sliderWidth} 
+                height={28} 
+                borderRadius={14}
+                baseColor="#FFFFFF"
+                highlightColor="#C41E3A"
+              />
+            </View>
+          ) : (
+            <View
               pointerEvents="none"
               style={[
-                styles.glowBorder,
-                { opacity: glowOpacity }
+                styles.sliderPill,
+                {
+                  borderColor: isDisabled ? '#999' : primaryColor,
+                  backgroundColor: isDisabled ? '#f0f0f0' : primaryColor + '15',
+                },
               ]}
             />
           )}
-          <View
-            pointerEvents="none"
-            style={[
-              styles.sliderPill,
-              {
-                borderColor: isPending ? 'transparent' : (isDisabled ? '#999' : primaryColor),
-                backgroundColor: isDisabled ? '#f0f0f0' : (isPending ? '#FFF8F0' : primaryColor + '15'),
-              },
-            ]}
-          />
           <View pointerEvents="none" style={styles.sliderDurationOverlay}>
             <Text style={[styles.sliderDurationText, isDisabled && { color: '#999' }]}>
-              {playing || seeking ? fmt(pos) : (dur ? fmt(dur) : '--:--')}
+              {playing || seeking ? fmt(localSeekPos ?? pos) : (dur ? fmt(dur) : '--:--')}
             </Text>
           </View>
           <Slider
             style={styles.sliderAbsolute}
-            value={dur > 0 ? Math.min(pos, dur) : 0}
+            value={dur > 0 ? Math.min(localSeekPos ?? pos, dur) : 0}
             minimumValue={0}
             maximumValue={dur || 1}
             minimumTrackTintColor={isDisabled ? '#999' : primaryColor}
@@ -219,17 +223,13 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     zIndex: 1,
   },
-  glowBorder: {
+  shimmerContainer: {
     position: 'absolute',
     left: 0,
     right: 0,
     top: 8,
     height: 28,
-    borderRadius: 999,
-    borderWidth: 3,
-    borderStyle: 'dotted',
-    borderColor: '#FF6B00',
-    zIndex: 2,
+    zIndex: 1,
   },
   sliderDurationOverlay: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center', zIndex: 2 },
   sliderAbsolute: { position: 'absolute', left: 0, right: 54, height: 44, top: 0, zIndex: 100, overflow: 'visible', elevation: 10 },
@@ -252,4 +252,5 @@ const styles = StyleSheet.create({
   textWindow: { maxHeight: 110 },
   textBody: { fontFamily: typography.sansRegular, fontSize: 14, lineHeight: 22, color: colors.text },
   textBodyNotReady: { color: colors.mutedText, opacity: 0.6 },
+  downloadProgress: { fontFamily: typography.sansSemiBold, fontSize: 12 },
 });
