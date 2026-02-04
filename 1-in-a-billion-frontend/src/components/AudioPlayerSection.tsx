@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   textWindow: { maxHeight: 110 },
-  textBody: { fontFamily: typography.sansRegular, fontSize: 14, lineHeight: 22, color: colors.text },
+  textBody: { fontFamily: typography.sansRegular, fontSize: 14, lineHeight: 22, color: colors.text, paddingTop: 44 },
   textBodyNotReady: { color: colors.mutedText, opacity: 0.6 },
   downloadProgress: { fontFamily: typography.sansSemiBold, fontSize: 12 },
 });
