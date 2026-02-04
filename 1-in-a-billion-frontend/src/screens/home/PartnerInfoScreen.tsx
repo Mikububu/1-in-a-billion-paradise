@@ -397,6 +397,8 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
                 setShowCitySuggestions(true);
               }}
               onFocus={() => setShowCitySuggestions(true)}
+              autoCapitalize="words"
+              autoCorrect={false}
             />
           </View>
 
