@@ -1004,9 +1004,10 @@ ${OUTPUT_FORMAT_RULES}`;
     
     if (configuredProvider === 'claude') {
       // Use Claude Sonnet 4 via llmPaid (unhinged, no censorship)
+      // maxTokens: 16384 = ~12,000 words capacity (we need 3000)
       llmInstance = llmPaid;
       text = await llmPaid.generate(prompt, label, { 
-        maxTokens: 8192, 
+        maxTokens: 16384, 
         temperature: 0.8,
       });
     } else {

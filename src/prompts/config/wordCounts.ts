@@ -16,18 +16,27 @@ export const STANDARD_READING = {
 
 export function getWordTarget(): string {
   return `
-═══════════════════════════════════════════════════════════════════════════════
-⚠️ CRITICAL WORD COUNT REQUIREMENT - NON-NEGOTIABLE ⚠️
-═══════════════════════════════════════════════════════════════════════════════
-You MUST write EXACTLY ${STANDARD_READING.target} words (minimum ${STANDARD_READING.min}, maximum ${STANDARD_READING.max}).
-This produces ${STANDARD_READING.audioMinutes} minutes of audio narration.
+███████████████████████████████████████████████████████████████████████████████
+██  MANDATORY LENGTH: ${STANDARD_READING.min}-${STANDARD_READING.max} WORDS (TARGET: ${STANDARD_READING.target})  ██
+███████████████████████████████████████████████████████████████████████████████
 
-DO NOT write less than ${STANDARD_READING.min} words. The reading will be REJECTED if too short.
-DO NOT summarize. DO NOT be concise. EXPAND every insight with examples and depth.
-Each section should be THOROUGH and COMPREHENSIVE.
+THIS IS A PAID PREMIUM READING. The client expects ${STANDARD_READING.audioMinutes} MINUTES of audio.
 
-COUNT YOUR WORDS. If you're under ${STANDARD_READING.min}, ADD MORE CONTENT.
-═══════════════════════════════════════════════════════════════════════════════
+FAILURE CONDITIONS (reading will be REJECTED and regenerated):
+❌ Under ${STANDARD_READING.min} words = TOO SHORT = REJECTED
+❌ Summarizing instead of expanding = REJECTED  
+❌ Being concise = REJECTED
+❌ Skipping depth for brevity = REJECTED
+
+SUCCESS CONDITIONS:
+✅ Write ${STANDARD_READING.target}+ words
+✅ EXPAND every insight with examples, metaphors, and psychological depth
+✅ Each section should be 400-600 words minimum
+✅ Use flowing prose, not bullet points
+✅ Go DEEP into shadow work, patterns, and transformation
+
+YOU ARE BEING PAID FOR LENGTH AND DEPTH. DELIVER BOTH.
+███████████████████████████████████████████████████████████████████████████████
 `.trim();
 }
 
