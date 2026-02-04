@@ -1004,12 +1004,12 @@ ${OUTPUT_FORMAT_RULES}`;
     
     if (configuredProvider === 'claude') {
       // Use Claude Sonnet 4 via llmPaid (unhinged, no censorship)
-      // maxTokens: 16000 = ~4000+ words capacity (matching CLAUDE version)
-      // temperature: 0.85 = slightly higher for more creative/deep output
+      // maxTokens: 8192 = matching b4 Cowork version that generated longer readings
+      // temperature: 0.8 = matching b4 Cowork version
       llmInstance = llmPaid;
       text = await llmPaid.generate(prompt, label, { 
-        maxTokens: 16000, 
-        temperature: 0.85,
+        maxTokens: 8192, 
+        temperature: 0.8,
       });
     } else {
       // Use DeepSeek (default) or OpenAI via llm with provider override
