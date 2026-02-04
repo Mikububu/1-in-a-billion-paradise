@@ -79,8 +79,6 @@ FORMAT RULES (THIS IS SPOKEN AUDIO):
 - Spell out all numbers
 - NO em-dashes, NO AI phrases
 
-REMEMBER: You MUST write exactly 3000 words. Count as you write. Each section has a specific word count - follow it precisely.
-
 Tell the story of these two souls now:
 `;
 }

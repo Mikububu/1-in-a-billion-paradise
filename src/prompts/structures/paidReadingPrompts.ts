@@ -249,47 +249,62 @@ export function buildPersonPrompt(params: {
   const languageInstruction = getLanguageInstruction(outputLanguage);
 
   return `
-${getWordTarget()}
+DEEP READING: ${personName} through ${systemName}
 
-═══════════════════════════════════════════════════════════════════════════════
-INDIVIDUAL DEEP DIVE: ${systemName}
-${personName}
-═══════════════════════════════════════════════════════════════════════════════
+PERSON DATA:
+- Name: ${personName}
+- Born: ${personData.birthDate} at ${personData.birthTime}
+- Location: ${personData.birthPlace}
 
-${buildStyleSection(style)}
-
-${buildForbiddenSection(style)}
-
-${buildSpiceSection(spiceLevel as any, style)}
-
-${buildSystemSection(system as any, false, spiceLevel)}
-
-${buildIndividualStructure(personName)}
-
-═══════════════════════════════════════════════════════════════════════════════
-BIRTH DATA:
-═══════════════════════════════════════════════════════════════════════════════
-Name: ${personName}
-Birth Date: ${personData.birthDate}
-Birth Time: ${personData.birthTime}
-Birth Place: ${personData.birthPlace}
-
-═══════════════════════════════════════════════════════════════════════════════
-CHART DATA (${systemName}):
-═══════════════════════════════════════════════════════════════════════════════
+CHART DATA:
 ${chartData}
 ${personalContext ? `
-PERSONAL CONTEXT (7% weight): "${personalContext}"
+PERSONAL CONTEXT: "${personalContext}"
+(Use this for ~7% subtle framing. The reading remains 93% chart-driven.)
 ` : ''}
+
+═══════════════════════════════════════════════════════════════════════════════
+PSYCHOLOGICAL PROVOCATIONS - THINK BEFORE YOU WRITE
+═══════════════════════════════════════════════════════════════════════════════
 
 ${buildPersonProvocations(personName, spiceLevel)}
 
-${getSpiceCalibration(spiceLevel)}
+═══════════════════════════════════════════════════════════════════════════════
+STYLE & INTENSITY
+═══════════════════════════════════════════════════════════════════════════════
+
+${buildStyleSection(style)}
+${buildSpiceSection(spiceLevel as any, style)}
+
 ${tragicRealismBlock()}
 
-${getWordTarget()}
+${buildForbiddenSection(style)}
+
+═══════════════════════════════════════════════════════════════════════════════
+OUTPUT REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════════════
+
+**WORD COUNT: 2500-3000 WORDS MINIMUM. This becomes 15-20 minutes of audio.**
+
+STRUCTURE (for your guidance only - do NOT include headers in output):
+1. Who ${personName} fundamentally IS (600 words)
+2. How ${personName} loves, attaches, and relates (700 words)
+3. ${personName}'s shadow - wounds, patterns, self-sabotage, sexual shadow (800 words)
+4. ${personName}'s gifts when conscious (400 words)
+5. How to love ${personName} - and what destroys them (300 words)
+
+FORMAT RULES (THIS IS SPOKEN AUDIO):
+- OPENING: Begin like a fairytale for adults - an invocation that makes the listener pause (up to 20 words)
+  Think: García Márquez, Anaïs Nin, Rumi, David Lynch. Draw them into the mystery.
+- Then ONE CONTINUOUS ESSAY - no section headers, let the story unfold
+- 3rd person with ${personName}'s name (never "you/your")
+- Pure prose - NO asterisks, NO markdown, NO bullets
+- Spell out numbers ("twenty-three degrees")
+- NO em-dashes (—), use commas or periods
+- NO AI phrases ("This is not just...", "Here's the thing...")
+
 ${languageInstruction}
-Begin directly with the reading. No preamble.
+Tell ${personName}'s story now:
 `.trim();
 }
 
@@ -322,39 +337,56 @@ export function buildOverlayPrompt(params: {
   const languageInstruction = getLanguageInstruction(outputLanguage);
 
   return `
-${getWordTarget()}
+SYNASTRY READING: ${person1Name} & ${person2Name} through ${systemName}
 
-═══════════════════════════════════════════════════════════════════════════════
-SYNASTRY OVERLAY: ${systemName}
-${person1Name} & ${person2Name}
-═══════════════════════════════════════════════════════════════════════════════
-
-${buildStyleSection(style)}
-
-${buildForbiddenSection(style)}
-
-${buildSpiceSection(spiceLevel as any, style)}
-
-${buildSystemSection(system as any, true, spiceLevel)}
-
-${buildOverlayStructure(person1Name, person2Name)}
-
-═══════════════════════════════════════════════════════════════════════════════
-COMBINED CHART DATA (${systemName}):
-═══════════════════════════════════════════════════════════════════════════════
+COMBINED CHART DATA:
 ${chartData}
 ${relationshipContext ? `
-RELATIONSHIP CONTEXT (7% weight): "${relationshipContext}"
+RELATIONSHIP CONTEXT: "${relationshipContext}"
+(Use this for ~7% subtle framing. The reading remains 93% chart-driven.)
 ` : ''}
+
+═══════════════════════════════════════════════════════════════════════════════
+PSYCHOLOGICAL PROVOCATIONS - THINK BEFORE YOU WRITE
+═══════════════════════════════════════════════════════════════════════════════
 
 ${buildOverlayProvocations(person1Name, person2Name, spiceLevel)}
 
-${getSpiceCalibration(spiceLevel)}
+═══════════════════════════════════════════════════════════════════════════════
+STYLE & INTENSITY
+═══════════════════════════════════════════════════════════════════════════════
+
+${buildStyleSection(style)}
+${buildSpiceSection(spiceLevel as any, style)}
+
 ${tragicRealismBlock()}
 
-${getWordTarget()}
+${buildForbiddenSection(style)}
+
+═══════════════════════════════════════════════════════════════════════════════
+OUTPUT REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════════════
+
+**WORD COUNT: 3000+ WORDS MINIMUM. This becomes 18-20 minutes of audio.**
+
+STRUCTURE (for your guidance only - do NOT include headers in output):
+1. The Attraction - what draws ${person1Name} and ${person2Name} together magnetically (700 words)
+2. The Friction - where they clash and what drives them crazy (600 words)
+3. Sex & Power - who dominates, who surrenders, bedroom as battlefield and sanctuary (600 words)
+4. The Shadow Dance - how they wound each other, destruction potential (700 words)
+5. The Gift - what they could become together if conscious (400 words)
+
+FORMAT RULES (THIS IS SPOKEN AUDIO):
+- OPENING: Begin like a mystery theater of longing - an invocation that draws two souls into focus (up to 20 words)
+  Think: García Márquez, Anaïs Nin, Rumi, David Lynch. Set the atmosphere.
+- Then ONE CONTINUOUS ESSAY - no section headers, let the story of these two souls unfold
+- Use both names (never "you/your")
+- Pure prose - NO asterisks, NO markdown, NO bullets
+- Spell out all numbers
+- NO em-dashes, NO AI phrases
+
 ${languageInstruction}
-Begin directly with the reading. No preamble.
+Tell the story of these two souls now:
 `.trim();
 }
 
@@ -418,8 +450,6 @@ FORMAT RULES (THIS IS SPOKEN AUDIO):
 - Pure prose, NO markdown, NO asterisks
 - Spell out all numbers
 - UNFLINCHING HONESTY - if it's toxic, say so. If it's golden, say so.
-
-REMEMBER: You MUST write exactly 3000 words. Count as you write. Each section has a specific word count - follow it precisely.
 
 ${languageInstruction}
 Deliver the verdict now:
