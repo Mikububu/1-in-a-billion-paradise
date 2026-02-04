@@ -263,7 +263,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.log(`📥 Downloading ${type} audio for faster playback...`);
         const docDir = getDocumentDirectory() || '';
         // Preserve original file extension for proper iOS playback
-        const ext = playUrl.match(/\.(mp3|m4a|wav|aac)(\?|$)/i)?.[1] || 'mp3';
+        // Songs are .mp3 (Minimax), narration is .m4a (Chatterbox TTS)
+        const urlExt = playUrl.match(/\.(mp3|m4a|wav|aac)(\?|$)/i)?.[1];
+        const ext = urlExt || (type === 'song' ? 'mp3' : 'm4a');
         const tempPath = `${docDir}temp_${type}_${Date.now()}.${ext}`;
         try {
           // Use createDownloadResumable for progress tracking
