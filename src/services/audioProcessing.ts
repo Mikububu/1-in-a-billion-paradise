@@ -10,20 +10,23 @@
  */
 
 // ═══════════════════════════════════════════════════════════════════════════
-// CONFIGURATION - Adjust these values to tune audio stitching behavior
+// ⚠️  CRITICAL: DO NOT CHANGE THESE VALUES WITHOUT READING docs/AUDIO_OUTPUT_SPEC.md
+// ⚠️  These settings were tuned on Feb 4, 2026 to fix audio gibberish/hallucination.
+// ⚠️  Tested with 20 min audio - zero gibberish. Changing them WILL break audio quality.
 // ═══════════════════════════════════════════════════════════════════════════
 
 export const AUDIO_CONFIG = {
   // Text chunking
-  // REDUCED from 450 to 300 to fix gibberish/hallucination issues
+  // ⚠️ DO NOT INCREASE CHUNK_MAX_LENGTH - 450 caused gibberish, 300 is stable
   // Chatterbox Turbo claims 500 char limit but produces gibberish on longer chunks
   // Original Chatterbox uses 300 - more stable
-  CHUNK_MAX_LENGTH: 300,           // Max chars per chunk (reduced for stability)
+  CHUNK_MAX_LENGTH: 300,           // ⚠️ CRITICAL: Do not increase (causes gibberish)
   CHUNK_OVERFLOW_TOLERANCE: 1.5,   // Allow chunks to exceed by this factor to complete sentences (1.5 = 50% over)
   CHUNK_WORD_SPLIT_THRESHOLD: 2.0, // Only split at word boundaries if sentence exceeds this factor (2.0 = 2x max)
   
   // Audio crossfade
-  CROSSFADE_DURATION_MS: 0,        // DISABLED - crossfade causes gibberish/amplitude dips at chunk boundaries
+  // ⚠️ DO NOT INCREASE CROSSFADE_DURATION_MS - 80ms caused stitching issues
+  CROSSFADE_DURATION_MS: 0,        // ⚠️ CRITICAL: Keep at 0 (crossfade causes amplitude dips)
   
   // WAV format
   DEFAULT_SAMPLE_RATE: 24000,      // 24kHz sample rate

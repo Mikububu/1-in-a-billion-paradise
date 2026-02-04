@@ -1,10 +1,33 @@
 # Audio Output Specification
 
 **Status:** Draft
-**Last Updated:** 2026-01-05
-**Consumer:** `audioWorker.ts` / `audio.ts`
+**Last Updated:** 2026-02-04
+**Consumer:** `audioWorker.ts` / `audioProcessing.ts`
 
 This document serves as the **AUTHORITATIVE CONTRACT** for Audio generation. The Audio worker must adhere strictly to these presentation rules.
+
+---
+
+## ⚠️ CRITICAL: Gibberish Prevention Settings (DO NOT CHANGE)
+
+**Confirmed working on Feb 4, 2026 - 20 min audio with zero gibberish.**
+
+These settings in `audioProcessing.ts` MUST remain as-is to prevent audio hallucination/gibberish:
+
+```typescript
+// audioProcessing.ts - AUDIO_CONFIG
+CHUNK_MAX_LENGTH: 300,        // ⚠️ DO NOT INCREASE - 450 caused gibberish
+CROSSFADE_DURATION_MS: 0,     // ⚠️ DO NOT INCREASE - 80ms caused stitching issues
+```
+
+```typescript
+// audioWorker.ts - Replicate API parameters
+temperature: 0.7,             // Default - do not lower (causes robotic voice)
+top_p: 0.95,                  // Default - do not change
+repetition_penalty: 1.5,      // Prevents duplicate sentences
+```
+
+**Why 300 chars?** Chatterbox Turbo claims 500 char limit but produces gibberish on longer chunks. Original Chatterbox uses 300 and is more stable.
 
 ---
 
