@@ -81,6 +81,15 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [hasAskedPermission, setHasAskedPermission] = useState(false);
+  const [showGeneratingText, setShowGeneratingText] = useState(false);
+  
+  // Alternate button text between "My Soul Library Readings" and "Generating in background"
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setShowGeneratingText(prev => !prev);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
   const [currentStep, setCurrentStep] = useState('Initializing...');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationComplete, setGenerationComplete] = useState(false);
@@ -444,9 +453,9 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
           </Text>
         </TouchableOpacity>
 
-        {/* My Soul Library Readings Button - SVG marching ants animation */}
+        {/* My Soul Library Readings Button - alternates with "Generating in background" */}
         <MarchingAntsButton
-          label="My Soul Library Readings"
+          label={showGeneratingText ? "Generating in background..." : "My Soul Library Readings"}
           onPress={handleGoToMySecretLife}
         />
 
@@ -460,13 +469,7 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
           <Text style={styles.libraryButtonText}>My Secret Life Dashboard</Text>
         </TouchableOpacity>
 
-        {/* Status indicator - Centered */}
-        <Animated.View style={[styles.statusRowCentered, { opacity: blinkAnim }]}>
-          <View style={styles.statusDot} />
-          <Text style={styles.statusText}>Generating in background</Text>
-        </Animated.View>
-
-        {/* Timer removed - user feedback: no countdowns needed */}
+        {/* Status indicator removed - now shown in button text */}
 
         {/* Plastilin animation video at bottom */}
         <View style={styles.videoContainer}>
@@ -539,23 +542,24 @@ const styles = StyleSheet.create({
   messageBox: {
     backgroundColor: colors.surface,
     borderRadius: radii.card,
-    padding: spacing.md,
+    padding: spacing.sm,
     marginTop: 0,
+    marginBottom: spacing.sm,
     width: '100%',
   },
   messageTitle: {
     fontFamily: typography.sansSemiBold,
-    fontSize: 16,
+    fontSize: 14,
     color: colors.text,
     textAlign: 'left',
     marginBottom: spacing.xs,
   },
   messageText: {
     fontFamily: typography.sansRegular,
-    fontSize: 14,
+    fontSize: 12,
     color: colors.mutedText,
     textAlign: 'left',
-    lineHeight: 20,
+    lineHeight: 17,
   },
   timeBox: {
     alignItems: 'center',
