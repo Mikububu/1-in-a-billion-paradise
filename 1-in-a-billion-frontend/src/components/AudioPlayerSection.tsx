@@ -98,6 +98,14 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
     return `${m}:${String(sec).padStart(2, '0')}`;
   };
 
+  // Clean up text for karaoke sync - normalize whitespace (display only, not for PDF)
+  const cleanTextForKaraoke = (raw: string): string => {
+    return (raw || '')
+      .replace(/\n{3,}/g, '\n\n')  // Max 2 newlines (one blank line)
+      .replace(/[ \t]+/g, ' ')      // Collapse multiple spaces/tabs
+      .trim();
+  };
+
   // Track slider width for shimmer animation
   const [sliderWidth, setSliderWidth] = useState(200);
   const handleSliderLayout = useCallback((e: LayoutChangeEvent) => {
@@ -190,7 +198,7 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
               onLayout={(e) => textScroll.setViewportH(e.nativeEvent.layout.height)}
               onContentSizeChange={(_, h) => textScroll.setContentH(h)}
             >
-              <Text style={[styles.textBody, textNotReady && styles.textBodyNotReady]}>{text || ''}</Text>
+              <Text style={[styles.textBody, textNotReady && styles.textBodyNotReady]}>{cleanTextForKaraoke(text)}</Text>
             </ScrollView>
           )}
         </View>
