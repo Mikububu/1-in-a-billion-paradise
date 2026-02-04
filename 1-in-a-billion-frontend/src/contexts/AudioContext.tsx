@@ -262,7 +262,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!isLocal && playUrl.startsWith('http')) {
         console.log(`📥 Downloading ${type} audio for faster playback...`);
         const docDir = getDocumentDirectory() || '';
-        const tempPath = `${docDir}temp_${type}_${Date.now()}.m4a`;
+        // Preserve original file extension for proper iOS playback
+        const ext = playUrl.match(/\.(mp3|m4a|wav|aac)(\?|$)/i)?.[1] || 'mp3';
+        const tempPath = `${docDir}temp_${type}_${Date.now()}.${ext}`;
         try {
           // Use createDownloadResumable for progress tracking
           const downloadResumable = FileSystem.createDownloadResumable(
