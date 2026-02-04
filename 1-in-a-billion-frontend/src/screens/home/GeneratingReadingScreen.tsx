@@ -875,12 +875,12 @@ const styles = StyleSheet.create({
   },
   videoContainer: {
     width: Dimensions.get('window').width,
-    marginTop: spacing.xl * 2,
+    marginTop: spacing.lg,
     marginHorizontal: -spacing.page,
   },
   plastilinVideo: {
     width: Dimensions.get('window').width,
-    height: 300,
+    height: 180,
   },
 });
 
