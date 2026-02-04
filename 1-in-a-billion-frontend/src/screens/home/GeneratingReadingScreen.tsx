@@ -605,7 +605,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
-    marginTop: spacing.xl,
+    marginTop: spacing.md,
     width: '100%',
   },
   notifyButtonActive: {
