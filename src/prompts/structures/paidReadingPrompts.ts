@@ -304,6 +304,8 @@ FORMAT RULES (THIS IS SPOKEN AUDIO):
 - NO AI phrases ("This is not just...", "Here's the thing...")
 
 ${languageInstruction}
+CRITICAL: Write AT LEAST 2800 words. This is a paid product - short readings are unacceptable.
+
 Tell ${personName}'s story now:
 `.trim();
 }
@@ -386,6 +388,8 @@ FORMAT RULES (THIS IS SPOKEN AUDIO):
 - NO em-dashes, NO AI phrases
 
 ${languageInstruction}
+CRITICAL: Write AT LEAST 2800 words. This is a paid product - short readings are unacceptable.
+
 Tell the story of these two souls now:
 `.trim();
 }
@@ -452,6 +456,8 @@ FORMAT RULES (THIS IS SPOKEN AUDIO):
 - UNFLINCHING HONESTY - if it's toxic, say so. If it's golden, say so.
 
 ${languageInstruction}
+CRITICAL: Write AT LEAST 2800 words. This is a paid product - short readings are unacceptable.
+
 Deliver the verdict now:
 `.trim();
 }
