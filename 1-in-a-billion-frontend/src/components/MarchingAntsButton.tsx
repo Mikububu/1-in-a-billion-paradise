@@ -2,22 +2,20 @@
  * MARCHING ANTS BUTTON
  * 
  * A button with an animated dashed border that appears to move around the edge.
- * Uses SVG with animated strokeDashoffset for the marching ants effect.
+ * Uses a simple pulsing scale animation since SVG marching ants is problematic.
  */
 
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, LayoutChangeEvent } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
-  useAnimatedProps,
+  useAnimatedStyle,
   withRepeat,
+  withSequence,
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import Svg, { Rect } from 'react-native-svg';
 import { colors, typography, spacing, radii } from '@/theme/tokens';
-
-const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
 interface MarchingAntsButtonProps {
   label: string;
@@ -30,86 +28,50 @@ export const MarchingAntsButton: React.FC<MarchingAntsButtonProps> = ({
   onPress,
   color = colors.primary,
 }) => {
-  const dashOffset = useSharedValue(0);
-  const [buttonWidth, setButtonWidth] = useState(0);
+  const scale = useSharedValue(1);
 
   useEffect(() => {
-    // Animate the dash offset to create marching ants effect
-    dashOffset.value = withRepeat(
-      withTiming(-30, {
-        duration: 1000,
-        easing: Easing.linear,
-      }),
-      -1, // infinite
+    // Subtle pulsing animation
+    scale.value = withRepeat(
+      withSequence(
+        withTiming(1.02, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
       false
     );
   }, []);
 
-  const animatedProps = useAnimatedProps(() => ({
-    strokeDashoffset: dashOffset.value,
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
   }));
 
-  const handleLayout = (e: LayoutChangeEvent) => {
-    setButtonWidth(e.nativeEvent.layout.width);
-  };
-
-  const borderRadius = radii.button;
-  const strokeWidth = 2;
-  const height = 50;
-
   return (
-    <TouchableOpacity 
-      onPress={onPress} 
-      activeOpacity={0.8}
-      style={styles.touchable}
-    >
-      <View style={styles.container} onLayout={handleLayout}>
-        {/* Off-white background */}
-        <View style={[styles.background, { borderRadius }]} />
-        
-        {/* SVG border with marching ants - only render when we have width */}
-        {buttonWidth > 0 && (
-          <Svg
-            width={buttonWidth}
-            height={height}
-            style={StyleSheet.absoluteFill}
-          >
-            <AnimatedRect
-              x={strokeWidth / 2}
-              y={strokeWidth / 2}
-              width={buttonWidth - strokeWidth}
-              height={height - strokeWidth}
-              rx={borderRadius}
-              ry={borderRadius}
-              stroke={color}
-              strokeWidth={strokeWidth}
-              strokeDasharray="10 5"
-              fill="transparent"
-              animatedProps={animatedProps}
-            />
-          </Svg>
-        )}
-        
-        {/* Button text */}
+    <Animated.View style={[styles.wrapper, animatedStyle]}>
+      <TouchableOpacity 
+        onPress={onPress} 
+        activeOpacity={0.8}
+        style={[styles.button, { borderColor: color }]}
+      >
         <Text style={[styles.label, { color }]}>{label}</Text>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
-  touchable: {
+  wrapper: {
     width: '100%',
     marginTop: spacing.md,
   },
-  container: {
+  button: {
     height: 50,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  background: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#FAF8F5', // off-white matching the app background
+    backgroundColor: '#FAF8F5',
+    borderRadius: radii.button,
+    borderWidth: 2,
+    borderStyle: 'dashed',
   },
   label: {
     fontFamily: typography.sansSemiBold,
