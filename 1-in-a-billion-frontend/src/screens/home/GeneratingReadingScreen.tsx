@@ -497,21 +497,21 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
 
         {/* Status indicator removed - now shown in button text */}
 
-        {/* Plastilin animation video at bottom - ping pong loop */}
-        <View style={styles.videoContainer}>
-          <Video
-            ref={videoRef}
-            source={require('../../../assets/videos/plastilin_pingpong.mp4')}
-            style={styles.plastilinVideo}
-            resizeMode={ResizeMode.CONTAIN}
-            shouldPlay
-            isLooping
-            isMuted
-            onPlaybackStatusUpdate={handleVideoStatus}
-          />
-        </View>
-
       </ScrollView>
+
+      {/* Plastilin animation video - fixed at bottom, full width */}
+      <View style={styles.videoContainer}>
+        <Video
+          ref={videoRef}
+          source={require('../../../assets/videos/plastilin_pingpong.mp4')}
+          style={styles.plastilinVideo}
+          resizeMode={ResizeMode.COVER}
+          shouldPlay
+          isLooping
+          isMuted
+          onPlaybackStatusUpdate={handleVideoStatus}
+        />
+      </View>
     </SafeAreaView>
   );
 };
@@ -874,13 +874,15 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   videoContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     width: Dimensions.get('window').width,
-    marginTop: spacing.lg,
-    marginHorizontal: -spacing.page,
   },
   plastilinVideo: {
     width: Dimensions.get('window').width,
-    height: 180,
+    height: 220,
   },
 });
 
