@@ -501,7 +501,7 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
         <View style={styles.videoContainer}>
           <Video
             ref={videoRef}
-            source={require('../../../assets/videos/plastilin.mp4')}
+            source={require('../../../assets/videos/plastilin_pingpong.mp4')}
             style={styles.plastilinVideo}
             resizeMode={ResizeMode.CONTAIN}
             shouldPlay
