@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions, Animated, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { env } from '@/config/env';
 import { downloadTextContent, fetchJobArtifacts } from '@/services/nuclearReadingsService';
@@ -85,65 +86,67 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
       .trim();
   };
 
-  // Load text content
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        setLoadingText(true);
-        console.log(`📖 Loading text for jobId=${jobId}, systemId=${systemId}, docNum=${docNum}`);
-        
-        // Try new artifact system first
-        const artifacts = await fetchJobArtifacts(jobId, ['text']);
-        console.log(`📚 Found ${artifacts.length} text artifacts in job_artifacts table`);
-        
-        const textArtifact = artifacts.find((a) => {
-          const meta = (a.metadata as any) || {};
-          if (Number(meta?.docNum) !== Number(docNum)) return false;
-          // Verdict can have system: null, 'western', or docType: 'verdict'
-          let sysMatch: boolean;
-          if (systemId === 'verdict') {
-            sysMatch = meta?.docType === 'verdict' || !meta?.system || (Number(docNum) === 16 && meta?.system === 'western');
-          } else {
-            sysMatch = meta?.system === systemId;
-          }
-          if (sysMatch) console.log(`✅ Found matching artifact: ${a.storage_path}`);
-          return sysMatch;
-        });
-        
-        if (textArtifact?.storage_path) {
-          console.log(`📥 Downloading text from: ${textArtifact.storage_path}`);
-          const content = await downloadTextContent(textArtifact.storage_path);
-          console.log(`✅ Text loaded: ${content?.length || 0} chars`);
-          if (mounted) setText(content || '');
-        } else {
-          // FALLBACK: Try loading from job.results.documents (old format)
-          console.log(`🔄 No artifact found, trying job.results.documents fallback...`);
-          const res = await fetch(`${env.CORE_API_URL}/api/jobs/v2/${jobId}`);
-          const payload = await res.json();
-          const docs = payload?.job?.results?.documents || [];
-          const matchingDoc = docs.find((d: any) => {
-            if (Number(d.docNum) !== Number(docNum)) return false;
-            if (systemId === 'verdict') return d.docType === 'verdict' || !d.system || d.system === 'western';
-            return d.system === systemId;
+  // Load text content - useFocusEffect ensures it runs when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
+      (async () => {
+        try {
+          setLoadingText(true);
+          console.log(`📖 Loading text for jobId=${jobId}, systemId=${systemId}, docNum=${docNum}`);
+          
+          // Try new artifact system first
+          const artifacts = await fetchJobArtifacts(jobId, ['text']);
+          console.log(`📚 Found ${artifacts.length} text artifacts in job_artifacts table`);
+          
+          const textArtifact = artifacts.find((a) => {
+            const meta = (a.metadata as any) || {};
+            if (Number(meta?.docNum) !== Number(docNum)) return false;
+            // Verdict can have system: null, 'western', or docType: 'verdict'
+            let sysMatch: boolean;
+            if (systemId === 'verdict') {
+              sysMatch = meta?.docType === 'verdict' || !meta?.system || (Number(docNum) === 16 && meta?.system === 'western');
+            } else {
+              sysMatch = meta?.system === systemId;
+            }
+            if (sysMatch) console.log(`✅ Found matching artifact: ${a.storage_path}`);
+            return sysMatch;
           });
-          if (matchingDoc?.text) {
-            console.log(`✅ Found text in job.results.documents: ${matchingDoc.text.length} chars`);
-            if (mounted) setText(matchingDoc.text);
+          
+          if (textArtifact?.storage_path) {
+            console.log(`📥 Downloading text from: ${textArtifact.storage_path}`);
+            const content = await downloadTextContent(textArtifact.storage_path);
+            console.log(`✅ Text loaded: ${content?.length || 0} chars`);
+            if (mounted) setText(content || '');
           } else {
-            console.warn(`⚠️ No text found in either artifacts or job.results`);
-            if (mounted) setText('');
+            // FALLBACK: Try loading from job.results.documents (old format)
+            console.log(`🔄 No artifact found, trying job.results.documents fallback...`);
+            const res = await fetch(`${env.CORE_API_URL}/api/jobs/v2/${jobId}`);
+            const payload = await res.json();
+            const docs = payload?.job?.results?.documents || [];
+            const matchingDoc = docs.find((d: any) => {
+              if (Number(d.docNum) !== Number(docNum)) return false;
+              if (systemId === 'verdict') return d.docType === 'verdict' || !d.system || d.system === 'western';
+              return d.system === systemId;
+            });
+            if (matchingDoc?.text) {
+              console.log(`✅ Found text in job.results.documents: ${matchingDoc.text.length} chars`);
+              if (mounted) setText(matchingDoc.text);
+            } else {
+              console.warn(`⚠️ No text found in either artifacts or job.results`);
+              if (mounted) setText('');
+            }
           }
+        } catch (error: any) {
+          console.error(`❌ Failed to load text:`, error.message);
+          if (mounted) setText('');
+        } finally {
+          if (mounted) setLoadingText(false);
         }
-      } catch (error: any) {
-        console.error(`❌ Failed to load text:`, error.message);
-        if (mounted) setText('');
-      } finally {
-        if (mounted) setLoadingText(false);
-      }
-    })();
-    return () => { mounted = false; };
-  }, [jobId, systemId, docNum]);
+      })();
+      return () => { mounted = false; };
+    }, [jobId, systemId, docNum])
+  );
 
   // Load song lyrics from artifact metadata (with polling since song is created after text)
   useEffect(() => {
