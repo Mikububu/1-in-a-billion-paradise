@@ -220,6 +220,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const instance = instancesRef.current.get(type);
     if (!instance) return;
     
+    // ALWAYS stop other audio first when switching types
+    // This ensures clicking narration stops song immediately (and vice versa)
+    await stopOtherAudio(type);
+    
     // If already loaded, toggle play/pause INSTANTLY (no loading state)
     if (instance.sound) {
       try {
@@ -232,7 +236,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } else {
           // Resume - update UI immediately
           updateState(type, { playing: true });
-          await stopOtherAudio(type);
           await instance.sound.playAsync();
           return;
         }
@@ -244,11 +247,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     
     // If THIS audio is already loading, ignore (prevent double-tap)
-    // But allow switching to a DIFFERENT audio type - stopOtherAudio will handle cleanup
     if (instance.state.loading) return;
-    
-    // Stop any other audio that might be loading or playing
-    await stopOtherAudio(type);
     
     updateState(type, { loading: true });
     
