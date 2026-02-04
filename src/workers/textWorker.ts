@@ -995,6 +995,13 @@ ${OUTPUT_FORMAT_RULES}`;
     
     let text: string;
     let llmInstance: typeof llm | typeof llmPaid;
+    
+    // Log prompt length for debugging word count issues
+    const promptLength = prompt.length;
+    const promptWordCount = prompt.split(/\s+/).filter(Boolean).length;
+    console.log(`📝 [TextWorker] Prompt stats: ${promptLength} chars, ~${promptWordCount} words`);
+    console.log(`📝 [TextWorker] Prompt preview (first 500 chars): ${prompt.substring(0, 500)}`);
+    
     if (configuredProvider === 'claude') {
       // Use Claude Sonnet 4 via llmPaid (unhinged, no censorship)
       llmInstance = llmPaid;
