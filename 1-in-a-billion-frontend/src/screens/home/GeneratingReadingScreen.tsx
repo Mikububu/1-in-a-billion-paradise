@@ -14,7 +14,9 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
+  Dimensions,
 } from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as Notifications from 'expo-notifications';
@@ -466,6 +468,18 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
 
         {/* Timer removed - user feedback: no countdowns needed */}
 
+        {/* Plastilin animation video at bottom */}
+        <View style={styles.videoContainer}>
+          <Video
+            source={require('../../../assets/videos/plastilin.mp4')}
+            style={styles.plastilinVideo}
+            resizeMode={ResizeMode.CONTAIN}
+            shouldPlay
+            isLooping
+            isMuted
+          />
+        </View>
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -825,6 +839,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.mutedText,
     marginTop: 6,
+  },
+  videoContainer: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: spacing.xl,
+  },
+  plastilinVideo: {
+    width: Dimensions.get('window').width - spacing.page * 2,
+    height: 200,
   },
 });
 
