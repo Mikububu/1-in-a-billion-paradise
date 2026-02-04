@@ -499,7 +499,15 @@ export const ReadingChapterScreen = ({ navigation, route }: Props) => {
             <View style={styles.titleButtonsCol}>
               <TouchableOpacity 
                 style={styles.headerYellowButton} 
-                onPress={() => {}}
+                onPress={async () => {
+                  try {
+                    const { Linking } = await import('react-native');
+                    await Linking.openURL(pdfUrl);
+                  } catch (e: any) {
+                    const { Alert } = await import('react-native');
+                    Alert.alert('Error', 'Could not open PDF');
+                  }
+                }}
               >
                 <Text style={styles.headerYellowText}>PDF</Text>
               </TouchableOpacity>
