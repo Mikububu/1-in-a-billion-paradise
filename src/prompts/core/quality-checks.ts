@@ -1,4 +1,4 @@
-import { WORD_COUNT_LIMITS } from '../config/wordCounts';
+import { WORD_COUNT_LIMITS, STANDARD_READING } from '../config/wordCounts';
 
 /**
  * QUALITY CHECKS
@@ -103,7 +103,7 @@ export function buildQualitySection(
       if (partNumber) {
         wordCount = `Part ${partNumber}: ${WORD_COUNT_TARGETS.nuclear_part.min}-${WORD_COUNT_TARGETS.nuclear_part.max} words`;
       } else {
-        wordCount = `Package: 16 readings × ~3000 words = ~48,000 words total`;
+        wordCount = `Package: 16 readings × ~${STANDARD_READING.target} words = ~${16 * STANDARD_READING.target} words total`;
       }
       break;
   }

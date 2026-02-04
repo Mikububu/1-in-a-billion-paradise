@@ -1,15 +1,17 @@
 /**
  * INDIVIDUAL READING STRUCTURE
  * 
- * 2,000 words | 1 person | 1 system | ~15 min audio
+ * Word count controlled by src/prompts/config/wordCounts.ts (STANDARD_READING)
  * 
  * Source: PROMPT_PRODUCTION_Individual.txt
  */
 
+import { STANDARD_READING } from '../config/wordCounts';
+
 export const INDIVIDUAL_STRUCTURE = {
   name: 'Individual Deep Dive',
-  totalWords: 2800,
-  audioMinutes: 18,
+  totalWords: STANDARD_READING.target,
+  audioMinutes: STANDARD_READING.audioMinutes,
   
   sections: [
     {
@@ -60,7 +62,7 @@ ${s.description}`)
 STRUCTURE: ${INDIVIDUAL_STRUCTURE.name} for ${personName}
 ═══════════════════════════════════════════════════════════════════════════════
 
-**CRITICAL: WRITE 2500-3000 WORDS. This must be 15-20 minutes of audio.**
+**CRITICAL: WRITE ${STANDARD_READING.min}-${STANDARD_READING.max} WORDS. This must be ${STANDARD_READING.audioMinutes} minutes of audio.**
 
 The structure above is FOR YOUR GUIDANCE ONLY - do NOT include section headers in output.
 

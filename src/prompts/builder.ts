@@ -173,7 +173,9 @@ export function buildSimpleIndividualPrompt(config: IndividualPromptConfig): str
     ? `\n\nTRAGIC REALISM LENS (LEVEL ${env.TRAGIC_REALISM_LEVEL}): Poetic and brutal honesty. Name the cost of the gift, the repeating loop, and the destiny pressure (conditional inevitability, not prophecy). Allow taboo truth (death, grief, addiction, compulsion, sexual shadow) without moralizing.`
     : '';
 
-  return `Write a 2000 word astrological reading for ${person.name} born ${person.birthDate} at ${person.birthTime} in ${person.birthPlace}.${tragic}
+  return `${getWordTarget()}
+
+Write an astrological reading for ${person.name} born ${person.birthDate} at ${person.birthTime} in ${person.birthPlace}.${tragic}
 
 CHART (${systemName}):
 ${chartSection || `Sun, Moon, Rising positions to be analyzed`}
@@ -181,12 +183,12 @@ ${chartSection || `Sun, Moon, Rising positions to be analyzed`}
 STYLE: Literary, third person narrative using "${person.name}" (never "you"), flowing prose, no markdown, no bullets.
 
 STRUCTURE:
-1. Opening (150 words) - Birth context, what this system reveals
-2. Core Identity (500 words) - Primary placements, fundamental drives
-3. Emotional Patterns (400 words) - How they feel and process
-4. Shadow Work (500 words) - Unconscious patterns, self-sabotage (${shadowEmphasis} emphasis)
-5. Gifts (300 words) - Natural talents when conscious
-6. Guidance (150 words) - How to love them
+1. Opening - Birth context, what this system reveals
+2. Core Identity - Primary placements, fundamental drives
+3. Emotional Patterns - How they feel and process
+4. Shadow Work - Unconscious patterns, self-sabotage (${shadowEmphasis} emphasis)
+5. Gifts - Natural talents when conscious
+6. Guidance - How to love them
 
 RULES: Spell out numbers ("twenty-three degrees"). No em-dashes. Psychological depth. Be honest about shadows. Do not whitewash.
 
