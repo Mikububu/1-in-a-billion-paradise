@@ -162,10 +162,10 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
           </View>
           <Slider
             style={styles.sliderAbsolute}
-            value={dur > 0 ? Math.min(localSeekPos ?? pos, dur) : 0}
+            value={localSeekPos ?? pos}
             key={`${audioUrl}-${dur > 0 ? 'loaded' : 'loading'}`}
             minimumValue={0}
-            maximumValue={dur || 1}
+            maximumValue={dur > 0 ? dur : 100}
             minimumTrackTintColor={isDisabled ? '#999' : primaryColor}
             maximumTrackTintColor="transparent"
             thumbTintColor={isDisabled ? '#999' : primaryColor}
