@@ -4,13 +4,9 @@
  * Handles uploading photos for people in Karmic Zoo and generating AI portrait images.
  */
 
-import { supabase } from './supabase';
 import { env } from '@/config/env';
 import { useAuthStore } from '@/store/authStore';
 import * as FileSystem from 'expo-file-system/legacy';
-
-const PHOTOS_BUCKET = 'person-photos';
-const PORTRAITS_BUCKET = 'portraits';
 
 export interface UploadPhotoResult {
   success: boolean;
@@ -21,6 +17,7 @@ export interface UploadPhotoResult {
 
 /**
  * Upload a person's photo and generate AI portrait version
+ * Sends photo directly to backend which handles storage and AI generation
  */
 export async function uploadPersonPhoto(
   personId: string,
@@ -38,35 +35,14 @@ export async function uploadPersonPhoto(
       return { success: false, error: 'Could not read image file' };
     }
 
-    // 2. Upload original photo to Supabase Storage
-    const originalFileName = `${personId}-original-${Date.now()}.jpg`;
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from(PHOTOS_BUCKET)
-      .upload(originalFileName, decode(base64), {
-        contentType: 'image/jpeg',
-        upsert: true,
-      });
-
-    if (uploadError) {
-      console.error('Failed to upload original photo:', uploadError);
-      return { success: false, error: uploadError.message };
-    }
-
-    // Get public URL for original photo
-    const { data: originalUrlData } = supabase.storage
-      .from(PHOTOS_BUCKET)
-      .getPublicUrl(originalFileName);
-    
-    const originalUrl = originalUrlData.publicUrl;
-    console.log('✅ Original photo uploaded:', originalUrl);
+    console.log('✅ Photo read as base64, length:', base64.length);
 
     // 3. Call backend to generate claymation
     const backendUrl = env.CORE_API_URL;
     if (!backendUrl) {
       return { 
         success: false, 
-        error: 'Backend API not configured',
-        originalUrl 
+        error: 'Backend API not configured'
       };
     }
 
@@ -75,8 +51,7 @@ export async function uploadPersonPhoto(
     if (!userId) {
       return {
         success: false,
-        error: 'User not authenticated',
-        originalUrl,
+        error: 'User not authenticated'
       };
     }
 
@@ -98,8 +73,7 @@ export async function uploadPersonPhoto(
       console.error('AI portrait generation failed:', errorText);
       return {
         success: false,
-        error: `AI portrait generation failed: ${portraitResponse.status}`,
-        originalUrl,
+        error: `AI portrait generation failed: ${portraitResponse.status}`
       };
     }
 
@@ -108,8 +82,7 @@ export async function uploadPersonPhoto(
     if (!portraitResult.success || !portraitResult.imageUrl) {
       return {
         success: false,
-        error: portraitResult.error || 'AI portrait generation failed',
-        originalUrl,
+        error: portraitResult.error || 'AI portrait generation failed'
       };
     }
 
@@ -117,7 +90,6 @@ export async function uploadPersonPhoto(
 
     return {
       success: true,
-      originalUrl,
       portraitUrl: portraitResult.imageUrl,
     };
   } catch (error: any) {
@@ -129,14 +101,3 @@ export async function uploadPersonPhoto(
   }
 }
 
-/**
- * Helper to decode base64 to Uint8Array for Supabase upload
- */
-function decode(base64: string): Uint8Array {
-  const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
-}
