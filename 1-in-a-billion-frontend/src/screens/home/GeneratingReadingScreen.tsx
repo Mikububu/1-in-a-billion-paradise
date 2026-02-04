@@ -874,14 +874,13 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   videoContainer: {
-    width: '100%',
-    alignItems: 'center',
-    marginTop: spacing.xl + spacing.md,
+    width: Dimensions.get('window').width,
+    marginTop: spacing.xl * 2,
+    marginHorizontal: -spacing.page,
   },
   plastilinVideo: {
-    width: Dimensions.get('window').width + 40,
-    height: 260,
-    marginLeft: -20,
+    width: Dimensions.get('window').width,
+    height: 300,
   },
 });
 
