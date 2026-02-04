@@ -164,6 +164,7 @@ export const AudioPlayerSection: React.FC<AudioPlayerSectionProps> = ({
           <Slider
             style={styles.sliderAbsolute}
             value={dur > 0 ? Math.min(localSeekPos ?? pos, dur) : 0}
+            key={dur > 0 ? 'loaded' : 'loading'}
             minimumValue={0}
             maximumValue={dur || 1}
             minimumTrackTintColor={isDisabled ? '#999' : primaryColor}
