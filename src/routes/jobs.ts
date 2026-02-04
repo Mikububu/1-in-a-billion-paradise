@@ -711,6 +711,92 @@ router.get('/v2/:jobId/song/:docNum', async (c) => {
   }
 });
 
+// Song metadata endpoint: /api/jobs/v2/:jobId/song/:docNum/metadata
+// Returns song title and lyrics (no audio)
+router.get('/v2/:jobId/song/:docNum/metadata', async (c) => {
+  const jobId = c.req.param('jobId');
+  const docNum = parseInt(c.req.param('docNum'), 10);
+  
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+    return c.json({ success: false, error: 'Supabase not configured' }, 500);
+  }
+
+  if (!Number.isFinite(docNum) || docNum < 1) {
+    return c.json({ success: false, error: 'Invalid docNum' }, 400);
+  }
+
+  try {
+    const { jobQueueV2 } = await import('../services/jobQueueV2');
+    const job = await jobQueueV2.getJob(jobId);
+    
+    if (!job) {
+      return c.json({ success: false, error: 'Job not found' }, 404);
+    }
+
+    // Get song artifact metadata for this job
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    
+    const { data: artifacts, error } = await supabase
+      .from('job_artifacts')
+      .select('*')
+      .eq('job_id', jobId)
+      .eq('artifact_type', 'audio_song')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching song artifacts:', error);
+      return c.json({ success: false, error: 'Failed to fetch song artifacts' }, 500);
+    }
+
+    if (!artifacts || artifacts.length === 0) {
+      return c.json({ success: false, error: 'No song artifacts found' }, 404);
+    }
+
+    // Find artifact matching docNum
+    let songArtifact = artifacts.find(a => a.metadata?.docNum === docNum);
+    
+    // If not found by metadata, try to match by task sequence
+    if (!songArtifact) {
+      const tasks = await jobQueueV2.getJobTasks(jobId);
+      const taskIdToSequence: Record<string, number> = {};
+      for (const task of tasks) {
+        taskIdToSequence[task.id] = task.sequence;
+      }
+      
+      for (const artifact of artifacts) {
+        if (artifact.task_id) {
+          const seq = taskIdToSequence[artifact.task_id];
+          if (typeof seq === 'number' && seq >= 300) {
+            const artifactDocNum = seq - 299;
+            if (artifactDocNum === docNum) {
+              songArtifact = artifact;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    if (!songArtifact) {
+      return c.json({ success: false, error: `Song metadata not found for docNum ${docNum}` }, 404);
+    }
+
+    // Return metadata including lyrics
+    return c.json({
+      success: true,
+      docNum,
+      songTitle: songArtifact.metadata?.songTitle || null,
+      lyrics: songArtifact.metadata?.lyrics || null,
+      system: songArtifact.metadata?.system || null,
+      docType: songArtifact.metadata?.docType || null,
+    });
+  } catch (error: any) {
+    console.error('Error in song metadata endpoint:', error);
+    return c.json({ success: false, error: error.message || 'Internal server error' }, 500);
+  }
+});
+
 // PDF download endpoint: /api/jobs/v2/:jobId/pdf/:docNum
 // Returns the PDF artifact as application/pdf
 router.get('/v2/:jobId/pdf/:docNum', async (c) => {
