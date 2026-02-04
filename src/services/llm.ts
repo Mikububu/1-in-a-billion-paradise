@@ -186,6 +186,7 @@ class LLMService {
             model: config.model,
             max_tokens: maxTokens,
             temperature,
+            system: "You are a master storyteller writing deep psychological readings. CRITICAL: You MUST write long-form content. Minimum 2800 words per reading. Never cut short. Fill every section completely.",
             messages: [{ role: 'user', content: prompt }],
           };
         } else {
