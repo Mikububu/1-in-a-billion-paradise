@@ -14,7 +14,6 @@ import { generateDramaticTitles } from '../services/titleGenerator'; // Dramatic
 import {
   SYSTEMS as NUCLEAR_V2_SYSTEMS,
   SYSTEM_DISPLAY_NAMES as NUCLEAR_V2_SYSTEM_NAMES,
-  buildPersonPrompt,
   buildOverlayPrompt as buildNuclearV2OverlayPrompt,
   buildVerdictPrompt,
 } from '../prompts/structures/paidReadingPrompts';
@@ -880,29 +879,31 @@ ${OUTPUT_FORMAT_RULES}`;
           });
           label += `:overlay:${system}`;
         } else if (docType === 'person1') {
-          prompt = buildPersonPrompt({
+          prompt = buildIndividualPrompt({
+            type: 'individual',
             system: system as any,
-            personName: person1.name,
-            personData: p1BirthData,
-            chartData,
-            spiceLevel,
             style,
+            spiceLevel,
+            voiceMode: 'other',
+            person: { name: person1.name, ...p1BirthData },
+            chartData: { [system === 'gene_keys' ? 'geneKeys' : system === 'human_design' ? 'humanDesign' : system]: chartData },
             personalContext: params.personalContext,
-          });
+          } as any);
           label += `:p1:${system}`;
         } else if (docType === 'person2') {
           if (!person2 || !p2BirthData) {
             throw new Error(`person2 doc requires person2, but person2 is missing for job ${jobId}`);
           }
-          prompt = buildPersonPrompt({
+          prompt = buildIndividualPrompt({
+            type: 'individual',
             system: system as any,
-            personName: person2.name,
-            personData: p2BirthData,
-            chartData,
-            spiceLevel,
             style,
+            spiceLevel,
+            voiceMode: 'other',
+            person: { name: person2.name, ...p2BirthData },
+            chartData: { [system === 'gene_keys' ? 'geneKeys' : system === 'human_design' ? 'humanDesign' : system]: chartData },
             personalContext: params.personalContext,
-          });
+          } as any);
           label += `:p2:${system}`;
         } else {
           throw new Error(`Unknown docType for nuclear_v2: ${docType}`);

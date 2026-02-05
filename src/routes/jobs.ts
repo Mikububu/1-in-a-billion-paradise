@@ -20,7 +20,7 @@ import { env } from '../config/env';
 import axios from 'axios';
 import { llm, llmPaid } from '../services/llm'; // llm = DeepSeek (hooks), llmPaid = Claude (deep readings)
 import { checkUserSubscription, markIncludedReadingUsed } from '../services/subscriptionService';
-import { SYSTEMS as NUCLEAR_V2_SYSTEMS, SYSTEM_DISPLAY_NAMES as NUCLEAR_V2_SYSTEM_NAMES, type SystemName as NuclearV2SystemName, NUCLEAR_DOCS, VERDICT_DOC, buildPersonPrompt, buildOverlayPrompt as buildNuclearV2OverlayPrompt, buildVerdictPrompt } from '../prompts/structures/paidReadingPrompts';
+import { SYSTEMS as NUCLEAR_V2_SYSTEMS, SYSTEM_DISPLAY_NAMES as NUCLEAR_V2_SYSTEM_NAMES, type SystemName as NuclearV2SystemName, NUCLEAR_DOCS, VERDICT_DOC, buildOverlayPrompt as buildNuclearV2OverlayPrompt, buildVerdictPrompt } from '../prompts/structures/paidReadingPrompts';
 import archiver from 'archiver';
 import { PassThrough, Readable } from 'node:stream';
 import {
@@ -1668,14 +1668,15 @@ jobQueue.registerProcessor('nuclear_v2', async (job, updateProgress) => {
         callsTotal: totalDocs,
       });
 
-      const p1Prompt = buildPersonPrompt({
-        system,
-        personName: person1.name,
-        personData: p1Data,
-        chartData: chartData as string,
-        spiceLevel,
+      const p1Prompt = buildIndividualPrompt({
+        type: 'individual',
+        system: system as any,
         style: writingStyle,
-      });
+        spiceLevel,
+        voiceMode: 'other',
+        person: { name: person1.name, ...p1Data },
+        chartData: { [system === 'gene_keys' ? 'geneKeys' : system === 'human_design' ? 'humanDesign' : system]: chartData as string },
+      } as any);
 
       const p1Text = await llmPaid.generate(p1Prompt, `nuclear_v2-${system}-p1`);
       const p1WordCount = p1Text.split(/\s+/).length;
@@ -1701,14 +1702,15 @@ jobQueue.registerProcessor('nuclear_v2', async (job, updateProgress) => {
         callsTotal: totalDocs,
       });
 
-      const p2Prompt = buildPersonPrompt({
-        system,
-        personName: person2.name,
-        personData: p2Data,
-        chartData: chartData as string,
-        spiceLevel,
+      const p2Prompt = buildIndividualPrompt({
+        type: 'individual',
+        system: system as any,
         style: writingStyle,
-      });
+        spiceLevel,
+        voiceMode: 'other',
+        person: { name: person2.name, ...p2Data },
+        chartData: { [system === 'gene_keys' ? 'geneKeys' : system === 'human_design' ? 'humanDesign' : system]: chartData as string },
+      } as any);
 
       const p2Text = await llmPaid.generate(p2Prompt, `nuclear_v2-${system}-p2`);
       const p2WordCount = p2Text.split(/\s+/).length;
