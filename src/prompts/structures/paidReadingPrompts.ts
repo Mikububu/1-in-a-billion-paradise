@@ -314,11 +314,10 @@ ${tragicRealismBlock()}
 ${buildForbiddenSection(style)}
 
 ═══════════════════════════════════════════════════════════════════════════════
-OUTPUT REQUIREMENTS - CRITICAL
+OUTPUT REQUIREMENTS
 ═══════════════════════════════════════════════════════════════════════════════
 
-⚠️ WORD COUNT: EXACTLY 3000 WORDS. NOT 1500. NOT 2000. EXACTLY 3000 WORDS.
-This becomes 18-20 minutes of audio. Short readings are REJECTED.
+**WORD COUNT: 3000 WORDS. This becomes 18-20 minutes of audio.**
 
 STRUCTURE (for your guidance only - do NOT include headers in output):
 1. Who ${personName} fundamentally IS (700 words)
@@ -398,11 +397,10 @@ ${tragicRealismBlock()}
 ${buildForbiddenSection(style)}
 
 ═══════════════════════════════════════════════════════════════════════════════
-OUTPUT REQUIREMENTS - CRITICAL
+OUTPUT REQUIREMENTS
 ═══════════════════════════════════════════════════════════════════════════════
 
-⚠️ WORD COUNT: EXACTLY 3000 WORDS. NOT 1500. NOT 2000. EXACTLY 3000 WORDS.
-This becomes 18-20 minutes of audio. Short readings are REJECTED.
+**WORD COUNT: 3000 WORDS. This becomes 18-20 minutes of audio.**
 
 STRUCTURE (for your guidance only - do NOT include headers in output):
 1. The Attraction - what draws ${person1Name} and ${person2Name} together magnetically (700 words)

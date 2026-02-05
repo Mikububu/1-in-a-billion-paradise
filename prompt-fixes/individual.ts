@@ -1,8 +1,8 @@
 /**
  * INDIVIDUAL READING STRUCTURE
- * 
+ *
  * Word count controlled by src/prompts/config/wordCounts.ts (STANDARD_READING)
- * 
+ *
  * Source: PROMPT_PRODUCTION_Individual.txt
  */
 

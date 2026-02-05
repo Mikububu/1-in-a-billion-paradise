@@ -1,9 +1,9 @@
 /**
  * PROMPT BUILDER
- * 
+ *
  * The orchestrator that assembles modular prompt components
  * into complete prompts for different reading types.
- * 
+ *
  * This is the main entry point for prompt generation.
  */
 
@@ -235,10 +235,10 @@ Begin directly with the Opening. No preamble.
 
 export function buildSimpleIndividualPrompt(config: IndividualPromptConfig): string {
   const { spiceLevel, system, person, chartData } = config;
-  
+
   const systemName = SYSTEM_DISPLAY_NAMES[system];
   const chartSection = chartData[system === 'gene_keys' ? 'geneKeys' : system === 'human_design' ? 'humanDesign' : system] || '';
-  
+
   const shadowEmphasis = spiceLevel >= 7 ? '35%' : spiceLevel >= 5 ? '25%' : '15%';
 
   const tragic = (env.TRAGIC_REALISM_LEVEL ?? 0) > 0
@@ -274,7 +274,7 @@ Begin directly with the reading.`;
 
 export function buildOverlayPrompt(config: OverlayPromptConfig): string {
   const { style, spiceLevel, system, person1, person2, chartData, relationshipContext } = config;
-  
+
   const systemName = SYSTEM_DISPLAY_NAMES[system];
   const chartKey = system === 'gene_keys' ? 'geneKeys' : system === 'human_design' ? 'humanDesign' : system;
   const chartSection = chartData[chartKey] || '';
