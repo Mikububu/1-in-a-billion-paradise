@@ -186,7 +186,7 @@ class LLMService {
             model: config.model,
             max_tokens: maxTokens,
             temperature,
-            system: "You are a master storyteller writing deep psychological readings. CRITICAL: You MUST write long-form content. Minimum 2800 words per reading. Never cut short. Fill every section completely.",
+            system: "You are a master storyteller writing deep psychological readings. CRITICAL: You MUST write long-form content. MINIMUM 4500 WORDS per reading. This is non-negotiable. Never cut short. Fill every section completely. Keep writing until you reach the word count.",
             messages: [{ role: 'user', content: prompt }],
           };
         } else {
@@ -195,7 +195,10 @@ class LLMService {
             model: config.model,
             max_tokens: maxTokens,
             temperature,
-            messages: [{ role: 'user', content: prompt }],
+            messages: [
+              { role: 'system', content: "You are a master storyteller writing deep psychological readings. CRITICAL: You MUST write long-form content. MINIMUM 4500 WORDS per reading. This is non-negotiable. Never cut short. Fill every section completely. Keep writing until you reach the word count." },
+              { role: 'user', content: prompt }
+            ],
           };
         }
 
