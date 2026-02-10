@@ -4,7 +4,9 @@
  * Shows different products based on WHERE user came from (mode param).
  * Never shows everything at once - always contextual.
  * 
- * PAYMENT: RevenueCat (Apple Pay, Google Pay via native stores)
+ * PAYMENT: RevenueCat (Apple Pay, Google Pay, Stripe, etc.)
+ * REFUND POLICY: All sales final. Manual fixes for technical issues only.
+ * Support: contact@1-in-a-billion.app
  */
 
 import { useState, useMemo, useEffect } from 'react';
@@ -19,12 +21,17 @@ import { useProfileStore, selectPartners } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
 import { PRODUCTS, formatAudioDuration } from '@/config/products';
 import { BackButton } from '@/components/BackButton';
-import { 
-  getOfferings, 
-  purchasePackage, 
-  hasPremiumAccess,
-  restorePurchases,
-} from '@/services/revenuecat';
+import {
+  initializeRevenueCat,
+  purchaseProduct,
+  mapToProductId,
+  extractSystemFromProductId,
+  getLiveProductPrices,
+  hasStorePrice,
+  getStrictStoreDisplayPrice,
+  type LiveProductPrice,
+  type ProductId as PaymentProductId,
+} from '@/services/payments';
 
 // Developer bypass emails (for testing without payment)
 const DEV_BYPASS_EMAILS = [
@@ -48,26 +55,40 @@ type Product = {
   id: string;
   name: string;
   price: number;
+  priceLabel?: string;
   meta: string;
   isBundle?: boolean;
-  rcPackage?: any; // RevenueCat package if available
+  savingsLabel?: string;
 };
 
 const SYSTEMS = ['Western', 'Vedic', 'Human Design', 'Gene Keys', 'Kabbalah'] as const;
 
 export const PurchaseScreen = ({ navigation, route }: Props) => {
-  const { preselectedProduct, onPurchaseComplete, mode = 'all', partnerName: routePartnerName, afterPurchaseParams } = route.params || {} as any;
+  const params = (route.params ?? {}) as any;
+  const {
+    preselectedProduct,
+    onPurchaseComplete,
+    mode = 'all',
+    partnerName: routePartnerName,
+    afterPurchaseParams,
+  } = params as {
+    preselectedProduct?: string;
+    onPurchaseComplete?: () => void;
+    mode?: PurchaseMode;
+    partnerName?: string;
+    afterPurchaseParams?: { screen: string; params?: Record<string, any> };
+  };
   const [selectedProduct, setSelectedProduct] = useState<string | null>(preselectedProduct || null);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
-  const [rcPackages, setRcPackages] = useState<any[]>([]);
-  const [isLoadingOfferings, setIsLoadingOfferings] = useState(true);
+  const [isRevenueCatReady, setIsRevenueCatReady] = useState(false);
+  const [livePrices, setLivePrices] = useState<Record<PaymentProductId, LiveProductPrice>>({} as Record<PaymentProductId, LiveProductPrice>);
 
   // Auth store for user ID and email
   const authUser = useAuthStore(state => state.user);
   const userId = authUser?.id || 'anonymous';
   const userEmail = authUser?.email || '';
-  
+
   // Developer bypass check
   const isDeveloperAccount = DEV_BYPASS_EMAILS.includes(userEmail.toLowerCase());
 
@@ -77,311 +98,334 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
   const partners = useProfileStore(selectPartners);
   const partnerName = routePartnerName || partners[0]?.name || 'Partner';
 
-  // Load RevenueCat offerings on mount
+  // Initialize RevenueCat on mount
   useEffect(() => {
-    const loadOfferings = async () => {
+    const init = async () => {
       try {
-        const offering = await getOfferings();
-        if (offering?.availablePackages) {
-          setRcPackages(offering.availablePackages);
-          console.log('📦 RevenueCat packages loaded:', offering.availablePackages.length);
+        const success = await initializeRevenueCat(userId);
+        setIsRevenueCatReady(success);
+        if (!success) {
+          console.error('Failed to initialize RevenueCat');
         }
+        const resolvedPrices = await getLiveProductPrices();
+        setLivePrices(resolvedPrices);
       } catch (error) {
-        console.error('Failed to load offerings:', error);
-      } finally {
-        setIsLoadingOfferings(false);
+        console.error('RevenueCat initialization error:', error);
       }
     };
-    loadOfferings();
-  }, []);
+    init();
+  }, [userId]);
 
   // Build products based on mode
   const { title, subtitle, products } = useMemo(() => {
+    const strictPriceLabel = (productId: PaymentProductId) =>
+      getStrictStoreDisplayPrice(livePrices, productId) ?? 'Price unavailable';
+
+    const getPriceAmount = (productId: PaymentProductId) =>
+      livePrices[productId]?.amount ?? 0;
+
+    const currencyCode = livePrices['single_system']?.currencyCode || 'USD';
+
+    const formatSavings = (amount: number) => {
+      try {
+        return new Intl.NumberFormat(undefined, {
+          style: 'currency',
+          currency: currencyCode,
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 2,
+        }).format(amount);
+      } catch {
+        return `${currencyCode} ${amount.toFixed(2)}`;
+      }
+    };
+
+    const singleSystemAmount = getPriceAmount('single_system');
+
+    const singleSystemPrice = {
+      amount: singleSystemAmount,
+      label: strictPriceLabel('single_system'),
+    };
+    const completeReadingPrice = {
+      amount: getPriceAmount('complete_reading'),
+      label: strictPriceLabel('complete_reading'),
+    };
+    const compatibilityOverlayPrice = {
+      amount: getPriceAmount('compatibility_overlay'),
+      label: strictPriceLabel('compatibility_overlay'),
+    };
+    const nuclearPackagePrice = {
+      amount: getPriceAmount('nuclear_package'),
+      label: strictPriceLabel('nuclear_package'),
+    };
+    const yearlySubscriptionPrice = {
+      amount: getPriceAmount('yearly_subscription'),
+      label: strictPriceLabel('yearly_subscription'),
+    };
+
+    // Calculate savings
+    const completeSavings = Math.max(0, (singleSystemAmount * 5) - completeReadingPrice.amount);
+    const nuclearSavings = Math.max(0, (singleSystemAmount * 16) - nuclearPackagePrice.amount); // 16 calls equivalent
+
+    const completeSavingsLabel = completeSavings > 0 ? `Save ${formatSavings(completeSavings)}` : undefined;
+    const nuclearSavingsLabel = nuclearSavings > 0 ? `Save ${formatSavings(nuclearSavings)}` : undefined;
+
     switch (mode) {
       case 'subscription':
         return {
           title: 'Yearly Subscription',
-          subtitle: '$9.90 / year',
+          subtitle: yearlySubscriptionPrice.label === 'Price unavailable'
+            ? 'Price unavailable'
+            : `${yearlySubscriptionPrice.label} / year`,
           products: [
             {
               id: 'yearly_subscription',
               name: '1-Year Subscription',
-              price: 9.9,
+              price: yearlySubscriptionPrice.amount,
+              priceLabel: yearlySubscriptionPrice.label,
               meta: 'Weekly matching + 1 personal reading',
               isBundle: true,
-              rcPackage: rcPackages.find(p => p.identifier === 'yearly_subscription'),
             },
           ],
         };
       case 'user_readings':
         return {
-          title: 'Your Deep Readings',
-          subtitle: `Unlock the full analysis of your chart`,
+          title: `Upgrade ${userName}'s Readings`,
+          subtitle: 'Unlock premium audio readings',
           products: [
-            ...SYSTEMS.map(sys => ({
-              id: `user_${sys.toLowerCase().replace(' ', '_')}`,
-              name: `${sys} Deep Dive`,
-              price: PRODUCTS.single_system.priceUSD,
-              meta: `${PRODUCTS.single_system.pagesMin} page PDF · ${PRODUCTS.single_system.audioMinutes} min audio`,
-              rcPackage: rcPackages.find(p => p.identifier === 'single_system'),
+            ...SYSTEMS.map((system) => ({
+              id: `user_${system.toLowerCase().replace(' ', '_')}`,
+              name: `${system} Reading`,
+              price: singleSystemPrice.amount,
+              priceLabel: singleSystemPrice.label,
+              meta: `${formatAudioDuration(PRODUCTS.single_system.audioMinutes)} audio · ${PRODUCTS.single_system.pagesMin} pages`,
             })),
             {
               id: 'user_all_five',
               name: 'All 5 Systems',
-              price: PRODUCTS.complete_reading.priceUSD,
-              meta: `${PRODUCTS.complete_reading.pagesMin} pages · ${formatAudioDuration(PRODUCTS.complete_reading.audioMinutes)} audio · Save $${PRODUCTS.complete_reading.savingsUSD}`,
+              price: completeReadingPrice.amount,
+              priceLabel: completeReadingPrice.label,
+              meta: `${formatAudioDuration(PRODUCTS.complete_reading.audioMinutes)} audio · ${PRODUCTS.complete_reading.pagesMin} pages`,
               isBundle: true,
-              rcPackage: rcPackages.find(p => p.identifier === 'complete_reading'),
+              savingsLabel: completeSavingsLabel,
             },
           ],
         };
-
       case 'partner_readings':
         return {
-          title: `${partnerName}'s Deep Readings`,
-          subtitle: `Unlock the full analysis of ${partnerName}'s chart`,
+          title: `Upgrade ${partnerName}'s Readings`,
+          subtitle: 'Unlock premium audio readings',
           products: [
-            ...SYSTEMS.map(sys => ({
-              id: `partner_${sys.toLowerCase().replace(' ', '_')}`,
-              name: `${sys} Deep Dive`,
-              price: PRODUCTS.single_system.priceUSD,
-              meta: `${PRODUCTS.single_system.pagesMin} page PDF · ${PRODUCTS.single_system.audioMinutes} min audio`,
-              rcPackage: rcPackages.find(p => p.identifier === 'single_system'),
+            ...SYSTEMS.map((system) => ({
+              id: `partner_${system.toLowerCase().replace(' ', '_')}`,
+              name: `${system} Reading`,
+              price: singleSystemPrice.amount,
+              priceLabel: singleSystemPrice.label,
+              meta: `${formatAudioDuration(PRODUCTS.single_system.audioMinutes)} audio · ${PRODUCTS.single_system.pagesMin} pages`,
             })),
             {
               id: 'partner_all_five',
               name: 'All 5 Systems',
-              price: PRODUCTS.complete_reading.priceUSD,
-              meta: `${PRODUCTS.complete_reading.pagesMin} pages · ${formatAudioDuration(PRODUCTS.complete_reading.audioMinutes)} audio · Save $${PRODUCTS.complete_reading.savingsUSD}`,
+              price: completeReadingPrice.amount,
+              priceLabel: completeReadingPrice.label,
+              meta: `${formatAudioDuration(PRODUCTS.complete_reading.audioMinutes)} audio · ${PRODUCTS.complete_reading.pagesMin} pages`,
               isBundle: true,
-              rcPackage: rcPackages.find(p => p.identifier === 'complete_reading'),
+              savingsLabel: completeSavingsLabel,
             },
           ],
         };
-
       case 'overlays':
         return {
-          title: 'Compatibility Analysis',
-          subtitle: `${userName} & ${partnerName}`,
+          title: 'Compatibility Overlays',
+          subtitle: `${userName} + ${partnerName}`,
           products: [
-            ...SYSTEMS.map(sys => ({
-              id: `overlay_${sys.toLowerCase().replace(' ', '_')}`,
-              name: `${sys} Overlay`,
-              price: PRODUCTS.compatibility_overlay.priceUSD,
-              meta: `${PRODUCTS.compatibility_overlay.pagesMin} pages · ${PRODUCTS.compatibility_overlay.audioMinutes} min audio`,
-              rcPackage: rcPackages.find(p => p.identifier === 'compatibility_overlay'),
+            ...SYSTEMS.map((system) => ({
+              id: `overlay_${system.toLowerCase().replace(' ', '_')}`,
+              name: `${system} Overlay`,
+              price: compatibilityOverlayPrice.amount,
+              priceLabel: compatibilityOverlayPrice.label,
+              meta: `${formatAudioDuration(PRODUCTS.compatibility_overlay.audioMinutes)} audio · ${PRODUCTS.compatibility_overlay.pagesMin} pages`,
             })),
             {
-              id: 'nuclear_package',
-              name: 'Nuclear Package (All 5)',
-              price: PRODUCTS.nuclear_package.priceUSD,
-              meta: `${PRODUCTS.nuclear_package.pagesMin} pages · ${formatAudioDuration(PRODUCTS.nuclear_package.audioMinutes)} audio`,
+              id: 'overlay_all_five',
+              name: 'All 5 Overlays + Verdict',
+              price: completeReadingPrice.amount,
+              priceLabel: completeReadingPrice.label,
+              meta: `${formatAudioDuration(PRODUCTS.complete_reading.audioMinutes)} audio · ${PRODUCTS.complete_reading.pagesMin} pages`,
               isBundle: true,
-              rcPackage: rcPackages.find(p => p.identifier === 'nuclear_package'),
+              savingsLabel: completeSavingsLabel,
             },
           ],
         };
-
       case 'nuclear':
         return {
-          title: 'Nuclear Package',
-          subtitle: 'The ultimate relationship analysis',
+          title: 'The Nuclear Package',
+          subtitle: 'Everything. Analyzed.',
           products: [
             {
               id: 'nuclear_package',
               name: 'Complete Analysis',
-              price: PRODUCTS.nuclear_package.priceUSD,
-              meta: `${PRODUCTS.nuclear_package.pagesMin} pages · ${formatAudioDuration(PRODUCTS.nuclear_package.audioMinutes)} audio`,
+              price: nuclearPackagePrice.amount,
+              priceLabel: nuclearPackagePrice.label,
+              meta: `${formatAudioDuration(PRODUCTS.nuclear_package.audioMinutes)} audio · ${PRODUCTS.nuclear_package.pagesMin} pages`,
               isBundle: true,
-              rcPackage: rcPackages.find(p => p.identifier === 'nuclear_package'),
+              savingsLabel: nuclearSavingsLabel,
             },
           ],
         };
-
       default:
-        // Simplified "all" view - just categories
+        // Full catalog with navigation
         return {
-          title: 'All Readings',
-          subtitle: 'Choose what to explore',
+          title: 'Premium Readings',
+          subtitle: 'Choose what to upgrade',
           products: [
-            { id: 'nav_user', name: userName === 'User' ? "Soul's Reading" : `${userName}'s Reading`, price: PRODUCTS.single_system.priceUSD, meta: `From $${PRODUCTS.single_system.priceUSD} per system` },
-            ...(partners.length > 0 ? [
-              { id: 'nav_partner', name: `${partnerName}'s Readings`, price: PRODUCTS.single_system.priceUSD, meta: `From $${PRODUCTS.single_system.priceUSD} per system` },
-              { id: 'nav_overlays', name: 'Compatibility Overlays', price: PRODUCTS.compatibility_overlay.priceUSD, meta: `From $${PRODUCTS.compatibility_overlay.priceUSD} per system` },
-              { id: 'nav_nuclear', name: 'Nuclear Package', price: PRODUCTS.nuclear_package.priceUSD, meta: `${PRODUCTS.nuclear_package.pagesMin} pages · ${formatAudioDuration(PRODUCTS.nuclear_package.audioMinutes)}`, isBundle: true },
-            ] : []),
+            {
+              id: 'nav_user_readings',
+              name: `${userName}'s Readings`,
+              price: 0,
+              meta: 'Upgrade your personal readings',
+            },
+            {
+              id: 'nav_partner_readings',
+              name: `${partnerName}'s Readings`,
+              price: 0,
+              meta: 'Upgrade partner readings',
+            },
+            {
+              id: 'nav_overlays',
+              name: 'Compatibility Overlays',
+              price: 0,
+              meta: 'Analyze your relationship',
+            },
+            {
+              id: 'nav_nuclear',
+              name: 'The Nuclear Package',
+              price: nuclearPackagePrice.amount,
+              priceLabel: nuclearPackagePrice.label,
+              meta: 'Everything. Analyzed.',
+              isBundle: true,
+              savingsLabel: nuclearSavingsLabel,
+            },
           ],
         };
     }
-  }, [mode, userName, partnerName, partners.length, rcPackages]);
+  }, [mode, userName, partnerName, livePrices]);
 
   const selectedProductInfo = products.find(p => p.id === selectedProduct);
+  const selectedBackendProductId = selectedProductInfo ? mapToProductId(selectedProductInfo.id) : null;
+  const selectedHasStorePrice = selectedBackendProductId ? hasStorePrice(livePrices, selectedBackendProductId) : false;
+  const selectedStorePriceLabel = selectedBackendProductId
+    ? getStrictStoreDisplayPrice(livePrices, selectedBackendProductId)
+    : null;
 
   const handleSelectProduct = (product: Product) => {
-    // Navigation items in "all" mode
-    if (product.id === 'nav_user') {
-      navigation.push('Purchase', { mode: 'user_readings' });
-      return;
-    }
-    if (product.id === 'nav_partner') {
-      navigation.push('Purchase', { mode: 'partner_readings', partnerName });
-      return;
-    }
-    if (product.id === 'nav_overlays') {
-      navigation.push('Purchase', { mode: 'overlays', partnerName });
-      return;
-    }
-    if (product.id === 'nav_nuclear') {
-      navigation.push('Purchase', { mode: 'nuclear', partnerName });
-      return;
-    }
-
-    // Nuclear needs explanation
-    if (product.id === 'nuclear_package') {
-      const np = PRODUCTS.nuclear_package;
-      Alert.alert(
-        `Nuclear Relationship Package - $${np.priceUSD}`,
-        `The deepest analysis possible:\n\n` +
-        `16 documents across 5 systems\n` +
-        `Total: ${np.pagesMin} pages · ${formatAudioDuration(np.audioMinutes)} audio\n\n` +
-        `Generation takes 15-20 minutes`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Select', onPress: () => setSelectedProduct(product.id) },
-        ]
-      );
+    // Handle navigation items
+    if (product.id.startsWith('nav_')) {
+      const targetMode = product.id.replace('nav_', '') as PurchaseMode;
+      navigation.replace('Purchase', { mode: targetMode as any, partnerName });
       return;
     }
 
     setSelectedProduct(product.id);
+    setPaymentError(null);
   };
 
   const handlePurchaseSuccess = () => {
-    // If we have afterPurchaseParams, navigate to context injection screens
-    if (afterPurchaseParams) {
-      const { readingType, productType, systems, personName, userName, partnerName: pName, partnerBirthDate, partnerBirthTime, partnerBirthCity, person1Override, person2Override, personId, partnerId, forPartner } = afterPurchaseParams;
-      
-      const isOverlay = readingType === 'overlay';
-      
-      if (isOverlay && pName) {
-        // Overlay reading → RelationshipContext
-        navigation.replace('RelationshipContext', {
-          readingType: 'overlay',
-          forPartner: false,
-          userName: userName || 'You',
-          partnerName: pName,
-          partnerBirthDate,
-          partnerBirthTime,
-          partnerBirthCity,
-          preselectedSystem: systems?.length === 1 ? systems[0] : undefined,
-          person1Override,
-          person2Override,
-          personId,
-          partnerId,
-          productType,
-          systems,
-        } as any);
-      } else {
-        // Individual reading → PersonalContext
-        navigation.replace('PersonalContext', {
-          personName: personName || 'You',
-          readingType: forPartner ? 'other' : 'self',
-          personBirthDate: forPartner ? partnerBirthDate : undefined,
-          personBirthTime: forPartner ? partnerBirthTime : undefined,
-          personBirthCity: forPartner ? partnerBirthCity : undefined,
-          preselectedSystem: systems?.length === 1 ? systems[0] : undefined,
-          person1Override,
-          personId,
-          productType,
-          systems,
-          forPartner,
-        } as any);
-      }
+    Alert.alert(
+      '🎉 Purchase Successful!',
+      'Your premium content is being generated. You\'ll receive a notification when it\'s ready.',
+      [
+        {
+          text: 'OK',
+          onPress: () => {
+            if (onPurchaseComplete) {
+              onPurchaseComplete();
+            }
+            if (afterPurchaseParams) {
+              navigation.navigate(afterPurchaseParams.screen as any, afterPurchaseParams.params);
+            } else {
+              navigation.goBack();
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handlePurchase = async () => {
+    if (!selectedProduct || !selectedProductInfo) {
+      Alert.alert('Error', 'Please select a product');
       return;
     }
-    
-    // Legacy behavior: show alert and go back
-    Alert.alert('Purchase Successful', `You now have access to ${selectedProductInfo?.name}!`, [
-      { text: 'Continue', onPress: () => { onPurchaseComplete?.(); navigation.goBack(); } },
-    ]);
-  };
-  
-  const handlePurchase = async () => {
-    if (!selectedProduct || !selectedProductInfo) return;
+
+    if (!selectedHasStorePrice) {
+      Alert.alert(
+        'Price Unavailable',
+        'This product does not have a live store price yet. Check App Store Connect / RevenueCat mapping first.'
+      );
+      return;
+    }
+
     setIsPurchasing(true);
     setPaymentError(null);
 
     try {
-      // DEVELOPER BYPASS: Skip payment for dev accounts
-      if (isDeveloperAccount || __DEV__) {
-        console.log('🔧 DEV BYPASS: Skipping payment for developer account');
-        Alert.alert(
-          'Developer Mode',
-          'Payment bypassed for testing. Proceeding without charge.',
-          [{ text: 'Continue', onPress: handlePurchaseSuccess }]
-        );
-        setIsPurchasing(false);
+      // Developer bypass
+      if (isDeveloperAccount) {
+        console.log('🔧 DEV MODE: Bypassing payment');
+        setTimeout(() => {
+          setIsPurchasing(false);
+          handlePurchaseSuccess();
+        }, 1000);
         return;
       }
 
-      // Get the RevenueCat package for this product
-      const rcPackage = (selectedProductInfo as Product).rcPackage;
-      
-      if (!rcPackage) {
-        // No RevenueCat package configured - show message
-        Alert.alert(
-          'Product Not Available',
-          'This product is not yet available for purchase. Please try again later or contact support.',
-          [{ text: 'OK' }]
-        );
-        setIsPurchasing(false);
-        return;
+      // Check if RevenueCat is ready
+      if (!isRevenueCatReady) {
+        throw new Error('Payment system not ready. Please try again.');
       }
 
-      // Attempt purchase via RevenueCat
-      console.log('💳 Starting RevenueCat purchase for:', rcPackage.identifier);
-      const customerInfo = await purchasePackage(rcPackage);
-      
-      if (customerInfo) {
-        // Purchase successful!
-        console.log('✅ Purchase successful!');
-        setIsPurchasing(false);
-        handlePurchaseSuccess();
-      } else {
-        // User cancelled
-        console.log('ℹ️ Purchase cancelled by user');
-        setIsPurchasing(false);
+      // Map frontend product to backend product ID
+      const backendProductId = mapToProductId(selectedProduct);
+      const systemId = extractSystemFromProductId(selectedProduct);
+
+      // Determine person/partner IDs
+      const isOverlay = selectedProduct.startsWith('overlay_') || selectedProduct === 'nuclear_package';
+      const isPartner = selectedProduct.startsWith('partner_');
+
+      console.log('💳 Purchasing product:', backendProductId);
+
+      // Make the purchase via RevenueCat
+      const result = await purchaseProduct(backendProductId, {
+        systemId: systemId || undefined,
+        personId: isPartner ? partners[0]?.id : user?.id,
+        partnerId: isOverlay ? partners[0]?.id : undefined,
+        readingType: isOverlay ? 'overlay' : 'individual',
+      });
+
+      if (!result.success) {
+        if (result.error === 'Purchase cancelled') {
+          console.log('💳 User cancelled purchase');
+          setIsPurchasing(false);
+          return;
+        }
+        throw new Error(result.error || 'Purchase failed');
       }
-      
-    } catch (error: any) {
-      console.error('❌ Payment error:', error);
-      setPaymentError(error.message || 'Payment failed');
+
+      // Purchase successful!
+      console.log('✅ Purchase successful!');
       setIsPurchasing(false);
-      
+      handlePurchaseSuccess();
+
+    } catch (error: any) {
+      console.error('❌ Purchase error:', error);
+      setPaymentError(error.message || 'Purchase failed');
+      setIsPurchasing(false);
+
       Alert.alert(
-        'Payment Failed',
-        `${error.message || 'An error occurred during payment.'}\n\nNeed help? Contact contact@1-in-a-billion.app`,
+        'Purchase Failed',
+        `${error.message || 'An error occurred during purchase.'}\n\nNeed help? Contact contact@1-in-a-billion.app`,
         [{ text: 'OK' }]
       );
-    }
-  };
-
-  const handleRestorePurchases = async () => {
-    setIsPurchasing(true);
-    try {
-      const customerInfo = await restorePurchases();
-      if (customerInfo) {
-        const hasPremium = await hasPremiumAccess();
-        if (hasPremium) {
-          Alert.alert('Purchases Restored', 'Your previous purchases have been restored.', [{ text: 'OK' }]);
-        } else {
-          Alert.alert('No Purchases Found', 'No previous purchases were found for this account.', [{ text: 'OK' }]);
-        }
-      }
-    } catch (error: any) {
-      Alert.alert('Restore Failed', error.message || 'Failed to restore purchases.', [{ text: 'OK' }]);
-    } finally {
-      setIsPurchasing(false);
     }
   };
 
@@ -439,26 +483,21 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
               >
                 <View style={styles.productHeader}>
                   <Text style={styles.productName} selectable>{product.name}</Text>
-                  {!isNavItem && <Text style={styles.productPrice}>${product.price}</Text>}
+                  {!isNavItem && <Text style={styles.productPrice}>{product.priceLabel}</Text>}
                   {isNavItem && <Text style={styles.navArrow}>→</Text>}
                 </View>
                 <Text style={styles.productMeta}>{product.meta}</Text>
                 {'isBundle' in product && product.isBundle && !isNavItem && (
                   <View style={styles.bundleBadge}>
-                    <Text style={styles.bundleBadgeText}>Best Value</Text>
+                    <Text style={styles.bundleBadgeText}>
+                      {product.savingsLabel ? `${product.savingsLabel} · Best Value` : 'Best Value'}
+                    </Text>
                   </View>
                 )}
               </Pressable>
             );
           })}
         </View>
-
-        {/* Restore purchases link */}
-        {mode !== 'all' && (
-          <Pressable onPress={handleRestorePurchases} style={styles.restoreLink}>
-            <Text style={styles.restoreLinkText}>Restore previous purchases</Text>
-          </Pressable>
-        )}
       </ScrollView>
 
       {/* Footer - only show if not in navigation mode */}
@@ -466,28 +505,35 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
         <View style={styles.footer}>
           {selectedProduct && selectedProductInfo ? (
             <>
-              {(isDeveloperAccount || __DEV__) && (
+              {isDeveloperAccount && (
                 <View style={styles.devBadge}>
                   <Text style={styles.devBadgeText}>🔧 DEV MODE - Payment Bypassed</Text>
                 </View>
               )}
               <Button
-                label={isPurchasing ? 'Processing...' : `Purchase - $${selectedProductInfo.price}`}
+                label={
+                  isPurchasing
+                    ? 'Processing...'
+                    : selectedStorePriceLabel
+                      ? `Purchase - ${selectedStorePriceLabel}`
+                      : 'Price unavailable'
+                }
                 onPress={handlePurchase}
                 loading={isPurchasing}
-                disabled={isPurchasing}
+                disabled={isPurchasing || !isRevenueCatReady || !selectedHasStorePrice}
               />
-              <Text style={styles.refundPolicy}>
-                All sales final. Questions? contact@1-in-a-billion.app
+              {!isRevenueCatReady && (
+                <Text style={styles.loadingText}>Initializing payment system...</Text>
+              )}
+              {!selectedHasStorePrice && (
+                <Text style={styles.loadingText}>Product not mapped to a live store price yet.</Text>
+              )}
+              <Text style={styles.footerNote}>
+                All sales final. No refunds. Manual fixes for technical issues.
               </Text>
             </>
           ) : (
-            <View style={styles.selectPrompt}>
-              <Text style={styles.selectPromptText}>Select an option above</Text>
-            </View>
-          )}
-          {paymentError && (
-            <Text style={styles.errorText}>{paymentError}</Text>
+            <Text style={styles.footerNote}>Select a product to continue</Text>
           )}
         </View>
       )}
@@ -496,83 +542,148 @@ export const PurchaseScreen = ({ navigation, route }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'transparent' },
-  scrollView: { flex: 1 },
-  content: { paddingHorizontal: spacing.page, paddingBottom: spacing.xl },
-  title: { fontFamily: typography.headline, fontSize: 28, color: colors.text, fontStyle: 'italic' },
-  subtitle: { fontFamily: typography.sansRegular, fontSize: 16, color: colors.mutedText, marginTop: spacing.xs, marginBottom: spacing.lg },
-
-  // Nuclear special layout
-  nuclearInfo: { marginBottom: spacing.lg, padding: spacing.md, backgroundColor: colors.primarySoft, borderRadius: radii.card },
-  nuclearHeadline: { fontFamily: typography.headline, fontSize: 22, color: colors.text, textAlign: 'center', marginBottom: spacing.md, fontStyle: 'italic' },
-  nuclearItem: { paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
-  nuclearLabel: { fontFamily: typography.sansSemiBold, fontSize: 15, color: colors.text },
-  nuclearMeta: { fontFamily: typography.sansRegular, fontSize: 13, color: colors.mutedText, marginTop: 2 },
-  nuclearTotal: { paddingTop: spacing.sm, alignItems: 'center' },
-  nuclearTotalText: { fontFamily: typography.sansBold, fontSize: 14, color: colors.primary },
-  whyDifferentSection: { marginBottom: spacing.lg },
-
-  // Products
-  productList: { gap: spacing.sm },
-  productCard: { borderRadius: radii.card, borderWidth: 1, borderColor: colors.border, padding: spacing.md, backgroundColor: colors.background, position: 'relative' },
-  productCardSelected: { borderColor: colors.primary, borderWidth: 2, backgroundColor: colors.primarySoft },
-  productCardBundle: { borderColor: colors.primary },
-  productCardNav: { borderStyle: 'dashed' },
-  productHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  productName: { fontFamily: typography.sansSemiBold, fontSize: 15, color: colors.text, flex: 1, marginRight: spacing.sm },
-  productPrice: { fontFamily: typography.sansBold, fontSize: 16, color: colors.primary },
-  navArrow: { fontFamily: typography.sansBold, fontSize: 18, color: colors.primary },
-  productMeta: { fontFamily: typography.sansRegular, color: colors.mutedText, fontSize: 13, marginTop: 4 },
-  bundleBadge: { position: 'absolute', top: -8, right: 12, backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
-  bundleBadgeText: { fontFamily: typography.sansSemiBold, color: '#FFFFFF', fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5 },
-
-  // Footer
-  footer: { paddingHorizontal: spacing.page, paddingVertical: spacing.md },
-  selectPrompt: { paddingVertical: spacing.sm, alignItems: 'center' },
-  selectPromptText: { fontFamily: typography.sansRegular, fontSize: 16, color: colors.mutedText },
-  
-  // No refunds policy text
-  refundPolicy: { 
-    fontFamily: typography.sansRegular, 
-    fontSize: 11, 
-    color: colors.mutedText, 
-    textAlign: 'center', 
-    marginTop: spacing.sm,
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
   },
-  
-  // Error text
-  errorText: {
-    fontFamily: typography.sansRegular,
-    fontSize: 13,
-    color: '#D32F2F',
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    padding: spacing.lg,
+    paddingTop: spacing.xl,
+  },
+  title: {
+    ...typography.h1,
+    marginBottom: spacing.xs,
+  },
+  subtitle: {
+    ...typography.body,
+    color: colors.mutedText,
+    marginBottom: spacing.xl,
+  },
+  nuclearInfo: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  nuclearHeadline: {
+    ...typography.h2,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  nuclearItem: {
+    marginBottom: spacing.md,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  nuclearLabel: {
+    ...typography.bodyBold,
+    marginBottom: spacing.xs,
+  },
+  nuclearMeta: {
+    ...typography.caption,
+    color: colors.mutedText,
+  },
+  nuclearTotal: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.md,
+    borderTopWidth: 2,
+    borderTopColor: colors.primary,
+  },
+  nuclearTotalText: {
+    ...typography.bodyBold,
+    textAlign: 'center',
+    color: colors.primary,
+  },
+  whyDifferentSection: {
+    marginBottom: spacing.lg,
+  },
+  productList: {
+    gap: spacing.md,
+  },
+  productCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    borderWidth: 2,
+    borderColor: colors.border,
+  },
+  productCardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+  },
+  productCardBundle: {
+    borderColor: colors.primary,
+  },
+  productCardNav: {
+    borderColor: colors.border,
+  },
+  productHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  productName: {
+    ...typography.bodyBold,
+    flex: 1,
+  },
+  productPrice: {
+    ...typography.h3,
+    color: colors.primary,
+  },
+  navArrow: {
+    ...typography.h3,
+    color: colors.mutedText,
+  },
+  productMeta: {
+    ...typography.caption,
+    color: colors.mutedText,
+  },
+  bundleBadge: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.sm,
+    alignSelf: 'flex-start',
+  },
+  bundleBadgeText: {
+    ...typography.captionBold,
+    color: '#FFFFFF',
+  },
+  footer: {
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  devBadge: {
+    backgroundColor: colors.warning,
+    padding: spacing.sm,
+    borderRadius: radii.sm,
+    marginBottom: spacing.md,
+  },
+  devBadgeText: {
+    ...typography.captionBold,
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  footerNote: {
+    ...typography.caption,
+    color: colors.mutedText,
     textAlign: 'center',
     marginTop: spacing.sm,
   },
-  
-  // Developer badge
-  devBadge: {
-    backgroundColor: '#FFF3CD',
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginBottom: spacing.sm,
-    alignSelf: 'center',
-  },
-  devBadgeText: {
-    fontFamily: typography.sansSemiBold,
-    fontSize: 12,
-    color: '#856404',
-  },
-
-  // Restore purchases link
-  restoreLink: {
-    marginTop: spacing.lg,
-    alignItems: 'center',
-  },
-  restoreLinkText: {
-    fontFamily: typography.sansRegular,
-    fontSize: 14,
-    color: colors.primary,
-    textDecorationLine: 'underline',
+  loadingText: {
+    ...typography.caption,
+    color: colors.mutedText,
+    textAlign: 'center',
+    marginTop: spacing.xs,
   },
 });

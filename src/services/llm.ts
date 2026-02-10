@@ -16,9 +16,7 @@
 
 import axios from 'axios';
 import { env } from '../config/env';
-
 import { getApiKey } from './apiKeys';
-import { promptLoader } from './promptLoader';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -71,8 +69,8 @@ const PROVIDER_CONFIG = {
     name: 'Claude Sonnet 4',
     emoji: '🧠',
     url: 'https://api.anthropic.com/v1/messages',
-    model: 'claude-sonnet-4-20250514', // Claude Sonnet 4 - CORRECT model name
-    maxTokens: 16384, // Increased to support 3000+ word outputs with large prompts
+    model: 'claude-sonnet-4-20250514', // Claude Sonnet 4 - CORRECT model name per Firebase archive
+    maxTokens: 8192,
     getHeaders: async () => {
       const key = await getApiKey('claude', env.CLAUDE_API_KEY);
       if (!key) throw new Error('Claude API key not found (check Supabase api_keys table or CLAUDE_API_KEY env var)');
@@ -168,9 +166,8 @@ class LLMService {
     maxTokens?: number;
     temperature?: number;
     maxRetries?: number;
-
     provider?: LLMProvider;
-    systemPrompt?: string; // Allow overriding system prompt
+    systemPrompt?: string;
   }): Promise<string> {
     const provider = options?.provider || this.provider;
     const config = PROVIDER_CONFIG[provider];
@@ -183,9 +180,6 @@ class LLMService {
         console.log(`${config.emoji} ${config.name} [${label}] attempt ${attempt}/${maxRetries}: ${prompt.length} chars`);
         const startTime = Date.now();
 
-        // Load system prompt: Use override if provided, otherwise load the Master Prompt
-        const systemPrompt = options?.systemPrompt || await promptLoader.load('deep-reading-prompt.md');
-
         // Build request body based on provider
         let body: any;
         if (provider === 'claude') {
@@ -193,7 +187,7 @@ class LLMService {
             model: config.model,
             max_tokens: maxTokens,
             temperature,
-            system: systemPrompt,
+            ...(options?.systemPrompt ? { system: options.systemPrompt } : {}),
             messages: [{ role: 'user', content: prompt }],
           };
         } else {
@@ -203,8 +197,8 @@ class LLMService {
             max_tokens: maxTokens,
             temperature,
             messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: prompt }
+              ...(options?.systemPrompt ? [{ role: 'system' as const, content: options.systemPrompt }] : []),
+              { role: 'user', content: prompt },
             ],
           };
         }
@@ -259,6 +253,7 @@ class LLMService {
     maxTokens?: number;
     temperature?: number;
     onChunk?: (chunk: string) => void;
+    systemPrompt?: string;
   }): Promise<string> {
     const maxTokens = options?.maxTokens || 5000;
     const temperature = options?.temperature || 0.8;
@@ -277,6 +272,7 @@ class LLMService {
           max_tokens: maxTokens,
           temperature,
           stream: true,
+          ...(options?.systemPrompt ? { system: options.systemPrompt } : {}),
           messages: [{ role: 'user', content: prompt }],
         }
         : {
@@ -284,7 +280,10 @@ class LLMService {
           max_tokens: maxTokens,
           temperature,
           stream: true,
-          messages: [{ role: 'user', content: prompt }],
+          messages: [
+            ...(options?.systemPrompt ? [{ role: 'system' as const, content: options.systemPrompt }] : []),
+            { role: 'user', content: prompt },
+          ],
         };
 
       // Use axios with stream response
@@ -393,6 +392,7 @@ class FallbackLLMService {
     maxTokens?: number;
     temperature?: number;
     retriesPerProvider?: number;
+    systemPrompt?: string;
   }): Promise<{ text: string; provider: LLMProvider; usedFallback: boolean }> {
     const retriesPerProvider = options?.retriesPerProvider || 2; // 2 retries per provider before fallback
     let lastError: Error | null = null;
@@ -413,6 +413,7 @@ class FallbackLLMService {
           temperature: options?.temperature,
           maxRetries: retriesPerProvider,
           provider,
+          systemPrompt: options?.systemPrompt,
         });
 
         // Success!
@@ -454,6 +455,7 @@ class FallbackLLMService {
     maxTokens?: number;
     temperature?: number;
     onChunk?: (chunk: string) => void;
+    systemPrompt?: string;
   }): Promise<{ text: string; provider: LLMProvider; usedFallback: boolean }> {
     let lastError: Error | null = null;
 
@@ -509,4 +511,3 @@ export const llmPaidWithFallback = new FallbackLLMService(
 // Export types for external use
 export type { LLMProvider };
 export { FallbackLLMService };
-

@@ -25,7 +25,8 @@
     "test:vedic": "ts-node src/scripts/testVedicModules.ts",
     "test:vedic:reference": "ts-node src/scripts/verifyVedicReference.ts",
     "setup:email": "ts-node src/scripts/setupEmailConfig.ts",
-    "regenerate:michael-audio": "ts-node src/scripts/regenerateMichaelAudioTest.ts"
+    "regenerate:michael-audio": "ts-node src/scripts/regenerateMichaelAudioTest.ts",
+    "check-deployment": "ts-node scripts/check-deployment.ts"
   },
   "keywords": [],
   "author": "",

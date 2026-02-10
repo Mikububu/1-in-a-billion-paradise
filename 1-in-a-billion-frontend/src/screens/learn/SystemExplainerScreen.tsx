@@ -6,11 +6,11 @@
  */
 
 import { useRef, useState } from 'react';
-import { 
-  StyleSheet, 
-  Text, 
-  View, 
-  FlatList, 
+import {
+  StyleSheet,
+  Text,
+  View,
+  FlatList,
   Dimensions,
   TouchableOpacity,
 } from 'react-native';
@@ -55,7 +55,7 @@ const SYSTEM_CONTENT: Record<SystemType, {
     ],
     personalNote: `"Sweetheart, with your Venus in the 8th house, you've probably been told you're 'too intense.' But here's the truth: you're not too much. You're designed for the kind of love most people are too afraid to ask for."`,
   },
-  
+
   vedic: {
     name: 'Jyotish (Vedic)',
     tagline: 'Where your soul has been, where it\'s going',
@@ -71,7 +71,7 @@ const SYSTEM_CONTENT: Record<SystemType, {
     ],
     personalNote: `"Darling, you've been in a Saturn period, and I know it's felt relentless. But Saturn isn't punishing you - Saturn is preparing you. Whatever you're building right now, it's creating something that will last."`,
   },
-  
+
   human_design: {
     name: 'Human Design',
     tagline: 'Permission to be yourself',
@@ -87,7 +87,7 @@ const SYSTEM_CONTENT: Record<SystemType, {
     ],
     personalNote: `"Beautiful soul, you're a Projector, which means you were never supposed to hustle like everyone else. Your gift is seeing what others miss. But you have to wait to be invited. The right recognition will find you."`,
   },
-  
+
   gene_keys: {
     name: 'Gene Keys',
     tagline: 'Your shadows hold your gifts',
@@ -103,7 +103,7 @@ const SYSTEM_CONTENT: Record<SystemType, {
     ],
     personalNote: `"Precious one, your Gene Key 36 shadow is Crisis - you create drama unconsciously because stillness feels dangerous. But your gift is Humanity - you feel everything, and that feeling is how you connect the world."`,
   },
-  
+
   kabbalah: {
     name: 'Kabbalah',
     tagline: 'The repair only you can make',
@@ -119,7 +119,7 @@ const SYSTEM_CONTENT: Record<SystemType, {
     ],
     personalNote: `"Dear heart, your Tikkun is in Hod - the sphere of the mind. You overthink because you're trying to feel safe through understanding. Your correction isn't to think less - it's to let your brilliant mind serve your heart."`,
   },
-  
+
   all: {
     name: 'Complete Reading',
     tagline: 'The complete picture of your soul',
@@ -164,7 +164,7 @@ const OVERLAY_CONTENT: Record<SystemType, {
     ],
     personalNote: `"Your Venus on their 8th house? That's not casual attraction - that's soul-deep magnetism. This connection was never meant to be simple."`,
   },
-  
+
   vedic: {
     name: 'Vedic Compatibility',
     tagline: 'The karmic threads between you',
@@ -180,7 +180,7 @@ const OVERLAY_CONTENT: Record<SystemType, {
     ],
     personalNote: `"Your Nakshatras share the same Nadi - you've known each other before. This isn't your first dance together, and the universe made sure you'd find each other again."`,
   },
-  
+
   human_design: {
     name: 'Human Design Compatibility',
     tagline: 'How your energies merge',
@@ -196,7 +196,7 @@ const OVERLAY_CONTENT: Record<SystemType, {
     ],
     personalNote: `"Together you complete the Channel of Discovery. Apart, you both search. Together, you find. This partnership was designed to explore."`,
   },
-  
+
   gene_keys: {
     name: 'Gene Keys Compatibility',
     tagline: 'Shadows that heal, gifts that multiply',
@@ -212,7 +212,7 @@ const OVERLAY_CONTENT: Record<SystemType, {
     ],
     personalNote: `"Your Gene Key 25 meets their 46 - Innocence meets Delight. Together, you remind each other that life is meant to be enjoyed, not survived."`,
   },
-  
+
   kabbalah: {
     name: 'Kabbalistic Compatibility',
     tagline: 'Two souls, one Tree of Life',
@@ -228,14 +228,14 @@ const OVERLAY_CONTENT: Record<SystemType, {
     ],
     personalNote: `"Your Tikkunim are mirror images - what you struggle with, they've mastered, and vice versa. You're each other's teachers, dressed as lovers."`,
   },
-  
+
   all: {
     name: 'Nuclear Package',
     tagline: 'The ultimate relationship analysis',
     origin: 'Two souls · Five systems · Complete truth',
     icon: '★',
     intro: `This is everything. Both of your complete readings across all 5 systems. Every compatibility overlay. And the final verdict - what your connection truly means and where it's headed.`,
-    howItHelpsYou: `16 documents. 100 pages. 3+ hours of audio. We analyze both of you individually, then layer your charts together in every system. Nothing is left unexplored. No question unanswered.`,
+    howItHelpsYou: `${PRODUCTS.nuclear_package.apiCalls} documents. ${PRODUCTS.nuclear_package.pagesMax} pages. Over ${Math.floor(PRODUCTS.nuclear_package.audioMinutes / 60)} hours of audio. We analyze both of you individually, then layer your charts together in every system. Nothing is left unexplored. No question unanswered.`,
     whatYouDiscover: [
       'Both complete individual readings (5 systems each)',
       'All 5 compatibility overlays combined',
@@ -250,8 +250,8 @@ const OVERLAY_CONTENT: Record<SystemType, {
 // Prices imported from @/config/products - SYSTEM_PRICES
 
 export const SystemExplainerScreen = ({ navigation, route }: Props) => {
-  const { 
-    system = 'western', 
+  const {
+    system = 'western',
     forPurchase = true,
     readingType = 'individual',
     forPartner,
@@ -263,19 +263,19 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
     person1Override,
     person2Override,
   } = route.params || {};
-  
+
   // Use overlay content for relationship readings, regular content for individual
   const isOverlay = readingType === 'overlay';
-  const content = isOverlay 
+  const content = isOverlay
     ? (OVERLAY_CONTENT[system] || OVERLAY_CONTENT.western)
     : (SYSTEM_CONTENT[system] || SYSTEM_CONTENT.western);
-  
+
   // Price: For 'all' bundle, use correct price based on individual vs overlay
   // For single system overlay (compatibility), use overlay price ($41) not single price ($14)
   const price = system === 'all'
     ? (isOverlay ? PRODUCTS.nuclear_package.priceUSD : PRODUCTS.complete_reading.priceUSD)
     : (isOverlay ? PRODUCTS.compatibility_overlay.priceUSD : (SYSTEM_PRICES[system] || SINGLE_SYSTEM.price));
-  
+
   const [currentPage, setCurrentPage] = useState(0);
   const listRef = useRef<FlatList>(null);
 
@@ -283,11 +283,11 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
     // Determine product type and systems based on whether this is bundle or single
     const isBundle = system === 'all';
     const allSystems = ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'];
-    
+
     // Use centralized purchase flow (modular approach)
     initiatePurchaseFlow({
       navigation,
-      productType: isBundle 
+      productType: isBundle
         ? (readingType === 'overlay' ? 'nuclear_package' : 'complete_reading')
         : 'single_system',
       readingType: readingType === 'overlay' ? 'overlay' : 'individual',
@@ -311,22 +311,22 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
       <Text style={styles.title} selectable>{content.name}</Text>
       <Text style={styles.tagline} selectable>{content.tagline}</Text>
       <Text style={styles.origin} selectable>{content.origin}</Text>
-      
+
       <View style={styles.section}>
         <Text style={styles.sectionText} selectable>{content.intro}</Text>
       </View>
-      
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{isOverlay ? 'How it helps your relationship' : 'How it helps you'}</Text>
         <Text style={styles.sectionText} selectable>{content.howItHelpsYou}</Text>
       </View>
-      
+
       <View style={styles.insightBox}>
         <Text style={styles.insightLabel}>{isOverlay ? 'A note for you both' : 'A note for you'}</Text>
         <Text style={styles.insightText} selectable>{content.personalNote}</Text>
       </View>
     </View>,
-    
+
     // Page 2: What you discover & CTA
     <View key="page2" style={styles.page}>
       <View style={styles.discoverSection}>
@@ -341,18 +341,18 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
           );
         })}
       </View>
-      
+
       {/* CTA - Big button with details */}
       <TouchableOpacity style={styles.bigCta} onPress={handleGetReading} activeOpacity={0.8}>
         <Text style={styles.bigCtaTitle}>Get {content.name}</Text>
         <Text style={styles.bigCtaDetails}>
           {system === 'all'
-            ? (isOverlay 
-                ? `${PRODUCTS.nuclear_package.pagesMax} pages · ${formatAudioDuration(PRODUCTS.nuclear_package.audioMinutes)} audio`
-                : `${PRODUCTS.complete_reading.pagesMax} pages · ${formatAudioDuration(PRODUCTS.complete_reading.audioMinutes)} audio`)
+            ? (isOverlay
+              ? `${PRODUCTS.nuclear_package.pagesMax} pages · ${formatAudioDuration(PRODUCTS.nuclear_package.audioMinutes)} audio`
+              : `${PRODUCTS.complete_reading.pagesMax} pages · ${formatAudioDuration(PRODUCTS.complete_reading.audioMinutes)} audio`)
             : (isOverlay
-                ? `${PRODUCTS.compatibility_overlay.pagesMax} pages · ${formatAudioDuration(PRODUCTS.compatibility_overlay.audioMinutes)} audio`
-                : PRODUCT_STRINGS.singleSystem.summary)}
+              ? `${PRODUCTS.compatibility_overlay.pagesMax} pages · ${formatAudioDuration(PRODUCTS.compatibility_overlay.audioMinutes)} audio`
+              : PRODUCT_STRINGS.singleSystem.summary)}
         </Text>
         <Text style={styles.bigCtaPrice}>${price}</Text>
       </TouchableOpacity>
@@ -400,67 +400,67 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
+  container: {
+    flex: 1,
     // Keep root transparent so leather texture shows through.
     backgroundColor: 'transparent',
   },
-  
+
   // Page
   page: {
     width: SCREEN_WIDTH,
     paddingHorizontal: spacing.page,
     paddingTop: spacing.md,
   },
-  
+
   // Header content
-  icon: { 
-    fontSize: 48, 
-    textAlign: 'center', 
+  icon: {
+    fontSize: 48,
+    textAlign: 'center',
     marginBottom: spacing.sm,
   },
-  title: { 
-    fontFamily: typography.headline, 
-    fontSize: 28, 
-    color: colors.text, 
+  title: {
+    fontFamily: typography.headline,
+    fontSize: 28,
+    color: colors.text,
     textAlign: 'center',
   },
-  tagline: { 
-    fontFamily: typography.sansRegular, 
-    fontSize: 16, 
-    color: colors.primary, 
-    textAlign: 'center', 
-    marginTop: spacing.xs, 
+  tagline: {
+    fontFamily: typography.sansRegular,
+    fontSize: 16,
+    color: colors.primary,
+    textAlign: 'center',
+    marginTop: spacing.xs,
     fontStyle: 'italic',
   },
-  origin: { 
-    fontFamily: typography.sansRegular, 
-    fontSize: 13, 
-    color: colors.mutedText, 
-    textAlign: 'center', 
-    marginTop: spacing.xs, 
+  origin: {
+    fontFamily: typography.sansRegular,
+    fontSize: 13,
+    color: colors.mutedText,
+    textAlign: 'center',
+    marginTop: spacing.xs,
     marginBottom: spacing.lg,
   },
-  
+
   // Sections
-  section: { 
+  section: {
     marginBottom: spacing.lg,
   },
-  sectionTitle: { 
-    fontFamily: typography.sansSemiBold, 
-    fontSize: 12, 
-    color: colors.primary, 
-    textTransform: 'uppercase', 
-    letterSpacing: 1, 
+  sectionTitle: {
+    fontFamily: typography.sansSemiBold,
+    fontSize: 12,
+    color: colors.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
     marginBottom: spacing.sm,
   },
-  sectionText: { 
-    fontFamily: typography.sansRegular, 
-    fontSize: 15, 
-    color: colors.text, 
+  sectionText: {
+    fontFamily: typography.sansRegular,
+    fontSize: 15,
+    color: colors.text,
     lineHeight: 23,
   },
-  
+
   // What you'll discover - centered with symbols
   discoverSection: {
     marginTop: 56, // Matches icon height (48px) + icon marginBottom (spacing.sm ≈ 8px)
@@ -491,32 +491,32 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     paddingHorizontal: spacing.md,
   },
-  
+
   // Insight box
-  insightBox: { 
-    backgroundColor: colors.surface, 
-    padding: spacing.md, 
+  insightBox: {
+    backgroundColor: colors.surface,
+    padding: spacing.md,
     borderRadius: radii.card,
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: spacing.lg,
   },
-  insightLabel: { 
-    fontFamily: typography.sansSemiBold, 
-    fontSize: 11, 
-    color: colors.primary, 
-    textTransform: 'uppercase', 
-    letterSpacing: 1, 
+  insightLabel: {
+    fontFamily: typography.sansSemiBold,
+    fontSize: 11,
+    color: colors.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
     marginBottom: spacing.sm,
   },
-  insightText: { 
-    fontFamily: typography.sansRegular, 
-    fontSize: 14, 
-    color: colors.text, 
-    lineHeight: 22, 
+  insightText: {
+    fontFamily: typography.sansRegular,
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 22,
     fontStyle: 'italic',
   },
-  
+
   // Big CTA button
   bigCta: {
     backgroundColor: colors.primary,
@@ -544,14 +544,14 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: colors.background,
   },
-  devNote: { 
-    fontFamily: typography.sansRegular, 
-    fontSize: 11, 
-    color: colors.mutedText, 
-    textAlign: 'center', 
+  devNote: {
+    fontFamily: typography.sansRegular,
+    fontSize: 11,
+    color: colors.mutedText,
+    textAlign: 'center',
     marginTop: spacing.xs,
   },
-  
+
   // Pagination
   pagination: {
     flexDirection: 'row',

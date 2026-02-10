@@ -1,128 +1,175 @@
 /**
- * REVENUECAT SERVICE - In-App Purchases
+ * REVENUECAT PAYMENTS SERVICE
  *
- * Handles subscription and purchase management via RevenueCat.
- * RevenueCat wraps StoreKit (iOS) and Google Play Billing (Android).
+ * Handles in-app purchases and subscriptions via RevenueCat.
+ * Uses Apple App Store / Google Play native IAP under the hood.
  *
- * Test bypass: In __DEV__, premium is granted so you can test the app like Stripe test mode.
- * Set EXPO_PUBLIC_REVENUECAT_TEST_BYPASS=false to test real RevenueCat in dev.
+ * IMPORTANT: All sales are final. No refunds.
+ * Technical issues → manual fix via Apple/Google support.
+ *
+ * Support: contact@1-in-a-billion.app
  */
 
 import { Platform } from 'react-native';
+import { env } from '@/config/env';
 
-// When true, premium is granted in dev without calling RevenueCat (same as Stripe test mode).
-// Set EXPO_PUBLIC_REVENUECAT_TEST_BYPASS=false in .env to test real RevenueCat in dev.
-const TEST_BYPASS = __DEV__ && (typeof process === 'undefined' || process.env?.EXPO_PUBLIC_REVENUECAT_TEST_BYPASS !== 'false');
-
-// Lazy load RevenueCat to avoid NativeEventEmitter errors in dev builds
+// Lazy-load react-native-purchases to avoid NativeEventEmitter crash
+// when native module isn't available (e.g. Expo Go / dev builds without native modules)
 let Purchases: any = null;
-let LOG_LEVEL: any = null;
-
-function loadRevenueCat() {
-  if (Purchases) return true;
-  try {
-    const module = require('react-native-purchases');
-    Purchases = module.default;
-    LOG_LEVEL = module.LOG_LEVEL;
-    return true;
-  } catch (e) {
-    console.warn('RevenueCat not available:', e);
-    return false;
-  }
+let PURCHASES_ERROR_CODE: any = {};
+try {
+  const mod = require('react-native-purchases');
+  Purchases = mod.default;
+  PURCHASES_ERROR_CODE = mod.PURCHASES_ERROR_CODE;
+} catch (e) {
+  console.warn('⚠️ react-native-purchases not available — RevenueCat disabled');
 }
 
-// RevenueCat API Keys - Replace with your actual keys from RevenueCat dashboard
-// These are PUBLIC keys (appl_ for iOS, goog_ for Android)
-const REVENUECAT_API_KEYS = {
-  ios: 'appl_REPLACE_WITH_YOUR_IOS_KEY', // Get from RevenueCat > Project > API Keys
-  android: 'goog_REPLACE_WITH_YOUR_ANDROID_KEY', // Get from RevenueCat > Project > API Keys
-};
+type PurchasesPackage = any;
+type CustomerInfo = any;
+type PurchasesOfferings = any;
 
-// Entitlement identifier - matches what you set up in RevenueCat dashboard
-export const ENTITLEMENT_ID = 'premium';
+// RevenueCat API Keys — set in .env, never hardcode secrets
+const REVENUECAT_API_KEY_IOS = env.REVENUECAT_API_KEY_IOS || '';
+const REVENUECAT_API_KEY_ANDROID = env.REVENUECAT_API_KEY_ANDROID || '';
 
-// Product identifiers
-export const PRODUCT_IDS = {
-  yearly_subscription: 'yearly_subscription',
-  single_system: 'single_system',
-  complete_reading: 'complete_reading',
-  compatibility_overlay: 'compatibility_overlay',
-  nuclear_package: 'nuclear_package',
+// Entitlement IDs (configured in RevenueCat dashboard)
+export const ENTITLEMENTS = {
+  PREMIUM: 'premium', // Yearly subscription
+  SINGLE_READING: 'single_reading', // One-time purchase
+  COMPLETE_READING: 'complete_reading', // One-time purchase
+  NUCLEAR_PACKAGE: 'nuclear_package', // One-time purchase
 } as const;
 
-let isInitialized = false;
+export type EntitlementId = typeof ENTITLEMENTS[keyof typeof ENTITLEMENTS];
+
+// Product IDs (configured in App Store Connect / Google Play Console)
+export const PRODUCT_IDS = {
+  // Subscription
+  yearly_subscription: 'yearly_subscription_990',
+
+  // One-time purchases
+  single_system: 'single_system_1400',
+  complete_reading: 'complete_reading_3400',
+  compatibility_overlay: 'compatibility_overlay_4100',
+  nuclear_package: 'nuclear_package_10800',
+} as const;
+
+export type ProductId = typeof PRODUCT_IDS[keyof typeof PRODUCT_IDS];
+
+let isConfigured = false;
+
+/** Check if RevenueCat native module is available */
+export function isRevenueCatAvailable(): boolean {
+  return Purchases !== null;
+}
 
 /**
  * Initialize RevenueCat SDK
- * Call this once at app startup (e.g., in App.tsx useEffect)
+ * Call this once at app startup (in App.tsx or navigation bootstrap)
  */
-export async function initializeRevenueCat(): Promise<boolean> {
-  if (isInitialized) {
-    console.log('📦 RevenueCat already initialized');
-    return true;
+export async function initRevenueCat(userId?: string): Promise<void> {
+  if (isConfigured) {
+    console.log('RevenueCat already configured');
+    return;
   }
 
-  if (!loadRevenueCat()) {
-    console.warn('📦 RevenueCat native module not available');
-    return false;
+  if (!Purchases) {
+    console.warn('⚠️ RevenueCat SDK not available — skipping init');
+    return;
   }
 
   try {
-    // Enable verbose logging in development
-    if (__DEV__ && LOG_LEVEL) {
-      Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
+    const apiKey = Platform.select({
+      ios: REVENUECAT_API_KEY_IOS,
+      android: REVENUECAT_API_KEY_ANDROID,
+      default: REVENUECAT_API_KEY_IOS,
+    });
+
+    if (!apiKey) {
+      console.error('RevenueCat API key not configured');
+      return;
     }
 
-    const apiKey = Platform.OS === 'ios' 
-      ? REVENUECAT_API_KEYS.ios 
-      : REVENUECAT_API_KEYS.android;
+    await Purchases.configure({
+      apiKey,
+      appUserID: userId || null, // null = anonymous user, will be aliased on login
+    });
 
-    await Purchases.configure({ apiKey });
-    isInitialized = true;
-    console.log('✅ RevenueCat initialized successfully');
-    return true;
+    isConfigured = true;
+    console.log('✅ RevenueCat initialized');
   } catch (error) {
     console.error('❌ Failed to initialize RevenueCat:', error);
-    // Don't throw - app should still work without purchases
-    return false;
   }
 }
 
 /**
- * Identify user to RevenueCat (call after user logs in)
- * This links purchases to the user's account
+ * Login user to RevenueCat (call after Firebase auth)
+ * This syncs purchases across devices
  */
-export async function identifyUser(userId: string): Promise<void> {
-  if (!loadRevenueCat() || !isInitialized) return;
+export async function loginUser(userId: string): Promise<CustomerInfo | null> {
+  if (!Purchases) {
+    console.warn('⚠️ RevenueCat not available — skipping login');
+    return null;
+  }
   try {
-    await Purchases.logIn(userId);
-    console.log('✅ RevenueCat user identified:', userId);
-  } catch (error) {
-    console.error('❌ Failed to identify RevenueCat user:', error);
+    const { customerInfo } = await Purchases.logIn(userId);
+    console.log('✅ RevenueCat user logged in:', userId);
+    return customerInfo;
+  } catch (error: any) {
+    if (error.code === PURCHASES_ERROR_CODE.RECEIPT_ALREADY_IN_USE_ERROR) {
+      // Restore purchases for this user
+      return await restorePurchases();
+    }
+    console.error('❌ RevenueCat login failed:', error);
+    return null;
   }
 }
 
 /**
- * Log out user from RevenueCat (call when user logs out)
+ * Logout user from RevenueCat
  */
-export async function logOutUser(): Promise<void> {
-  if (!loadRevenueCat() || !isInitialized) return;
+export async function logoutUser(): Promise<void> {
+  if (!Purchases) return;
   try {
     await Purchases.logOut();
     console.log('✅ RevenueCat user logged out');
   } catch (error) {
-    console.error('❌ Failed to log out RevenueCat user:', error);
+    console.error('❌ RevenueCat logout failed:', error);
   }
 }
 
 /**
- * Get current customer info (subscription status, entitlements)
+ * Get available offerings (products configured in RevenueCat)
  */
-export async function getCustomerInfo(): Promise<any | null> {
-  if (TEST_BYPASS) {
-    return { entitlements: { active: { [ENTITLEMENT_ID]: {} } }, activeSubscriptions: [] };
+export async function getOfferings(): Promise<PurchasesOfferings | null> {
+  if (!Purchases) {
+    console.warn('⚠️ RevenueCat not available — no offerings');
+    return null;
   }
-  if (!loadRevenueCat() || !isInitialized) return null;
+  try {
+    const offerings = await Purchases.getOfferings();
+
+    if (offerings.current) {
+      console.log('📦 Current offering:', offerings.current.identifier);
+      console.log('📦 Available packages:', offerings.current.availablePackages.length);
+    }
+
+    return offerings;
+  } catch (error) {
+    console.error('❌ Failed to get offerings:', error);
+    return null;
+  }
+}
+
+/**
+ * Get current customer info (entitlements, subscriptions)
+ */
+export async function getCustomerInfo(): Promise<CustomerInfo | null> {
+  if (!Purchases) {
+    console.warn('⚠️ RevenueCat not available — no customer info');
+    return null;
+  }
   try {
     const customerInfo = await Purchases.getCustomerInfo();
     return customerInfo;
@@ -133,15 +180,13 @@ export async function getCustomerInfo(): Promise<any | null> {
 }
 
 /**
- * Check if user has premium access
- * In __DEV__ (test bypass): returns true so you can test the app like Stripe test mode.
+ * Check if user has premium entitlement (active subscription)
  */
 export async function hasPremiumAccess(): Promise<boolean> {
-  if (TEST_BYPASS) return true;
-  if (!loadRevenueCat() || !isInitialized) return false;
+  if (!Purchases) return false;
   try {
     const customerInfo = await Purchases.getCustomerInfo();
-    return typeof customerInfo.entitlements.active[ENTITLEMENT_ID] !== 'undefined';
+    return customerInfo.entitlements.active[ENTITLEMENTS.PREMIUM] !== undefined;
   } catch (error) {
     console.error('❌ Failed to check premium access:', error);
     return false;
@@ -149,72 +194,92 @@ export async function hasPremiumAccess(): Promise<boolean> {
 }
 
 /**
- * Get available offerings (products configured in RevenueCat)
- * In __DEV__ with test bypass, returns mock offering so purchase screen doesn't break.
+ * Check if user has a specific entitlement
  */
-export async function getOfferings(): Promise<any | null> {
-  if (TEST_BYPASS) {
-    // Match identifiers that PurchaseScreen and PostHookOfferScreen look for
-    return {
-      identifier: 'default',
-      serverDescription: '',
-      availablePackages: [
-        { identifier: 'yearly_subscription', packageType: 'ANNUAL', product: { identifier: PRODUCT_IDS.yearly_subscription, title: 'Yearly (Test)' } },
-        { identifier: 'single_system', packageType: 'MONTHLY', product: { identifier: PRODUCT_IDS.single_system, title: 'Single System (Test)' } },
-        { identifier: 'complete_reading', packageType: 'LIFETIME', product: { identifier: PRODUCT_IDS.complete_reading, title: 'Complete (Test)' } },
-        { identifier: 'compatibility_overlay', packageType: 'MONTHLY', product: { identifier: PRODUCT_IDS.compatibility_overlay, title: 'Overlay (Test)' } },
-        { identifier: 'nuclear_package', packageType: 'LIFETIME', product: { identifier: PRODUCT_IDS.nuclear_package, title: 'Nuclear (Test)' } },
-      ],
-    };
-  }
-  if (!isInitialized) {
-    const success = await initializeRevenueCat();
-    if (!success) return null;
-  }
+export async function hasEntitlement(entitlementId: EntitlementId): Promise<boolean> {
+  if (!Purchases) return false;
   try {
-    const offerings = await Purchases.getOfferings();
-    if (offerings.current) {
-      return offerings.current;
-    }
-    console.warn('⚠️ No current offering found');
-    return null;
+    const customerInfo = await Purchases.getCustomerInfo();
+    return customerInfo.entitlements.active[entitlementId] !== undefined;
   } catch (error) {
-    console.error('❌ Failed to get offerings:', error);
-    return null;
+    console.error(`❌ Failed to check entitlement ${entitlementId}:`, error);
+    return false;
   }
 }
 
 /**
- * Purchase a package
- * In __DEV__ with test bypass, simulates success so flow works when testing.
+ * Purchase a package (subscription or one-time)
  */
-export async function purchasePackage(pkg: any): Promise<any | null> {
-  if (TEST_BYPASS) {
-    console.log('🧪 Test bypass: simulating successful purchase');
-    return { entitlements: { active: { [ENTITLEMENT_ID]: {} } }, activeSubscriptions: [] };
-  }
-  if (!loadRevenueCat() || !isInitialized) {
-    throw new Error('RevenueCat not available');
+export async function purchasePackage(pkg: PurchasesPackage): Promise<{
+  success: boolean;
+  customerInfo?: CustomerInfo;
+  error?: string;
+}> {
+  if (!Purchases) {
+    return { success: false, error: 'Payment system not available' };
   }
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
     console.log('✅ Purchase successful');
-    return customerInfo;
+    return { success: true, customerInfo };
   } catch (error: any) {
     if (error.userCancelled) {
       console.log('ℹ️ User cancelled purchase');
-      return null;
+      return { success: false, error: 'cancelled' };
     }
     console.error('❌ Purchase failed:', error);
-    throw error;
+    return { success: false, error: error.message || 'Purchase failed' };
   }
 }
 
 /**
- * Restore purchases (for users who reinstall or switch devices)
+ * Purchase yearly subscription
+ * This is the main entry point for the PostHookOffer flow
  */
-export async function restorePurchases(): Promise<any | null> {
-  if (!loadRevenueCat() || !isInitialized) return null;
+export async function purchaseYearlySubscription(): Promise<{
+  success: boolean;
+  customerInfo?: CustomerInfo;
+  error?: string;
+}> {
+  if (!Purchases) {
+    return { success: false, error: 'Payment system not available' };
+  }
+  try {
+    const offerings = await getOfferings();
+
+    if (!offerings?.current) {
+      return { success: false, error: 'No offerings available' };
+    }
+
+    // Find the yearly subscription package
+    const yearlyPackage = offerings.current.availablePackages.find(
+      pkg => pkg.packageType === 'ANNUAL' || pkg.identifier === 'yearly'
+    );
+
+    if (!yearlyPackage) {
+      // Try the default package
+      const defaultPackage = offerings.current.availablePackages[0];
+      if (!defaultPackage) {
+        return { success: false, error: 'No subscription package found' };
+      }
+      return await purchasePackage(defaultPackage);
+    }
+
+    return await purchasePackage(yearlyPackage);
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Failed to purchase subscription' };
+  }
+}
+
+/**
+ * Restore previous purchases
+ * Called when user logs in on a new device
+ */
+export async function restorePurchases(): Promise<CustomerInfo | null> {
+  if (!Purchases) {
+    console.warn('⚠️ RevenueCat not available — cannot restore');
+    return null;
+  }
   try {
     const customerInfo = await Purchases.restorePurchases();
     console.log('✅ Purchases restored');
@@ -226,14 +291,83 @@ export async function restorePurchases(): Promise<any | null> {
 }
 
 /**
- * Check if RevenueCat is available (not in Expo Go)
+ * Get subscription management URL (for cancellation)
  */
-export function isRevenueCatAvailable(): boolean {
+export async function getManagementURL(): Promise<string | null> {
+  if (!Purchases) return null;
   try {
-    // RevenueCat has a preview mode for Expo Go that returns mock data
-    // Real purchases only work in development builds
-    return true;
-  } catch {
-    return false;
+    const customerInfo = await Purchases.getCustomerInfo();
+    return customerInfo.managementURL || null;
+  } catch (error) {
+    console.error('❌ Failed to get management URL:', error);
+    return null;
   }
+}
+
+/**
+ * Set user attributes for analytics
+ */
+export async function setUserAttributes(attributes: {
+  email?: string;
+  displayName?: string;
+  phoneNumber?: string;
+}): Promise<void> {
+  if (!Purchases) return;
+  try {
+    if (attributes.email) {
+      await Purchases.setEmail(attributes.email);
+    }
+    if (attributes.displayName) {
+      await Purchases.setDisplayName(attributes.displayName);
+    }
+    if (attributes.phoneNumber) {
+      await Purchases.setPhoneNumber(attributes.phoneNumber);
+    }
+  } catch (error) {
+    console.error('❌ Failed to set user attributes:', error);
+  }
+}
+
+// ============================================================================
+// LEGACY COMPATIBILITY LAYER
+// These functions match the old Stripe API for easier migration
+// ============================================================================
+
+/**
+ * Legacy: Get payment config (returns offerings instead)
+ */
+export async function getPaymentConfig(): Promise<{
+  publishableKey: string;
+  products: Record<string, number>;
+} | null> {
+  const offerings = await getOfferings();
+  if (!offerings?.current) return null;
+
+  const products: Record<string, number> = {};
+  offerings.current.availablePackages.forEach(pkg => {
+    products[pkg.identifier] = pkg.product.price;
+  });
+
+  return {
+    publishableKey: 'revenuecat', // Placeholder for compatibility
+    products,
+  };
+}
+
+/**
+ * Legacy: Create yearly subscription intent
+ * Now directly purchases via RevenueCat
+ */
+export async function createYearlySubscriptionIntent(_params: {
+  userId: string;
+  userEmail?: string;
+}): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  // With RevenueCat, we don't create an "intent" - we just purchase directly
+  // This is called from PostHookOfferScreen, but the actual purchase
+  // should happen via purchaseYearlySubscription()
+  console.log('⚠️ createYearlySubscriptionIntent is deprecated - use purchaseYearlySubscription()');
+  return { success: true };
 }

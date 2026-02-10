@@ -6,17 +6,22 @@ import { colors, spacing, typography } from '@/theme/tokens';
 import { Button } from '@/components/Button';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { useFocusEffect } from '@react-navigation/native';
-import { getOfferings, purchasePackage } from '@/services/revenuecat';
 import { useAuthStore } from '@/store/authStore';
-import { Video, ResizeMode, Audio } from 'expo-av';
+import { Audio } from 'expo-av';
+import { AppVideo } from '@/components/AppVideo';
+import {
+    initializeRevenueCat,
+    getOfferings,
+    purchasePackage,
+} from '@/services/payments';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'PostHookOffer'>;
 
 const { width: PAGE_W } = Dimensions.get('window');
-const VIDEO_BAND_H = 200;
 const DOTS_H = 24;
-const CTA_AREA_H = 80;
 const BOTTOM_PADDING = 20; // consistent bottom padding for all pages
+const VIDEO_BAND_H = 200;
+const CTA_AREA_H = 80;
 
 // Woman speaking videos for each page (with audio)
 const WOMAN_VIDEOS = [
@@ -41,20 +46,16 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     const swipeStartX = useRef<number | null>(null);
     const userId = useAuthStore((s) => s.user?.id || 'anonymous');
     const userEmail = useAuthStore((s) => s.user?.email || '');
-    
-    // Background music (Glass Horizon) on offer screens only
-    const bgMusicRef = useRef<Audio.Sound | null>(null);
 
     // Systems carousel (page 2 only)
     const [currentSystemIndex, setCurrentSystemIndex] = useState(0);
     const systemFadeAnim = useRef(new Animated.Value(1)).current;
     const systemScaleAnim = useRef(new Animated.Value(1)).current;
 
-    // Woman video refs and play/pause state
-    const videoRefs = useRef<(Video | null)[]>([null, null, null]);
+    // Woman video play/pause state (match Kalaa baseline)
     const [videoPaused, setVideoPaused] = useState<boolean[]>([false, false, false]);
     const [videoReady, setVideoReady] = useState<boolean[]>([false, false, false]);
-    
+
     // Delay video playback by 500ms after it's ready to prevent jarring start
     const handleVideoReady = useCallback((index: number) => {
         setTimeout(() => {
@@ -71,35 +72,14 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     // Set audio mode on mount
     useEffect(() => {
         Audio.setAudioModeAsync({
+            allowsRecordingIOS: false,
+            interruptionModeIOS: 0, // InterruptionModeIOS.MixWithOthers
             playsInSilentModeIOS: true,
             staysActiveInBackground: false,
+            interruptionModeAndroid: 2, // InterruptionModeAndroid.DuckOthers
             shouldDuckAndroid: false,
-        }).catch(() => {});
-    }, []);
-
-    // Load and play Glass Horizon background music on mount
-    useEffect(() => {
-        const loadBgMusic = async () => {
-            try {
-                const { sound } = await Audio.Sound.createAsync(
-                    require('@/../assets/audio/glass-horizon.mp3'),
-                    { shouldPlay: true, isLooping: true, volume: 0.25 }
-                );
-                bgMusicRef.current = sound;
-                console.log('🎵 Glass Horizon started');
-            } catch (err) {
-                console.warn('⚠️ Glass Horizon failed to load:', err);
-            }
-        };
-        loadBgMusic();
-
-        return () => {
-            if (bgMusicRef.current) {
-                bgMusicRef.current.stopAsync().catch(() => {});
-                bgMusicRef.current.unloadAsync().catch(() => {});
-                bgMusicRef.current = null;
-            }
-        };
+            playThroughEarpieceAndroid: false,
+        }).catch(() => { });
     }, []);
 
     // If user ever comes back to this screen, reset to page 0
@@ -107,17 +87,9 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         useCallback(() => {
             setPage(0);
             listRef.current?.scrollToOffset({ offset: 0, animated: false });
-            
-            // Cleanup: stop background music AND woman speaking videos when screen loses focus
+
             return () => {
-                bgMusicRef.current?.stopAsync().catch(() => {});
-                // Stop all woman speaking videos to prevent audio bleed
-                videoRefs.current.forEach((video) => {
-                    if (video) {
-                        video.pauseAsync().catch(() => {});
-                        video.setPositionAsync(0).catch(() => {});
-                    }
-                });
+                // no-op: AppVideo players are tied to component lifecycle
             };
         }, [])
     );
@@ -142,7 +114,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         []
     );
 
-    // No karaoke or David's voice audio - woman speaking videos have their own audio
+    // No karaoke or David's voice audio — offer videos have their own audio.
 
     // Systems carousel animation (page 2 only) — cycle through 5 systems every 3.5s with MUCH slower zoom on icon only
     useEffect(() => {
@@ -204,7 +176,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         // Developer bypass (same as PurchaseScreen)
         const DEV_BYPASS_EMAILS = ['michael@1-in-a-billion.app', 'dev@1-in-a-billion.app', 'test@1-in-a-billion.app'];
         const isDeveloperAccount = DEV_BYPASS_EMAILS.includes(userEmail.toLowerCase());
-        
+
         if (isDeveloperAccount || __DEV__) {
             console.log('🔧 DEV BYPASS: Skipping payment for developer account');
             setIsPaying(false);
@@ -214,9 +186,24 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
         }
 
         try {
+            // Initialize RevenueCat using backend-provided SDK key
+            const rcReady = await initializeRevenueCat(userId !== 'anonymous' ? userId : null);
+            if (!rcReady) {
+                setIsPaying(false);
+                Alert.alert(
+                    'Payments Not Available',
+                    'RevenueCat is not configured yet (missing public SDK key). Please try again later.',
+                    [
+                        { text: 'Continue without subscribing', onPress: () => navigation.navigate('Account', { postPurchase: false }) },
+                    ]
+                );
+                return;
+            }
+
             // Get RevenueCat offerings
-            const offering = await getOfferings();
-            if (!offering?.availablePackages?.length) {
+            const offerings = await getOfferings();
+            const availablePackages = offerings?.current?.availablePackages ?? [];
+            if (!availablePackages.length) {
                 setIsPaying(false);
                 Alert.alert(
                     'Products Not Available',
@@ -230,7 +217,7 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
             }
 
             // Find the yearly subscription package
-            const yearlyPackage = offering.availablePackages.find(
+            const yearlyPackage = availablePackages.find(
                 (p: any) => p.identifier === 'yearly_subscription' || p.packageType === 'ANNUAL'
             );
 
@@ -249,12 +236,14 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
 
             // Attempt purchase via RevenueCat
             console.log('💳 Starting RevenueCat subscription purchase');
-            const customerInfo = await purchasePackage(yearlyPackage);
-            
-            if (customerInfo) {
+            const purchaseResult = await purchasePackage(yearlyPackage);
+
+            if (purchaseResult.success) {
                 // Payment successful → navigate to Account screen (name input is now built-in)
                 console.log('✅ Subscription purchase successful!');
                 navigation.navigate('Account', { postPurchase: true });
+            } else if (purchaseResult.error !== 'cancelled' && purchaseResult.error !== 'Purchase cancelled') {
+                Alert.alert('Payment Failed', purchaseResult.error || 'Payment failed.', [{ text: 'OK' }]);
             } else {
                 // User cancelled
                 console.log('ℹ️ Subscription cancelled by user');
@@ -297,92 +286,90 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
                     renderItem={({ item, index }) => {
                         const isLastOfferPage = index === pages.length - 1;
                         const hasVideo = !!(item as any).bgVideo;
-                        
                         return (
-                        <View style={[styles.page, { width: PAGE_W }]}>
-                            {/* Headline at top */}
-                            <View style={styles.headlineContainer}>
-                                <Text style={styles.title} selectable>{item.title}</Text>
-                            </View>
-                            
-                            {/* Woman speaking video (1:1 aspect ratio, with audio) - tap to pause/play */}
-                            <TouchableOpacity
-                                style={styles.womanVideoContainer}
-                                activeOpacity={0.9}
-                                onPress={() => {
-                                    const isPaused = videoPaused[index];
-                                    if (isPaused) {
-                                        videoRefs.current[index]?.playAsync();
-                                    } else {
-                                        videoRefs.current[index]?.pauseAsync();
-                                    }
-                                    setVideoPaused(prev => {
-                                        const next = [...prev];
-                                        next[index] = !isPaused;
-                                        return next;
-                                    });
-                                }}
-                            >
-                                <Video
-                                    ref={(ref) => (videoRefs.current[index] = ref)}
-                                    source={WOMAN_VIDEOS[index]}
-                                    style={styles.womanVideo}
-                                    resizeMode={ResizeMode.COVER}
-                                    shouldPlay={page === index && !videoPaused[index] && videoReady[index]}
-                                    isLooping
-                                    isMuted={false}
-                                    onReadyForDisplay={() => handleVideoReady(index)}
-                                />
-                            </TouchableOpacity>
-                            
-                            {/* Page 2 only: Systems carousel */}
-                            {index === 1 && (
-                                <View style={styles.systemsCarousel} pointerEvents="none">
-                                    <Animated.Image
-                                        source={FIVE_SYSTEMS[currentSystemIndex].icon}
-                                        style={[
-                                            styles.systemIcon,
-                                            { transform: [{ scale: systemScaleAnim }] }
-                                        ]}
-                                        resizeMode="contain"
-                                    />
-                                    <Animated.View style={{ opacity: systemFadeAnim }}>
-                                        <Text style={styles.systemName} selectable>
-                                            {FIVE_SYSTEMS[currentSystemIndex].name}
-                                        </Text>
-                                        <Text style={styles.systemTagline} selectable>
-                                            {FIVE_SYSTEMS[currentSystemIndex].tagline}
-                                        </Text>
-                                    </Animated.View>
+                            <View style={[styles.page, { width: PAGE_W }]}>
+                                {/* Headline at top */}
+                                <View style={styles.headlineContainer}>
+                                    <Text style={styles.title} selectable>{item.title}</Text>
                                 </View>
-                            )}
-                            
-                            {hasVideo && (
-                                <View
-                                    style={[
-                                        styles.pageVideoWrap,
-                                        { 
-                                            // Page 1: video lower, closer to dots
-                                            // Page 3: video sits closer to bottom, above CTA
-                                            bottom: isLastOfferPage 
-                                                ? CTA_AREA_H + BOTTOM_PADDING - 20  // Page 3 video
-                                                : BOTTOM_PADDING + DOTS_H - 10      // Page 1 video (moved down)
-                                        },
-                                    ]}
-                                    pointerEvents="none"
+
+                                {/* Woman speaking video (1:1 aspect ratio, with audio) - tap to pause/play */}
+                                <TouchableOpacity
+                                    style={styles.womanVideoContainer}
+                                    activeOpacity={0.9}
+                                    onPress={() => {
+                                        const isPaused = videoPaused[index];
+                                        setVideoPaused(prev => {
+                                            const next = [...prev];
+                                            next[index] = !isPaused;
+                                            return next;
+                                        });
+                                    }}
                                 >
-                                    <Video
-                                        source={(item as any).bgVideo}
-                                        style={styles.pageVideo}
-                                        resizeMode={ResizeMode.COVER}
-                                        shouldPlay
-                                        isLooping
-                                        isMuted
-                                        rate={isLastOfferPage ? 0.5 : 0.9}
+                                    <AppVideo
+                                        source={WOMAN_VIDEOS[index]}
+                                        style={styles.womanVideo}
+                                        contentFit="cover"
+                                        // IMPORTANT: Don't gate playback on `onFirstFrame` callbacks.
+                                        // With expo-video, `onFirstFrame` won't fire until playback starts,
+                                        // so gating on `videoReady` creates a deadlock where video never plays.
+                                        shouldPlay={page === index && !videoPaused[index]}
+                                        loop
+                                        muted={false}
+                                        nativeControls={false}
+                                        onFirstFrame={() => handleVideoReady(index)}
                                     />
-                                </View>
-                            )}
-                    </View>
+                                </TouchableOpacity>
+
+                                {/* Page 2 only: Systems carousel */}
+                                {index === 1 && (
+                                    <View style={styles.systemsCarousel} pointerEvents="none">
+                                        <Animated.Image
+                                            source={FIVE_SYSTEMS[currentSystemIndex].icon}
+                                            style={[
+                                                styles.systemIcon,
+                                                { transform: [{ scale: systemScaleAnim }] }
+                                            ]}
+                                            resizeMode="contain"
+                                        />
+                                        <Animated.View style={{ opacity: systemFadeAnim }}>
+                                            <Text style={styles.systemName} selectable>
+                                                {FIVE_SYSTEMS[currentSystemIndex].name}
+                                            </Text>
+                                            <Text style={styles.systemTagline} selectable>
+                                                {FIVE_SYSTEMS[currentSystemIndex].tagline}
+                                            </Text>
+                                        </Animated.View>
+                                    </View>
+                                )}
+
+                                {/* Bottom muted looping video band (original behavior) */}
+                                {hasVideo && (
+                                    <View
+                                        style={[
+                                            styles.pageVideoWrap,
+                                            {
+                                                bottom: isLastOfferPage
+                                                    ? CTA_AREA_H + BOTTOM_PADDING - 20
+                                                    : BOTTOM_PADDING + DOTS_H - 10,
+                                            },
+                                        ]}
+                                        pointerEvents="none"
+                                    >
+                                        <AppVideo
+                                            source={(item as any).bgVideo}
+                                            style={styles.pageVideo}
+                                            contentFit="cover"
+                                            shouldPlay
+                                            loop
+                                            muted
+                                            playbackRate={isLastOfferPage ? 0.5 : 0.9}
+                                            nativeControls={false}
+                                        />
+                                    </View>
+                                )}
+
+                            </View>
                         );
                     }}
                 />
