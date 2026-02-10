@@ -1,0 +1,320 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "vedic_matchmaking.schema.json",
+    "title": "Vedic Matchmaking Ashtakoota Schema",
+    "type": "object",
+    "required": [
+        "person_a",
+        "person_b",
+        "ashtakoota",
+        "doshas",
+        "seventh_house",
+        "dasha_context",
+        "final_score"
+    ],
+    "properties": {
+        "person_a": {
+            "$ref": "#/definitions/person_chart"
+        },
+        "person_b": {
+            "$ref": "#/definitions/person_chart"
+        },
+        "ashtakoota": {
+            "type": "object",
+            "required": [
+                "varna",
+                "vashya",
+                "tara",
+                "yoni",
+                "graha_maitri",
+                "gana",
+                "bhakoot",
+                "nadi",
+                "total_points"
+            ],
+            "properties": {
+                "varna": {
+                    "$ref": "#/definitions/koota_score_1"
+                },
+                "vashya": {
+                    "$ref": "#/definitions/koota_score_2"
+                },
+                "tara": {
+                    "$ref": "#/definitions/koota_score_3"
+                },
+                "yoni": {
+                    "$ref": "#/definitions/koota_score_4"
+                },
+                "graha_maitri": {
+                    "$ref": "#/definitions/koota_score_5"
+                },
+                "gana": {
+                    "$ref": "#/definitions/koota_score_6"
+                },
+                "bhakoot": {
+                    "$ref": "#/definitions/koota_score_7"
+                },
+                "nadi": {
+                    "$ref": "#/definitions/koota_score_8"
+                },
+                "total_points": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 36
+                }
+            }
+        },
+        "doshas": {
+            "type": "object",
+            "required": [
+                "nadi_dosha",
+                "manglik_dosha",
+                "bhakoot_dosha"
+            ],
+            "properties": {
+                "nadi_dosha": {
+                    "type": "object",
+                    "required": [
+                        "present",
+                        "severity"
+                    ],
+                    "properties": {
+                        "present": {
+                            "type": "boolean"
+                        },
+                        "severity": {
+                            "type": "string",
+                            "enum": [
+                                "none",
+                                "low",
+                                "medium",
+                                "high"
+                            ]
+                        }
+                    }
+                },
+                "manglik_dosha": {
+                    "type": "object",
+                    "required": [
+                        "person_a",
+                        "person_b",
+                        "cancellation"
+                    ],
+                    "properties": {
+                        "person_a": {
+                            "type": "boolean"
+                        },
+                        "person_b": {
+                            "type": "boolean"
+                        },
+                        "cancellation": {
+                            "type": "boolean"
+                        }
+                    }
+                },
+                "bhakoot_dosha": {
+                    "type": "object",
+                    "required": [
+                        "present",
+                        "type"
+                    ],
+                    "properties": {
+                        "present": {
+                            "type": "boolean"
+                        },
+                        "type": {
+                            "type": "string",
+                            "enum": [
+                                "none",
+                                "shadashtaka",
+                                "dwirdwadasha"
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "seventh_house": {
+            "type": "object",
+            "required": [
+                "person_a_strength",
+                "person_b_strength",
+                "mutual_aspects"
+            ],
+            "properties": {
+                "person_a_strength": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                },
+                "person_b_strength": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                },
+                "mutual_aspects": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "benefic",
+                            "malefic",
+                            "neutral"
+                        ]
+                    }
+                }
+            }
+        },
+        "dasha_context": {
+            "type": "object",
+            "required": [
+                "person_a_dasha",
+                "person_b_dasha",
+                "overlap_quality"
+            ],
+            "properties": {
+                "person_a_dasha": {
+                    "type": "string"
+                },
+                "person_b_dasha": {
+                    "type": "string"
+                },
+                "overlap_quality": {
+                    "type": "string",
+                    "enum": [
+                        "supportive",
+                        "neutral",
+                        "challenging"
+                    ]
+                }
+            }
+        },
+        "final_score": {
+            "type": "object",
+            "required": [
+                "numeric_score",
+                "grade",
+                "viability"
+            ],
+            "properties": {
+                "numeric_score": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 36
+                },
+                "grade": {
+                    "type": "string",
+                    "enum": [
+                        "poor",
+                        "average",
+                        "good",
+                        "excellent",
+                        "exceptional"
+                    ]
+                },
+                "viability": {
+                    "type": "string",
+                    "enum": [
+                        "not_recommended",
+                        "conditional",
+                        "recommended",
+                        "highly_recommended"
+                    ]
+                }
+            }
+        },
+        "engine_version": {
+            "type": "string",
+            "default": "1.0.0"
+        }
+    },
+    "definitions": {
+        "person_chart": {
+            "type": "object",
+            "required": [
+                "moon_nakshatra",
+                "moon_rashi",
+                "gana",
+                "yoni",
+                "nadi",
+                "varna"
+            ],
+            "properties": {
+                "moon_nakshatra": {
+                    "type": "string"
+                },
+                "moon_rashi": {
+                    "type": "string"
+                },
+                "gana": {
+                    "type": "string",
+                    "enum": [
+                        "deva",
+                        "manushya",
+                        "rakshasa"
+                    ]
+                },
+                "yoni": {
+                    "type": "string"
+                },
+                "nadi": {
+                    "type": "string",
+                    "enum": [
+                        "adi",
+                        "madhya",
+                        "antya"
+                    ]
+                },
+                "varna": {
+                    "type": "string",
+                    "enum": [
+                        "brahmin",
+                        "kshatriya",
+                        "vaishya",
+                        "shudra"
+                    ]
+                }
+            }
+        },
+        "koota_score_1": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1
+        },
+        "koota_score_2": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2
+        },
+        "koota_score_3": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+        },
+        "koota_score_4": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4
+        },
+        "koota_score_5": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5
+        },
+        "koota_score_6": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 6
+        },
+        "koota_score_7": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 7
+        },
+        "koota_score_8": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 8
+        }
+    }
+}

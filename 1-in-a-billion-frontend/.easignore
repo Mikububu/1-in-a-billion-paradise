@@ -1,0 +1,35 @@
+# Exclude unnecessary files from EAS builds
+.git/
+node_modules/
+.expo/
+.expo-shared/
+dist/
+*.log
+.DS_Store
+*.tsbuildinfo
+
+# Native folders – EAS runs prebuild on the server (saves ~2 GB)
+ios/
+android/
+
+# Backend folder (not needed for frontend builds)
+../1-in-a-billion-backend/
+
+# Documentation
+../docs/
+../migrations/
+../scripts/
+
+# Assets that are already in the project
+../assets/
+
+# Admin panel
+../admin-panel/
+
+# Test / tooling
+__tests__/
+e2e/
+detox.config.js
+*.test.ts
+*.test.tsx
+*.e2e.js

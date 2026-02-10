@@ -1,0 +1,115 @@
+Loading .env from: /Users/michaelperinwogenburg/Desktop/big challenge/1 in a Billion/1-in-a-billion-backend/.env
+[dotenv@17.2.3] injecting env (17) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+Dotenv result: OK, parsed: 18 vars
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+═══════════════════════════════════════════════════════════════════════════
+🗑️  CLEANUP PAID READINGS FROM SUPABASE
+═══════════════════════════════════════════════════════════════════════════
+
+🚨 EXECUTE MODE - DELETIONS WILL BE PERFORMED
+   Press Ctrl+C within 10 seconds to abort...
+
+   Proceeding with deletion...
+
+📊 STEP 1: Analyzing database...
+
+═══════════════════════════════════════════════════════════════════════════
+📋 WHAT WILL BE DELETED:
+
+   🗃️  Job Artifacts (database): 956
+      - PDF: 240
+      - Audio MP3: 237
+      - Audio Song: 239
+      - Text: 240
+      - Total Size: 2.46 GB
+
+   📦 Jobs (database): 25
+   ⚙️  Job Tasks (database): 964
+
+   🗄️  Storage Files (job-artifacts bucket): 956
+
+📄 Example artifacts that will be deleted:
+   1. 1ac06ff4-6554-4dc8-8b16-a341f7c2bc65.txt (0.01 MB) [text]
+   2. a3c997e9-ec96-48bc-8bf5-3f2378ca136f.txt (0.01 MB) [text]
+   3. b88fc2b8-8a6c-4ead-a797-d507a944728c.txt (0.01 MB) [text]
+   4. 2bf3f9cc-cabf-4411-9bf5-29aa42c549ec.txt (0.01 MB) [text]
+   5. 30d7b322-40ee-4edc-bbcb-d46b723862a8.txt (0.01 MB) [text]
+   ... and 951 more files
+
+═══════════════════════════════════════════════════════════════════════════
+✅ WHAT WILL BE KEPT:
+
+   ✓ Hook readings (sun/moon/rising) in `user_readings` table
+   ✓ Hook audio files in `library` bucket (hook-audio/* paths)
+   ✓ Profile data in `library_people` table
+   ✓ User authentication data
+   ✓ API keys and configuration
+
+✅ Verified: No hook audio files in deletion list
+
+═══════════════════════════════════════════════════════════════════════════
+🗑️  STEP 2: Deleting storage files...
+
+   ⏳ Deleted 50/956 files...
+   ⏳ Deleted 100/956 files...
+   ⏳ Deleted 150/956 files...
+   ⏳ Deleted 200/956 files...
+   ⏳ Deleted 250/956 files...
+   ⏳ Deleted 300/956 files...
+   ⏳ Deleted 350/956 files...
+   ⏳ Deleted 400/956 files...
+   ⏳ Deleted 450/956 files...
+   ⏳ Deleted 500/956 files...
+   ⏳ Deleted 550/956 files...
+   ⏳ Deleted 600/956 files...
+   ⏳ Deleted 650/956 files...
+   ⏳ Deleted 700/956 files...
+   ⏳ Deleted 750/956 files...
+   ⏳ Deleted 800/956 files...
+   ⏳ Deleted 850/956 files...
+   ⏳ Deleted 900/956 files...
+   ⏳ Deleted 950/956 files...
+
+   ✅ Deleted 956 storage files
+
+═══════════════════════════════════════════════════════════════════════════
+🗑️  STEP 3: Deleting database records...
+
+   🗃️  Deleting job_artifacts...
+   ✅ Deleted 956 job_artifacts records
+   ⚙️  Deleting job_tasks...
+   ✅ Deleted 964 job_tasks records
+   📦 Deleting jobs...
+   ✅ Deleted 25 jobs records
+
+═══════════════════════════════════════════════════════════════════════════
+🔍 STEP 4: Verifying cleanup...
+
+   📊 Remaining database records:
+      - job_artifacts: 0
+      - jobs: 0
+      - job_tasks: 0
+
+   ✅ Verified kept data:
+      - user_readings (hooks): 0
+      - library_people (profiles): 19
+
+✅ No orphaned records found - cleanup complete!
+
+═══════════════════════════════════════════════════════════════════════════
+🎉 CLEANUP COMPLETE
+
+   📊 Deleted:
+      - 956 storage files
+      - 956 job_artifacts records
+      - 964 job_tasks records
+      - 25 jobs records
+      - Freed: 2.46 GB
+
+   ✅ Kept:
+      - 0 hook readings
+      - 19 user profiles
+      - All hook audio files in library bucket
+
+═══════════════════════════════════════════════════════════════════════════
+

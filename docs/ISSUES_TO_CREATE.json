@@ -1,0 +1,38 @@
+[
+  {
+    "title": "Apply migration 017 — verify voice selection fixes",
+    "body": "Run migrations/017 in staging and production; verify voice selection for jobs and confirm audio tasks use correct voices. Include verification queries and rollback steps.",
+    "labels": ["migration","high-priority"],
+    "assignee": "backend-eng"
+  },
+  {
+    "title": "Fix worker workflow and document current infrastructure",
+    "body": "Update worker deployment docs to reflect current infrastructure (post-RunPod). Ensure workers claim tasks reliably from Supabase queue, document deployment strategy, and add runbooks for scaling.",
+    "labels": ["infra","high-priority"],
+    "assignee": "ops"
+  },
+  {
+    "title": "Audit repo for secrets and rotate exposed keys",
+    "body": "Search repo and git history for any real API keys; if found, rotate immediately and document rotation steps. (User requested not to rotate keys automatically.)",
+    "labels": ["security","high-priority"],
+    "assignee": "security"
+  },
+  {
+    "title": "Add song generation UI to FullReadingScreen / DeepReadingReaderScreen",
+    "body": "Integrate generated song artifacts into FullReadingScreen and DeepReadingReaderScreen. Add player UI, streaming via signed URL, and tests for playback.",
+    "labels": ["frontend","medium-priority"],
+    "assignee": "frontend-eng"
+  },
+  {
+    "title": "Standardize environment variable names in docs",
+    "body": "Keep SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY for API clients and DATABASE_URL for psql/migrations. Update docs and scripts to mention both and provide mapping.",
+    "labels": ["docs","medium-priority"],
+    "assignee": "docs"
+  },
+  {
+    "title": "Convert documentation checklists to GitHub issues",
+    "body": "Transform key doc checklist items (migration steps, deploy steps, critical rules) into actionable GitHub issues with owners and due dates, using docs/TODO_ISSUES_SUMMARY.md as source.",
+    "labels": ["process","medium-priority"],
+    "assignee": "engineering-manager"
+  }
+]
