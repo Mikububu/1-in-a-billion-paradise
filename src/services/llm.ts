@@ -16,7 +16,9 @@
 
 import axios from 'axios';
 import { env } from '../config/env';
+
 import { getApiKey } from './apiKeys';
+import { promptLoader } from './promptLoader';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -166,7 +168,9 @@ class LLMService {
     maxTokens?: number;
     temperature?: number;
     maxRetries?: number;
+
     provider?: LLMProvider;
+    systemPrompt?: string; // Allow overriding system prompt
   }): Promise<string> {
     const provider = options?.provider || this.provider;
     const config = PROVIDER_CONFIG[provider];
@@ -179,6 +183,9 @@ class LLMService {
         console.log(`${config.emoji} ${config.name} [${label}] attempt ${attempt}/${maxRetries}: ${prompt.length} chars`);
         const startTime = Date.now();
 
+        // Load system prompt: Use override if provided, otherwise load the Master Prompt
+        const systemPrompt = options?.systemPrompt || await promptLoader.load('deep-reading-prompt.md');
+
         // Build request body based on provider
         let body: any;
         if (provider === 'claude') {
@@ -186,7 +193,7 @@ class LLMService {
             model: config.model,
             max_tokens: maxTokens,
             temperature,
-            system: "You are a master storyteller writing deep psychological readings. CRITICAL: You MUST write long-form content. MINIMUM 4500 WORDS per reading. This is non-negotiable. Never cut short. Fill every section completely. Keep writing until you reach the word count.",
+            system: systemPrompt,
             messages: [{ role: 'user', content: prompt }],
           };
         } else {
@@ -196,7 +203,7 @@ class LLMService {
             max_tokens: maxTokens,
             temperature,
             messages: [
-              { role: 'system', content: "You are a master storyteller writing deep psychological readings. CRITICAL: You MUST write long-form content. MINIMUM 4500 WORDS per reading. This is non-negotiable. Never cut short. Fill every section completely. Keep writing until you reach the word count." },
+              { role: 'system', content: systemPrompt },
               { role: 'user', content: prompt }
             ],
           };
@@ -211,12 +218,12 @@ class LLMService {
         const usage = config.parseUsage(response.data);
         const elapsed = Date.now() - startTime;
         const words = text.split(/\s+/).length;
-        
+
         // Store usage for cost tracking
         this.lastUsage = usage;
         this.lastProvider = provider;
         this.lastDurationMs = elapsed;
-        
+
         console.log(`✅ ${config.name} [${label}] done in ${(elapsed / 1000).toFixed(0)}s, got ${words} words (${usage.inputTokens}→${usage.outputTokens} tokens)`);
         return text;
 
@@ -225,7 +232,7 @@ class LLMService {
         const errorCode = error.code || '';
         const errorMsg = error.message || '';
 
-        const isRetryable = 
+        const isRetryable =
           status === 529 || status === 503 || status === 500 || status === 429 ||
           errorCode === 'ETIMEDOUT' || errorCode === 'ECONNRESET' || errorCode === 'ECONNREFUSED' ||
           errorMsg.includes('socket hang up') || errorMsg.includes('network');
@@ -264,21 +271,21 @@ class LLMService {
 
     try {
       // Build request body
-      const body = this.provider === 'claude' 
+      const body = this.provider === 'claude'
         ? {
-            model: this.config.model,
-            max_tokens: maxTokens,
-            temperature,
-            stream: true,
-            messages: [{ role: 'user', content: prompt }],
-          }
+          model: this.config.model,
+          max_tokens: maxTokens,
+          temperature,
+          stream: true,
+          messages: [{ role: 'user', content: prompt }],
+        }
         : {
-            model: this.config.model,
-            max_tokens: maxTokens,
-            temperature,
-            stream: true,
-            messages: [{ role: 'user', content: prompt }],
-          };
+          model: this.config.model,
+          max_tokens: maxTokens,
+          temperature,
+          stream: true,
+          messages: [{ role: 'user', content: prompt }],
+        };
 
       // Use axios with stream response
       const response = await axios.post(this.config.url, body, {
@@ -304,7 +311,7 @@ class LLMService {
 
               try {
                 const parsed = JSON.parse(data);
-                
+
                 // Claude format
                 if (this.provider === 'claude') {
                   if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
@@ -421,10 +428,10 @@ class FallbackLLMService {
 
       } catch (error: any) {
         lastError = error;
-        const isRefusal = error.message?.includes('refuse') || 
-                         error.message?.includes('cannot') ||
-                         error.message?.includes('inappropriate');
-        
+        const isRefusal = error.message?.includes('refuse') ||
+          error.message?.includes('cannot') ||
+          error.message?.includes('inappropriate');
+
         if (isRefusal) {
           console.warn(`⚠️ ${config.name} refused the request (content policy), trying next provider...`);
         } else {
