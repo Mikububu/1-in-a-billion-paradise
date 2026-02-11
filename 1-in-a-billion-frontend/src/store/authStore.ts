@@ -61,15 +61,18 @@ export const useAuthStore = create<AuthState>()(
           // CRITICAL: Clear Supabase's AsyncStorage keys to prevent session rehydration
           const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
           const keys = await AsyncStorage.getAllKeys();
-          const supabaseKeys = keys.filter(key =>
+
+          // Expand to clear ALL app-related storage keys, including all persisted stores
+          const keysToRemove = keys.filter(key =>
             key.startsWith('sb-') ||
             key.includes('supabase') ||
-            key.includes('auth-token')
+            key.includes('auth-token') ||
+            key.endsWith('-storage') // Zustand persisted stores (profile-storage, onboarding-storage, etc)
           );
 
-          if (supabaseKeys.length > 0) {
-            await AsyncStorage.multiRemove(supabaseKeys);
-            console.log('✅ Cleared Supabase AsyncStorage keys:', supabaseKeys);
+          if (keysToRemove.length > 0) {
+            await AsyncStorage.multiRemove(keysToRemove);
+            console.log('✅ Cleared app storage keys:', keysToRemove);
           }
         } catch (err) {
           console.error('❌ Supabase signOut error:', err);
