@@ -1,0 +1,52 @@
+name: V2 CI
+
+on:
+  push:
+    branches:
+      - main
+      - codex/**
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: v2-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck:
+    name: Typecheck (V2)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            1-in-a-billion-v2/package-lock.json
+
+      - name: Resolve app directory
+        id: appdir
+        shell: bash
+        run: |
+          if [ -f "package.json" ] && grep -q "\"typecheck\"" package.json; then
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          elif [ -f "1-in-a-billion-v2/package.json" ]; then
+            echo "dir=1-in-a-billion-v2" >> "$GITHUB_OUTPUT"
+          else
+            echo "Could not find V2 package.json"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        working-directory: ${{ steps.appdir.outputs.dir }}
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: ${{ steps.appdir.outputs.dir }}
+        run: npm run typecheck
