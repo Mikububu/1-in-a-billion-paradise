@@ -15,7 +15,6 @@ import { llm, llmPaid } from '../services/llm';
 import { apiKeys } from '../services/apiKeysHelper';
 import { env } from '../config/env';
 import { getTodayCosts, getMonthCosts, getCostSummary, LLM_PRICING, REPLICATE_PRICING } from '../services/costTracking';
-import { createMatch } from '../services/matchingService';
 
 const router = new Hono();
 
@@ -1867,6 +1866,9 @@ router.get('/matches/stats', async (c) => {
  * Manually create a match (for testing)
  */
 router.post('/matches/create', async (c) => {
+  const supabase = createSupabaseServiceClient();
+  if (!supabase) return c.json({ error: 'Database not configured' }, 500);
+
   try {
     const body = await c.req.json();
     const { user1Id, user2Id, compatibilityScore, matchReason, systemsMatched } = body;
@@ -1875,17 +1877,17 @@ router.post('/matches/create', async (c) => {
       return c.json({ error: 'Missing user IDs' }, 400);
     }
 
-    const created = await createMatch(user1Id, user2Id, {
-      compatibilityScore: compatibilityScore || null,
-      matchReason: matchReason || null,
-      systemsMatched: systemsMatched || [],
+    const { data, error } = await supabase.rpc('create_match', {
+      p_user1_id: user1Id,
+      p_user2_id: user2Id,
+      p_compatibility_score: compatibilityScore || null,
+      p_match_reason: matchReason || null,
+      p_systems_matched: JSON.stringify(systemsMatched || []),
     });
 
-    if (!created?.matchId) {
-      return c.json({ error: 'Failed to create match' }, 500);
-    }
+    if (error) throw error;
 
-    return c.json({ success: true, matchId: created.matchId });
+    return c.json({ success: true, matchId: data });
   } catch (err: any) {
     return c.json({ error: err.message }, 500);
   }
@@ -1933,3 +1935,4 @@ router.get('/gallery', async (c) => {
 });
 
 export default router;
+

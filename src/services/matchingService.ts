@@ -5,7 +5,6 @@
  */
 
 import { createSupabaseServiceClient } from './supabaseClient';
-import { notifyFirstMatchForUsers } from './notificationService';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -186,19 +185,6 @@ export async function createMatch(
   const supabase = createSupabaseServiceClient();
   if (!supabase) return null;
 
-  // Determine canonical pair order (must match create_match ordering logic).
-  const orderedUser1 = user1Id < user2Id ? user1Id : user2Id;
-  const orderedUser2 = user1Id < user2Id ? user2Id : user1Id;
-
-  // We only send first-match notifications on newly inserted pairs (not updates).
-  const { data: existingPair } = await supabase
-    .from('matches')
-    .select('id')
-    .eq('user1_id', orderedUser1)
-    .eq('user2_id', orderedUser2)
-    .maybeSingle();
-  const hadExistingPair = Boolean(existingPair?.id);
-
   const { data, error } = await supabase.rpc('create_match', {
     p_user1_id: user1Id,
     p_user2_id: user2Id,
@@ -212,34 +198,6 @@ export async function createMatch(
   if (error) {
     console.error('Create match error:', error);
     return null;
-  }
-
-  if (!hadExistingPair && data) {
-    try {
-      const { data: namesRows } = await supabase
-        .from('library_people')
-        .select('user_id,name')
-        .in('user_id', [user1Id, user2Id])
-        .eq('is_user', true);
-
-      const namesByUserId: Record<string, string | null> = {};
-      for (const row of namesRows || []) {
-        const name = typeof row?.name === 'string' ? row.name.trim() : '';
-        namesByUserId[row.user_id] = name || null;
-      }
-
-      await notifyFirstMatchForUsers({
-        matchId: data,
-        userIds: [user1Id, user2Id],
-        otherNamesByUserId: {
-          [user1Id]: namesByUserId[user2Id] || null,
-          [user2Id]: namesByUserId[user1Id] || null,
-        },
-      });
-    } catch (notificationError) {
-      // Do not fail match creation if notification side effects fail.
-      console.warn('⚠️ First-match notification dispatch failed:', notificationError);
-    }
   }
 
   return { matchId: data };
