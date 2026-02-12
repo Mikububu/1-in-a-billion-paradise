@@ -3,6 +3,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Animated, Alert, Modal, ActivityIndicator, Pressable, useWindowDimensions, Image, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '@/store/authStore';
 import { env } from '@/config/env';
 import { useOnboardingStore } from '@/store/onboardingStore';
@@ -96,6 +97,26 @@ export const HomeScreen = ({ navigation }: Props) => {
     };
     loadUserData();
   }, [authUserId]);
+
+  useEffect(() => {
+    if (!authUserId || matchCount <= 0) return;
+
+    let cancelled = false;
+    const key = `home:first-match-popup-shown:${authUserId}`;
+
+    const maybeShowFirstMatchPopup = async () => {
+      const alreadyShown = await AsyncStorage.getItem(key);
+      if (cancelled || alreadyShown === '1') return;
+
+      Alert.alert('Match found', 'We found a match for you. Tap the big number to open Soul Gallery.');
+      await AsyncStorage.setItem(key, '1');
+    };
+
+    maybeShowFirstMatchPopup();
+    return () => {
+      cancelled = true;
+    };
+  }, [authUserId, matchCount]);
 
   useEffect(() => {
     if (!portraitPhotoUrl) {

@@ -2,7 +2,7 @@
  * SETTINGS SCREEN
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert, Linking, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -16,6 +16,10 @@ import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
 import { BackButton } from '@/components/BackButton';
 import { fetchPeopleFromSupabase } from '@/services/peopleCloud';
 import { isSupabaseConfigured } from '@/services/supabase';
+import {
+    getMatchNotificationPreferences,
+    updateMatchNotificationPreferences,
+} from '@/services/matchNotifications';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Settings'>;
 
@@ -35,6 +39,9 @@ type SettingsSection = {
 
 export const SettingsScreen = ({ navigation }: Props) => {
     const [isSyncing, setIsSyncing] = useState(false);
+    const [isMatchAlertsSaving, setIsMatchAlertsSaving] = useState(false);
+    const [matchAlertsEnabled, setMatchAlertsEnabled] = useState(false);
+    const [matchAlertsLoaded, setMatchAlertsLoaded] = useState(false);
     const resetOnboarding = useOnboardingStore((state) => state.reset);
     const resetProfile = useProfileStore((state) => state.reset);
     const signOut = useAuthStore((s: any) => s.signOut);
@@ -45,6 +52,31 @@ export const SettingsScreen = ({ navigation }: Props) => {
     const people = useProfileStore((state) => state.people);
     const user = people.find(p => p.isUser);
     const isVerified = user?.isVerified || false;
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadPreferences = async () => {
+            if (!authUser?.id) {
+                if (isMounted) {
+                    setMatchAlertsEnabled(false);
+                    setMatchAlertsLoaded(true);
+                }
+                return;
+            }
+
+            const preference = await getMatchNotificationPreferences(authUser.id);
+            if (!isMounted) return;
+
+            setMatchAlertsEnabled(preference.matchAlertsEnabled);
+            setMatchAlertsLoaded(true);
+        };
+
+        loadPreferences();
+        return () => {
+            isMounted = false;
+        };
+    }, [authUser?.id]);
 
     const handleForceSync = async () => {
         if (!authUser?.id || !isSupabaseConfigured) {
@@ -128,6 +160,43 @@ export const SettingsScreen = ({ navigation }: Props) => {
         Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=App Support Request`);
     };
 
+    const handleMatchAlerts = () => {
+        if (!authUser?.id) {
+            Alert.alert('Sign in required', 'Please sign in to manage notification preferences.');
+            return;
+        }
+
+        if (!matchAlertsLoaded || isMatchAlertsSaving) return;
+
+        const nextEnabled = !matchAlertsEnabled;
+        const title = nextEnabled ? 'Enable Match Alerts' : 'Disable Match Alerts';
+        const message = nextEnabled
+            ? 'Allow push + email alerts when your first match appears?'
+            : 'Stop first-match alerts by push + email?';
+
+        Alert.alert(title, message, [
+            { text: 'Cancel', style: 'cancel' },
+            {
+                text: nextEnabled ? 'Enable' : 'Disable',
+                style: nextEnabled ? 'default' : 'destructive',
+                onPress: async () => {
+                    setIsMatchAlertsSaving(true);
+                    const updated = await updateMatchNotificationPreferences({
+                        userId: authUser.id,
+                        enabled: nextEnabled,
+                        source: 'settings',
+                    });
+                    if (updated) {
+                        setMatchAlertsEnabled(updated.matchAlertsEnabled);
+                    } else {
+                        Alert.alert('Update failed', 'Could not save notification preference.');
+                    }
+                    setIsMatchAlertsSaving(false);
+                },
+            },
+        ]);
+    };
+
     const sections: SettingsSection[] = [
         {
             title: 'Account',
@@ -152,6 +221,17 @@ export const SettingsScreen = ({ navigation }: Props) => {
                     title: isSyncing ? 'Syncing...' : 'Sync from Cloud',
                     subtitle: 'Download latest data from server',
                     onPress: handleForceSync,
+                },
+                {
+                    id: 'match_alerts',
+                    icon: '○',
+                    title: isMatchAlertsSaving ? 'Saving...' : 'Match Alerts',
+                    subtitle: matchAlertsLoaded
+                        ? matchAlertsEnabled
+                            ? 'On (first match)'
+                            : 'Off'
+                        : 'Loading...',
+                    onPress: handleMatchAlerts,
                 },
             ],
         },

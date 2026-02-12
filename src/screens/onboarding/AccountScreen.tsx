@@ -31,6 +31,10 @@ import {
 import { saveHookReadings } from '@/services/userReadings';
 import { syncPeopleToSupabase } from '@/services/peopleCloud';
 import { syncCompatibilityReadingsToSupabase } from '@/services/compatibilityCloud';
+import {
+  getMatchNotificationPreferences,
+  updateMatchNotificationPreferences,
+} from '@/services/matchNotifications';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -168,6 +172,43 @@ export const AccountScreen = ({ navigation, route }: Props) => {
           }
         } else if (!paymentBypassEnabled) {
           throw new Error('Missing RevenueCat purchase identity.');
+        }
+
+        // Ask once after paid signup. If user chooses "Not now", they still proceed immediately.
+        const currentPreferences = await getMatchNotificationPreferences(userId);
+        const hasBeenAsked = Boolean(currentPreferences.consentAskedAt);
+
+        if (!hasBeenAsked) {
+          await new Promise<void>((resolve) => {
+            Alert.alert(
+              'Match Alerts',
+              'Allow push + email alerts when your first match appears?',
+              [
+                {
+                  text: 'Allow',
+                  onPress: () => {
+                    void updateMatchNotificationPreferences({
+                      userId,
+                      enabled: true,
+                      source: 'post_signup_prompt',
+                    }).finally(resolve);
+                  },
+                },
+                {
+                  text: 'Not now',
+                  style: 'cancel',
+                  onPress: () => {
+                    void updateMatchNotificationPreferences({
+                      userId,
+                      enabled: false,
+                      source: 'post_signup_prompt',
+                    }).finally(resolve);
+                  },
+                },
+              ],
+              { cancelable: false }
+            );
+          });
         }
 
         setRedirectAfterOnboarding('Home');
