@@ -300,7 +300,8 @@ export async function createIncludedReading(
         timezone: string;
         latitude: number;
         longitude: number;
-    }
+    },
+    relationshipPreferenceScale: number = 5
 ): Promise<{ success: boolean; jobId?: string; error?: string }> {
     try {
         const response = await coreClient.post('/api/jobs/v2/start', {
@@ -308,6 +309,7 @@ export async function createIncludedReading(
             systems: [system],
             promptLayerDirective: buildPromptLayerDirective([system]),
             person1: birthData,
+            relationshipPreferenceScale: Math.min(10, Math.max(1, Math.round(relationshipPreferenceScale))),
             useIncludedReading: true, // Flag: use the one included reading from subscription
         }, {
             headers: {
