@@ -28,6 +28,7 @@ Updated: 2026-02-13
 - `fe9cda1` - added long-form output-length contract to layered prompt composition + shared style layer
 - `b427fe9` - made JobDetail progress telemetry-first (removed misleading artifact-based fake percentage fallback)
 - `a4e4d20` - set V2 job buffer cap to 43 and removed prompt-engine legacy alias/fallback layer IDs
+- `2fbd733` - reset PartnerReadings synastry-gateway lock state on refocus (prevents sticky disabled continue button)
 
 ## Canonical Decision Files
 - `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/MIGRATION_DECISIONS.md`
