@@ -17,6 +17,7 @@ Updated: 2026-02-13
 - `e13c3f7` - spice preference lens injected + unified context circle screens
 - `d347b15` - Vedic spice soft-ranking spec + migration decision
 - `b00c1ff` - migrated V2 backend Vedic matchmaking runtime + spice soft-ranking module
+- `5a44ad8` - added V2 backend Vedic service contracts/entrypoints (match/score/rank)
 
 ## Canonical Decision Files
 - `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/MIGRATION_DECISIONS.md`
