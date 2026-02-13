@@ -61,6 +61,13 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
         return VOICE_OPTIONS.find((v) => v.id === selectedVoice)?.label || selectedVoice;
     }, [selectedVoice]);
 
+    useEffect(() => {
+        const hasSelected = VOICE_OPTIONS.some((v) => v.id === selectedVoice);
+        if (!hasSelected) {
+            setSelectedVoice(VOICE_OPTIONS[0]?.id || 'david');
+        }
+    }, [selectedVoice]);
+
     const stopVoicePreview = async () => {
         try {
             if (previewSoundRef.current) {
