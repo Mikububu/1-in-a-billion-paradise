@@ -1,6 +1,6 @@
 # Migration Decisions (Human-Language)
 
-Last updated: 2026-02-12
+Last updated: 2026-02-13
 
 ## Confirmed Product Decisions
 
@@ -67,6 +67,13 @@ Last updated: 2026-02-12
 - Access points:
   - `Gallery` header action (`Messages`)
   - Any future dedicated chat entry points can continue to target `ChatList`.
+
+12. Vedic matchmaking spec is a hard migration authority.
+- Canonical source docs (source app):
+  - `/Users/michaelperinwogenburg/Desktop/big-challenge/ONEINABILLIONAPP/docs/VEDIC_MATCHMAKING_SPEC.md`
+  - `/Users/michaelperinwogenburg/Desktop/big-challenge/ONEINABILLIONAPP/docs/VEDIC_MATCHMAKING_LLM_SPEC.md`
+- Decision: any V2 Vedic matchmaking logic/prompting must follow these specs exactly.
+- Constraint: no invented scoring rules, thresholds, or dosha logic outside those specs.
 
 ## What this means for migration scope
 
