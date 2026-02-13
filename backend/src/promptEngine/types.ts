@@ -1,15 +1,20 @@
 export type SystemId = 'western' | 'vedic' | 'human_design' | 'gene_keys' | 'kabbalah';
 
-export type ReadingKind = 'individual' | 'overlay' | 'nuclear';
+export type ReadingKind = 'individual' | 'synastry' | 'verdict';
+
+export type LayerMode = 'individual' | 'synastry';
 
 export type PromptLayerConfig = {
-    analysisLayerId: string;
+    individualLayerId?: string;
+    synastryLayerId?: string;
+    analysisLayerId?: string; // Legacy fallback
     analysisVersion?: string;
 };
 
 export type PromptLayerDirective = {
     policyVersion?: string;
     sharedWritingStyleLayerId?: string;
+    finalVerdictLayerId?: string;
     kabbalahNameGematriaMode?: 'disabled' | 'supporting' | 'enabled';
     systems?: Partial<Record<SystemId, PromptLayerConfig>>;
 };
@@ -38,7 +43,8 @@ export type ComposePromptResult = {
     prompt: string;
     diagnostics: {
         styleLayerId: string;
-        systemLayerIds: Array<{ system: SystemId; layerId: string }>;
+        systemLayerIds: Array<{ system: SystemId; layerId: string; mode: LayerMode }>;
+        verdictLayerId?: string;
         totalChars: number;
         layerStats: PromptLayerDiagnostics[];
     };

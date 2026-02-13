@@ -11,10 +11,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
-import { env } from '@/config/env';
-import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { addJobToBuffer } from '@/services/jobBuffer';
 import { useProfileStore, type ReadingSystem } from '@/store/profileStore';
+import { fetchJobSnapshot } from '@/services/jobStatus';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'GeneratingReading'>;
 
@@ -112,46 +111,13 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
         const tick = async () => {
             if (!activeJobId) return;
             try {
-                const url = `${env.CORE_API_URL}/api/jobs/v2/${activeJobId}`;
-                let accessToken: string | undefined;
-
-                if (isSupabaseConfigured) {
-                    try {
-                        const { data: { session } } = await supabase.auth.getSession();
-                        accessToken = session?.access_token;
-                    } catch {
-                        // ignore
-                    }
-                }
-
-                let resp = await fetch(url, {
-                    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-                });
-                if (resp.status === 401 || resp.status === 403) {
-                    resp = await fetch(url);
-                }
-                if (!resp.ok) {
-                    const t = await resp.text().catch(() => '');
-                    throw new Error(t || `Job fetch failed (${resp.status})`);
-                }
-
-                const data = await resp.json();
-                const job = data?.job;
-                if (!job) throw new Error('Invalid job response');
+                const snapshot = await fetchJobSnapshot(activeJobId);
+                if (!snapshot) throw new Error('Job fetch failed');
                 if (cancelled) return;
 
-                const status = String(job.status || '').toLowerCase();
-                const total = job.progress?.totalTasks;
-                const done = job.progress?.completedTasks;
-                const pctRaw =
-                    typeof job.progress?.percent === 'number'
-                        ? job.progress.percent
-                        : typeof total === 'number' && total > 0
-                            ? (Number(done || 0) / total) * 100
-                            : 0;
-                const pct = Math.max(0, Math.min(100, Math.round(pctRaw)));
-                setProgressPercent(pct);
-                setCurrentStep(job.progress?.message || `Status: ${status || 'unknown'}`);
+                const status = String(snapshot.status || '').toLowerCase();
+                setProgressPercent(snapshot.percent);
+                setCurrentStep(snapshot.message || `Status: ${status || 'unknown'}`);
 
                 const isDone = status === 'complete' || status === 'completed';
                 if (isDone) {

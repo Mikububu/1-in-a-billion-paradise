@@ -47,8 +47,8 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
     const [isLoading, setIsLoading] = useState(false);
 
     const productName = useMemo(() => {
-        if (productType === 'complete_reading') return 'All 5 Systems';
-        if (productType === 'nuclear_package') return 'Nuclear Package';
+        if (productType === 'bundle_5_readings') return 'All 5 Systems';
+        if (productType === 'bundle_16_readings') return 'Bundle 16 Readings';
         if (systems.length === 1) return SYSTEM_LABELS[systems[0]] || systems[0];
         if (systems.length > 1) return 'Selected Systems';
         return 'Reading';
@@ -136,8 +136,8 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
         }
 
         const xUserId = authUser?.id || '00000000-0000-0000-0000-000000000001';
-        const jobType = productType === 'nuclear_package'
-            ? 'nuclear_v2'
+        const jobType = productType === 'bundle_16_readings'
+            ? 'bundle_verdict'
             : (readingType === 'overlay' ? 'synastry' : 'extended');
 
         const payload: any = {

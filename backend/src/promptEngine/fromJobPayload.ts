@@ -11,9 +11,9 @@ const isSystem = (value: string): value is SystemId =>
 export function composePromptFromJobStartPayload(payload: any): ReturnType<typeof composePrompt> {
     const systems = Array.isArray(payload?.systems) ? payload.systems.filter(isSystem) : [];
     const readingKind = payload?.type === 'synastry'
-        ? 'overlay'
-        : payload?.type === 'nuclear_v2'
-            ? 'nuclear'
+        ? 'synastry'
+        : payload?.type === 'bundle_verdict'
+            ? 'verdict'
             : 'individual';
 
     const input: ComposePromptInput = {

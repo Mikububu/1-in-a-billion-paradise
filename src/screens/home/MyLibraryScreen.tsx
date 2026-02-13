@@ -6,18 +6,9 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { useProfileStore } from '@/store/profileStore';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { BackButton } from '@/components/BackButton';
-import { env } from '@/config/env';
-import { isSupabaseConfigured, supabase } from '@/services/supabase';
+import { fetchJobSnapshot, type JobSnapshot } from '@/services/jobStatus';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'MyLibrary'>;
-
-type JobSnapshot = {
-    status: string;
-    percent: number;
-    message: string;
-    type: string;
-    updatedAt?: string;
-};
 
 type TrackedJob = {
     jobId: string;
@@ -92,56 +83,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             .sort((a, b) => b.lastTimestamp - a.lastTimestamp);
     }, [people]);
 
-    const fetchJobSnapshot = useCallback(async (jobId: string): Promise<JobSnapshot | null> => {
-        try {
-            const url = `${env.CORE_API_URL}/api/jobs/v2/${jobId}`;
-            let accessToken: string | undefined;
-
-            if (isSupabaseConfigured) {
-                try {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    accessToken = session?.access_token;
-                } catch {
-                    // Ignore and retry unauthenticated.
-                }
-            }
-
-            let response = await fetch(url, {
-                headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-            });
-
-            if (response.status === 401 || response.status === 403) {
-                response = await fetch(url);
-            }
-
-            if (!response.ok) {
-                return null;
-            }
-
-            const data = await response.json();
-            const job = data?.job;
-            if (!job) return null;
-
-            const total = job.progress?.totalTasks;
-            const done = job.progress?.completedTasks;
-            const pctRaw = typeof job.progress?.percent === 'number'
-                ? job.progress.percent
-                : typeof total === 'number' && total > 0
-                    ? (Number(done || 0) / total) * 100
-                    : 0;
-
-            return {
-                status: String(job.status || 'unknown'),
-                percent: Math.max(0, Math.min(100, Math.round(pctRaw || 0))),
-                message: String(job.progress?.message || ''),
-                type: String(job.type || ''),
-                updatedAt: String(job.updatedAt || job.updated_at || ''),
-            };
-        } catch {
-            return null;
-        }
-    }, []);
-
     const handleOpenPortrait = useCallback(() => {
         if (user?.portraitUrl || user?.originalPhotoUrl) {
             setPreviewImageUri(user.portraitUrl || user.originalPhotoUrl || null);
@@ -190,7 +131,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             cancelled = true;
             clearInterval(timer);
         };
-    }, [fetchJobSnapshot, trackedJobs]);
+    }, [trackedJobs]);
 
     return (
         <SafeAreaView style={styles.container}>
@@ -288,12 +229,15 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                             const status = snapshot
                                 ? `${snapshot.status.toUpperCase()}${typeof snapshot.percent === 'number' ? ` · ${snapshot.percent}%` : ''}`
                                 : 'Status unavailable';
+                            const isComplete = String(snapshot?.status || '').toLowerCase() === 'complete' || String(snapshot?.status || '').toLowerCase() === 'completed';
 
                             return (
                                 <TouchableOpacity
                                     key={job.jobId}
                                     style={styles.jobCard}
-                                    onPress={() => navigation.navigate('JobDetail', { jobId: job.jobId })}
+                                    onPress={() =>
+                                        navigation.navigate(isComplete ? 'ReadingContent' : 'JobDetail', { jobId: job.jobId })
+                                    }
                                 >
                                     <View style={styles.jobMain}>
                                         <Text style={styles.jobTitle} numberOfLines={1}>{names}</Text>
@@ -302,7 +246,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                                     </View>
                                     <View style={styles.jobStatusWrap}>
                                         <Text style={styles.jobStatus}>{status}</Text>
-                                        <Text style={styles.jobOpen}>Open</Text>
+                                        <Text style={styles.jobOpen}>{isComplete ? 'Open Reading' : 'Open Status'}</Text>
                                     </View>
                                 </TouchableOpacity>
                             );

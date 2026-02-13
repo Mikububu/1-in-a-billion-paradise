@@ -9,14 +9,22 @@ This backend scaffold gives you exactly what you asked for:
 ## Where to edit
 
 ### Global style (affects all systems)
-- `backend/prompt-layers/style/shared-astro-fairytale-style-v1.md`
+- `backend/prompt-layers/style/writing-style-guide.md`
 
 ### System-specific astrology logic
-- `backend/prompt-layers/systems/western-analysis-v1.md`
-- `backend/prompt-layers/systems/vedic-analysis-v1.md`
-- `backend/prompt-layers/systems/human-design-analysis-v1.md`
-- `backend/prompt-layers/systems/gene-keys-analysis-v1.md`
-- `backend/prompt-layers/systems/kabbalah-analysis-v2-no-name-gematria.md`
+- `backend/prompt-layers/systems/western-individual.md`
+- `backend/prompt-layers/systems/western-synastry.md`
+- `backend/prompt-layers/systems/vedic-individual.md`
+- `backend/prompt-layers/systems/vedic-synastry.md`
+- `backend/prompt-layers/systems/human-design-individual.md`
+- `backend/prompt-layers/systems/human-design-synastry.md`
+- `backend/prompt-layers/systems/gene-keys-individual.md`
+- `backend/prompt-layers/systems/gene-keys-synastry.md`
+- `backend/prompt-layers/systems/kabbalah-individual.md`
+- `backend/prompt-layers/systems/kabbalah-synastry.md`
+
+### Bundle final-verdict synthesis layer
+- `backend/prompt-layers/verdict/final-verdict.md`
 
 ## Core engine
 - `backend/src/promptEngine/composePrompt.ts`
@@ -33,8 +41,8 @@ Backend should read `promptLayerDirective` and call `composePrompt` (or `compose
 
 ## Design contract
 1. Shared writing style is global and reusable.
-2. Every system has its own analysis layer and version id.
-3. Kabbalah layer uses `kabbalah-analysis-v2-no-name-gematria` by default.
+2. Every system has separate `individual` and `synastry` analysis layers.
+3. Verdict-mode prompts include a dedicated final-verdict layer.
 4. Name/gematria is disabled in Kabbalah policy unless you intentionally change it.
 
 ## Next integration step

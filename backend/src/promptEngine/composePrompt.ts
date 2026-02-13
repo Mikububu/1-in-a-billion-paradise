@@ -1,8 +1,9 @@
 import { loadLayerMarkdown } from './layerLoader';
-import { STYLE_LAYER_REGISTRY, SYSTEM_LAYER_REGISTRY } from './layerRegistry';
+import { STYLE_LAYER_REGISTRY, SYSTEM_LAYER_REGISTRY, VERDICT_LAYER_REGISTRY } from './layerRegistry';
 import {
     ComposePromptInput,
     ComposePromptResult,
+    LayerMode,
     PromptLayerDiagnostics,
     PromptLayerDirective,
     SystemId,
@@ -69,27 +70,60 @@ function resolveStyleLayerId(directive?: PromptLayerDirective): string {
     return STYLE_LAYER_REGISTRY.defaultLayerId;
 }
 
-function resolveSystemLayerId(system: SystemId, directive?: PromptLayerDirective): string {
-    const requested = directive?.systems?.[system]?.analysisLayerId;
-    if (requested && SYSTEM_LAYER_REGISTRY[system].files[requested]) {
+function resolveVerdictLayerId(directive?: PromptLayerDirective): string {
+    const requested = directive?.finalVerdictLayerId;
+    if (requested && VERDICT_LAYER_REGISTRY.files[requested]) {
         return requested;
     }
-    return SYSTEM_LAYER_REGISTRY[system].defaultLayerId;
+    return VERDICT_LAYER_REGISTRY.defaultLayerId;
+}
+
+function layerModeFromReadingKind(readingKind: ComposePromptInput['readingKind']): LayerMode {
+    return readingKind === 'individual' ? 'individual' : 'synastry';
+}
+
+function resolveSystemLayerId(
+    system: SystemId,
+    readingKind: ComposePromptInput['readingKind'],
+    directive?: PromptLayerDirective
+): { layerId: string; mode: LayerMode } {
+    const registry = SYSTEM_LAYER_REGISTRY[system];
+    const mode = layerModeFromReadingKind(readingKind);
+    const systemDirective = directive?.systems?.[system];
+    const requestedByMode = mode === 'individual'
+        ? systemDirective?.individualLayerId
+        : systemDirective?.synastryLayerId;
+    const requestedLegacy = systemDirective?.analysisLayerId;
+
+    if (requestedByMode && registry.files[requestedByMode]) {
+        return { layerId: requestedByMode, mode };
+    }
+
+    if (requestedLegacy && registry.files[requestedLegacy]) {
+        return { layerId: requestedLegacy, mode };
+    }
+
+    return {
+        layerId: mode === 'individual'
+            ? registry.defaultIndividualLayerId
+            : registry.defaultSynastryLayerId,
+        mode,
+    };
 }
 
 function modeRules(readingKind: ComposePromptInput['readingKind']): string {
-    if (readingKind === 'overlay') {
+    if (readingKind === 'synastry') {
         return [
-            'READING MODE: OVERLAY',
+            'READING MODE: SYNASTRY',
             '- Focus on dynamic interaction, conflict loops, repair loops, and compatibility architecture.',
             '- Name who tends to pursue, withdraw, control, or soften under stress.',
             '- Do not flatten the bond into generic romance language.',
         ].join('\n');
     }
 
-    if (readingKind === 'nuclear') {
+    if (readingKind === 'verdict') {
         return [
-            'READING MODE: NUCLEAR (MULTI-SYSTEM SYNTHESIS)',
+            'READING MODE: VERDICT (BUNDLE SYNTHESIS)',
             '- Synthesize all selected systems into one coherent narrative.',
             '- Do not output five separate mini-readings.',
             '- Name where systems agree, where they tension each other, and the final practical guidance.',
@@ -105,20 +139,21 @@ function modeRules(readingKind: ComposePromptInput['readingKind']): string {
 
 function buildSystemBlock(
     systems: SystemId[],
+    readingKind: ComposePromptInput['readingKind'],
     directive: PromptLayerDirective | undefined,
     stats: PromptLayerDiagnostics[]
-): { text: string; ids: Array<{ system: SystemId; layerId: string }> } {
-    const systemIds: Array<{ system: SystemId; layerId: string }> = [];
+): { text: string; ids: Array<{ system: SystemId; layerId: string; mode: LayerMode }> } {
+    const systemIds: Array<{ system: SystemId; layerId: string; mode: LayerMode }> = [];
     const sections: string[] = [];
 
     systems.forEach((system) => {
-        const layerId = resolveSystemLayerId(system, directive);
+        const { layerId, mode } = resolveSystemLayerId(system, readingKind, directive);
         const file = SYSTEM_LAYER_REGISTRY[system].files[layerId];
         const raw = loadLayerMarkdown(file);
         const layer = capLayer(`system:${system}:${layerId}`, raw, LAYER_BUDGET.systemKnowledge, stats);
 
-        systemIds.push({ system, layerId });
-        sections.push(`SYSTEM ANALYSIS KNOWLEDGE (${system.toUpperCase()} | ${layerId})\n${layer}`);
+        systemIds.push({ system, layerId, mode });
+        sections.push(`SYSTEM ANALYSIS KNOWLEDGE (${system.toUpperCase()} | ${mode.toUpperCase()} | ${layerId})\n${layer}`);
     });
 
     return {
@@ -144,10 +179,10 @@ export function composePrompt(input: ComposePromptInput): ComposePromptResult {
     const styleRaw = loadLayerMarkdown(STYLE_LAYER_REGISTRY.files[styleLayerId]);
     const styleLayer = capLayer('global-style', styleRaw, LAYER_BUDGET.globalStyle, stats);
 
-    const systemsBlock = buildSystemBlock(systems, directive, stats);
+    const systemsBlock = buildSystemBlock(systems, input.readingKind, directive, stats);
     const modeLayer = capLayer('mode-rules', modeRules(input.readingKind), LAYER_BUDGET.modeRules, stats);
 
-    const contextRaw = input.readingKind === 'overlay' || input.readingKind === 'nuclear'
+    const contextRaw = input.readingKind === 'synastry' || input.readingKind === 'verdict'
         ? input.relationshipContext || ''
         : input.personalContext || '';
     const contextLayer = capLayer('context', contextRaw, LAYER_BUDGET.context, stats);
@@ -164,6 +199,10 @@ export function composePrompt(input: ComposePromptInput): ComposePromptResult {
     const kabbalahPolicyLine = systems.includes('kabbalah')
         ? `KABBALAH NAME/GEMATRIA MODE: ${directive?.kabbalahNameGematriaMode || 'disabled'}`
         : '';
+    const verdictLayerId = input.readingKind === 'verdict' ? resolveVerdictLayerId(directive) : undefined;
+    const verdictLayer = verdictLayerId
+        ? capLayer('final-verdict-layer', loadLayerMarkdown(VERDICT_LAYER_REGISTRY.files[verdictLayerId]), LAYER_BUDGET.systemKnowledge, stats)
+        : '';
 
     const prompt = [
         `GLOBAL WRITING STYLE LAYER (${styleLayerId})`,
@@ -173,6 +212,7 @@ export function composePrompt(input: ComposePromptInput): ComposePromptResult {
         `SUBJECTS:\n- Person 1: ${input.person1Name}${input.person2Name ? `\n- Person 2: ${input.person2Name}` : ''}`,
         kabbalahPolicyLine,
         contextLayer ? `CONTEXT:\n${contextLayer}` : '',
+        verdictLayer ? `FINAL VERDICT LAYER (${verdictLayerId})\n${verdictLayer}` : '',
         outputLanguageLayer,
         `CHART DATA:\n${chartLayer}`,
         'FINAL OUTPUT REQUIREMENT: Return only the reading prose. No markdown. No bullet lists.',
@@ -185,6 +225,7 @@ export function composePrompt(input: ComposePromptInput): ComposePromptResult {
         diagnostics: {
             styleLayerId,
             systemLayerIds: systemsBlock.ids,
+            verdictLayerId,
             totalChars: prompt.length,
             layerStats: stats,
         },

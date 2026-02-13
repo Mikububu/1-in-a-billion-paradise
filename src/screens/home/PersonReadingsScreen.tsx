@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -6,18 +6,9 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { useProfileStore } from '@/store/profileStore';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { BackButton } from '@/components/BackButton';
-import { env } from '@/config/env';
-import { isSupabaseConfigured, supabase } from '@/services/supabase';
+import { fetchJobSnapshot, type JobSnapshot } from '@/services/jobStatus';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonReadings'>;
-
-type JobSnapshot = {
-    status: string;
-    percent: number;
-    type: string;
-    message: string;
-    updatedAt?: string;
-};
 
 type ReadingJob = {
     jobId: string;
@@ -93,57 +84,6 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
     const [isLoading, setIsLoading] = useState(false);
     const [snapshotByJobId, setSnapshotByJobId] = useState<Record<string, JobSnapshot>>({});
 
-    const fetchJobSnapshot = useCallback(async (activeJobId: string): Promise<JobSnapshot | null> => {
-        try {
-            const url = `${env.CORE_API_URL}/api/jobs/v2/${activeJobId}`;
-            let accessToken: string | undefined;
-
-            if (isSupabaseConfigured) {
-                try {
-                    const {
-                        data: { session },
-                    } = await supabase.auth.getSession();
-                    accessToken = session?.access_token;
-                } catch {
-                    // Ignore and retry unauthenticated.
-                }
-            }
-
-            let response = await fetch(url, {
-                headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-            });
-
-            if (response.status === 401 || response.status === 403) {
-                response = await fetch(url);
-            }
-
-            if (!response.ok) return null;
-
-            const data = await response.json();
-            const job = data?.job;
-            if (!job) return null;
-
-            const total = job.progress?.totalTasks;
-            const done = job.progress?.completedTasks;
-            const pctRaw =
-                typeof job.progress?.percent === 'number'
-                    ? job.progress.percent
-                    : typeof total === 'number' && total > 0
-                        ? (Number(done || 0) / total) * 100
-                        : 0;
-
-            return {
-                status: String(job.status || 'unknown'),
-                percent: Math.max(0, Math.min(100, Math.round(pctRaw || 0))),
-                type: String(job.type || ''),
-                message: String(job.progress?.message || ''),
-                updatedAt: String(job.updatedAt || job.updated_at || ''),
-            };
-        } catch {
-            return null;
-        }
-    }, []);
-
     useEffect(() => {
         let cancelled = false;
 
@@ -177,7 +117,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
             cancelled = true;
             clearInterval(timer);
         };
-    }, [fetchJobSnapshot, jobs]);
+    }, [jobs]);
 
     const readingCount = person?.readings.length || 0;
 
@@ -245,6 +185,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                             const status = snapshot
                                 ? `${snapshot.status.toUpperCase()} · ${snapshot.percent}%`
                                 : 'Status unavailable';
+                            const isComplete = String(snapshot?.status || '').toLowerCase() === 'complete' || String(snapshot?.status || '').toLowerCase() === 'completed';
                             const systems =
                                 readingJob.systems.length > 0 ? readingJob.systems.join(', ') : 'Systems pending';
                             const updatedAt = snapshot?.updatedAt || (readingJob.timestamp ? new Date(readingJob.timestamp).toISOString() : '');
@@ -253,12 +194,17 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                                 <TouchableOpacity
                                     key={readingJob.jobId}
                                     style={styles.jobCard}
-                                    onPress={() => navigation.navigate('JobDetail', { jobId: readingJob.jobId })}
+                                    onPress={() =>
+                                        navigation.navigate(isComplete ? 'ReadingContent' : 'JobDetail', {
+                                            jobId: readingJob.jobId,
+                                        })
+                                    }
                                 >
                                     <Text style={styles.jobTitle} numberOfLines={1}>Job {readingJob.jobId}</Text>
                                     <Text style={styles.jobMeta} numberOfLines={1}>{systems}</Text>
                                     <Text style={styles.jobMeta}>{status}</Text>
                                     {snapshot?.message ? <Text style={styles.jobMeta} numberOfLines={1}>{snapshot.message}</Text> : null}
+                                    <Text style={styles.jobMeta}>{isComplete ? 'Open Reading' : 'Open Status'}</Text>
                                     {updatedAt ? (
                                         <Text style={styles.jobTimestamp}>
                                             Updated {new Date(updatedAt).toLocaleString()}

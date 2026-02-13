@@ -89,7 +89,7 @@ export type ProductId =
     | 'extended_human_design'
     | 'extended_gene_keys'
     | 'extended_kabbalah'
-    | 'all_systems_bundle'
+    | 'bundle_5_readings'
     | 'synastry_overlay'
     | 'complete_package';
 

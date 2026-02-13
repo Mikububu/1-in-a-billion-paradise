@@ -8,17 +8,22 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
-import { createArtifactSignedUrl, downloadTextContent, fetchJobArtifacts, type JobArtifact } from '@/services/jobArtifacts';
+import { downloadTextContent, fetchJobArtifacts, type JobArtifact } from '@/services/jobArtifacts';
+import { getCachedArtifactSignedUrl, prewarmArtifactSignedUrls } from '@/services/artifactSignedUrlCache';
 import { splitIntoBlocks } from '@/utils/readingTextFormat';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ReadingContent'>;
 
-const isAudioArtifact = (a: JobArtifact) =>
+type AudioKind = 'narration' | 'song';
+
+const isNarrationArtifact = (a: JobArtifact) =>
     a.artifact_type === 'audio' || a.artifact_type === 'audio_mp3' || a.artifact_type === 'audio_m4a';
+const isSongArtifact = (a: JobArtifact) => a.artifact_type === 'audio_song';
 
 const getFirstTextArtifact = (artifacts: JobArtifact[]) => artifacts.find((a) => a.artifact_type === 'text' && a.storage_path);
 const getFirstPdfArtifact = (artifacts: JobArtifact[]) => artifacts.find((a) => a.artifact_type === 'pdf' && a.storage_path);
-const getFirstAudioArtifact = (artifacts: JobArtifact[]) => artifacts.find((a) => isAudioArtifact(a) && a.storage_path);
+const getFirstNarrationArtifact = (artifacts: JobArtifact[]) => artifacts.find((a) => isNarrationArtifact(a) && a.storage_path);
+const getFirstSongArtifact = (artifacts: JobArtifact[]) => artifacts.find((a) => isSongArtifact(a) && a.storage_path);
 
 type Chapter = {
     index: number;
@@ -41,7 +46,6 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
     const [artifacts, setArtifacts] = useState<JobArtifact[]>([]);
     const [textBody, setTextBody] = useState<string>('');
     const [isLoading, setIsLoading] = useState(true);
-    const [isTextLoading, setIsTextLoading] = useState(false);
     const [isAudioLoading, setIsAudioLoading] = useState(false);
     const [isAudioPlaying, setIsAudioPlaying] = useState(false);
     const [audioDurationSec, setAudioDurationSec] = useState(0);
@@ -49,13 +53,20 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
     const [audioSignedUrl, setAudioSignedUrl] = useState<string | null>(null);
     const [errorText, setErrorText] = useState<string | null>(null);
     const [activeChapterIndex, setActiveChapterIndex] = useState(0);
+    const [activeAudioKind, setActiveAudioKind] = useState<AudioKind | null>(null);
+    const [downloadingTarget, setDownloadingTarget] = useState<'pdf' | AudioKind | null>(null);
 
     const soundRef = useRef<Audio.Sound | null>(null);
     const loadedAudioPathRef = useRef<string | null>(null);
+    const preparingAudioPathRef = useRef<string | null>(null);
+    const prepareAudioPromiseRef = useRef<Promise<boolean> | null>(null);
     const progressTrackWidthRef = useRef(1);
     const readingScrollRef = useRef<ScrollView | null>(null);
     const chapterOffsetsRef = useRef<Record<number, number>>({});
-    const audioArtifact = useMemo(() => getFirstAudioArtifact(artifacts), [artifacts]);
+    const textArtifact = useMemo(() => getFirstTextArtifact(artifacts), [artifacts]);
+    const narrationArtifact = useMemo(() => getFirstNarrationArtifact(artifacts), [artifacts]);
+    const songArtifact = useMemo(() => getFirstSongArtifact(artifacts), [artifacts]);
+    const pdfArtifact = useMemo(() => getFirstPdfArtifact(artifacts), [artifacts]);
 
     const title = useMemo(() => {
         const p1 = job?.input?.person1?.name || job?.input?.person?.name;
@@ -132,6 +143,15 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
 
             const rows = await fetchJobArtifacts(jobId);
             setArtifacts(rows);
+            prewarmArtifactSignedUrls(
+                rows
+                    .filter(
+                        (artifact) =>
+                            (isNarrationArtifact(artifact) || isSongArtifact(artifact) || artifact.artifact_type === 'pdf') &&
+                            Boolean(artifact.storage_path)
+                    )
+                    .map((artifact) => artifact.storage_path)
+            ).catch(() => { });
         } catch (error: any) {
             setErrorText(error?.message || 'Unknown error');
         } finally {
@@ -140,25 +160,13 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
     }, [jobId]);
 
     useEffect(() => {
-        let cancelled = false;
-
-        const run = async () => {
-            if (!cancelled) {
-                await load();
-            }
-        };
-
-        run();
-        const timer = setInterval(run, 15000);
-
-        return () => {
-            cancelled = true;
-            clearInterval(timer);
-        };
+        load();
     }, [load]);
 
     useEffect(() => {
         return () => {
+            prepareAudioPromiseRef.current = null;
+            preparingAudioPathRef.current = null;
             if (soundRef.current) {
                 soundRef.current.unloadAsync().catch(() => { });
                 soundRef.current = null;
@@ -172,25 +180,19 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
         setActiveChapterIndex(0);
     }, [textBody]);
 
-    const handleLoadText = useCallback(async () => {
-        const textArtifact = getFirstTextArtifact(artifacts);
-        if (!textArtifact) {
-            Alert.alert('Text not ready', 'No text artifact is available yet.');
-            return;
-        }
-
-        setIsTextLoading(true);
-        try {
-            const body = await downloadTextContent(textArtifact.storage_path);
-            if (!body) {
-                Alert.alert('Text not ready', 'Could not load text content yet.');
-                return;
-            }
-            setTextBody(body);
-        } finally {
-            setIsTextLoading(false);
-        }
-    }, [artifacts]);
+    useEffect(() => {
+        if (!textArtifact?.storage_path || textBody.trim().length > 0) return;
+        let cancelled = false;
+        downloadTextContent(textArtifact.storage_path)
+            .then((body) => {
+                if (cancelled) return;
+                if (body) setTextBody(body);
+            })
+            .catch(() => { });
+        return () => {
+            cancelled = true;
+        };
+    }, [textArtifact?.storage_path, textBody]);
 
     const onPlaybackStatusUpdate = useCallback((status: AVPlaybackStatus) => {
         if (!status.isLoaded) return;
@@ -205,8 +207,9 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
         }
     }, []);
 
-    const prepareAudio = useCallback(async (artifact: JobArtifact, shouldPlay: boolean): Promise<boolean> => {
+    const prepareAudio = useCallback(async (artifact: JobArtifact, shouldPlay: boolean, kind: AudioKind): Promise<boolean> => {
         if (!artifact?.storage_path) return false;
+        setActiveAudioKind(kind);
 
         if (soundRef.current && loadedAudioPathRef.current === artifact.storage_path) {
             if (shouldPlay) {
@@ -216,71 +219,97 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
             return true;
         }
 
+        if (
+            prepareAudioPromiseRef.current &&
+            preparingAudioPathRef.current === artifact.storage_path
+        ) {
+            const alreadyPrepared = await prepareAudioPromiseRef.current;
+            if (alreadyPrepared && shouldPlay && soundRef.current) {
+                await soundRef.current.playAsync();
+                setIsAudioPlaying(true);
+            }
+            return alreadyPrepared;
+        }
+
         setIsAudioLoading(true);
-        try {
-            await Audio.setAudioModeAsync({
-                playsInSilentModeIOS: true,
-                staysActiveInBackground: false,
-                shouldDuckAndroid: true,
-            });
+        preparingAudioPathRef.current = artifact.storage_path;
 
-            const signedUrl = await createArtifactSignedUrl(artifact.storage_path, 60 * 60);
-            if (!signedUrl) {
-                Alert.alert('Audio not ready', 'Could not create audio URL yet.');
+        const request = (async () => {
+            try {
+                await Audio.setAudioModeAsync({
+                    playsInSilentModeIOS: true,
+                    staysActiveInBackground: false,
+                    shouldDuckAndroid: true,
+                });
+
+                const signedUrl = await getCachedArtifactSignedUrl(artifact.storage_path, 60 * 60);
+                if (!signedUrl) {
+                    return false;
+                }
+
+                setAudioSignedUrl(signedUrl);
+
+                if (soundRef.current) {
+                    await soundRef.current.unloadAsync().catch(() => { });
+                    soundRef.current = null;
+                }
+
+                const { sound, status } = await Audio.Sound.createAsync(
+                    { uri: signedUrl },
+                    { shouldPlay, progressUpdateIntervalMillis: 250 },
+                    onPlaybackStatusUpdate,
+                    false
+                );
+
+                soundRef.current = sound;
+                loadedAudioPathRef.current = artifact.storage_path;
+
+                if (status.isLoaded) {
+                    setAudioPositionSec((status.positionMillis || 0) / 1000);
+                    setAudioDurationSec((status.durationMillis || 0) / 1000);
+                    setIsAudioPlaying(Boolean(status.isPlaying));
+                }
+
+                return true;
+            } catch {
                 return false;
+            } finally {
+                setIsAudioLoading(false);
             }
+        })();
 
-            setAudioSignedUrl(signedUrl);
-
-            if (soundRef.current) {
-                await soundRef.current.unloadAsync().catch(() => { });
-                soundRef.current = null;
-            }
-
-            const { sound, status } = await Audio.Sound.createAsync(
-                { uri: signedUrl },
-                { shouldPlay, progressUpdateIntervalMillis: 250 },
-                onPlaybackStatusUpdate
-            );
-
-            soundRef.current = sound;
-            loadedAudioPathRef.current = artifact.storage_path;
-
-            if (status.isLoaded) {
-                setAudioPositionSec((status.positionMillis || 0) / 1000);
-                setAudioDurationSec((status.durationMillis || 0) / 1000);
-                setIsAudioPlaying(Boolean(status.isPlaying));
-            }
-
-            return true;
-        } catch (error: any) {
-            Alert.alert('Audio error', error?.message || 'Could not load audio.');
-            return false;
+        prepareAudioPromiseRef.current = request;
+        try {
+            return await request;
         } finally {
-            setIsAudioLoading(false);
+            prepareAudioPromiseRef.current = null;
+            preparingAudioPathRef.current = null;
         }
     }, [onPlaybackStatusUpdate]);
 
     useEffect(() => {
-        if (!audioArtifact?.storage_path) return;
-        if (loadedAudioPathRef.current === audioArtifact.storage_path && soundRef.current) return;
-        prepareAudio(audioArtifact, false).catch(() => { });
-    }, [audioArtifact, prepareAudio]);
+        const firstAvailable = narrationArtifact || songArtifact;
+        if (!firstAvailable?.storage_path) return;
+        if (loadedAudioPathRef.current === firstAvailable.storage_path && soundRef.current) return;
+        const kind: AudioKind = narrationArtifact ? 'narration' : 'song';
+        prepareAudio(firstAvailable, false, kind).catch(() => { });
+    }, [narrationArtifact, songArtifact, prepareAudio]);
 
-    const handleToggleAudio = useCallback(async () => {
-        if (!audioArtifact) {
-            Alert.alert('Audio not ready', 'No audio artifact is available yet.');
+    const handleToggleAudio = useCallback(async (kind: AudioKind) => {
+        const targetArtifact = kind === 'narration' ? narrationArtifact : songArtifact;
+        if (!targetArtifact) {
             return;
         }
 
-        if (!soundRef.current || loadedAudioPathRef.current !== audioArtifact.storage_path) {
-            await prepareAudio(audioArtifact, true);
+        if (!soundRef.current || loadedAudioPathRef.current !== targetArtifact.storage_path) {
+            await prepareAudio(targetArtifact, true, kind);
             return;
         }
 
         try {
             const status = await soundRef.current.getStatusAsync();
             if (!status.isLoaded) return;
+            setActiveAudioKind(kind);
             if (status.isPlaying) {
                 await soundRef.current.pauseAsync();
                 setIsAudioPlaying(false);
@@ -288,10 +317,8 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                 await soundRef.current.playAsync();
                 setIsAudioPlaying(true);
             }
-        } catch (error: any) {
-            Alert.alert('Audio error', error?.message || 'Could not play audio.');
-        }
-    }, [audioArtifact, prepareAudio]);
+        } catch { }
+    }, [narrationArtifact, songArtifact, prepareAudio]);
 
     const handleSeekPress = useCallback(async (locationX: number) => {
         if (!soundRef.current || audioDurationSec <= 0) return;
@@ -304,23 +331,33 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
         } catch { }
     }, [audioDurationSec]);
 
-    const handleOpenPdf = useCallback(async () => {
-        const pdfArtifact = getFirstPdfArtifact(artifacts);
-        if (!pdfArtifact) {
-            Alert.alert('PDF not ready', 'No PDF artifact is available yet.');
+    const handleDownloadArtifact = useCallback(async (target: AudioKind | 'pdf') => {
+        const artifact =
+            target === 'pdf'
+                ? pdfArtifact
+                : target === 'narration'
+                    ? narrationArtifact
+                    : songArtifact;
+        if (!artifact?.storage_path) {
+            const label = target === 'pdf' ? 'PDF' : target === 'narration' ? 'narration audio' : 'song audio';
+            Alert.alert('Not Ready', `This ${label} is not ready yet.`);
             return;
         }
 
-        const signedUrl = await createArtifactSignedUrl(pdfArtifact.storage_path, 60 * 60);
-        if (!signedUrl) {
-            Alert.alert('PDF not ready', 'Could not create PDF URL yet.');
-            return;
+        try {
+            setDownloadingTarget(target);
+            const signedUrl = await getCachedArtifactSignedUrl(artifact.storage_path, 60 * 60);
+            if (!signedUrl) {
+                Alert.alert('Error', 'Could not prepare download link.');
+                return;
+            }
+            await Linking.openURL(signedUrl);
+        } catch (error: any) {
+            setErrorText(error?.message || 'Failed to open download link');
+        } finally {
+            setDownloadingTarget(null);
         }
-
-        Linking.openURL(signedUrl).catch(() => {
-            Alert.alert('Open failed', 'Could not open the PDF URL.');
-        });
-    }, [artifacts]);
+    }, [narrationArtifact, songArtifact, pdfArtifact]);
 
     const jumpToChapter = useCallback((chapterIndex: number) => {
         const chapter = chapters[chapterIndex];
@@ -369,53 +406,113 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                 <Text style={styles.jobLine}>Job: {jobId}</Text>
 
                 <View style={styles.actionsRow}>
-                    <TouchableOpacity style={styles.actionButton} onPress={handleLoadText}>
-                        <Text style={styles.actionText}>{isTextLoading ? 'Loading text...' : 'Read Text'}</Text>
+                    <TouchableOpacity style={styles.actionButton} onPress={load}>
+                        <Text style={styles.actionText}>Refresh</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.actionButton} onPress={handleOpenPdf}>
-                        <Text style={styles.actionText}>Open PDF</Text>
+                    <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() => handleDownloadArtifact('pdf')}
+                        disabled={!pdfArtifact || downloadingTarget !== null}
+                    >
+                        <Text style={styles.actionText}>
+                            {!pdfArtifact ? 'PDF unavailable' : downloadingTarget === 'pdf' ? 'Opening...' : 'Download PDF'}
+                        </Text>
                     </TouchableOpacity>
                 </View>
 
-                {audioArtifact ? (
+                {(narrationArtifact || songArtifact) ? (
                     <View style={styles.playerCard}>
-                        <View style={styles.playerRow}>
-                            <TouchableOpacity style={styles.playerButton} onPress={handleToggleAudio}>
-                                <Text style={styles.playerButtonText}>
-                                    {isAudioLoading ? '...' : (isAudioPlaying ? 'Pause' : 'Play')}
-                                </Text>
-                            </TouchableOpacity>
-
-                            <View style={styles.playerProgressWrap}>
-                                <Pressable
-                                    style={styles.playerTrack}
-                                    onLayout={(event) => {
-                                        progressTrackWidthRef.current = event.nativeEvent.layout.width || 1;
-                                    }}
-                                    onPress={(event) => handleSeekPress(event.nativeEvent.locationX)}
+                        <View style={styles.trackRow}>
+                            <Text style={styles.trackLabel}>Narration</Text>
+                            <View style={styles.trackActions}>
+                                <TouchableOpacity
+                                    style={[styles.playerButton, !narrationArtifact && styles.playerButtonDisabled]}
+                                    onPress={() => handleToggleAudio('narration')}
+                                    disabled={!narrationArtifact}
                                 >
-                                    <View
-                                        style={[
-                                            styles.playerFill,
-                                            {
-                                                width: `${audioDurationSec > 0
-                                                    ? Math.min(100, Math.max(0, (audioPositionSec / audioDurationSec) * 100))
-                                                    : 0}%`,
-                                            },
-                                        ]}
-                                    />
-                                </Pressable>
-                                <Text style={styles.playerTime}>
-                                    {formatClock(audioPositionSec)} / {formatClock(audioDurationSec)}
-                                </Text>
+                                    <Text style={[styles.playerButtonText, !narrationArtifact && styles.playerButtonTextDisabled]}>
+                                        {narrationArtifact &&
+                                            activeAudioKind === 'narration' &&
+                                            loadedAudioPathRef.current === narrationArtifact.storage_path &&
+                                            isAudioPlaying
+                                            ? 'Pause'
+                                            : isAudioLoading && preparingAudioPathRef.current === narrationArtifact?.storage_path
+                                                ? '...'
+                                                : 'Play'}
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.downloadButton, !narrationArtifact && styles.playerButtonDisabled]}
+                                    onPress={() => handleDownloadArtifact('narration')}
+                                    disabled={!narrationArtifact || downloadingTarget !== null}
+                                >
+                                    <Text style={[styles.downloadButtonText, !narrationArtifact && styles.playerButtonTextDisabled]}>
+                                        {downloadingTarget === 'narration' ? '...' : '↓'}
+                                    </Text>
+                                </TouchableOpacity>
                             </View>
+                        </View>
+
+                        <View style={styles.trackRow}>
+                            <Text style={styles.trackLabel}>Song</Text>
+                            <View style={styles.trackActions}>
+                                <TouchableOpacity
+                                    style={[styles.playerButton, !songArtifact && styles.playerButtonDisabled]}
+                                    onPress={() => handleToggleAudio('song')}
+                                    disabled={!songArtifact}
+                                >
+                                    <Text style={[styles.playerButtonText, !songArtifact && styles.playerButtonTextDisabled]}>
+                                        {songArtifact &&
+                                            activeAudioKind === 'song' &&
+                                            loadedAudioPathRef.current === songArtifact.storage_path &&
+                                            isAudioPlaying
+                                            ? 'Pause'
+                                            : isAudioLoading && preparingAudioPathRef.current === songArtifact?.storage_path
+                                                ? '...'
+                                                : 'Play'}
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.downloadButton, !songArtifact && styles.playerButtonDisabled]}
+                                    onPress={() => handleDownloadArtifact('song')}
+                                    disabled={!songArtifact || downloadingTarget !== null}
+                                >
+                                    <Text style={[styles.downloadButtonText, !songArtifact && styles.playerButtonTextDisabled]}>
+                                        {downloadingTarget === 'song' ? '...' : '↓'}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        <View style={styles.playerProgressWrap}>
+                            <Pressable
+                                style={styles.playerTrack}
+                                onLayout={(event) => {
+                                    progressTrackWidthRef.current = event.nativeEvent.layout.width || 1;
+                                }}
+                                onPress={(event) => handleSeekPress(event.nativeEvent.locationX)}
+                            >
+                                <View
+                                    style={[
+                                        styles.playerFill,
+                                        {
+                                            width: `${audioDurationSec > 0
+                                                ? Math.min(100, Math.max(0, (audioPositionSec / audioDurationSec) * 100))
+                                                : 0}%`,
+                                        },
+                                    ]}
+                                />
+                            </Pressable>
+                            <Text style={styles.playerTime}>
+                                {formatClock(audioPositionSec)} / {formatClock(audioDurationSec)}
+                            </Text>
                         </View>
                         <Text style={styles.playerMeta}>
                             {isAudioLoading
-                                ? 'Preparing audio...'
+                                ? `Preparing ${activeAudioKind === 'song' ? 'song' : 'narration'}...`
                                 : audioSignedUrl
-                                    ? 'Audio ready (tap bar to seek)'
-                                    : 'Audio will appear when artifact is ready'}
+                                    ? `${activeAudioKind === 'song' ? 'Song' : 'Narration'} ready (tap bar to seek)`
+                                    : 'Select narration or song'}
                         </Text>
                     </View>
                 ) : null}
@@ -452,24 +549,10 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                 {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
 
                 <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Artifacts</Text>
-                    {artifacts.length === 0 ? (
-                        <Text style={styles.cardText}>No artifacts yet. They will appear as generation continues.</Text>
-                    ) : (
-                        artifacts.slice(0, 20).map((a) => (
-                            <View key={a.id} style={styles.artifactRow}>
-                                <Text style={styles.artifactType}>{String(a.artifact_type).toUpperCase()}</Text>
-                                <Text style={styles.artifactPath} numberOfLines={1}>{a.storage_path}</Text>
-                            </View>
-                        ))
-                    )}
-                </View>
-
-                <View style={styles.card}>
                     <Text style={styles.cardTitle}>Reading Text</Text>
                     {blocks.length === 0 ? (
                         <Text style={styles.readingText} selectable>
-                            {textBody || 'Text is not loaded yet. Tap "Read Text" when the text artifact is ready.'}
+                            {textBody || 'Text unavailable for this job.'}
                         </Text>
                     ) : (
                         blocks.map((block, blockIndex) =>
@@ -599,9 +682,19 @@ const styles = StyleSheet.create({
         padding: spacing.md,
         marginBottom: spacing.md,
     },
-    playerRow: {
+    trackRow: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: spacing.xs,
+    },
+    trackLabel: {
+        fontFamily: typography.sansSemiBold,
+        fontSize: 13,
+        color: colors.text,
+    },
+    trackActions: {
+        flexDirection: 'row',
         gap: spacing.sm,
     },
     playerButton: {
@@ -615,13 +708,37 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         backgroundColor: colors.primarySoft,
     },
+    playerButtonDisabled: {
+        borderColor: colors.border,
+        backgroundColor: '#f3f4f6',
+    },
     playerButtonText: {
         fontFamily: typography.sansSemiBold,
         fontSize: 13,
         color: colors.primary,
     },
+    playerButtonTextDisabled: {
+        color: colors.mutedText,
+    },
+    downloadButton: {
+        minWidth: 44,
+        borderRadius: radii.button,
+        borderWidth: 1,
+        borderColor: colors.border,
+        paddingVertical: spacing.xs,
+        paddingHorizontal: spacing.sm,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#f8f8f8',
+    },
+    downloadButtonText: {
+        fontFamily: typography.sansSemiBold,
+        fontSize: 14,
+        color: colors.text,
+    },
     playerProgressWrap: {
         flex: 1,
+        marginTop: spacing.xs,
     },
     playerTrack: {
         height: 8,
@@ -683,22 +800,6 @@ const styles = StyleSheet.create({
     cardText: {
         fontFamily: typography.sansRegular,
         fontSize: 13,
-        color: colors.mutedText,
-    },
-    artifactRow: {
-        paddingVertical: spacing.xs,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: colors.border,
-    },
-    artifactType: {
-        fontFamily: typography.sansSemiBold,
-        fontSize: 12,
-        color: colors.text,
-    },
-    artifactPath: {
-        marginTop: 2,
-        fontFamily: typography.sansRegular,
-        fontSize: 11,
         color: colors.mutedText,
     },
     readingText: {

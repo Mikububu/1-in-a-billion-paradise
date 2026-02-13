@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -7,14 +7,18 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
+import { fetchJobArtifacts, type JobArtifact } from '@/services/jobArtifacts';
+import { prewarmArtifactSignedUrls } from '@/services/artifactSignedUrlCache';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'JobDetail'>;
 
 export const JobDetailScreen = ({ navigation, route }: Props) => {
     const { jobId } = route.params;
     const [job, setJob] = useState<any>(null);
+    const [artifacts, setArtifacts] = useState<JobArtifact[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [errorText, setErrorText] = useState<string | null>(null);
+    const hasAutoNavigatedRef = useRef(false);
 
     const loadJob = useCallback(async () => {
         if (!jobId) return;
@@ -49,6 +53,9 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
 
             const data = await response.json();
             setJob(data?.job || null);
+
+            const nextArtifacts = await fetchJobArtifacts(jobId);
+            setArtifacts(nextArtifacts);
         } catch (error: any) {
             setErrorText(error?.message || 'Unknown error');
         } finally {
@@ -74,26 +81,90 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
         };
     }, [loadJob]);
 
+    const hasText = useMemo(
+        () => artifacts.some((a) => a.artifact_type === 'text' && Boolean(a.storage_path)),
+        [artifacts]
+    );
+    const hasAudio = useMemo(
+        () =>
+            artifacts.some(
+                (a) =>
+                    (a.artifact_type === 'audio' || a.artifact_type === 'audio_mp3' || a.artifact_type === 'audio_m4a') &&
+                    Boolean(a.storage_path)
+            ),
+        [artifacts]
+    );
+    const hasSong = useMemo(
+        () => artifacts.some((a) => a.artifact_type === 'audio_song' && Boolean(a.storage_path)),
+        [artifacts]
+    );
+
+    useEffect(() => {
+        const pathsToPrewarm = artifacts
+            .filter(
+                (a) =>
+                    Boolean(a.storage_path) &&
+                    (a.artifact_type === 'pdf' ||
+                        a.artifact_type === 'audio' ||
+                        a.artifact_type === 'audio_mp3' ||
+                        a.artifact_type === 'audio_m4a' ||
+                        a.artifact_type === 'audio_song')
+            )
+            .map((a) => a.storage_path);
+
+        if (pathsToPrewarm.length === 0) return;
+        prewarmArtifactSignedUrls(pathsToPrewarm).catch(() => { });
+    }, [artifacts]);
+    const hasPdf = useMemo(
+        () => artifacts.some((a) => a.artifact_type === 'pdf' && Boolean(a.storage_path)),
+        [artifacts]
+    );
+
+    const taskProgress = useMemo(() => {
+        const totalFromProgress = Number(job?.progress?.totalTasks);
+        const doneFromProgress = Number(job?.progress?.completedTasks);
+        if (Number.isFinite(totalFromProgress) && totalFromProgress > 0 && Number.isFinite(doneFromProgress) && doneFromProgress >= 0) {
+            return {
+                done: Math.max(0, Math.min(totalFromProgress, doneFromProgress)),
+                total: totalFromProgress,
+                source: 'progress' as const,
+            };
+        }
+
+        const allTasks = Array.isArray(job?.tasks)
+            ? job.tasks
+            : (Array.isArray(job?.progress?.tasks) ? job.progress.tasks : []);
+        if (allTasks.length > 0) {
+            const done = allTasks.filter((t: any) => {
+                const status = String(t?.status || '').toLowerCase();
+                return status === 'completed' || status === 'done' || status === 'success';
+            }).length;
+            return {
+                done,
+                total: allTasks.length,
+                source: 'tasks' as const,
+            };
+        }
+
+        return {
+            done: Number(hasText) + Number(hasAudio) + Number(hasSong) + Number(hasPdf),
+            total: 4,
+            source: 'artifacts' as const,
+        };
+    }, [job, hasAudio, hasSong, hasPdf, hasText]);
+
     const progressPercent = useMemo(() => {
-        const total = job?.progress?.totalTasks;
-        const done = job?.progress?.completedTasks;
-        const pctRaw = typeof job?.progress?.percent === 'number'
-            ? job.progress.percent
-            : typeof total === 'number' && total > 0
-                ? (Number(done || 0) / total) * 100
-                : 0;
+        const pctRaw = (taskProgress.done / taskProgress.total) * 100;
         return Math.max(0, Math.min(100, Math.round(pctRaw || 0)));
-    }, [job]);
+    }, [taskProgress.done, taskProgress.total]);
 
     const statusLine = useMemo(() => {
         const status = String(job?.status || 'unknown').toUpperCase();
         const message = job?.progress?.message || job?.error;
-        const taskInfo = typeof job?.progress?.completedTasks === 'number' && typeof job?.progress?.totalTasks === 'number'
-            ? `${job.progress.completedTasks}/${job.progress.totalTasks}`
-            : undefined;
+        const taskInfo = `${taskProgress.done}/${taskProgress.total}`;
 
         return [status, taskInfo, message].filter(Boolean).join(' · ');
-    }, [job]);
+    }, [job, taskProgress.done, taskProgress.total]);
 
     const subjects = useMemo(() => {
         const p1 = job?.input?.person1?.name || job?.input?.person?.name;
@@ -117,6 +188,17 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
             return String(value);
         }
     }, [job]);
+    const isStrictReady = hasText && hasAudio && hasSong && hasPdf;
+    const readinessSummary = `${Number(hasText) + Number(hasAudio) + Number(hasSong) + Number(hasPdf)}/4 ready`;
+
+    useEffect(() => {
+        if (!isStrictReady || hasAutoNavigatedRef.current) return;
+        hasAutoNavigatedRef.current = true;
+        const timer = setTimeout(() => {
+            navigation.replace('ReadingContent', { jobId });
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [isStrictReady, jobId, navigation]);
 
     return (
         <SafeAreaView style={styles.container}>
@@ -124,7 +206,7 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
             <View style={styles.topSpacer} />
 
             <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-                <Text style={styles.title}>Job Detail</Text>
+                <Text style={styles.title}>Reading Status</Text>
                 <Text style={styles.jobId}>Job ID: {jobId}</Text>
 
                 <View style={styles.card}>
@@ -140,6 +222,19 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
                     </View>
                     <Text style={styles.progressText}>{progressPercent}%</Text>
                     <Text style={styles.statusText}>{statusLine}</Text>
+                    <Text style={styles.readinessTitle}>Readiness: {readinessSummary}</Text>
+                    <Text style={styles.readinessItem}>
+                        {hasText ? '✓' : '○'} Text
+                    </Text>
+                    <Text style={styles.readinessItem}>
+                        {hasAudio ? '✓' : '○'} Audio
+                    </Text>
+                    <Text style={styles.readinessItem}>
+                        {hasSong ? '✓' : '○'} Song
+                    </Text>
+                    <Text style={styles.readinessItem}>
+                        {hasPdf ? '✓' : '○'} PDF
+                    </Text>
                     {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
                 </View>
 
@@ -154,8 +249,14 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
                     <Text style={styles.actionButtonText}>Refresh</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('ReadingContent', { jobId })}>
-                    <Text style={styles.actionButtonText}>Open Reading Content</Text>
+                <TouchableOpacity
+                    style={[styles.actionButton, !isStrictReady && styles.actionButtonDisabled]}
+                    onPress={() => navigation.navigate('ReadingContent', { jobId })}
+                    disabled={!isStrictReady}
+                >
+                    <Text style={[styles.actionButtonText, !isStrictReady && styles.actionButtonTextDisabled]}>
+                        {isStrictReady ? 'Open Reading Content' : 'Waiting for Text + Audio + Song + PDF'}
+                    </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('MyLibrary')}>
@@ -254,6 +355,20 @@ const styles = StyleSheet.create({
         color: colors.text,
         textAlign: 'center',
     },
+    readinessTitle: {
+        marginTop: spacing.md,
+        fontFamily: typography.sansSemiBold,
+        fontSize: 13,
+        color: colors.text,
+        textAlign: 'center',
+    },
+    readinessItem: {
+        marginTop: 2,
+        fontFamily: typography.sansRegular,
+        fontSize: 13,
+        color: colors.text,
+        textAlign: 'center',
+    },
     errorText: {
         marginTop: spacing.sm,
         fontFamily: typography.sansRegular,
@@ -286,5 +401,11 @@ const styles = StyleSheet.create({
         fontFamily: typography.sansSemiBold,
         fontSize: 15,
         color: colors.text,
+    },
+    actionButtonDisabled: {
+        opacity: 0.5,
+    },
+    actionButtonTextDisabled: {
+        color: colors.mutedText,
     },
 });

@@ -8,11 +8,12 @@ const result = composePrompt({
     personalContext: 'Currently navigating relationship transitions.',
     outputLanguage: 'english',
     promptLayerDirective: {
-        sharedWritingStyleLayerId: 'shared-astro-fairytale-style-v1',
+        sharedWritingStyleLayerId: 'writing-style-guide-v1',
         kabbalahNameGematriaMode: 'disabled',
         systems: {
             kabbalah: {
-                analysisLayerId: 'kabbalah-analysis-v2-no-name-gematria',
+                individualLayerId: 'kabbalah-individual-v2',
+                synastryLayerId: 'kabbalah-synastry-v2',
                 analysisVersion: 'v2',
             },
         },

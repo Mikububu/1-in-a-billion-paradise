@@ -118,8 +118,8 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
 
         const isBundle = selectedSystems.length > 1;
         const productType = isOverlay
-            ? (isBundle ? 'nuclear_package' : 'compatibility_overlay')
-            : (isBundle ? 'complete_reading' : 'single_system');
+            ? (isBundle ? 'bundle_16_readings' : 'compatibility_overlay')
+            : (isBundle ? 'bundle_5_readings' : 'single_system');
         const flowParams: any = {
             readingType: isOverlay ? 'overlay' : 'individual',
             forPartner,

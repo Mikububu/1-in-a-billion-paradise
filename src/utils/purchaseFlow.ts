@@ -3,7 +3,7 @@ import type { CityOption } from '@/types/forms';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 
 export type ReadingType = 'individual' | 'overlay';
-export type ReadingProduct = 'single_system' | 'complete_reading' | 'nuclear_package' | 'compatibility_overlay';
+export type ReadingProduct = 'single_system' | 'bundle_5_readings' | 'bundle_16_readings' | 'compatibility_overlay';
 
 type PersonOverride = {
     id?: string;

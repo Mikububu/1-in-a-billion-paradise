@@ -29,7 +29,7 @@ export type PersonProfile = {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export type ReadingSystem = 'western' | 'vedic' | 'human_design' | 'gene_keys' | 'kabbalah';
-export type ReadingBundle = 'complete' | 'nuclear'; // Multi-system bundles
+export type ReadingBundle = 'complete' | 'bundle_16_readings'; // Multi-system bundles
 
 export type ReadingRecord = {
     id: string;
@@ -56,7 +56,7 @@ export type ReadingRecord = {
     audioDuration?: number; // seconds
     pdfPath?: string; // Local file path to generated PDF
 
-    // Chapters (for long-form readings like Nuclear Package)
+    // Chapters (for long-form readings like Bundle 16 Readings)
     chapters?: {
         id: string;
         title: string;
