@@ -30,6 +30,7 @@ Updated: 2026-02-13
 - `a4e4d20` - removed prompt-engine legacy alias/fallback layer IDs
 - `a76e222` - reverted V2 deep-reading job buffer cap back to 40
 - `2fbd733` - reset PartnerReadings synastry-gateway lock state on refocus (prevents sticky disabled continue button)
+- `fed299f` - replaced fixed receipt cap with modern cache policy (90-day retention + 200 hard max)
 
 ## Canonical Decision Files
 - `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/MIGRATION_DECISIONS.md`
