@@ -13,7 +13,7 @@ export type BirthDetailsPayload = {
 };
 
 export type ReadingPayload = BirthDetailsPayload & {
-    relationshipIntensity: number;
+    relationshipPreferenceScale: number;
     primaryLanguage: LanguageOption['code'];      // User's spoken language
     secondaryLanguage?: LanguageOption['code'];
     languageImportance: number;
@@ -39,39 +39,6 @@ export type ReadingResponse = {
         generatedAt: string;
         outputLanguage?: OutputLanguage;            // Track what language was used
     };
-};
-
-export type MatchCard = {
-    id: string;
-    name: string;
-    age: number;
-    city: string;
-    score: number;
-    tags: string[];
-    photoUrl?: string;
-    fitSummary: string;
-};
-
-export type MatchDetail = MatchCard & {
-    fitCards: string[];
-    watchouts: string[];
-    firstMove: string;
-    audio?: {
-        id: string;
-        status: 'locked' | 'processing' | 'ready';
-        durationSeconds?: number;
-        url?: string;
-    };
-};
-
-export type MatchPreviewResponse = {
-    matches: MatchCard[];
-    lastUpdated: string;
-    fromCache?: boolean;
-};
-
-export type MatchDetailResponse = {
-    match: MatchDetail;
 };
 
 export type AudioGenerateResponse = {

@@ -65,9 +65,9 @@ Baseline: `/Users/michaelperinwogenburg/Desktop/big-challenge/ONEINABILLIONAPP/1
 
 ## Intentional Migration Delta (Not Auto-Flagged as Bugs)
 - Old routes removed in V2 declaration set (23):
-  - `AudioPlayer`, `Chat`, `DeepReadingReader`, `ExtendedReading`, `FreeReadingSelection`, `FullReading`, `Purchase`, `ReadingChapter`, `SavedReading`, `SystemOverview`, `WhyDifferent`, etc.
+  - `AudioPlayer`, `Chat`, `DeepReadingReader`, `ExtendedReading`, `FreeReadingSelection`, `FullReading`, `Purchase`, `ReadingChapter`, `SavedReading`, `WhyDifferent`, etc.
 - Old navigation targets unresolved in V2 (12):
-  - `AudioPlayer`, `Chat`, `DeepReadingReader`, `ExtendedReading`, `FreeReadingSelection`, `FullReading`, `OverlayReader`, `Purchase`, `ReadingChapter`, `SavedReading`, `SystemOverview`, `WhyDifferent`
+  - `AudioPlayer`, `Chat`, `DeepReadingReader`, `ExtendedReading`, `FreeReadingSelection`, `FullReading`, `OverlayReader`, `Purchase`, `ReadingChapter`, `SavedReading`, `WhyDifferent`
 - These are migration-scope gaps and may be intentional per product decisions; not runtime unresolved targets in current V2 code.
 
 ## Route Integrity Check (Current V2)

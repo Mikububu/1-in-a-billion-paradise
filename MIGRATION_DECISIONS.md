@@ -41,6 +41,33 @@ Last updated: 2026-02-12
   - Primary: "Renew now"
   - Secondary: "Not now"
 
+7. "How matching works" should be an overlay, not a standalone screen route.
+- Decision: keep a small button near the dashboard match number that opens an in-place overlay modal.
+- UX: overlay closes via `X` or tap outside.
+- Navigation: do not add separate `HowMatchingWorks` screen route in V2.
+
+8. Do not migrate orphan route-only legacy screens.
+- Source audit result: `ChartCalculation`, `Matches`, `MatchDetail`, and `MatchReveal` have no active `navigate(...)` callers in source flow.
+- Decision: keep them out of V2.
+- Rationale: they increase code surface without affecting reachable user paths.
+
+9. Aggressive simplification rule for migration.
+- Product rule: if a screen/code path is not clearly needed in active flow, do not migrate it.
+- Applied now:
+  - Keep out: legacy single-system overview screen, `WhyDifferent`, standalone `Purchase`, `FreeReadingSelection`, `OnboardingComplete`, legacy deep-reading output screens.
+  - Keep in active flow only: post-hook payment path, account creation, dashboard, Soul Gallery, chat gating.
+
+10. Remove unused `PeopleList` selection mode in V2.
+- Source had a secondary `PeopleList` branch for select/returnTo.
+- V2 usage audit showed no active callers for that mode.
+- Decision: keep `PeopleList` as a simple list -> `PersonProfile` flow only.
+
+11. Keep `ChatList` as a dedicated screen.
+- Decision: `ChatList` stays as its own route/screen in V2 (not merged away).
+- Access points:
+  - `Gallery` header action (`Messages`)
+  - Any future dedicated chat entry points can continue to target `ChatList`.
+
 ## What this means for migration scope
 
 - Required now: active onboarding/payment/dashboard/library/people/core reading flows.

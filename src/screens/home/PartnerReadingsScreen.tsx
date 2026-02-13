@@ -64,7 +64,7 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
   const isPrepayOnboarding = (route.params as any)?.mode === 'onboarding_hook';
   const user = useProfileStore((s) => s.getUser());
   const onboardingBirthTime = useOnboardingStore((s) => s.birthTime);
-  const relationshipIntensity = useOnboardingStore((s: any) => s.relationshipIntensity) ?? 5;
+  const relationshipPreferenceScale = useOnboardingStore((s: any) => s.relationshipPreferenceScale) ?? 5;
   const relationshipMode = useOnboardingStore((s: any) => s.relationshipMode) ?? 'sensual';
   const primaryLanguage = useOnboardingStore((s: any) => s.primaryLanguage?.code) ?? 'en';
   const authUser = useAuthStore((s) => s.user);
@@ -380,7 +380,7 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
             timezone: partnerBirthCity?.timezone || 'UTC',
             latitude: partnerBirthCity?.latitude || 0,
             longitude: partnerBirthCity?.longitude || 0,
-            relationshipIntensity,
+            relationshipPreferenceScale,
             relationshipMode,
             primaryLanguage,
             subjectName: partnerName,

@@ -11,18 +11,13 @@ import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PeopleList'>;
 
-export const PeopleListScreen = ({ navigation, route }: Props) => {
-    const { mode = 'view', returnTo } = route.params || {};
+export const PeopleListScreen = ({ navigation }: Props) => {
     const people = useProfileStore((s) => s.people);
     const deletePerson = useProfileStore((s) => s.deletePerson);
     const reset = useProfileStore((s) => s.reset);
     const authUser = useAuthStore((s) => s.user);
 
     const handlePersonPress = (person: Person) => {
-        if (mode === 'select' && returnTo) {
-            navigation.navigate(returnTo as any, { personId: person.id } as any);
-            return;
-        }
         navigation.navigate('PersonProfile', { personId: person.id });
     };
 

@@ -62,7 +62,7 @@ Path in V2:
 
 ## Legacy Screens Not Migrated (Intentional)
 These are in old navigator but not V2 navigator:
-- `AudioPlayer`, `ChartCalculation`, `Chat`, `ChatList`, `CompleteReading`, `DeepReadingReader`, `ExtendedPrompt`, `ExtendedReading`, `FreeReadingSelection`, `FullReading`, `MatchDetail`, `MatchReveal`, `Matches`, `OverlayReader`, `PersonJobsList`, `ProfileSignIn`, `Purchase`, `ReadingChapter`, `ReadingOverview`, `ReadingSummary`, `SavedReading`, `SystemOverview`, `WhyDifferent`
+- `AudioPlayer`, `ChartCalculation`, `Chat`, `ChatList`, `CompleteReading`, `DeepReadingReader`, `ExtendedPrompt`, `ExtendedReading`, `FreeReadingSelection`, `FullReading`, `MatchDetail`, `MatchReveal`, `Matches`, `OverlayReader`, `PersonJobsList`, `ProfileSignIn`, `Purchase`, `ReadingChapter`, `ReadingOverview`, `ReadingSummary`, `SavedReading`, `WhyDifferent`
 
 ## Notes
 - Media files can exist without proving a screen is active. In V2, activation is determined by:

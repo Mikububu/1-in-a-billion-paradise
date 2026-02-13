@@ -8,6 +8,7 @@ import { Button } from '@/components/Button';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { VOICE_OPTIONS } from '@/config/voices';
 import { env } from '@/config/env';
+import { buildPromptLayerDirective } from '@/config/promptLayers';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useProfileStore } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
@@ -36,7 +37,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
     const authUser = useAuthStore((s) => s.user);
     const getPerson = useProfileStore((s) => s.getPerson);
     const getUser = useProfileStore((s) => s.getUser);
-    const relationshipIntensity = useOnboardingStore((s) => s.relationshipIntensity);
+    const relationshipPreferenceScale = useOnboardingStore((s) => s.relationshipPreferenceScale);
     const storedVoiceId = useOnboardingStore((s) => s.voiceId);
     const setVoiceId = useOnboardingStore((s) => s.setVoiceId);
 
@@ -143,8 +144,9 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
             type: jobType,
             systems,
             style: 'production',
+            promptLayerDirective: buildPromptLayerDirective(systems),
             person1,
-            relationshipIntensity: relationshipIntensity ?? 5,
+            relationshipPreferenceScale: relationshipPreferenceScale ?? 5,
             voiceId: selectedVoice,
         };
 

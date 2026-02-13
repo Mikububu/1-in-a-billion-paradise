@@ -20,10 +20,10 @@ export const YourChartScreen = ({ navigation }: Props) => {
     const onboardingBirthTime = useOnboardingStore((s) => s.birthTime);
     const onboardingBirthCity = useOnboardingStore((s) => s.birthCity);
     const hookReadings = useOnboardingStore((s) => s.hookReadings);
-    const relationshipIntensity = useOnboardingStore((s) => s.relationshipIntensity);
-    const setRelationshipIntensity = useOnboardingStore((s) => s.setRelationshipIntensity);
-    const descriptor = describeIntensity(relationshipIntensity);
-    const lastValue = useRef(relationshipIntensity);
+    const relationshipPreferenceScale = useOnboardingStore((s) => s.relationshipPreferenceScale);
+    const setRelationshipPreferenceScale = useOnboardingStore((s) => s.setRelationshipPreferenceScale);
+    const descriptor = describeIntensity(relationshipPreferenceScale);
+    const lastValue = useRef(relationshipPreferenceScale);
 
     const user = useProfileStore((s) => s.getUser());
     const userName = user?.name || 'You';
@@ -46,7 +46,7 @@ export const YourChartScreen = ({ navigation }: Props) => {
             Haptics.selectionAsync();
             lastValue.current = rounded;
         }
-        setRelationshipIntensity(rounded);
+        setRelationshipPreferenceScale(rounded);
     };
 
     return (
@@ -99,7 +99,7 @@ export const YourChartScreen = ({ navigation }: Props) => {
                         <SimpleSlider
                             minimumValue={0}
                             maximumValue={10}
-                            value={relationshipIntensity}
+                            value={relationshipPreferenceScale}
                             onValueChange={handleValueChange}
                         />
                         <Text style={styles.caption}>{descriptor.caption}</Text>
@@ -250,4 +250,3 @@ const styles = StyleSheet.create({
         color: colors.text,
     },
 });
-

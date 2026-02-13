@@ -79,6 +79,7 @@ export const HomeScreen = ({ navigation }: Props) => {
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [portraitPhotoUrl, setPortraitPhotoUrl] = useState<string | null>(null);
   const [portraitPreviewVisible, setPortraitPreviewVisible] = useState(false);
+  const [howMatchingVisible, setHowMatchingVisible] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [matchCount, setMatchCount] = useState(0);
   const blinkAnim = useRef(new Animated.Value(1)).current;
@@ -513,12 +514,21 @@ export const HomeScreen = ({ navigation }: Props) => {
 
         <View style={styles.statusSection}>
           <Text style={styles.sectionLabel}>Match status</Text>
-          <TouchableOpacity
-            style={styles.matchCountWrapper}
-            onPress={() => navigation.navigate('Gallery' as any)}
-          >
-            <Text style={styles.statusNumber}>{displayedMatchCount}</Text>
-          </TouchableOpacity>
+          <View style={styles.matchCountRow}>
+            <TouchableOpacity
+              style={styles.matchCountWrapper}
+              onPress={() => navigation.navigate('Gallery' as any)}
+            >
+              <Text style={styles.statusNumber}>{displayedMatchCount}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.howMatchingButton}
+              onPress={() => setHowMatchingVisible(true)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.howMatchingButtonText}>How matching works</Text>
+            </TouchableOpacity>
+          </View>
           <Animated.Text style={[styles.statusSub, { transform: [{ scale: pulseAnim }] }]}>
             BUT THE <Text style={styles.statusOne}>1</Text> IN A BILLION IS STILL OUT THERE
           </Animated.Text>
@@ -561,6 +571,39 @@ export const HomeScreen = ({ navigation }: Props) => {
             ) : null}
             <Text style={styles.previewHint}>Tap anywhere to close</Text>
           </View>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={howMatchingVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setHowMatchingVisible(false)}
+      >
+        <Pressable style={styles.howMatchingBackdrop} onPress={() => setHowMatchingVisible(false)}>
+          <Pressable style={styles.howMatchingCard} onPress={() => {}}>
+            <View style={styles.howMatchingHeader}>
+              <Text style={styles.howMatchingTitle}>How Matching Works</Text>
+              <Pressable style={styles.howMatchingCloseButton} onPress={() => setHowMatchingVisible(false)}>
+                <Text style={styles.howMatchingCloseText}>✕</Text>
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.howMatchingContent}>
+              <Text style={styles.howMatchingParagraph}>
+                We compare your birth signature across five spiritual systems:
+                Astrology, Numerology, Human Design, Gene Keys, and Kabbalah.
+              </Text>
+              <Text style={styles.howMatchingParagraph}>
+                Your number shows people with strong algorithmic resonance to your profile.
+                The system does this automatically in the background.
+              </Text>
+              <Text style={styles.howMatchingParagraph}>
+                There is no swiping. You can open Soul Gallery anytime and see your current matches.
+                When a new resonance appears, your match number updates.
+              </Text>
+            </ScrollView>
+          </Pressable>
         </Pressable>
       </Modal>
 
@@ -641,11 +684,83 @@ const styles = StyleSheet.create({
   uploadPhotoIcon: { fontSize: 32 },
   uploadPhotoLabel: { fontFamily: typography.sansRegular, fontSize: 12, color: colors.primary, marginTop: spacing.xs },
   portraitImageLarge: { width: 200, height: 200, borderRadius: 100, borderWidth: 3, borderColor: colors.primary },
+  matchCountRow: { width: '100%', minHeight: 92, justifyContent: 'center', alignItems: 'center' },
   matchCountWrapper: { padding: 10 },
+  howMatchingButton: {
+    position: 'absolute',
+    right: spacing.xs,
+    top: '50%',
+    marginTop: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  howMatchingButtonText: {
+    fontFamily: typography.sansSemiBold,
+    fontSize: 11,
+    color: colors.mutedText,
+  },
   previewBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.page },
   previewCard: { width: '100%', maxWidth: 420, backgroundColor: colors.surface, borderRadius: radii.card, borderWidth: 1, borderColor: colors.border, padding: spacing.md, alignItems: 'center' },
   previewTitle: { fontFamily: typography.sansSemiBold, fontSize: 18, color: colors.text, marginBottom: spacing.sm },
   previewImage: { width: '100%', height: 420, borderRadius: 14, backgroundColor: colors.background },
   previewHint: { marginTop: spacing.sm, fontFamily: typography.sansRegular, fontSize: 12, color: colors.mutedText },
+  howMatchingBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.page,
+  },
+  howMatchingCard: {
+    width: '100%',
+    maxWidth: 430,
+    maxHeight: '78%',
+    backgroundColor: colors.background,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  howMatchingHeader: {
+    paddingHorizontal: spacing.page,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  howMatchingTitle: {
+    fontFamily: typography.headline,
+    fontSize: 34,
+    color: colors.text,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingRight: spacing.xl,
+  },
+  howMatchingCloseButton: {
+    position: 'absolute',
+    right: spacing.sm,
+    top: spacing.xs,
+    padding: spacing.xs,
+  },
+  howMatchingCloseText: {
+    fontFamily: typography.sansSemiBold,
+    fontSize: 28,
+    color: colors.text,
+  },
+  howMatchingContent: {
+    padding: spacing.page,
+    gap: spacing.md,
+  },
+  howMatchingParagraph: {
+    fontFamily: typography.sansRegular,
+    fontSize: 16,
+    color: colors.text,
+    lineHeight: 24,
+  },
   walkersOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 0 },
 });

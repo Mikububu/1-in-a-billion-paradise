@@ -2,6 +2,13 @@
 
 Generated: 2026-02-11T20:51:28.379Z
 
+## Status Note
+- This file is a historical auto-snapshot and can be stale.
+- Source of truth for keep/remove decisions is:
+  - `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/MIGRATION_DECISIONS.md`
+- Latest decisions explicitly keep out legacy/non-required screens such as:
+  - `WhyDifferent`, standalone `Purchase`, `FreeReadingSelection`, `OnboardingComplete`, legacy deep-reading output screens.
+
 ## Current V2 Routing
 - Routed screens: 48
 - Unique route targets referenced in code: 45
@@ -46,7 +53,6 @@ Generated: 2026-02-11T20:51:28.379Z
 - home/ReadingOverviewScreen.tsx
 - home/ReadingSummaryScreen.tsx
 - home/SavedReadingScreen.tsx
-- home/SystemOverviewScreen.tsx
 
 ## Extra/New V2 Screens
 - home/GeneratingReadingScreen.tsx

@@ -15,11 +15,11 @@ import { BackButton } from '@/components/BackButton';
 
 export const RelationshipScreen = () => {
     const navigation = useNavigation<any>();
-    const relationshipIntensity = useOnboardingStore((state: any) => state.relationshipIntensity);
-    const setIntensity = useOnboardingStore((state: any) => state.setRelationshipIntensity);
+    const relationshipPreferenceScale = useOnboardingStore((state: any) => state.relationshipPreferenceScale);
+    const setRelationshipPreferenceScale = useOnboardingStore((state: any) => state.setRelationshipPreferenceScale);
     const { signOut } = useAuthStore();
-    const lastValue = useRef(relationshipIntensity);
-    const descriptor = describeIntensity(relationshipIntensity);
+    const lastValue = useRef(relationshipPreferenceScale);
+    const descriptor = describeIntensity(relationshipPreferenceScale);
     const { isPlaying } = useMusicStore();
 
     // 🎵 MUSIC CONTINUITY
@@ -38,7 +38,7 @@ export const RelationshipScreen = () => {
             Haptics.selectionAsync();
             lastValue.current = rounded;
         }
-        setIntensity(rounded);
+        setRelationshipPreferenceScale(rounded);
     };
 
     const handleBack = async () => {
@@ -82,7 +82,7 @@ export const RelationshipScreen = () => {
                     <SimpleSlider
                         minimumValue={0}
                         maximumValue={10}
-                        value={relationshipIntensity}
+                        value={relationshipPreferenceScale}
                         onValueChange={handleValueChange}
                     />
 

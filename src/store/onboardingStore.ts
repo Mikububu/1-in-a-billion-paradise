@@ -88,7 +88,7 @@ type OnboardingState = {
     primaryLanguage?: LanguageOption;
     secondaryLanguage?: LanguageOption;
     languageImportance: number;
-    relationshipIntensity: number;
+    relationshipPreferenceScale: number;
     name?: string;
     hookReadings: Partial<Record<HookReading['type'], HookReading>>;
     hookAudio: Partial<Record<HookReading['type'], string>>; // Pre-loaded audio URLs (from Supabase Storage) or legacy Base64/file paths
@@ -117,7 +117,7 @@ type OnboardingState = {
     setPrimaryLanguage: (language: LanguageOption) => void;
     setSecondaryLanguage: (language?: LanguageOption) => void;
     setLanguageImportance: (value: number) => void;
-    setRelationshipIntensity: (value: number) => void;
+    setRelationshipPreferenceScale: (value: number) => void;
     setName: (name: string) => void;
     setHookReading: (reading: HookReading) => void;
     setHookAudio: (type: HookReading['type'], audioBase64: string) => void;
@@ -165,7 +165,7 @@ const baseState = {
     primaryLanguage: undefined as LanguageOption | undefined,
     secondaryLanguage: undefined as LanguageOption | undefined,
     languageImportance: 5,
-    relationshipIntensity: 5,
+    relationshipPreferenceScale: 5,
     hookReadings: {} as Partial<Record<HookReading['type'], HookReading>>,
     hookAudio: {} as Partial<Record<HookReading['type'], string>>,
     partnerAudio: {} as Partial<Record<HookReading['type'], string>>,
@@ -192,7 +192,7 @@ export const useOnboardingStore = create<OnboardingState>()(
             setPrimaryLanguage: (primaryLanguage) => set({ primaryLanguage }),
             setSecondaryLanguage: (secondaryLanguage) => set({ secondaryLanguage }),
             setLanguageImportance: (languageImportance) => set({ languageImportance }),
-            setRelationshipIntensity: (relationshipIntensity) => set({ relationshipIntensity }),
+            setRelationshipPreferenceScale: (relationshipPreferenceScale) => set({ relationshipPreferenceScale }),
             setName: (name) => set({ name }),
             setHookReading: (reading) =>
                 set((state) => ({
@@ -316,7 +316,7 @@ export const useOnboardingStore = create<OnboardingState>()(
         {
             name: 'onboarding-storage', // Storage key
             storage: createJSONStorage(() => AsyncStorage),
-            version: 6, // Bumped for relationshipIntensity
+            version: 7, // Current V2 schema
             migrate: (persistedState: any, version) => {
 
                 if (version < 3) {
@@ -340,12 +340,6 @@ export const useOnboardingStore = create<OnboardingState>()(
                         persistedState.showDashboard = false;
                     }
                 }
-                if (version < 6) {
-                    // Add relationshipIntensity slider state with neutral default.
-                    if (persistedState && typeof persistedState === 'object' && typeof persistedState.relationshipIntensity !== 'number') {
-                        persistedState.relationshipIntensity = 5;
-                    }
-                }
                 return persistedState;
             },
             // Persist everything except functions
@@ -358,7 +352,7 @@ export const useOnboardingStore = create<OnboardingState>()(
                 primaryLanguage: state.primaryLanguage,
                 secondaryLanguage: state.secondaryLanguage,
                 languageImportance: state.languageImportance,
-                relationshipIntensity: state.relationshipIntensity,
+                relationshipPreferenceScale: state.relationshipPreferenceScale,
                 name: state.name,
                 hookReadings: state.hookReadings,
                 hookAudio: state.hookAudio, // Persist pre-loaded audio
@@ -397,7 +391,7 @@ export const buildProfileSnapshot = (state: OnboardingState): ProfileSnapshot | 
         timezone: state.birthCity.timezone,
         latitude: state.birthCity.latitude,
         longitude: state.birthCity.longitude,
-        relationshipIntensity: state.relationshipIntensity,
+        relationshipPreferenceScale: state.relationshipPreferenceScale,
         primaryLanguage: state.primaryLanguage.code,
         secondaryLanguage: state.secondaryLanguage?.code,
         languageImportance: state.languageImportance,

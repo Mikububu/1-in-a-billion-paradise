@@ -132,7 +132,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
   const authUser = useAuthStore((s) => s.user);
 
   // Use the same config knobs as the 1st-person hook pipeline (don’t hardcode).
-  const relationshipIntensity = useOnboardingStore((s: any) => s.relationshipIntensity) ?? 5;
+  const relationshipPreferenceScale = useOnboardingStore((s: any) => s.relationshipPreferenceScale) ?? 5;
   const relationshipMode = useOnboardingStore((s: any) => s.relationshipMode) ?? 'sensual';
   const primaryLanguage = useOnboardingStore((s: any) => s.primaryLanguage?.code) ?? 'en';
   
@@ -303,7 +303,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
       timezone: resolvedTimezone,
       latitude: partnerBirthCity.latitude,
       longitude: partnerBirthCity.longitude,
-      relationshipIntensity,
+      relationshipPreferenceScale,
       relationshipMode,
       primaryLanguage,
       subjectName: name,

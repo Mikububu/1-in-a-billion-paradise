@@ -1,6 +1,7 @@
 import axios from 'axios';
-import { ReadingPayload, ReadingResponse, MatchPreviewResponse, MatchDetailResponse, ProfileSnapshot, AudioGenerateResponse, BirthChart, EntitlementResponse, ProductInfo, SynastryResponse, CompatibilityScores } from '@/types/api';
+import { ReadingPayload, ReadingResponse, AudioGenerateResponse, BirthChart, EntitlementResponse, ProductInfo, SynastryResponse, CompatibilityScores } from '@/types/api';
 import { env } from '@/config/env';
+import { buildPromptLayerDirective } from '@/config/promptLayers';
 
 const CORE_API_URL = process.env.EXPO_PUBLIC_CORE_API_URL || process.env.EXPO_PUBLIC_API_URL || env.CORE_API_URL;
 const SUPABASE_FUNCTION_URL = process.env.EXPO_PUBLIC_SUPABASE_FUNCTION_URL || CORE_API_URL;
@@ -21,11 +22,6 @@ const supabaseClient = axios.create({
         }
         : undefined,
 });
-
-const extractPayload = (snapshot: ProfileSnapshot): ReadingPayload => {
-    const { currentCity, ...readingPayload } = snapshot;
-    return readingPayload;
-};
 
 // Fixed: Empty sign triggers UI fallback to '—' instead of long "To be calculated" text
 const readingFallback = (payload: ReadingPayload, type: 'sun' | 'moon' | 'rising'): ReadingResponse => ({
@@ -67,98 +63,6 @@ export const readingsApi = {
         } catch (error) {
             console.warn('Falling back to local Rising reading', error);
             return readingFallback(payload, 'rising');
-        }
-    },
-};
-
-export const matchesApi = {
-    // Register user for real matching
-    registerForMatching: async (
-        userId: string,
-        name: string,
-        snapshot: ProfileSnapshot,
-        birthChart?: BirthChart
-    ): Promise<{ success: boolean; userId: string; hasChart: boolean }> => {
-        try {
-            const response = await supabaseClient.post('/make-server-02a2a601/register-for-matching', {
-                userId,
-                name,
-                age: 25, // Default, can be updated later
-                city: snapshot.currentCity?.name || 'Unknown',
-                birthData: {
-                    birthDate: snapshot.birthDate,
-                    birthTime: snapshot.birthTime,
-                    birthPlace: snapshot.currentCity?.name || 'Unknown',
-                    latitude: snapshot.latitude,
-                    longitude: snapshot.longitude,
-                    timezone: snapshot.timezone,
-                },
-                birthChart,
-                primaryLanguage: snapshot.primaryLanguage,
-                secondaryLanguage: snapshot.secondaryLanguage,
-            });
-            return response.data;
-        } catch (error) {
-            console.warn('Failed to register for matching', error);
-            return { success: false, userId, hasChart: false };
-        }
-    },
-
-    // Get matches using real matching algorithm
-    getMatches: async (userId: string, limit?: number): Promise<MatchPreviewResponse> => {
-        try {
-            const response = await supabaseClient.post<MatchPreviewResponse>('/make-server-02a2a601/get-matches', {
-                userId,
-                limit: limit || 10,
-            });
-            return response.data;
-        } catch (error) {
-            console.warn('Get matches fallback', error);
-            return {
-                matches: [],
-                lastUpdated: new Date().toISOString(),
-            };
-        }
-    },
-
-    // Legacy preview endpoint (for backwards compatibility)
-    preview: async (snapshot: ProfileSnapshot): Promise<MatchPreviewResponse> => {
-        try {
-            const payload = extractPayload(snapshot);
-            const response = await supabaseClient.post<MatchPreviewResponse>('/make-server-02a2a601/match-preview', payload);
-            return response.data;
-        } catch (error) {
-            console.warn('Preview fallback', error);
-            return {
-                matches: [],
-                lastUpdated: new Date().toISOString(),
-            };
-        }
-    },
-
-    // Get match detail with real compatibility data
-    getDetail: async (userId: string, matchedUserId: string): Promise<MatchDetailResponse> => {
-        try {
-            const response = await supabaseClient.post<MatchDetailResponse>('/make-server-02a2a601/get-match-detail', {
-                userId,
-                matchedUserId,
-            });
-            return response.data;
-        } catch (error) {
-            console.warn('Match detail fallback', error);
-            throw error;
-        }
-    },
-
-    // Legacy detail endpoint (for backwards compatibility)
-    detail: async (matchId: string, snapshot: ProfileSnapshot): Promise<MatchDetailResponse> => {
-        try {
-            const payload = extractPayload(snapshot);
-            const response = await supabaseClient.post<MatchDetailResponse>('/make-server-02a2a601/match-detail', { ...payload, matchId });
-            return response.data;
-        } catch (error) {
-            console.warn('Detail fallback', error);
-            throw error;
         }
     },
 };
@@ -402,6 +306,7 @@ export async function createIncludedReading(
         const response = await coreClient.post('/api/jobs/v2/start', {
             type: 'extended',
             systems: [system],
+            promptLayerDirective: buildPromptLayerDirective([system]),
             person1: birthData,
             useIncludedReading: true, // Flag: use the one included reading from subscription
         }, {

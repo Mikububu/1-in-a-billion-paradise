@@ -12,7 +12,7 @@ export const useHookReadings = () => {
     const birthTime = useOnboardingStore((state) => state.birthTime);
     const birthCity = useOnboardingStore((state) => state.birthCity);
     const primaryLanguage = useOnboardingStore((state) => state.primaryLanguage);
-    const relationshipIntensity = useOnboardingStore((state) => state.relationshipIntensity);
+    const relationshipPreferenceScale = useOnboardingStore((state) => state.relationshipPreferenceScale);
     const secondaryLanguage = useOnboardingStore((state) => state.secondaryLanguage);
     const setHookReading = useOnboardingStore((state) => state.setHookReading);
 
@@ -28,12 +28,12 @@ export const useHookReadings = () => {
             timezone: birthCity.timezone,
             latitude: birthCity.latitude,
             longitude: birthCity.longitude,
-            relationshipIntensity,
+            relationshipPreferenceScale,
             primaryLanguage: primaryLanguage.code,
             secondaryLanguage: secondaryLanguage?.code,
             languageImportance,
         };
-    }, [birthDate, birthTime, birthCity, primaryLanguage, relationshipIntensity, secondaryLanguage, languageImportance]);
+    }, [birthDate, birthTime, birthCity, primaryLanguage, relationshipPreferenceScale, secondaryLanguage, languageImportance]);
 
     const queries = useQueries({
         queries: readingTypes.map((type) => ({

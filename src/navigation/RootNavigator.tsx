@@ -117,7 +117,7 @@ export type MainStackParamList = {
         partnerBirthCity?: CityOption | null;
     } | undefined;
     YourChart: undefined;
-    PeopleList: { mode?: 'view' | 'select'; returnTo?: keyof MainStackParamList } | undefined;
+    PeopleList: undefined;
     PersonProfile: { personId: string };
     PersonReadings: {
         personName: string;

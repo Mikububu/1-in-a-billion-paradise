@@ -1,0 +1,12 @@
+{
+  "name": "v2-backend-prompt-engine",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "typescript": "^5.9.2"
+  }
+}
