@@ -20,6 +20,7 @@ Updated: 2026-02-13
 - `5a44ad8` - added V2 backend Vedic service contracts/entrypoints (match/score/rank)
 - `61132e1` - reading audio player uses dual preloaded sounds (narration+song) for faster play
 - `f361dd8` - added V2 backend transport-agnostic Vedic HTTP handler wrappers
+- `83f48bd` - refreshed live screen migration status snapshot (active routes vs intentional removals)
 
 ## Canonical Decision Files
 - `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/MIGRATION_DECISIONS.md`
