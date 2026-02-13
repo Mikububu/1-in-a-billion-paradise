@@ -32,6 +32,15 @@ This backend scaffold gives you exactly what you asked for:
 - `backend/src/promptEngine/layerLoader.ts`
 - `backend/src/promptEngine/fromJobPayload.ts`
 
+## Vedic matchmaking runtime (migrated)
+- `backend/src/vedic/types.ts`
+- `backend/src/vedic/tables.ts`
+- `backend/src/vedic/scoring.ts`
+- `backend/src/vedic/matchmaking.ts`
+- `backend/src/vedic/spiceRanking.ts`
+
+The Vedic runtime keeps canonical Vedic scoring deterministic and applies spice (`1..10`) only as a soft ranking lens after Vedic eligibility.
+
 ## How the frontend connects
 V2 frontend now sends `promptLayerDirective` in job start payloads:
 - `src/screens/home/VoiceSelectionScreen.tsx`
