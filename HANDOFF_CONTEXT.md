@@ -26,6 +26,7 @@ Updated: 2026-02-13
 - `88a0d05` - added frontend Vedic matchmaking API client (`/api/vedic/*` wrappers)
 - `2f752e8` - hardened partner gateway continue flow (single-tap navigation guard + stable hook-reading hydration key)
 - `fe9cda1` - added long-form output-length contract to layered prompt composition + shared style layer
+- `b427fe9` - made JobDetail progress telemetry-first (removed misleading artifact-based fake percentage fallback)
 
 ## Canonical Decision Files
 - `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/MIGRATION_DECISIONS.md`
