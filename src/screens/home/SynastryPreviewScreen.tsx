@@ -83,6 +83,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
   const userBirthDate = useOnboardingStore((state: any) => state.birthDate);
   const userBirthTime = useOnboardingStore((state: any) => state.birthTime);
   const userBirthCity = useOnboardingStore((state: any) => state.birthCity);
+  const relationshipPreferenceScale = useOnboardingStore((state: any) => state.relationshipPreferenceScale) ?? 5;
   const authUser = useAuthStore((s: any) => s.user);
   const markFreeOverlayUsed = useAuthStore((s: any) => s.markFreeOverlayUsed);
   const people = useProfileStore((s) => s.people);
@@ -178,6 +179,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
               latitude: partnerBirthCity.latitude,
               longitude: partnerBirthCity.longitude,
             },
+            relationshipPreferenceScale,
           }),
         });
         
@@ -212,7 +214,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
                 content: `Compatibility preview between ${userName} and ${partner}.`,
                 spicyScore: normalizedSpicy,
                 safeStableScore: normalizedSafeStable,
-                conclusion: `Preview scores: spicy ${normalizedSpicy}/10, safe & stable ${normalizedSafeStable}/10.`,
+                conclusion: `Preview scores: spicy ${normalizedSpicy}/10, safe & stable ${normalizedSafeStable}/10. Preference lens ${relationshipPreferenceScale}/10.`,
                 generatedAt: new Date().toISOString(),
                 source: 'gpt',
               });
@@ -260,6 +262,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
     partnerBirthTime,
     resolvedPartnerCompatibilityId,
     resolvedUserCompatibilityId,
+    relationshipPreferenceScale,
     userBirthCity,
     userBirthDate,
     userBirthTime,
