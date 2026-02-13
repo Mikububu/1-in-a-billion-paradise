@@ -176,3 +176,21 @@ If anything conflicts:
 - Services/Stores/Hooks/Contexts imports
 - Media references (imports + require assets)
 - Source-path parity flag
+
+## Checkpoint 2026-02-14 (source-vs-V2 screen parity delta)
+
+### New repeatable parity audit
+- Added `npm run audit:parity`.
+- Script: `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/scripts/audit-screen-parity.mjs`.
+- Report: `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/SCREEN_PARITY_DELTA.md`.
+
+### Current snapshot
+- V2 screens: 46
+- Source screens: 72
+- Path-matched compared: 44
+- V2-only screens: 2 (`GeneratingReadingScreen`, `ReadingContentScreen`)
+- Path-matched screens with deltas: 42
+
+### Purpose
+- Makes drift explicit per screen: dependency changes, media changes, outgoing route changes.
+- Supports one-question-at-a-time product decisions before final migration lock.

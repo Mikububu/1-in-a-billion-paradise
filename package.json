@@ -2,7 +2,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "audit:screens": "node scripts/audit-screen-wiring.mjs",
-    "audit:depscreens": "node scripts/audit-screen-dependencies.mjs"
+    "audit:depscreens": "node scripts/audit-screen-dependencies.mjs",
+    "audit:parity": "node scripts/audit-screen-parity.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
