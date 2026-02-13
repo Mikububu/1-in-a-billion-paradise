@@ -34,12 +34,19 @@ This backend scaffold gives you exactly what you asked for:
 
 ## Vedic matchmaking runtime (migrated)
 - `backend/src/vedic/types.ts`
+- `backend/src/vedic/contracts.ts`
 - `backend/src/vedic/tables.ts`
 - `backend/src/vedic/scoring.ts`
 - `backend/src/vedic/matchmaking.ts`
 - `backend/src/vedic/spiceRanking.ts`
+- `backend/src/vedic/service.ts`
 
 The Vedic runtime keeps canonical Vedic scoring deterministic and applies spice (`1..10`) only as a soft ranking lens after Vedic eligibility.
+
+### Service entry points (for API/worker binding)
+- `runVedicMatch(payload)` -> full pair result with eligibility gate
+- `runVedicScore(payload)` -> fast breakdown + eligibility
+- `runVedicRank(payload)` -> one-to-many ranking (Vedic first, spice second)
 
 ## How the frontend connects
 V2 frontend now sends `promptLayerDirective` in job start payloads:
