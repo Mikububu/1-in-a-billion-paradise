@@ -223,3 +223,20 @@ If anything conflicts:
 ### Verification
 - `npm run typecheck` passes.
 - `npm run audit:depscreens` and `npm run audit:parity` regenerated successfully.
+
+## Checkpoint 2026-02-14 (active-screen UX hardening)
+
+### JobDetail progress integrity
+- `JobDetailScreen` no longer fakes numeric percent from status-only fallback.
+- Percent is shown only when backend task counts exist (`progress.totalTasks/completedTasks` or explicit task arrays).
+- Added explicit unknown-progress hint while waiting for backend counts.
+- Headline updated to `Preparing Your Reading` (keeps in-between screen intent).
+
+### Voice selection parity
+- Restored voice sample preview playback in `VoiceSelectionScreen` (play/stop per voice).
+- Added static sample URLs to V2 voice config (`src/config/voices.ts`) for the core 5 voices.
+- Preview audio unloads safely on voice switch, start, and unmount.
+
+### Verification
+- `npm run typecheck` passes.
+- Broken local `require(...)` asset audit: 0 missing files.
