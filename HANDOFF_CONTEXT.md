@@ -129,3 +129,13 @@ If anything conflicts:
 
 ### Verification
 - `npm run typecheck` passes in `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2`.
+
+## Checkpoint 2026-02-13 (commit `43acca9`)
+
+### Onboarding Hook Audio Cleanup
+- `CoreIdentitiesScreen` now prefers `audioApi.generateHookAudio` (storagePath/audioUrl) and no longer persists base64 fallback in onboarding state.
+- `HookSequenceScreen` now generates hook audio via `generateHookAudio` first, with TTS URL-only fallback; no base64 writes to `hookAudio`.
+- `useSecureOnboardingSync` simplified to path mirroring only (removed legacy base64 upload retry branch).
+
+### Verification
+- `npm run typecheck` passes in `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2`.
