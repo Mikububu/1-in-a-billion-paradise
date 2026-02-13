@@ -23,6 +23,7 @@ Updated: 2026-02-13
 - `83f48bd` - refreshed live screen migration status snapshot (active routes vs intentional removals)
 - `eb05dc4` - SynastryPreview now sends relationship preference scale to compatibility API
 - `b605de5` - createIncludedReading now propagates relationship preference scale
+- `88a0d05` - added frontend Vedic matchmaking API client (`/api/vedic/*` wrappers)
 
 ## Canonical Decision Files
 - `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/MIGRATION_DECISIONS.md`
