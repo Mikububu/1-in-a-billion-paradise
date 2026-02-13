@@ -146,12 +146,14 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
             };
         }
 
+        const status = String(job?.status || '').toLowerCase();
+        const isComplete = status === 'complete' || status === 'completed';
         return {
-            done: Number(hasText) + Number(hasAudio) + Number(hasSong) + Number(hasPdf),
-            total: 4,
-            source: 'artifacts' as const,
+            done: isComplete ? 1 : 0,
+            total: 1,
+            source: 'status' as const,
         };
-    }, [job, hasAudio, hasSong, hasPdf, hasText]);
+    }, [job]);
 
     const progressPercent = useMemo(() => {
         const pctRaw = (taskProgress.done / taskProgress.total) * 100;
