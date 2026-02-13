@@ -16,6 +16,7 @@ Updated: 2026-02-13
 - `cca9267` - VEDIC_MATCHMAKING spec recorded as migration authority
 - `e13c3f7` - spice preference lens injected + unified context circle screens
 - `d347b15` - Vedic spice soft-ranking spec + migration decision
+- `b00c1ff` - migrated V2 backend Vedic matchmaking runtime + spice soft-ranking module
 
 ## Canonical Decision Files
 - `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/MIGRATION_DECISIONS.md`
