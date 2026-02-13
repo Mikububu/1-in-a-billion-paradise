@@ -53,3 +53,46 @@ Updated: 2026-02-13
 4. Keep naming contract unchanged.
 5. Continue migration path + ask only necessary single questions.
 
+## Big Picture Rehydration Protocol (Required Every New Session)
+
+Before writing code, always reload these files in this order:
+
+1. `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/HANDOFF_CONTEXT.md`
+2. `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/MIGRATION_DECISIONS.md`
+3. `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/VEDIC_MATCHMAKING_SPEC.md`
+4. `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/SCREEN_PATH_WALK.md`
+5. `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/SCREEN_MIGRATION_STATUS.md`
+
+If anything conflicts:
+- `MIGRATION_DECISIONS.md` wins for product behavior.
+- `VEDIC_MATCHMAKING_SPEC.md` wins for Vedic matching behavior.
+
+## North-Star Flow (Do Not Drift)
+
+### Onboarding and monetization
+- Intro -> Sign In
+- Relationship/Birth/Languages
+- 3 core identity waiting/read screens
+- 3 hook readings
+- 3 compatibility screens
+- 3 post-hook offer screens
+- RevenueCat purchase
+- Account creation
+- Dashboard (Secret Lives)
+
+### Post-onboarding behavior
+- Dashboard remains accessible even if subscription expires.
+- Expired subscription blocks chat entry only (shows renewal prompt).
+- Match/gallery history remains visible (read-only).
+
+### Context and preference injection
+- Context circle text is system-agnostic (single behavior for all systems).
+- `relationshipPreferenceScale (1..10)` is always injected as relationship-desire lens.
+- This scale must shape interpretation and compatibility fit language.
+
+## Folder Safety Rule
+
+- Source folder is read-only reference:
+  - `/Users/michaelperinwogenburg/Desktop/big-challenge/ONEINABILLIONAPP`
+- All edits must stay in destination:
+  - `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2`
