@@ -95,14 +95,9 @@ function resolveSystemLayerId(
     const requestedByMode = mode === 'individual'
         ? systemDirective?.individualLayerId
         : systemDirective?.synastryLayerId;
-    const requestedLegacy = systemDirective?.analysisLayerId;
 
     if (requestedByMode && registry.files[requestedByMode]) {
         return { layerId: requestedByMode, mode };
-    }
-
-    if (requestedLegacy && registry.files[requestedLegacy]) {
-        return { layerId: requestedLegacy, mode };
     }
 
     return {

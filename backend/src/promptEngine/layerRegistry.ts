@@ -4,8 +4,6 @@ export const STYLE_LAYER_REGISTRY = {
     defaultLayerId: 'writing-style-guide-v1',
     files: {
         'writing-style-guide-v1': 'style/writing-style-guide.md',
-        // Legacy alias
-        'shared-astro-fairytale-style-v1': 'style/writing-style-guide.md',
     } as Record<string, string>,
 };
 
@@ -23,8 +21,6 @@ export const SYSTEM_LAYER_REGISTRY: Record<
         files: {
             'western-individual-v1': 'systems/western-individual.md',
             'western-synastry-v1': 'systems/western-synastry.md',
-            // Legacy alias
-            'western-analysis-v1': 'systems/western-individual.md',
         },
     },
     vedic: {
@@ -33,8 +29,6 @@ export const SYSTEM_LAYER_REGISTRY: Record<
         files: {
             'vedic-individual-v1': 'systems/vedic-individual.md',
             'vedic-synastry-v1': 'systems/vedic-synastry.md',
-            // Legacy alias
-            'vedic-analysis-v1': 'systems/vedic-individual.md',
         },
     },
     human_design: {
@@ -43,8 +37,6 @@ export const SYSTEM_LAYER_REGISTRY: Record<
         files: {
             'human-design-individual-v1': 'systems/human-design-individual.md',
             'human-design-synastry-v1': 'systems/human-design-synastry.md',
-            // Legacy alias
-            'human-design-analysis-v1': 'systems/human-design-individual.md',
         },
     },
     gene_keys: {
@@ -53,8 +45,6 @@ export const SYSTEM_LAYER_REGISTRY: Record<
         files: {
             'gene-keys-individual-v1': 'systems/gene-keys-individual.md',
             'gene-keys-synastry-v1': 'systems/gene-keys-synastry.md',
-            // Legacy alias
-            'gene-keys-analysis-v1': 'systems/gene-keys-individual.md',
         },
     },
     kabbalah: {
@@ -63,8 +53,6 @@ export const SYSTEM_LAYER_REGISTRY: Record<
         files: {
             'kabbalah-individual-v2': 'systems/kabbalah-individual.md',
             'kabbalah-synastry-v2': 'systems/kabbalah-synastry.md',
-            // Legacy alias
-            'kabbalah-analysis-v2-no-name-gematria': 'systems/kabbalah-individual.md',
         },
     },
 };

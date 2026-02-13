@@ -7,7 +7,6 @@ export type LayerMode = 'individual' | 'synastry';
 export type PromptLayerConfig = {
     individualLayerId?: string;
     synastryLayerId?: string;
-    analysisLayerId?: string; // Legacy fallback
     analysisVersion?: string;
 };
 

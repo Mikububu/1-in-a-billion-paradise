@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const RECEIPTS_KEY = '@deep_reading_job_receipts';
-export const JOB_BUFFER_MAX = 40;
+export const JOB_BUFFER_MAX = 43;
 
 export type JobReceipt = {
     jobId: string;
