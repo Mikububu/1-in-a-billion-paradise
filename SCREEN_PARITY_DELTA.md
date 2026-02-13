@@ -1,6 +1,6 @@
 # Screen Parity Delta (Source -> V2)
 
-Generated: 2026-02-13T17:39:30.228Z
+Generated: 2026-02-13T17:41:04.450Z
 
 ## Summary
 - V2 screens: 46
