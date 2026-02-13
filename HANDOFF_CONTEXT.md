@@ -111,3 +111,21 @@ If anything conflicts:
   - `/Users/michaelperinwogenburg/Desktop/big-challenge/ONEINABILLIONAPP`
 - All edits must stay in destination:
   - `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2`
+
+## Checkpoint 2026-02-13 (commit `46c90c4`)
+
+### Audio Contract Hardening (V2 only)
+- Replaced legacy hook-audio Base64 download flow in Home modal playback with storage-path probing + signed URL check.
+- Partner hook readings now persist/play from source paths (storage path or URL), not persisted Base64.
+- Deterministic cloud path probe for partner hook audio: `hook-audio/{userId}/{partnerId}/{type}.mp3`.
+- Removed unused `downloadHookAudioBase64` helper from `src/services/hookAudioCloud.ts`.
+
+### Files touched
+- `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/src/screens/home/HomeScreen.tsx`
+- `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/src/screens/home/PartnerReadingsScreen.tsx`
+- `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/src/screens/home/PartnerCoreIdentitiesScreen.tsx`
+- `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/src/services/hookAudioCloud.ts`
+- `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/src/store/onboardingStore.ts`
+
+### Verification
+- `npm run typecheck` passes in `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2`.
