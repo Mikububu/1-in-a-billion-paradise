@@ -7,6 +7,9 @@ const PROJECT_ROOT = process.cwd();
 const V2_SCREENS_DIR = path.join(PROJECT_ROOT, 'src', 'screens');
 const SOURCE_SCREENS_DIR = path.join(PROJECT_ROOT, '..', 'ONEINABILLIONAPP', '1-in-a-billion-frontend', 'src', 'screens');
 const OUTPUT_FILE = path.join(PROJECT_ROOT, 'SCREEN_PARITY_DELTA.md');
+const GLOBAL_MEDIA_EQUIVALENTS = new Set([
+  'assets/images/white-leather-texture.jpg',
+]);
 
 function walk(dir, filterFn) {
   const out = [];
@@ -36,9 +39,17 @@ function parseRequireMedia(text) {
   const ext = /\.(png|jpg|jpeg|gif|webp|svg|mp4|mov|mp3|m4a|wav)$/i;
   for (const m of text.matchAll(/require\((['"])([^'"]+)\1\)/g)) {
     const target = m[2];
-    if (target.includes('assets/') || ext.test(target)) media.add(target);
+    if (target.includes('assets/') || ext.test(target)) media.add(normalizeMediaRef(target));
   }
   return [...media].sort();
+}
+
+function normalizeMediaRef(raw) {
+  const cleaned = String(raw).trim().replace(/^['"]|['"]$/g, '').replaceAll('\\', '/');
+  const lower = cleaned.toLowerCase();
+  const assetsIdx = lower.indexOf('assets/');
+  if (assetsIdx >= 0) return cleaned.slice(assetsIdx).toLowerCase();
+  return path.basename(cleaned).toLowerCase();
 }
 
 function parseRoutes(text) {
@@ -97,8 +108,18 @@ for (const v2File of v2Files) {
 
   const v2Imports = parseImports(v2Text);
   const sourceImports = parseImports(sourceText);
-  const v2Media = [...new Set([...parseRequireMedia(v2Text), ...v2Imports.filter((i) => i.includes('assets/'))])].sort();
-  const sourceMedia = [...new Set([...parseRequireMedia(sourceText), ...sourceImports.filter((i) => i.includes('assets/'))])].sort();
+  const v2Media = [
+    ...new Set([
+      ...parseRequireMedia(v2Text),
+      ...v2Imports.filter((i) => i.includes('assets/')).map(normalizeMediaRef),
+    ]),
+  ].filter((m) => !GLOBAL_MEDIA_EQUIVALENTS.has(m)).sort();
+  const sourceMedia = [
+    ...new Set([
+      ...parseRequireMedia(sourceText),
+      ...sourceImports.filter((i) => i.includes('assets/')).map(normalizeMediaRef),
+    ]),
+  ].filter((m) => !GLOBAL_MEDIA_EQUIVALENTS.has(m)).sort();
 
   const v2Deps = classifyDeps(v2Imports);
   const sourceDeps = classifyDeps(sourceImports);

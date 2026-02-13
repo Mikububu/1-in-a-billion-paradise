@@ -1,6 +1,6 @@
 # Screen Dependency Audit (V2)
 
-Generated: 2026-02-13T17:41:04.257Z
+Generated: 2026-02-13T19:17:19.609Z
 
 ## Summary
 - V2 screens audited: 46
@@ -83,7 +83,7 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
 - Stores: `@/store/authStore`, `@/store/onboardingStore`, `@/store/profileStore`, `@/store/subscriptionStore`
 - Hooks: _none_
 - Contexts: `@/contexts/AudioContext`
-- Media refs: _none_
+- Media refs: `../../../assets/images/forbidden-yoga-logo-white.png`
 
 ## `home/JobDetailScreen.tsx`
 - Route names: `JobDetail`
@@ -377,9 +377,9 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
 - Route names: `Account`
 - Source path parity: YES
 - Incoming interactions: 3
-  - `src/screens/onboarding/PostHookOfferScreen.tsx:127` via `navigate(Account)`
-  - `src/screens/onboarding/PostHookOfferScreen.tsx:136` via `navigate(Account)`
-  - `src/screens/onboarding/PostHookOfferScreen.tsx:145` via `navigate(Account)`
+  - `src/screens/onboarding/PostHookOfferScreen.tsx:214` via `navigate(Account)`
+  - `src/screens/onboarding/PostHookOfferScreen.tsx:223` via `navigate(Account)`
+  - `src/screens/onboarding/PostHookOfferScreen.tsx:232` via `navigate(Account)`
 - Outgoing route targets: _none_
 - Services: `@/services/compatibilityCloud`, `@/services/matchNotifications`, `@/services/payments`, `@/services/peopleCloud`, `@/services/supabase`, `@/services/userReadings`
 - Stores: `@/store/authStore`, `@/store/onboardingStore`, `@/store/profileStore`
@@ -439,11 +439,12 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
 ## `onboarding/HookSequenceScreen.tsx`
 - Route names: `HookSequence`
 - Source path parity: YES
-- Incoming interactions: 4
+- Incoming interactions: 5
   - `src/screens/home/PartnerInfoScreen.tsx:358` via `navigate(HookSequence)`
   - `src/screens/home/PartnerInfoScreen.tsx:85` via `navigate(HookSequence)`
   - `src/screens/onboarding/AddThirdPersonPromptScreen.tsx:76` via `navigate(HookSequence)`
   - `src/screens/onboarding/CoreIdentitiesScreen.tsx:304` via `reset(HookSequence)`
+  - `src/screens/onboarding/PostHookOfferScreen.tsx:285` via `navigate(HookSequence)`
 - Outgoing route targets: `AddThirdPersonPrompt`, `PartnerReadings`
 - Services: `@/services/api`
 - Stores: `@/store/authStore`, `@/store/onboardingStore`, `@/store/profileStore`
@@ -482,12 +483,12 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
 - Source path parity: YES
 - Incoming interactions: 1
   - `src/screens/onboarding/AddThirdPersonPromptScreen.tsx:139` via `navigate(PostHookOffer)`
-- Outgoing route targets: `Account`
+- Outgoing route targets: `Account`, `HookSequence`
 - Services: `@/services/payments`
 - Stores: `@/store/authStore`
 - Hooks: _none_
 - Contexts: _none_
-- Media refs: _none_
+- Media refs: `../../../assets/images/systems/Kabbalah.png`, `../../../assets/images/systems/gene-keys.png`, `../../../assets/images/systems/human-design.png`, `../../../assets/images/systems/vedic.png`, `../../../assets/images/systems/western.png`, `../../../assets/videos/lets_connet.mp4`, `../../../assets/videos/offer_page1.mp4`, `../../../assets/videos/offer_page2.mp4`, `../../../assets/videos/offer_page3.mp4`, `../../../assets/videos/we_search_for_you.mp4`
 
 ## `onboarding/RelationshipScreen.tsx`
 - Route names: `Relationship`

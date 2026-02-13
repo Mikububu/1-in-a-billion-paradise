@@ -569,6 +569,15 @@ export const HomeScreen = ({ navigation }: Props) => {
             </TouchableOpacity>
           )}
         </View>
+
+        <View style={styles.producedBySection}>
+          <Text style={styles.producedByText}>produced by</Text>
+          <Image
+            source={require('../../../assets/images/forbidden-yoga-logo-white.png')}
+            style={styles.forbiddenYogaLogo}
+            resizeMode="contain"
+          />
+        </View>
       </ScrollView>
 
       <Modal
@@ -698,6 +707,23 @@ const styles = StyleSheet.create({
   uploadPhotoIcon: { fontSize: 32 },
   uploadPhotoLabel: { fontFamily: typography.sansRegular, fontSize: 12, color: colors.primary, marginTop: spacing.xs },
   portraitImageLarge: { width: 200, height: 200, borderRadius: 100, borderWidth: 3, borderColor: colors.primary },
+  producedBySection: {
+    alignItems: 'center',
+    marginTop: spacing.md,
+    marginBottom: spacing.xl,
+  },
+  producedByText: {
+    fontFamily: typography.sansRegular,
+    fontSize: 12,
+    color: colors.mutedText,
+    marginBottom: spacing.xs,
+    textTransform: 'lowercase',
+    letterSpacing: 0.4,
+  },
+  forbiddenYogaLogo: {
+    width: 160,
+    height: 30,
+  },
   matchCountRow: { width: '100%', minHeight: 92, justifyContent: 'center', alignItems: 'center' },
   matchCountWrapper: { padding: 10 },
   howMatchingButton: {

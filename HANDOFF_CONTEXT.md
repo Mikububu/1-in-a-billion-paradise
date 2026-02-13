@@ -194,3 +194,32 @@ If anything conflicts:
 ### Purpose
 - Makes drift explicit per screen: dependency changes, media changes, outgoing route changes.
 - Supports one-question-at-a-time product decisions before final migration lock.
+
+## Checkpoint 2026-02-14 (media parity hardening)
+
+### Restored PostHookOffer rich media in V2
+- Replaced simplified text-only `PostHookOfferScreen` with rich source-style media flow while keeping V2 payment verification behavior.
+- Added V2 assets:
+  - `assets/videos/offer_page1.mp4`
+  - `assets/videos/offer_page2.mp4`
+  - `assets/videos/offer_page3.mp4`
+  - `assets/videos/we_search_for_you.mp4`
+  - `assets/videos/lets_connet.mp4`
+  - `assets/images/systems/western.png`
+  - `assets/images/systems/vedic.png`
+  - `assets/images/systems/human-design.png`
+  - `assets/images/systems/gene-keys.png`
+  - `assets/images/systems/Kabbalah.png`
+
+### Global leather background restored
+- Added `assets/images/white-leather-texture.jpg` to V2.
+- `TexturedBackground` now uses the real texture layer with shared tint authority from `colors.background` (`VINTAGE_TINT`).
+- This removes the need for per-screen duplicated leather background requires.
+
+### Home screen media parity fix
+- Restored "produced by" logo block in `HomeScreen`.
+- Added `assets/images/forbidden-yoga-logo-white.png` to V2.
+
+### Verification
+- `npm run typecheck` passes.
+- `npm run audit:depscreens` and `npm run audit:parity` regenerated successfully.

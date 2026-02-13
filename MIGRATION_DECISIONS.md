@@ -80,6 +80,12 @@ Last updated: 2026-02-13
 - Rule: apply Vedic hard eligibility first (Ashtakoota + Dosha rules), then apply spice distance as ranking weight.
 - Constraint: spice may not override hard Vedic exclusions and may not change canonical Ashtakoota totals.
 
+14. Leather texture is global (single source), not per-screen duplicated.
+- Decision: keep leather texture at app shell level via `TexturedBackground`.
+- Tint control: use the shared theme variable `VINTAGE_TINT` (via `colors.background`) as the single global tint authority.
+- Migration rule: if a source screen had a local `white-leather-texture.jpg` layer, do not duplicate it in V2 when the global background already provides it.
+- Result: screens like `PersonPhotoUploadScreen` can stay transparent with no local texture `require(...)`.
+
 ## What this means for migration scope
 
 - Required now: active onboarding/payment/dashboard/library/people/core reading flows.

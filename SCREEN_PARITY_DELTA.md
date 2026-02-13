@@ -1,6 +1,6 @@
 # Screen Parity Delta (Source -> V2)
 
-Generated: 2026-02-13T17:41:04.450Z
+Generated: 2026-02-13T19:19:35.176Z
 
 ## Summary
 - V2 screens: 46
@@ -30,9 +30,8 @@ Generated: 2026-02-13T17:41:04.450Z
 - Services removed from source: `@/services/peopleService`
 
 ### `home/HomeScreen.tsx`
-- Line delta (V2 - source): -860
+- Line delta (V2 - source): -834
 - Contexts added in V2: `@/contexts/AudioContext`
-- Media refs removed from source: `../../../assets/images/forbidden-yoga-logo-white.png`
 
 ### `home/JobDetailScreen.tsx`
 - Line delta (V2 - source): 94
@@ -77,7 +76,6 @@ Generated: 2026-02-13T17:41:04.450Z
 - Line delta (V2 - source): -21
 - Services added in V2: `@/services/peopleService`
 - Stores added in V2: `@/store/authStore`
-- Media refs removed from source: `@/../assets/images/white-leather-texture.jpg`
 
 ### `home/PersonProfileScreen.tsx`
 - Line delta (V2 - source): -500
@@ -163,9 +161,7 @@ Generated: 2026-02-13T17:41:04.450Z
 - Outgoing routes removed from source: `CoreIdentities`
 
 ### `onboarding/PostHookOfferScreen.tsx`
-- Line delta (V2 - source): -276
-- Media refs removed from source: `@/../assets/images/systems/Kabbalah.png`, `@/../assets/images/systems/gene-keys.png`, `@/../assets/images/systems/human-design.png`, `@/../assets/images/systems/vedic.png`, `@/../assets/images/systems/western.png`, `@/../assets/videos/lets_connet.mp4`, `@/../assets/videos/offer_page1.mp4`, `@/../assets/videos/offer_page2.mp4`, `@/../assets/videos/offer_page3.mp4`, `@/../assets/videos/we_search_for_you.mp4`
-- Outgoing routes removed from source: `HookSequence`
+- Line delta (V2 - source): -41
 
 ### `onboarding/RelationshipScreen.tsx`
 - Line delta (V2 - source): -26

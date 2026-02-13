@@ -62,6 +62,11 @@ All entries below are currently treated as intentionally excluded by migration d
 - Active screen migration for V2 route graph is effectively complete.
 - Remaining work is behavior/performance hardening (audio UX, backend integration, prompt/ranking refinement), not bulk screen copy.
 
+## Latest Hardening
+- Restored rich media on `PostHookOfferScreen` in V2 (videos + systems icons) while keeping current V2 payment verification flow.
+- Restored global leather texture in app shell (`TexturedBackground`) using shared tint token (`colors.background` / `VINTAGE_TINT`).
+- Restored `HomeScreen` "produced by" logo block and migrated corresponding asset into V2.
+
 ## Authority
 - Product behavior authority: `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/MIGRATION_DECISIONS.md`
 - Vedic matching authority: `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/VEDIC_MATCHMAKING_SPEC.md`
