@@ -51,8 +51,8 @@ export type ReadingRecord = {
     compatibilityScore?: number; // For overlays (0-100)
 
     // Media
-    audioPath?: string; // Local file path (better than base64 for large files)
-    audioBase64?: string; // Fallback for smaller audio
+    audioPath?: string; // Local/remote playable source path
+    audioBase64?: string; // Legacy field; avoid new writes
     audioDuration?: number; // seconds
     pdfPath?: string; // Local file path to generated PDF
 
@@ -91,8 +91,8 @@ type OnboardingState = {
     relationshipPreferenceScale: number;
     name?: string;
     hookReadings: Partial<Record<HookReading['type'], HookReading>>;
-    hookAudio: Partial<Record<HookReading['type'], string>>; // Pre-loaded audio URLs (from Supabase Storage) or legacy Base64/file paths
-    // Partner audio (for 3rd person readings - legacy, kept for backwards compat)
+    hookAudio: Partial<Record<HookReading['type'], string>>; // Playable source (storage path or URL)
+    // Partner audio (3rd-person): playable source (storage path or URL)
     partnerAudio: Partial<Record<HookReading['type'], string>>;
     voiceId: string; // Voice ID from backend API (e.g., 'david', 'elisabeth', 'michael', 'peter', 'victor')
 
@@ -120,8 +120,8 @@ type OnboardingState = {
     setRelationshipPreferenceScale: (value: number) => void;
     setName: (name: string) => void;
     setHookReading: (reading: HookReading) => void;
-    setHookAudio: (type: HookReading['type'], audioBase64: string) => void;
-    setPartnerAudio: (type: HookReading['type'], audioBase64: string) => void;
+    setHookAudio: (type: HookReading['type'], audioSource: string) => void;
+    setPartnerAudio: (type: HookReading['type'], audioSource: string) => void;
     clearPartnerAudio: () => void;
     setVoiceId: (voiceId: string) => void;
     redirectAfterOnboarding: string | null;
@@ -198,17 +198,17 @@ export const useOnboardingStore = create<OnboardingState>()(
                 set((state) => ({
                     hookReadings: { ...state.hookReadings, [reading.type]: reading },
                 })),
-            setHookAudio: (type, audioBase64) => {
+            setHookAudio: (type, audioSource) => {
                 set((state) => {
-                    const newHookAudio = { ...state.hookAudio, [type]: audioBase64 };
+                    const newHookAudio = { ...state.hookAudio, [type]: audioSource };
                     return { hookAudio: newHookAudio };
                 });
             },
-            setPartnerAudio: (type, audioBase64) =>
+            setPartnerAudio: (type, audioSource) =>
                 set((state) => ({
                     partnerAudio: {
                         ...state.partnerAudio,
-                        [type]: audioBase64,
+                        [type]: audioSource,
                     },
                 })),
             clearPartnerAudio: () => set({ partnerAudio: {} }),
@@ -355,8 +355,8 @@ export const useOnboardingStore = create<OnboardingState>()(
                 relationshipPreferenceScale: state.relationshipPreferenceScale,
                 name: state.name,
                 hookReadings: state.hookReadings,
-                hookAudio: state.hookAudio, // Persist pre-loaded audio
-                partnerAudio: state.partnerAudio, // Persist partner pre-loaded audio
+                hookAudio: state.hookAudio, // Persist resolved audio sources
+                partnerAudio: state.partnerAudio, // Persist partner audio sources
                 voiceId: state.voiceId,
                 // New People & Readings Library
                 people: state.people, // All saved people profiles

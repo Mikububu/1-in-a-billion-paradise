@@ -17,19 +17,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { Video, ResizeMode } from 'expo-av';
-// FileSystem not needed - audio stored in memory
 import { colors, spacing, typography } from '@/theme/tokens';
 import { HookReading } from '@/types/forms';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { env } from '@/config/env';
 import { audioApi } from '@/services/api';
-import { uploadHookAudioBase64, downloadHookAudioBase64 } from '@/services/hookAudioCloud';
+import { getHookAudioSignedUrl, uploadHookAudioBase64 } from '@/services/hookAudioCloud';
 import { isSupabaseConfigured } from '@/services/supabase';
 import { useProfileStore } from '@/store/profileStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useAuthStore } from '@/store/authStore';
 import { AUDIO_CONFIG } from '@/config/readingConfig';
-// Audio stored in memory (base64) - no file system needed
 import { BackButton } from '@/components/BackButton';
 import { useAudio } from '@/contexts/AudioContext';
 
@@ -88,7 +86,6 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
   const [audioPlaying, setAudioPlaying] = useState<Record<string, boolean>>({});
   const { toggleAudio, stopAudio, primeAudio } = useAudio();
   const inFlightAudio = useRef<Partial<Record<HookReading['type'], Promise<string | null>>>>({});
-  const inFlightUpload = useRef<Partial<Record<HookReading['type'], Promise<void>>>>({});
   const getPartnerAudioKey = useCallback(
     (type: HookReading['type']) => `partner-hook:${partnerId || 'pending'}:${type}`,
     [partnerId]
@@ -180,31 +177,47 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
       const textToSpeak = `${reading.intro}\n\n${reading.main}`;
       const p = audioApi
         .generateTTS(textToSpeak, { exaggeration: AUDIO_CONFIG.exaggeration })
-        .then((result) => {
-          if (result.success && result.audioBase64) {
-            // Store base64 directly in memory for immediate playback
-            console.log(`💾 ${partnerName}'s ${type} audio ready (in memory)`);
-            setPartnerAudio(type, result.audioBase64);
-            primeAudio(getPartnerAudioKey(type), result.audioBase64).catch(() => { });
+        .then(async (result) => {
+          if (!result.success) return null;
 
-            // Upload to Supabase in background (non-blocking)
-            const userId = authUser?.id;
-            if (!isPrepayOnboarding && userId && partnerId && result.audioBase64) {
-              uploadHookAudioBase64({
+          const immediateSource = result.audioUrl || null;
+          if (immediateSource) {
+            setPartnerAudio(type, immediateSource);
+            primeAudio(getPartnerAudioKey(type), immediateSource).catch(() => { });
+          }
+
+          const userId = authUser?.id;
+          if (!isPrepayOnboarding && userId && partnerId && result.audioBase64) {
+            try {
+              const uploadResult = await uploadHookAudioBase64({
                 userId,
                 personId: partnerId,
                 type,
                 audioBase64: result.audioBase64,
-              })
-                .then(uploadResult => {
-                  if (uploadResult.success) {
-                    console.log(`☁️ ${partnerName}'s ${type} synced to Supabase`);
-                  }
-                })
-                .catch(() => { });
+              });
+              if (uploadResult.success) {
+                setPartnerAudio(type, uploadResult.path);
+                const latest = useProfileStore.getState().getPerson(partnerId);
+                useProfileStore.getState().updatePerson(partnerId, {
+                  hookAudioPaths: {
+                    ...(latest?.hookAudioPaths || {}),
+                    [type]: uploadResult.path,
+                  },
+                } as any);
+                primeAudio(getPartnerAudioKey(type), uploadResult.path).catch(() => { });
+                console.log(`☁️ ${partnerName}'s ${type} synced to Supabase`);
+                return uploadResult.path;
+              }
+            } catch {
+              // Keep immediate URL fallback
             }
+          }
 
-            return result.audioBase64;
+          if (immediateSource) return immediateSource;
+
+          // Last-resort playback fallback (not persisted): data URI from transient base64
+          if (result.audioBase64) {
+            return `data:audio/mpeg;base64,${result.audioBase64}`;
           }
           return null;
         })
@@ -219,73 +232,91 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
     [authUser?.id, getPartnerAudioKey, isPrepayOnboarding, partnerAudio, partnerHookAudioPaths, partnerId, partnerName, primeAudio, setPartnerAudio]
   );
 
-  // Download missing partner audio from Supabase (for reinstall/new device sync)
+  // Hydrate missing partner hook audio by probing deterministic cloud storage paths.
+  // This avoids downloading Base64 blobs into local store.
   useEffect(() => {
-    const downloadMissingAudio = async () => {
+    const hydrateMissingCloudAudioPaths = async () => {
       if (isPrepayOnboarding) return;
       const userId = authUser?.id;
       if (!userId || !partnerId) return;
+      if (!env.ENABLE_SUPABASE_LIBRARY_SYNC || !isSupabaseConfigured) return;
 
       const types: HookReading['type'][] = ['sun', 'moon', 'rising'];
 
       for (const type of types) {
         const localAudio = partnerHookAudioPaths?.[type] || partnerAudio[type];
-        if (!localAudio) {
-          console.log(`📥 Checking Supabase for ${partnerName}'s ${type} audio...`);
-          const result = await downloadHookAudioBase64({ userId, personId: partnerId, type });
+        if (localAudio) continue;
 
-          if (result.success) {
-            setPartnerAudio(type, result.audioBase64);
-            primeAudio(getPartnerAudioKey(type), result.audioBase64).catch(() => { });
-            console.log(`✅ Downloaded ${partnerName}'s ${type} audio from Supabase`);
-          }
-        }
+        const storagePath = `hook-audio/${userId}/${partnerId}/${type}.mp3`;
+        const signed = await getHookAudioSignedUrl(storagePath, 60);
+        if (!signed) continue;
+
+        setPartnerAudio(type, storagePath);
+        const latest = useProfileStore.getState().getPerson(partnerId);
+        useProfileStore.getState().updatePerson(partnerId, {
+          hookAudioPaths: {
+            ...(latest?.hookAudioPaths || {}),
+            [type]: storagePath,
+          },
+        } as any);
+        primeAudio(getPartnerAudioKey(type), storagePath).catch(() => { });
+        console.log(`✅ Hydrated ${partnerName}'s ${type} audio path from Supabase`);
       }
     };
 
-    downloadMissingAudio();
+    hydrateMissingCloudAudioPaths();
   }, [authUser?.id, getPartnerAudioKey, isPrepayOnboarding, partnerAudio.sun, partnerAudio.moon, partnerAudio.rising, partnerHookAudioPaths, partnerId, partnerName, primeAudio, setPartnerAudio]);
 
-  // If audio already exists (e.g., SUN was pre-rendered earlier), upload it once to Supabase Storage.
+  // Keep a cloud copy when an in-memory URL/data source exists and the person has no saved storage path yet.
   useEffect(() => {
     if (isPrepayOnboarding) return;
     const uid = authUser?.id;
     if (!uid || !partnerId) return;
     if (!env.ENABLE_SUPABASE_LIBRARY_SYNC || !isSupabaseConfigured) return;
 
-    const types: HookReading['type'][] = ['sun', 'moon', 'rising'];
-    for (const type of types) {
-      const v = partnerAudio?.[type];
-      // Only auto-upload if we still have legacy Base64 stored in state.
-      // New pipeline stores a local filename (e.g. "partner_hook_sun_123.mp3").
-      const b64 =
-        v && !v.endsWith('.mp3') && !v.startsWith('http://') && !v.startsWith('https://') ? v : null;
-      if (!b64) continue;
-      const partner = useProfileStore.getState().getPerson(partnerId);
-      if (partner?.hookAudioPaths?.[type]) continue;
-      if (inFlightUpload.current[type]) continue;
+    const maybeSyncType = async (type: HookReading['type']) => {
+      const source = partnerHookAudioPaths?.[type] || partnerAudio?.[type];
+      if (!source) return;
 
-      inFlightUpload.current[type] = uploadHookAudioBase64({
+      const alreadyCloudPath =
+        source.startsWith('hook-audio/') ||
+        source.startsWith('http://') ||
+        source.startsWith('https://');
+      if (alreadyCloudPath) return;
+
+      const base64 = source.startsWith('data:audio/mpeg;base64,')
+        ? source.replace('data:audio/mpeg;base64,', '')
+        : /^[A-Za-z0-9+/=]+$/.test(source) && source.length > 256
+          ? source
+          : '';
+      if (!base64) return;
+
+      const person = useProfileStore.getState().getPerson(partnerId);
+      if (person?.hookAudioPaths?.[type]) return;
+
+      const uploadResult = await uploadHookAudioBase64({
         userId: uid,
         personId: partnerId,
         type,
-        audioBase64: b64,
-      })
-        .then((res) => {
-          if (!res.success) return;
-          const latest = useProfileStore.getState().getPerson(partnerId);
-          useProfileStore.getState().updatePerson(partnerId, {
-            hookAudioPaths: {
-              ...(latest?.hookAudioPaths || {}),
-              [type]: res.path,
-            },
-          } as any);
-        })
-        .finally(() => {
-          inFlightUpload.current[type] = undefined;
-        });
-    }
-  }, [authUser?.id, isPrepayOnboarding, partnerId, partnerAudio.sun, partnerAudio.moon, partnerAudio.rising]);
+        audioBase64: base64,
+      });
+      if (!uploadResult.success) return;
+
+      setPartnerAudio(type, uploadResult.path);
+      const latest = useProfileStore.getState().getPerson(partnerId);
+      useProfileStore.getState().updatePerson(partnerId, {
+        hookAudioPaths: {
+          ...(latest?.hookAudioPaths || {}),
+          [type]: uploadResult.path,
+        },
+      } as any);
+      primeAudio(getPartnerAudioKey(type), uploadResult.path).catch(() => { });
+    };
+
+    void maybeSyncType('sun');
+    void maybeSyncType('moon');
+    void maybeSyncType('rising');
+  }, [authUser?.id, getPartnerAudioKey, isPrepayOnboarding, partnerAudio.sun, partnerAudio.moon, partnerAudio.rising, partnerHookAudioPaths, partnerId, primeAudio, setPartnerAudio]);
 
   // Blink animation ref
   const blinkAnim = useRef(new Animated.Value(1)).current;

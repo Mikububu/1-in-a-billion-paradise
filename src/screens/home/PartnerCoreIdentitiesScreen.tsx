@@ -25,12 +25,9 @@ import { useProfileStore } from '@/store/profileStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useAuthStore } from '@/store/authStore';
 import { audioApi } from '@/services/api';
-// Audio stored in memory (base64) - upload to Supabase for cross-device sync
 import { uploadHookAudioBase64 } from '@/services/hookAudioCloud';
-import { isSupabaseConfigured } from '@/services/supabase';
 import { AUDIO_CONFIG } from '@/config/readingConfig';
 import { CityOption } from '@/types/forms';
-// Audio stored in memory (base64) - no file system needed
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PartnerCoreIdentities'>;
 
@@ -122,14 +119,11 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
   const [currentScreen, setCurrentScreen] = useState<ScreenKey>('intro');
   const [statusText, setStatusText] = useState('');
   const [progress, setProgress] = useState(0); // 0 to 100
-  const [savedPartnerId, setSavedPartnerId] = useState<string | null>(null);
   
   // Profile store for saving partner
   const addPerson = useProfileStore((state) => state.addPerson);
   const setHookReadings = useProfileStore((state) => state.setHookReadings);
   const people = useProfileStore((state) => state.people);
-
-  const authUser = useAuthStore((s) => s.user);
 
   // Use the same config knobs as the 1st-person hook pipeline (don’t hardcode).
   const relationshipPreferenceScale = useOnboardingStore((s: any) => s.relationshipPreferenceScale) ?? 5;
@@ -248,11 +242,6 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
     let moonSign: string | undefined;
     let risingSign: string | undefined;
 
-    // Keep base64 in memory so we can upload to Supabase after we create the partner row (partnerId).
-    let sunAudioBase64: string | null = null;
-    let moonAudioBase64: string | null = null;
-    let risingAudioBase64: string | null = null;
-    
     // Never silently fall back to fake birth data in onboarding.
     if (!partnerBirthDate || !partnerBirthCity) {
       Alert.alert('Missing birth data', 'Please add birth date + city for this person.');
@@ -351,11 +340,12 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
             `${sunData.reading.intro}\n\n${sunData.reading.main}`,
             { exaggeration: AUDIO_CONFIG.exaggeration }
           );
-          if (result.success && result.audioBase64) {
-            sunAudioBase64 = result.audioBase64;
-            // Store base64 directly in memory for immediate playback
-            setPartnerAudio('sun', result.audioBase64);
-            console.log(`✅ ${name}'s SUN audio ready (in memory)`);
+          if (result.success) {
+            const immediateSource = result.audioUrl;
+            if (immediateSource) {
+              setPartnerAudio('sun', immediateSource);
+            }
+            console.log(`✅ ${name}'s SUN audio ready`);
             
             // Upload to Supabase in background (non-blocking)
             const userId = useAuthStore.getState().user?.id;
@@ -368,7 +358,6 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
               })
                 .then(uploadResult => {
                   if (uploadResult.success) {
-                    sunAudioBase64 = null;
                     setPartnerAudio('sun', uploadResult.path);
                     useProfileStore.getState().updatePerson(partnerIdFromRoute, {
                       hookAudioPaths: {
@@ -430,11 +419,12 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
           { exaggeration: AUDIO_CONFIG.exaggeration }
         )
           .then((result) => {
-            if (result.success && result.audioBase64) {
-              // Store base64 directly in memory for immediate playback
-              moonAudioBase64 = result.audioBase64;
-              setPartnerAudio('moon', result.audioBase64);
-              console.log(`✅ ${name}'s MOON audio ready (in memory)`);
+            if (result.success) {
+              const immediateSource = result.audioUrl;
+              if (immediateSource) {
+                setPartnerAudio('moon', immediateSource);
+              }
+              console.log(`✅ ${name}'s MOON audio ready`);
               
               // Upload to Supabase in background (non-blocking)
               const userId = useAuthStore.getState().user?.id;
@@ -447,7 +437,6 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
                 })
                   .then(uploadResult => {
                     if (uploadResult.success) {
-                      moonAudioBase64 = null;
                       setPartnerAudio('moon', uploadResult.path);
                       useProfileStore.getState().updatePerson(partnerIdFromRoute, {
                         hookAudioPaths: {
@@ -496,11 +485,12 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
           { exaggeration: AUDIO_CONFIG.exaggeration }
         )
           .then((result) => {
-            if (result.success && result.audioBase64) {
-              // Store base64 directly in memory for immediate playback
-              risingAudioBase64 = result.audioBase64;
-              setPartnerAudio('rising', result.audioBase64);
-              console.log(`✅ ${name}'s RISING audio ready (in memory)`);
+            if (result.success) {
+              const immediateSource = result.audioUrl;
+              if (immediateSource) {
+                setPartnerAudio('rising', immediateSource);
+              }
+              console.log(`✅ ${name}'s RISING audio ready`);
               
               // Upload to Supabase in background (non-blocking)
               const userId = useAuthStore.getState().user?.id;
@@ -513,7 +503,6 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
                 })
                   .then(uploadResult => {
                     if (uploadResult.success) {
-                      risingAudioBase64 = null;
                       setPartnerAudio('rising', uploadResult.path);
                       useProfileStore.getState().updatePerson(partnerIdFromRoute, {
                         hookAudioPaths: {
@@ -571,39 +560,6 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
           placements: sunSign && moonSign && risingSign ? { sunSign, moonSign, risingSign } : undefined,
         });
       console.log(`✅ Using partner ID: ${ensuredPartnerId}`);
-      setSavedPartnerId(ensuredPartnerId);
-
-      // Cross-device sync: upload audio base64 to Supabase and persist storage paths on the partner person.
-      // (Local file remains the primary playback source.)
-      try {
-        const uid = authUser?.id;
-        if (!isPrepayOnboarding && uid && env.ENABLE_SUPABASE_LIBRARY_SYNC && isSupabaseConfigured) {
-          const uploads: Array<Promise<void>> = [];
-          const maybeUpload = (type: 'sun' | 'moon' | 'rising', b64: string | null) => {
-            if (!b64) return;
-            uploads.push(
-              uploadHookAudioBase64({ userId: uid, personId: ensuredPartnerId, type, audioBase64: b64 })
-                .then((res) => {
-                  if (!res.success) return;
-                  setPartnerAudio(type, res.path);
-                  useProfileStore.getState().updatePerson(ensuredPartnerId, {
-                    hookAudioPaths: {
-                      ...(useProfileStore.getState().getPerson(ensuredPartnerId)?.hookAudioPaths || {}),
-                      [type]: res.path,
-                    },
-                  } as any);
-                })
-                .catch(() => {})
-            );
-          };
-          maybeUpload('sun', sunAudioBase64);
-          maybeUpload('moon', moonAudioBase64);
-          maybeUpload('rising', risingAudioBase64);
-          void Promise.all(uploads);
-        }
-      } catch {
-        // ignore
-      }
       
       // Save the 3 hook readings to profileStore (for Home carousel rotation).
       // IMPORTANT: store them in `person.hookReadings`, not as normal readings.

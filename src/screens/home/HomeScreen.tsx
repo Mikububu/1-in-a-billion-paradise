@@ -9,7 +9,7 @@ import { env } from '@/config/env';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { backfillMissingPlacements } from '@/services/placementsCalculator';
 import { supabase } from '@/services/supabase';
-import { downloadHookAudioBase64 } from '@/services/hookAudioCloud';
+import { getHookAudioSignedUrl } from '@/services/hookAudioCloud';
 import { useProfileStore } from '@/store/profileStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
@@ -69,6 +69,8 @@ export const HomeScreen = ({ navigation }: Props) => {
   const setHookReading = useOnboardingStore((state) => state.setHookReading);
   const hookAudio = useOnboardingStore((state) => state.hookAudio);
   const partnerAudio = useOnboardingStore((state) => state.partnerAudio);
+  const setHookAudio = useOnboardingStore((state) => state.setHookAudio);
+  const setPartnerAudio = useOnboardingStore((state) => state.setPartnerAudio);
   const user = useProfileStore((state) => state.getUser());
   const userName = useOnboardingStore((state) => state.name) || 'User';
   const allPeople = useProfileStore((state) => state.people);
@@ -422,13 +424,25 @@ export const HomeScreen = ({ navigation }: Props) => {
     }
 
     if (!audioSource && authUserId && personId) {
-      setAudioLoading(true); setAudioLoadingText('Downloading...');
+      setAudioLoading(true); setAudioLoadingText('Checking cloud audio...');
       try {
-        const result = await downloadHookAudioBase64({ userId: authUserId, personId, type: selectedReading });
-        if (myToken === playRequestTokenRef.current && result.success) {
-          const downloadedBase64 = result.audioBase64;
-          audioSource = downloadedBase64;
-          if (cacheKey) downloadedAudioCache.current[cacheKey] = downloadedBase64;
+        const storagePath = `hook-audio/${authUserId}/${personId}/${selectedReading}.mp3`;
+        const signed = await getHookAudioSignedUrl(storagePath, 60);
+        if (myToken === playRequestTokenRef.current && signed) {
+          audioSource = storagePath;
+          if (cacheKey) downloadedAudioCache.current[cacheKey] = storagePath;
+          if (currentPerson?.person?.isUser) {
+            setHookAudio(selectedReading, storagePath);
+          } else {
+            setPartnerAudio(selectedReading, storagePath);
+          }
+          const latest = useProfileStore.getState().getPerson(personId);
+          useProfileStore.getState().updatePerson(personId, {
+            hookAudioPaths: {
+              ...(latest?.hookAudioPaths || {}),
+              [selectedReading]: storagePath,
+            },
+          } as any);
         }
       } catch {}
       setAudioLoading(false); setAudioLoadingText(null);
@@ -450,7 +464,7 @@ export const HomeScreen = ({ navigation }: Props) => {
       }
       setAudioLoading(false);
     } catch { setAudioLoading(false); }
-  }, [selectedReading, hookAudio, partnerAudio, modalReadings, currentPerson, authUserId, toggleAudio, getModalAudioKey]);
+  }, [selectedReading, hookAudio, partnerAudio, modalReadings, currentPerson, authUserId, toggleAudio, getModalAudioKey, setHookAudio, setPartnerAudio]);
 
   // Animations
   const pulseAnim = useRef(new Animated.Value(1)).current;
