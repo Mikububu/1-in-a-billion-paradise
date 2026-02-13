@@ -21,6 +21,7 @@ Updated: 2026-02-13
 - `61132e1` - reading audio player uses dual preloaded sounds (narration+song) for faster play
 - `f361dd8` - added V2 backend transport-agnostic Vedic HTTP handler wrappers
 - `83f48bd` - refreshed live screen migration status snapshot (active routes vs intentional removals)
+- `eb05dc4` - SynastryPreview now sends relationship preference scale to compatibility API
 
 ## Canonical Decision Files
 - `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/MIGRATION_DECISIONS.md`
