@@ -15,6 +15,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useProfileStore } from '@/store/profileStore';
+import { useAuthStore } from '@/store/authStore';
 import { colors, spacing, typography } from '@/theme/tokens';
 import { CityOption, HookReading } from '@/types/forms';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
@@ -39,6 +40,7 @@ type PageItem = HookReading | { type: 'gateway'; sign: ''; intro: ''; main: '' }
 
 export const HookSequenceScreen = ({ navigation, route }: Props) => {
     // Use readings from store (already loaded by CoreIdentitiesScreen)
+    const authUser = useAuthStore((state) => state.user);
     const hookReadings = useOnboardingStore((state) => state.hookReadings);
     const hookAudio = useOnboardingStore((state) => state.hookAudio); // Pre-loaded audio
     const setHookAudio = useOnboardingStore((state) => state.setHookAudio);
@@ -146,18 +148,30 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
 
             const textToSpeak = `${reading.intro}\n\n${reading.main}`;
             try {
-                const result = await audioApi.generateTTS(textToSpeak, { exaggeration: AUDIO_CONFIG.exaggeration });
-                if (result.success && result.audioBase64) {
-                    setHookAudio(type, result.audioBase64);
-                    primeAudio(`hook-sequence:${type}`, result.audioBase64).catch(() => { });
-                    return result.audioBase64;
+                const hookResult = await audioApi.generateHookAudio({
+                    text: textToSpeak,
+                    userId: authUser?.id,
+                    type,
+                    exaggeration: AUDIO_CONFIG.exaggeration,
+                });
+
+                let source = hookResult.storagePath || hookResult.audioUrl || null;
+                if (!source) {
+                    const tts = await audioApi.generateTTS(textToSpeak, { exaggeration: AUDIO_CONFIG.exaggeration });
+                    source = tts.success ? (tts.audioUrl || null) : null;
+                }
+
+                if (source) {
+                    setHookAudio(type, source);
+                    primeAudio(`hook-sequence:${type}`, source).catch(() => { });
+                    return source;
                 }
             } catch (e) {
                 console.error('Audio generation failed', e);
             }
             return null;
         },
-        [hookAudio, primeAudio, setHookAudio]
+        [authUser?.id, hookAudio, primeAudio, setHookAudio]
     );
 
     const handlePlayAudio = useCallback(async (reading: HookReading) => {

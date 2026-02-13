@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useHookReadings } from '@/hooks/useHookReadings';
 import { useOnboardingStore } from '@/store/onboardingStore';
+import { useAuthStore } from '@/store/authStore';
 import { audioApi } from '@/services/api';
 import { AmbientMusic } from '@/services/ambientMusic';
 import { AUDIO_CONFIG } from '@/config/readingConfig';
@@ -46,6 +47,7 @@ const getSignColors = (sign: string) => {
 export const CoreIdentitiesScreen = () => {
     const navigation = useNavigation<any>();
     const { sun, moon, rising, isLoading } = useHookReadings();
+    const authUser = useAuthStore((state) => state.user);
     const hookAudio = useOnboardingStore((state) => state.hookAudio);
     const setHookAudio = useOnboardingStore((state) => state.setHookAudio);
     const { toggleAudio, primeAudio, stopAudio } = useAudio();
@@ -124,14 +126,26 @@ export const CoreIdentitiesScreen = () => {
             }
 
             console.log(`🔊 Generating audio for ${type}...`);
-            // Use direct TTS generation for speed and quality control
-            const result = await audioApi.generateTTS(text, {
-                exaggeration: AUDIO_CONFIG.exaggeration, // Ensure expressive voice
-                audioUrl: undefined, // Use default voice or configured one
+            // Preferred path: generate + persist hook audio (storage path/url), no base64 state writes.
+            const hookResult = await audioApi.generateHookAudio({
+                text,
+                userId: authUser?.id,
+                type,
+                exaggeration: AUDIO_CONFIG.exaggeration,
             });
 
-            const source = result.audioUrl || result.audioBase64;
-            if (result.success && source) {
+            let source = hookResult.storagePath || hookResult.audioUrl || null;
+
+            // Fallback: direct TTS URL only (avoid persisting base64 blobs in onboarding store).
+            if (!source) {
+                const tts = await audioApi.generateTTS(text, {
+                    exaggeration: AUDIO_CONFIG.exaggeration,
+                    audioUrl: undefined,
+                });
+                source = tts.success ? (tts.audioUrl || null) : null;
+            }
+
+            if (source) {
                 setHookAudio(type, source);
                 audioSourceRef.current[type] = source;
                 await primeAudio(getCoreAudioKey(type), source);
@@ -169,7 +183,7 @@ export const CoreIdentitiesScreen = () => {
             // Start Visual Sequence
             runSequence();
         }
-    }, [sun, moon, rising, isLoading, updatePerson, getCurrentPersonId, setHookAudio, hookAudio, primeAudio]);
+    }, [sun, moon, rising, isLoading, updatePerson, getCurrentPersonId, setHookAudio, hookAudio, primeAudio, authUser?.id]);
 
     // --- SEQUENCER ---
     const runSequence = async () => {
