@@ -13,6 +13,7 @@ const LAYER_BUDGET = {
     globalStyle: 12000,
     systemKnowledge: 20000,
     modeRules: 1800,
+    preferenceLens: 1400,
     context: 2800,
     chartData: 30000,
     outputLanguage: 250,
@@ -137,6 +138,31 @@ function modeRules(readingKind: ComposePromptInput['readingKind']): string {
     ].join('\n');
 }
 
+function preferenceBand(level: number): string {
+    if (level <= 2) return 'stability-first (safe, grounded, low-chaos)';
+    if (level <= 4) return 'gentle depth (emotionally warm, not extreme)';
+    if (level <= 6) return 'balanced intensity (depth plus friction tolerance)';
+    if (level <= 8) return 'high intensity (transformative, shadow-facing dynamics)';
+    return 'extreme intensity (edge, obsession-risk, high-voltage bonds)';
+}
+
+function preferenceLens(readingKind: ComposePromptInput['readingKind'], level?: number): string {
+    const clamped = Number.isFinite(level) ? Math.min(10, Math.max(1, Math.round(level as number))) : 5;
+    const modeSpecific = readingKind === 'individual'
+        ? '- In individual readings, describe which partner dynamic this person will perceive as too safe vs truly alive for their relationship appetite.'
+        : '- In synastry/verdict readings, explicitly judge fit-to-preference: state if this bond is too safe, too chaotic, or aligned with the stated appetite.';
+
+    return [
+        `RELATIONSHIP PREFERENCE SCALE: ${clamped}/10`,
+        `PREFERENCE BAND: ${preferenceBand(clamped)}`,
+        '- This is a relationship-desire lens, not a prose-intensity dial.',
+        '- Keep writing intensity high by default.',
+        '- Interpret compatibility and practical guidance through this lens.',
+        modeSpecific,
+        '- If mismatch exists, say it directly (for example: exciting but unstable, or secure but too flat).',
+    ].join('\n');
+}
+
 function buildSystemBlock(
     systems: SystemId[],
     readingKind: ComposePromptInput['readingKind'],
@@ -181,6 +207,12 @@ export function composePrompt(input: ComposePromptInput): ComposePromptResult {
 
     const systemsBlock = buildSystemBlock(systems, input.readingKind, directive, stats);
     const modeLayer = capLayer('mode-rules', modeRules(input.readingKind), LAYER_BUDGET.modeRules, stats);
+    const preferenceLayer = capLayer(
+        'preference-lens',
+        preferenceLens(input.readingKind, input.relationshipPreferenceScale),
+        LAYER_BUDGET.preferenceLens,
+        stats
+    );
 
     const contextRaw = input.readingKind === 'synastry' || input.readingKind === 'verdict'
         ? input.relationshipContext || ''
@@ -209,6 +241,7 @@ export function composePrompt(input: ComposePromptInput): ComposePromptResult {
         styleLayer,
         systemsBlock.text,
         modeLayer,
+        preferenceLayer,
         `SUBJECTS:\n- Person 1: ${input.person1Name}${input.person2Name ? `\n- Person 2: ${input.person2Name}` : ''}`,
         kabbalahPolicyLine,
         contextLayer ? `CONTEXT:\n${contextLayer}` : '',

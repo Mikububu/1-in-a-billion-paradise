@@ -25,6 +25,7 @@ export type ComposePromptInput = {
     person1Name: string;
     person2Name?: string;
     chartData: string;
+    relationshipPreferenceScale?: number;
     personalContext?: string;
     relationshipContext?: string;
     outputLanguage?: string;
