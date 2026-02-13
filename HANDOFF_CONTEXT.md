@@ -27,7 +27,8 @@ Updated: 2026-02-13
 - `2f752e8` - hardened partner gateway continue flow (single-tap navigation guard + stable hook-reading hydration key)
 - `fe9cda1` - added long-form output-length contract to layered prompt composition + shared style layer
 - `b427fe9` - made JobDetail progress telemetry-first (removed misleading artifact-based fake percentage fallback)
-- `a4e4d20` - set V2 job buffer cap to 43 and removed prompt-engine legacy alias/fallback layer IDs
+- `a4e4d20` - removed prompt-engine legacy alias/fallback layer IDs
+- `a76e222` - reverted V2 deep-reading job buffer cap back to 40
 - `2fbd733` - reset PartnerReadings synastry-gateway lock state on refocus (prevents sticky disabled continue button)
 
 ## Canonical Decision Files
