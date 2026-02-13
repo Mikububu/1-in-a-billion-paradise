@@ -155,3 +155,24 @@ If anything conflicts:
 
 ### Status Doc Refresh
 - Updated `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/SCREEN_MIGRATION_STATUS.md` with current route counts and explicit no-orphan/no-unresolved-call result.
+
+## Checkpoint 2026-02-14 (deep per-screen dependency audit)
+
+### New repeatable audit
+- Added `npm run audit:depscreens`.
+- Script: `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/scripts/audit-screen-dependencies.mjs`.
+- Output report: `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/SCREEN_DEPENDENCY_AUDIT.md`.
+
+### Current result snapshot
+- Audited screens: 46
+- Registered route entries: 50 (46 unique names)
+- Unresolved outgoing literal route references: 0
+- Source-path parity matches: 44/46 (new V2-only screens: `GeneratingReadingScreen`, `ReadingContentScreen`)
+
+### Report content per screen
+- Route registration names
+- Incoming interaction callsites (screen + line + nav method)
+- Outgoing route targets
+- Services/Stores/Hooks/Contexts imports
+- Media references (imports + require assets)
+- Source-path parity flag
