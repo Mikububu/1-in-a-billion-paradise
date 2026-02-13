@@ -139,3 +139,19 @@ If anything conflicts:
 
 ### Verification
 - `npm run typecheck` passes in `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2`.
+
+## Checkpoint 2026-02-14 (route audit + orphan check)
+
+### Screen Wiring Audit
+- Added repeatable audit command: `npm run audit:screens`.
+- New script: `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/scripts/audit-screen-wiring.mjs`.
+- Latest audit result:
+  - Screen files: 46
+  - Route entries: 50
+  - Unique route names: 46
+  - Unresolved navigation calls: 0
+  - Unreferenced screen files: 0
+  - Routes with zero external callers: 0
+
+### Status Doc Refresh
+- Updated `/Users/michaelperinwogenburg/Desktop/big-challenge/1-in-a-billion-v2/SCREEN_MIGRATION_STATUS.md` with current route counts and explicit no-orphan/no-unresolved-call result.

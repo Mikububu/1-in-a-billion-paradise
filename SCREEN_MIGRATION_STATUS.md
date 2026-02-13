@@ -1,6 +1,6 @@
 # Screen Migration Status (Live)
 
-Generated: 2026-02-13
+Generated: 2026-02-14 00:23 (+07 local audit run)
 
 ## Scope
 - Source baseline: `/Users/michaelperinwogenburg/Desktop/big-challenge/ONEINABILLIONAPP/1-in-a-billion-frontend/src/screens`
@@ -9,7 +9,8 @@ Generated: 2026-02-13
 ## Current Live Counts
 - Source screens (`.tsx`): 72
 - V2 screens (`.tsx`): 46
-- Registered V2 routes (Onboarding + Main): 49
+- Registered V2 route entries (Onboarding + Main): 50
+- Unique V2 route names: 46
 - Missing vs source (`.tsx`): 28
 - Extra/new in V2 (`.tsx`): 2
 
@@ -51,6 +52,8 @@ All entries below are currently treated as intentionally excluded by migration d
 
 ## Live Route Reachability
 - No unresolved `navigation.navigate(...)` targets in current V2 screens for registered routes.
+- No unreferenced `*Screen.tsx` files in `src/screens` (all are imported/exported into active graph).
+- Every registered route name has at least one live navigation call site outside `RootNavigator`.
 - `ChatList` and `Chat` are present and registered.
 - Partner flow is present and registered:
   - `AddThirdPersonPrompt -> PartnerInfo -> PartnerCoreIdentities -> PartnerReadings -> SynastryPreview -> PostHookOffer`.
