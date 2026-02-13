@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Audio } from 'expo-av';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
@@ -45,6 +46,8 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
         preselectedVoice || storedVoiceId || VOICE_OPTIONS[0]?.id || 'david'
     );
     const [isLoading, setIsLoading] = useState(false);
+    const [playingVoice, setPlayingVoice] = useState<string | null>(null);
+    const previewSoundRef = useRef<Audio.Sound | null>(null);
 
     const productName = useMemo(() => {
         if (productType === 'bundle_5_readings') return 'All 5 Systems';
@@ -57,6 +60,64 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
     const selectedVoiceLabel = useMemo(() => {
         return VOICE_OPTIONS.find((v) => v.id === selectedVoice)?.label || selectedVoice;
     }, [selectedVoice]);
+
+    const stopVoicePreview = async () => {
+        try {
+            if (previewSoundRef.current) {
+                await previewSoundRef.current.unloadAsync();
+                previewSoundRef.current = null;
+            }
+        } catch {
+            // no-op
+        } finally {
+            setPlayingVoice(null);
+        }
+    };
+
+    useEffect(() => {
+        return () => {
+            void stopVoicePreview();
+        };
+    }, []);
+
+    const playVoiceSample = async (voiceId: string) => {
+        const voice = VOICE_OPTIONS.find((v) => v.id === voiceId);
+        if (!voice?.sampleUrl) {
+            Alert.alert('Voice sample unavailable', 'No preview audio found for this voice.');
+            return;
+        }
+
+        if (playingVoice === voiceId) {
+            await stopVoicePreview();
+            return;
+        }
+
+        try {
+            await stopVoicePreview();
+            await Audio.setAudioModeAsync({
+                playsInSilentModeIOS: true,
+                staysActiveInBackground: false,
+                shouldDuckAndroid: true,
+            });
+
+            const { sound } = await Audio.Sound.createAsync(
+                { uri: voice.sampleUrl },
+                { shouldPlay: true }
+            );
+
+            previewSoundRef.current = sound;
+            setPlayingVoice(voiceId);
+
+            sound.setOnPlaybackStatusUpdate((status) => {
+                if (status.isLoaded && status.didJustFinish) {
+                    void stopVoicePreview();
+                }
+            });
+        } catch {
+            setPlayingVoice(null);
+            Alert.alert('Playback failed', 'Could not play voice sample.');
+        }
+    };
 
     const handleStart = async () => {
         if (isLoading) return;
@@ -164,6 +225,8 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
 
         setIsLoading(true);
         try {
+            await stopVoicePreview();
+
             const res = await fetch(`${env.CORE_API_URL}/api/jobs/v2/start`, {
                 method: 'POST',
                 headers: {
@@ -230,6 +293,15 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
                                     <Text style={styles.voiceLabel}>{voice.label}</Text>
                                     <Text style={styles.voiceDescription}>{voice.description}</Text>
                                 </View>
+                                <TouchableOpacity
+                                    style={[styles.previewButton, playingVoice === voice.id && styles.previewButtonActive]}
+                                    onPress={() => {
+                                        void playVoiceSample(voice.id);
+                                    }}
+                                    activeOpacity={0.8}
+                                >
+                                    <Text style={styles.previewButtonText}>{playingVoice === voice.id ? '■' : '▶'}</Text>
+                                </TouchableOpacity>
                                 <Text style={[styles.check, selected && styles.checkSelected]}>
                                     {selected ? '●' : '○'}
                                 </Text>
@@ -309,6 +381,26 @@ const styles = StyleSheet.create({
         fontFamily: typography.sansRegular,
         fontSize: 13,
         color: colors.mutedText,
+    },
+    previewButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: spacing.sm,
+    },
+    previewButtonActive: {
+        borderColor: colors.primary,
+        backgroundColor: colors.primarySoft,
+    },
+    previewButtonText: {
+        fontFamily: typography.sansSemiBold,
+        fontSize: 14,
+        color: colors.text,
     },
     check: {
         fontFamily: typography.sansSemiBold,

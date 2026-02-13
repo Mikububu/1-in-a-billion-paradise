@@ -146,27 +146,22 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
             };
         }
 
-        const status = String(job?.status || '').toLowerCase();
-        const isComplete = status === 'complete' || status === 'completed';
-        return {
-            done: isComplete ? 1 : 0,
-            total: 1,
-            source: 'status' as const,
-        };
+        return null;
     }, [job]);
 
     const progressPercent = useMemo(() => {
+        if (!taskProgress) return null;
         const pctRaw = (taskProgress.done / taskProgress.total) * 100;
         return Math.max(0, Math.min(100, Math.round(pctRaw || 0)));
-    }, [taskProgress.done, taskProgress.total]);
+    }, [taskProgress]);
 
     const statusLine = useMemo(() => {
         const status = String(job?.status || 'unknown').toUpperCase();
         const message = job?.progress?.message || job?.error;
-        const taskInfo = `${taskProgress.done}/${taskProgress.total}`;
+        const taskInfo = taskProgress ? `${taskProgress.done}/${taskProgress.total}` : null;
 
         return [status, taskInfo, message].filter(Boolean).join(' · ');
-    }, [job, taskProgress.done, taskProgress.total]);
+    }, [job, taskProgress]);
 
     const subjects = useMemo(() => {
         const p1 = job?.input?.person1?.name || job?.input?.person?.name;
@@ -208,7 +203,7 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
             <View style={styles.topSpacer} />
 
             <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-                <Text style={styles.title}>Reading Status</Text>
+                <Text style={styles.title}>Preparing Your Reading</Text>
                 <Text style={styles.jobId}>Job ID: {jobId}</Text>
 
                 <View style={styles.card}>
@@ -220,9 +215,12 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
 
                 <View style={styles.progressCard}>
                     <View style={styles.progressTrack}>
-                        <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+                        <View style={[styles.progressFill, { width: `${progressPercent ?? 0}%` }]} />
                     </View>
-                    <Text style={styles.progressText}>{progressPercent}%</Text>
+                    <Text style={styles.progressText}>{progressPercent == null ? '—' : `${progressPercent}%`}</Text>
+                    {taskProgress == null ? (
+                        <Text style={styles.progressHint}>Waiting for backend task counts...</Text>
+                    ) : null}
                     <Text style={styles.statusText}>{statusLine}</Text>
                     <Text style={styles.readinessTitle}>Readiness: {readinessSummary}</Text>
                     <Text style={styles.readinessItem}>
@@ -349,6 +347,13 @@ const styles = StyleSheet.create({
         fontFamily: typography.sansSemiBold,
         fontSize: 12,
         color: colors.text,
+    },
+    progressHint: {
+        marginTop: 2,
+        textAlign: 'center',
+        fontFamily: typography.sansRegular,
+        fontSize: 12,
+        color: colors.mutedText,
     },
     statusText: {
         marginTop: spacing.sm,
