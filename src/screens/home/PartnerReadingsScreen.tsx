@@ -310,6 +310,8 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
   // CRITICAL: Stop audio when screen loses focus (useFocusEffect runs cleanup BEFORE blur)
   useFocusEffect(
     useCallback(() => {
+      // Reset one-tap navigation guard whenever this screen becomes active again.
+      setIsNavigatingToSynastry(false);
       return () => {
         console.log('🛑 PartnerReadingsScreen LOSING FOCUS - stopping audio immediately');
         stopAudio().catch(() => { });
