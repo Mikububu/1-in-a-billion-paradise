@@ -1,6 +1,6 @@
 # Screen Parity Delta (Source -> V2)
 
-Generated: 2026-02-13T19:19:35.176Z
+Generated: 2026-02-13T19:29:24.714Z
 
 ## Summary
 - V2 screens: 46
@@ -34,7 +34,7 @@ Generated: 2026-02-13T19:19:35.176Z
 - Contexts added in V2: `@/contexts/AudioContext`
 
 ### `home/JobDetailScreen.tsx`
-- Line delta (V2 - source): 94
+- Line delta (V2 - source): 99
 - Services added in V2: `@/services/artifactSignedUrlCache`, `@/services/jobArtifacts`
 - Services removed from source: `@/services/artifactCacheService`, `@/services/nuclearReadingsService`
 - Outgoing routes added in V2: `Home`, `MyLibrary`, `ReadingContent`
@@ -114,7 +114,7 @@ Generated: 2026-02-13T19:19:35.176Z
 - Line delta (V2 - source): -22
 
 ### `home/VoiceSelectionScreen.tsx`
-- Line delta (V2 - source): -359
+- Line delta (V2 - source): -267
 - Services removed from source: `@/services/ambientMusic`, `@/services/peopleService`, `@/services/supabase`
 
 ### `home/YourChartScreen.tsx`

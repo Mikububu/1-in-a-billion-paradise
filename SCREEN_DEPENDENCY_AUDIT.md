@@ -1,6 +1,6 @@
 # Screen Dependency Audit (V2)
 
-Generated: 2026-02-13T19:17:19.609Z
+Generated: 2026-02-13T19:29:24.699Z
 
 ## Summary
 - V2 screens audited: 46
@@ -73,7 +73,7 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
 - Source path parity: YES
 - Incoming interactions: 6
   - `src/screens/home/GeneratingReadingScreen.tsx:208` via `navigate(Home)`
-  - `src/screens/home/JobDetailScreen.tsx:268` via `navigate(Home)`
+  - `src/screens/home/JobDetailScreen.tsx:266` via `navigate(Home)`
   - `src/screens/home/NextStepScreen.tsx:53` via `navigate(Home)`
   - `src/screens/home/PartnerCoreIdentitiesScreen.tsx:630` via `reset(Home)`
   - `src/screens/home/TreeOfLifeVideoScreen.tsx:34` via `replace(Home)`
@@ -102,7 +102,7 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
 - Source path parity: YES
 - Incoming interactions: 4
   - `src/screens/home/GeneratingReadingScreen.tsx:192` via `navigate(MyLibrary)`
-  - `src/screens/home/JobDetailScreen.tsx:264` via `navigate(MyLibrary)`
+  - `src/screens/home/JobDetailScreen.tsx:262` via `navigate(MyLibrary)`
   - `src/screens/home/NextStepScreen.tsx:41` via `navigate(MyLibrary)`
   - `src/screens/settings/SettingsScreen.tsx:216` via `navigate(MyLibrary)`
 - Outgoing route targets: `ComparePeople`, `PeopleList`, `PersonPhotoUpload`, `SystemsOverview`, `YourChart`
@@ -244,8 +244,8 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
 - Route names: `ReadingContent`
 - Source path parity: NO
 - Incoming interactions: 2
-  - `src/screens/home/JobDetailScreen.tsx:200` via `replace(ReadingContent)`
-  - `src/screens/home/JobDetailScreen.tsx:256` via `navigate(ReadingContent)`
+  - `src/screens/home/JobDetailScreen.tsx:195` via `replace(ReadingContent)`
+  - `src/screens/home/JobDetailScreen.tsx:254` via `navigate(ReadingContent)`
 - Outgoing route targets: _none_
 - Services: `@/services/artifactSignedUrlCache`, `@/services/jobArtifacts`, `@/services/supabase`
 - Stores: _none_
@@ -326,7 +326,7 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
 - Route names: `TreeOfLifeVideo`
 - Source path parity: YES
 - Incoming interactions: 1
-  - `src/screens/home/VoiceSelectionScreen.tsx:189` via `replace(TreeOfLifeVideo)`
+  - `src/screens/home/VoiceSelectionScreen.tsx:252` via `replace(TreeOfLifeVideo)`
 - Outgoing route targets: `GeneratingReading`, `Home`
 - Services: _none_
 - Stores: _none_
