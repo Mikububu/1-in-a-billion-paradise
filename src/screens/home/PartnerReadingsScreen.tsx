@@ -72,6 +72,7 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
   const [readings, setReadings] = useState<PageItem[]>([]);
   const [page, setPage] = useState(0);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isNavigatingToSynastry, setIsNavigatingToSynastry] = useState(false);
   const listRef = useRef<FlatList<PageItem>>(null);
 
   // Preferred: hook readings are stored on the person as `hookReadings` (Sun/Moon/Rising).
@@ -92,6 +93,74 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
     (type: HookReading['type']) => `partner-hook:${partnerId || 'pending'}:${type}`,
     [partnerId]
   );
+  const savedHookReadingsKey = useMemo(
+    () =>
+      JSON.stringify(
+        (savedHookReadings || []).map((reading) => ({
+          type: reading.type,
+          sign: reading.sign,
+          intro: reading.intro,
+          main: reading.main,
+        }))
+      ),
+    [savedHookReadings]
+  );
+
+  const handleContinueToSynastry = useCallback(() => {
+    if (isNavigatingToSynastry) return;
+
+    const userBirthTime = user?.birthData?.birthTime || onboardingBirthTime;
+    if (!userBirthTime || !partnerBirthTime) {
+      const missingLabel = !userBirthTime ? 'your birth time' : `${partnerName || 'partner'}'s birth time`;
+      Alert.alert(
+        'Birth time required',
+        `Compatibility requires birth time for BOTH people (Rising sign). Please add ${missingLabel} first.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Edit Birth Data',
+            onPress: () => {
+              if (!partnerBirthTime) {
+                if (isPrepayOnboarding) {
+                  navigation.navigate('PartnerInfo', { mode: 'onboarding_hook' } as any);
+                } else if (partnerId) {
+                  navigation.navigate('EditBirthData', { personId: partnerId } as any);
+                } else {
+                  navigation.navigate('PartnerInfo', { mode: 'add_person_only' } as any);
+                }
+              } else if (isPrepayOnboarding) {
+                navigation.navigate('BirthInfo' as any);
+              } else {
+                navigation.navigate('EditBirthData' as any);
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    setIsNavigatingToSynastry(true);
+    navigation.navigate('SynastryPreview', {
+      partnerName,
+      partnerBirthDate,
+      partnerBirthTime,
+      partnerBirthCity,
+      partnerId,
+      onboardingNext: 'PostHookOffer',
+    });
+  }, [
+    isNavigatingToSynastry,
+    isPrepayOnboarding,
+    navigation,
+    onboardingBirthTime,
+    partnerBirthCity,
+    partnerBirthDate,
+    partnerBirthTime,
+    partnerId,
+    partnerName,
+    user?.birthData?.birthTime,
+  ]);
 
   useEffect(() => {
     (['sun', 'moon', 'rising'] as const).forEach((type) => {
@@ -345,8 +414,7 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
     }
   }, [audioLoading, getPartnerAudioKey, partnerAudio, partnerHookAudioPaths, partnerName, startPartnerAudioGeneration, toggleAudio]);
 
-  // Fetch initial readings
-  // On mount, load existing readings or fetch new ones if missing
+  // On mount/update, load existing readings or fetch new ones if missing.
   useEffect(() => {
     if (savedHookReadings && savedHookReadings.length === 3) {
       setReadings([...savedHookReadings, { type: 'gateway', sign: '', intro: '', main: '' }]);
@@ -357,7 +425,7 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
     // If readings don't exist, generate them (works in both onboarding and post-pay)
     console.log(`⚠️ ${partnerName}'s readings not found - generating...`);
     fetchReadingsWithProvider('deepseek');
-  }, [partnerId, savedHookReadings?.length]);
+  }, [partnerId, savedHookReadingsKey]);
 
   const fetchReadingsWithProvider = async (provider: LLMProvider) => {
     console.log(`🔄 Fetching ${partnerName}'s readings with ${provider}...`);
@@ -415,16 +483,11 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
     }
   };
 
-  // Simplified: No auto-navigation, no transition state needed
-
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, layoutMeasurement } = event.nativeEvent;
     const index = Math.round(contentOffset.x / layoutMeasurement.width);
     setPage(index);
-    // Simplified: No auto-navigation, just 3 cards (Sun/Moon/Rising)
   };
-
-  // Simplified: Just 3 pages (Sun/Moon/Rising), no gateway
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -475,56 +538,13 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
                             </Text>
 
                             <TouchableOpacity
-                              style={styles.continueBtn}
-                              onPress={() => {
-                                const userBirthTime = user?.birthData?.birthTime || onboardingBirthTime;
-                                if (!userBirthTime || !partnerBirthTime) {
-                                  const missingLabel = !userBirthTime ? 'your birth time' : `${partnerName || 'partner'}'s birth time`;
-                                  Alert.alert(
-                                    'Birth time required',
-                                    `Compatibility requires birth time for BOTH people (Rising sign). Please add ${missingLabel} first.`,
-                                    [
-                                      { text: 'Cancel', style: 'cancel' },
-                                      {
-                                        text: 'Edit Birth Data',
-                                        onPress: () => {
-                                          // Route depending on flow context:
-                                          // - onboarding: existing onboarding screens
-                                          // - main: edit birth data screens
-                                          if (!partnerBirthTime) {
-                                            if (isPrepayOnboarding) {
-                                              navigation.navigate('PartnerInfo', { mode: 'onboarding_hook' } as any);
-                                            } else if (partnerId) {
-                                              navigation.navigate('EditBirthData', { personId: partnerId } as any);
-                                            } else {
-                                              navigation.navigate('PartnerInfo', { mode: 'add_person_only' } as any);
-                                            }
-                                          } else {
-                                            if (isPrepayOnboarding) {
-                                              navigation.navigate('BirthInfo' as any);
-                                            } else {
-                                              navigation.navigate('EditBirthData' as any);
-                                            }
-                                          }
-                                        },
-                                      },
-                                    ]
-                                  );
-                                  return;
-                                }
-                                // Pre-payment onboarding: always show the free compatibility preview,
-                                // and never route into paid packages here.
-                                navigation.navigate('SynastryPreview', {
-                                  partnerName,
-                                  partnerBirthDate,
-                                  partnerBirthTime,
-                                  partnerBirthCity,
-                                  partnerId,
-                                  onboardingNext: 'PostHookOffer',
-                                });
-                              }}
+                              style={[styles.continueBtn, isNavigatingToSynastry && styles.continueBtnDisabled]}
+                              onPress={handleContinueToSynastry}
+                              disabled={isNavigatingToSynastry}
                             >
-                              <Text style={styles.continueBtnText}>Compare Charts →</Text>
+                              <Text style={styles.continueBtnText}>
+                                {isNavigatingToSynastry ? 'Opening…' : 'Compare Charts →'}
+                              </Text>
                             </TouchableOpacity>
                           </View>
 
@@ -883,6 +903,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderRadius: 24,
     marginBottom: spacing.md,
+  },
+  continueBtnDisabled: {
+    opacity: 0.7,
   },
   continueBtnText: {
     fontFamily: typography.sansBold,
