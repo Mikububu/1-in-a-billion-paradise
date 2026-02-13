@@ -24,6 +24,11 @@ You are not writing a report, not writing markdown, not writing bullet notes.
 - No section headers in final output.
 - No line breaks that feel like list output.
 
+## Length Rules
+- This product is long-form by default, not short-note output.
+- Keep analysis dense and specific enough to sustain extended spoken narration.
+- Never compress deep readings into brief summaries unless explicitly requested by system mode.
+
 ## Forbidden Phrases
 - "This is not just..."
 - "Here's the thing..."

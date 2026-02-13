@@ -14,6 +14,7 @@ const LAYER_BUDGET = {
     systemKnowledge: 20000,
     modeRules: 1800,
     preferenceLens: 1400,
+    outputLength: 700,
     context: 2800,
     chartData: 30000,
     outputLanguage: 250,
@@ -163,6 +164,37 @@ function preferenceLens(readingKind: ComposePromptInput['readingKind'], level?: 
     ].join('\n');
 }
 
+function outputLengthContract(readingKind: ComposePromptInput['readingKind'], systemCount: number): string {
+    const boundedCount = Math.max(1, Math.min(5, Math.round(systemCount || 1)));
+
+    if (readingKind === 'verdict') {
+        return [
+            'OUTPUT LENGTH CONTRACT:',
+            '- Target 1300-1900 words.',
+            '- Hard floor: never below 1000 words.',
+            `- This is a synthesis across ${boundedCount} systems, so depth must be visibly long-form and integrated.`,
+            '- Do not pad with repetition; add concrete interpretation density instead.',
+        ].join('\n');
+    }
+
+    if (readingKind === 'synastry') {
+        return [
+            'OUTPUT LENGTH CONTRACT:',
+            '- Target 1100-1700 words.',
+            '- Hard floor: never below 900 words.',
+            '- Keep both people at equal depth; do not collapse one person into side-notes.',
+            '- Do not use filler sentences just to hit length.',
+        ].join('\n');
+    }
+
+    return [
+        'OUTPUT LENGTH CONTRACT:',
+        '- Target 900-1400 words.',
+        '- Hard floor: never below 750 words.',
+        '- Keep the reading dense with behavioral specificity, not vague motivational text.',
+    ].join('\n');
+}
+
 function buildSystemBlock(
     systems: SystemId[],
     readingKind: ComposePromptInput['readingKind'],
@@ -213,6 +245,12 @@ export function composePrompt(input: ComposePromptInput): ComposePromptResult {
         LAYER_BUDGET.preferenceLens,
         stats
     );
+    const outputLengthLayer = capLayer(
+        'output-length',
+        outputLengthContract(input.readingKind, systems.length),
+        LAYER_BUDGET.outputLength,
+        stats
+    );
 
     const contextRaw = input.readingKind === 'synastry' || input.readingKind === 'verdict'
         ? input.relationshipContext || ''
@@ -242,6 +280,7 @@ export function composePrompt(input: ComposePromptInput): ComposePromptResult {
         systemsBlock.text,
         modeLayer,
         preferenceLayer,
+        outputLengthLayer,
         `SUBJECTS:\n- Person 1: ${input.person1Name}${input.person2Name ? `\n- Person 2: ${input.person2Name}` : ''}`,
         kabbalahPolicyLine,
         contextLayer ? `CONTEXT:\n${contextLayer}` : '',
