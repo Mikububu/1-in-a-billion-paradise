@@ -15,6 +15,8 @@ import { splitIntoBlocks } from '@/utils/readingTextFormat';
 type Props = NativeStackScreenProps<MainStackParamList, 'ReadingContent'>;
 
 type AudioKind = 'narration' | 'song';
+type AudioStateMap<T> = { narration: T; song: T };
+const AUDIO_KINDS: readonly AudioKind[] = ['narration', 'song'] as const;
 
 const isNarrationArtifact = (a: JobArtifact) =>
     a.artifact_type === 'audio' || a.artifact_type === 'audio_mp3' || a.artifact_type === 'audio_m4a';
@@ -46,20 +48,41 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
     const [artifacts, setArtifacts] = useState<JobArtifact[]>([]);
     const [textBody, setTextBody] = useState<string>('');
     const [isLoading, setIsLoading] = useState(true);
-    const [isAudioLoading, setIsAudioLoading] = useState(false);
-    const [isAudioPlaying, setIsAudioPlaying] = useState(false);
-    const [audioDurationSec, setAudioDurationSec] = useState(0);
-    const [audioPositionSec, setAudioPositionSec] = useState(0);
-    const [audioSignedUrl, setAudioSignedUrl] = useState<string | null>(null);
+    const [isAudioLoadingByKind, setIsAudioLoadingByKind] = useState<AudioStateMap<boolean>>({
+        narration: false,
+        song: false,
+    });
+    const [isAudioPlayingByKind, setIsAudioPlayingByKind] = useState<AudioStateMap<boolean>>({
+        narration: false,
+        song: false,
+    });
+    const [audioDurationSecByKind, setAudioDurationSecByKind] = useState<AudioStateMap<number>>({
+        narration: 0,
+        song: 0,
+    });
+    const [audioPositionSecByKind, setAudioPositionSecByKind] = useState<AudioStateMap<number>>({
+        narration: 0,
+        song: 0,
+    });
+    const [audioSignedUrlByKind, setAudioSignedUrlByKind] = useState<AudioStateMap<string | null>>({
+        narration: null,
+        song: null,
+    });
     const [errorText, setErrorText] = useState<string | null>(null);
     const [activeChapterIndex, setActiveChapterIndex] = useState(0);
     const [activeAudioKind, setActiveAudioKind] = useState<AudioKind | null>(null);
     const [downloadingTarget, setDownloadingTarget] = useState<'pdf' | AudioKind | null>(null);
 
-    const soundRef = useRef<Audio.Sound | null>(null);
-    const loadedAudioPathRef = useRef<string | null>(null);
-    const preparingAudioPathRef = useRef<string | null>(null);
-    const prepareAudioPromiseRef = useRef<Promise<boolean> | null>(null);
+    const soundsRef = useRef<Partial<Record<AudioKind, Audio.Sound>>>({});
+    const loadedAudioPathRef = useRef<AudioStateMap<string | null>>({
+        narration: null,
+        song: null,
+    });
+    const preparingAudioPathRef = useRef<AudioStateMap<string | null>>({
+        narration: null,
+        song: null,
+    });
+    const prepareAudioPromiseRef = useRef<Partial<Record<AudioKind, Promise<boolean> | null>>>({});
     const progressTrackWidthRef = useRef(1);
     const readingScrollRef = useRef<ScrollView | null>(null);
     const chapterOffsetsRef = useRef<Record<number, number>>({});
@@ -165,13 +188,13 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
 
     useEffect(() => {
         return () => {
-            prepareAudioPromiseRef.current = null;
-            preparingAudioPathRef.current = null;
-            if (soundRef.current) {
-                soundRef.current.unloadAsync().catch(() => { });
-                soundRef.current = null;
+            for (const kind of AUDIO_KINDS) {
+                prepareAudioPromiseRef.current[kind] = null;
+                preparingAudioPathRef.current[kind] = null;
+                loadedAudioPathRef.current[kind] = null;
+                soundsRef.current[kind]?.unloadAsync().catch(() => { });
+                delete soundsRef.current[kind];
             }
-            loadedAudioPathRef.current = null;
         };
     }, []);
 
@@ -194,45 +217,63 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
         };
     }, [textArtifact?.storage_path, textBody]);
 
-    const onPlaybackStatusUpdate = useCallback((status: AVPlaybackStatus) => {
+    const onPlaybackStatusUpdate = useCallback((kind: AudioKind, status: AVPlaybackStatus) => {
         if (!status.isLoaded) return;
-        setAudioPositionSec((status.positionMillis || 0) / 1000);
-        if (typeof status.durationMillis === 'number') {
-            setAudioDurationSec(status.durationMillis / 1000);
+        setAudioPositionSecByKind((prev) => ({ ...prev, [kind]: (status.positionMillis || 0) / 1000 }));
+        const durationMillis = status.durationMillis;
+        if (typeof durationMillis === 'number') {
+            setAudioDurationSecByKind((prev) => ({ ...prev, [kind]: durationMillis / 1000 }));
         }
-        setIsAudioPlaying(Boolean(status.isPlaying));
+        setIsAudioPlayingByKind((prev) => ({ ...prev, [kind]: Boolean(status.isPlaying) }));
         if (status.didJustFinish) {
-            setIsAudioPlaying(false);
-            setAudioPositionSec(0);
+            setIsAudioPlayingByKind((prev) => ({ ...prev, [kind]: false }));
+            setAudioPositionSecByKind((prev) => ({ ...prev, [kind]: 0 }));
+        }
+    }, []);
+
+    const pauseOtherAudio = useCallback(async (kind: AudioKind) => {
+        const otherKind: AudioKind = kind === 'narration' ? 'song' : 'narration';
+        const otherSound = soundsRef.current[otherKind];
+        if (!otherSound) return;
+
+        try {
+            const otherStatus = await otherSound.getStatusAsync();
+            if (!otherStatus.isLoaded || !otherStatus.isPlaying) return;
+            await otherSound.pauseAsync();
+            setIsAudioPlayingByKind((prev) => ({ ...prev, [otherKind]: false }));
+        } catch {
+            // ignore playback race
         }
     }, []);
 
     const prepareAudio = useCallback(async (artifact: JobArtifact, shouldPlay: boolean, kind: AudioKind): Promise<boolean> => {
         if (!artifact?.storage_path) return false;
-        setActiveAudioKind(kind);
+        if (shouldPlay) {
+            setActiveAudioKind(kind);
+        }
 
-        if (soundRef.current && loadedAudioPathRef.current === artifact.storage_path) {
+        const currentSound = soundsRef.current[kind];
+        if (currentSound && loadedAudioPathRef.current[kind] === artifact.storage_path) {
             if (shouldPlay) {
-                await soundRef.current.playAsync();
-                setIsAudioPlaying(true);
+                await pauseOtherAudio(kind);
+                await currentSound.playAsync();
+                setIsAudioPlayingByKind((prev) => ({ ...prev, [kind]: true }));
             }
             return true;
         }
 
-        if (
-            prepareAudioPromiseRef.current &&
-            preparingAudioPathRef.current === artifact.storage_path
-        ) {
-            const alreadyPrepared = await prepareAudioPromiseRef.current;
-            if (alreadyPrepared && shouldPlay && soundRef.current) {
-                await soundRef.current.playAsync();
-                setIsAudioPlaying(true);
+        if (prepareAudioPromiseRef.current[kind] && preparingAudioPathRef.current[kind] === artifact.storage_path) {
+            const alreadyPrepared = await (prepareAudioPromiseRef.current[kind] as Promise<boolean>);
+            if (alreadyPrepared && shouldPlay && soundsRef.current[kind]) {
+                await pauseOtherAudio(kind);
+                await (soundsRef.current[kind] as Audio.Sound).playAsync();
+                setIsAudioPlayingByKind((prev) => ({ ...prev, [kind]: true }));
             }
             return alreadyPrepared;
         }
 
-        setIsAudioLoading(true);
-        preparingAudioPathRef.current = artifact.storage_path;
+        setIsAudioLoadingByKind((prev) => ({ ...prev, [kind]: true }));
+        preparingAudioPathRef.current[kind] = artifact.storage_path;
 
         const request = (async () => {
             try {
@@ -247,52 +288,65 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                     return false;
                 }
 
-                setAudioSignedUrl(signedUrl);
+                setAudioSignedUrlByKind((prev) => ({ ...prev, [kind]: signedUrl }));
 
-                if (soundRef.current) {
-                    await soundRef.current.unloadAsync().catch(() => { });
-                    soundRef.current = null;
+                if (soundsRef.current[kind]) {
+                    await (soundsRef.current[kind] as Audio.Sound).unloadAsync().catch(() => { });
+                    delete soundsRef.current[kind];
                 }
 
                 const { sound, status } = await Audio.Sound.createAsync(
                     { uri: signedUrl },
-                    { shouldPlay, progressUpdateIntervalMillis: 250 },
-                    onPlaybackStatusUpdate,
+                    { shouldPlay: false, progressUpdateIntervalMillis: 250 },
+                    (status) => onPlaybackStatusUpdate(kind, status),
                     false
                 );
 
-                soundRef.current = sound;
-                loadedAudioPathRef.current = artifact.storage_path;
+                soundsRef.current[kind] = sound;
+                loadedAudioPathRef.current[kind] = artifact.storage_path;
 
                 if (status.isLoaded) {
-                    setAudioPositionSec((status.positionMillis || 0) / 1000);
-                    setAudioDurationSec((status.durationMillis || 0) / 1000);
-                    setIsAudioPlaying(Boolean(status.isPlaying));
+                    setAudioPositionSecByKind((prev) => ({ ...prev, [kind]: (status.positionMillis || 0) / 1000 }));
+                    setAudioDurationSecByKind((prev) => ({ ...prev, [kind]: (status.durationMillis || 0) / 1000 }));
+                    setIsAudioPlayingByKind((prev) => ({ ...prev, [kind]: false }));
+                }
+
+                if (shouldPlay) {
+                    await pauseOtherAudio(kind);
+                    await sound.playAsync();
+                    setIsAudioPlayingByKind((prev) => ({ ...prev, [kind]: true }));
                 }
 
                 return true;
             } catch {
                 return false;
             } finally {
-                setIsAudioLoading(false);
+                setIsAudioLoadingByKind((prev) => ({ ...prev, [kind]: false }));
             }
         })();
 
-        prepareAudioPromiseRef.current = request;
+        prepareAudioPromiseRef.current[kind] = request;
         try {
             return await request;
         } finally {
-            prepareAudioPromiseRef.current = null;
-            preparingAudioPathRef.current = null;
+            prepareAudioPromiseRef.current[kind] = null;
+            preparingAudioPathRef.current[kind] = null;
         }
-    }, [onPlaybackStatusUpdate]);
+    }, [onPlaybackStatusUpdate, pauseOtherAudio]);
 
     useEffect(() => {
-        const firstAvailable = narrationArtifact || songArtifact;
-        if (!firstAvailable?.storage_path) return;
-        if (loadedAudioPathRef.current === firstAvailable.storage_path && soundRef.current) return;
-        const kind: AudioKind = narrationArtifact ? 'narration' : 'song';
-        prepareAudio(firstAvailable, false, kind).catch(() => { });
+        if (narrationArtifact?.storage_path) {
+            const alreadyLoaded = loadedAudioPathRef.current.narration === narrationArtifact.storage_path;
+            if (!alreadyLoaded) {
+                prepareAudio(narrationArtifact, false, 'narration').catch(() => { });
+            }
+        }
+        if (songArtifact?.storage_path) {
+            const alreadyLoaded = loadedAudioPathRef.current.song === songArtifact.storage_path;
+            if (!alreadyLoaded) {
+                prepareAudio(songArtifact, false, 'song').catch(() => { });
+            }
+        }
     }, [narrationArtifact, songArtifact, prepareAudio]);
 
     const handleToggleAudio = useCallback(async (kind: AudioKind) => {
@@ -301,35 +355,41 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
             return;
         }
 
-        if (!soundRef.current || loadedAudioPathRef.current !== targetArtifact.storage_path) {
+        if (!soundsRef.current[kind] || loadedAudioPathRef.current[kind] !== targetArtifact.storage_path) {
             await prepareAudio(targetArtifact, true, kind);
             return;
         }
 
         try {
-            const status = await soundRef.current.getStatusAsync();
+            const sound = soundsRef.current[kind] as Audio.Sound;
+            const status = await sound.getStatusAsync();
             if (!status.isLoaded) return;
             setActiveAudioKind(kind);
             if (status.isPlaying) {
-                await soundRef.current.pauseAsync();
-                setIsAudioPlaying(false);
+                await sound.pauseAsync();
+                setIsAudioPlayingByKind((prev) => ({ ...prev, [kind]: false }));
             } else {
-                await soundRef.current.playAsync();
-                setIsAudioPlaying(true);
+                await pauseOtherAudio(kind);
+                await sound.playAsync();
+                setIsAudioPlayingByKind((prev) => ({ ...prev, [kind]: true }));
             }
         } catch { }
-    }, [narrationArtifact, songArtifact, prepareAudio]);
+    }, [narrationArtifact, songArtifact, pauseOtherAudio, prepareAudio]);
 
     const handleSeekPress = useCallback(async (locationX: number) => {
-        if (!soundRef.current || audioDurationSec <= 0) return;
+        const currentKind = activeAudioKind ?? (narrationArtifact ? 'narration' : songArtifact ? 'song' : null);
+        if (!currentKind) return;
+        const sound = soundsRef.current[currentKind];
+        const durationSec = audioDurationSecByKind[currentKind];
+        if (!sound || durationSec <= 0) return;
         const trackWidth = Math.max(1, progressTrackWidthRef.current);
         const ratio = Math.min(1, Math.max(0, locationX / trackWidth));
-        const positionMillis = Math.round(ratio * audioDurationSec * 1000);
+        const positionMillis = Math.round(ratio * durationSec * 1000);
         try {
-            await soundRef.current.setPositionAsync(positionMillis);
-            setAudioPositionSec(positionMillis / 1000);
+            await sound.setPositionAsync(positionMillis);
+            setAudioPositionSecByKind((prev) => ({ ...prev, [currentKind]: positionMillis / 1000 }));
         } catch { }
-    }, [audioDurationSec]);
+    }, [activeAudioKind, audioDurationSecByKind, narrationArtifact, songArtifact]);
 
     const handleDownloadArtifact = useCallback(async (target: AudioKind | 'pdf') => {
         const artifact =
@@ -389,6 +449,11 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
         }
     }, [activeChapterIndex, chapters]);
 
+    const activePositionSec = activeAudioKind ? audioPositionSecByKind[activeAudioKind] : 0;
+    const activeDurationSec = activeAudioKind ? audioDurationSecByKind[activeAudioKind] : 0;
+    const activeLoading = activeAudioKind ? isAudioLoadingByKind[activeAudioKind] : false;
+    const activeSignedUrl = activeAudioKind ? audioSignedUrlByKind[activeAudioKind] : null;
+
     return (
         <SafeAreaView style={styles.container}>
             <BackButton onPress={() => navigation.goBack()} />
@@ -432,11 +497,9 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                                 >
                                     <Text style={[styles.playerButtonText, !narrationArtifact && styles.playerButtonTextDisabled]}>
                                         {narrationArtifact &&
-                                            activeAudioKind === 'narration' &&
-                                            loadedAudioPathRef.current === narrationArtifact.storage_path &&
-                                            isAudioPlaying
+                                            isAudioPlayingByKind.narration
                                             ? 'Pause'
-                                            : isAudioLoading && preparingAudioPathRef.current === narrationArtifact?.storage_path
+                                            : isAudioLoadingByKind.narration && preparingAudioPathRef.current.narration === narrationArtifact?.storage_path
                                                 ? '...'
                                                 : 'Play'}
                                     </Text>
@@ -463,11 +526,9 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                                 >
                                     <Text style={[styles.playerButtonText, !songArtifact && styles.playerButtonTextDisabled]}>
                                         {songArtifact &&
-                                            activeAudioKind === 'song' &&
-                                            loadedAudioPathRef.current === songArtifact.storage_path &&
-                                            isAudioPlaying
+                                            isAudioPlayingByKind.song
                                             ? 'Pause'
-                                            : isAudioLoading && preparingAudioPathRef.current === songArtifact?.storage_path
+                                            : isAudioLoadingByKind.song && preparingAudioPathRef.current.song === songArtifact?.storage_path
                                                 ? '...'
                                                 : 'Play'}
                                     </Text>
@@ -496,21 +557,21 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                                     style={[
                                         styles.playerFill,
                                         {
-                                            width: `${audioDurationSec > 0
-                                                ? Math.min(100, Math.max(0, (audioPositionSec / audioDurationSec) * 100))
+                                            width: `${activeDurationSec > 0
+                                                ? Math.min(100, Math.max(0, (activePositionSec / activeDurationSec) * 100))
                                                 : 0}%`,
                                         },
                                     ]}
                                 />
                             </Pressable>
                             <Text style={styles.playerTime}>
-                                {formatClock(audioPositionSec)} / {formatClock(audioDurationSec)}
+                                {formatClock(activePositionSec)} / {formatClock(activeDurationSec)}
                             </Text>
                         </View>
                         <Text style={styles.playerMeta}>
-                            {isAudioLoading
+                            {activeLoading
                                 ? `Preparing ${activeAudioKind === 'song' ? 'song' : 'narration'}...`
-                                : audioSignedUrl
+                                : activeSignedUrl
                                     ? `${activeAudioKind === 'song' ? 'Song' : 'Narration'} ready (tap bar to seek)`
                                     : 'Select narration or song'}
                         </Text>
