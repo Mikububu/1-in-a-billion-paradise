@@ -75,6 +75,11 @@ Last updated: 2026-02-13
 - Decision: any V2 Vedic matchmaking logic/prompting must follow these specs exactly.
 - Constraint: no invented scoring rules, thresholds, or dosha logic outside those specs.
 
+13. Spice preference is a soft Vedic ranking lens (not a hard gate).
+- Decision: preference scale (`1..10`) must influence candidate ordering in matchmaking.
+- Rule: apply Vedic hard eligibility first (Ashtakoota + Dosha rules), then apply spice distance as ranking weight.
+- Constraint: spice may not override hard Vedic exclusions and may not change canonical Ashtakoota totals.
+
 ## What this means for migration scope
 
 - Required now: active onboarding/payment/dashboard/library/people/core reading flows.
