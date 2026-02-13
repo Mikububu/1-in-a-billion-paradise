@@ -6,3 +6,4 @@ export * from './scoring';
 export * from './matchmaking';
 export * from './spiceRanking';
 export * from './service';
+export * from './httpHandlers';
