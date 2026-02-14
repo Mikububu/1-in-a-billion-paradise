@@ -3,9 +3,16 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "pdfkit": "^0.17.2",
+    "sharp": "^0.34.4"
   },
   "devDependencies": {
+    "@types/pdfkit": "^0.17.3",
     "@types/node": "^22.10.1",
     "typescript": "^5.9.2"
   }

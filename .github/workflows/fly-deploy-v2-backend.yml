@@ -1,0 +1,44 @@
+name: Deploy V2 Backend to Fly.io
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "1-in-a-billion-v2/backend/**"
+      - ".github/workflows/fly-deploy-v2-backend.yml"
+      - "1-in-a-billion-v2/.github/workflows/fly-deploy-v2-backend.yml"
+  workflow_dispatch: {}
+
+concurrency:
+  group: fly-deploy-v2-backend
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve backend directory
+        id: backenddir
+        shell: bash
+        run: |
+          if [ -f "backend/fly.toml" ]; then
+            echo "dir=backend" >> "$GITHUB_OUTPUT"
+          elif [ -f "1-in-a-billion-v2/backend/fly.toml" ]; then
+            echo "dir=1-in-a-billion-v2/backend" >> "$GITHUB_OUTPUT"
+          else
+            echo "Could not find V2 backend fly.toml"
+            exit 1
+          fi
+
+      - name: Set up Flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        working-directory: ${{ steps.backenddir.outputs.dir }}
+        run: flyctl deploy --remote-only --config fly.toml
