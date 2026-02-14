@@ -1,4 +1,4 @@
-app = "1-in-a-billion-backend"
+app = "1-in-a-billion-v2-backend"
 primary_region = "iad"
 
 [build]
