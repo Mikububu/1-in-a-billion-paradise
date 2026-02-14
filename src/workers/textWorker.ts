@@ -23,12 +23,36 @@ import { SpiceLevel } from '../prompts/spice/levels';
 import { gematriaService } from '../services/kabbalah/GematriaService';
 import { hebrewCalendarService } from '../services/kabbalah/HebrewCalendarService';
 import { OUTPUT_FORMAT_RULES } from '../prompts/core/output-rules';
-import { getWordTarget } from '../prompts/config/wordCounts';
+import { getWordTarget, WORD_COUNT_LIMITS } from '../prompts/config/wordCounts';
 import { logLLMCost } from '../services/costTracking';
 
 function clampSpice(level: number): SpiceLevel {
   const clamped = Math.min(10, Math.max(1, Math.round(level)));
   return clamped as SpiceLevel; // Cast validated number (1-10) to SpiceLevel
+}
+
+function countWords(text: string): number {
+  return String(text || '').split(/\s+/).filter(Boolean).length;
+}
+
+function cleanReadingText(raw: string): string {
+  return String(raw || '')
+    // Remove em-dashes and en-dashes
+    .replace(/—/g, ', ').replace(/–/g, '-')
+    // Remove markdown bold/italic asterisks
+    .replace(/\*\*\*/g, '').replace(/\*\*/g, '').replace(/\*/g, '')
+    // Remove markdown headers (# ## ### etc)
+    .replace(/^#{1,6}\s+/gm, '')
+    // Remove markdown underscores for emphasis
+    .replace(/___/g, '').replace(/__/g, '').replace(/(?<!\w)_(?!\w)/g, '')
+    // Remove duplicate headlines (same line repeated)
+    .replace(/^(.+)\n\1$/gm, '$1')
+    // Remove section headers (short lines 2-5 words followed by blank line then text)
+    // Common patterns: "The Attraction", "Core Identity", "THE SYNTHESIS", etc.
+    .replace(/^(The |THE |CHAPTER |Section |Part )?[A-Z][A-Za-z\s]{5,40}\n\n/gm, '')
+    // Clean up extra whitespace
+    .replace(/\s+,/g, ',').replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 /**
@@ -1038,40 +1062,101 @@ ${OUTPUT_FORMAT_RULES}`;
     }
     
     // Post-process: Clean LLM output for spoken audio
-    text = text
-      // Remove em-dashes and en-dashes
-      .replace(/—/g, ', ').replace(/–/g, '-')
-      // Remove markdown bold/italic asterisks
-      .replace(/\*\*\*/g, '').replace(/\*\*/g, '').replace(/\*/g, '')
-      // Remove markdown headers (# ## ### etc)
-      .replace(/^#{1,6}\s+/gm, '')
-      // Remove markdown underscores for emphasis
-      .replace(/___/g, '').replace(/__/g, '').replace(/(?<!\w)_(?!\w)/g, '')
-      // Remove duplicate headlines (same line repeated)
-      .replace(/^(.+)\n\1$/gm, '$1')
-      // Remove section headers (short lines 2-5 words followed by blank line then text)
-      // Common patterns: "The Attraction", "Core Identity", "THE SYNTHESIS", etc.
-      .replace(/^(The |THE |CHAPTER |Section |Part )?[A-Z][A-Za-z\s]{5,40}\n\n/gm, '')
-      // Clean up extra whitespace
-      .replace(/\s+,/g, ',').replace(/\n{3,}/g, '\n\n');
-    
-    const wordCount = text.split(/\s+/).filter(Boolean).length;
+    text = cleanReadingText(text);
 
-    // MINIMUM WORD COUNT: 1500 words (10-15 minutes of audio)
-    // Prompt asks for 2500-3500 words, but this catches severely short outputs
-    const MIN_WORDS = 1500;
-    if (wordCount < MIN_WORDS) {
+    // Length backstop:
+    // Prompts already ask for ~4500 words, but some models stop early.
+    // We enforce a hard floor and auto-continue in a few passes instead of failing the job.
+    const HARD_FLOOR_WORDS = WORD_COUNT_LIMITS.target; // ~30 min narration, reliably >25 min.
+    const MAX_EXPANSION_PASSES = 3;
+
+    async function expandToHardFloor(initial: string): Promise<string> {
+      let out = initial;
+
+      for (let pass = 1; pass <= MAX_EXPANSION_PASSES; pass += 1) {
+        const currentWords = countWords(out);
+        if (currentWords >= HARD_FLOOR_WORDS) break;
+
+        const missing = HARD_FLOOR_WORDS - currentWords;
+        const minAdditional = Math.max(300, missing + 250); // Buffer avoids borderline failures.
+        const tail = out.length > 9000 ? out.slice(-9000) : out;
+
+        console.warn(
+          `🧱 [TextWorker] Output too short (${currentWords} < ${HARD_FLOOR_WORDS}). Expanding pass ${pass}/${MAX_EXPANSION_PASSES} (+${minAdditional} words)...`
+        );
+
+        const expansionPrompt = [
+          'You are continuing an existing long-form astrology reading that was cut short.',
+          '',
+          'RULES:',
+          '- Continue seamlessly from the text below.',
+          '- Do not repeat, summarize, or restart the reading.',
+          '- Keep the same voice, intensity, and style.',
+          '- No bullet points. No lists. No markdown. Continuous prose only.',
+          `- Write at least ${minAdditional} NEW words before stopping.`,
+          '- Do not mention word counts.',
+          '',
+          'TEXT TO CONTINUE FROM (do not repeat):',
+          tail,
+          '',
+          'CONTINUE NOW:',
+        ].join('\n');
+
+        const expansionLabel = `${label}:expand:${pass}`;
+        let chunk: string;
+        if (configuredProvider === 'claude') {
+          chunk = await llmPaid.generate(expansionPrompt, expansionLabel, {
+            maxTokens: 8192,
+            temperature: 0.8,
+          });
+        } else {
+          chunk = await llm.generate(expansionPrompt, expansionLabel, {
+            maxTokens: 8192,
+            temperature: 0.8,
+            provider: configuredProvider as LLMProvider,
+          });
+        }
+
+        const expUsageData = llmInstance.getLastUsage();
+        if (expUsageData) {
+          await logLLMCost(
+            jobId,
+            task.id,
+            {
+              provider: expUsageData.provider,
+              inputTokens: expUsageData.usage.inputTokens,
+              outputTokens: expUsageData.usage.outputTokens,
+            },
+            `text_expand_${system || 'verdict'}_${docType}_${pass}`
+          );
+        }
+
+        chunk = cleanReadingText(chunk);
+        out = `${out.trim()}\n\n${chunk.trim()}`.trim();
+      }
+
+      return out;
+    }
+
+    let wordCount = countWords(text);
+
+    if (wordCount < HARD_FLOOR_WORDS) {
+      text = await expandToHardFloor(text);
+      wordCount = countWords(text);
+    }
+
+    if (wordCount < HARD_FLOOR_WORDS) {
       console.error(`\n${'═'.repeat(70)}`);
       console.error(`🚨 TEXT TOO SHORT - REJECTING`);
       console.error(`${'═'.repeat(70)}`);
-      console.error(`Required: ${MIN_WORDS} words minimum`);
+      console.error(`Required: ${HARD_FLOOR_WORDS} words minimum`);
       console.error(`Received: ${wordCount} words`);
-      console.error(`Shortage: ${MIN_WORDS - wordCount} words missing`);
+      console.error(`Shortage: ${HARD_FLOOR_WORDS - wordCount} words missing`);
       console.error(`${'═'.repeat(70)}\n`);
-      throw new Error(`LLM returned too little text: ${wordCount} words (minimum ${MIN_WORDS} required)`);
+      throw new Error(`LLM returned too little text: ${wordCount} words (minimum ${HARD_FLOOR_WORDS} required)`);
     }
-    
-    console.log(`✅ Word count validation passed: ${wordCount} words (minimum ${MIN_WORDS})`);
+
+    console.log(`✅ Word count validation passed: ${wordCount} words (minimum ${HARD_FLOOR_WORDS})`);
 
     // Extract headline from first line of text
     const lines = text.split('\n').filter(line => line.trim());
