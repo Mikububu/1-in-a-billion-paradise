@@ -360,6 +360,7 @@ export class TextWorker extends BaseWorker {
 	    let chartDataForPrompt = chartData;
 
 	    let prompt = '';
+	    let composedV2: ReturnType<typeof composePromptFromJobStartPayload> | null = null;
 	    let label = `job:${jobId}:doc:${docNum}`;
 
     if (docType === 'verdict') {
@@ -479,6 +480,7 @@ export class TextWorker extends BaseWorker {
       };
 
       const composed = composePromptFromJobStartPayload(promptPayload);
+      composedV2 = composed;
       prompt = composed.prompt;
       label += `:v2prompt:${docType}:${system}`;
 
@@ -510,10 +512,13 @@ export class TextWorker extends BaseWorker {
     let llmInstance: typeof llm | typeof llmPaid;
     
     // Log prompt length for debugging word count issues
-    const promptLength = prompt.length;
-    const promptWordCount = prompt.split(/\s+/).filter(Boolean).length;
+    const llmUserMessage = composedV2?.userMessage || prompt;
+    const llmSystemPrompt = composedV2?.systemPrompt || undefined;
+    const promptLength = llmUserMessage.length;
+    const promptWordCount = llmUserMessage.split(/\s+/).filter(Boolean).length;
     console.log(`📝 [TextWorker] Prompt stats: ${promptLength} chars, ~${promptWordCount} words`);
-    console.log(`📝 [TextWorker] Prompt preview (first 500 chars): ${prompt.substring(0, 500)}`);
+    console.log(`📝 [TextWorker] systemPrompt: ${llmSystemPrompt ? `${llmSystemPrompt.length} chars` : 'none'}`);
+    console.log(`📝 [TextWorker] Prompt preview (first 500 chars): ${llmUserMessage.substring(0, 500)}`);
     
     if (configuredProvider === 'claude') {
       // Use Claude Sonnet 4 via llmPaid (unhinged, no censorship)
@@ -521,19 +526,21 @@ export class TextWorker extends BaseWorker {
       // temperature: 0.8 = matching b4 Cowork version
       llmInstance = llmPaid;
       // Use streaming to prevent mid-response connection resets on long outputs.
-      text = await llmPaid.generateStreaming(prompt, label, {
+      text = await llmPaid.generateStreaming(llmUserMessage, label, {
         maxTokens: 16384,
         temperature: 0.8,
         maxRetries: 3,
+        systemPrompt: llmSystemPrompt,
       });
     } else {
       // Use DeepSeek (default) or OpenAI via llm with provider override
       // maxTokens: 12000 = increased to support 4500+ word outputs
       llmInstance = llm;
-      text = await llm.generate(prompt, label, { 
+      text = await llm.generate(llmUserMessage, label, { 
         maxTokens: 12000, 
         temperature: 0.8,
         provider: configuredProvider as LLMProvider,
+        systemPrompt: llmSystemPrompt,
       });
     }
     

@@ -47,6 +47,8 @@ export type PromptLayerDiagnostics = {
 };
 
 export type ComposePromptResult = {
+    systemPrompt: string;
+    userMessage: string;
     prompt: string;
     diagnostics: {
         styleLayerId: string;

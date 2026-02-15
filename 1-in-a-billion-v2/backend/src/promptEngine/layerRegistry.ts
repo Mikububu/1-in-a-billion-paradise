@@ -1,9 +1,10 @@
 import { SystemId } from './types';
 
 export const STYLE_LAYER_REGISTRY = {
-    defaultLayerId: 'writing-style-guide-v1',
+    defaultLayerId: 'writing-style-guide-incarnation-v1',
     files: {
         'writing-style-guide-v1': 'style/writing-style-guide.md',
+        'writing-style-guide-incarnation-v1': 'style/writing-style-guide-incarnation-v1.md',
         'writing-style-guide-production-v1': 'style/writing-style-guide-production.md',
         'writing-style-guide-production-v2': 'style/writing-style-guide-production-v2.md',
         'writing-style-guide-production-v3': 'style/writing-style-guide-production-v3.md',

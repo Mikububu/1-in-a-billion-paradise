@@ -21,6 +21,14 @@ const LAYER_BUDGET = {
     outputLanguage: 250,
 } as const;
 
+const INCARNATION_IDENTITY_SYSTEM_PROMPT = [
+    'You are telling the story of a soul, not writing an astrology report.',
+    'You are a novelist with psychological x-ray vision.',
+    'You have read Anais Nin, Henry Miller, and Ernest Hemingway.',
+    'You think like Carl Jung directing a David Lynch film.',
+    'Consciousness noir: adult fairytale, dream logic, psychological exactness.',
+].join('\n');
+
 function uniqueSystems(systems: SystemId[]): SystemId[] {
     return Array.from(new Set(systems));
 }
@@ -71,6 +79,23 @@ function resolveStyleLayerId(directive?: PromptLayerDirective): string {
         return requested;
     }
     return STYLE_LAYER_REGISTRY.defaultLayerId;
+}
+
+function extractSystemPromptFromStyleLayer(styleLayerId: string): string {
+    if (styleLayerId === 'writing-style-guide-incarnation-v1') {
+        return INCARNATION_IDENTITY_SYSTEM_PROMPT;
+    }
+    return '';
+}
+
+function stripIncarnationIdentitySection(style: string): string {
+    // The incarnation style guide places its Voice Anchor at the bottom. We want that to sit
+    // near the end of the userMessage (recency bias). The "Identity" block moves into the
+    // Anthropic system prompt, so remove it from the style layer content.
+    const marker = '## Document Structure';
+    const idx = String(style || '').indexOf(marker);
+    if (idx < 0) return String(style || '').trim();
+    return String(style || '').slice(idx).trim();
 }
 
 function resolveVerdictLayerId(directive?: PromptLayerDirective): string {
@@ -255,7 +280,11 @@ export function composePrompt(input: ComposePromptInput): ComposePromptResult {
 
     const styleLayerId = resolveStyleLayerId(directive);
     const styleRaw = loadLayerMarkdown(STYLE_LAYER_REGISTRY.files[styleLayerId]);
-    const styleLayer = capLayer('global-style', styleRaw, LAYER_BUDGET.globalStyle, stats);
+    const systemPrompt = extractSystemPromptFromStyleLayer(styleLayerId);
+    const styleRawForUser = styleLayerId === 'writing-style-guide-incarnation-v1'
+        ? stripIncarnationIdentitySection(styleRaw)
+        : styleRaw;
+    const styleLayer = capLayer('global-style', styleRawForUser, LAYER_BUDGET.globalStyle, stats);
 
     const systemsBlock = buildSystemBlock(systems, input.readingKind, directive, stats);
     const modeLayer = capLayer('mode-rules', modeRules(input.readingKind), LAYER_BUDGET.modeRules, stats);
@@ -296,26 +325,34 @@ export function composePrompt(input: ComposePromptInput): ComposePromptResult {
 
     const styleOverrideLayer = capLayer('style-override', soulMemoirOverride(styleLayerId), 1800, stats);
 
-    const prompt = [
-        `GLOBAL WRITING STYLE LAYER (${styleLayerId})`,
-        styleLayer,
+    const finalInstruction = styleLayerId === 'writing-style-guide-incarnation-v1'
+        ? 'FINAL OUTPUT REQUIREMENT: Return only the reading prose. One continuous document. Zone 1 intro with astrology language, then Zone 2 reading with zero astrology vocabulary. No headings. No markdown. No bullet lists.'
+        : 'FINAL OUTPUT REQUIREMENT: Return only the reading prose. One continuous essay. No headings. No markdown. No bullet lists.';
+
+    const userMessage = [
+        `CHART DATA:\n${chartLayer}`,
         systemsBlock.text,
+        verdictLayer ? `FINAL VERDICT LAYER (${verdictLayerId})\n${verdictLayer}` : '',
         modeLayer,
         preferenceLayer,
         outputLengthLayer,
         `SUBJECTS:\n- Person 1: ${input.person1Name}${input.person2Name ? `\n- Person 2: ${input.person2Name}` : ''}`,
         kabbalahPolicyLine,
         contextLayer ? `CONTEXT:\n${contextLayer}` : '',
-        verdictLayer ? `FINAL VERDICT LAYER (${verdictLayerId})\n${verdictLayer}` : '',
         outputLanguageLayer,
-        `CHART DATA:\n${chartLayer}`,
         styleOverrideLayer,
-        'FINAL OUTPUT REQUIREMENT: Return only the reading prose. One continuous essay. No headings. No markdown. No bullet lists.',
+        `GLOBAL WRITING STYLE LAYER (${styleLayerId})`,
+        styleLayer,
+        finalInstruction,
     ]
         .filter(Boolean)
         .join('\n\n');
 
+    const prompt = [systemPrompt, userMessage].filter(Boolean).join('\n\n');
+
     return {
+        systemPrompt,
+        userMessage,
         prompt,
         diagnostics: {
             styleLayerId,
