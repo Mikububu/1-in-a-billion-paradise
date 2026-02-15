@@ -1,0 +1,956 @@
+import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
+import { Animated } from 'react-native';
+import {
+  Dimensions,
+  FlatList,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ActivityIndicator,
+  ScrollView,
+  Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
+import { Video, ResizeMode } from 'expo-av';
+import { colors, spacing, typography } from '@/theme/tokens';
+import { HookReading } from '@/types/forms';
+import { MainStackParamList } from '@/navigation/RootNavigator';
+import { env } from '@/config/env';
+import { audioApi } from '@/services/api';
+import { getHookAudioSignedUrl, uploadHookAudioBase64 } from '@/services/hookAudioCloud';
+import { isSupabaseConfigured } from '@/services/supabase';
+import { useProfileStore } from '@/store/profileStore';
+import { useOnboardingStore } from '@/store/onboardingStore';
+import { useAuthStore } from '@/store/authStore';
+import { AUDIO_CONFIG } from '@/config/readingConfig';
+import { BackButton } from '@/components/BackButton';
+import { useAudio } from '@/contexts/AudioContext';
+
+type Props = NativeStackScreenProps<MainStackParamList, 'PartnerReadings'>;
+
+const { width: PAGE_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Responsive scaling for smaller phones (iPhone SE = 667)
+const isSmallScreen = SCREEN_HEIGHT < 700;
+const fontScale = isSmallScreen ? 0.9 : 1;
+
+// Dynamic labels using partner name - returns { name, suffix } for styling
+const getSignLabel = (name: string, type: HookReading['type']) => {
+  const upperName = name.toUpperCase();
+  switch (type) {
+    case 'sun': return { name: upperName, suffix: "'S SUN SIGN" };
+    case 'moon': return { name: upperName, suffix: "'S MOON SIGN" };
+    case 'rising': return { name: upperName, suffix: "'S RISING SIGN" };
+  }
+};
+
+type LLMProvider = 'deepseek' | 'claude' | 'gpt' | 'deepthink';
+
+// Extended page type to include a gateway page (continue to compatibility)
+type PageItem = HookReading | { type: 'gateway'; sign: ''; intro: ''; main: '' };
+
+const screenId = 'P1'; // Partner Readings
+
+export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
+  console.log(`📱 Screen ${screenId}: PartnerReadingsScreen`);
+  const { partnerName, partnerBirthDate, partnerBirthTime, partnerBirthCity, partnerId } = route.params || {};
+  const isPrepayOnboarding = (route.params as any)?.mode === 'onboarding_hook';
+  const user = useProfileStore((s) => s.getUser());
+  const onboardingBirthTime = useOnboardingStore((s) => s.birthTime);
+  const relationshipPreferenceScale = useOnboardingStore((s: any) => s.relationshipPreferenceScale) ?? 5;
+  const primaryLanguage = useOnboardingStore((s: any) => s.primaryLanguage?.code) ?? 'en';
+  const authUser = useAuthStore((s) => s.user);
+
+  const [readings, setReadings] = useState<PageItem[]>([]);
+  const [page, setPage] = useState(0);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isNavigatingToSynastry, setIsNavigatingToSynastry] = useState(false);
+  const listRef = useRef<FlatList<PageItem>>(null);
+
+  // Preferred: hook readings are stored on the person as `hookReadings` (Sun/Moon/Rising).
+  const savedHookReadings = useProfileStore((state) => (partnerId ? state.getHookReadings(partnerId) : undefined));
+  const partnerHookAudioPaths = useProfileStore((state) => (partnerId ? state.getPerson(partnerId)?.hookAudioPaths : undefined));
+
+  // Pre-rendered partner audio from store (same pattern as 1st person readings)
+  const partnerAudio = useOnboardingStore((state) => state.partnerAudio);
+  const setPartnerAudio = useOnboardingStore((state) => state.setPartnerAudio);
+
+  // Audio state
+  const [audioLoading, setAudioLoading] = useState<Record<string, boolean>>({});
+  const [audioPlaying, setAudioPlaying] = useState<Record<string, boolean>>({});
+  const { toggleAudio, stopAudio, primeAudio } = useAudio();
+  const inFlightAudio = useRef<Partial<Record<HookReading['type'], Promise<string | null>>>>({});
+  const getPartnerAudioKey = useCallback(
+    (type: HookReading['type']) => `partner-hook:${partnerId || 'pending'}:${type}`,
+    [partnerId]
+  );
+  const savedHookReadingsKey = useMemo(
+    () =>
+      JSON.stringify(
+        (savedHookReadings || []).map((reading) => ({
+          type: reading.type,
+          sign: reading.sign,
+          intro: reading.intro,
+          main: reading.main,
+        }))
+      ),
+    [savedHookReadings]
+  );
+
+  const handleContinueToSynastry = useCallback(() => {
+    if (isNavigatingToSynastry) return;
+
+    const userBirthTime = user?.birthData?.birthTime || onboardingBirthTime;
+    if (!userBirthTime || !partnerBirthTime) {
+      const missingLabel = !userBirthTime ? 'your birth time' : `${partnerName || 'partner'}'s birth time`;
+      Alert.alert(
+        'Birth time required',
+        `Compatibility requires birth time for BOTH people (Rising sign). Please add ${missingLabel} first.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Edit Birth Data',
+            onPress: () => {
+              if (!partnerBirthTime) {
+                if (isPrepayOnboarding) {
+                  navigation.navigate('PartnerInfo', { mode: 'onboarding_hook' } as any);
+                } else if (partnerId) {
+                  navigation.navigate('EditBirthData', { personId: partnerId } as any);
+                } else {
+                  navigation.navigate('PartnerInfo', { mode: 'add_person_only' } as any);
+                }
+              } else if (isPrepayOnboarding) {
+                navigation.navigate('BirthInfo' as any);
+              } else {
+                navigation.navigate('EditBirthData' as any);
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    setIsNavigatingToSynastry(true);
+    navigation.navigate('SynastryPreview', {
+      partnerName,
+      partnerBirthDate,
+      partnerBirthTime,
+      partnerBirthCity,
+      partnerId,
+      onboardingNext: 'PostHookOffer',
+    });
+  }, [
+    isNavigatingToSynastry,
+    isPrepayOnboarding,
+    navigation,
+    onboardingBirthTime,
+    partnerBirthCity,
+    partnerBirthDate,
+    partnerBirthTime,
+    partnerId,
+    partnerName,
+    user?.birthData?.birthTime,
+  ]);
+
+  useEffect(() => {
+    (['sun', 'moon', 'rising'] as const).forEach((type) => {
+      const source = partnerHookAudioPaths?.[type] || partnerAudio[type];
+      if (!source) return;
+      primeAudio(getPartnerAudioKey(type), source).catch(() => { });
+    });
+  }, [getPartnerAudioKey, partnerAudio.moon, partnerAudio.rising, partnerAudio.sun, partnerHookAudioPaths, primeAudio]);
+
+  const startPartnerAudioGeneration = useCallback(
+    (type: HookReading['type'], reading: HookReading) => {
+      const existingSource = partnerHookAudioPaths?.[type] || partnerAudio[type];
+      if (existingSource) return Promise.resolve(existingSource || null);
+      const existing = inFlightAudio.current[type];
+      if (existing) return existing;
+
+      const textToSpeak = `${reading.intro}\n\n${reading.main}`;
+      const p = audioApi
+        .generateTTS(textToSpeak, { exaggeration: AUDIO_CONFIG.exaggeration })
+        .then(async (result) => {
+          if (!result.success) return null;
+
+          const immediateSource = result.audioUrl || null;
+          if (immediateSource) {
+            setPartnerAudio(type, immediateSource);
+            primeAudio(getPartnerAudioKey(type), immediateSource).catch(() => { });
+          }
+
+          const userId = authUser?.id;
+          if (!isPrepayOnboarding && userId && partnerId && result.audioBase64) {
+            try {
+              const uploadResult = await uploadHookAudioBase64({
+                userId,
+                personId: partnerId,
+                type,
+                audioBase64: result.audioBase64,
+              });
+              if (uploadResult.success) {
+                setPartnerAudio(type, uploadResult.path);
+                const latest = useProfileStore.getState().getPerson(partnerId);
+                useProfileStore.getState().updatePerson(partnerId, {
+                  hookAudioPaths: {
+                    ...(latest?.hookAudioPaths || {}),
+                    [type]: uploadResult.path,
+                  },
+                } as any);
+                primeAudio(getPartnerAudioKey(type), uploadResult.path).catch(() => { });
+                console.log(`☁️ ${partnerName}'s ${type} synced to Supabase`);
+                return uploadResult.path;
+              }
+            } catch {
+              // Keep immediate URL fallback
+            }
+          }
+
+          if (immediateSource) return immediateSource;
+
+          // Last-resort playback fallback (not persisted): data URI from transient base64
+          if (result.audioBase64) {
+            return `data:audio/mpeg;base64,${result.audioBase64}`;
+          }
+          return null;
+        })
+        .catch(() => null)
+        .finally(() => {
+          inFlightAudio.current[type] = undefined;
+        });
+
+      inFlightAudio.current[type] = p;
+      return p;
+    },
+    [authUser?.id, getPartnerAudioKey, isPrepayOnboarding, partnerAudio, partnerHookAudioPaths, partnerId, partnerName, primeAudio, setPartnerAudio]
+  );
+
+  // Hydrate missing partner hook audio by probing deterministic cloud storage paths.
+  // This avoids downloading Base64 blobs into local store.
+  useEffect(() => {
+    const hydrateMissingCloudAudioPaths = async () => {
+      if (isPrepayOnboarding) return;
+      const userId = authUser?.id;
+      if (!userId || !partnerId) return;
+      if (!env.ENABLE_SUPABASE_LIBRARY_SYNC || !isSupabaseConfigured) return;
+
+      const types: HookReading['type'][] = ['sun', 'moon', 'rising'];
+
+      for (const type of types) {
+        const localAudio = partnerHookAudioPaths?.[type] || partnerAudio[type];
+        if (localAudio) continue;
+
+        const storagePath = `hook-audio/${userId}/${partnerId}/${type}.mp3`;
+        const signed = await getHookAudioSignedUrl(storagePath, 60);
+        if (!signed) continue;
+
+        setPartnerAudio(type, storagePath);
+        const latest = useProfileStore.getState().getPerson(partnerId);
+        useProfileStore.getState().updatePerson(partnerId, {
+          hookAudioPaths: {
+            ...(latest?.hookAudioPaths || {}),
+            [type]: storagePath,
+          },
+        } as any);
+        primeAudio(getPartnerAudioKey(type), storagePath).catch(() => { });
+        console.log(`✅ Hydrated ${partnerName}'s ${type} audio path from Supabase`);
+      }
+    };
+
+    hydrateMissingCloudAudioPaths();
+  }, [authUser?.id, getPartnerAudioKey, isPrepayOnboarding, partnerAudio.sun, partnerAudio.moon, partnerAudio.rising, partnerHookAudioPaths, partnerId, partnerName, primeAudio, setPartnerAudio]);
+
+  // Keep a cloud copy when an in-memory URL/data source exists and the person has no saved storage path yet.
+  useEffect(() => {
+    if (isPrepayOnboarding) return;
+    const uid = authUser?.id;
+    if (!uid || !partnerId) return;
+    if (!env.ENABLE_SUPABASE_LIBRARY_SYNC || !isSupabaseConfigured) return;
+
+    const maybeSyncType = async (type: HookReading['type']) => {
+      const source = partnerHookAudioPaths?.[type] || partnerAudio?.[type];
+      if (!source) return;
+
+      const alreadyCloudPath =
+        source.startsWith('hook-audio/') ||
+        source.startsWith('http://') ||
+        source.startsWith('https://');
+      if (alreadyCloudPath) return;
+
+      const base64 = source.startsWith('data:audio/mpeg;base64,')
+        ? source.replace('data:audio/mpeg;base64,', '')
+        : /^[A-Za-z0-9+/=]+$/.test(source) && source.length > 256
+          ? source
+          : '';
+      if (!base64) return;
+
+      const person = useProfileStore.getState().getPerson(partnerId);
+      if (person?.hookAudioPaths?.[type]) return;
+
+      const uploadResult = await uploadHookAudioBase64({
+        userId: uid,
+        personId: partnerId,
+        type,
+        audioBase64: base64,
+      });
+      if (!uploadResult.success) return;
+
+      setPartnerAudio(type, uploadResult.path);
+      const latest = useProfileStore.getState().getPerson(partnerId);
+      useProfileStore.getState().updatePerson(partnerId, {
+        hookAudioPaths: {
+          ...(latest?.hookAudioPaths || {}),
+          [type]: uploadResult.path,
+        },
+      } as any);
+      primeAudio(getPartnerAudioKey(type), uploadResult.path).catch(() => { });
+    };
+
+    void maybeSyncType('sun');
+    void maybeSyncType('moon');
+    void maybeSyncType('rising');
+  }, [authUser?.id, getPartnerAudioKey, isPrepayOnboarding, partnerAudio.sun, partnerAudio.moon, partnerAudio.rising, partnerHookAudioPaths, partnerId, primeAudio, setPartnerAudio]);
+
+  // Blink animation ref
+  const blinkAnim = useRef(new Animated.Value(1)).current;
+
+
+  // VISIBLE blink animation when regenerating
+  useEffect(() => {
+    if (isRegenerating) {
+      const blink = Animated.loop(
+        Animated.sequence([
+          Animated.timing(blinkAnim, { toValue: 0.2, duration: 300, useNativeDriver: false }),
+          Animated.timing(blinkAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
+        ])
+      );
+      blink.start();
+      return () => blink.stop();
+    } else {
+      blinkAnim.setValue(1);
+    }
+  }, [isRegenerating, blinkAnim]);
+
+  // CRITICAL: Stop audio when screen loses focus (useFocusEffect runs cleanup BEFORE blur)
+  useFocusEffect(
+    useCallback(() => {
+      // Reset one-tap navigation guard whenever this screen becomes active again.
+      setIsNavigatingToSynastry(false);
+      return () => {
+        console.log('🛑 PartnerReadingsScreen LOSING FOCUS - stopping audio immediately');
+        stopAudio().catch(() => { });
+        setAudioPlaying({});
+      };
+    }, [stopAudio])
+  );
+
+  // STOP AUDIO ON PAGE SWIPE - prevents audio interference between pages
+  useEffect(() => {
+    console.log(`🛑 Partner page changed to ${page} - stopping audio`);
+    stopAudio().catch(() => { });
+    setAudioPlaying({});
+  }, [page, stopAudio]);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BACKGROUND AUDIO GENERATION (same pattern as HookSequenceScreen)
+  // Pre-render next audio while user views current page
+  // ═══════════════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    if (readings.length === 0) return;
+
+    const generateNextAudio = async () => {
+      const currentReading = readings[page];
+      if (!currentReading) return;
+
+      // On SUN page → background generate MOON audio
+      if (currentReading.type === 'sun' && readings[1] && !partnerHookAudioPaths?.moon && !partnerAudio.moon) {
+        console.log(`🎵 ${partnerName}'s Sun page: Background generating MOON audio...`);
+        try {
+          const moonReading = readings[1];
+          const b64 = await startPartnerAudioGeneration('moon', moonReading as HookReading);
+          if (b64) console.log(`✅ ${partnerName}'s Moon audio ready (generated while on Sun page)`);
+        } catch (err) {
+          console.log(`⚠️ ${partnerName}'s Moon audio background generation failed:`, err);
+        }
+      }
+
+      // On MOON page → background generate RISING audio
+      if (currentReading.type === 'moon' && readings[2] && !partnerHookAudioPaths?.rising && !partnerAudio.rising) {
+        console.log(`🎵 ${partnerName}'s Moon page: Background generating RISING audio...`);
+        try {
+          const risingReading = readings[2];
+          const b64 = await startPartnerAudioGeneration('rising', risingReading as HookReading);
+          if (b64) console.log(`✅ ${partnerName}'s Rising audio ready (generated while on Moon page)`);
+        } catch (err) {
+          console.log(`⚠️ ${partnerName}'s Rising audio background generation failed:`, err);
+        }
+      }
+    };
+
+    generateNextAudio();
+  }, [page, readings, partnerAudio.moon, partnerAudio.rising, partnerHookAudioPaths, partnerName, startPartnerAudioGeneration]);
+
+  // Handle audio playback
+  // Handle audio playback (uses pre-rendered audio from store, same as 1st person readings)
+  const handlePlayAudio = useCallback(async (reading: HookReading) => {
+    const type = reading.type;
+    if (audioLoading[type]) return;
+
+    setAudioLoading(prev => ({ ...prev, [type]: true }));
+    console.log(`⏳ Preparing ${partnerName}'s ${type} audio... cached=${!!partnerAudio[type]}`);
+
+    let audioSource: string | null = partnerHookAudioPaths?.[type] || partnerAudio[type] || null;
+    // If background generation is in-flight, wait for it
+    if (!audioSource && inFlightAudio.current[type]) {
+      console.log(`⏳ Waiting for in-flight ${partnerName}'s ${type} audio...`);
+      audioSource = (await inFlightAudio.current[type]!) || null;
+    }
+    // If still missing, start generation now (shared)
+    if (!audioSource) {
+      audioSource = await startPartnerAudioGeneration(type, reading);
+    }
+    if (!audioSource) {
+      setAudioLoading(prev => ({ ...prev, [type]: false }));
+      return;
+    }
+
+    setAudioLoading(prev => ({ ...prev, [type]: false }));
+
+    try {
+      const result = await toggleAudio({
+        key: getPartnerAudioKey(type),
+        source: audioSource,
+        onFinish: () => {
+          setAudioPlaying(prev => ({ ...prev, [type]: false }));
+        },
+      });
+
+      if (result === 'playing') {
+        setAudioPlaying(prev => {
+          const next: Record<string, boolean> = {};
+          Object.keys(prev).forEach((k) => { next[k] = false; });
+          next[type] = true;
+          return next;
+        });
+      } else {
+        setAudioPlaying(prev => ({ ...prev, [type]: false }));
+      }
+    } catch (error) {
+      console.log('Audio playback error:', error);
+    }
+  }, [audioLoading, getPartnerAudioKey, partnerAudio, partnerHookAudioPaths, partnerName, startPartnerAudioGeneration, toggleAudio]);
+
+  // On mount/update, load existing readings or fetch new ones if missing.
+  useEffect(() => {
+    if (savedHookReadings && savedHookReadings.length === 3) {
+      setReadings([...savedHookReadings, { type: 'gateway', sign: '', intro: '', main: '' }]);
+      console.log(`✅ Loaded ${partnerName}'s hook readings from store`);
+      return;
+    }
+
+    // If readings don't exist, generate them (works in both onboarding and post-pay)
+    console.log(`⚠️ ${partnerName}'s readings not found - generating...`);
+    fetchReadingsWithProvider('deepseek');
+  }, [partnerId, savedHookReadingsKey]);
+
+  const fetchReadingsWithProvider = async (provider: LLMProvider) => {
+    console.log(`🔄 Fetching ${partnerName}'s readings with ${provider}...`);
+    setIsRegenerating(true);
+
+    const minSpinnerTime = new Promise(resolve => setTimeout(resolve, 800));
+
+
+    try {
+      const types: HookReading['type'][] = ['sun', 'moon', 'rising'];
+      const newReadings: HookReading[] = [];
+
+      for (const type of types) {
+        const response = await fetch(`${env.CORE_API_URL}/api/reading/${type}?provider=${provider}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            birthDate: partnerBirthDate || '',
+            birthTime: partnerBirthTime || '12:00',
+            timezone: partnerBirthCity?.timezone || 'UTC',
+            latitude: partnerBirthCity?.latitude || 0,
+            longitude: partnerBirthCity?.longitude || 0,
+            relationshipPreferenceScale,
+            primaryLanguage,
+            subjectName: partnerName,
+            isPartnerReading: true,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          newReadings.push(data.reading);
+        }
+      }
+
+      if (newReadings.length === 3) {
+        // Add gateway page after the 3 hook readings
+        setReadings([...newReadings, { type: 'gateway', sign: '', intro: '', main: '' }]);
+        listRef.current?.scrollToIndex({ index: 0, animated: true });
+        setPage(0);
+
+        // NOTE: SUN audio is already pre-rendered by PartnerCoreIdentitiesScreen
+        // MOON and RISING audio are generated in background via useEffect (page change)
+        console.log(`📝 ${partnerName}'s readings loaded. Audio from store: sun=${!!partnerAudio.sun}`);
+
+        // Hook readings are NOT saved to profileStore - they're ephemeral and displayed via special UI
+        // If user wants deep readings, they can request via "Full Reading" CTA
+      }
+    } catch (error) {
+      console.log(`Error fetching ${partnerName}'s readings:`, error);
+    } finally {
+      await minSpinnerTime;
+      setIsRegenerating(false);
+    }
+  };
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, layoutMeasurement } = event.nativeEvent;
+    const index = Math.round(contentOffset.x / layoutMeasurement.width);
+    setPage(index);
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <BackButton onPress={() => navigation.goBack()} />
+
+      <View style={styles.wrapper}>
+        {/* Content */}
+        <View style={styles.content}>
+          {readings.length === 0 && isRegenerating ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.loadingText}>
+                Generating <Text style={styles.nameRed}>{partnerName}</Text>'s readings...
+              </Text>
+            </View>
+          ) : readings.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                <Text style={styles.nameRed}>{partnerName}</Text>'s readings
+              </Text>
+              <Text style={styles.emptySubtext}>
+                {isPrepayOnboarding ? 'Loading…' : 'Tap a provider above to generate'}
+              </Text>
+            </View>
+          ) : (
+            <>
+              <FlatList
+                data={readings}
+                keyExtractor={(item) => item.type}
+                pagingEnabled
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                ref={listRef}
+                onMomentumScrollEnd={handleScroll}
+                renderItem={({ item }) => {
+
+                  // 4th page: Gateway (Continue to synastry/comparison)
+                  if (item.type === 'gateway') {
+                    return (
+                      <View style={styles.page}>
+                        <View style={styles.gatewayContainer}>
+                          <View style={styles.gatewayTop}>
+                            <Text style={styles.gatewayTitle}>
+                              <Text style={styles.nameRed}>{partnerName}</Text>'s Chart Complete
+                            </Text>
+                            <Text style={styles.gatewaySubtitle}>
+                              Ready to explore your cosmic connection?
+                            </Text>
+
+                            <TouchableOpacity
+                              style={[styles.continueBtn, isNavigatingToSynastry && styles.continueBtnDisabled]}
+                              onPress={handleContinueToSynastry}
+                              disabled={isNavigatingToSynastry}
+                            >
+                              <Text style={styles.continueBtnText}>
+                                {isNavigatingToSynastry ? 'Opening…' : 'Compare Charts →'}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+
+                          {/* Bottom video slot (replace source with your excentric_couple.mp4 once added to assets/videos) */}
+                          <Video
+                            source={require('../../../assets/videos/excentric_couple.mp4')}
+                            style={styles.gatewayVideo}
+                            resizeMode={ResizeMode.COVER}
+                            shouldPlay
+                            isLooping
+                            isMuted
+                          />
+                        </View>
+                      </View>
+                    );
+                  }
+
+                  // Regular reading pages (MATCHES HookSequenceScreen layout)
+                  return (
+                    <View style={styles.page}>
+                      {/* Header - centered (same as HookSequenceScreen) */}
+                      <View style={styles.headerCenter}>
+                        <Text style={styles.badgeText} selectable>
+                          <Text style={styles.badgeNameRed}>{getSignLabel(partnerName, item.type)?.name}</Text>
+                          {getSignLabel(partnerName, item.type)?.suffix}
+                        </Text>
+                        <Text style={styles.signName} selectable>{item.sign}</Text>
+
+                        {/* Audio button (inside headerCenter, same as HookSequenceScreen) */}
+                        <TouchableOpacity
+                          style={[
+                            styles.audioBtn,
+                            audioPlaying[item.type] && styles.audioBtnActive,
+                          ]}
+                          onPress={() => (item.type as string) !== 'gateway' && handlePlayAudio(item as HookReading)}
+                          disabled={audioLoading[item.type]}
+                          activeOpacity={0.7}
+                        >
+                          {audioLoading[item.type] ? (
+                            <ActivityIndicator size="small" color={colors.background} />
+                          ) : (
+                            <Text style={styles.audioBtnText}>
+                              {audioPlaying[item.type] ? '■ Stop' : '▶ Audio'}
+                            </Text>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Reading text - scrollable (same as HookSequenceScreen) */}
+                      <ScrollView
+                        style={styles.textScroll}
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={styles.textScrollContent}
+                      >
+                        <Text
+                          style={styles.preamble}
+                          selectable
+                          textBreakStrategy="highQuality"
+                        >
+                          {item.intro}
+                        </Text>
+                        <Text
+                          style={styles.analysis}
+                          selectable
+                          textBreakStrategy="highQuality"
+                        >
+                          {item.main}
+                        </Text>
+                      </ScrollView>
+                    </View>
+                  );
+                }}
+              />
+
+            </>
+          )}
+        </View>
+
+        {/* Footer - Pagination dots (OUTSIDE content, matches HookSequenceScreen) */}
+        {readings.length > 0 && (
+          <View style={styles.footer}>
+            <View style={styles.pagination}>
+              {readings.map((_, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[styles.dot, index === page && styles.dotActive]}
+                  onPress={() => {
+                    listRef.current?.scrollToIndex({ index, animated: true });
+                    setPage(index);
+                  }}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+      </View>
+    </SafeAreaView>
+  );
+};
+
+// IDENTICAL styles to HookSequenceScreen
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+    paddingHorizontal: spacing.page,
+    paddingTop: spacing.md, // Prevent overlap with BackButton
+    paddingBottom: spacing.xs,
+  },
+  backButtonContainer: {
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+  },
+  backButton: {
+    fontFamily: typography.sansMedium,
+    fontSize: 16,
+    color: colors.primary,
+  },
+  wrapper: {
+    flex: 1,
+    paddingTop: spacing.xl, // Match HookSequenceScreen - space below BackButton
+    paddingBottom: spacing.xl,
+    justifyContent: 'space-between',
+  },
+  content: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.page,
+  },
+  loadingText: {
+    fontFamily: typography.sansRegular,
+    fontSize: 16,
+    color: colors.mutedText,
+    marginTop: spacing.lg,
+    textAlign: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.page,
+  },
+  emptyText: {
+    fontFamily: typography.headline,
+    fontSize: 28,
+    color: colors.text,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  nameRed: {
+    color: colors.primary,
+  },
+  emptySubtext: {
+    fontFamily: typography.sansRegular,
+    fontSize: 14,
+    color: colors.mutedText,
+    marginTop: spacing.sm,
+  },
+  providerRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  providerBtn: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    backgroundColor: colors.background,
+    overflow: 'hidden',
+  },
+  providerBtnInner: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    minWidth: 70,
+    alignItems: 'center',
+  },
+  providerBtnActive: {
+    backgroundColor: colors.text,
+    borderColor: colors.text,
+  },
+  providerBtnDisabled: {
+    opacity: 0.4,
+  },
+  providerBtnText: {
+    fontFamily: typography.sansSemiBold,
+    fontSize: 11,
+    color: colors.mutedText,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  providerBtnTextActive: {
+    color: colors.background,
+  },
+  deepthinkText: {
+    color: colors.primary,
+    fontWeight: '800',
+  },
+  page: {
+    width: PAGE_WIDTH, // Full width
+    paddingHorizontal: 0, // Handle padding inside components
+    flex: 1, // Important for ScrollView to work
+  },
+  headerCenter: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  badgeText: {
+    fontFamily: typography.sansBold,
+    fontSize: 24 * fontScale, // Matches HookSequenceScreen
+    fontWeight: '900',
+    color: colors.text, // Rest of text is dark
+    letterSpacing: 2,
+    textAlign: 'center',
+    marginTop: spacing.md,
+  },
+  badgeNameRed: {
+    color: colors.primary, // Name is RED
+  },
+  signName: {
+    fontFamily: typography.headline,
+    fontSize: 44 * fontScale, // Matches HookSequenceScreen
+    color: colors.text,
+    lineHeight: 52 * fontScale, // Matches HookSequenceScreen
+    textAlign: 'center',
+    marginTop: spacing.md, // Matches HookSequenceScreen
+    marginBottom: spacing.sm, // Matches HookSequenceScreen
+  },
+  headerSpacer: {
+    height: isSmallScreen ? 4 : spacing.sm,
+  },
+  preamble: {
+    fontFamily: typography.sansRegular,
+    fontSize: 14 * fontScale,
+    color: colors.mutedText,
+    lineHeight: 20 * fontScale,
+    marginTop: spacing.sm, // Matches HookSequenceScreen
+    marginBottom: spacing.sm, // Matches HookSequenceScreen
+    textAlign: 'justify',
+  },
+  analysis: {
+    fontFamily: typography.sansRegular,
+    fontSize: 15 * fontScale,
+    color: colors.text,
+    lineHeight: 22 * fontScale,
+    textAlign: 'justify',
+  },
+  // Text scroll (matches HookSequenceScreen)
+  textScroll: {
+    flex: 1,
+    width: '100%',
+  },
+  textScrollContent: {
+    paddingBottom: spacing.xl * 2,
+    paddingHorizontal: spacing.page, // Restore padding here for text content
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  pagination: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.lg, // Matches HookSequenceScreen
+  },
+  dot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.divider,
+  },
+  dotActive: {
+    backgroundColor: colors.primary,
+    width: 36,
+  },
+  // Audio styles
+  audioBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: 24, // Rounded pill shape (matches HookSequenceScreen)
+    marginTop: spacing.md,
+    marginBottom: 4,
+  },
+  audioBtnActive: {
+    backgroundColor: colors.text,
+  },
+  audioBtnText: {
+    fontFamily: typography.sansBold,
+    fontSize: 14,
+    color: '#FFFFFF',
+  },
+  audioHint: {
+    fontFamily: typography.sansRegular,
+    fontSize: 10,
+    color: colors.mutedText,
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: spacing.lg, // Matches HookSequenceScreen - space before text
+  },
+  // Gateway page styles (4th page - continue to synastry)
+  gatewayContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  gatewayTop: {
+    width: '100%',
+    alignItems: 'center',
+    paddingTop: spacing.xxl, // Push headline down to standard position
+    paddingHorizontal: spacing.page,
+  },
+  gatewayTitle: {
+    fontFamily: typography.headline,
+    fontSize: 28,
+    color: colors.text,
+    textAlign: 'center',
+    marginTop: spacing.xl, // Extra top margin for headline
+    marginBottom: spacing.md,
+  },
+  gatewaySubtitle: {
+    fontFamily: typography.sansRegular,
+    fontSize: 16,
+    color: colors.mutedText,
+    textAlign: 'center',
+    marginBottom: spacing.xl,
+  },
+  gatewayVideo: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: -spacing.xl, // Move down to touch bottom
+    height: 340, // Bigger video
+    width: PAGE_WIDTH, // Full screen width
+  },
+  continueBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.xl * 2,
+    paddingVertical: spacing.md,
+    borderRadius: 24,
+    marginBottom: spacing.md,
+  },
+  continueBtnDisabled: {
+    opacity: 0.7,
+  },
+  continueBtnText: {
+    fontFamily: typography.sansBold,
+    fontSize: 16,
+    color: '#FFFFFF',
+  },
+  secondaryBtn: {
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+  },
+  secondaryBtnText: {
+    fontFamily: typography.sansRegular,
+    fontSize: 14,
+    color: colors.mutedText,
+    textDecorationLine: 'underline',
+  },
+});

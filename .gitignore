@@ -13,3 +13,13 @@ _backups/
 # Frontend local/dev artifacts
 1-in-a-billion-frontend/.env.local
 1-in-a-billion-frontend/.expo/
+
+# Local IDE / scratch (never commit)
+.cursor/
+.obsidian/
+ONEINABILLIONAPP/
+
+# V2 local env (never commit)
+1-in-a-billion-v2/.env.local
+1-in-a-billion-v2/.env
+1-in-a-billion-v2/.env.*
