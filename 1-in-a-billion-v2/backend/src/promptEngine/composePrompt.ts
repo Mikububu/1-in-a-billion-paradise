@@ -13,6 +13,8 @@ import {
 const LAYER_BUDGET = {
     globalStyle: 12000,
     systemKnowledge: 20000,
+    systemVoice: 16000,
+    voiceArchitecture: 13000,
     modeRules: 1800,
     preferenceLens: 1400,
     outputLength: 700,
@@ -73,6 +75,17 @@ function capLayer(
     return truncated;
 }
 
+function dropSecondPersonLines(content: string): string {
+    const raw = String(content || '').trim();
+    if (!raw) return '';
+    return raw
+        .split('\n')
+        .filter((line) => !/\b(you|your|you're|yourself)\b/i.test(line))
+        .join('\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
 function resolveStyleLayerId(directive?: PromptLayerDirective): string {
     const requested = directive?.sharedWritingStyleLayerId;
     if (requested && STYLE_LAYER_REGISTRY.files[requested]) {
@@ -89,13 +102,16 @@ function extractSystemPromptFromStyleLayer(styleLayerId: string): string {
 }
 
 function stripIncarnationIdentitySection(style: string): string {
-    // The incarnation style guide places its Voice Anchor at the bottom. We want that to sit
-    // near the end of the userMessage (recency bias). The "Identity" block moves into the
-    // Anthropic system prompt, so remove it from the style layer content.
-    const marker = '## Document Structure';
-    const idx = String(style || '').indexOf(marker);
-    if (idx < 0) return String(style || '').trim();
-    return String(style || '').slice(idx).trim();
+    // Keep only the style body after the Identity section so identity instructions live in
+    // the dedicated Anthropic system prompt slot.
+    const raw = String(style || '').trim();
+    if (!raw) return raw;
+    const identityHeader = /^##\s+Identity\s*$/im;
+    if (!identityHeader.test(raw)) return raw;
+    const withoutIdentityHeader = raw.replace(identityHeader, '');
+    const nextSectionMatch = withoutIdentityHeader.match(/^\s*##\s+/m);
+    if (!nextSectionMatch || typeof nextSectionMatch.index !== 'number') return raw;
+    return withoutIdentityHeader.slice(nextSectionMatch.index).trim();
 }
 
 function resolveVerdictLayerId(directive?: PromptLayerDirective): string {
@@ -265,6 +281,53 @@ function buildSystemBlock(
     };
 }
 
+function buildVoiceOverlayBlock(
+    systems: SystemId[],
+    styleLayerId: string,
+    stats: PromptLayerDiagnostics[]
+): string {
+    if (styleLayerId !== 'writing-style-guide-incarnation-v1') return '';
+
+    const sections: string[] = [];
+
+    const voiceArchitecture = capLayer(
+        'voice-architecture-all-systems',
+        dropSecondPersonLines(loadLayerMarkdown('style/voice-architecture-all-systems.md')),
+        LAYER_BUDGET.voiceArchitecture,
+        stats
+    );
+    if (voiceArchitecture) {
+        sections.push(`VOICE ARCHITECTURE LAYER (ALL SYSTEMS)\n${voiceArchitecture}`);
+    }
+
+    const voiceInserts: Array<{ system: SystemId; file: string; label: string }> = [
+        { system: 'vedic', file: 'style/style-guide-insert-vedic-voice.md', label: 'VEDIC' },
+        { system: 'kabbalah', file: 'style/style-guide-insert-kabbalah-voice.md', label: 'KABBALAH' },
+        { system: 'gene_keys', file: 'style/style-guide-insert-gene-keys-voice.md', label: 'GENE KEYS' },
+        { system: 'human_design', file: 'style/style-guide-insert-human-design-voice.md', label: 'HUMAN DESIGN' },
+    ];
+
+    for (const { system, file, label } of voiceInserts) {
+        if (systems.includes(system)) {
+            try {
+                const voice = capLayer(
+                    `voice-${system}`,
+                    dropSecondPersonLines(loadLayerMarkdown(file)),
+                    LAYER_BUDGET.systemVoice,
+                    stats
+                );
+                if (voice) {
+                    sections.push(`SYSTEM-SPECIFIC VOICE LAYER (${label})\n${voice}`);
+                }
+            } catch {
+                // Voice insert not found — non-fatal, system prompt alone is sufficient
+            }
+        }
+    }
+
+    return sections.join('\n\n');
+}
+
 export function composePrompt(input: ComposePromptInput): ComposePromptResult {
     const systems = uniqueSystems(input.systems || []);
     if (systems.length === 0) {
@@ -314,6 +377,7 @@ export function composePrompt(input: ComposePromptInput): ComposePromptResult {
         LAYER_BUDGET.outputLanguage,
         stats
     );
+    const voiceOverlayLayer = buildVoiceOverlayBlock(systems, styleLayerId, stats);
 
     const kabbalahPolicyLine = systems.includes('kabbalah')
         ? `KABBALAH NAME/GEMATRIA MODE: ${directive?.kabbalahNameGematriaMode || 'disabled'}`
@@ -326,7 +390,15 @@ export function composePrompt(input: ComposePromptInput): ComposePromptResult {
     const styleOverrideLayer = capLayer('style-override', soulMemoirOverride(styleLayerId), 1800, stats);
 
     const finalInstruction = styleLayerId === 'writing-style-guide-incarnation-v1'
-        ? 'FINAL OUTPUT REQUIREMENT: Return only the reading prose. One continuous document. Zone 1 intro with astrology language, then Zone 2 reading with zero astrology vocabulary. No headings. No markdown. No bullet lists.'
+        ? [
+            'FINAL OUTPUT REQUIREMENT:',
+            '- Return only the reading prose. One continuous literary essay punctuated by 4-6 surreal headlines (not 10, not 15 — exactly 4 to 6).',
+            '- No markdown. No bullet lists.',
+            '- ZONE 1 (first 400-600 words): Introduce the chart as mythology. Name planets as characters with appetites and agendas. Describe aspects as relationships between forces. Use sign and planet names freely, but never in textbook syntax ("Mars in Leo in the 8th house creates..."). Instead: "Mars lives in the room where things are destroyed and rebuilt. It has been living there since birth, and it is not quiet."',
+            '- ZONE 2 (remainder of reading): Zero technical astrology syntax. No planet-in-sign formulas, no house numbers, no aspect names, no degree references. Pure character study. Describe lived behavior and consequence only.',
+            '- The transition from Zone 1 to Zone 2 should be seamless — no label, no break, just the language shifting from mythological to purely behavioral.',
+            '- Do not copy phrases from the Voice Anchor; invent fresh language.',
+        ].join('\n')
         : 'FINAL OUTPUT REQUIREMENT: Return only the reading prose. One continuous essay. No headings. No markdown. No bullet lists.';
 
     const userMessage = [
@@ -341,6 +413,7 @@ export function composePrompt(input: ComposePromptInput): ComposePromptResult {
         contextLayer ? `CONTEXT:\n${contextLayer}` : '',
         outputLanguageLayer,
         styleOverrideLayer,
+        voiceOverlayLayer,
         `GLOBAL WRITING STYLE LAYER (${styleLayerId})`,
         styleLayer,
         finalInstruction,

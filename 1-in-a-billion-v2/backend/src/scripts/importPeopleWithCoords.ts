@@ -128,7 +128,7 @@ async function importPeopleWithCoords() {
   
   // Also save as TypeScript for direct import
   const tsContent = `export const PEOPLE_TO_IMPORT = ${JSON.stringify(results, null, 2)};`;
-  const tsPath = path.join(__dirname, '../../1-in-a-billion-frontend/src/data/importedPeople.ts');
+  const tsPath = path.join(__dirname, '../../../src/data/importedPeople.ts');
   fs.writeFileSync(tsPath, tsContent);
   console.log(`💾 Also saved to: ${tsPath}`);
 }

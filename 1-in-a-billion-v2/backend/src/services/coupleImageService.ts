@@ -24,6 +24,7 @@ import { createSupabaseServiceClient } from './supabaseClient';
 import { getApiKey } from './apiKeys';
 import { env } from '../config/env';
 import sharp from 'sharp';
+import { loadImagePromptLayer } from '../promptEngine/imagePromptLayers';
 
 const COUPLE_IMAGES_BUCKET = 'couple-portraits';
 
@@ -151,7 +152,16 @@ export async function composeCoupleImage(
       },
       // Romantic couple composition prompt
       {
-        text: `Compose these two stylized portraits into a romantic couple portrait. Keep the exact same artistic style from the input portraits. Show them pressed close together in love, intimate composition. Preserve the facial features from both portraits exactly as shown - do not change or reinterpret the faces. Extreme close-up zoomed in, subjects fill entire frame edge to edge, no empty margins or white space around subjects.`
+        text: (() => {
+          try {
+            const prompt = loadImagePromptLayer('synastry_portrait');
+            console.log(`🧾 [Couple] Using image prompt layer "synastry_portrait": ${prompt.replace(/\s+/g, ' ').slice(0, 140)}...`);
+            return prompt;
+          } catch (err) {
+            console.warn('⚠️ [Couple] Failed to load synastry image prompt layer, using fallback:', (err as Error)?.message || err);
+            return 'Compose these two stylized portraits into a romantic couple portrait. Keep the exact same artistic style from the input portraits. Show them pressed close together in love, intimate composition. Preserve the facial features from both portraits exactly as shown - do not change or reinterpret the faces. Extreme close-up zoomed in, subjects fill entire frame edge to edge, no empty margins or white space around subjects.';
+          }
+        })()
       }
     ];
 

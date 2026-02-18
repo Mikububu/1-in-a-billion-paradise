@@ -1,9 +1,9 @@
 #!/usr/bin/env zsh
 set -euo pipefail
 
-ROOT_DIR="/Users/michaelperinwogenburg/Desktop/big-challenge"
-PARENT_REPO="$ROOT_DIR"
-PREFIX="1-in-a-billion-v2"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PARENT_REPO="$(cd "$SCRIPT_DIR/.." && pwd)"
+PREFIX="$(basename "$SCRIPT_DIR")"
 DEFAULT_BRANCH="codex/v2-backup-split-20260212-consent"
 
 usage() {

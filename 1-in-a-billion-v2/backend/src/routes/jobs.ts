@@ -34,6 +34,28 @@ import {
 import { generateChapterPDF } from '../services/pdf/pdfGenerator';
 
 const router = new Hono();
+const DEBUG_LOG_PATH = process.env.DEBUG_LOG_PATH || `${process.cwd()}/.cursor/debug.log`;
+
+function appendAgentDebug(location: string, message: string, data: Record<string, any>, hypothesisId: string): void {
+  if (process.env.ENABLE_AGENT_DEBUG_LOG !== '1') return;
+  import('node:fs')
+    .then(async (fs) => {
+      await fs.promises.mkdir(`${process.cwd()}/.cursor`, { recursive: true });
+      await fs.promises.appendFile(
+        DEBUG_LOG_PATH,
+        JSON.stringify({
+          location,
+          message,
+          data,
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId,
+        }) + '\n'
+      );
+    })
+    .catch(() => {});
+}
 
 function getBearerToken(c: any): string | null {
   const auth = c.req.header('Authorization') || c.req.header('authorization');
@@ -468,9 +490,7 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
   const docNum = parseInt(c.req.param('docNum'), 10);
   const rangeHeader = c.req.header('range') || c.req.header('Range') || null;
   
-  // #region agent log
-  import('fs').then(fs=>fs.promises.appendFile('/Users/michaelperinwogenburg/Desktop/big challenge/1 in a Billion/.cursor/debug.log',JSON.stringify({location:'jobs.ts:465',message:'Audio endpoint called',data:{jobId:jobId.substring(0,8),docNum},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})+'\n').catch(()=>{}));
-  // #endregion
+  appendAgentDebug('jobs.ts:465', 'Audio endpoint called', { jobId: jobId.substring(0, 8), docNum }, 'C');
   
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return c.json({ success: false, error: 'Supabase not configured' }, 500);
@@ -511,9 +531,23 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
     // Find artifact matching docNum (from metadata or derive from task sequence)
     let audioArtifact = artifacts.find(a => a.metadata?.docNum === docNum);
     
-    // #region agent log
-    import('fs').then(fs=>fs.promises.appendFile('/Users/michaelperinwogenburg/Desktop/big challenge/1 in a Billion/.cursor/debug.log',JSON.stringify({location:'jobs.ts:507',message:'Audio artifact search',data:{jobId:jobId.substring(0,8),requestedDocNum:docNum,totalArtifacts:artifacts.length,artifactMetadata:artifacts.map(a=>({docNum:a.metadata?.docNum,system:a.metadata?.system,docType:a.metadata?.docType})),foundMatch:!!audioArtifact,matchedDocNum:audioArtifact?.metadata?.docNum},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})+'\n').catch(()=>{}));
-    // #endregion
+    appendAgentDebug(
+      'jobs.ts:507',
+      'Audio artifact search',
+      {
+        jobId: jobId.substring(0, 8),
+        requestedDocNum: docNum,
+        totalArtifacts: artifacts.length,
+        artifactMetadata: artifacts.map((a) => ({
+          docNum: a.metadata?.docNum,
+          system: a.metadata?.system,
+          docType: a.metadata?.docType,
+        })),
+        foundMatch: !!audioArtifact,
+        matchedDocNum: audioArtifact?.metadata?.docNum,
+      },
+      'C'
+    );
     
     // If not found by metadata, try to match by task sequence
     if (!audioArtifact) {
@@ -595,9 +629,7 @@ router.get('/v2/:jobId/song/:docNum', async (c) => {
   const docNum = parseInt(c.req.param('docNum'), 10);
   const rangeHeader = c.req.header('range') || c.req.header('Range') || null;
   
-  // #region agent log
-  import('fs').then(fs=>fs.promises.appendFile('/Users/michaelperinwogenburg/Desktop/big challenge/1 in a Billion/.cursor/debug.log',JSON.stringify({location:'jobs.ts:580',message:'Song endpoint called',data:{jobId:jobId.substring(0,8),docNum},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})+'\n').catch(()=>{}));
-  // #endregion
+  appendAgentDebug('jobs.ts:580', 'Song endpoint called', { jobId: jobId.substring(0, 8), docNum }, 'D');
   
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return c.json({ success: false, error: 'Supabase not configured' }, 500);

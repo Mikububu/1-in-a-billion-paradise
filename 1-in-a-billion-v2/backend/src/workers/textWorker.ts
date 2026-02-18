@@ -22,6 +22,10 @@ import {
   compactWesternChartDataForDigest,
   validateWesternDigestAgainstChartData,
 } from '../promptEngine/digests/westernDigest';
+import {
+  buildVedicChartDigestPrompt,
+  validateVedicDigest,
+} from '../promptEngine/digests/vedicDigest';
 
 function clampSpice(level: number): SpiceLevel {
   const clamped = Math.min(10, Math.max(1, Math.round(level)));
@@ -32,8 +36,31 @@ function countWords(text: string): number {
   return String(text || '').split(/\s+/).filter(Boolean).length;
 }
 
-function cleanReadingText(raw: string): string {
-  return String(raw || '')
+function isHeadlineLine(line: string): boolean {
+  const text = String(line || '').trim();
+  if (!text) return false;
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length < 3 || words.length > 14) return false;
+  if (/[.!?;:]$/.test(text)) return false;
+  return /^[A-Z][A-Za-z0-9,'"\-\s]+$/.test(text);
+}
+
+function findVoiceAnchorLeak(text: string): string | null {
+  const body = String(text || '').toLowerCase();
+  const fingerprints: Array<{ id: string; re: RegExp }> = [
+    { id: 'cathedral_pray_in', re: /\bcathedral\s+they\s+want\s+to\s+pray\s+in\b/i },
+    { id: 'animal_behind_closed_doors', re: /\banimal\s+that\s+appears\s+behind\s+closed\s+doors\b/i },
+    { id: 'puts_pronoun_mouth_there', re: /\bputs\s+(?:his|her|its)\s+mouth\s+there\b/i },
+    { id: 'precision_love_hiding', re: /\bprecision\s+is\s+a\s+form\s+of\s+love\s+and\s+a\s+form\s+of\s+hiding\b/i },
+  ];
+  for (const fp of fingerprints) {
+    if (fp.re.test(body)) return fp.id;
+  }
+  return null;
+}
+
+function cleanReadingText(raw: string, options?: { preserveSurrealHeadlines?: boolean }): string {
+  let out = String(raw || '')
     // Remove em-dashes and en-dashes
     .replace(/—/g, ', ').replace(/–/g, '-')
     // Remove markdown bold/italic asterisks
@@ -44,19 +71,24 @@ function cleanReadingText(raw: string): string {
     .replace(/___/g, '').replace(/__/g, '').replace(/(?<!\w)_(?!\w)/g, '')
     // Remove duplicate headlines (same line repeated)
     .replace(/^(.+)\n\1$/gm, '$1')
+    // Remove expansion seam marker if model inserts it.
+    .replace(/^\s*The Reading Continues\s*$/gim, '');
+
+  if (!options?.preserveSurrealHeadlines) {
     // Remove section headers (short lines 2-5 words followed by blank line then text)
     // Common patterns: "The Attraction", "Core Identity", "THE SYNTHESIS", etc.
-    .replace(/^(The |THE |CHAPTER |Section |Part )?[A-Z][A-Za-z\s]{5,40}\n\n/gm, '')
+    out = out.replace(/^(The |THE |CHAPTER |Section |Part )?[A-Z][A-Za-z\s]{5,40}\n\n/gm, '');
+  }
+
+  return out
     // Clean up extra whitespace
     .replace(/\s+,/g, ',').replace(/\n{3,}/g, '\n\n')
     .trim();
 }
 
-function tightenParagraphs(raw: string): string {
+function tightenParagraphs(raw: string, options?: { preserveSurrealHeadlines?: boolean }): string {
   const text = String(raw || '').trim();
   if (!text) return text;
-  // Soul-memoir output has strict footer rules; don't restructure it here.
-  if (/\bChart Signature\b/i.test(text)) return text;
 
   const paras = text
     .split(/\n{2,}/)
@@ -70,9 +102,15 @@ function tightenParagraphs(raw: string): string {
   for (let i = 0; i < paras.length; i += 1) {
     const p = paras[i]!;
     const words = countWords(p);
+    const isSurrealHeadline = options?.preserveSurrealHeadlines && isHeadlineLine(p);
 
     // Preserve the cold-open invocation as its own line.
     if (i === 0) {
+      out.push(p);
+      continue;
+    }
+
+    if (isSurrealHeadline) {
       out.push(p);
       continue;
     }
@@ -92,6 +130,7 @@ function tightenParagraphs(raw: string): string {
     let shortestIdx = -1;
     let shortestWords = Number.POSITIVE_INFINITY;
     for (let i = 2; i < out.length; i += 1) {
+      if (options?.preserveSurrealHeadlines && isHeadlineLine(out[i]!)) continue;
       const w = countWords(out[i]!);
       if (w < shortestWords) {
         shortestWords = w;
@@ -110,6 +149,66 @@ function hasSecondPerson(text: string): boolean {
   return /\b(you|your|you're|yourself)\b/i.test(String(text || ''));
 }
 
+function extractExpectedAge(chartData: string): number | undefined {
+  const text = String(chartData || '');
+  const patterns = [
+    /\b- Age:\s*(\d{1,3})\b/i,
+    /\bCurrent Age:\s*(\d{1,3})\b/i,
+  ];
+  for (const re of patterns) {
+    const m = text.match(re);
+    if (m && m[1]) {
+      const age = Number(m[1]);
+      if (Number.isFinite(age) && age > 0 && age < 130) return age;
+    }
+  }
+  return undefined;
+}
+
+function parseSimpleNumberWords(raw: string): number | undefined {
+  const token = String(raw || '').toLowerCase().replace(/[^a-z-\s]/g, '').trim();
+  if (!token) return undefined;
+  const units: Record<string, number> = {
+    zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9,
+    ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19,
+  };
+  const tens: Record<string, number> = {
+    twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
+  };
+  if (token in units) return units[token];
+  if (token in tens) return tens[token];
+  const normalized = token.replace(/\s+/g, '-');
+  const parts = normalized.split('-').filter(Boolean);
+  if (parts.length === 2 && parts[0] in tens && parts[1] in units) {
+    return tens[parts[0]] + units[parts[1]];
+  }
+  return undefined;
+}
+
+function findAgeMismatch(text: string, expectedAge?: number): string | null {
+  if (!expectedAge) return null;
+  const body = String(text || '');
+
+  const numericRe = /\b(?:he|she|[A-Z][a-z]+)\s+is\s+(\d{1,3})\s+years?\s+(?:old|into(?:\s+this\s+(?:incarnation|life))?)\b/gi;
+  let m: RegExpExecArray | null;
+  while ((m = numericRe.exec(body)) !== null) {
+    const found = Number(m[1]);
+    if (Number.isFinite(found) && found !== expectedAge) {
+      return `age_mismatch:${found}_expected:${expectedAge}`;
+    }
+  }
+
+  const wordsRe = /\b(?:he|she|[A-Z][a-z]+)\s+is\s+([a-z]+(?:[-\s][a-z]+)?)\s+years?\s+(?:old|into(?:\s+this\s+(?:incarnation|life))?)\b/gi;
+  while ((m = wordsRe.exec(body)) !== null) {
+    const foundWord = m[1] || '';
+    const found = parseSimpleNumberWords(foundWord);
+    if (typeof found === 'number' && found !== expectedAge) {
+      return `age_mismatch:${found}_expected:${expectedAge}`;
+    }
+  }
+  return null;
+}
+
 const FORBIDDEN_PATTERNS: Array<{ id: string; re: RegExp }> = [
   { id: 'in_conclusion', re: /\b(in conclusion)\b/i },
   { id: 'ultimately_end_of_day', re: /\b(ultimately,? at the end of the day)\b/i },
@@ -124,6 +223,14 @@ const FORBIDDEN_PATTERNS: Array<{ id: string; re: RegExp }> = [
   { id: 'astrologers_call', re: /\bAstrologers call\b/i },
   { id: 'house_is_def', re: /\bthe (?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth) house is\b/i },
   { id: 'ordinal_house_is_def', re: /\bthe (?:\d+)(?:st|nd|rd|th) house is\b/i },
+  {
+    id: 'technical_planet_sign_structure',
+    re: /\b(?:The\s+)?(?:Sun|Moon|Mercury|Venus|Mars|Jupiter|Saturn|Uranus|Neptune|Pluto)\s+in\s+(?:Aries|Taurus|Gemini|Cancer|Leo|Virgo|Libra|Scorpio|Sagittarius|Capricorn|Aquarius|Pisces)\b/i,
+  },
+  {
+    id: 'technical_planet_house_structure',
+    re: /\b(?:The\s+)?(?:Sun|Moon|Mercury|Venus|Mars|Jupiter|Saturn|Uranus|Neptune|Pluto)\s+in\s+(?:his|her|the)\s+(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|\d+(?:st|nd|rd|th))\s+house\b/i,
+  },
 ];
 
 function getForbiddenMatchIds(text: string): string[] {
@@ -146,6 +253,26 @@ function hasBannedDetours(text: string): boolean {
     /\b(social justice|environmental sustainability|world healing)\b/i.test(String(text || ''));
 }
 
+function extractZone2(text: string, zone1MaxWords: number = 700): string {
+  const raw = String(text || '').trim();
+  if (!raw) return '';
+
+  const re = /\S+/g;
+  let wordCount = 0;
+  let splitIdx = -1;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(raw)) !== null) {
+    wordCount += 1;
+    if (wordCount === zone1MaxWords + 1) {
+      splitIdx = m.index;
+      break;
+    }
+  }
+
+  if (splitIdx < 0) return '';
+  return raw.slice(splitIdx).trim();
+}
+
 function getComplianceIssues(text: string): string[] {
   const issues: string[] = [];
   if (hasSecondPerson(text)) issues.push('second_person');
@@ -153,6 +280,55 @@ function getComplianceIssues(text: string): string[] {
   if (forbidden.length > 0) issues.push(`forbidden_phrase:${forbidden.slice(0, 6).join(',')}`);
   if (hasBannedDetours(text)) issues.push('banned_detour');
   return issues;
+}
+
+function getTechnicalAstroReportLines(text: string): string[] {
+  const lines = String(text || '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const re = /\b((?:The\s+)?(?:Sun|Moon|Mercury|Venus|Mars|Jupiter|Saturn|Uranus|Neptune|Pluto)\s+in\s+(?:Aries|Taurus|Gemini|Cancer|Leo|Virgo|Libra|Scorpio|Sagittarius|Capricorn|Aquarius|Pisces)|(?:The\s+)?(?:Sun|Moon|Mercury|Venus|Mars|Jupiter|Saturn|Uranus|Neptune|Pluto)\s+in\s+(?:his|her|the)\s+(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|\d+(?:st|nd|rd|th))\s+house|\b(?:Sun|Moon|Mercury|Venus|Mars|Jupiter|Saturn|Uranus|Neptune|Pluto)\b\s+(?:conjunct|opposes?|squares?|trines?|sextiles?)\s+\b(?:Sun|Moon|Mercury|Venus|Mars|Jupiter|Saturn|Uranus|Neptune|Pluto)\b|conjunction|opposition|square|trine|sextile|profection|lord of year|house\s+\d+|natal|transit)\b/i;
+  return lines.filter((line) => re.test(line)).slice(0, 20);
+}
+
+function extractChartSignatureFooter(text: string): { body: string; footer: string } {
+  const raw = String(text || '').trim();
+  if (!raw) return { body: '', footer: '' };
+  const lines = raw.split('\n');
+  const footerLineRe = /^\s*(Chart Signature:|Data:|Publisher:|1-in-a-billion\.app\b)/i;
+  const chartSigLineRe = /^\s*Chart Signature:/i;
+
+  const chartSigIndices = lines
+    .map((line, idx) => (chartSigLineRe.test(line) ? idx : -1))
+    .filter((idx) => idx >= 0);
+
+  if (chartSigIndices.length === 0) {
+    return {
+      body: raw.replace(/\n{3,}/g, '\n\n').trim(),
+      footer: '',
+    };
+  }
+
+  const lastChartSigIdx = chartSigIndices[chartSigIndices.length - 1]!;
+  const tail = lines.slice(lastChartSigIdx);
+  const chartSig = tail.find((line) => chartSigLineRe.test(line))?.trim();
+  const data = tail.find((line) => /^\s*Data:/i.test(line))?.trim();
+  const publisher = tail.find((line) => /^\s*Publisher:/i.test(line))?.trim();
+  const site = tail.find((line) => /^\s*1-in-a-billion\.app\b/i.test(line))?.trim();
+
+  const footer = [chartSig, data, publisher, site]
+    .filter(Boolean)
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  const body = lines
+    .filter((line) => !footerLineRe.test(line))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  return { body, footer };
 }
 
 // LLM calls now use centralized service (src/services/llm.ts)
@@ -357,7 +533,8 @@ export class TextWorker extends BaseWorker {
 
 	    // Default: prompts see the full chart data. Some systems (Western) can be too heavy,
 	    // so we optionally replace this with a curated digest (two-pass prompting).
-	    let chartDataForPrompt = chartData;
+    let chartDataForPrompt = chartData;
+    const expectedAge = extractExpectedAge(chartData);
 
 	    let prompt = '';
 	    let composedV2: ReturnType<typeof composePromptFromJobStartPayload> | null = null;
@@ -421,6 +598,7 @@ export class TextWorker extends BaseWorker {
 	          });
 
 	          const MAX_DIGEST_ATTEMPTS = 2;
+	          let digestAccepted = false;
 	          for (let attempt = 1; attempt <= MAX_DIGEST_ATTEMPTS; attempt += 1) {
 	            const digestLabel = `${label}:westernDigest:${docType}:attempt:${attempt}`;
 	            console.log(`🧠 [TextWorker] Western digest pass ${attempt}/${MAX_DIGEST_ATTEMPTS}...`);
@@ -458,7 +636,69 @@ export class TextWorker extends BaseWorker {
 	            ].join('\n\n');
 
 	            console.log(`✅ [TextWorker] Western digest accepted (${validation.evidenceLines.length} evidence lines).`);
+	            digestAccepted = true;
 	            break;
+	          }
+	          if (!digestAccepted) {
+	            throw new Error(`Western digest failed validation after ${MAX_DIGEST_ATTEMPTS} attempts for ${docType}. Refusing fallback to raw chart data.`);
+	          }
+	        }
+	      }
+
+	      // Two-pass prompting for Vedic (individual/partner docs):
+	      // generate a compact digest first, then write from that digest.
+	      if (system === 'vedic' && docType !== 'overlay' && getProviderForSystem(system) === 'claude') {
+	        const subject = docType === 'person2' ? person2 : person1;
+	        if (subject?.name) {
+	          const digestPrompt = buildVedicChartDigestPrompt({
+	            personName: subject.name,
+	            chartData: chartData,
+	          });
+
+	          const MAX_VEDIC_DIGEST_ATTEMPTS = 2;
+	          let digestAccepted = false;
+	          for (let attempt = 1; attempt <= MAX_VEDIC_DIGEST_ATTEMPTS; attempt += 1) {
+	            const digestLabel = `${label}:vedicDigest:${docType}:attempt:${attempt}`;
+	            console.log(`🧠 [TextWorker] Vedic digest pass ${attempt}/${MAX_VEDIC_DIGEST_ATTEMPTS}...`);
+
+	            const digestRaw = await llmPaid.generateStreaming(digestPrompt, digestLabel, {
+	              maxTokens: 4096,
+	              temperature: 0.25 + (attempt - 1) * 0.05,
+	              maxRetries: 3,
+	            });
+
+	            const digestUsage = llmPaid.getLastUsage();
+	            if (digestUsage) {
+	              await logLLMCost(
+	                jobId,
+	                task.id,
+	                {
+	                  provider: digestUsage.provider,
+	                  inputTokens: digestUsage.usage.inputTokens,
+	                  outputTokens: digestUsage.usage.outputTokens,
+	                },
+	                `text_vedic_digest_${docType}_${attempt}`
+	              );
+	            }
+
+	            const digest = String(digestRaw || '').trim();
+	            const validation = validateVedicDigest({ digest, chartData });
+	            if (!validation.ok) {
+	              console.warn(`⚠️ [TextWorker] Vedic digest validation failed: ${validation.reason || 'unknown'}`);
+	              continue;
+	            }
+
+	            chartDataForPrompt = [
+	              'CHART DATA (CURATED VEDIC DIGEST; authoritative subset - sidereal, Lahiri)',
+	              digest,
+	            ].join('\n\n');
+
+	            console.log(`✅ [TextWorker] Vedic digest accepted (${countWords(digest)} words).`);
+	            digestAccepted = true;
+	            break;
+	          }
+	          if (!digestAccepted) {
+	            throw new Error(`Vedic digest failed validation after ${MAX_VEDIC_DIGEST_ATTEMPTS} attempts for ${docType}. Refusing fallback to raw chart data.`);
 	          }
 	        }
 	      }
@@ -514,6 +754,8 @@ export class TextWorker extends BaseWorker {
     // Log prompt length for debugging word count issues
     const llmUserMessage = composedV2?.userMessage || prompt;
     const llmSystemPrompt = composedV2?.systemPrompt || undefined;
+    const preserveSurrealHeadlines =
+      String(composedV2?.diagnostics?.styleLayerId || '').includes('incarnation');
     const promptLength = llmUserMessage.length;
     const promptWordCount = llmUserMessage.split(/\s+/).filter(Boolean).length;
     console.log(`📝 [TextWorker] Prompt stats: ${promptLength} chars, ~${promptWordCount} words`);
@@ -560,7 +802,12 @@ export class TextWorker extends BaseWorker {
     }
     
     // Post-process: Clean LLM output for spoken audio
-    text = tightenParagraphs(cleanReadingText(text));
+    text = tightenParagraphs(
+      cleanReadingText(text, { preserveSurrealHeadlines }),
+      { preserveSurrealHeadlines }
+    );
+    let extractedFooter = extractChartSignatureFooter(text);
+    text = extractedFooter.body;
 
     // Length backstop:
     // Prompts already ask for ~4500 words, but some models stop early.
@@ -595,12 +842,22 @@ export class TextWorker extends BaseWorker {
           '- Continue seamlessly from the text below.',
           '- Do not repeat, summarize, or restart the reading.',
           '- Keep the same voice, intensity, and style.',
-          '- No bullet points. No lists. No markdown. Continuous prose only.',
+          preserveSurrealHeadlines
+            ? '- Keep surreal headline lines intact. Preserve or add headline beats so the full reading contains 4-6 surreal headlines.'
+            : '- No bullet points. No lists. No markdown. Continuous prose only.',
           '- Never address the reader. No second-person pronouns (you/your/yourself).',
           '- Do NOT introduce any new chart factors (new planet/sign/house/aspect/transit/profection) beyond what is already present in the text or explicitly listed in CHART DATA.',
           '- If you mention any placement or transit, it must match CHART DATA exactly.',
-          '- Do not drift into astrology lecture mode. Avoid definitional frames like:',
-          '  "The Sun represents...", "The Moon governs...", "The rising sign is...", "Astrologers call...", "the ninth house is..."',
+          preserveSurrealHeadlines
+            ? [
+                '- ZONE 2 HARD BAN: Zero technical astrology syntax in this continuation.',
+                '- Forbidden: planet-in-sign formulas (e.g. "Mars in Leo", "Moon in Scorpio"), house numbers, aspect nouns (conjunction, opposition, square, trine, sextile), degree references, transit/profection jargon.',
+                '- Forbidden even when poetic: disguised report syntax that maps placements in costume.',
+                '- Allowed: embodied behavior, relational pattern, emotional weather, architecture metaphors, concrete consequence.',
+                '- Graha/planet names may appear ONLY as mythic story characters (e.g. "Saturn crouches in the basement") without technical placement syntax.',
+                '- If you need timing language, use: "this season", "this year", "the next twelve months".',
+              ].join('\n')
+            : '- Do not drift into astrology lecture mode. Avoid definitional frames like:\n  "The Sun represents...", "The Moon governs...", "The rising sign is...", "Astrologers call...", "the ninth house is..."',
           '- Avoid template openers like: "carries the signature of..."',
           `- Write at least ${minAdditional} NEW words before stopping.`,
           '- Do not mention word counts.',
@@ -619,12 +876,14 @@ export class TextWorker extends BaseWorker {
             maxTokens: 8192,
             temperature: 0.8,
             maxRetries: 3,
+            systemPrompt: llmSystemPrompt,
           });
         } else {
           chunk = await llm.generate(expansionPrompt, expansionLabel, {
             maxTokens: 8192,
             temperature: 0.8,
             provider: configuredProvider as LLMProvider,
+            systemPrompt: llmSystemPrompt,
           });
         }
 
@@ -642,7 +901,21 @@ export class TextWorker extends BaseWorker {
           );
         }
 
-        chunk = tightenParagraphs(cleanReadingText(chunk));
+        chunk = tightenParagraphs(
+          cleanReadingText(chunk, { preserveSurrealHeadlines }),
+          { preserveSurrealHeadlines }
+        );
+        const chunkFooter = extractChartSignatureFooter(chunk);
+        chunk = chunkFooter.body;
+        if (preserveSurrealHeadlines) {
+          const expansionIssues = getComplianceIssues(chunk);
+          const expansionTechnical = getTechnicalAstroReportLines(chunk);
+          if (expansionIssues.length > 0 || expansionTechnical.length > 0) {
+            console.warn(
+              `⚠️ [TextWorker] Expansion pass ${pass} has compliance drift: issues=${expansionIssues.join('|') || 'none'} technical=${expansionTechnical.length}`
+            );
+          }
+        }
         out = `${out.trim()}\n\n${chunk.trim()}`.trim();
       }
 
@@ -656,6 +929,116 @@ export class TextWorker extends BaseWorker {
       wordCount = countWords(text);
     }
 
+    async function rewriteIncarnationIfNeeded(initial: string): Promise<string> {
+      if (!preserveSurrealHeadlines) return initial;
+      let out = initial;
+      const MAX_REWRITE_PASSES = 2;
+      for (let pass = 1; pass <= MAX_REWRITE_PASSES; pass += 1) {
+        const zone2Text = extractZone2(out, 700);
+        const issues = zone2Text
+          ? getComplianceIssues(zone2Text).filter((issue) => issue !== 'second_person')
+          : [];
+        const technicalLines = zone2Text
+          ? getTechnicalAstroReportLines(zone2Text)
+          : [];
+        const ageMismatch = findAgeMismatch(out, expectedAge);
+        const hasSecondPersonLeak = hasSecondPerson(out);
+        if (issues.length === 0 && technicalLines.length === 0 && !ageMismatch && !hasSecondPersonLeak) return out;
+
+        console.warn(`⚠️ [TextWorker] Incarnation compliance rewrite pass ${pass}: issues=${issues.join('|') || 'none'} technicalLines=${technicalLines.length}`);
+
+        const rewritePrompt = [
+          'Rewrite the reading below without changing its facts, storyline, or emotional arc.',
+          '',
+          'HARD REQUIREMENTS:',
+          '- Keep the same person, same chart evidence, same overall length, and same intensity.',
+          '- Keep 4-6 surreal headline lines as standalone lines with blank lines around them.',
+          '- Zone 1 (first ~600 words): mythic astrology language is allowed.',
+          '- Zone 2 (after ~600 words): convert ALL technical astrology syntax into behavior language.',
+          '- Remove terms like conjunction, opposition, square, trine, sextile, transit, natal, profection, house-number syntax.',
+          '- Never use second-person pronouns.',
+          typeof expectedAge === 'number'
+            ? `- If age is mentioned, it MUST be exactly ${expectedAge}. If uncertain, omit numeric age references.`
+            : '',
+          '- Do not add markdown, bullets, or labels.',
+          '- Ensure Chart Signature/Data appear only once at the very end.',
+          '',
+          issues.length > 0 ? `Detected compliance issues: ${issues.join(', ')}` : '',
+          technicalLines.length > 0 ? `Detected technical lines to rewrite:\n${technicalLines.map((l) => `- ${l}`).join('\n')}` : '',
+          ageMismatch ? `Detected age mismatch to fix: ${ageMismatch}` : '',
+          chartDataForPrompt ? `\nCHART DATA (authoritative; do not contradict):\n${chartDataForPrompt}` : '',
+          '\nREADING TO REWRITE:',
+          out,
+        ]
+          .filter(Boolean)
+          .join('\n');
+
+        const rewriteLabel = `${label}:incarnation-rewrite:${pass}`;
+        let rewritten: string;
+        if (configuredProvider === 'claude') {
+          rewritten = await llmPaid.generateStreaming(rewritePrompt, rewriteLabel, {
+            maxTokens: 16384,
+            temperature: 0.6,
+            maxRetries: 3,
+            systemPrompt: llmSystemPrompt,
+          });
+        } else {
+          rewritten = await llm.generate(rewritePrompt, rewriteLabel, {
+            maxTokens: 12000,
+            temperature: 0.6,
+            provider: configuredProvider as LLMProvider,
+            systemPrompt: llmSystemPrompt,
+          });
+        }
+
+        out = tightenParagraphs(
+          cleanReadingText(rewritten, { preserveSurrealHeadlines }),
+          { preserveSurrealHeadlines }
+        );
+      }
+      return out;
+    }
+
+    text = await rewriteIncarnationIfNeeded(text);
+    // Re-extract footer after rewrite so it cannot remain mid-document.
+    extractedFooter = extractChartSignatureFooter(text);
+    text = extractedFooter.body;
+    wordCount = countWords(text);
+
+    // Rewrite passes can reduce total length; top up again before final compliance/floor checks.
+    if (wordCount < HARD_FLOOR_WORDS) {
+      text = await expandToHardFloor(text);
+      extractedFooter = extractChartSignatureFooter(text);
+      text = extractedFooter.body;
+      wordCount = countWords(text);
+    }
+
+    if (preserveSurrealHeadlines) {
+      // Zone 2 compliance only: Zone 1 may contain mythological astrology language.
+      const zone2Text = extractZone2(text, 700);
+      const complianceIssues = zone2Text
+        ? getComplianceIssues(zone2Text).filter((issue) => issue !== 'second_person')
+        : [];
+      const technicalLines = zone2Text
+        ? getTechnicalAstroReportLines(zone2Text)
+        : [];
+      const anchorLeak = findVoiceAnchorLeak(text);
+      const ageMismatch = findAgeMismatch(text, expectedAge);
+      const hasSecondPersonLeak = hasSecondPerson(text);
+      if (anchorLeak) {
+        console.warn(`⚠️ [TextWorker] Voice anchor phrase detected: ${anchorLeak}`);
+      }
+      if (complianceIssues.length > 0 || technicalLines.length > 0 || ageMismatch || hasSecondPersonLeak) {
+        const details = [
+          complianceIssues.length > 0 ? `issues=${complianceIssues.join('|')}` : '',
+          technicalLines.length > 0 ? `technical_lines=${technicalLines.length}` : '',
+          hasSecondPersonLeak ? 'second_person_leak' : '',
+          ageMismatch ? `${ageMismatch}` : '',
+        ].filter(Boolean).join(' ; ');
+        throw new Error(`Incarnation compliance gate failed: ${details}`);
+      }
+    }
+
     if (wordCount < HARD_FLOOR_WORDS) {
       console.error(`\n${'═'.repeat(70)}`);
       console.error(`🚨 TEXT TOO SHORT - REJECTING`);
@@ -665,6 +1048,11 @@ export class TextWorker extends BaseWorker {
       console.error(`Shortage: ${HARD_FLOOR_WORDS - wordCount} words missing`);
       console.error(`${'═'.repeat(70)}\n`);
       throw new Error(`LLM returned too little text: ${wordCount} words (minimum ${HARD_FLOOR_WORDS} required)`);
+    }
+
+    if (extractedFooter.footer) {
+      text = `${text}\n\n${extractedFooter.footer}`.trim();
+      wordCount = countWords(text);
     }
 
     console.log(`✅ Word count validation passed: ${wordCount} words (minimum ${HARD_FLOOR_WORDS})`);

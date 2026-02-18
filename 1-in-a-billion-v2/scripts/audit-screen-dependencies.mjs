@@ -7,8 +7,40 @@ const PROJECT_ROOT = process.cwd();
 const SRC_DIR = path.join(PROJECT_ROOT, 'src');
 const SCREENS_DIR = path.join(SRC_DIR, 'screens');
 const NAV_FILE = path.join(SRC_DIR, 'navigation', 'RootNavigator.tsx');
-const SOURCE_SCREENS_DIR = path.join(PROJECT_ROOT, '..', 'ONEINABILLIONAPP', '1-in-a-billion-frontend', 'src', 'screens');
 const OUTPUT_FILE = path.join(PROJECT_ROOT, 'SCREEN_DEPENDENCY_AUDIT.md');
+
+function resolveSourceScreensDir() {
+  const fromEnv = process.env.SOURCE_SCREENS_DIR;
+  if (fromEnv) {
+    return path.isAbsolute(fromEnv) ? fromEnv : path.join(PROJECT_ROOT, fromEnv);
+  }
+
+  const importsDir = path.join(PROJECT_ROOT, 'runtime', 'imports');
+  const candidates = [];
+
+  const snapshot = path.join(importsDir, 'source-baseline', 'src', 'screens');
+  candidates.push(snapshot);
+
+  if (fs.existsSync(importsDir)) {
+    const archived = fs
+      .readdirSync(importsDir, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && e.name.startsWith('1-in-a-billion-frontend-root-'))
+      .map((e) => path.join(importsDir, e.name, 'src', 'screens'))
+      .sort()
+      .reverse();
+    candidates.push(...archived);
+  }
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+
+  throw new Error(
+    'No source screen baseline found inside V2. Set SOURCE_SCREENS_DIR or place a snapshot under runtime/imports/source-baseline/src/screens.'
+  );
+}
+
+const SOURCE_SCREENS_DIR = resolveSourceScreensDir();
 
 function walk(dir, filterFn) {
   const out = [];

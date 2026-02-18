@@ -15,6 +15,7 @@ import sharp from 'sharp';
 import { getApiKey } from './apiKeys';
 import { env } from '../config/env';
 import { createSupabaseServiceClient } from './supabaseClient';
+import { loadImagePromptLayer } from '../promptEngine/imagePromptLayers';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // EXAMPLE IMAGES (loaded at startup for style reference)
@@ -42,12 +43,6 @@ function loadExampleImages() {
 
 // Load on module init
 loadExampleImages();
-
-// ═══════════════════════════════════════════════════════════════════════════
-// AI PORTRAIT STYLE PROMPT
-// ═══════════════════════════════════════════════════════════════════════════
-
-const AI_PORTRAIT_STYLE_PROMPT = `High-contrast Linoleum analog handcrafted style. Bold black strokes on textured off-white paper. Smooth, hand-carved edges and negative space. Minimalist palette (mostly black/white with a single accent color like red). 2D graphic illustration. Isolated on white. Extreme close-up zoomed in, subject fills entire frame edge to edge, no empty margins or white space around subject.`;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -167,8 +162,15 @@ export async function generateAIPortrait(
       }
     });
 
-    // Add text prompt
-    const stylePrompt = `High-contrast Linoleum analog handcrafted style. Bold black strokes on textured off-white paper. Smooth, hand-carved edges and negative space. Minimalist palette (mostly black/white with a single accent color like red). 2D graphic illustration. Isolated on white. Extreme close-up zoomed in, subject fills entire frame edge to edge, no empty margins or white space around subject.`;
+    // Add text prompt (loaded from editable prompt layer markdown)
+    let stylePrompt = '';
+    try {
+      stylePrompt = loadImagePromptLayer('single_portrait');
+      console.log(`🧾 [AI Portrait] Using image prompt layer "single_portrait": ${stylePrompt.replace(/\s+/g, ' ').slice(0, 140)}...`);
+    } catch (err) {
+      console.warn('⚠️ [AI Portrait] Failed to load image prompt layer, using fallback:', (err as Error)?.message || err);
+      stylePrompt = `High-contrast Linoleum analog handcrafted style. Bold black strokes on textured off-white paper. Smooth, hand-carved edges and negative space. Minimalist palette (mostly black/white with a single accent color like red). 2D graphic illustration. Isolated on white. Extreme close-up zoomed in, subject fills entire frame edge to edge, no empty margins or white space around subject.`;
+    }
     parts.push({ text: stylePrompt });
 
     // Generate using the SDK (matching working code structure)

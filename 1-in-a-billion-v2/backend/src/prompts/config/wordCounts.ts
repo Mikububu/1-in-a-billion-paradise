@@ -10,10 +10,10 @@
 export const STANDARD_READING = {
   // Longer by default to avoid the "great opening then it ends too soon" feel.
   // This also gives the model more room to stay cinematic without collapsing into lecture mode.
-  min: 5200,
-  target: 5800,
-  max: 6500,
-  audioMinutes: '32-42',
+  min: 6500,
+  target: 8500,
+  max: 10000,
+  audioMinutes: '45-60',
 };
 
 export function getWordTarget(): string {

@@ -13,7 +13,7 @@
 
 import { createSupabaseServiceClient } from '../services/supabaseClient';
 import { config } from 'dotenv';
-import { join, basename, extname } from 'path';
+import { join, basename, extname, resolve } from 'path';
 import * as fs from 'fs';
 import { execSync } from 'child_process';
 
@@ -136,7 +136,7 @@ async function processNewVoices() {
     console.log('🎤 PROCESS NEW VOICES');
     console.log('═══════════════════════════════════════════════════════════\n');
 
-    const voicesDir = '/Users/michaelperinwogenburg/Desktop/new voices';
+    const voicesDir = process.env.NEW_VOICES_DIR || resolve(__dirname, '../../../runtime/voices-to-upload');
 
     if (!fs.existsSync(voicesDir)) {
         console.error(`❌ Directory not found: ${voicesDir}`);

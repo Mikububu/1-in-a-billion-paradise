@@ -171,7 +171,7 @@ async function uploadVoiceMP3sOnly() {
 
     if (!githubRepo && !localDir) {
         // Try default local location
-        const defaultDir = join(__dirname, '../../../1-in-a-billion-frontend/assets/audio/voices');
+        const defaultDir = join(__dirname, '../../../assets/audio/voices');
         if (fs.existsSync(defaultDir)) {
             console.log(`📁 Using default directory: ${defaultDir}\n`);
             // Continue with defaultDir
@@ -226,7 +226,7 @@ async function uploadVoiceMP3sOnly() {
             }
         } else {
             // Try local directory
-            const searchDir = localDir || join(__dirname, '../../../1-in-a-billion-frontend/assets/audio/voices');
+            const searchDir = localDir || join(__dirname, '../../../assets/audio/voices');
             const localPath = findMP3File(searchDir, voice.id, voice.displayName);
 
             if (localPath) {

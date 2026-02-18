@@ -6,6 +6,7 @@ import sharp from 'sharp';
 // Font path
 const FONTS_DIR = path.resolve(__dirname, '../../../assets/fonts');
 const GARAMOND = path.join(FONTS_DIR, 'EBGaramond-Regular.ttf');
+const PLAYFAIR_BOLD = path.join(FONTS_DIR, 'PlayfairDisplay_700Bold.ttf');
 
 /** Max width/height for embedded images (≈2× A4 display). Keeps PDFs small. */
 const PDF_IMAGE_MAX_PX = 800;
@@ -36,10 +37,13 @@ interface PDFGenerationOptions {
   type: 'single' | 'overlay' | 'nuclear';
   title: string;
   subtitle?: string;
+  coverQuote?: string;
   person1: { name: string; birthDate: string; birthTime?: string; birthPlace?: string; timezone?: string; sunSign?: string; moonSign?: string; risingSign?: string; portraitUrl?: string };
   person2?: { name: string; birthDate: string; birthTime?: string; birthPlace?: string; timezone?: string; sunSign?: string; moonSign?: string; risingSign?: string; portraitUrl?: string };
   coupleImageUrl?: string;
   chapters: ChapterContent[];
+  chartReferencePage?: string;
+  chartReferencePageRight?: string;
   generatedAt: Date;
   spicyScore?: number;
   safeStableScore?: number;
@@ -103,6 +107,267 @@ function formatBirthDate(dateStr: string): string {
   return dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
+function isLikelySubheadline(paragraph: string): boolean {
+  const text = paragraph.trim().replace(/\s+/g, ' ');
+  if (!text) return false;
+  if (text.length < 10 || text.length > 140) return false;
+  if (/^\d/.test(text)) return false;
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length < 2 || words.length > 18) return false;
+  const upperWords = words.filter((w) => /^[A-Z0-9'’\-]+$/.test(w)).length;
+  if (upperWords / words.length >= 0.8) return true;
+  if (/^THE\s+/i.test(text) && words.length >= 4) return true;
+  const titleLikeWords = words.filter((w) => /^[A-Z][A-Za-z'’\-]*$/.test(w)).length;
+  if (titleLikeWords / words.length >= 0.45) return true;
+  // Sentence-case surreal headlines often come as a short, standalone sentence.
+  if (words.length >= 4 && words.length <= 14 && /[.!?]$/.test(text)) return true;
+  return false;
+}
+
+function splitEmbeddedHeadline(paragraph: string): { headline?: string; body: string } {
+  const text = String(paragraph || '').trim().replace(/\s+/g, ' ');
+  if (!text) return { body: '' };
+  const m = text.match(/^((?:THE|A|AN)\s+[A-Z0-9'’\-]+(?:\s+[A-Z0-9'’\-]+){2,})\s+([A-Z][a-z].+)$/);
+  if (!m) return { body: text };
+  return {
+    headline: m[1].trim(),
+    body: m[2].trim(),
+  };
+}
+
+function isInlineSentenceHeadlineCandidate(sentence: string): boolean {
+  const text = String(sentence || '').trim();
+  if (!text) return false;
+  if (!/^(The|A|An)\s+/i.test(text)) return false;
+  if (!/[.!?]$/.test(text)) return false;
+  if (/[,:;]/.test(text)) return false;
+  if (/\d/.test(text)) return false;
+
+  const words = text.replace(/[.!?]$/, '').split(/\s+/).filter(Boolean);
+  if (words.length < 4 || words.length > 14) return false;
+
+  // Keep this conservative: only elevate sentence-headlines that clearly sound like section markers.
+  const headlineNouns = [
+    'room', 'door', 'curtain', 'year', 'fire', 'library', 'study', 'fog',
+    'woman', 'man', 'dream', 'father', 'home', 'architecture', 'letter',
+    'building', 'storm', 'threshold', 'kitchen', 'house', 'silence',
+  ];
+  const lower = text.toLowerCase();
+  if (!headlineNouns.some((n) => lower.includes(n))) return false;
+  return true;
+}
+
+function renderReadingText(doc: any, text: string, hasPlayfairBold: boolean): void {
+  const normalized = String(text || '')
+    // Keep inline all-caps headlines visible when model forgets hard line breaks.
+    .replace(/([.!?])\s+((?:THE|A|AN)\s+[A-Z0-9'’\-]+(?:\s+[A-Z0-9'’\-]+){2,})\s+([A-Z][a-z])/g, '$1\n\n$2\n\n$3')
+    // Keep inline sentence-case surreal headlines visible near the end sections.
+    .replace(/([.!?])\s+((?:The|A|An)\s+[A-Za-z'’\-]+(?:\s+[A-Za-z'’\-]+){2,13}[.!?])\s+([A-Z])/g, (m, p1, candidate, p3) => {
+      if (!isInlineSentenceHeadlineCandidate(candidate)) return m;
+      return `${p1}\n\n${candidate}\n\n${p3}`;
+    });
+
+  const paragraphs = normalized
+    .split(/\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  for (const rawParagraph of paragraphs) {
+    const { headline, body } = splitEmbeddedHeadline(rawParagraph);
+    if (headline) {
+      doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fontSize(13).fillColor('#111111');
+      doc.text(headline, { align: 'left' });
+      doc.moveDown(0.35);
+    }
+
+    const paragraph = body;
+    if (!paragraph) continue;
+
+    if (isLikelySubheadline(paragraph)) {
+      // Keep surreal subheadlines visible in the PDF with stronger typography.
+      doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fontSize(13).fillColor('#111111');
+      doc.text(paragraph, { align: 'left' });
+      doc.moveDown(0.35);
+      continue;
+    }
+
+    doc.font('Garamond').fontSize(11).fillColor('#111111');
+    doc.text(paragraph, { align: 'justify' });
+    doc.moveDown(0.8);
+  }
+}
+
+function renderChartBox(doc: any, params: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  title?: string;
+  text: string;
+  hasPlayfairBold: boolean;
+}): void {
+  const { x, y, width, height, title, text, hasPlayfairBold } = params;
+  doc.save();
+  doc.roundedRect(x, y, width, height, 10).lineWidth(1).strokeColor('#d1d5db').stroke();
+  if (title) {
+    doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fontSize(10).fillColor('#7a4a12');
+    doc.text(title, x + 10, y + 8, { width: width - 20, align: 'left' });
+  }
+
+  const bodyTop = title ? y + 26 : y + 10;
+  doc.rect(x + 8, bodyTop, width - 16, height - (bodyTop - y) - 10).clip();
+  doc.font('Courier').fontSize(7.7).fillColor('#111111');
+  doc.text(String(text || ''), x + 12, bodyTop + 2, {
+    width: width - 24,
+    align: 'left',
+    lineGap: 0.3,
+  });
+  doc.restore();
+}
+
+function renderChartReferenceText(doc: any, chartReferencePage: string, hasPlayfairBold: boolean, chartReferencePageRight?: string): void {
+  const left = String(chartReferencePage || '').trim();
+  const right = String(chartReferencePageRight || '').trim();
+  if (!left && !right) return;
+
+  const pageTop = 90;
+  const pageBottomPadding = 90;
+  const availableHeight = doc.page.height - pageTop - pageBottomPadding;
+
+  doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fontSize(15).fillColor('#7a4a12')
+    .text('Natal Chart Overview', 60, 56, { align: 'center', width: doc.page.width - 120 });
+
+  if (right) {
+    const gap = 16;
+    const leftW = (doc.page.width - 100 - gap) / 2;
+    const rightW = leftW;
+    const startX = 50;
+    renderChartBox(doc, {
+      x: startX,
+      y: pageTop,
+      width: leftW,
+      height: availableHeight,
+      text: left,
+      hasPlayfairBold,
+    });
+    renderChartBox(doc, {
+      x: startX + leftW + gap,
+      y: pageTop,
+      width: rightW,
+      height: availableHeight,
+      text: right,
+      hasPlayfairBold,
+    });
+    return;
+  }
+
+  renderChartBox(doc, {
+    x: 60,
+    y: pageTop,
+    width: doc.page.width - 120,
+    height: availableHeight,
+    text: left,
+    hasPlayfairBold,
+  });
+}
+
+type CompatibilityRow = { label: string; score: number };
+function extractCompatibilityRows(reading: string): CompatibilityRow[] {
+  const text = String(reading || '');
+  const labels = [
+    'Karmic Bond',
+    'Daily Life Together',
+    'Emotional and Sexual Depth',
+    'Growth Potential',
+    'Danger',
+    'Danger/Risk',
+    'Timing',
+    'Overall',
+  ];
+  const rows: CompatibilityRow[] = [];
+  for (const label of labels) {
+    const re = new RegExp(`${label.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}[^\\d]{0,30}(\\d{1,2}(?:\\.\\d)?)\\s*\\/\\s*10`, 'i');
+    const m = text.match(re);
+    if (!m) continue;
+    const score = Number(m[1]);
+    if (!Number.isFinite(score)) continue;
+    rows.push({ label, score: Math.max(0, Math.min(10, score)) });
+  }
+  const dedup = new Map<string, CompatibilityRow>();
+  for (const r of rows) {
+    const key = r.label.toLowerCase().replace('/risk', '');
+    if (!dedup.has(key)) dedup.set(key, r);
+  }
+  return Array.from(dedup.values());
+}
+
+function renderCompatibilitySnapshotPage(doc: any, rows: CompatibilityRow[], hasPlayfairBold: boolean): void {
+  if (!rows.length) return;
+  doc.addPage();
+  doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fontSize(18).fillColor('#7a4a12')
+    .text('Compatibility Snapshot', { align: 'center' });
+  doc.moveDown(0.7);
+
+  const left = 90;
+  const right = doc.page.width - 90;
+  const maxBar = 220;
+  let y = doc.y + 10;
+  for (const row of rows) {
+    if (y > doc.page.height - 110) {
+      doc.addPage();
+      y = 110;
+    }
+    doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fontSize(11).fillColor('#111111')
+      .text(row.label, left, y, { width: right - left - maxBar - 55 });
+    const barX = right - maxBar - 20;
+    const barY = y + 4;
+    doc.roundedRect(barX, barY, maxBar, 10, 5).lineWidth(0.8).strokeColor('#d1d5db').stroke();
+    const fillW = (row.score / 10) * maxBar;
+    doc.roundedRect(barX, barY, fillW, 10, 5).fillColor('#b91c1c').fill();
+    doc.font('Garamond').fontSize(10).fillColor('#111111')
+      .text(`${row.score.toFixed(1)}/10`, right - 45, y, { width: 45, align: 'right' });
+    y += 28;
+  }
+  doc.moveDown(1.2);
+}
+
+function renderLegacyChartReferenceText(doc: any, chartReferencePage: string, hasPlayfairBold: boolean): void {
+  const lines = String(chartReferencePage || '').split('\n');
+  doc.font('Garamond').fontSize(11).fillColor('#111111');
+  for (const rawLine of lines) {
+    const line = rawLine ?? '';
+    const trimmed = line.trim();
+    if (!trimmed) {
+      doc.moveDown(0.4);
+      continue;
+    }
+    if (/^(?:═{8,}|-{8,})$/.test(trimmed)) {
+      doc.font('Garamond').fontSize(9).fillColor('#9ca3af').text(trimmed, { align: 'left' });
+      doc.moveDown(0.1);
+      continue;
+    }
+    if (/^NATAL CHART\b/i.test(trimmed)) {
+      doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fontSize(18).fillColor('#7a4a12').text(trimmed, { align: 'left' });
+      doc.moveDown(0.3);
+      continue;
+    }
+    if (/^(THE BIG THREE|PERSONAL PLANETS|OUTER PLANETS|NODES|KEY ASPECTS|CURRENT TRANSITS|PROFECTION)\b/i.test(trimmed)) {
+      doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fontSize(12.5).fillColor('#111111').text(trimmed, { align: 'left' });
+      doc.moveDown(0.15);
+      continue;
+    }
+    if (/^(Born:|Age:)/i.test(trimmed)) {
+      doc.font('Garamond').fontSize(10).fillColor('#4b5563').text(trimmed, { align: 'left' });
+      continue;
+    }
+    doc.font('Garamond').fontSize(11).fillColor('#111111').text(trimmed, { align: 'left' });
+    if (doc.y > doc.page.height - 120) {
+      doc.addPage();
+      doc.font('Garamond').fontSize(11).fillColor('#111111');
+    }
+  }
+}
+
 export async function generateReadingPDF(options: PDFGenerationOptions): Promise<{
   filePath: string;
   pageCount: number;
@@ -145,6 +410,10 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
       if (fs.existsSync(GARAMOND)) {
         doc.registerFont('Garamond', GARAMOND);
       }
+      const hasPlayfairBold = fs.existsSync(PLAYFAIR_BOLD);
+      if (hasPlayfairBold) {
+        doc.registerFont('PlayfairBold', PLAYFAIR_BOLD);
+      }
 
       const writeStream = fs.createWriteStream(filePath);
       doc.pipe(writeStream);
@@ -161,8 +430,7 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
         day: 'numeric'
       });
 
-      doc.font('Garamond').fillColor('#7a4a12').fontSize(22).text(options.title, { align: 'center' });
-      doc.fillColor('#4b5563').fontSize(10).text(timestamp, { align: 'center' });
+      doc.font('Garamond').fillColor('#7a4a12').fontSize(21).text(options.title, { align: 'center' });
 
       if (options.subtitle) {
         doc.moveDown(0.25);
@@ -172,8 +440,10 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
       doc.fillColor('#111111');
       doc.moveDown(2);
 
-      const renderPersonCover = (person: PDFGenerationOptions['person1']) => {
-        doc.font('Garamond').fillColor('#111111').fontSize(14).text(person.name, { align: 'center' });
+      const renderPersonCover = (person: PDFGenerationOptions['person1'], showName = true) => {
+        if (showName) {
+          doc.font('Garamond').fillColor('#111111').fontSize(14).text(person.name, { align: 'center' });
+        }
 
         const birthBits: string[] = [];
         const birthDate = formatBirthDate(person.birthDate);
@@ -189,20 +459,33 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
         }
       };
 
-      renderPersonCover(options.person1);
+      const titleLower = String(options.title || '').toLowerCase();
+      const p1InTitle = titleLower.includes(String(options.person1.name || '').toLowerCase());
+      renderPersonCover(options.person1, !p1InTitle);
 
       if (options.person2) {
         doc.moveDown(1.25);
         doc.fillColor('#6b7280').fontSize(12).text('&', { align: 'center' });
         doc.fillColor('#111111');
         doc.moveDown(0.75);
-        renderPersonCover(options.person2);
+        const p2InTitle = titleLower.includes(String(options.person2.name || '').toLowerCase());
+        renderPersonCover(options.person2, !p2InTitle);
       }
 
-      // Start reading content on a fresh page (matches the reference cover style).
-      doc.addPage();
+      doc.moveDown(options.person2 ? 1.0 : 0.45);
+      doc.fillColor('#4b5563').fontSize(10).text(`written: ${timestamp}`, { align: 'center' });
+      doc.fillColor('#111111');
 
-      // Portrait image: solo for single-person readings, couple for overlay (resized + JPEG for smaller PDFs)
+      if (String(options.coverQuote || '').trim()) {
+        doc.moveDown(options.person2 ? 1.1 : 0.75);
+        doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fillColor('#111111').fontSize(12);
+        doc.text(String(options.coverQuote || '').trim(), {
+          align: 'center',
+          lineGap: 2,
+        });
+      }
+
+      // Portrait image on the cover page (page 1).
       if (imageForPdf) {
         const imgWidth = doc.page.width - 100 - 100;
         const imgX = 100;
@@ -224,23 +507,36 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
         doc.moveDown(1);
       }
 
-      // Body text - justified (block)
+      if (String(options.chartReferencePage || '').trim().length > 0 || String(options.chartReferencePageRight || '').trim().length > 0) {
+        // Chart reference page (PDF-only, no prose interpretation).
+        doc.addPage();
+        renderChartReferenceText(doc, options.chartReferencePage || '', hasPlayfairBold, options.chartReferencePageRight);
+      }
+
+      // Start reading prose on a fresh page.
+      doc.addPage();
+
+      // Body text
       for (const chapter of options.chapters) {
         if (chapter.person1Reading) {
-          doc.font('Garamond').fontSize(11).text(chapter.person1Reading, { align: 'justify' });
-          doc.moveDown(1);
+          renderReadingText(doc, chapter.person1Reading, hasPlayfairBold);
         }
         if (chapter.person2Reading) {
-          doc.font('Garamond').fontSize(11).text(chapter.person2Reading, { align: 'justify' });
-          doc.moveDown(1);
+          renderReadingText(doc, chapter.person2Reading, hasPlayfairBold);
         }
         if (chapter.overlayReading) {
-          doc.font('Garamond').fontSize(11).text(chapter.overlayReading, { align: 'justify' });
-          doc.moveDown(1);
+          renderReadingText(doc, chapter.overlayReading, hasPlayfairBold);
         }
         if (chapter.verdict) {
-          doc.font('Garamond').fontSize(11).text(chapter.verdict, { align: 'justify' });
-          doc.moveDown(1);
+          renderReadingText(doc, chapter.verdict, hasPlayfairBold);
+        }
+      }
+
+      if (options.type === 'overlay') {
+        const overlayText = options.chapters.map((c) => c.overlayReading || '').join('\n\n');
+        const compatibilityRows = extractCompatibilityRows(overlayText);
+        if (compatibilityRows.length > 0) {
+          renderCompatibilitySnapshotPage(doc, compatibilityRows, hasPlayfairBold);
         }
       }
 

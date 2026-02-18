@@ -36,20 +36,31 @@ export async function getApiKey(
   try {
     const supabase = createSupabaseServiceClient();
     if (supabase) {
-      // First try api_keys table (newer approach)
-      const { data: apiKeysData, error: apiKeysError } = await supabase
-        .from('api_keys')
-        .select('token')
-        .eq('service', service)
-        .single();
+      // First try api_keys table (newer approach).
+      // Use limit(1) instead of single(): some installs may keep multiple rows per service.
+      const serviceCandidates =
+        service === 'claude'
+          ? ['claude', 'anthropic']
+          : service === 'anthropic'
+            ? ['anthropic', 'claude']
+            : [service];
 
-      if (!apiKeysError && apiKeysData?.token) {
-        cache[service] = {
-          value: apiKeysData.token,
-          timestamp: Date.now(),
-        };
-        console.log(`✅ [API Keys] Loaded ${service} from Supabase api_keys table`);
-        return apiKeysData.token;
+      for (const serviceName of serviceCandidates) {
+        const { data: apiKeysData, error: apiKeysError } = await supabase
+          .from('api_keys')
+          .select('token')
+          .eq('service', serviceName)
+          .limit(1);
+
+        const token = Array.isArray(apiKeysData) ? apiKeysData[0]?.token : null;
+        if (!apiKeysError && token) {
+          cache[service] = {
+            value: token,
+            timestamp: Date.now(),
+          };
+          console.log(`✅ [API Keys] Loaded ${service} from Supabase api_keys table (${serviceName})`);
+          return token;
+        }
       }
 
       // If not found in api_keys, try assistant_config table (older approach)
@@ -57,6 +68,7 @@ export async function getApiKey(
       const keyMapping: Record<string, string> = {
         'deepseek': 'DEEPSEEK_API_KEY',
         'claude': 'ANTHROPIC_API_KEY',
+        'anthropic': 'ANTHROPIC_API_KEY',
         'openai': 'OPENAI_API_KEY',
         'runpod': 'RUNPOD_API_KEY',
         'runpod_endpoint': 'RUNPOD_ENDPOINT_ID',
@@ -144,4 +156,3 @@ export async function preloadApiKeys() {
   );
   console.log('✅ [API Keys] Preload complete');
 }
-

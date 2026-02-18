@@ -17,8 +17,8 @@ import path from 'path';
 
 config({ path: join(__dirname, '../../.env') });
 
-// Flat output to Desktop/Output folder
-const OUTPUT_DIR = path.join(process.env.HOME || '/Users/michaelperinwogenburg', 'Desktop', 'Output');
+const PROJECT_ROOT = path.resolve(__dirname, '../../..');
+const OUTPUT_DIR = process.env.MEDIA_OUT_DIR || path.join(PROJECT_ROOT, 'runtime', 'media');
 
 async function downloadFile(supabase: any, bucket: string, storagePath: string, localPath: string): Promise<boolean> {
   try {

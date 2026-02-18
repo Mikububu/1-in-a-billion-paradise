@@ -8,8 +8,29 @@ function tsTag(): string {
   return new Date().toISOString().replace(/[:.]/g, '-');
 }
 
+function resolveDefaultMediaOutDir(projectRoot: string): string {
+  if (process.env.MEDIA_OUT_DIR?.trim()) return process.env.MEDIA_OUT_DIR.trim();
+  const desktop = process.env.HOME ? path.join(process.env.HOME, 'Desktop') : '';
+  if (desktop && fs.existsSync(desktop)) {
+    return path.join(desktop, '1-in-a-billion-media');
+  }
+  return path.join(projectRoot, 'runtime', 'media');
+}
+
+function resolvePortraitsDir(projectRoot: string): string {
+  if (process.env.PORTRAITS_DIR?.trim()) return process.env.PORTRAITS_DIR.trim();
+  const desktop = process.env.HOME ? path.join(process.env.HOME, 'Desktop') : '';
+  const desktopPortraits = desktop ? path.join(desktop, 'Portraits to upload') : '';
+  if (desktopPortraits && fs.existsSync(desktopPortraits)) {
+    return desktopPortraits;
+  }
+  return path.join(projectRoot, 'runtime', 'portraits-to-upload');
+}
+
 async function main() {
-  const outDir = path.resolve(process.env.HOME || '/Users/michaelperinwogenburg', 'Desktop/1-in-a-billion-media');
+  const projectRoot = path.resolve(__dirname, '../../..');
+  const outDir = resolveDefaultMediaOutDir(projectRoot);
+  const portraitsDir = resolvePortraitsDir(projectRoot);
   fs.mkdirSync(outDir, { recursive: true });
 
   const payload = {
@@ -54,14 +75,19 @@ async function main() {
   } as any;
 
   const composed = composePromptFromJobStartPayload(payload);
+  const userMessage = composed.userMessage || composed.prompt;
+  const systemPrompt = composed.systemPrompt || undefined;
 
   const tag = tsTag();
   const promptPath = path.join(outDir, `smoke_${tag}_kabbalah_synastry.prompt.txt`);
   fs.writeFileSync(promptPath, composed.prompt, 'utf8');
+  fs.writeFileSync(path.join(outDir, `smoke_${tag}_kabbalah_synastry.user.txt`), userMessage, 'utf8');
+  fs.writeFileSync(path.join(outDir, `smoke_${tag}_kabbalah_synastry.system.txt`), systemPrompt || '', 'utf8');
 
-  const text = await llmPaid.generate(composed.prompt, `smoke-kabbalah-${tag}`, {
+  const text = await llmPaid.generateStreaming(userMessage, `smoke-kabbalah-${tag}`, {
     maxTokens: 2500,
     temperature: 0.85,
+    systemPrompt,
   });
 
   const textPath = path.join(outDir, `smoke_${tag}_kabbalah_synastry.reading.txt`);
@@ -76,7 +102,7 @@ async function main() {
       birthTime: payload.person1.birthTime,
       birthPlace: 'Villach, Austria',
       timezone: payload.person1.timezone,
-      portraitUrl: path.resolve(process.env.HOME || '/Users/michaelperinwogenburg', 'Desktop/Michael.jpg'),
+      portraitUrl: path.join(portraitsDir, 'Michael_2.jpg'),
     },
     person2: {
       name: payload.person2.name,
@@ -84,7 +110,7 @@ async function main() {
       birthTime: payload.person2.birthTime,
       birthPlace: 'Bogota, Colombia',
       timezone: payload.person2.timezone,
-      portraitUrl: path.resolve(process.env.HOME || '/Users/michaelperinwogenburg', 'Desktop/Tata Umana.jpg'),
+      portraitUrl: path.join(portraitsDir, 'Tata.jpeg'),
     },
     chapters: [
       {

@@ -340,56 +340,142 @@ export function buildChartDataForSystem(
         throw new Error(`Sidereal (Vedic) data missing for ${person2Name}. Please check Swiss Ephemeris configuration.`);
       }
 
-      const p1SunSidereal = p1Sid.sunLongitude as number;
-      const p1MoonSidereal = p1Sid.moonLongitude as number;
-      const p1AscSidereal = p1Sid.ascendantLongitude as number;
-      const p1RahuSidereal = Number.isFinite(p1Sid?.rahuLongitude) ? (p1Sid.rahuLongitude as number) : null;
-      const p1KetuSidereal = Number.isFinite(p1Sid?.ketuLongitude) ? (p1Sid.ketuLongitude as number) : null;
+      const vedicRuler: Record<string, string> = {
+        Aries: 'mars', Taurus: 'venus', Gemini: 'mercury', Cancer: 'moon',
+        Leo: 'sun', Virgo: 'mercury', Libra: 'venus', Scorpio: 'mars',
+        Sagittarius: 'jupiter', Capricorn: 'saturn', Aquarius: 'saturn', Pisces: 'jupiter',
+      };
+      const exaltation: Record<string, string> = {
+        sun: 'Aries', moon: 'Taurus', mars: 'Capricorn', mercury: 'Virgo',
+        jupiter: 'Cancer', venus: 'Pisces', saturn: 'Libra', rahu: 'Taurus', ketu: 'Scorpio',
+      };
+      const debilitation: Record<string, string> = {
+        sun: 'Libra', moon: 'Scorpio', mars: 'Cancer', mercury: 'Pisces',
+        jupiter: 'Capricorn', venus: 'Virgo', saturn: 'Aries', rahu: 'Scorpio', ketu: 'Taurus',
+      };
+      const moolatrikona: Record<string, string> = {
+        sun: 'Leo', moon: 'Taurus', mars: 'Aries', mercury: 'Virgo',
+        jupiter: 'Sagittarius', venus: 'Libra', saturn: 'Aquarius',
+      };
+      const getVedicDignity = (grahaKey: string, sign: string): string => {
+        if (exaltation[grahaKey] === sign) return 'uchcha';
+        if (debilitation[grahaKey] === sign) return 'neecha';
+        if (moolatrikona[grahaKey] === sign) return 'moolatrikona';
+        const ruler = vedicRuler[sign];
+        if (ruler === grahaKey) return 'svakshetra';
+        return 'neutral';
+      };
+      const grahaDisplayName: Record<string, string> = {
+        sun: 'Surya (Sun)', moon: 'Chandra (Moon)', mars: 'Mangal (Mars)',
+        mercury: 'Budha (Mercury)', jupiter: 'Guru (Jupiter)', venus: 'Shukra (Venus)',
+        saturn: 'Shani (Saturn)', rahu: 'Rahu', ketu: 'Ketu',
+      };
 
-      const p1LagnaSign = getZodiacSign(p1AscSidereal);
-      const p1SunSign = getZodiacSign(p1SunSidereal);
-      const p1MoonSign = getZodiacSign(p1MoonSidereal);
-      const p1SunNak = getNakshatra(p1SunSidereal);
-      const p1MoonNak = getNakshatra(p1MoonSidereal);
+      const buildVedicBlock = (
+        name: string,
+        placements: any,
+        birthData: { birthDate: string; birthTime: string; timezone?: string; birthPlace?: string }
+      ): string => {
+        const sid = placements?.sidereal;
+        if (!sid) {
+          return `${name.toUpperCase()} VEDIC CHART:\n- Sidereal data unavailable`;
+        }
+
+        const now = new Date();
+        const age = getAgeYears(birthData.birthDate, now);
+        const grahas: any[] = (sid.grahas || []).filter((g: any) => !g.isTrueNode);
+
+        const grahaLines = grahas.map((g: any) => {
+          const nak = getNakshatra(g.longitude);
+          const dignity = getVedicDignity(g.key, g.sign);
+          const dignityTag = dignity !== 'neutral' ? ` [${dignity}]` : '';
+          const retroTag = g.retrograde ? ' Rx' : '';
+          const mm = String(g.minute ?? 0).padStart(2, '0');
+          const padaNum = g.pada ? ` pada ${g.pada}` : '';
+          const displayName = grahaDisplayName[g.key] || g.key;
+          return `- ${displayName}: ${g.sign} ${g.degree}° ${mm}' | Bhava ${g.bhava} | Nakshatra: ${nak}${padaNum}${dignityTag}${retroTag}`;
+        });
+
+        const bhavaMap: Record<number, string[]> = {};
+        for (const g of grahas) {
+          if (!bhavaMap[g.bhava]) bhavaMap[g.bhava] = [];
+          bhavaMap[g.bhava].push(grahaDisplayName[g.key] || g.key);
+        }
+        const occupiedBhavas = Object.entries(bhavaMap)
+          .sort(([a], [b]) => Number(a) - Number(b))
+          .map(([bh, gs]) => `- Bhava ${bh}: ${gs.join(', ')}`)
+          .join('\n');
+
+        const pressurized = Object.entries(bhavaMap)
+          .filter(([, gs]) => gs.length >= 2)
+          .map(([bh, gs]) => `Bhava ${bh} (${gs.length} grahas: ${gs.join(', ')})`);
+
+        const angulars = [1, 4, 7, 10];
+        const emptyAngulars = angulars.filter((b) => !bhavaMap[b]);
+
+        const lagnaSign = sid.lagnaSign;
+        const lagnaLordKey = vedicRuler[lagnaSign] || 'unknown';
+        const lagnaLordGraha = grahas.find((g: any) => g.key === lagnaLordKey);
+        const lagnaLordLine = lagnaLordGraha
+          ? `- Lagna Lord (${grahaDisplayName[lagnaLordKey]}): ${lagnaLordGraha.sign} Bhava ${lagnaLordGraha.bhava} [${getVedicDignity(lagnaLordKey, lagnaLordGraha.sign)}]`
+          : `- Lagna Lord: ${lagnaLordKey} (position unknown)`;
+
+        const signArray = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
+          'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'];
+        const lagnaIdx = signArray.indexOf(lagnaSign);
+        const sign7 = lagnaIdx >= 0 ? signArray[(lagnaIdx + 6) % 12] : 'Unknown';
+        const lord7key = vedicRuler[sign7] || 'unknown';
+        const lord7graha = grahas.find((g: any) => g.key === lord7key);
+        const occupants7 = (bhavaMap[7] || []).join(', ') || 'empty';
+
+        return [
+          `${name.toUpperCase()} VEDIC CHART (SIDEREAL - LAHIRI AYANAMSA):`,
+          `- Birth: ${birthData.birthDate} at ${birthData.birthTime} (${birthData.timezone || 'UTC'})`,
+          birthData.birthPlace ? `- Place: ${birthData.birthPlace}` : '',
+          age != null ? `- Current Age: ${age}` : '',
+          `- Ayanamsa: ${sid.ayanamsaName || 'Lahiri'}`,
+          '',
+          `LAGNA:`,
+          `- Lagna (Ascendant): ${lagnaSign} (${(sid.ascendantLongitude % 30).toFixed(2)}°)`,
+          lagnaLordLine,
+          '',
+          `CHANDRA:`,
+          `- Chandra Rashi: ${sid.chandraRashi}`,
+          `- Janma Nakshatra: ${sid.janmaNakshatra} pada ${sid.janmaPada}`,
+          '',
+          `GRAHA POSITIONS:`,
+          grahaLines.join('\n'),
+          '',
+          `BHAVA OCCUPANCY (whole-sign houses from Lagna):`,
+          occupiedBhavas,
+          '',
+          pressurized.length > 0
+            ? `PRESSURIZED BHAVAS (2+ grahas): ${pressurized.join('; ')}`
+            : 'PRESSURIZED BHAVAS: none',
+          emptyAngulars.length > 0
+            ? `EMPTY ANGULAR BHAVAS: ${emptyAngulars.join(', ')}`
+            : 'EMPTY ANGULAR BHAVAS: none (all angular bhavas occupied)',
+          '',
+          `7TH BHAVA (PARTNERSHIPS):`,
+          `- Sign on 7th: ${sign7}`,
+          `- 7th Lord (${grahaDisplayName[lord7key] || lord7key}): ${lord7graha ? `${lord7graha.sign} Bhava ${lord7graha.bhava} [${getVedicDignity(lord7key, lord7graha.sign)}]` : 'position unknown'}`,
+          `- Occupants of 7th: ${occupants7}`,
+          '',
+          `NOTE: Dashas, navamsha (D-9), and detailed transit data are not yet computed by Swiss Ephemeris in this pipeline.`,
+          `The digest model should work with what is available and mark unavailable fields as DATA NOT AVAILABLE.`,
+          `Do not fabricate dasha periods, navamsha positions, or transit contacts not present in this data.`,
+        ].filter(Boolean).join('\n');
+      };
 
       if (!hasP2) {
-        return [
-          `CHART DATA (SIDEREAL - LAHIRI AYANAMSA):`,
-          `${person1Name.toUpperCase()} VEDIC CHART:`,
-          `- Lagna (Ascendant): ${p1LagnaSign} (${(p1AscSidereal % 30).toFixed(2)}°)`,
-          `- Sun: ${p1SunSign} (${(p1SunSidereal % 30).toFixed(2)}°) | Nakshatra: ${p1SunNak}`,
-          `- Moon: ${p1MoonSign} (${(p1MoonSidereal % 30).toFixed(2)}°) | Nakshatra: ${p1MoonNak}`,
-          p1RahuSidereal != null ? `- Rahu: ${getZodiacSign(p1RahuSidereal)} (${(p1RahuSidereal % 30).toFixed(2)}°)` : '',
-          p1KetuSidereal != null ? `- Ketu: ${getZodiacSign(p1KetuSidereal)} (${(p1KetuSidereal % 30).toFixed(2)}°)` : '',
-          '',
-          `NOTE: Use dashas, navamsha, and nakshatra logic. Do not use tropical assumptions.`,
-        ].filter(Boolean).join('\n');
+        return buildVedicBlock(person1Name, p1Placements, p1BirthData);
       }
 
-      const p2SunSidereal = (p2Sid!.sunLongitude as number);
-      const p2MoonSidereal = (p2Sid!.moonLongitude as number);
-      const p2AscSidereal = (p2Sid!.ascendantLongitude as number);
-      const p2RahuSidereal = Number.isFinite(p2Sid?.rahuLongitude) ? (p2Sid!.rahuLongitude as number) : null;
-      const p2KetuSidereal = Number.isFinite(p2Sid?.ketuLongitude) ? (p2Sid!.ketuLongitude as number) : null;
-
       return [
-        `CHART DATA (SIDEREAL - LAHIRI AYANAMSA):`,
-        `${person1Name.toUpperCase()} VEDIC CHART:`,
-        `- Lagna (Ascendant): ${getZodiacSign(p1AscSidereal)} (${(p1AscSidereal % 30).toFixed(2)}°)`,
-        `- Sun: ${getZodiacSign(p1SunSidereal)} (${(p1SunSidereal % 30).toFixed(2)}°) | Nakshatra: ${getNakshatra(p1SunSidereal)}`,
-        `- Moon: ${getZodiacSign(p1MoonSidereal)} (${(p1MoonSidereal % 30).toFixed(2)}°) | Nakshatra: ${getNakshatra(p1MoonSidereal)}`,
-        p1RahuSidereal != null ? `- Rahu: ${getZodiacSign(p1RahuSidereal)} (${(p1RahuSidereal % 30).toFixed(2)}°)` : '',
-        p1KetuSidereal != null ? `- Ketu: ${getZodiacSign(p1KetuSidereal)} (${(p1KetuSidereal % 30).toFixed(2)}°)` : '',
+        buildVedicBlock(person1Name, p1Placements, p1BirthData),
         '',
-        `${person2Name!.toUpperCase()} VEDIC CHART:`,
-        `- Lagna (Ascendant): ${getZodiacSign(p2AscSidereal)} (${(p2AscSidereal % 30).toFixed(2)}°)`,
-        `- Sun: ${getZodiacSign(p2SunSidereal)} (${(p2SunSidereal % 30).toFixed(2)}°) | Nakshatra: ${getNakshatra(p2SunSidereal)}`,
-        `- Moon: ${getZodiacSign(p2MoonSidereal)} (${(p2MoonSidereal % 30).toFixed(2)}°) | Nakshatra: ${getNakshatra(p2MoonSidereal)}`,
-        p2RahuSidereal != null ? `- Rahu: ${getZodiacSign(p2RahuSidereal)} (${(p2RahuSidereal % 30).toFixed(2)}°)` : '',
-        p2KetuSidereal != null ? `- Ketu: ${getZodiacSign(p2KetuSidereal)} (${(p2KetuSidereal % 30).toFixed(2)}°)` : '',
-        '',
-        `NOTE: Use dashas, navamsha, and nakshatra logic. Do not use tropical assumptions.`,
-      ].filter(Boolean).join('\n');
+        buildVedicBlock(person2Name!, p2Placements!, p2BirthData!),
+      ].join('\n');
     }
 
     case 'human_design': {

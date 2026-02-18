@@ -6,7 +6,8 @@ import { generateReadingPDF } from '../services/pdf/pdfGenerator';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-const OUTPUT_DIR = path.resolve(process.env.HOME || '/Users/michaelperinwogenburg', 'Desktop/pdf_verification');
+const PROJECT_ROOT = path.resolve(__dirname, '../../..');
+const OUTPUT_DIR = process.env.MEDIA_OUT_DIR || path.join(PROJECT_ROOT, 'runtime', 'media');
 
 async function runTest() {
     console.log('🚀 Starting PDF Typography Verification...');

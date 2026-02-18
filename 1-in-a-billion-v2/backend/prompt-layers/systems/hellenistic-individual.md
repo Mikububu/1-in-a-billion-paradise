@@ -35,9 +35,7 @@
 19. Include retrograde status in interpretation significance.
 
 ## Required Interpretation Output
-Write as ONE continuous essay in plain text.
-Do NOT include section headings, numbering, or labeled blocks.
-Do NOT output numeric scoring blocks in individual readings.
+Do not output numeric scoring blocks in individual readings.
 
 ### 1) Core Relational Signature
 - Integrate sect, ASC ruler, Moon, Venus, Mars into one relationship-function profile.
@@ -70,7 +68,6 @@ Do NOT output numeric scoring blocks in individual readings.
 - Do not teach astrology or define terms (no “sect is…”, no framework explanations). Use the computed factors to predict behavior.
 
 ## What This Prompt Does NOT Cover
-- Global writing style and delivery rules (see `writing-style-guide.md`).
 - Synastry/two-person mode (see `hellenistic-synastry.md`).
 - Other systems (Vedic, Kabbalah, Gene Keys, Human Design).
 - Bundle/final-verdict synthesis layer.

@@ -4,7 +4,7 @@ export type WesternDigestValidation = {
   reason?: string;
 };
 
-const DIGEST_HEADER = 'WESTERN_CHART_DIGEST_V2';
+const DIGEST_HEADER = 'WESTERN_CHART_DIGEST_V3';
 
 export function compactWesternChartDataForDigest(chartData: string): string {
   const text = String(chartData || '').trim();
@@ -49,6 +49,9 @@ export function buildWesternChartDigestPrompt(params: {
     '- Keep the digest compact (aim ~900-1400 words). Do not go below 900 words.',
     '- No markdown. No bullets other than the required dash-lines format below.',
     '- No second-person address. Use the name only.',
+    '- Opening priority must follow loudest pressure signal (tightest orb / strongest current weather), not Sun-sign default framing.',
+    '- WEATHER_NOTES must start with a TEMPERATURE line that states the emotional climate of current transits in one concrete sentence.',
+    '- TEMPERATURE is binding for second-pass writing tone. Do not default to growth language if evidence is harsh.',
     '- Avoid lecture frames and horoscope boilerplate. Do NOT write lines like:',
     '  "The Sun represents...", "The Moon governs...", "The rising sign is...", "This aspect suggests...", "Astrologers call this..."',
     '',
@@ -62,6 +65,7 @@ export function buildWesternChartDigestPrompt(params: {
     'INCARNATION_PRESSURE:',
     '<250-400 words. Destiny-pressure without fortune-telling. What this life is trying to metabolize. Ground it in evidence lines.>',
     'WEATHER_NOTES:',
+    '- TEMPERATURE: <one sentence naming the emotional climate created by current transits right now (e.g. demolition, fog, pressure, release, hunger, expansion, fire).>',
     '- Now/Next12: <short, concrete psychological weather note> | Evidence: <paste ONE exact evidence line from EVIDENCE_LINES>',
     '- Now/Next12: <short, concrete psychological weather note> | Evidence: <paste ONE exact evidence line from EVIDENCE_LINES>',
     'DATING_NOTES:',
@@ -81,6 +85,7 @@ export function buildWesternChartDigestPrompt(params: {
     '- Include at least 6 aspect lines from "MAJOR ASPECTS". Prefer tighter orbs.',
     '- Include the profection block lines: Profected sign, Lord of Year, Profected 5th sign, Profected 7th sign.',
     '- Include 2-4 transit aspect lines from "TRANSIT ASPECTS TO NATAL". Prefer tighter orbs.',
+    '- WEATHER_NOTES TEMPERATURE must be derived from transit evidence (CURRENT TRANSITS + TRANSIT ASPECTS TO NATAL), not from generic growth defaults.',
     '- Include 1-2 house cusp lines (1 and 7 minimum).',
     '',
     'CHART DATA (authoritative):',

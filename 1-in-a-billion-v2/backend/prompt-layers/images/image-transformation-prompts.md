@@ -10,7 +10,8 @@ Keep these blocks concise and direct so the image model follows them reliably.
 ## single_portrait
 
 <!-- PROMPT:single_portrait:start -->
-High-contrast linoleum handcrafted style. Bold black carved strokes on textured off-white paper. Smooth hand-cut edges and strong negative space. Minimal palette: black, off-white, and a restrained red accent only when natural. Keep the real face recognizable while stylizing. 2D graphic illustration look, not photorealism. Subject should fill the full frame edge-to-edge with no empty border.
+Masterpiece stop-motion aesthetic. Hand-sculpted from rich, pigment-heavy oily plasticine. The clay is medium saturated with deep terracotta, vibrant skin tones, and lustrous dark pigments. Surface is covered in deep, messy thumbprints and visceral tool marks. High-gloss "wet" varnish finish that makes the colors pop with deep specular highlights. Realistic glass bead eyes with crystalline reflections. Extremely detailed macro photography.
+
 <!-- PROMPT:single_portrait:end -->
 
 ## synastry_portrait

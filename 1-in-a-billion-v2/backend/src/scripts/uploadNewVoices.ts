@@ -9,12 +9,13 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'fs';
+import path from 'path';
 import { env } from '../config/env';
 
 const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
 const VOICE_IDS = ['david', 'elisabeth', 'michael', 'peter', 'victor'];
-const SOURCE_DIR = '/Users/michaelperinwogenburg/Desktop/new voices';
+const SOURCE_DIR = process.env.NEW_VOICES_DIR || path.resolve(__dirname, '../../../runtime/voices-to-upload');
 
 interface UploadResult {
     voiceId: string;

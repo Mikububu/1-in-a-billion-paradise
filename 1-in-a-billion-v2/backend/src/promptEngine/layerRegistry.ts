@@ -32,34 +32,38 @@ export const SYSTEM_LAYER_REGISTRY: Record<
         },
     },
     vedic: {
-        defaultIndividualLayerId: 'vedic-individual-v1',
+        defaultIndividualLayerId: 'vedic-individual-incarnation-v1',
         defaultSynastryLayerId: 'vedic-synastry-v1',
         files: {
             'vedic-individual-v1': 'systems/vedic-individual.md',
+            'vedic-individual-incarnation-v1': 'systems/vedic-individual-incarnation.md',
             'vedic-synastry-v1': 'systems/vedic-synastry.md',
         },
     },
     human_design: {
-        defaultIndividualLayerId: 'human-design-individual-v1',
+        defaultIndividualLayerId: 'human-design-individual-incarnation-v1',
         defaultSynastryLayerId: 'human-design-synastry-v1',
         files: {
             'human-design-individual-v1': 'systems/human-design-individual.md',
+            'human-design-individual-incarnation-v1': 'systems/human-design-individual-incarnation.md',
             'human-design-synastry-v1': 'systems/human-design-synastry.md',
         },
     },
     gene_keys: {
-        defaultIndividualLayerId: 'gene-keys-individual-v1',
+        defaultIndividualLayerId: 'gene-keys-individual-incarnation-v1',
         defaultSynastryLayerId: 'gene-keys-synastry-v1',
         files: {
             'gene-keys-individual-v1': 'systems/gene-keys-individual.md',
+            'gene-keys-individual-incarnation-v1': 'systems/gene-keys-individual-incarnation.md',
             'gene-keys-synastry-v1': 'systems/gene-keys-synastry.md',
         },
     },
     kabbalah: {
-        defaultIndividualLayerId: 'kabbalah-individual-v2',
+        defaultIndividualLayerId: 'kabbalah-individual-incarnation-v1',
         defaultSynastryLayerId: 'kabbalah-synastry-v2',
         files: {
             'kabbalah-individual-v2': 'systems/kabbalah-individual.md',
+            'kabbalah-individual-incarnation-v1': 'systems/kabbalah-individual-incarnation.md',
             'kabbalah-synastry-v2': 'systems/kabbalah-synastry.md',
         },
     },

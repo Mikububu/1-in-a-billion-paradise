@@ -20,6 +20,8 @@ export const env = {
   DEEPSEEK_BASE_URL: process.env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com/v1',
   CLAUDE_API_KEY: process.env.CLAUDE_API_KEY ?? '',
   CLAUDE_BASE_URL: process.env.CLAUDE_BASE_URL ?? 'https://api.anthropic.com/v1/messages',
+  CLAUDE_MODEL: process.env.CLAUDE_MODEL ?? 'claude-sonnet-4-20250514',
+  CLAUDE_FALLBACK_MODEL: process.env.CLAUDE_FALLBACK_MODEL ?? 'claude-sonnet-4-20250514',
   OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? '',
   OPENAI_BASE_URL: process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1/chat/completions',
   OPENAI_MODEL: process.env.OPENAI_MODEL ?? 'gpt-4o',

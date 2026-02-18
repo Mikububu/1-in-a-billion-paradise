@@ -12,7 +12,8 @@ import path from 'path';
 
 config({ path: join(__dirname, '../../.env') });
 
-const OUTPUT_DIR = path.join(process.env.HOME || '/Users/michaelperinwogenburg', 'Desktop', 'Reading media results');
+const PROJECT_ROOT = path.resolve(__dirname, '../../..');
+const OUTPUT_DIR = process.env.MEDIA_OUT_DIR || path.join(PROJECT_ROOT, 'runtime', 'media');
 
 async function ensureOutputDir() {
   await fs.mkdir(OUTPUT_DIR, { recursive: true });

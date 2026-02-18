@@ -1,69 +1,49 @@
-# Western Astrology (Hellenistic) - Individual (Incarnation Zones)
+# Western Astrology (Hellenistic) - Individual (Incarnation)
 
 ## System Boundary
-- Western (tropical) astrology only, using Swiss Ephemeris data provided in CHART DATA.
-- Use the actual computed placements/aspects/houses/transits/profection signals that appear in CHART DATA.
-- Do not invent factors that are not present.
+- Western (tropical) astrology only, using Swiss Ephemeris CHART DATA.
+- Use placements/aspects/houses/transits/profections that exist in CHART DATA.
+- Do not invent factors not present in CHART DATA.
 
-## Hard Zone Contract
-- One continuous document in two zones:
-  - Zone 1 (opening stretch): astrology vocabulary is allowed.
-  - Zone 2 (main body): zero astrology vocabulary.
-- Zone 2 must NOT contain sign names, planet names, house numbers, aspect names, transit/profection language, node language, or chart jargon.
-- The only allowed astrology terms after Zone 2 are in the final Chart Signature footer.
+## Core Writing Contract
+- Opening orientation may reference chart mechanics briefly.
+- After opening, no explicit or coded astrology vocabulary (no planet/sign/house/aspect naming, no mythic aliases).
+- Translate chart mechanics into scenes, behavior, and emotional pattern.
+- Do not write textbook analysis lines such as:
+  - "This placement indicates..."
+  - "This aspect suggests..."
+  - "Mars in X in House Y means..."
+  - "The ninth house represents..."
 
-## Output Format
-- Plain text only.
-- One continuous essay (no headings, no numbered sections, no bullet lists).
-- No markdown.
-- If CHART DATA is a curated digest, treat it like internal writer notes. Do not echo digest labels.
+## Astrology-As-Behavior Constraint
+- Keep chart fidelity by translating mechanics into behavior, pressure, and consequence.
+- Do not smuggle chart language back in through costume metaphors ("warrior god", "lord of time", "chamber of death").
+- Narrative force must come from lived dynamics, not named celestial actors.
 
-## Zone 1 Requirements (Astro-Literate Entry)
-- Target length: 450-650 words.
-- Open with Sun, Moon, Rising as three doors into the person.
-- Keep it atmospheric and concrete; avoid textbook definitions.
-- You may mention key chart mechanics briefly to orient the reader.
-- Include a short current-weather bridge (present season + next twelve months) using only the strongest chart signals.
-- End Zone 1 with a hinge sentence that naturally moves into pure character study.
-
-## Zone 2 Requirements (No Astro Vocabulary)
-- This is the long body and must start immediately after the Zone 1 hinge.
-- Write the main reading as lived psychology and behavior, with no chart terms.
-- Translate everything into human pattern language:
-  - childhood imprint
-  - emotional defenses
-  - intimacy loops
-  - erotic pattern
-  - self-sabotage and repair
-  - probable near-future emotional weather
-- Keep claims faithful to CHART DATA internally, but never name the mechanism.
-- If a sentence contains a sign/planet/house/aspect word, rewrite that sentence into behavioral language before finalizing.
-
-## Zone 2 Forbidden Lexicon (Hard)
-- Zodiac signs: Aries, Taurus, Gemini, Cancer, Leo, Virgo, Libra, Scorpio, Sagittarius, Capricorn, Aquarius, Pisces.
-- Planet/luminary names: Sun, Moon, Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto.
-- Chart mechanics: ascendant, rising sign, midheaven, house numbers, aspect names (conjunction/opposition/square/trine/sextile), transit, profection, retrograde, nodes.
-- These words may appear only in Zone 1 and the final Chart Signature footer.
-
-## Final Self-Check (Silent)
-- Before returning the answer, silently scan Zone 2 for forbidden lexicon.
-- If any forbidden term appears in Zone 2, rewrite until none remain.
+## Digest Handling
+- If CHART DATA is a curated digest, treat it as private writer notes. Do not echo digest labels.
 
 ## Dating-App Focus
-- Name attraction style, attachment rhythm, pursuit/withdraw dynamics, and conflict loops.
-- Name sexual pattern directly (no euphemistic flattening).
-- Name at least three uncomfortable truths and their cost.
-- End with practical relational guidance grounded in behavior, not theory.
+- Name attraction style, attachment rhythm, pursuit/withdraw dynamics, conflict loops, and repair loops.
+- Name erotic pattern directly without euphemistic flattening.
+- Include at least three uncomfortable truths and their cost.
+- End in practical relational guidance grounded in behavior.
 
 ## Cinematic Constraint
-- Every paragraph should contain at least one concrete image, behavior micro-scene, or surreal architectural move.
-- Avoid paragraph openings like:
-  - "This placement..."
-  - "This aspect suggests..."
-  - "The ninth house..."
-  - "The Sun represents..."
+- Each paragraph should include at least one concrete image, micro-scene, or behavior move.
+- Keep the psyche spatial: rooms, thresholds, basements, corridors, weather fronts, pressure systems.
+- Avoid repetitive architecture wallpaper. Use strong images with purpose.
+
+## Anti-Treadmill
+- Do not restate the same 2-3 ideas with fresh metaphors.
+- Every paragraph must add new consequence, escalation, or evidence-linked insight.
+
+## Evidence Rule
+- Every major claim must be traceable to CHART DATA.
+- Do not contradict CHART DATA.
+- Do not introduce missing techniques (for example progressions, solar return, eclipses, asteroids) unless they are present in CHART DATA.
 
 ## No Fake Biography
 - Do not invent named partners, friends, or colleagues.
 - Do not assert specific external events unless provided in CONTEXT.
-- Childhood/father/mother material may be inferred as psychological imprint, not fabricated scene detail.
+- Childhood and parental themes may be inferred as psychological imprints, not fabricated scene details.

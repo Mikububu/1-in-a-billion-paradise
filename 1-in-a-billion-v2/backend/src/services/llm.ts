@@ -27,6 +27,7 @@ type LLMProvider = 'deepseek' | 'claude' | 'openai';
 // 🎯 CHANGE THIS OR SET LLM_PROVIDER ENV VAR:
 // DeepSeek for all readings - faster and more reliable
 const DEFAULT_PROVIDER: LLMProvider = 'deepseek';
+const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-4-20250514';
 
 // Token usage tracking
 export interface TokenUsage {
@@ -66,10 +67,10 @@ const PROVIDER_CONFIG = {
     }),
   },
   claude: {
-    name: 'Claude Sonnet 4',
+    name: 'Claude',
     emoji: '🧠',
     url: 'https://api.anthropic.com/v1/messages',
-    model: 'claude-sonnet-4-20250514', // Claude Sonnet 4 - CORRECT model name per Firebase archive
+    model: env.CLAUDE_MODEL || DEFAULT_CLAUDE_MODEL,
     maxTokens: 8192,
     getHeaders: async () => {
       const key = await getApiKey('claude', env.CLAUDE_API_KEY);
@@ -109,6 +110,13 @@ const PROVIDER_CONFIG = {
     }),
   },
 };
+
+function getClaudeModelForAttempt(attempt: number): string {
+  const primary = env.CLAUDE_MODEL || DEFAULT_CLAUDE_MODEL;
+  const fallback = env.CLAUDE_FALLBACK_MODEL || DEFAULT_CLAUDE_MODEL;
+  if (attempt <= 1 || !fallback || fallback === primary) return primary;
+  return fallback;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // LLM SERVICE
@@ -178,14 +186,15 @@ class LLMService {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`${config.emoji} ${config.name} [${label}] attempt ${attempt}/${maxRetries}: ${prompt.length} chars`);
+        const modelForAttempt = provider === 'claude' ? getClaudeModelForAttempt(attempt) : config.model;
+        console.log(`${config.emoji} ${config.name} [${label}] attempt ${attempt}/${maxRetries}: ${prompt.length} chars, model=${modelForAttempt}`);
         const startTime = Date.now();
 
         // Build request body based on provider
         let body: any;
         if (provider === 'claude') {
           body = {
-            model: config.model,
+            model: modelForAttempt,
             max_tokens: maxTokens,
             temperature,
             ...(options?.systemPrompt ? { system: options.systemPrompt } : {}),
@@ -194,7 +203,7 @@ class LLMService {
         } else {
           // OpenAI-compatible (DeepSeek, OpenAI, etc.)
           body = {
-            model: config.model,
+            model: modelForAttempt,
             max_tokens: maxTokens,
             temperature,
             messages: [
@@ -234,7 +243,11 @@ class LLMService {
 
         if (isRetryable && attempt < maxRetries) {
           const waitTime = Math.pow(2, attempt) * 5000; // 10s, 20s, 40s
-          console.log(`⚠️ ${config.name} [${label}] error ${status || errorCode || errorMsg.slice(0, 30)}, retrying in ${waitTime / 1000}s... (${attempt}/${maxRetries})`);
+          const modelSwitchNote =
+            provider === 'claude' && getClaudeModelForAttempt(attempt + 1) !== getClaudeModelForAttempt(attempt)
+              ? `; switching model to ${getClaudeModelForAttempt(attempt + 1)}`
+              : '';
+          console.log(`⚠️ ${config.name} [${label}] error ${status || errorCode || errorMsg.slice(0, 30)}, retrying in ${waitTime / 1000}s... (${attempt}/${maxRetries})${modelSwitchNote}`);
           await new Promise(r => setTimeout(r, waitTime));
         } else {
           console.error(`❌ ${config.name} [${label}] failed after ${attempt} attempts:`, error.message);
@@ -271,14 +284,15 @@ class LLMService {
       let chunkCount = 0;
       let inputTokens = 0;
       let outputTokens = 0;
+      const modelForAttempt = provider === 'claude' ? getClaudeModelForAttempt(attempt) : config.model;
 
-      console.log(`🌊 ${config.emoji} ${config.name} STREAMING [${label}] attempt ${attempt}/${maxRetries}: ${prompt.length} chars, max ${maxTokens} tokens`);
+      console.log(`🌊 ${config.emoji} ${config.name} STREAMING [${label}] attempt ${attempt}/${maxRetries}: ${prompt.length} chars, max ${maxTokens} tokens, model=${modelForAttempt}`);
 
       try {
         // Build request body
         const body = provider === 'claude'
           ? {
-            model: config.model,
+            model: modelForAttempt,
             max_tokens: maxTokens,
             temperature,
             stream: true,
@@ -286,7 +300,7 @@ class LLMService {
             messages: [{ role: 'user', content: prompt }],
           }
           : {
-            model: config.model,
+            model: modelForAttempt,
             max_tokens: maxTokens,
             temperature,
             stream: true,
@@ -402,7 +416,11 @@ class LLMService {
         // Retry only if we didn't receive any content; otherwise we'd risk duplicating partial output.
         if (isRetryable && attempt < maxRetries && fullText.trim().length === 0) {
           const waitTime = Math.pow(2, attempt) * 5000;
-          console.log(`⚠️ ${config.name} STREAMING [${label}] error ${status || errorCode || errorMsg.slice(0, 30)}, retrying in ${waitTime / 1000}s... (${attempt}/${maxRetries})`);
+          const modelSwitchNote =
+            provider === 'claude' && getClaudeModelForAttempt(attempt + 1) !== getClaudeModelForAttempt(attempt)
+              ? `; switching model to ${getClaudeModelForAttempt(attempt + 1)}`
+              : '';
+          console.log(`⚠️ ${config.name} STREAMING [${label}] error ${status || errorCode || errorMsg.slice(0, 30)}, retrying in ${waitTime / 1000}s... (${attempt}/${maxRetries})${modelSwitchNote}`);
           await new Promise((r) => setTimeout(r, waitTime));
           continue;
         }

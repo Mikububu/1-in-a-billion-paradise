@@ -7,7 +7,8 @@ import { generateReadingPDF } from '../services/pdf/pdfGenerator';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-const OUTPUT_DIR = path.resolve(process.env.HOME || '/Users/michaelperinwogenburg', 'Desktop/reading_test_michael');
+const PROJECT_ROOT = path.resolve(__dirname, '../../..');
+const OUTPUT_DIR = process.env.MEDIA_OUT_DIR || path.join(PROJECT_ROOT, 'runtime', 'media');
 const TEXT_FILE = path.join(OUTPUT_DIR, 'reading.txt');
 const PDF_FILE = path.join(OUTPUT_DIR, 'reading_v3_fixed.pdf');
 
