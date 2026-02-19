@@ -1,0 +1,22 @@
+# Expo / local dev
+.expo/
+node_modules/
+ios/
+android/
+.DS_Store
+
+# Local scratch
+_preview/
+_pipeline_out/
+runtime/
+
+# Backend build + generated artifacts
+backend/dist/
+backend/node_modules/
+backend/generated-*/
+backend/.env
+backend/.env.*
+backend/runtime/
+
+# Local environment
+.env.local
