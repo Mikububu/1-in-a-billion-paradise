@@ -23,6 +23,18 @@ type PersonSeed = {
   portraitPath: string;
 };
 
+function envString(key: string, fallback: string): string {
+  const value = process.env[key];
+  return value && value.trim() ? value.trim() : fallback;
+}
+
+function envNumber(key: string, fallback: number): number {
+  const raw = process.env[key];
+  if (!raw || !raw.trim()) return fallback;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 type LengthLimits = {
   min: number;
   max: number;
@@ -183,26 +195,29 @@ async function main() {
   const person1Id = process.env.PERSON1_ID || `self-${userId}`;
   const person2Id = process.env.PERSON2_ID || 'partner-tata-umana-1982';
 
+  const person1PortraitFile = envString('PERSON1_PORTRAIT_FILE', 'Michael_2.jpg');
+  const person2PortraitFile = envString('PERSON2_PORTRAIT_FILE', 'Tata.jpeg');
+
   const person1: PersonSeed = {
-    name: 'Michael',
-    birthDate: '1968-08-23',
-    birthTime: '13:45',
-    timezone: 'Europe/Vienna',
-    latitude: 46.6103,
-    longitude: 13.8558,
-    birthPlace: 'Villach, Austria',
-    portraitPath: path.join(portraitsDir, 'Michael_2.jpg'),
+    name: envString('PERSON1_NAME', 'Michael'),
+    birthDate: envString('PERSON1_BIRTH_DATE', '1968-08-23'),
+    birthTime: envString('PERSON1_BIRTH_TIME', '13:45'),
+    timezone: envString('PERSON1_TIMEZONE', 'Europe/Vienna'),
+    latitude: envNumber('PERSON1_LATITUDE', 46.6103),
+    longitude: envNumber('PERSON1_LONGITUDE', 13.8558),
+    birthPlace: envString('PERSON1_BIRTH_PLACE', 'Villach, Austria'),
+    portraitPath: path.join(portraitsDir, person1PortraitFile),
   };
 
   const person2: PersonSeed = {
-    name: 'Tata Umana',
-    birthDate: '1982-06-30',
-    birthTime: '15:15',
-    timezone: 'America/Bogota',
-    latitude: 4.711,
-    longitude: -74.0721,
-    birthPlace: 'Bogota, Colombia',
-    portraitPath: path.join(portraitsDir, 'Tata.jpeg'),
+    name: envString('PERSON2_NAME', 'Tata Umana'),
+    birthDate: envString('PERSON2_BIRTH_DATE', '1982-06-30'),
+    birthTime: envString('PERSON2_BIRTH_TIME', '15:15'),
+    timezone: envString('PERSON2_TIMEZONE', 'America/Bogota'),
+    latitude: envNumber('PERSON2_LATITUDE', 4.711),
+    longitude: envNumber('PERSON2_LONGITUDE', -74.0721),
+    birthPlace: envString('PERSON2_BIRTH_PLACE', 'Bogota, Colombia'),
+    portraitPath: path.join(portraitsDir, person2PortraitFile),
   };
 
   if (!fs.existsSync(person1.portraitPath)) {

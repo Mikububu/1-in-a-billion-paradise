@@ -1,14 +1,19 @@
+import {
+  RELATIONAL_TRIGGER_LABEL,
+  RELATIONAL_TRIGGER_TITLE,
+} from './triggerConfig';
+
 /**
- * VERDICT WOUND ENGINE
+ * VERDICT TRIGGER ENGINE
  *
  * Script-path-only verdict engine (used by v2_generate_* scripts via
  * scripts/shared/generateReading.ts). The worker path intentionally uses
- * accumulated prior wound outputs + buildVerdictPrompt() instead.
+ * accumulated prior narrativeTrigger outputs + buildVerdictPrompt() instead.
  *
  * Two-call architecture for script verdict generation.
  *
  * 1) stripVerdictChartData()   -> deterministic compression of multi-system chart data
- * 2) buildVerdictWoundPrompt() -> one focused relational wound paragraph
+ * 2) buildVerdictTriggerPrompt() -> one focused relational trigger paragraph
  * 3) buildVerdictWritingPrompt() -> long-form synthesis + score block
  */
 
@@ -49,18 +54,19 @@ export function stripVerdictChartData(raw: string): string {
   return out.join('\n').trim();
 }
 
-export function buildVerdictWoundPrompt(params: {
+export function buildVerdictTriggerPrompt(params: {
   person1Name: string;
   person2Name: string;
   strippedChartData: string;
 }): string {
   const { person1Name, person2Name, strippedChartData } = params;
+  const relationalTrigger = RELATIONAL_TRIGGER_LABEL;
 
   return [
-    `You are deriving the central relational wound between ${person1Name} and ${person2Name}.`,
+    `You are deriving the central ${relationalTrigger} between ${person1Name} and ${person2Name}.`,
     '',
     'Use all five systems as one field, not five separate reports.',
-    'Do not summarize systems. Name one central wound dynamic that explains:',
+    `Do not summarize systems. Name one central ${relationalTrigger} dynamic that explains:`,
     '- what magnetizes them,',
     '- what destabilizes them,',
     '- what each person unconsciously needs from the other,',
@@ -74,26 +80,28 @@ export function buildVerdictWoundPrompt(params: {
     'CHART DATA (compressed):',
     strippedChartData,
     '',
-    'Write the relational wound paragraph now:',
+    `Write the ${relationalTrigger} paragraph now:`,
   ].join('\n');
 }
 
 export function buildVerdictWritingPrompt(params: {
   person1Name: string;
   person2Name: string;
-  wound: string;
+  narrativeTrigger: string;
   strippedChartData: string;
   spiceLevel?: number;
+  targetWords: number;
 }): string {
-  const { person1Name, person2Name, wound, strippedChartData, spiceLevel = 7 } = params;
+  const { person1Name, person2Name, narrativeTrigger, strippedChartData, spiceLevel = 7, targetWords } = params;
+  const relationalTriggerTitle = RELATIONAL_TRIGGER_TITLE;
 
   return [
     'You are a precise narrator delivering a final synthesis.',
     'Write as compelling long-form prose that stays understandable to non-experts.',
     '',
     '══════════════════════════════════════════════════════════',
-    'RELATIONAL WOUND SPINE (DO NOT IGNORE):',
-    wound,
+    `${relationalTriggerTitle} SPINE (DO NOT IGNORE):`,
+    narrativeTrigger,
     'All paragraphs must either deepen this spine or test it against evidence.',
     '══════════════════════════════════════════════════════════',
     '',
@@ -112,7 +120,7 @@ export function buildVerdictWritingPrompt(params: {
     '  Overall Alignment, Western Astrology, Vedic Jyotish, Human Design, Gene Keys, Kabbalah, Growth Potential, Shadow Risk, Magnetic Pull, Long-Term Sustainability.',
     '',
     'LENGTH:',
-    '- Long-form. Minimum 4000 words.',
+    `- Long-form. Minimum ${targetWords.toLocaleString('en-US')} words.`,
     '- Prefer depth over repetition.',
     '',
     'CHART DATA (compressed):',

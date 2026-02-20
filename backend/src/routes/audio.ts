@@ -8,7 +8,14 @@ import { execSync } from 'child_process';
 import { audioService } from '../services/audioService';
 import { getApiKey } from '../services/apiKeys';
 import { apiKeys } from '../services/apiKeysHelper';
-import { splitIntoChunks, concatenateWavBuffers, AUDIO_CONFIG } from '../services/audioProcessing';
+import { cleanupTextForTTS } from '../utils/textCleanup';
+import {
+  splitIntoChunks,
+  concatenateWavBuffers,
+  AUDIO_CONFIG,
+  dedupeAdjacentSentences,
+  dedupeChunkBoundaryOverlap,
+} from '../services/audioProcessing';
 
 const router = new Hono();
 
@@ -78,6 +85,8 @@ const ttsPayloadSchema = z.object({
   // Chatterbox-specific options
   exaggeration: z.number().min(0).max(1).optional().default(0.3), // Emotion intensity (0.3 = natural voice)
   audioUrl: z.string().optional(), // URL to voice sample for cloning
+  spokenIntro: z.string().optional(),
+  includeIntro: z.boolean().optional().default(true),
 });
 
 // NOTE: Text chunking and WAV concatenation logic now imported from shared audioProcessing module
@@ -128,13 +137,47 @@ router.post('/generate-tts', async (c) => {
       console.log('🎵 Generating audio with Chatterbox Turbo via Replicate...');
       const replicate = new Replicate({ auth: replicateToken });
 
-      const textLength = parsed.text.length;
-      const chunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || String(AUDIO_CONFIG.CHUNK_MAX_LENGTH), 10);
-      const chunks = splitIntoChunks(parsed.text, chunkSize);
+      const generatedOn = new Date().toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+      });
+      const defaultIntro = parsed.title
+        ? `This is an audio reading titled ${parsed.title}. Generated on ${generatedOn} by 1 in a billion app, powered by forbidden-yoga dot com.`
+        : `This is an audio reading generated on ${generatedOn} by 1 in a billion app, powered by forbidden-yoga dot com.`;
+
+      const cleaned = cleanupTextForTTS(parsed.text);
+      const dedup = dedupeAdjacentSentences(cleaned);
+      let narrationText = dedup.text;
+      if (dedup.removed > 0) {
+        console.warn(`⚠️ [AudioRoute] Removed ${dedup.removed} adjacent duplicate sentence(s) before TTS.`);
+      }
+
+      if (parsed.includeIntro !== false) {
+        const spokenIntro = String(parsed.spokenIntro || defaultIntro).trim();
+        narrationText = `${spokenIntro}\n\n${narrationText}`.trim();
+      }
+
+      const textLength = narrationText.length;
+      const configuredChunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || String(AUDIO_CONFIG.CHUNK_MAX_LENGTH), 10);
+      const chunkSize = Math.max(120, Math.min(300, Number.isFinite(configuredChunkSize) ? configuredChunkSize : AUDIO_CONFIG.CHUNK_MAX_LENGTH));
+      if (chunkSize !== configuredChunkSize) {
+        console.warn(`⚠️ [AudioRoute] Clamped CHATTERBOX_CHUNK_SIZE ${configuredChunkSize} -> ${chunkSize}.`);
+      }
+      let chunks = splitIntoChunks(narrationText, chunkSize);
+      const boundaryDedup = dedupeChunkBoundaryOverlap(chunks);
+      chunks = boundaryDedup.chunks;
+      if (boundaryDedup.removed > 0) {
+        console.warn(`⚠️ [AudioRoute] Removed ${boundaryDedup.removed} duplicated boundary sentence(s) across chunks.`);
+      }
       console.log(`📦 Chunking ${textLength} chars into ${chunks.length} pieces (max ${chunkSize} chars/chunk)`);
 
       // Voice sample for cloning (default narrator)
       const voiceSampleUrl = parsed.audioUrl || 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/david.wav';
+      const repetitionPenaltyRaw = Number(process.env.CHATTERBOX_REPETITION_PENALTY || '1.7');
+      const repetitionPenalty = Number.isFinite(repetitionPenaltyRaw)
+        ? Math.max(1, Math.min(2, repetitionPenaltyRaw))
+        : 1.7;
 
       // Replicate chunk generator
       const generateChunk = async (chunk: string, index: number, maxRetries = 5): Promise<Buffer> => {
@@ -148,7 +191,7 @@ router.post('/generate-tts', async (c) => {
               reference_audio: voiceSampleUrl,
               temperature: 0.7,
               top_p: 0.95,
-              repetition_penalty: 1.5, // Reduces duplicate sentences
+              repetition_penalty: repetitionPenalty, // Reduces duplicate sentences
             };
 
             console.log(`  🎯 [Replicate] Calling API with model: resemble-ai/chatterbox-turbo`);
@@ -631,4 +674,3 @@ router.post('/hook-audio/generate', async (c) => {
 });
 
 export const audioRouter = router;
-

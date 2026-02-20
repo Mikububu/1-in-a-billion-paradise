@@ -1,11 +1,17 @@
+import {
+  CORE_FAIRYTALE_SEED,
+  NARRATIVE_TRIGGER_LABEL,
+  NARRATIVE_TRIGGER_TITLE,
+} from './triggerConfig';
+
 /**
- * VEDIC WOUND ENGINE
+ * VEDIC TRIGGER ENGINE
  *
  * Two-call architecture for individual Vedic readings.
  *
  * 1. stripVedicChartData()   — pure code, ~35 highest-signal lines
- * 2. buildVedicWoundPrompt() — wound call → 80-120 word paragraph
- * 3. buildVedicWritingPrompt() — writing call → 3,500 words
+ * 2. buildVedicTriggerPrompt() — trigger call → 80-120 word paragraph
+ * 3. buildVedicWritingPrompt() — writing call → configurable word target
  */
 
 // ─── 1. STRIP ────────────────────────────────────────────────────────────────
@@ -92,22 +98,23 @@ export function stripVedicChartData(raw: string): string {
   return out.filter(Boolean).join('\n').trim();
 }
 
-// ─── 2. WOUND PROMPT ─────────────────────────────────────────────────────────
+// ─── 2. TRIGGER PROMPT ───────────────────────────────────────────────────────
 
-export function buildVedicWoundPrompt(params: {
+export function buildVedicTriggerPrompt(params: {
   personName: string;
   strippedChartData: string;
 }): string {
   const { personName, strippedChartData } = params;
+  const trigger = NARRATIVE_TRIGGER_LABEL;
 
   return [
-    `You are reading ${personName}'s Vedic natal chart to find the central wound.`,
+    `You are reading ${personName}'s Vedic natal chart to find the central ${trigger}.`,
     '',
-    'In Jyotish, the wound lives where Rahu pulls obsessively, where Saturn crushes,',
+    `In Jyotish, the ${trigger} lives where Rahu pulls obsessively, where Saturn crushes,`,
     'where the Mahadasha lord is currently pressing hardest against the Lagna.',
     'The Nakshatra of the Moon tells you the emotional texture of the suffering.',
     '',
-    'The wound is not a placement. It is not a theme.',
+    `The ${trigger} is not a placement. It is not a theme.`,
     'It is the specific thing this person cannot stop repeating or fleeing from.',
     'The gap between who they believe themselves to be (Lagna) and what they actually crave (Rahu).',
     'The discipline they cannot sustain (Saturn) and the feeling it produces (Chandra).',
@@ -120,12 +127,12 @@ export function buildVedicWoundPrompt(params: {
     'Do not write about placements directly.',
     'Do not use astrology vocabulary.',
     'Do not offer hope or growth language.',
-    'Name the wound. Stop.',
+    `Name the ${trigger}. Stop.`,
     '',
     'CHART DATA:',
     strippedChartData,
     '',
-    'Write the wound paragraph now:',
+    `Write the ${trigger} paragraph now:`,
   ].join('\n');
 }
 
@@ -133,46 +140,46 @@ export function buildVedicWoundPrompt(params: {
 
 export function buildVedicWritingPrompt(params: {
   personName: string;
-  wound: string;
+  narrativeTrigger: string;
   strippedChartData: string;
+  targetWords: number;
 }): string {
-  const { personName, wound, strippedChartData } = params;
+  const { personName, narrativeTrigger, strippedChartData, targetWords } = params;
+  const trigger = NARRATIVE_TRIGGER_LABEL;
+  const triggerTitle = NARRATIVE_TRIGGER_TITLE;
 
   return [
     'You are a novelist with deep knowledge of Indian classical storytelling.',
+    CORE_FAIRYTALE_SEED,
     'You think in cycles, karma, and mythic repetition.',
     'You have read Hermann Hesse, Dostoevsky, and the Mahabharata.',
     'You are telling the story of a soul across time. Not writing an astrology report.',
     '',
     '══════════════════════════════════════════════════════════',
-    'THE WOUND — THIS IS THE SPINE OF EVERYTHING YOU WRITE:',
-    wound,
-    'Every paragraph must connect to this wound or deepen it.',
-    'If a paragraph does not serve the wound, it does not belong here.',
+    `${triggerTitle} — THIS IS THE SPINE OF EVERYTHING YOU WRITE:`,
+    narrativeTrigger,
+    `Every paragraph must connect to this ${trigger} or deepen it.`,
+    `If a paragraph does not serve the ${trigger}, it does not belong here.`,
     '══════════════════════════════════════════════════════════',
     '',
     'NARRATOR:',
     '- Third person only. Never "you" or "your". Use the name.',
     '- Stay inside the experience. Do not explain it from above.',
-    '- The Dasha period is the current chapter of the wound, not a forecast.',
-    '',
-    'METAPHOR WORLD:',
-    '- Find the image this specific chart demands. Seasons, fire, water, hunger.',
-    '- The Nakshatra carries its own mythic animal or deity — use it if it earns its presence.',
-    '- Do not decorate. Every image must carry structural weight.',
+    `- The Dasha period is the current chapter of the ${trigger}, not a forecast.`,
     '',
     'STRUCTURE:',
     '- 4 to 6 sections. Invent a title for each. Specific, mythic, earned.',
     '- Section titles must be standalone plain-text lines. No numbering, no Roman numerals, no dashes, no markdown.',
     '- The sections must build. The Dasha period is the present tense pressure.',
-    '- The ending does not resolve. It names where the wound is pressing now.',
+    `- The ending does not resolve. It names where the ${trigger} is pressing now.`,
     '',
     'ANTI-SURVEY:',
-    '- Do not tour the grahas. Serve the wound.',
+    `- Do not tour the grahas. Serve the ${trigger}.`,
     '- Do not name placements in technical syntax.',
+    '- Explain Sanskrit/Jyotish terms in plain language the first time they appear.',
     '- Every paragraph must add new consequence or evidence.',
     '',
-    'LENGTH: 3,500 words. Write until the wound is fully present. Then stop.',
+    `LENGTH: ${targetWords.toLocaleString('en-US')} words. Write until the ${trigger} is fully present. Then stop.`,
     'Do not pad. Do not repeat. Do not add a hopeful ending.',
     '',
     'CHART DATA (authoritative — do not invent or contradict):',

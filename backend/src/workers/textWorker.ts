@@ -23,46 +23,46 @@ import { composePromptFromJobStartPayload } from '../promptEngine/fromJobPayload
 import { buildChartDataForSystem } from '../services/chartDataBuilder';
 import {
   stripWesternChartData,
-  buildWesternWoundPrompt,
+  buildWesternTriggerPrompt,
   buildWesternWritingPrompt,
-} from '../promptEngine/woundEngine/westernWound';
+} from '../promptEngine/triggerEngine/westernTrigger';
 import {
   stripVedicChartData,
-  buildVedicWoundPrompt,
+  buildVedicTriggerPrompt,
   buildVedicWritingPrompt,
-} from '../promptEngine/woundEngine/vedicWound';
+} from '../promptEngine/triggerEngine/vedicTrigger';
 import {
   stripHDChartData,
-  buildHDWoundPrompt,
+  buildHDTriggerPrompt,
   buildHDWritingPrompt,
-} from '../promptEngine/woundEngine/humanDesignWound';
+} from '../promptEngine/triggerEngine/humanDesignTrigger';
 import {
   stripGeneKeysChartData,
-  buildGeneKeysWoundPrompt,
+  buildGeneKeysTriggerPrompt,
   buildGeneKeysWritingPrompt,
-} from '../promptEngine/woundEngine/geneKeysWound';
+} from '../promptEngine/triggerEngine/geneKeysTrigger';
 import {
   stripKabbalahChartData,
-  buildKabbalahWoundPrompt,
+  buildKabbalahTriggerPrompt,
   buildKabbalahWritingPrompt,
-} from '../promptEngine/woundEngine/kabbalahWound';
+} from '../promptEngine/triggerEngine/kabbalahTrigger';
 import {
   stripWesternOverlayData,
-  buildWesternOverlayWoundPrompt,
+  buildWesternOverlayTriggerPrompt,
   buildWesternOverlayWritingPrompt,
   stripVedicOverlayData,
-  buildVedicOverlayWoundPrompt,
+  buildVedicOverlayTriggerPrompt,
   buildVedicOverlayWritingPrompt,
   stripHDOverlayData,
-  buildHDOverlayWoundPrompt,
+  buildHDOverlayTriggerPrompt,
   buildHDOverlayWritingPrompt,
   stripGeneKeysOverlayData,
-  buildGeneKeysOverlayWoundPrompt,
+  buildGeneKeysOverlayTriggerPrompt,
   buildGeneKeysOverlayWritingPrompt,
   stripKabbalahOverlayData,
-  buildKabbalahOverlayWoundPrompt,
+  buildKabbalahOverlayTriggerPrompt,
   buildKabbalahOverlayWritingPrompt,
-} from '../promptEngine/woundEngine/overlayWound';
+} from '../promptEngine/triggerEngine/overlayTrigger';
 
 function clampSpice(level: number): SpiceLevel {
   const clamped = Math.min(10, Math.max(1, Math.round(level)));
@@ -183,7 +183,10 @@ function tightenParagraphs(raw: string, options?: { preserveSurrealHeadlines?: b
 }
 
 function hasSecondPerson(text: string): boolean {
-  return /\b(you|your|you're|yourself)\b/i.test(String(text || ''));
+  const body = String(text || '');
+  // Allow quoted dialogue to contain "you" while enforcing narrator voice outside quotes.
+  const withoutQuotedDialogue = body.replace(/["“”][^"“”]*["“”]/g, ' ');
+  return /\b(you|your|you're|yourself)\b/i.test(withoutQuotedDialogue);
 }
 
 function extractExpectedAge(chartData: string): number | undefined {
@@ -579,7 +582,7 @@ export class TextWorker extends BaseWorker {
 	    let text = '';
 	    let wordCount = 0;
 	    let generationComplete = false;
-      let woundForOutput = '';
+      let narrativeTriggerForOutput = '';
 
     if (docType === 'verdict') {
       if (job.type !== 'bundle_verdict' && job.type !== 'nuclear_v2') {
@@ -603,36 +606,36 @@ export class TextWorker extends BaseWorker {
         .filter((o: any) => o.docNum && o.docNum !== 16)
         .sort((a: any, b: any) => (a.docNum ?? 0) - (b.docNum ?? 0));
 
-      const person1Wounds = completedOutputs
+      const person1Triggers = completedOutputs
         .filter((o: any) => o.docType === 'person1' || o.docType === 'individual')
-        .map((o: any) => ({ system: String(o.system || 'unknown'), wound: String(o.wound || '').trim() }))
-        .filter((x: any) => x.wound.length > 0)
-        .map((x: any) => `[${x.system}] ${x.wound}`);
+        .map((o: any) => ({ system: String(o.system || 'unknown'), narrativeTrigger: String(o.narrativeTrigger || '').trim() }))
+        .filter((x: any) => x.narrativeTrigger.length > 0)
+        .map((x: any) => `[${x.system}] ${x.narrativeTrigger}`);
 
-      const person2Wounds = completedOutputs
+      const person2Triggers = completedOutputs
         .filter((o: any) => o.docType === 'person2')
-        .map((o: any) => ({ system: String(o.system || 'unknown'), wound: String(o.wound || '').trim() }))
-        .filter((x: any) => x.wound.length > 0)
-        .map((x: any) => `[${x.system}] ${x.wound}`);
+        .map((o: any) => ({ system: String(o.system || 'unknown'), narrativeTrigger: String(o.narrativeTrigger || '').trim() }))
+        .filter((x: any) => x.narrativeTrigger.length > 0)
+        .map((x: any) => `[${x.system}] ${x.narrativeTrigger}`);
 
-      const overlayWounds = completedOutputs
+      const overlayTriggers = completedOutputs
         .filter((o: any) => o.docType === 'overlay')
-        .map((o: any) => ({ system: String(o.system || 'unknown'), wound: String(o.wound || '').trim() }))
-        .filter((x: any) => x.wound.length > 0)
-        .map((x: any) => `[${x.system}] ${x.wound}`);
+        .map((o: any) => ({ system: String(o.system || 'unknown'), narrativeTrigger: String(o.narrativeTrigger || '').trim() }))
+        .filter((x: any) => x.narrativeTrigger.length > 0)
+        .map((x: any) => `[${x.system}] ${x.narrativeTrigger}`);
 
       const summaries = completedOutputs
         .map((o: any) => `${o.title}: ${String(o.excerpt || '').slice(0, 600)}...`)
         .join('\n\n');
 
       // Production source-of-truth policy:
-      // verdict should synthesize accumulated wound outputs from prior docs,
+      // verdict should synthesize accumulated narrativeTrigger outputs from prior docs,
       // not rely on excerpt-only fallback behavior.
-      const totalWounds = person1Wounds.length + person2Wounds.length + overlayWounds.length;
-      if (totalWounds < 5) {
+      const totalTriggers = person1Triggers.length + person2Triggers.length + overlayTriggers.length;
+      if (totalTriggers < 5) {
         throw new Error(
-          `Verdict requires prior wound outputs (found ${totalWounds}). ` +
-          'Run/complete the system readings first so verdict can synthesize real wound signals.'
+          `Verdict requires prior narrativeTrigger outputs (found ${totalTriggers}). ` +
+          'Run/complete the system readings first so verdict can synthesize real narrativeTrigger signals.'
         );
       }
 
@@ -640,9 +643,9 @@ export class TextWorker extends BaseWorker {
         person1Name: person1.name,
         person2Name: person2.name,
         allReadingsSummary: summaries || '[No summaries available]',
-        person1Wounds,
-        person2Wounds,
-        overlayWounds,
+        person1Triggers,
+        person2Triggers,
+        overlayTriggers,
         spiceLevel,
         style,
       });
@@ -686,34 +689,39 @@ export class TextWorker extends BaseWorker {
           return { person1Raw, person2Raw };
         };
 
-	      // ── WESTERN: wound engine (strip → wound call → writing call) ──────────
+	      // ── WESTERN: narrativeTrigger engine (strip → narrativeTrigger call → writing call) ──────────
 	      if (system === 'western' && docType !== 'overlay') {
 	        const subject = docType === 'person2' ? person2 : person1;
 	        if (!subject?.name) throw new Error(`Missing subject name for western ${docType}`);
 
 	        const stripped = stripWesternChartData(chartData);
 
-	        // Call 1: wound paragraph
-	        const woundPrompt = buildWesternWoundPrompt({ personName: subject.name, strippedChartData: stripped });
-	        console.log(`🩸 [TextWorker] Western wound call for ${subject.name}...`);
-	        const woundRaw = await llmPaid.generateStreaming(woundPrompt, `${label}:wound`, {
+	        // Call 1: narrativeTrigger paragraph
+	        const triggerPrompt = buildWesternTriggerPrompt({ personName: subject.name, strippedChartData: stripped });
+	        console.log(`🩸 [TextWorker] Western narrativeTrigger call for ${subject.name}...`);
+	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
 	          maxTokens: 300,
 	          temperature: 0.7,
 	          maxRetries: 3,
 	        });
-	        const woundUsage = llmPaid.getLastUsage();
-	        if (woundUsage) {
-	          await logLLMCost(jobId, task.id, { provider: woundUsage.provider, inputTokens: woundUsage.usage.inputTokens, outputTokens: woundUsage.usage.outputTokens }, `text_western_wound_${docType}`);
+	        const triggerUsage = llmPaid.getLastUsage();
+	        if (triggerUsage) {
+	          await logLLMCost(jobId, task.id, { provider: triggerUsage.provider, inputTokens: triggerUsage.usage.inputTokens, outputTokens: triggerUsage.usage.outputTokens }, `text_western_trigger_${docType}`);
 	        }
-	        const wound = String(woundRaw || '').trim();
-	        if (!wound) {
-	          throw new Error(`Wound call returned empty for western ${docType}: ${subject.name}`);
+	        const narrativeTrigger = String(triggerRaw || '').trim();
+	        if (!narrativeTrigger) {
+	          throw new Error(`Trigger call returned empty for western ${docType}: ${subject.name}`);
 	        }
-          woundForOutput = wound;
-	        console.log(`✅ [TextWorker] Western wound: ${wound.slice(0, 80)}...`);
+          narrativeTriggerForOutput = narrativeTrigger;
+	        console.log(`✅ [TextWorker] Western narrativeTrigger: ${narrativeTrigger.slice(0, 80)}...`);
 
 	        // Call 2: writing — bypass composePrompt entirely, use custom prompt
-	        const writingPrompt = buildWesternWritingPrompt({ personName: subject.name, wound, strippedChartData: stripped });
+	        const writingPrompt = buildWesternWritingPrompt({
+            personName: subject.name,
+            narrativeTrigger,
+            strippedChartData: stripped,
+            targetWords: WORD_COUNT_LIMITS.min,
+          });
 
 	        console.log(`✍️ [TextWorker] Western writing call for ${subject.name}...`);
 	        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
@@ -737,28 +745,33 @@ export class TextWorker extends BaseWorker {
 	        generationComplete = true;
 	      }
 
-	      // ── VEDIC wound engine ──────────────────────────────────────────────
+	      // ── VEDIC narrativeTrigger engine ──────────────────────────────────────────────
 	      if (!generationComplete && system === 'vedic' && docType !== 'overlay') {
 	        const subject = docType === 'person2' ? person2 : person1;
 	        if (!subject?.name) throw new Error(`Missing subject name for vedic ${docType}`);
 
 	        const stripped = stripVedicChartData(chartData);
 
-	        const woundPrompt = buildVedicWoundPrompt({ personName: subject.name, strippedChartData: stripped });
-	        console.log(`🩸 [TextWorker] Vedic wound call for ${subject.name}...`);
-	        const woundRaw = await llmPaid.generateStreaming(woundPrompt, `${label}:wound`, {
+	        const triggerPrompt = buildVedicTriggerPrompt({ personName: subject.name, strippedChartData: stripped });
+	        console.log(`🩸 [TextWorker] Vedic narrativeTrigger call for ${subject.name}...`);
+	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
 	          maxTokens: 300, temperature: 0.7, maxRetries: 3,
 	        });
-	        const woundUsageV = llmPaid.getLastUsage();
-	        if (woundUsageV) await logLLMCost(jobId, task.id, { provider: woundUsageV.provider, inputTokens: woundUsageV.usage.inputTokens, outputTokens: woundUsageV.usage.outputTokens }, `text_vedic_wound_${docType}`);
-	        const wound = String(woundRaw || '').trim();
-	        if (!wound) {
-	          throw new Error(`Wound call returned empty for vedic ${docType}: ${subject.name}`);
+	        const triggerUsageV = llmPaid.getLastUsage();
+	        if (triggerUsageV) await logLLMCost(jobId, task.id, { provider: triggerUsageV.provider, inputTokens: triggerUsageV.usage.inputTokens, outputTokens: triggerUsageV.usage.outputTokens }, `text_vedic_trigger_${docType}`);
+	        const narrativeTrigger = String(triggerRaw || '').trim();
+	        if (!narrativeTrigger) {
+	          throw new Error(`Trigger call returned empty for vedic ${docType}: ${subject.name}`);
 	        }
-          woundForOutput = wound;
-	        console.log(`✅ [TextWorker] Vedic wound: ${wound.slice(0, 80)}...`);
+          narrativeTriggerForOutput = narrativeTrigger;
+	        console.log(`✅ [TextWorker] Vedic narrativeTrigger: ${narrativeTrigger.slice(0, 80)}...`);
 
-	        const writingPrompt = buildVedicWritingPrompt({ personName: subject.name, wound, strippedChartData: stripped });
+	        const writingPrompt = buildVedicWritingPrompt({
+            personName: subject.name,
+            narrativeTrigger,
+            strippedChartData: stripped,
+            targetWords: WORD_COUNT_LIMITS.min,
+          });
 	        console.log(`✍️ [TextWorker] Vedic writing call for ${subject.name}...`);
 	        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
 	          maxTokens: 16384, temperature: 0.8, maxRetries: 3,
@@ -775,28 +788,33 @@ export class TextWorker extends BaseWorker {
 	        generationComplete = true;
 	      }
 
-	      // ── HUMAN DESIGN wound engine ───────────────────────────────────────
+	      // ── HUMAN DESIGN narrativeTrigger engine ───────────────────────────────────────
 	      if (!generationComplete && system === 'human_design' && docType !== 'overlay') {
 	        const subject = docType === 'person2' ? person2 : person1;
 	        if (!subject?.name) throw new Error(`Missing subject name for human_design ${docType}`);
 
 	        const stripped = stripHDChartData(chartData);
 
-	        const woundPrompt = buildHDWoundPrompt({ personName: subject.name, strippedChartData: stripped });
-	        console.log(`🩸 [TextWorker] HD wound call for ${subject.name}...`);
-	        const woundRaw = await llmPaid.generateStreaming(woundPrompt, `${label}:wound`, {
+	        const triggerPrompt = buildHDTriggerPrompt({ personName: subject.name, strippedChartData: stripped });
+	        console.log(`🩸 [TextWorker] HD narrativeTrigger call for ${subject.name}...`);
+	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
 	          maxTokens: 300, temperature: 0.7, maxRetries: 3,
 	        });
-	        const woundUsageH = llmPaid.getLastUsage();
-	        if (woundUsageH) await logLLMCost(jobId, task.id, { provider: woundUsageH.provider, inputTokens: woundUsageH.usage.inputTokens, outputTokens: woundUsageH.usage.outputTokens }, `text_hd_wound_${docType}`);
-	        const wound = String(woundRaw || '').trim();
-	        if (!wound) {
-	          throw new Error(`Wound call returned empty for human_design ${docType}: ${subject.name}`);
+	        const triggerUsageH = llmPaid.getLastUsage();
+	        if (triggerUsageH) await logLLMCost(jobId, task.id, { provider: triggerUsageH.provider, inputTokens: triggerUsageH.usage.inputTokens, outputTokens: triggerUsageH.usage.outputTokens }, `text_hd_trigger_${docType}`);
+	        const narrativeTrigger = String(triggerRaw || '').trim();
+	        if (!narrativeTrigger) {
+	          throw new Error(`Trigger call returned empty for human_design ${docType}: ${subject.name}`);
 	        }
-          woundForOutput = wound;
-	        console.log(`✅ [TextWorker] HD wound: ${wound.slice(0, 80)}...`);
+          narrativeTriggerForOutput = narrativeTrigger;
+	        console.log(`✅ [TextWorker] HD narrativeTrigger: ${narrativeTrigger.slice(0, 80)}...`);
 
-	        const writingPrompt = buildHDWritingPrompt({ personName: subject.name, wound, strippedChartData: stripped });
+	        const writingPrompt = buildHDWritingPrompt({
+            personName: subject.name,
+            narrativeTrigger,
+            strippedChartData: stripped,
+            targetWords: WORD_COUNT_LIMITS.min,
+          });
 	        console.log(`✍️ [TextWorker] HD writing call for ${subject.name}...`);
 	        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
 	          maxTokens: 16384, temperature: 0.8, maxRetries: 3,
@@ -813,28 +831,33 @@ export class TextWorker extends BaseWorker {
 	        generationComplete = true;
 	      }
 
-	      // ── GENE KEYS wound engine ──────────────────────────────────────────
+	      // ── GENE KEYS narrativeTrigger engine ──────────────────────────────────────────
 	      if (!generationComplete && system === 'gene_keys' && docType !== 'overlay') {
 	        const subject = docType === 'person2' ? person2 : person1;
 	        if (!subject?.name) throw new Error(`Missing subject name for gene_keys ${docType}`);
 
 	        const stripped = stripGeneKeysChartData(chartData);
 
-	        const woundPrompt = buildGeneKeysWoundPrompt({ personName: subject.name, strippedChartData: stripped });
-	        console.log(`🩸 [TextWorker] Gene Keys wound call for ${subject.name}...`);
-	        const woundRaw = await llmPaid.generateStreaming(woundPrompt, `${label}:wound`, {
+	        const triggerPrompt = buildGeneKeysTriggerPrompt({ personName: subject.name, strippedChartData: stripped });
+	        console.log(`🩸 [TextWorker] Gene Keys narrativeTrigger call for ${subject.name}...`);
+	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
 	          maxTokens: 300, temperature: 0.7, maxRetries: 3,
 	        });
-	        const woundUsageG = llmPaid.getLastUsage();
-	        if (woundUsageG) await logLLMCost(jobId, task.id, { provider: woundUsageG.provider, inputTokens: woundUsageG.usage.inputTokens, outputTokens: woundUsageG.usage.outputTokens }, `text_gk_wound_${docType}`);
-	        const wound = String(woundRaw || '').trim();
-	        if (!wound) {
-	          throw new Error(`Wound call returned empty for gene_keys ${docType}: ${subject.name}`);
+	        const triggerUsageG = llmPaid.getLastUsage();
+	        if (triggerUsageG) await logLLMCost(jobId, task.id, { provider: triggerUsageG.provider, inputTokens: triggerUsageG.usage.inputTokens, outputTokens: triggerUsageG.usage.outputTokens }, `text_gk_trigger_${docType}`);
+	        const narrativeTrigger = String(triggerRaw || '').trim();
+	        if (!narrativeTrigger) {
+	          throw new Error(`Trigger call returned empty for gene_keys ${docType}: ${subject.name}`);
 	        }
-          woundForOutput = wound;
-	        console.log(`✅ [TextWorker] Gene Keys wound: ${wound.slice(0, 80)}...`);
+          narrativeTriggerForOutput = narrativeTrigger;
+	        console.log(`✅ [TextWorker] Gene Keys narrativeTrigger: ${narrativeTrigger.slice(0, 80)}...`);
 
-	        const writingPrompt = buildGeneKeysWritingPrompt({ personName: subject.name, wound, strippedChartData: stripped });
+	        const writingPrompt = buildGeneKeysWritingPrompt({
+            personName: subject.name,
+            narrativeTrigger,
+            strippedChartData: stripped,
+            targetWords: WORD_COUNT_LIMITS.min,
+          });
 	        console.log(`✍️ [TextWorker] Gene Keys writing call for ${subject.name}...`);
 	        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
 	          maxTokens: 16384, temperature: 0.8, maxRetries: 3,
@@ -851,28 +874,33 @@ export class TextWorker extends BaseWorker {
 	        generationComplete = true;
 	      }
 
-	      // ── KABBALAH wound engine ───────────────────────────────────────────
+	      // ── KABBALAH narrativeTrigger engine ───────────────────────────────────────────
 	      if (!generationComplete && system === 'kabbalah' && docType !== 'overlay') {
 	        const subject = docType === 'person2' ? person2 : person1;
 	        if (!subject?.name) throw new Error(`Missing subject name for kabbalah ${docType}`);
 
 	        const stripped = stripKabbalahChartData(chartData);
 
-	        const woundPrompt = buildKabbalahWoundPrompt({ personName: subject.name, strippedChartData: stripped });
-	        console.log(`🩸 [TextWorker] Kabbalah wound call for ${subject.name}...`);
-	        const woundRaw = await llmPaid.generateStreaming(woundPrompt, `${label}:wound`, {
+	        const triggerPrompt = buildKabbalahTriggerPrompt({ personName: subject.name, strippedChartData: stripped });
+	        console.log(`🩸 [TextWorker] Kabbalah narrativeTrigger call for ${subject.name}...`);
+	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
 	          maxTokens: 300, temperature: 0.7, maxRetries: 3,
 	        });
-	        const woundUsageK = llmPaid.getLastUsage();
-	        if (woundUsageK) await logLLMCost(jobId, task.id, { provider: woundUsageK.provider, inputTokens: woundUsageK.usage.inputTokens, outputTokens: woundUsageK.usage.outputTokens }, `text_kab_wound_${docType}`);
-	        const wound = String(woundRaw || '').trim();
-	        if (!wound) {
-	          throw new Error(`Wound call returned empty for kabbalah ${docType}: ${subject.name}`);
+	        const triggerUsageK = llmPaid.getLastUsage();
+	        if (triggerUsageK) await logLLMCost(jobId, task.id, { provider: triggerUsageK.provider, inputTokens: triggerUsageK.usage.inputTokens, outputTokens: triggerUsageK.usage.outputTokens }, `text_kab_trigger_${docType}`);
+	        const narrativeTrigger = String(triggerRaw || '').trim();
+	        if (!narrativeTrigger) {
+	          throw new Error(`Trigger call returned empty for kabbalah ${docType}: ${subject.name}`);
 	        }
-          woundForOutput = wound;
-	        console.log(`✅ [TextWorker] Kabbalah wound: ${wound.slice(0, 80)}...`);
+          narrativeTriggerForOutput = narrativeTrigger;
+	        console.log(`✅ [TextWorker] Kabbalah narrativeTrigger: ${narrativeTrigger.slice(0, 80)}...`);
 
-	        const writingPrompt = buildKabbalahWritingPrompt({ personName: subject.name, wound, strippedChartData: stripped });
+	        const writingPrompt = buildKabbalahWritingPrompt({
+            personName: subject.name,
+            narrativeTrigger,
+            strippedChartData: stripped,
+            targetWords: WORD_COUNT_LIMITS.min,
+          });
 	        console.log(`✍️ [TextWorker] Kabbalah writing call for ${subject.name}...`);
 	        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
 	          maxTokens: 16384, temperature: 0.8, maxRetries: 3,
@@ -889,31 +917,32 @@ export class TextWorker extends BaseWorker {
 	        generationComplete = true;
 	      }
 
-        // ── WESTERN OVERLAY wound engine ────────────────────────────────────
+        // ── WESTERN OVERLAY narrativeTrigger engine ────────────────────────────────────
         if (!generationComplete && system === 'western' && docType === 'overlay') {
           const { person1Raw, person2Raw } = buildOverlayChartParts('western');
           const stripped = stripWesternOverlayData(person1Raw, person2Raw);
 
-          const woundPrompt = buildWesternOverlayWoundPrompt({
+          const triggerPrompt = buildWesternOverlayTriggerPrompt({
             person1Name: person1.name,
             person2Name: person2!.name,
             strippedChartData: stripped,
           });
-          console.log(`🩸 [TextWorker] Western overlay wound call for ${person1.name} & ${person2!.name}...`);
-          const woundRaw = await llmPaid.generateStreaming(woundPrompt, `${label}:overlay:wound`, {
+          console.log(`🩸 [TextWorker] Western overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
+          const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
             maxTokens: 300, temperature: 0.7, maxRetries: 3,
           });
-          const woundUsageO = llmPaid.getLastUsage();
-          if (woundUsageO) await logLLMCost(jobId, task.id, { provider: woundUsageO.provider, inputTokens: woundUsageO.usage.inputTokens, outputTokens: woundUsageO.usage.outputTokens }, 'text_western_overlay_wound');
-          const wound = String(woundRaw || '').trim();
-          if (!wound) throw new Error(`Wound call returned empty for western overlay: ${person1.name}/${person2!.name}`);
-          woundForOutput = wound;
+          const triggerUsageO = llmPaid.getLastUsage();
+          if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_western_overlay_trigger');
+          const narrativeTrigger = String(triggerRaw || '').trim();
+          if (!narrativeTrigger) throw new Error(`Trigger call returned empty for western overlay: ${person1.name}/${person2!.name}`);
+          narrativeTriggerForOutput = narrativeTrigger;
 
           const writingPrompt = buildWesternOverlayWritingPrompt({
             person1Name: person1.name,
             person2Name: person2!.name,
-            wound,
+            narrativeTrigger,
             strippedChartData: stripped,
+            targetWords: WORD_COUNT_LIMITS_OVERLAY.min,
           });
           console.log(`✍️ [TextWorker] Western overlay writing call for ${person1.name} & ${person2!.name}...`);
           text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
@@ -931,31 +960,32 @@ export class TextWorker extends BaseWorker {
           generationComplete = true;
         }
 
-        // ── VEDIC OVERLAY wound engine ──────────────────────────────────────
+        // ── VEDIC OVERLAY narrativeTrigger engine ──────────────────────────────────────
         if (!generationComplete && system === 'vedic' && docType === 'overlay') {
           const { person1Raw, person2Raw } = buildOverlayChartParts('vedic');
           const stripped = stripVedicOverlayData(person1Raw, person2Raw);
 
-          const woundPrompt = buildVedicOverlayWoundPrompt({
+          const triggerPrompt = buildVedicOverlayTriggerPrompt({
             person1Name: person1.name,
             person2Name: person2!.name,
             strippedChartData: stripped,
           });
-          console.log(`🩸 [TextWorker] Vedic overlay wound call for ${person1.name} & ${person2!.name}...`);
-          const woundRaw = await llmPaid.generateStreaming(woundPrompt, `${label}:overlay:wound`, {
+          console.log(`🩸 [TextWorker] Vedic overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
+          const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
             maxTokens: 300, temperature: 0.7, maxRetries: 3,
           });
-          const woundUsageO = llmPaid.getLastUsage();
-          if (woundUsageO) await logLLMCost(jobId, task.id, { provider: woundUsageO.provider, inputTokens: woundUsageO.usage.inputTokens, outputTokens: woundUsageO.usage.outputTokens }, 'text_vedic_overlay_wound');
-          const wound = String(woundRaw || '').trim();
-          if (!wound) throw new Error(`Wound call returned empty for vedic overlay: ${person1.name}/${person2!.name}`);
-          woundForOutput = wound;
+          const triggerUsageO = llmPaid.getLastUsage();
+          if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_vedic_overlay_trigger');
+          const narrativeTrigger = String(triggerRaw || '').trim();
+          if (!narrativeTrigger) throw new Error(`Trigger call returned empty for vedic overlay: ${person1.name}/${person2!.name}`);
+          narrativeTriggerForOutput = narrativeTrigger;
 
           const writingPrompt = buildVedicOverlayWritingPrompt({
             person1Name: person1.name,
             person2Name: person2!.name,
-            wound,
+            narrativeTrigger,
             strippedChartData: stripped,
+            targetWords: WORD_COUNT_LIMITS_OVERLAY.min,
           });
           console.log(`✍️ [TextWorker] Vedic overlay writing call for ${person1.name} & ${person2!.name}...`);
           text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
@@ -973,31 +1003,32 @@ export class TextWorker extends BaseWorker {
           generationComplete = true;
         }
 
-        // ── HUMAN DESIGN OVERLAY wound engine ───────────────────────────────
+        // ── HUMAN DESIGN OVERLAY narrativeTrigger engine ───────────────────────────────
         if (!generationComplete && system === 'human_design' && docType === 'overlay') {
           const { person1Raw, person2Raw } = buildOverlayChartParts('human_design');
           const stripped = stripHDOverlayData(person1Raw, person2Raw);
 
-          const woundPrompt = buildHDOverlayWoundPrompt({
+          const triggerPrompt = buildHDOverlayTriggerPrompt({
             person1Name: person1.name,
             person2Name: person2!.name,
             strippedChartData: stripped,
           });
-          console.log(`🩸 [TextWorker] HD overlay wound call for ${person1.name} & ${person2!.name}...`);
-          const woundRaw = await llmPaid.generateStreaming(woundPrompt, `${label}:overlay:wound`, {
+          console.log(`🩸 [TextWorker] HD overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
+          const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
             maxTokens: 300, temperature: 0.7, maxRetries: 3,
           });
-          const woundUsageO = llmPaid.getLastUsage();
-          if (woundUsageO) await logLLMCost(jobId, task.id, { provider: woundUsageO.provider, inputTokens: woundUsageO.usage.inputTokens, outputTokens: woundUsageO.usage.outputTokens }, 'text_hd_overlay_wound');
-          const wound = String(woundRaw || '').trim();
-          if (!wound) throw new Error(`Wound call returned empty for human_design overlay: ${person1.name}/${person2!.name}`);
-          woundForOutput = wound;
+          const triggerUsageO = llmPaid.getLastUsage();
+          if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_hd_overlay_trigger');
+          const narrativeTrigger = String(triggerRaw || '').trim();
+          if (!narrativeTrigger) throw new Error(`Trigger call returned empty for human_design overlay: ${person1.name}/${person2!.name}`);
+          narrativeTriggerForOutput = narrativeTrigger;
 
           const writingPrompt = buildHDOverlayWritingPrompt({
             person1Name: person1.name,
             person2Name: person2!.name,
-            wound,
+            narrativeTrigger,
             strippedChartData: stripped,
+            targetWords: WORD_COUNT_LIMITS_OVERLAY.min,
           });
           console.log(`✍️ [TextWorker] HD overlay writing call for ${person1.name} & ${person2!.name}...`);
           text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
@@ -1015,31 +1046,32 @@ export class TextWorker extends BaseWorker {
           generationComplete = true;
         }
 
-        // ── GENE KEYS OVERLAY wound engine ──────────────────────────────────
+        // ── GENE KEYS OVERLAY narrativeTrigger engine ──────────────────────────────────
         if (!generationComplete && system === 'gene_keys' && docType === 'overlay') {
           const { person1Raw, person2Raw } = buildOverlayChartParts('gene_keys');
           const stripped = stripGeneKeysOverlayData(person1Raw, person2Raw);
 
-          const woundPrompt = buildGeneKeysOverlayWoundPrompt({
+          const triggerPrompt = buildGeneKeysOverlayTriggerPrompt({
             person1Name: person1.name,
             person2Name: person2!.name,
             strippedChartData: stripped,
           });
-          console.log(`🩸 [TextWorker] Gene Keys overlay wound call for ${person1.name} & ${person2!.name}...`);
-          const woundRaw = await llmPaid.generateStreaming(woundPrompt, `${label}:overlay:wound`, {
+          console.log(`🩸 [TextWorker] Gene Keys overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
+          const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
             maxTokens: 300, temperature: 0.7, maxRetries: 3,
           });
-          const woundUsageO = llmPaid.getLastUsage();
-          if (woundUsageO) await logLLMCost(jobId, task.id, { provider: woundUsageO.provider, inputTokens: woundUsageO.usage.inputTokens, outputTokens: woundUsageO.usage.outputTokens }, 'text_gk_overlay_wound');
-          const wound = String(woundRaw || '').trim();
-          if (!wound) throw new Error(`Wound call returned empty for gene_keys overlay: ${person1.name}/${person2!.name}`);
-          woundForOutput = wound;
+          const triggerUsageO = llmPaid.getLastUsage();
+          if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_gk_overlay_trigger');
+          const narrativeTrigger = String(triggerRaw || '').trim();
+          if (!narrativeTrigger) throw new Error(`Trigger call returned empty for gene_keys overlay: ${person1.name}/${person2!.name}`);
+          narrativeTriggerForOutput = narrativeTrigger;
 
           const writingPrompt = buildGeneKeysOverlayWritingPrompt({
             person1Name: person1.name,
             person2Name: person2!.name,
-            wound,
+            narrativeTrigger,
             strippedChartData: stripped,
+            targetWords: WORD_COUNT_LIMITS_OVERLAY.min,
           });
           console.log(`✍️ [TextWorker] Gene Keys overlay writing call for ${person1.name} & ${person2!.name}...`);
           text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
@@ -1057,31 +1089,32 @@ export class TextWorker extends BaseWorker {
           generationComplete = true;
         }
 
-        // ── KABBALAH OVERLAY wound engine ───────────────────────────────────
+        // ── KABBALAH OVERLAY narrativeTrigger engine ───────────────────────────────────
         if (!generationComplete && system === 'kabbalah' && docType === 'overlay') {
           const { person1Raw, person2Raw } = buildOverlayChartParts('kabbalah');
           const stripped = stripKabbalahOverlayData(person1Raw, person2Raw);
 
-          const woundPrompt = buildKabbalahOverlayWoundPrompt({
+          const triggerPrompt = buildKabbalahOverlayTriggerPrompt({
             person1Name: person1.name,
             person2Name: person2!.name,
             strippedChartData: stripped,
           });
-          console.log(`🩸 [TextWorker] Kabbalah overlay wound call for ${person1.name} & ${person2!.name}...`);
-          const woundRaw = await llmPaid.generateStreaming(woundPrompt, `${label}:overlay:wound`, {
+          console.log(`🩸 [TextWorker] Kabbalah overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
+          const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
             maxTokens: 300, temperature: 0.7, maxRetries: 3,
           });
-          const woundUsageO = llmPaid.getLastUsage();
-          if (woundUsageO) await logLLMCost(jobId, task.id, { provider: woundUsageO.provider, inputTokens: woundUsageO.usage.inputTokens, outputTokens: woundUsageO.usage.outputTokens }, 'text_kab_overlay_wound');
-          const wound = String(woundRaw || '').trim();
-          if (!wound) throw new Error(`Wound call returned empty for kabbalah overlay: ${person1.name}/${person2!.name}`);
-          woundForOutput = wound;
+          const triggerUsageO = llmPaid.getLastUsage();
+          if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_kab_overlay_trigger');
+          const narrativeTrigger = String(triggerRaw || '').trim();
+          if (!narrativeTrigger) throw new Error(`Trigger call returned empty for kabbalah overlay: ${person1.name}/${person2!.name}`);
+          narrativeTriggerForOutput = narrativeTrigger;
 
           const writingPrompt = buildKabbalahOverlayWritingPrompt({
             person1Name: person1.name,
             person2Name: person2!.name,
-            wound,
+            narrativeTrigger,
             strippedChartData: stripped,
+            targetWords: WORD_COUNT_LIMITS_OVERLAY.min,
           });
           console.log(`✍️ [TextWorker] Kabbalah overlay writing call for ${person1.name} & ${person2!.name}...`);
           text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
@@ -1136,7 +1169,7 @@ export class TextWorker extends BaseWorker {
     let extractedFooter = { body: '', footer: '' };
     // preserveSurrealHeadlines: true for western (uses section headlines) and incarnation style
     let preserveSurrealHeadlines = generationComplete
-      ? true // western wound engine always uses surreal headlines
+      ? true // western narrativeTrigger engine always uses surreal headlines
       : String(composedV2?.diagnostics?.styleLayerId || '').includes('incarnation');
 
     if (!generationComplete) {
@@ -1479,7 +1512,7 @@ export class TextWorker extends BaseWorker {
         title: title || (system ? `${String(system)} - ${docType}` : 'Final Verdict'),
         wordCount,
         excerpt,
-        wound: woundForOutput,
+        narrativeTrigger: narrativeTriggerForOutput,
         textArtifactPath,
         headline, // Add headline to output
       },

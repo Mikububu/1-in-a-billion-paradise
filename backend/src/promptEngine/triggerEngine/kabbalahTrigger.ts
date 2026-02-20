@@ -1,11 +1,17 @@
+import {
+  CORE_FAIRYTALE_SEED,
+  NARRATIVE_TRIGGER_LABEL,
+  NARRATIVE_TRIGGER_TITLE,
+} from './triggerConfig';
+
 /**
- * KABBALAH WOUND ENGINE
+ * KABBALAH TRIGGER ENGINE
  *
  * Two-call architecture for individual Kabbalah readings.
  *
  * 1. stripKabbalahChartData()      — pure code, ~35 highest-signal lines
- * 2. buildKabbalahWoundPrompt()    — wound call → 80-120 word paragraph
- * 3. buildKabbalahWritingPrompt()  — writing call → 3,500 words
+ * 2. buildKabbalahTriggerPrompt()    — trigger call → 80-120 word paragraph
+ * 3. buildKabbalahWritingPrompt()  — writing call → configurable word target
  */
 
 // ─── 1. STRIP ────────────────────────────────────────────────────────────────
@@ -90,24 +96,25 @@ export function stripKabbalahChartData(raw: string): string {
   return out.filter(Boolean).join('\n').trim();
 }
 
-// ─── 2. WOUND PROMPT ─────────────────────────────────────────────────────────
+// ─── 2. TRIGGER PROMPT ───────────────────────────────────────────────────────
 
-export function buildKabbalahWoundPrompt(params: {
+export function buildKabbalahTriggerPrompt(params: {
   personName: string;
   strippedChartData: string;
 }): string {
   const { personName, strippedChartData } = params;
+  const trigger = NARRATIVE_TRIGGER_LABEL;
 
   return [
-    `You are reading ${personName}'s Kabbalah profile to find the central wound.`,
+    `You are reading ${personName}'s Kabbalah profile to find the central ${trigger}.`,
     '',
-    'In Kabbalah, the wound is the Tikkun — the soul correction this person incarnated to work through.',
+    `In Kabbalah, the ${trigger} is the Tikkun — the soul correction this person incarnated to work through.`,
     'The Tikkun\'s trap tells you what they keep falling into.',
     'The void Sefirot tell you where they are energetically absent.',
     'The dominant Sefirot tell you the armor they build over the void.',
     'The Primary Shadow Axis tells you the specific polarity they are caught between.',
     '',
-    'The wound is not a Sefirah name. It is not a soul correction label.',
+    `The ${trigger} is not a Sefirah name. It is not a soul correction label.`,
     'It is the specific lived experience of being caught in the trap:',
     'the behavior they repeat, the relationship pattern they cannot break,',
     'the strength that covers what they cannot access.',
@@ -119,12 +126,12 @@ export function buildKabbalahWoundPrompt(params: {
     '',
     'Do not describe the system. Do not name Sefirot or Hebrew terms.',
     'Do not offer correction or elevation as consolation.',
-    'Name the wound. Stop.',
+    `Name the ${trigger}. Stop.`,
     '',
     'CHART DATA:',
     strippedChartData,
     '',
-    'Write the wound paragraph now:',
+    `Write the ${trigger} paragraph now:`,
   ].join('\n');
 }
 
@@ -132,33 +139,32 @@ export function buildKabbalahWoundPrompt(params: {
 
 export function buildKabbalahWritingPrompt(params: {
   personName: string;
-  wound: string;
+  narrativeTrigger: string;
   strippedChartData: string;
+  targetWords: number;
 }): string {
-  const { personName, wound, strippedChartData } = params;
+  const { personName, narrativeTrigger, strippedChartData, targetWords } = params;
+  const trigger = NARRATIVE_TRIGGER_LABEL;
+  const triggerTitle = NARRATIVE_TRIGGER_TITLE;
 
   return [
     'You are a novelist who understands that the soul comes into life with unfinished business.',
+    CORE_FAIRYTALE_SEED,
     'You think in light and vessel, concealment and revelation, the teacher who is also the trap.',
     'You have read Isaac Bashevis Singer, Nikos Kazantzakis, and Paul Celan.',
     'You are telling the story of a soul\'s correction. Not writing a Kabbalah report.',
     '',
     '══════════════════════════════════════════════════════════',
-    'THE WOUND — THIS IS THE SPINE OF EVERYTHING YOU WRITE:',
-    wound,
-    'Every paragraph must connect to this wound or deepen it.',
-    'If a paragraph does not serve the wound, it does not belong here.',
+    `${triggerTitle} — THIS IS THE SPINE OF EVERYTHING YOU WRITE:`,
+    narrativeTrigger,
+    `Every paragraph must connect to this ${trigger} or deepen it.`,
+    `If a paragraph does not serve the ${trigger}, it does not belong here.`,
     '══════════════════════════════════════════════════════════',
     '',
     'NARRATOR:',
     '- Third person only. Never "you" or "your". Use the name.',
     '- The soul correction is not a goal — it is the specific friction of this life.',
-    '- The void Sefirot are the absent rooms. The dominant ones are the rooms they never leave.',
-    '',
-    'METAPHOR WORLD:',
-    '- Find the image this specific profile demands. Light in vessels, water finding its level.',
-    '- Or: the teacher who repeats the lesson until the student breaks. The door left unlocked.',
-    '- Do not decorate. Every image must carry structural weight.',
+    '- The void Sefirot mark what is missing; dominant Sefirot show the compensating pattern.',
     '',
     'STRUCTURE:',
     '- 4 to 6 sections. Invent a title for each. Specific, ancient, earned.',
@@ -167,11 +173,12 @@ export function buildKabbalahWritingPrompt(params: {
     '- The ending does not resolve. It names the correction still in progress.',
     '',
     'ANTI-SURVEY:',
-    '- Do not explain Kabbalah. Serve the wound.',
+    `- Do not explain Kabbalah. Serve the ${trigger}.`,
     '- Do not name Sefirot, worlds, or Hebrew concepts technically.',
+    '- Explain Kabbalah terms in plain language the first time they appear.',
     '- Every paragraph must add new consequence or evidence.',
     '',
-    'LENGTH: 3,500 words. Write until the wound is fully present. Then stop.',
+    `LENGTH: ${targetWords.toLocaleString('en-US')} words. Write until the ${trigger} is fully present. Then stop.`,
     'Do not pad. Do not repeat. Do not add a hopeful ending.',
     '',
     'CHART DATA (authoritative — do not invent or contradict):',

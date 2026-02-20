@@ -24,7 +24,15 @@ import { JobTask, supabase } from '../services/supabaseClient';
 import { env } from '../config/env';
 import { apiKeys } from '../services/apiKeysHelper';
 import { getVoiceById, isTurboPresetVoice } from '../config/voices';
-import { splitIntoChunks, concatenateWavBuffers, AUDIO_CONFIG } from '../services/audioProcessing';
+import { getSystemDisplayName } from '../config/systemConfig';
+import { cleanupTextForTTS } from '../utils/textCleanup';
+import {
+  splitIntoChunks,
+  concatenateWavBuffers,
+  AUDIO_CONFIG,
+  dedupeAdjacentSentences,
+  dedupeChunkBoundaryOverlap,
+} from '../services/audioProcessing';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Audio Format Detection
@@ -139,6 +147,101 @@ function buildSilenceWav(durationSec: number, sampleRate = 24000, numChannels = 
   return Buffer.concat([wavHeader, pcmData]);
 }
 
+type AudioPersonMeta = {
+  name?: string;
+  birthDate?: string;
+  birthTime?: string;
+  birthPlace?: string;
+  timezone?: string;
+};
+
+function formatReadableDate(input?: string): string {
+  const raw = String(input || '').trim();
+  if (!raw) return '';
+
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) {
+    const y = Number(m[1]);
+    const mo = Number(m[2]) - 1;
+    const d = Number(m[3]);
+    const dt = new Date(Date.UTC(y, mo, d));
+    return dt.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+  }
+
+  const dt = new Date(raw);
+  if (!Number.isNaN(dt.getTime())) {
+    return dt.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    });
+  }
+
+  return raw;
+}
+
+function inferDocType(task: JobTask): 'person1' | 'person2' | 'overlay' | 'verdict' {
+  const inputDocType = String(task.input?.docType || '').toLowerCase();
+  if (inputDocType === 'person2') return 'person2';
+  if (inputDocType === 'overlay') return 'overlay';
+  if (inputDocType === 'verdict') return 'verdict';
+  if (inputDocType === 'person1' || inputDocType === 'individual') return 'person1';
+
+  const title = String(task.input?.title || '').toLowerCase();
+  if (title.includes('verdict')) return 'verdict';
+  if (title.includes('&') || title.includes('synastry') || title.includes('overlay')) return 'overlay';
+  return 'person1';
+}
+
+function buildSpokenIntro(options: {
+  system?: string;
+  docType: 'person1' | 'person2' | 'overlay' | 'verdict';
+  person1?: AudioPersonMeta;
+  person2?: AudioPersonMeta;
+}): string {
+  const system = String(options.system || 'western').toLowerCase();
+  const systemName = getSystemDisplayName(system);
+  const generatedOn = new Date().toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const p1 = options.person1 || {};
+  const p2 = options.person2 || {};
+  const p1Name = String(p1.name || 'Person 1').trim();
+  const p2Name = String(p2.name || 'Person 2').trim();
+  const p1Date = formatReadableDate(p1.birthDate);
+  const p2Date = formatReadableDate(p2.birthDate);
+  const p1Place = String(p1.birthPlace || p1.timezone || '').trim();
+  const p2Place = String(p2.birthPlace || p2.timezone || '').trim();
+  const p1Time = String(p1.birthTime || '').trim();
+  const p2Time = String(p2.birthTime || '').trim();
+
+  if (options.docType === 'verdict') {
+    return `This is the final verdict reading for ${p1Name} and ${p2Name}, synthesizing all five systems. Generated on ${generatedOn} by 1 in a billion app, powered by forbidden-yoga dot com.`;
+  }
+
+  if (options.docType === 'overlay') {
+    const p1Line = `${p1Name} was born on ${p1Date || 'an unknown date'}${p1Time ? ` at ${p1Time}` : ''}${p1Place ? ` in ${p1Place}` : ''}.`;
+    const p2Line = `${p2Name} was born on ${p2Date || 'an unknown date'}${p2Time ? ` at ${p2Time}` : ''}${p2Place ? ` in ${p2Place}` : ''}.`;
+    return `This is a ${systemName} compatibility reading for ${p1Name} and ${p2Name}. ${p1Line} ${p2Line} Generated on ${generatedOn} by 1 in a billion app, powered by forbidden-yoga dot com.`;
+  }
+
+  const subject = options.docType === 'person2' ? p2 : p1;
+  const subjectName = String(subject.name || (options.docType === 'person2' ? p2Name : p1Name)).trim();
+  const birthDate = formatReadableDate(subject.birthDate);
+  const birthPlace = String(subject.birthPlace || subject.timezone || '').trim();
+  const birthTime = String(subject.birthTime || '').trim();
+
+  return `This is a ${systemName} reading for ${subjectName}, born on ${birthDate || 'an unknown date'}${birthTime ? ` at ${birthTime}` : ''}${birthPlace ? ` in ${birthPlace}` : ''}. Generated on ${generatedOn} by 1 in a billion app, powered by forbidden-yoga dot com.`;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // FFmpeg Conversion
 // ─────────────────────────────────────────────────────────────────────────────
@@ -174,6 +277,29 @@ async function convertWavToM4a(wav: Buffer): Promise<Buffer> {
     const m4a = await fs.readFile(outPath);
     console.log(`WAV->M4A (normalized): ${Math.round(wav.length / 1024)}KB -> ${Math.round(m4a.length / 1024)}KB`);
     return m4a;
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true }).catch(() => { });
+  }
+}
+
+async function convertWavToMp3(wav: Buffer): Promise<Buffer> {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'iab-audio-'));
+  const inPath = path.join(dir, 'in.wav');
+  const outPath = path.join(dir, 'out.mp3');
+  try {
+    await fs.writeFile(inPath, wav);
+    await runFfmpeg([
+      '-i', inPath,
+      '-vn',
+      '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11',
+      '-c:a', 'libmp3lame',
+      '-b:a', '128k',
+      '-ar', '44100',
+      outPath,
+    ]);
+    const mp3 = await fs.readFile(outPath);
+    console.log(`WAV->MP3 (normalized): ${Math.round(wav.length / 1024)}KB -> ${Math.round(mp3.length / 1024)}KB`);
+    return mp3;
   } finally {
     await fs.rm(dir, { recursive: true, force: true }).catch(() => { });
   }
@@ -232,14 +358,60 @@ export class AudioWorker extends BaseWorker {
         return { success: false, error: 'No text found' };
       }
 
+      // Load job metadata for deterministic spoken intro.
+      let person1Meta: AudioPersonMeta | undefined;
+      let person2Meta: AudioPersonMeta | undefined;
+      if (supabase) {
+        try {
+          const { data: jobRow } = await supabase
+            .from('jobs')
+            .select('params')
+            .eq('id', task.job_id)
+            .maybeSingle();
+          const params = jobRow?.params || {};
+          person1Meta = params.person1 || undefined;
+          person2Meta = params.person2 || undefined;
+        } catch (metaErr: any) {
+          console.warn(`⚠️ [AudioWorker] Could not load job metadata for spoken intro: ${metaErr?.message || String(metaErr)}`);
+        }
+      }
+
+      // Clean and de-duplicate text BEFORE chunking.
+      const originalText = String(text);
+      let cleanedText = cleanupTextForTTS(originalText);
+      const dedupResult = dedupeAdjacentSentences(cleanedText);
+      cleanedText = dedupResult.text;
+      if (dedupResult.removed > 0) {
+        console.warn(`⚠️ [AudioWorker] Removed ${dedupResult.removed} adjacent duplicate sentence(s) from source text before TTS.`);
+      }
+
+      // Build spoken intro and prepend to narration.
+      const resolvedDocType = inferDocType(task);
+      const intro = buildSpokenIntro({
+        system: task.input?.system,
+        docType: resolvedDocType,
+        person1: person1Meta,
+        person2: person2Meta,
+      });
+      text = `${intro}\n\n${cleanedText}`.trim();
+
       // Chunk size (Turbo supports 500 chars, Original supports 300)
       // Using config default or env override
-      const chunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || String(AUDIO_CONFIG.CHUNK_MAX_LENGTH), 10);
+      const configuredChunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || String(AUDIO_CONFIG.CHUNK_MAX_LENGTH), 10);
+      const chunkSize = Math.max(120, Math.min(300, Number.isFinite(configuredChunkSize) ? configuredChunkSize : AUDIO_CONFIG.CHUNK_MAX_LENGTH));
+      if (chunkSize !== configuredChunkSize) {
+        console.warn(`⚠️ [AudioWorker] Clamped CHATTERBOX_CHUNK_SIZE ${configuredChunkSize} -> ${chunkSize} for stability.`);
+      }
 
       // ─────────────────────────────────────────────────────────────────────
       // CHUNK TEXT (Turbo supports 500 chars, Original supports 300)
       // ─────────────────────────────────────────────────────────────────────
-      const chunks = splitIntoChunks(text, chunkSize);
+      let chunks = splitIntoChunks(text, chunkSize);
+      const boundaryDedup = dedupeChunkBoundaryOverlap(chunks);
+      chunks = boundaryDedup.chunks;
+      if (boundaryDedup.removed > 0) {
+        console.warn(`⚠️ [AudioWorker] Removed ${boundaryDedup.removed} duplicated boundary sentence(s) across chunks.`);
+      }
       console.log(`📦 [AudioWorker] Chunking ${text.length} chars -> ${chunks.length} chunks (max ${chunkSize} chars)`);
 
       // ─────────────────────────────────────────────────────────────────────
@@ -276,8 +448,13 @@ export class AudioWorker extends BaseWorker {
       const temperature = voiceSettings.temperature ?? 0.7;  // Default
       const top_p = voiceSettings.top_p ?? 0.95;             // Default
       // CRITICAL: Higher repetition_penalty reduces duplicate sentences (default 1.2, max 2.0)
-      // Increased from default to fix "sentences said twice" bug
-      const repetition_penalty = voiceSettings.repetition_penalty ?? 1.5;
+      // Increased from default to reduce repeated-sentence artifacts
+      const repetitionPenaltyRaw = Number(
+        process.env.CHATTERBOX_REPETITION_PENALTY ?? (voiceSettings.repetition_penalty ?? 1.7)
+      );
+      const repetition_penalty = Number.isFinite(repetitionPenaltyRaw)
+        ? Math.max(1, Math.min(2, repetitionPenaltyRaw))
+        : 1.7;
       
       console.log(`🎤 [AudioWorker] Voice settings:`, { temperature, top_p, repetition_penalty, isTurboPreset });
 
@@ -478,33 +655,41 @@ export class AudioWorker extends BaseWorker {
       console.log(`     • Provider: Replicate Chatterbox Turbo`);
       console.log('═'.repeat(70) + '\n');
 
-      // Concatenate and convert to M4A (primary format only, no MP3 fallback)
+      // Concatenate and convert: MP3 primary (QuickTime-safe), M4A optional.
       const wavAudio = concatenateWavBuffers(audioBuffers);
-
-      const m4a = await convertWavToM4a(wavAudio);
+      const mp3 = await convertWavToMp3(wavAudio);
+      let m4a: Buffer | null = null;
+      try {
+        m4a = await convertWavToM4a(wavAudio);
+      } catch (m4aErr: any) {
+        console.warn(`⚠️ [AudioWorker] M4A conversion failed, continuing with MP3 only: ${m4aErr?.message || String(m4aErr)}`);
+      }
       const duration = Math.ceil((wavAudio.length - 44) / 48000);
 
-      console.log(`🎵 [AudioWorker] Final: ${Math.round(m4a.length / 1024)}KB M4A, ~${duration}s from ${chunks.length} chunks (Replicate)`);
+      console.log(
+        `🎵 [AudioWorker] Final: ${Math.round(mp3.length / 1024)}KB MP3${m4a ? ` + ${Math.round(m4a.length / 1024)}KB M4A` : ''}, ~${duration}s from ${chunks.length} chunks (Replicate)`
+      );
 
       return {
         success: true,
         output: {
-          size: m4a.length,
+          size: mp3.length,
           chunks: chunks.length,
           duration,
           provider: 'replicate',
           processingTime: elapsedMs,
+          formats: m4a ? ['mp3', 'm4a'] : ['mp3'],
         },
         artifacts: [
           {
-            type: 'audio_m4a',
-            buffer: m4a,
-            contentType: 'audio/mp4',
+            type: 'audio_mp3',
+            buffer: mp3,
+            contentType: 'audio/mpeg',
             metadata: {
               textLength: text.length,
               chunks: chunks.length,
               duration,
-              format: 'm4a',
+              format: 'mp3',
               provider: 'replicate',
               voice: voiceId,
               voiceType: isTurboPreset ? 'turbo-preset' : 'custom-clone',
@@ -513,6 +698,25 @@ export class AudioWorker extends BaseWorker {
               docType: task.input?.docType,
             },
           },
+          ...(m4a
+            ? [{
+              type: 'audio_m4a' as const,
+              buffer: m4a,
+              contentType: 'audio/mp4',
+              metadata: {
+                textLength: text.length,
+                chunks: chunks.length,
+                duration,
+                format: 'm4a',
+                provider: 'replicate',
+                voice: voiceId,
+                voiceType: isTurboPreset ? 'turbo-preset' : 'custom-clone',
+                docNum: task.input?.docNum,
+                system: task.input?.system,
+                docType: task.input?.docType,
+              },
+            }]
+            : []),
         ],
       };
 

@@ -6,51 +6,55 @@ import { llmPaid } from '../../services/llm';
 import type { SystemId } from '../../promptEngine/types';
 import {
   stripWesternChartData,
-  buildWesternWoundPrompt,
+  buildWesternTriggerPrompt,
   buildWesternWritingPrompt,
-} from '../../promptEngine/woundEngine/westernWound';
+} from '../../promptEngine/triggerEngine/westernTrigger';
 import {
   stripVedicChartData,
-  buildVedicWoundPrompt,
+  buildVedicTriggerPrompt,
   buildVedicWritingPrompt,
-} from '../../promptEngine/woundEngine/vedicWound';
+} from '../../promptEngine/triggerEngine/vedicTrigger';
 import {
   stripHDChartData,
-  buildHDWoundPrompt,
+  buildHDTriggerPrompt,
   buildHDWritingPrompt,
-} from '../../promptEngine/woundEngine/humanDesignWound';
+} from '../../promptEngine/triggerEngine/humanDesignTrigger';
 import {
   stripGeneKeysChartData,
-  buildGeneKeysWoundPrompt,
+  buildGeneKeysTriggerPrompt,
   buildGeneKeysWritingPrompt,
-} from '../../promptEngine/woundEngine/geneKeysWound';
+} from '../../promptEngine/triggerEngine/geneKeysTrigger';
 import {
   stripKabbalahChartData,
-  buildKabbalahWoundPrompt,
+  buildKabbalahTriggerPrompt,
   buildKabbalahWritingPrompt,
-} from '../../promptEngine/woundEngine/kabbalahWound';
+} from '../../promptEngine/triggerEngine/kabbalahTrigger';
 import {
   stripWesternOverlayData,
   stripVedicOverlayData,
   stripHDOverlayData,
   stripGeneKeysOverlayData,
   stripKabbalahOverlayData,
-  buildWesternOverlayWoundPrompt,
-  buildVedicOverlayWoundPrompt,
-  buildHDOverlayWoundPrompt,
-  buildGeneKeysOverlayWoundPrompt,
-  buildKabbalahOverlayWoundPrompt,
+  buildWesternOverlayTriggerPrompt,
+  buildVedicOverlayTriggerPrompt,
+  buildHDOverlayTriggerPrompt,
+  buildGeneKeysOverlayTriggerPrompt,
+  buildKabbalahOverlayTriggerPrompt,
   buildWesternOverlayWritingPrompt,
   buildVedicOverlayWritingPrompt,
   buildHDOverlayWritingPrompt,
   buildGeneKeysOverlayWritingPrompt,
   buildKabbalahOverlayWritingPrompt,
-} from '../../promptEngine/woundEngine/overlayWound';
+} from '../../promptEngine/triggerEngine/overlayTrigger';
 import {
   stripVerdictChartData,
-  buildVerdictWoundPrompt,
+  buildVerdictTriggerPrompt,
   buildVerdictWritingPrompt,
-} from '../../promptEngine/woundEngine/verdictWound';
+} from '../../promptEngine/triggerEngine/verdictTrigger';
+import {
+  NARRATIVE_TRIGGER_TITLE,
+  RELATIONAL_TRIGGER_TITLE,
+} from '../../promptEngine/triggerEngine/triggerConfig';
 
 const CLAUDE_MAX_TOKENS_PER_CALL = 16384;
 const SCRIPT_VERDICT_POLICY = 'script_reconstruct';
@@ -161,6 +165,10 @@ function splitInlineRomanHeadings(text: string): string {
   // "--- I. The Boy Who Learned to Count There is a particular ..."
   return src
     .replace(/(?:^|\s)[-–—]{2,}\s*[IVXLC]+\.\s+/g, '\n\n')
+    // Also split bare dashed section breaks before title-like phrases.
+    .replace(/(?:^|\s)[-–—]{2,}\s+(?=(?:THE|The|A|An)\s+[A-Za-z])/g, '\n\n')
+    // Remove standalone separators that should never render in final prose.
+    .replace(/^\s*[-–—]{3,}\s*$/gm, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -185,67 +193,16 @@ function capSurrealHeadlines(text: string, maxHeadlines = 6): string {
   return out.join('\n\n').trim();
 }
 
-function toHeadlineCase(text: string): string {
-  return text
-    .split(/\s+/)
-    .map((w) => (w ? `${w.charAt(0).toUpperCase()}${w.slice(1).toLowerCase()}` : w))
-    .join(' ')
-    .trim();
-}
-
-function buildDeterministicHeadline(paragraph: string, fallbackIndex: number): string {
-  const clean = String(paragraph || '')
-    .replace(/\b(?:individual|overlay|verdict)_[a-z0-9-]+(?:_[a-z0-9-]+){2,}\b/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-  const firstSentence = clean.match(/^(.{24,180}?[.!?])(?:\s|$)/)?.[1] || clean.slice(0, 140);
-  const base = firstSentence
-    .replace(/^(?:There is|This is|It is)\s+/i, '')
-    .replace(/[.!?]+$/, '')
-    .replace(/[^A-Za-z0-9'’\-\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  const words = base.split(/\s+/).filter(Boolean);
-  if (words.length < 4) return `The Pressure Line ${fallbackIndex}`;
-  const clipped = words.slice(0, Math.min(10, words.length)).join(' ');
-  return toHeadlineCase(clipped);
-}
-
 function ensureSectionHeadlines(text: string, minHeadlines = 4, maxHeadlines = 6): string {
   const raw = String(text || '').trim();
   if (!raw) return raw;
-  const paragraphs = raw.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
-  if (paragraphs.length < 4) return raw;
-
+  // Keep only model-authored headings. Never synthesize fallback headings.
+  // This avoids artifacts like "The Pressure Line 1".
+  const normalized = splitInlineRomanHeadings(splitInlineAllCapsHeadlines(raw));
+  const paragraphs = normalized.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
   const existing = paragraphs.filter((p) => isHeadlineLine(p)).length;
-  if (existing >= minHeadlines) {
-    return capSurrealHeadlines(raw, maxHeadlines);
-  }
-
-  const bodyIdx: number[] = [];
-  for (let i = 0; i < paragraphs.length; i += 1) {
-    if (!isHeadlineLine(paragraphs[i]!)) bodyIdx.push(i);
-  }
-  if (bodyIdx.length < minHeadlines) return raw;
-
-  const insertBefore = new Set<number>();
-  for (let i = 0; i < minHeadlines; i += 1) {
-    const slot = Math.floor((i * bodyIdx.length) / minHeadlines);
-    insertBefore.add(bodyIdx[Math.min(slot, bodyIdx.length - 1)]!);
-  }
-
-  const out: string[] = [];
-  let headingNum = 1;
-  for (let i = 0; i < paragraphs.length; i += 1) {
-    const p = paragraphs[i]!;
-    if (insertBefore.has(i) && !isHeadlineLine(p)) {
-      out.push(buildDeterministicHeadline(p, headingNum));
-      headingNum += 1;
-    }
-    out.push(p);
-  }
-  return capSurrealHeadlines(out.join('\n\n').trim(), maxHeadlines);
+  if (existing < minHeadlines) return normalized;
+  return capSurrealHeadlines(normalized, maxHeadlines);
 }
 
 function stripLeadingCoverMetadata(text: string): string {
@@ -277,6 +234,8 @@ function cleanForPdf(raw: string, options?: { preserveSurrealHeadlines?: boolean
     .replace(/\*/g, '')
     .replace(/^#{1,6}\s+/gm, '')
     .replace(/^\s*[-–—]{2,}\s*[IVXLC]+\.\s*/gim, '')
+    .replace(/^\s*[-–—]{3,}\s*$/gm, '')
+    .replace(/(?:^|\s)[-–—]{2,}\s+(?=(?:THE|The|A|An)\s+[A-Za-z])/g, '\n\n')
     .replace(/___/g, '')
     .replace(/__/g, '')
     .replace(/(?<!\w)_(?!\w)/g, '')
@@ -357,34 +316,6 @@ function tightenParagraphs(raw: string, options?: { preserveSurrealHeadlines?: b
   return out.join('\n\n').trim();
 }
 
-function deSecondPersonText(text: string, subjectName: string): string {
-  const subject = String(subjectName || '').trim() || 'the subject';
-  const subjectPoss = /s$/i.test(subject) ? `${subject}'` : `${subject}'s`;
-  return String(text || '')
-    .replace(/\bwhat have you\b/gi, `what has ${subject}`)
-    .replace(/\bwhat do you\b/gi, `what does ${subject}`)
-    .replace(/\byou're\b/gi, `${subject} is`)
-    .replace(/\byourself\b/gi, subject)
-    .replace(/\byour\b/gi, subjectPoss)
-    .replace(/\byou\b/gi, subject);
-}
-
-function normalizeThirdPersonGrammar(text: string): string {
-  let out = String(text || '');
-  const prep = '(?:for|to|with|from|about|of|like|between|around|without|within|toward|towards|behind|beyond|near|past|inside|outside|under|over|at|on|in)';
-  out = out.replace(new RegExp(`\\b(${prep})\\s+he\\b`, 'gi'), '$1 him');
-  out = out.replace(new RegExp(`\\b(${prep})\\s+she\\b`, 'gi'), '$1 her');
-  out = out.replace(/\bwhat have he\b/gi, 'what has he');
-  out = out.replace(/\bwhat have she\b/gi, 'what has she');
-  out = out.replace(/\bwhere he stand\b/gi, 'where he stands');
-  out = out.replace(/\bwhere she stand\b/gi, 'where she stands');
-  out = out.replace(/\bwhat he do\b/gi, 'what he does');
-  out = out.replace(/\bwhat she do\b/gi, 'what she does');
-  out = out.replace(/\b(need|needs|needed|want|wants|wanted)\s+he\s+to\b/gi, '$1 him to');
-  out = out.replace(/\b(need|needs|needed|want|wants|wanted)\s+she\s+to\b/gi, '$1 her to');
-  return out;
-}
-
 function stripHouseDefinitionSentences(text: string): string {
   const houseDef =
     /\bthe\s+(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|\d+(?:st|nd|rd|th))\s+house\s+is\b[^.!?]*[.!?]?/gi;
@@ -398,7 +329,26 @@ function stripHouseDefinitionSentences(text: string): string {
 }
 
 function hasSecondPerson(text: string): boolean {
-  return /\b(you|your|you're|yourself)\b/i.test(String(text || ''));
+  const body = String(text || '');
+  // Allow quoted dialogue to contain "you" while enforcing narrator voice outside quotes.
+  const withoutQuotedDialogue = body.replace(/["“”][^"“”]*["“”]/g, ' ');
+  return /\b(you|your|you're|yourself)\b/i.test(withoutQuotedDialogue);
+}
+
+function normalizePronounGrammar(text: string): string {
+  let out = String(text || '');
+  const prep = '(?:for|to|with|from|about|of|like|between|around|without|within|toward|towards|behind|beyond|near|past|inside|outside|under|over|at|on|in)';
+  out = out.replace(new RegExp(`\\b(${prep})\\s+he\\b`, 'gi'), '$1 him');
+  out = out.replace(new RegExp(`\\b(${prep})\\s+she\\b`, 'gi'), '$1 her');
+  out = out.replace(/\bwhat have he\b/gi, 'what has he');
+  out = out.replace(/\bwhat have she\b/gi, 'what has she');
+  out = out.replace(/\bwhere he stand\b/gi, 'where he stands');
+  out = out.replace(/\bwhere she stand\b/gi, 'where she stands');
+  out = out.replace(/\bwhat he do\b/gi, 'what he does');
+  out = out.replace(/\bwhat she do\b/gi, 'what she does');
+  out = out.replace(/\b(need|needs|needed|want|wants|wanted)\s+he\s+to\b/gi, '$1 him to');
+  out = out.replace(/\b(need|needs|needed|want|wants|wanted)\s+she\s+to\b/gi, '$1 her to');
+  return out;
 }
 
 function findPronounGrammarIssue(text: string): string | null {
@@ -741,20 +691,6 @@ async function rewriteIncarnationStyleIfNeeded(options: {
     const fullSecondPersonLeak = hasSecondPerson(out);
     if (zone2Issues.length === 0 && technicalLines.length === 0 && !ageMismatch && !fullSecondPersonLeak) return out;
 
-    const onlySecondPerson = fullSecondPersonLeak && zone2Issues.length === 0 && technicalLines.length === 0 && !ageMismatch;
-    if (onlySecondPerson) {
-      const deSeconded = deSecondPersonText(out, options.subjectName || 'the subject');
-      const postZone2 = extractZone2Text(deSeconded);
-      const postIssues = getComplianceIssues(postZone2).filter((i) => i.kind !== 'second_person');
-      const postTechnical = getTechnicalAstroReportLines(postZone2);
-      const postAgeMismatch = findAgeMismatch(deSeconded, options.expectedAge);
-      const postSecondPerson = hasSecondPerson(deSeconded);
-      const postPronounIssue = findPronounGrammarIssue(deSeconded);
-      if (postIssues.length === 0 && postTechnical.length === 0 && !postAgeMismatch && !postSecondPerson && !postPronounIssue) return deSeconded;
-      out = deSeconded;
-      continue;
-    }
-
     const nonSecondIssues = zone2Issues;
     const minorTechnicalDrift = technicalLines.length > 0 && technicalLines.length <= 6 && !ageMismatch;
     if (minorTechnicalDrift && nonSecondIssues.length === 0 && !fullSecondPersonLeak) {
@@ -763,7 +699,7 @@ async function rewriteIncarnationStyleIfNeeded(options: {
         const escaped = line.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         cleaned = cleaned.replace(new RegExp(`^\\s*${escaped}\\s*$`, 'gmi'), '');
       }
-      cleaned = deSecondPersonText(cleaned, options.subjectName || 'the subject');
+      cleaned = normalizePronounGrammar(cleaned);
       cleaned = tightenParagraphs(cleanForPdf(cleaned, { preserveSurrealHeadlines: true }), { preserveSurrealHeadlines: true });
 
       const postZone2 = extractZone2Text(cleaned);
@@ -884,11 +820,12 @@ async function expandToHardFloor(options: {
       const expansionIssues = getComplianceIssues(cleanedChunk);
       const expansionTechnical = getTechnicalAstroReportLines(cleanedChunk);
       if (expansionIssues.length > 0 || expansionTechnical.length > 0) {
-        let sanitized = normalizeThirdPersonGrammar(deSecondPersonText(cleanedChunk, 'the subject'));
+        let sanitized = cleanedChunk;
         for (const line of expansionTechnical) {
           const escaped = line.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           sanitized = sanitized.replace(new RegExp(`^\\s*${escaped}\\s*$`, 'gmi'), '');
         }
+        sanitized = normalizePronounGrammar(sanitized);
         sanitized = stripHouseDefinitionSentences(sanitized);
         cleanedChunk = tightenParagraphs(cleanForPdf(sanitized, { preserveSurrealHeadlines: true }), { preserveSurrealHeadlines: true });
         console.warn(`⚠️ Expansion pass ${pass} has compliance drift: issues=${expansionIssues.map((i) => i.kind === 'forbidden_phrase' ? `forbidden:${i.ids.slice(0, 4).join(',')}` : i.kind).join('|') || 'none'} technical=${expansionTechnical.length}`);
@@ -905,9 +842,9 @@ async function expandToHardFloor(options: {
   return out;
 }
 
-type WoundPipelineBundle = {
+type TriggerPipelineBundle = {
   strippedChartData: string;
-  woundPrompt: string;
+  triggerPrompt: string;
   writingPromptBase: string;
 };
 
@@ -935,34 +872,50 @@ function countHeadlineLines(text: string): number {
 }
 
 function stripControlTextLeaks(raw: string): string {
-  return String(raw || '')
-    .replace(/\b(?:before writing|internal arc|THE_WOUND|THE_DEFENSE|ACT_1_SURFACE|ACT_2_BENEATH|ACT_3_RECKONING|LANDING_TEMPERATURE)\b/gi, '')
+  const escapedTriggerTitle = NARRATIVE_TRIGGER_TITLE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapedRelationalTriggerTitle = RELATIONAL_TRIGGER_TITLE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const lineKillRe = new RegExp(
+    `\\b(?:before writing|internal arc|NARRATIVE_ARC|THE_${escapedTriggerTitle.replace(/ /g, '\\s+')}|THE_DEFENSE|ACT_1_SURFACE|ACT_2_BENEATH|ACT_3_RECKONING|LANDING_TEMPERATURE|${escapedRelationalTriggerTitle.replace(/ /g, '\\s+')}|FINAL OUTPUT REQUIREMENT|OUTPUT CONTRACT|ZONE 1|ZONE 2|NARRATOR:|METAPHOR WORLD:|STRUCTURE:|ANTI-SURVEY:|LENGTH:|CHART DATA(?:\\s*\\(.*\\))?:)\\b`,
+    'i'
+  );
+  const fileTokenRe = /\b(?:individual|overlay|verdict)_[a-z0-9-]+(?:_[a-z0-9-]+){2,}\b/i;
+
+  const lines = String(raw || '')
+    .split('\n')
+    .map((l) => l.trimEnd())
+    .filter((l) => !lineKillRe.test(l) && !fileTokenRe.test(l));
+
+  return lines
+    .join('\n')
+    .replace(new RegExp(`\\b(?:before writing|internal arc|THE_${escapedTriggerTitle.replace(/ /g, '\\s+')}|THE_DEFENSE|ACT_1_SURFACE|ACT_2_BENEATH|ACT_3_RECKONING|LANDING_TEMPERATURE|${escapedRelationalTriggerTitle.replace(/ /g, '\\s+')})\\b`, 'gi'), '')
     .replace(/\b(?:final output requirement|zone 1|zone 2|output contract)\b/gi, '')
     .replace(/\b(?:individual|overlay|verdict)_[a-z0-9-]+(?:_[a-z0-9-]+){2,}\b/gi, '')
-    .replace(/\s{2,}/g, ' ')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
 
-function buildWoundPipelineBundle(options: {
+function buildTriggerPipelineBundle(options: {
   system: SystemId;
   docType: 'individual' | 'overlay' | 'verdict';
   personName: string;
+  hardFloorWords: number;
   chartData: string;
   chartDataPerson1?: string;
   chartDataPerson2?: string;
   payloadBase: Record<string, any>;
-}): WoundPipelineBundle | null {
-  const { system, docType, personName, chartData, chartDataPerson1, chartDataPerson2, payloadBase } = options;
+}): TriggerPipelineBundle | null {
+  const { system, docType, personName, hardFloorWords, chartData, chartDataPerson1, chartDataPerson2, payloadBase } = options;
   const p1Name = String(payloadBase?.person1?.name || 'Person 1');
   const p2Name = String(payloadBase?.person2?.name || 'Person 2');
 
   // Important architecture note:
   // Script generation has no prior job-task outputs, so verdict must derive
-  // a fresh wound from chart data here (two-call path). Worker generation
-  // instead consumes accumulated wound paragraphs from prior docs.
+  // a fresh narrative trigger from chart data here (two-call path). Worker generation
+  // instead consumes accumulated narrative trigger paragraphs from prior docs.
   if (docType === 'verdict' || payloadBase?.type === 'bundle_verdict') {
     // Explicit policy marker: script verdict generation is reconstruction-only.
-    // Worker path remains source-of-truth for production verdicts from stored wounds.
+    // Worker path remains source-of-truth for production verdicts from stored narrative triggers.
     const verdictMode = String(payloadBase?.verdictMode || SCRIPT_VERDICT_POLICY).trim().toLowerCase();
     if (verdictMode !== SCRIPT_VERDICT_POLICY) {
       throw new Error(
@@ -973,7 +926,7 @@ function buildWoundPipelineBundle(options: {
     const stripped = stripVerdictChartData(chartData);
     return {
       strippedChartData: stripped,
-      woundPrompt: buildVerdictWoundPrompt({
+      triggerPrompt: buildVerdictTriggerPrompt({
         person1Name: p1Name,
         person2Name: p2Name,
         strippedChartData: stripped,
@@ -981,9 +934,10 @@ function buildWoundPipelineBundle(options: {
       writingPromptBase: buildVerdictWritingPrompt({
         person1Name: p1Name,
         person2Name: p2Name,
-        wound: '__WOUND_PLACEHOLDER__',
+        narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__',
         strippedChartData: stripped,
         spiceLevel: Number(payloadBase?.relationshipPreferenceScale || 7),
+        targetWords: hardFloorWords,
       }),
     };
   }
@@ -994,40 +948,40 @@ function buildWoundPipelineBundle(options: {
         const stripped = stripWesternChartData(chartData);
         return {
           strippedChartData: stripped,
-          woundPrompt: buildWesternWoundPrompt({ personName, strippedChartData: stripped }),
-          writingPromptBase: buildWesternWritingPrompt({ personName, wound: '__WOUND_PLACEHOLDER__', strippedChartData: stripped }),
+          triggerPrompt: buildWesternTriggerPrompt({ personName, strippedChartData: stripped }),
+          writingPromptBase: buildWesternWritingPrompt({ personName, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: stripped, targetWords: hardFloorWords }),
         };
       }
       case 'vedic': {
         const stripped = stripVedicChartData(chartData);
         return {
           strippedChartData: stripped,
-          woundPrompt: buildVedicWoundPrompt({ personName, strippedChartData: stripped }),
-          writingPromptBase: buildVedicWritingPrompt({ personName, wound: '__WOUND_PLACEHOLDER__', strippedChartData: stripped }),
+          triggerPrompt: buildVedicTriggerPrompt({ personName, strippedChartData: stripped }),
+          writingPromptBase: buildVedicWritingPrompt({ personName, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: stripped, targetWords: hardFloorWords }),
         };
       }
       case 'human_design': {
         const stripped = stripHDChartData(chartData);
         return {
           strippedChartData: stripped,
-          woundPrompt: buildHDWoundPrompt({ personName, strippedChartData: stripped }),
-          writingPromptBase: buildHDWritingPrompt({ personName, wound: '__WOUND_PLACEHOLDER__', strippedChartData: stripped }),
+          triggerPrompt: buildHDTriggerPrompt({ personName, strippedChartData: stripped }),
+          writingPromptBase: buildHDWritingPrompt({ personName, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: stripped, targetWords: hardFloorWords }),
         };
       }
       case 'gene_keys': {
         const stripped = stripGeneKeysChartData(chartData);
         return {
           strippedChartData: stripped,
-          woundPrompt: buildGeneKeysWoundPrompt({ personName, strippedChartData: stripped }),
-          writingPromptBase: buildGeneKeysWritingPrompt({ personName, wound: '__WOUND_PLACEHOLDER__', strippedChartData: stripped }),
+          triggerPrompt: buildGeneKeysTriggerPrompt({ personName, strippedChartData: stripped }),
+          writingPromptBase: buildGeneKeysWritingPrompt({ personName, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: stripped, targetWords: hardFloorWords }),
         };
       }
       case 'kabbalah': {
         const stripped = stripKabbalahChartData(chartData);
         return {
           strippedChartData: stripped,
-          woundPrompt: buildKabbalahWoundPrompt({ personName, strippedChartData: stripped }),
-          writingPromptBase: buildKabbalahWritingPrompt({ personName, wound: '__WOUND_PLACEHOLDER__', strippedChartData: stripped }),
+          triggerPrompt: buildKabbalahTriggerPrompt({ personName, strippedChartData: stripped }),
+          writingPromptBase: buildKabbalahWritingPrompt({ personName, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: stripped, targetWords: hardFloorWords }),
         };
       }
       default:
@@ -1044,40 +998,40 @@ function buildWoundPipelineBundle(options: {
       const stripped = stripWesternOverlayData(p1Raw, p2Raw);
       return {
         strippedChartData: stripped,
-        woundPrompt: buildWesternOverlayWoundPrompt({ person1Name: p1Name, person2Name: p2Name, strippedChartData: stripped }),
-        writingPromptBase: buildWesternOverlayWritingPrompt({ person1Name: p1Name, person2Name: p2Name, wound: '__WOUND_PLACEHOLDER__', strippedChartData: stripped }),
+        triggerPrompt: buildWesternOverlayTriggerPrompt({ person1Name: p1Name, person2Name: p2Name, strippedChartData: stripped }),
+        writingPromptBase: buildWesternOverlayWritingPrompt({ person1Name: p1Name, person2Name: p2Name, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: stripped, targetWords: hardFloorWords }),
       };
     }
     case 'vedic': {
       const stripped = stripVedicOverlayData(p1Raw, p2Raw);
       return {
         strippedChartData: stripped,
-        woundPrompt: buildVedicOverlayWoundPrompt({ person1Name: p1Name, person2Name: p2Name, strippedChartData: stripped }),
-        writingPromptBase: buildVedicOverlayWritingPrompt({ person1Name: p1Name, person2Name: p2Name, wound: '__WOUND_PLACEHOLDER__', strippedChartData: stripped }),
+        triggerPrompt: buildVedicOverlayTriggerPrompt({ person1Name: p1Name, person2Name: p2Name, strippedChartData: stripped }),
+        writingPromptBase: buildVedicOverlayWritingPrompt({ person1Name: p1Name, person2Name: p2Name, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: stripped, targetWords: hardFloorWords }),
       };
     }
     case 'human_design': {
       const stripped = stripHDOverlayData(p1Raw, p2Raw);
       return {
         strippedChartData: stripped,
-        woundPrompt: buildHDOverlayWoundPrompt({ person1Name: p1Name, person2Name: p2Name, strippedChartData: stripped }),
-        writingPromptBase: buildHDOverlayWritingPrompt({ person1Name: p1Name, person2Name: p2Name, wound: '__WOUND_PLACEHOLDER__', strippedChartData: stripped }),
+        triggerPrompt: buildHDOverlayTriggerPrompt({ person1Name: p1Name, person2Name: p2Name, strippedChartData: stripped }),
+        writingPromptBase: buildHDOverlayWritingPrompt({ person1Name: p1Name, person2Name: p2Name, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: stripped, targetWords: hardFloorWords }),
       };
     }
     case 'gene_keys': {
       const stripped = stripGeneKeysOverlayData(p1Raw, p2Raw);
       return {
         strippedChartData: stripped,
-        woundPrompt: buildGeneKeysOverlayWoundPrompt({ person1Name: p1Name, person2Name: p2Name, strippedChartData: stripped }),
-        writingPromptBase: buildGeneKeysOverlayWritingPrompt({ person1Name: p1Name, person2Name: p2Name, wound: '__WOUND_PLACEHOLDER__', strippedChartData: stripped }),
+        triggerPrompt: buildGeneKeysOverlayTriggerPrompt({ person1Name: p1Name, person2Name: p2Name, strippedChartData: stripped }),
+        writingPromptBase: buildGeneKeysOverlayWritingPrompt({ person1Name: p1Name, person2Name: p2Name, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: stripped, targetWords: hardFloorWords }),
       };
     }
     case 'kabbalah': {
       const stripped = stripKabbalahOverlayData(p1Raw, p2Raw);
       return {
         strippedChartData: stripped,
-        woundPrompt: buildKabbalahOverlayWoundPrompt({ person1Name: p1Name, person2Name: p2Name, strippedChartData: stripped }),
-        writingPromptBase: buildKabbalahOverlayWritingPrompt({ person1Name: p1Name, person2Name: p2Name, wound: '__WOUND_PLACEHOLDER__', strippedChartData: stripped }),
+        triggerPrompt: buildKabbalahOverlayTriggerPrompt({ person1Name: p1Name, person2Name: p2Name, strippedChartData: stripped }),
+        writingPromptBase: buildKabbalahOverlayWritingPrompt({ person1Name: p1Name, person2Name: p2Name, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: stripped, targetWords: hardFloorWords }),
       };
     }
     default:
@@ -1126,46 +1080,48 @@ export async function generateSingleReading(options: GenerateSingleReadingOption
     docType,
   } = options;
 
-  const woundBundle = buildWoundPipelineBundle({
+  const triggerBundle = buildTriggerPipelineBundle({
     system,
     docType,
     personName,
+    hardFloorWords,
     chartData,
     chartDataPerson1,
     chartDataPerson2,
     payloadBase,
   });
 
-  if (!woundBundle) {
-    throw new Error(`Wound pipeline bundle could not be built for ${fileBase} (system=${system}, docType=${docType})`);
+  if (!triggerBundle) {
+    throw new Error(`Trigger pipeline bundle could not be built for ${fileBase} (system=${system}, docType=${docType})`);
   }
 
   const writeDebugArtifacts = debugArtifactsEnabled();
-  const woundPromptPath = writeDebugArtifacts ? path.join(outDir, `${fileBase}.wound.prompt.txt`) : '';
+  const triggerPromptPath = writeDebugArtifacts ? path.join(outDir, `${fileBase}.trigger.prompt.txt`) : '';
   const writingPromptPath = writeDebugArtifacts ? path.join(outDir, `${fileBase}.writing.prompt.txt`) : '';
   const systemPromptPath = writeDebugArtifacts ? path.join(outDir, `${fileBase}.system.txt`) : '';
   const readingPath = writeDebugArtifacts ? path.join(outDir, `${fileBase}.reading.txt`) : '';
 
   if (writeDebugArtifacts) {
-    fs.writeFileSync(woundPromptPath, woundBundle.woundPrompt, 'utf8');
+    fs.writeFileSync(triggerPromptPath, triggerBundle.triggerPrompt, 'utf8');
     fs.writeFileSync(systemPromptPath, '', 'utf8');
   }
 
-  const woundRaw = await llmPaid.generateStreaming(woundBundle.woundPrompt, `${fileBase}:wound`, {
+  const triggerRaw = await llmPaid.generateStreaming(triggerBundle.triggerPrompt, `${fileBase}:trigger`, {
     provider: 'claude',
     maxTokens: 1200,
     temperature: 0.45,
     maxRetries: 3,
   });
-  const wound = stripControlTextLeaks(String(woundRaw || '').replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ').trim());
-  if (!wound) throw new Error(`Wound call returned empty text for ${fileBase}`);
+  const narrativeTrigger = stripControlTextLeaks(String(triggerRaw || '').replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ').trim());
+  if (!narrativeTrigger) throw new Error(`Trigger call returned empty text for ${fileBase}`);
 
   const writingPrompt = [
-    woundBundle.writingPromptBase.replace('__WOUND_PLACEHOLDER__', wound),
+    triggerBundle.writingPromptBase.replace('__NARRATIVE_TRIGGER_PLACEHOLDER__', narrativeTrigger),
     '',
     'OUTPUT CONTRACT (HARD):',
     `- Minimum length: ${hardFloorWords} words.`,
     `- Preferred range: ${Math.max(hardFloorWords + 400, 4400)}-${Math.max(hardFloorWords + 2600, 7600)} words.`,
+    '- Third-person narration only. Never address the subject or reader as "you/your".',
     '- Explain technical vocabulary on first use in plain language, then continue story-first.',
     '- Keep the prose compelling like an audiobook: no report tone, no bullet formatting.',
     '- Never output internal planning text, internal labels, or file identifiers.',
@@ -1186,7 +1142,7 @@ export async function generateSingleReading(options: GenerateSingleReadingOption
 
     let candidate = cleanForPdf(raw, { preserveSurrealHeadlines: true });
     candidate = stripControlTextLeaks(candidate);
-    candidate = normalizeThirdPersonGrammar(deSecondPersonText(candidate, personName));
+    candidate = normalizePronounGrammar(candidate);
     candidate = stripHouseDefinitionSentences(candidate);
     candidate = tightenParagraphs(candidate, { preserveSurrealHeadlines: true });
 
@@ -1198,22 +1154,30 @@ export async function generateSingleReading(options: GenerateSingleReadingOption
     const headlines = countHeadlineLines(candidate);
     const pronounIssue = findPronounGrammarIssue(candidate);
     const hasSecond = hasSecondPerson(candidate);
-    const hasControlLeak = /\b(?:THE_WOUND|before writing|internal arc|ACT_1_SURFACE|ACT_2_BENEATH|ACT_3_RECKONING|LANDING_TEMPERATURE)\b/i.test(candidate);
+    const escapedTriggerTitle = NARRATIVE_TRIGGER_TITLE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escapedRelationalTriggerTitle = RELATIONAL_TRIGGER_TITLE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const controlLeakRe = new RegExp(
+      `\\b(?:THE_${escapedTriggerTitle.replace(/ /g, '\\s+')}|before writing|internal arc|NARRATIVE_ARC|ACT_1_SURFACE|ACT_2_BENEATH|ACT_3_RECKONING|LANDING_TEMPERATURE|${escapedRelationalTriggerTitle.replace(/ /g, '\\s+')}|OUTPUT CONTRACT|FINAL OUTPUT REQUIREMENT|CHART DATA)\\b`,
+      'i'
+    );
+    const hasControlLeak = controlLeakRe.test(candidate);
 
     if (
       words >= hardFloorWords &&
       !pronounIssue &&
-      !hasSecond &&
       !hasControlLeak
     ) {
       finalReading = extracted.footer ? `${candidate}\n\n${extracted.footer}`.trim() : candidate;
+      if (hasSecond) {
+        console.warn(`⚠️ Trigger-pipeline accepted with second-person residue for ${fileBase}.`);
+      }
       break;
     }
-    console.warn(`⚠️ Wound-pipeline attempt ${attempt} rejected for ${fileBase}: words=${words}, headlines=${headlines}, pronounIssue=${pronounIssue || 'none'}, secondPerson=${hasSecond}, controlLeak=${hasControlLeak}`);
+    console.warn(`⚠️ Trigger-pipeline attempt ${attempt} rejected for ${fileBase}: words=${words}, headlines=${headlines}, pronounIssue=${pronounIssue || 'none'}, secondPerson=${hasSecond}, controlLeak=${hasControlLeak}`);
   }
 
   if (!finalReading) {
-    throw new Error(`Failed wound pipeline generation for ${fileBase} after ${MAX_ATTEMPTS} attempts.`);
+    throw new Error(`Failed trigger pipeline generation for ${fileBase} after ${MAX_ATTEMPTS} attempts.`);
   }
 
   if (writeDebugArtifacts) {
@@ -1221,7 +1185,7 @@ export async function generateSingleReading(options: GenerateSingleReadingOption
   }
   return {
     reading: finalReading,
-    chartDataForPrompt: woundBundle.strippedChartData,
+    chartDataForPrompt: triggerBundle.strippedChartData,
     resolvedStyleLayerId: styleLayerId || 'writing-style-guide-incarnation-v1',
     promptPath: writingPromptPath || '[disabled: set DEBUG_PROMPTS=true]',
     userPromptPath: writingPromptPath || '[disabled: set DEBUG_PROMPTS=true]',

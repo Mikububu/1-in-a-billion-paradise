@@ -1,11 +1,17 @@
+import {
+  CORE_FAIRYTALE_SEED,
+  NARRATIVE_TRIGGER_LABEL,
+  NARRATIVE_TRIGGER_TITLE,
+} from './triggerConfig';
+
 /**
- * HUMAN DESIGN WOUND ENGINE
+ * HUMAN DESIGN TRIGGER ENGINE
  *
  * Two-call architecture for individual Human Design readings.
  *
  * 1. stripHDChartData()      — pure code, ~30 highest-signal lines
- * 2. buildHDWoundPrompt()    — wound call → 80-120 word paragraph
- * 3. buildHDWritingPrompt()  — writing call → 3,500 words
+ * 2. buildHDTriggerPrompt()    — trigger call → 80-120 word paragraph
+ * 3. buildHDWritingPrompt()  — writing call → configurable word target
  */
 
 // ─── 1. STRIP ────────────────────────────────────────────────────────────────
@@ -58,27 +64,28 @@ export function stripHDChartData(raw: string): string {
   return out.filter(Boolean).join('\n').trim();
 }
 
-// ─── 2. WOUND PROMPT ─────────────────────────────────────────────────────────
+// ─── 2. TRIGGER PROMPT ───────────────────────────────────────────────────────
 
-export function buildHDWoundPrompt(params: {
+export function buildHDTriggerPrompt(params: {
   personName: string;
   strippedChartData: string;
 }): string {
   const { personName, strippedChartData } = params;
+  const trigger = NARRATIVE_TRIGGER_LABEL;
 
   return [
-    `You are reading ${personName}'s Human Design chart to find the central wound.`,
+    `You are reading ${personName}'s Human Design chart to find the central ${trigger}.`,
     '',
-    'In Human Design, the wound lives in the open (undefined) centers.',
+    `In Human Design, the ${trigger} lives in the open (undefined) centers.`,
     'Open centers are where this person absorbs and amplifies others\' energy.',
     'They become an expert at what they cannot embody.',
     'They perform the thing they most need to receive.',
     '',
-    'The Profile is the costume the wound wears in public.',
+    `The Profile is the costume the ${trigger} wears in public.`,
     'The Type and Authority reveal the specific way they override their own knowing.',
-    'The Incarnation Cross is the pressure the wound organizes itself around.',
+    `The Incarnation Cross is the pressure the ${trigger} organizes itself around.`,
     '',
-    'The wound is not an open center. It is not a profile number.',
+    `The ${trigger} is not an open center. It is not a profile number.`,
     'It is the specific behavior pattern that emerges from the collision of',
     'what this person absorbs (open centers) and how they try to be loved (profile).',
     '',
@@ -89,12 +96,12 @@ export function buildHDWoundPrompt(params: {
     '',
     'Do not describe the system. Do not list centers or channels.',
     'Do not offer hope or growth language.',
-    'Name the wound. Stop.',
+    `Name the ${trigger}. Stop.`,
     '',
     'CHART DATA:',
     strippedChartData,
     '',
-    'Write the wound paragraph now:',
+    `Write the ${trigger} paragraph now:`,
   ].join('\n');
 }
 
@@ -102,33 +109,32 @@ export function buildHDWoundPrompt(params: {
 
 export function buildHDWritingPrompt(params: {
   personName: string;
-  wound: string;
+  narrativeTrigger: string;
   strippedChartData: string;
+  targetWords: number;
 }): string {
-  const { personName, wound, strippedChartData } = params;
+  const { personName, narrativeTrigger, strippedChartData, targetWords } = params;
+  const trigger = NARRATIVE_TRIGGER_LABEL;
+  const triggerTitle = NARRATIVE_TRIGGER_TITLE;
 
   return [
     'You are a novelist who understands how people become someone else\'s story.',
+    CORE_FAIRYTALE_SEED,
     'You think in bodies, in waiting, in the slow damage of performing the wrong role.',
     'You have read Virginia Woolf, Clarice Lispector, and Franz Kafka.',
     'You are telling the story of a body learning to trust itself. Not writing an HD report.',
     '',
     '══════════════════════════════════════════════════════════',
-    'THE WOUND — THIS IS THE SPINE OF EVERYTHING YOU WRITE:',
-    wound,
-    'Every paragraph must connect to this wound or deepen it.',
-    'If a paragraph does not serve the wound, it does not belong here.',
+    `${triggerTitle} — THIS IS THE SPINE OF EVERYTHING YOU WRITE:`,
+    narrativeTrigger,
+    `Every paragraph must connect to this ${trigger} or deepen it.`,
+    `If a paragraph does not serve the ${trigger}, it does not belong here.`,
     '══════════════════════════════════════════════════════════',
     '',
     'NARRATOR:',
     '- Third person only. Never "you" or "your". Use the name.',
     '- The body is the center of this story. What it feels. What it absorbs. What it performs.',
-    '- The undefined centers are not deficits — they are the site of the wound.',
-    '',
-    'METAPHOR WORLD:',
-    '- Find the image this specific chart demands. Frequency, signal, static, noise.',
-    '- Or: pressure, threshold, overflow. Or: waiting room, doorway, the held breath.',
-    '- Do not decorate. Every image must carry structural weight.',
+    `- The undefined centers are not deficits — they are the site of the ${trigger}.`,
     '',
     'STRUCTURE:',
     '- 4 to 6 sections. Invent a title for each. Specific, strange, earned.',
@@ -137,11 +143,12 @@ export function buildHDWritingPrompt(params: {
     '- The ending does not resolve. It names where the conditioning is still running.',
     '',
     'ANTI-SURVEY:',
-    '- Do not explain Human Design. Serve the wound.',
+    `- Do not explain Human Design. Serve the ${trigger}.`,
     '- Do not name centers, channels, or gates technically.',
+    '- Explain Human Design terms in plain language the first time they appear.',
     '- Every paragraph must add new consequence or evidence.',
     '',
-    'LENGTH: 3,500 words. Write until the wound is fully present. Then stop.',
+    `LENGTH: ${targetWords.toLocaleString('en-US')} words. Write until the ${trigger} is fully present. Then stop.`,
     'Do not pad. Do not repeat. Do not add a hopeful ending.',
     '',
     'CHART DATA (authoritative — do not invent or contradict):',

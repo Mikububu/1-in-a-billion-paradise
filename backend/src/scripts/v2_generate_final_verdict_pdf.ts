@@ -7,7 +7,7 @@ import { generateReadingPDF } from '../services/pdf/pdfGenerator';
 import { WORD_COUNT_LIMITS_VERDICT } from '../prompts/config/wordCounts';
 import { generateAIPortrait } from '../services/aiPortraitService';
 import { composeCoupleImage } from '../services/coupleImageService';
-import { buildChartReferencePage } from '../services/chartReferencePage';
+import { buildChartReferencePage, buildCompatibilityAppendix } from '../services/chartReferencePage';
 import { generateSingleReading, safeFileToken } from './shared/generateReading';
 import type { SystemId } from '../promptEngine/types';
 
@@ -195,22 +195,38 @@ async function main() {
   };
 
   const systems: SystemId[] = ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'];
-
-  const verdictChartDataParts = systems.flatMap((system) => {
+  const systemData = systems.map((system) => {
     const display = system.replace(/_/g, ' ');
     const p1 = buildChartDataForSystem(system, person1.name, p1Placements, null, null, p1BirthData, null);
     const p2 = buildChartDataForSystem(system, person2.name, p2Placements, null, null, p2BirthData, null);
     const overlay = buildChartDataForSystem(system, person1.name, p1Placements, person2.name, p2Placements, p1BirthData, p2BirthData);
-    return [
-      `=== ${display.toUpperCase()} PERSON 1 ===`,
-      p1,
-      `=== ${display.toUpperCase()} PERSON 2 ===`,
-      p2,
-      `=== ${display.toUpperCase()} OVERLAY ===`,
-      overlay,
-    ];
+    return { system, display, p1, p2, overlay };
   });
+
+  const verdictChartDataParts = systemData.flatMap(({ display, p1, p2, overlay }) => [
+    `=== ${display.toUpperCase()} PERSON 1 ===`,
+    p1,
+    `=== ${display.toUpperCase()} PERSON 2 ===`,
+    p2,
+    `=== ${display.toUpperCase()} OVERLAY ===`,
+    overlay,
+  ]);
   const verdictChartData = verdictChartDataParts.join('\n\n');
+  const person1AllSystemsChartData = systemData
+    .map(({ display, p1 }) => `=== ${display.toUpperCase()} PERSON 1 ===\n${p1}`)
+    .join('\n\n');
+  const person2AllSystemsChartData = systemData
+    .map(({ display, p2 }) => `=== ${display.toUpperCase()} PERSON 2 ===\n${p2}`)
+    .join('\n\n');
+
+  const compatibilityAppendix = buildCompatibilityAppendix({
+    system: 'verdict',
+    person1Name: person1.name,
+    person2Name: person2.name,
+    person1ChartData: person1AllSystemsChartData,
+    person2ChartData: person2AllSystemsChartData,
+    combinedChartData: verdictChartData,
+  });
 
   const payloadBase: Record<string, any> = {
     type: 'bundle_verdict',
@@ -314,6 +330,7 @@ async function main() {
     ],
     chartReferencePage,
     chartReferencePageRight,
+    compatibilityAppendix,
     generatedAt: new Date(),
   });
 

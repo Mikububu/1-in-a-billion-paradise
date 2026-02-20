@@ -237,6 +237,7 @@ async function main() {
       type: 'single',
       title: pdfTitle,
       coverQuote,
+      allowInferredHeadlines: !safeFileToken(generated.resolvedStyleLayerId || styleLayerId).includes('production-v3'),
       person1: {
         name: person1.name,
         birthDate: person1.birthDate,

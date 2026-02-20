@@ -462,9 +462,9 @@ export function buildVerdictPrompt(params: {
   person1Name: string;
   person2Name: string;
   allReadingsSummary?: string;
-  person1Wounds?: string[];
-  person2Wounds?: string[];
-  overlayWounds?: string[];
+  person1Triggers?: string[];
+  person2Triggers?: string[];
+  overlayTriggers?: string[];
   spiceLevel: number;
   style: 'production' | 'spicy_surreal';
   outputLanguage?: OutputLanguage;
@@ -473,9 +473,9 @@ export function buildVerdictPrompt(params: {
     person1Name,
     person2Name,
     allReadingsSummary,
-    person1Wounds = [],
-    person2Wounds = [],
-    overlayWounds = [],
+    person1Triggers = [],
+    person2Triggers = [],
+    overlayTriggers = [],
     spiceLevel,
     style,
     outputLanguage = DEFAULT_OUTPUT_LANGUAGE
@@ -484,9 +484,9 @@ export function buildVerdictPrompt(params: {
   const languageInstruction = getLanguageInstruction(outputLanguage);
   const intensity = getProvocationIntensity(spiceLevel);
 
-  const formatWoundSection = (title: string, wounds: string[]) => {
-    if (!wounds.length) return `${title}:\n- [No wound data available]`;
-    return `${title}:\n${wounds.map((w) => `- ${w}`).join('\n')}`;
+  const formatTriggerSection = (title: string, triggers: string[]) => {
+    if (!triggers.length) return `${title}:\n- [No narrative trigger data available]`;
+    return `${title}:\n${triggers.map((w) => `- ${w}`).join('\n')}`;
   };
 
   return `
@@ -502,12 +502,12 @@ You have read these two human souls through all five systems.
 Not as a couple. Not as a category. As two fields of energy whose mathematics have now been fully mapped.
 Now deliver the synthesis.
 
-PRIMARY SIGNAL INPUT (WOUNDS):
-${formatWoundSection(`PERSON1 WOUNDS (${person1Name})`, person1Wounds)}
+PRIMARY SIGNAL INPUT (NARRATIVE TRIGGERS):
+${formatTriggerSection(`PERSON1 TRIGGERS (${person1Name})`, person1Triggers)}
 
-${formatWoundSection(`PERSON2 WOUNDS (${person2Name})`, person2Wounds)}
+${formatTriggerSection(`PERSON2 TRIGGERS (${person2Name})`, person2Triggers)}
 
-${formatWoundSection('OVERLAY WOUNDS (RELATIONAL FIELD)', overlayWounds)}
+${formatTriggerSection('OVERLAY TRIGGERS (RELATIONAL FIELD)', overlayTriggers)}
 
 ${allReadingsSummary ? `SECONDARY CONTEXT (EXCERPTS):\n${allReadingsSummary}` : ''}
 

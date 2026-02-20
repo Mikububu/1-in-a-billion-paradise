@@ -6,7 +6,9 @@ import sharp from 'sharp';
 // Font path
 const FONTS_DIR = path.resolve(__dirname, '../../../assets/fonts');
 const GARAMOND = path.join(FONTS_DIR, 'EBGaramond-Regular.ttf');
+const GARAMOND_BOLD = path.join(FONTS_DIR, 'EBGaramond-Bold.ttf');
 const PLAYFAIR_BOLD = path.join(FONTS_DIR, 'PlayfairDisplay_700Bold.ttf');
+const ENABLE_CHART_REFERENCE_PAGE = true;
 
 /** Max width/height for embedded images (≈2× A4 display). Keeps PDFs small. */
 const PDF_IMAGE_MAX_PX = 800;
@@ -63,6 +65,7 @@ interface PDFGenerationOptions {
   safeStableScore?: number;
   compatibilityScore?: number;
   finalVerdict?: string;
+  allowInferredHeadlines?: boolean;
 }
 
 function buildOverlayCoverTitle(title: string): string {
@@ -71,42 +74,6 @@ function buildOverlayCoverTitle(title: string): string {
   const m = raw.match(/^(.+?)\s+Reading\b/i);
   if (!m?.[1]) return raw;
   return `${m[1].trim()} Reading`;
-}
-
-function cleanCoverSummarySource(text: string): string {
-  return String(text || '')
-    .replace(/\s+/g, ' ')
-    .replace(/\b(?:before writing|internal arc|the_wound|the_defense|act_1_surface|act_2_beneath|act_3_reckoning|landing_temperature)\b/gi, '')
-    .replace(/\b(?:chart signature|data:|output requirement|zone 1|zone 2|final output requirement)\b/gi, '')
-    .replace(/\b(?:individual|overlay|verdict)_[a-z0-9-]+(?:_[a-z0-9-]+){2,}\b/gi, '')
-    .replace(/[|]{2,}/g, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .replace(/^[\s:;,.!?\-]+|[\s:;,.!?\-]+$/g, '')
-    .trim();
-}
-
-function buildOverlayCoverSummary(coverQuote: string | undefined, person1Name: string, person2Name: string): string {
-  const p1 = String(person1Name || '').trim();
-  const p2 = String(person2Name || '').trim();
-  const quote = cleanCoverSummarySource(coverQuote || '');
-  if (!quote) {
-    return `${p1} and ${p2} enter a field of attraction, friction, and growth that asks both of them to change.`;
-  }
-
-  const hasP1 = p1 ? new RegExp(`\\b${p1.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(quote) : false;
-  const hasP2 = p2 ? new RegExp(`\\b${p2.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(quote) : false;
-  if (hasP1 && hasP2) return quote;
-
-  // Make the cover summary explicitly about both people.
-  const stripped = quote
-    .replace(new RegExp(`\\b${p1.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'ig'), '')
-    .replace(new RegExp(`\\b${p2.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'ig'), '')
-    .replace(/\s{2,}/g, ' ')
-    .replace(/^\W+|\W+$/g, '')
-    .trim();
-
-  if (!stripped) return `${p1} and ${p2} are entering the same weather, but not from the same door.`;
-  return `${p1} and ${p2}: ${stripped.charAt(0).toUpperCase()}${stripped.slice(1)}`;
 }
 
 function formatPersonCoverLine(person: PDFGenerationOptions['person1']): string {
@@ -121,6 +88,7 @@ function formatPersonCoverLine(person: PDFGenerationOptions['person1']): string 
 }
 
 async function fetchImageBuffer(url: string): Promise<Buffer | null> {
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   try {
     // Local file support for dev/test runs (absolute paths or file:// URLs)
     if (url.startsWith('file://')) {
@@ -135,14 +103,36 @@ async function fetchImageBuffer(url: string): Promise<Buffer | null> {
       return await fs.promises.readFile(url);
     }
 
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 15000);
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(t);
-    if (!res.ok) return null;
-    const ab = await res.arrayBuffer();
-    return Buffer.from(ab);
-  } catch {
+    const candidates = [url];
+    if (/^https?:\/\//i.test(url) && url.includes('?')) {
+      // Cache-buster query can occasionally fail on CDN edge; retry once without query.
+      candidates.push(url.split('?')[0]);
+    }
+
+    let lastError = '';
+    for (const candidate of candidates) {
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        try {
+          const controller = new AbortController();
+          const t = setTimeout(() => controller.abort(), 25000);
+          const res = await fetch(candidate, { signal: controller.signal });
+          clearTimeout(t);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const ab = await res.arrayBuffer();
+          const buf = Buffer.from(ab);
+          if (buf.length > 0) return buf;
+          throw new Error('empty image response');
+        } catch (err: any) {
+          lastError = err?.message || String(err);
+          if (attempt < 3) await sleep(350 * attempt);
+        }
+      }
+    }
+
+    console.warn(`[PDF] Failed to load portrait image: ${url} (${lastError})`);
+    return null;
+  } catch (err: any) {
+    console.warn(`[PDF] Unexpected portrait image error: ${url} (${err?.message || String(err)})`);
     return null;
   }
 }
@@ -179,15 +169,16 @@ function formatBirthDate(dateStr: string): string {
 function isLikelySubheadline(paragraph: string): boolean {
   const text = paragraph.trim().replace(/\s+/g, ' ');
   if (!text) return false;
-  if (text.length < 12 || text.length > 90) return false;
+  if (text.length < 12 || text.length > 140) return false;
   if (/^\d/.test(text)) return false;
-  if (/[,:;]$/.test(text)) return false;
+  // Real headings should not contain sentence punctuation inside.
+  if (/[,:;]/.test(text)) return false;
   const words = text.split(/\s+/).filter(Boolean);
-  if (words.length < 3 || words.length > 10) return false;
+  if (words.length < 3 || words.length > 18) return false;
   if (/[.!?]$/.test(text)) return false;
   const upperWords = words.filter((w) => /^[A-Z0-9'’\-]+$/.test(w)).length;
   if (upperWords / words.length >= 0.9) return true;
-  if (/^THE\s+/i.test(text) && words.length >= 4) return true;
+  if (/^(?:THE|The|A|An|What|When|How|Why|Who)\s+/i.test(text) && words.length >= 4) return true;
   const titleLikeWords = words.filter((w) => /^[A-Z][A-Za-z'’\-]*$/.test(w) || /^[A-Z0-9'’\-]+$/.test(w)).length;
   if (titleLikeWords / words.length >= 0.85) return true;
   return false;
@@ -196,29 +187,58 @@ function isLikelySubheadline(paragraph: string): boolean {
 function splitEmbeddedHeadline(paragraph: string): { headline?: string; body: string } {
   const text = String(paragraph || '').trim().replace(/\s+/g, ' ');
   if (!text) return { body: '' };
-  const stripped = text.replace(/^(?:[-–—]{2,}\s*)?[IVXLC]+\.\s*/i, '').trim();
-  const mUpper = stripped.match(/^((?:THE|A|AN)\s+[A-Z0-9'’\-]+(?:\s+[A-Z0-9'’\-]+){2,})\s+([A-Z][a-z].+)$/);
+  const stripped = text
+    .replace(/^\s*#{1,6}\s*/, '')
+    .replace(/^\s*[-–—]{2,}\s*/, '')
+    .replace(/^\s*(?:\d+[.)]|[IVXLC]+\.)\s*/i, '')
+    .trim();
+  if (/^[-–—]{3,}\s*$/.test(stripped)) return { body: '' };
+  const mUpper = stripped.match(/^((?:THE|A|AN|WHAT|WHEN|HOW|WHY|WHO)\s+[A-Z0-9'’\-]+(?:\s+[A-Z0-9'’\-]+){2,})\s+([A-Z][a-z].+)$/);
   if (mUpper) {
+    const body = mUpper[2].trim();
+    const bodyWords = body.split(/\s+/).filter(Boolean).length;
+    if (bodyWords <= 3) {
+      return { headline: stripped, body: '' };
+    }
     return {
       headline: mUpper[1].trim(),
-      body: mUpper[2].trim(),
+      body,
     };
   }
-  const mTitle = stripped.match(/^((?:The|A|An)\s+[A-Z][a-z'’\-]+(?:\s+[A-Z][a-z'’\-]+){2,11})\s+([A-Z][a-z].+)$/);
+  const mTitle = stripped.match(/^((?:The|A|An|What|When|How|Why|Who)\s+[A-Z][a-z'’\-]+(?:\s+[A-Z][a-z'’\-]+){2,11})\s+([A-Z][a-z].+)$/);
   if (mTitle) {
+    const body = mTitle[2].trim();
+    const bodyWords = body.split(/\s+/).filter(Boolean).length;
+    if (bodyWords <= 3) {
+      return { headline: stripped, body: '' };
+    }
     return {
       headline: mTitle[1].trim(),
-      body: mTitle[2].trim(),
+      body,
     };
   }
   if (isLikelySubheadline(stripped)) return { headline: stripped, body: '' };
   return { body: stripped };
 }
 
+function isOrphanLeadLine(paragraph: string): boolean {
+  const text = String(paragraph || '').trim();
+  if (!text) return false;
+  if (isLikelySubheadline(text)) return false;
+  if (/^[#\-–—]/.test(text)) return false;
+  if (/[.!?;:]$/.test(text)) return false;
+  if (/[,:;]/.test(text)) return false;
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length === 0 || words.length > 4) return false;
+  // Keep this conservative: orphan lead lines are usually tiny starters like
+  // "Before", "Then", "At night", which should be glued to the following paragraph.
+  return true;
+}
+
 function isInlineSentenceHeadlineCandidate(sentence: string): boolean {
   const text = String(sentence || '').trim();
   if (!text) return false;
-  if (!/^(The|A|An)\s+/i.test(text)) return false;
+  if (!/^(The|A|An|What|When|How|Why|Who)\s+/i.test(text)) return false;
   if (!/[.!?]$/.test(text)) return false;
   if (/[,:;]/.test(text)) return false;
   if (/\d/.test(text)) return false;
@@ -237,54 +257,147 @@ function isInlineSentenceHeadlineCandidate(sentence: string): boolean {
   return true;
 }
 
-function renderReadingText(doc: any, text: string, hasPlayfairBold: boolean): void {
+function isInlineTitleHeadlineCandidate(candidate: string): boolean {
+  const text = String(candidate || '').trim();
+  if (!text) return false;
+  if (!/^(?:The|A|An|What|When|How|Why|Who)\s+/.test(text)) return false;
+  if (/[,:;.!?]/.test(text)) return false;
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length < 4 || words.length > 12) return false;
+  const connectors = new Set([
+    'of', 'the', 'and', 'to', 'that', 'where', 'when', 'who', 'in', 'on', 'at',
+    'for', 'from', 'with', 'without', 'into', 'between', 'is', 'are', 'was', 'were',
+    'no', 'not',
+  ]);
+  const meaningfulWords = words.filter((w) => !connectors.has(w.toLowerCase()));
+  const titleLikeWords = meaningfulWords.filter((w) => /^[A-Z][A-Za-z'’\-]*$/.test(w)).length;
+  if (meaningfulWords.length > 0 && titleLikeWords / meaningfulWords.length < 0.8) return false;
+
+  // Keep promotion conservative: only with clear section-marker nouns.
+  const markers = [
+    'room', 'door', 'curtain', 'year', 'fire', 'library', 'study', 'fog',
+    'woman', 'man', 'dream', 'father', 'home', 'architecture', 'letter',
+    'building', 'storm', 'threshold', 'kitchen', 'house', 'silence',
+    'offer', 'cost', 'machine', 'hunger', 'reckoning', 'weather',
+  ];
+  const lower = text.toLowerCase();
+  return markers.some((m) => lower.includes(m));
+}
+
+function renderReadingText(doc: any, text: string, hasPlayfairBold: boolean, allowInferredHeadlines: boolean = true): void {
+  if (!allowInferredHeadlines) {
+    const plainParagraphs = String(text || '')
+      .split(/\n+/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    for (const paragraph of plainParagraphs) {
+      doc.font('Garamond').fontSize(11).fillColor('#111111');
+      doc.text(paragraph, { align: 'justify' });
+      doc.moveDown(0.6);
+    }
+    return;
+  }
+
+  const titleToken = "(?:[A-Z][A-Za-z'’\\-]*|of|the|and|to|that|where|when|who|in|on|at|for|from|with|without|into|between|is|are|was|were|no|not)";
+  const inlineTitleHeadingRe = new RegExp(
+    `([.!?])\\s+((?:The|A|An|What|When|How|Why|Who)\\s+${titleToken}(?:\\s+${titleToken}){2,14})\\s+([A-Z][a-z])`,
+    'g'
+  );
+
   const normalized = String(text || '')
     // Keep inline all-caps headlines visible when model forgets hard line breaks.
     .replace(/([.!?])\s+((?:THE|A|AN)\s+[A-Z0-9'’\-]+(?:\s+[A-Z0-9'’\-]+){2,})\s+([A-Z][a-z])/g, '$1\n\n$2\n\n$3')
+    // Keep inline title-case headlines (without trailing punctuation) visible.
+    .replace(inlineTitleHeadingRe, (m, p1, candidate, p3) => {
+      if (!isInlineTitleHeadlineCandidate(candidate)) return m;
+      return `${p1}\n\n${candidate}\n\n${p3}`;
+    })
     // Keep inline sentence-case surreal headlines visible near the end sections.
     .replace(/([.!?])\s+((?:The|A|An)\s+[A-Za-z'’\-]+(?:\s+[A-Za-z'’\-]+){2,13}[.!?])\s+([A-Z])/g, (m, p1, candidate, p3) => {
       if (!isInlineSentenceHeadlineCandidate(candidate)) return m;
       return `${p1}\n\n${candidate}\n\n${p3}`;
     });
 
-  const paragraphs = normalized
+  const rawParagraphs = normalized
     .split(/\n+/)
     .map((p) => p.trim())
     .filter(Boolean);
 
+  // Heal model outputs where a headline is broken into two lines:
+  // "The Dream He Keeps Not" + "Having"
+  const paragraphs: string[] = [];
+  for (const line of rawParagraphs) {
+    const prev = paragraphs.length > 0 ? paragraphs[paragraphs.length - 1] : '';
+    const prevWords = prev ? prev.split(/\s+/).filter(Boolean).length : 0;
+    const prevLooksHeadline =
+      Boolean(prev) &&
+      prevWords >= 4 &&
+      prevWords <= 18 &&
+      !/[.!?]$/.test(prev) &&
+      /^(?:THE|The|A|An)\s+/.test(prev);
+    const lineLooksShortTail =
+      /^[A-Z][A-Za-z'’\-]*(?:\s+[A-Z][A-Za-z'’\-]*){0,2}$/.test(line) &&
+      !/[,:;.!?]$/.test(line);
+
+    if (prevLooksHeadline && lineLooksShortTail) {
+      paragraphs[paragraphs.length - 1] = `${prev} ${line}`.replace(/\s+/g, ' ').trim();
+      continue;
+    }
+    paragraphs.push(line);
+  }
+
+  // Heal orphan lead fragments that should belong to the following paragraph:
+  // "Before" + "Tata could speak..."
+  const normalizedParagraphs: string[] = [];
+  for (let i = 0; i < paragraphs.length; i += 1) {
+    const current = paragraphs[i] || '';
+    const next = paragraphs[i + 1] || '';
+    if (next && isOrphanLeadLine(current) && !isLikelySubheadline(next)) {
+      normalizedParagraphs.push(`${current} ${next}`.replace(/\s+/g, ' ').trim());
+      i += 1;
+      continue;
+    }
+    normalizedParagraphs.push(current);
+  }
+
   const wordsIn = (value: string): number => value.split(/\s+/).filter(Boolean).length;
+  const renderHeadlineLine = (line: string): void => {
+    doc.font('GaramondBold').fontSize(12.8).fillColor('#111111');
+    doc.text(line, { align: 'left' });
+    doc.moveDown(0.4);
+    wordsSinceLastHeadline = 0;
+  };
   let wordsSinceLastHeadline = 999;
-  for (const rawParagraph of paragraphs) {
-    const { headline, body } = splitEmbeddedHeadline(rawParagraph);
-    if (headline) {
-      if (wordsSinceLastHeadline >= 80) {
-        doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fontSize(10.8).fillColor('#111111');
-        doc.text(headline, { align: 'left' });
-        doc.moveDown(0.28);
-        wordsSinceLastHeadline = 0;
-      } else {
-        doc.font('Garamond').fontSize(11).fillColor('#111111');
-        doc.text(headline, { align: 'justify' });
-        doc.moveDown(0.6);
-        wordsSinceLastHeadline += wordsIn(headline);
+  for (let i = 0; i < normalizedParagraphs.length; i += 1) {
+    const rawParagraph = normalizedParagraphs[i] || '';
+    let { headline, body } = splitEmbeddedHeadline(rawParagraph);
+
+    // Final guard: if a headline is followed by a tiny orphan line
+    // ("The Woman Who Almost Saw" + "Him"), merge it into the heading.
+    if (headline && !body) {
+      const next = normalizedParagraphs[i + 1] || '';
+      if (next && isOrphanLeadLine(next)) {
+        headline = `${headline} ${next}`.replace(/\s+/g, ' ').trim();
+        i += 1;
       }
+    }
+
+    if (headline) {
+      renderHeadlineLine(headline);
     }
 
     const paragraph = body;
     if (!paragraph) continue;
 
     if (isLikelySubheadline(paragraph)) {
-      if (wordsSinceLastHeadline >= 80) {
-        doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fontSize(10.8).fillColor('#111111');
-        doc.text(paragraph, { align: 'left' });
-        doc.moveDown(0.28);
-        wordsSinceLastHeadline = 0;
-      } else {
-        doc.font('Garamond').fontSize(11).fillColor('#111111');
-        doc.text(paragraph, { align: 'justify' });
-        doc.moveDown(0.6);
-        wordsSinceLastHeadline += wordsIn(paragraph);
+      let heading = paragraph;
+      const next = normalizedParagraphs[i + 1] || '';
+      if (next && isOrphanLeadLine(next)) {
+        heading = `${heading} ${next}`.replace(/\s+/g, ' ').trim();
+        i += 1;
       }
+      renderHeadlineLine(heading);
       continue;
     }
 
@@ -566,10 +679,10 @@ function renderCompatibilitySnapshotPage(doc: any, rows: CompatibilityRow[], has
 
   const left = 74;
   const right = doc.page.width - 74;
-  const labelWidth = 220;
-  const scoreWidth = 72;
+  const labelWidth = 200;
+  const scoreWidth = 78;
   const gap = 12;
-  const maxBar = Math.max(180, right - (left + labelWidth + gap + scoreWidth + gap));
+  const maxBar = Math.max(120, right - (left + labelWidth + gap + scoreWidth + gap));
   const barX = left + labelWidth + gap;
   const scoreX = barX + maxBar + gap;
   const pageBottom = doc.page.height - 120;
@@ -580,7 +693,7 @@ function renderCompatibilitySnapshotPage(doc: any, rows: CompatibilityRow[], has
       doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fontSize(18).fillColor('#7a4a12')
         .text('Compatibility Snapshot', { align: 'center' });
       doc.moveDown(0.7);
-      y = 105;
+      y = 112;
     }
     doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fontSize(11).fillColor('#111111');
     const labelHeight = Math.max(14, doc.heightOfString(row.label, { width: labelWidth, align: 'left' }));
@@ -593,7 +706,7 @@ function renderCompatibilitySnapshotPage(doc: any, rows: CompatibilityRow[], has
       doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fontSize(18).fillColor('#7a4a12')
         .text('Compatibility Snapshot', { align: 'center' });
       doc.moveDown(0.7);
-      y = 105;
+      y = 112;
     }
     doc.text(row.label, left, y, { width: labelWidth, align: 'left' });
     const barY = y + Math.max(1, (labelHeight - 10) / 2);
@@ -601,7 +714,7 @@ function renderCompatibilitySnapshotPage(doc: any, rows: CompatibilityRow[], has
     const fillW = (row.score / 10) * maxBar;
     doc.roundedRect(barX, barY, fillW, 10, 5).fillColor('#b91c1c').fill();
 
-    doc.font('Garamond').fontSize(10).fillColor('#111111')
+    doc.font('Garamond').fontSize(10.5).fillColor('#111111')
       .text(`${row.score.toFixed(1)}/10`, scoreX, y, { width: scoreWidth, align: 'right' });
 
     let nextY = y + Math.max(labelHeight, 14) + 8;
@@ -691,9 +804,14 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
         bufferPages: true,
       });
 
-      // Register Garamond font
+      // Register Garamond font family
       if (fs.existsSync(GARAMOND)) {
         doc.registerFont('Garamond', GARAMOND);
+      }
+      if (fs.existsSync(GARAMOND_BOLD)) {
+        doc.registerFont('GaramondBold', GARAMOND_BOLD);
+      } else {
+        doc.registerFont('GaramondBold', GARAMOND);
       }
       const hasPlayfairBold = fs.existsSync(PLAYFAIR_BOLD);
       if (hasPlayfairBold) {
@@ -718,6 +836,7 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
       const overlayMode = options.type === 'overlay' && Boolean(options.person2);
       const coverTitle = overlayMode ? buildOverlayCoverTitle(options.title) : options.title;
       doc.font('Garamond').fillColor('#7a4a12').fontSize(21).text(coverTitle, { align: 'center' });
+      const coverMetaFontSize = 13;
 
       if (options.subtitle) {
         doc.moveDown(0.25);
@@ -741,36 +860,34 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
 
         const birthLine = birthBits.filter(Boolean).join(' · ');
         if (birthLine) {
-          doc.fillColor('#4b5563').fontSize(9).text(birthLine, { align: 'center' });
+          doc.font('Garamond').fillColor('#4b5563').fontSize(coverMetaFontSize).text(birthLine, { align: 'center' });
           doc.fillColor('#111111');
         }
       };
 
+      const renderCoverPersonLabel = (label: string) => {
+        // Never inherit bold from heading styles.
+        doc.font('Garamond').fillColor('#111111').fontSize(coverMetaFontSize).text(label, { align: 'center' });
+      };
+
       if (overlayMode && options.person2) {
-        doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fillColor('#111111').fontSize(11);
-        doc.text(`Person 1: ${options.person1.name}`, { align: 'center' });
+        // Keep cover identity lines readable and consistent (not bold)
+        renderCoverPersonLabel(`Person 1: ${options.person1.name}`);
         const p1Line = formatPersonCoverLine(options.person1);
         if (p1Line) {
-          doc.fillColor('#4b5563').fontSize(9.5).text(p1Line, { align: 'center' });
+          doc.font('Garamond').fillColor('#4b5563').fontSize(coverMetaFontSize).text(p1Line, { align: 'center' });
         }
         doc.moveDown(0.9);
         doc.fillColor('#6b7280').fontSize(12).text('&', { align: 'center' });
         doc.moveDown(0.6);
-        doc.fillColor('#111111').fontSize(11).text(`Person 2: ${options.person2.name}`, { align: 'center' });
+        renderCoverPersonLabel(`Person 2: ${options.person2.name}`);
         const p2Line = formatPersonCoverLine(options.person2);
         if (p2Line) {
-          doc.fillColor('#4b5563').fontSize(9.5).text(p2Line, { align: 'center' });
+          doc.font('Garamond').fillColor('#4b5563').fontSize(coverMetaFontSize).text(p2Line, { align: 'center' });
         }
         doc.moveDown(0.9);
-        doc.fillColor('#4b5563').fontSize(10).text(`generated - ${timestamp}`, { align: 'center' });
+        doc.font('Garamond').fillColor('#4b5563').fontSize(coverMetaFontSize).text(`generated on ${timestamp}`, { align: 'center' });
         doc.fillColor('#111111');
-
-        const overlaySummary = buildOverlayCoverSummary(options.coverQuote, options.person1.name, options.person2.name);
-        if (overlaySummary) {
-          doc.moveDown(0.9);
-          doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fillColor('#111111').fontSize(12.5);
-          doc.text(overlaySummary, { align: 'center', lineGap: 2 });
-        }
       } else {
         const titleLower = String(options.title || '').toLowerCase();
         const p1InTitle = titleLower.includes(String(options.person1.name || '').toLowerCase());
@@ -786,17 +903,8 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
         }
 
         doc.moveDown(options.person2 ? 1.0 : 0.45);
-        doc.fillColor('#4b5563').fontSize(10).text(`written: ${timestamp}`, { align: 'center' });
+        doc.font('Garamond').fillColor('#4b5563').fontSize(coverMetaFontSize).text(`generated on ${timestamp}`, { align: 'center' });
         doc.fillColor('#111111');
-
-        if (String(options.coverQuote || '').trim()) {
-          doc.moveDown(options.person2 ? 1.1 : 0.75);
-          doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fillColor('#111111').fontSize(12);
-          doc.text(String(options.coverQuote || '').trim(), {
-            align: 'center',
-            lineGap: 2,
-          });
-        }
       }
 
       // Portrait image on the cover page (page 1).
@@ -821,11 +929,14 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
         doc.moveDown(1);
       }
 
-      // Page 2: deterministic chart overview (one or two columns). Then start prose on next page.
-      const hasChartReference = Boolean(String(options.chartReferencePage || '').trim() || String(options.chartReferencePageRight || '').trim());
-      if (hasChartReference) {
-        doc.addPage();
-        renderChartReferenceText(doc, options.chartReferencePage || '', hasPlayfairBold, options.chartReferencePageRight);
+      // Chart reference page is currently disabled globally by product decision.
+      // Keep this branch explicit so it can be re-enabled cleanly later.
+      if (ENABLE_CHART_REFERENCE_PAGE) {
+        const hasChartReference = Boolean(String(options.chartReferencePage || '').trim() || String(options.chartReferencePageRight || '').trim());
+        if (hasChartReference) {
+          doc.addPage();
+          renderChartReferenceText(doc, options.chartReferencePage || '', hasPlayfairBold, options.chartReferencePageRight);
+        }
       }
       doc.addPage();
 
@@ -857,17 +968,17 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
 
       // Body text
       for (const chapter of cleanedChapters) {
-        if (chapter.person1Reading) {
-          renderReadingText(doc, chapter.person1Reading, hasPlayfairBold);
+      if (chapter.person1Reading) {
+          renderReadingText(doc, chapter.person1Reading, hasPlayfairBold, options.allowInferredHeadlines ?? true);
         }
         if (chapter.person2Reading) {
-          renderReadingText(doc, chapter.person2Reading, hasPlayfairBold);
+          renderReadingText(doc, chapter.person2Reading, hasPlayfairBold, options.allowInferredHeadlines ?? true);
         }
         if (chapter.overlayReading) {
-          renderReadingText(doc, chapter.overlayReading, hasPlayfairBold);
+          renderReadingText(doc, chapter.overlayReading, hasPlayfairBold, options.allowInferredHeadlines ?? true);
         }
         if (chapter.verdict) {
-          renderReadingText(doc, chapter.verdict, hasPlayfairBold);
+          renderReadingText(doc, chapter.verdict, hasPlayfairBold, options.allowInferredHeadlines ?? true);
         }
       }
 
@@ -889,12 +1000,25 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
       const footerX = 72;
       const footerWidth = doc.page.width - 144;
       const footerTop = 120;
-      doc.text('1-in-a-billion.app', footerX, footerTop, { align: 'left', width: footerWidth });
-      doc.text('Published by:', footerX, doc.y + 8, { align: 'left', width: footerWidth });
-      doc.text('SwiftBuy Solutions LLC', footerX, doc.y, { align: 'left', width: footerWidth });
-      doc.text('Meydan Grandstand, 6th floor, Meydan Road, Nad Al Sheba, Dubai, U.A.E.', footerX, doc.y, { align: 'left', width: footerWidth });
-      doc.text('powered by: forbidden-yoga.com', footerX, doc.y + 8, { align: 'left', width: footerWidth });
-      doc.text('Program idea and concept: Michael Wogenburg', footerX, doc.y, { align: 'left', width: footerWidth });
+      const footerLines = [
+        '1-in-a-billion.app',
+        '',
+        'Published by: SwiftBuy Solutions LLC',
+        'Meydan Grandstand, 6th floor',
+        'Meydan Road, Nad Al Sheba, Dubai, U.A.E.',
+        '',
+        'powered by: forbidden-yoga.com',
+        'Program idea and concept: Michael Wogenburg',
+      ];
+      let footerY = footerTop;
+      for (const line of footerLines) {
+        if (!line) {
+          footerY += 8;
+          continue;
+        }
+        doc.text(line, footerX, footerY, { align: 'left', width: footerWidth, lineBreak: false });
+        footerY += 14;
+      }
 
       // Add page numbers to all pages
       const range = doc.bufferedPageRange();

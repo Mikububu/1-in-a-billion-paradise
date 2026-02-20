@@ -530,43 +530,52 @@ function countRegex(text: string, re: RegExp): number {
 
 function buildCompatibilityMetrics(system: string, combinedChartData: string): CompatibilityMetric[] {
   const text = String(combinedChartData || '');
-  const lower = text.toLowerCase();
   const isVedic = system === 'vedic';
   const isHd = system === 'human_design';
   const isGk = system === 'gene_keys';
   const isKabbalah = system === 'kabbalah';
 
-  const magneticSignals =
+  const magneticSignalsRaw =
     countRegex(text, /\b(conjunction|venus|mars|pluto|eighth house|8th house|intimacy|attraction|magnetic)\b/gi) +
     countRegex(text, /\b(channel 6-59|gate 59)\b/gi);
-  const hardSignals =
+  const hardSignalsRaw =
     countRegex(text, /\b(square|opposition|saturn|pluto|rahu|ketu|klipoth|shadow axis|danger|risk)\b/gi) +
     countRegex(text, /\b(12th house|eighth house|8th house)\b/gi);
-  const softSignals =
+  const softSignalsRaw =
     countRegex(text, /\b(trine|sextile|jupiter|venus|gift|resourcefulness|teamwork|wisdom|healing)\b/gi);
-  const dailySignals =
+  const dailySignalsRaw =
     countRegex(text, /\b(moon|4th house|6th house|routine|daily|home|defined centers|open centers)\b/gi);
-  const karmicSignals =
+  const karmicSignalsRaw =
     countRegex(text, /\b(north node|south node|rahu|ketu|karmic|tikkun|cross|dasha)\b/gi);
 
-  let safeToSpicy = 4.8 + magneticSignals * 0.28 - hardSignals * 0.08;
-  let karmic = 3.6 + karmicSignals * 0.35 + (isVedic || isKabbalah ? 0.6 : 0);
-  let dailyLife = 5.4 + dailySignals * 0.22 + softSignals * 0.08 - hardSignals * 0.14;
-  let toxic = 2.8 + hardSignals * 0.34 + magneticSignals * 0.09 - softSignals * 0.07;
-  let healing = 4.2 + softSignals * 0.26 + karmicSignals * 0.07 - hardSignals * 0.11;
-  let longTerm = 5.0 + softSignals * 0.2 + dailySignals * 0.1 - hardSignals * 0.17;
+  // Diminishing returns prevent score saturation when the combined chart dump is very dense.
+  const normalize = (n: number): number => Math.min(4, Math.log2(1 + Math.max(0, n)));
+  const magneticSignals = normalize(magneticSignalsRaw);
+  const hardSignals = normalize(hardSignalsRaw);
+  const softSignals = normalize(softSignalsRaw);
+  const dailySignals = normalize(dailySignalsRaw);
+  const karmicSignals = normalize(karmicSignalsRaw);
+
+  let safeToSpicy = 4.1 + magneticSignals * 0.95 + softSignals * 0.25 - hardSignals * 0.45;
+  let karmic = 3.2 + karmicSignals * 1.05 + (isVedic || isKabbalah ? 0.5 : 0);
+  let dailyLife = 4.4 + dailySignals * 0.85 + softSignals * 0.35 - hardSignals * 0.55;
+  let toxic = 2.4 + hardSignals * 0.95 + magneticSignals * 0.30 - softSignals * 0.30;
+  let healing = 3.8 + softSignals * 0.95 + karmicSignals * 0.28 - hardSignals * 0.50;
+  let longTerm = 4.0 + dailySignals * 0.55 + softSignals * 0.60 - hardSignals * 0.60;
 
   if (isHd) {
-    safeToSpicy += 0.3;
-    dailyLife += 0.4;
+    safeToSpicy += 0.15;
+    dailyLife += 0.25;
+    toxic += 0.10;
   }
   if (isGk) {
-    healing += 0.5;
+    healing += 0.35;
     karmic += 0.2;
   }
   if (isKabbalah) {
-    karmic += 0.5;
-    toxic += 0.2;
+    karmic += 0.4;
+    toxic += 0.15;
+    longTerm -= 0.1;
   }
 
   const safeToSpicyScore = clampScore(safeToSpicy);

@@ -9,10 +9,10 @@
 
 export const STANDARD_READING = {
   // Product baseline: deep, mystical, listener-focused readings.
-  min: 4000,
-  target: 6000,
-  max: 9000,
-  audioMinutes: '30-55',
+  min: 5000,
+  target: 7000,
+  max: 10000,
+  audioMinutes: '35-60',
 };
 
 export function getWordTarget(): string {
@@ -28,16 +28,16 @@ export const WORD_COUNT_LIMITS = {
   max: STANDARD_READING.max,
 };
 
-// Overlay/synastry reads two charts and needs a higher floor than individual docs.
+// Keep all document types on the same baseline for predictable generation behavior.
 export const WORD_COUNT_LIMITS_OVERLAY = {
-  min: 5500,
-  target: 7000,
-  max: 10000,
+  min: STANDARD_READING.min,
+  target: STANDARD_READING.target,
+  max: STANDARD_READING.max,
 };
 
-// Verdict is synthesis across multiple readings and also needs a higher floor.
+// Verdict follows the same baseline.
 export const WORD_COUNT_LIMITS_VERDICT = {
-  min: 5000,
-  target: 7000,
-  max: 10000,
+  min: STANDARD_READING.min,
+  target: STANDARD_READING.target,
+  max: STANDARD_READING.max,
 };

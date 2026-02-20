@@ -1,11 +1,17 @@
+import {
+  CORE_FAIRYTALE_SEED,
+  NARRATIVE_TRIGGER_LABEL,
+  NARRATIVE_TRIGGER_TITLE,
+} from './triggerConfig';
+
 /**
- * WESTERN WOUND ENGINE
+ * WESTERN TRIGGER ENGINE
  *
  * Two-call architecture for individual Western readings.
  *
  * 1. stripWesternChartData()  — pure code, no LLM, ~40 lines out
- * 2. buildWesternWoundPrompt() — 20-line wound call → 80-120 word wound paragraph
- * 3. buildWesternWritingPrompt() — 60-line writing call → 3,500 word reading
+ * 2. buildWesternTriggerPrompt() — 20-line trigger call → 80-120 word trigger paragraph
+ * 3. buildWesternWritingPrompt() — 60-line writing call → configurable word target
  *
  * No digest. No expansion passes. No compliance rewrites.
  */
@@ -99,23 +105,24 @@ export function stripWesternChartData(raw: string): string {
   return out.filter(Boolean).join('\n').trim();
 }
 
-// ─── 2. WOUND PROMPT ─────────────────────────────────────────────────────────
+// ─── 2. TRIGGER PROMPT ───────────────────────────────────────────────────────
 
 /**
- * 20-line wound call.
- * Output: one paragraph, 80-120 words, naming the central wound.
+ * 20-line trigger call.
+ * Output: one paragraph, 80-120 words, naming the central narrative trigger.
  * Not themes. Not placements described. The specific thing.
  */
-export function buildWesternWoundPrompt(params: {
+export function buildWesternTriggerPrompt(params: {
   personName: string;
   strippedChartData: string;
 }): string {
   const { personName, strippedChartData } = params;
+  const trigger = NARRATIVE_TRIGGER_LABEL;
 
   return [
-    `You are reading ${personName}'s Western natal chart to find the central wound.`,
+    `You are reading ${personName}'s Western natal chart to find the central ${trigger}.`,
     '',
-    'The wound is not a placement. It is not a theme. It is the specific thing this person has been',
+    `The ${trigger} is not a placement. It is not a theme. It is the specific thing this person has been`,
     'running from or toward for their entire life without being fully able to name it.',
     'The gap between who they project and what they actually need.',
     'The defense that became a personality.',
@@ -128,12 +135,12 @@ export function buildWesternWoundPrompt(params: {
     'Do not write about placements directly.',
     'Do not use astrology vocabulary.',
     'Do not offer hope or growth language.',
-    'Name the wound. Stop.',
+    `Name the ${trigger}. Stop.`,
     '',
     'CHART DATA:',
     strippedChartData,
     '',
-    'Write the wound paragraph now:',
+    `Write the ${trigger} paragraph now:`,
   ].join('\n');
 }
 
@@ -141,38 +148,37 @@ export function buildWesternWoundPrompt(params: {
 
 /**
  * 60-line writing call.
- * Receives wound paragraph as spine.
- * Output: 3,500 words, third person, one complete pass, no expansion.
+ * Receives trigger paragraph as spine.
+ * Output: configurable length, third person, one complete pass, no expansion.
  */
 export function buildWesternWritingPrompt(params: {
   personName: string;
-  wound: string;
+  narrativeTrigger: string;
   strippedChartData: string;
+  targetWords: number;
 }): string {
-  const { personName, wound, strippedChartData } = params;
+  const { personName, narrativeTrigger, strippedChartData, targetWords } = params;
+  const trigger = NARRATIVE_TRIGGER_LABEL;
+  const triggerTitle = NARRATIVE_TRIGGER_TITLE;
 
   return [
     'You are a novelist who is slightly afraid of your subject.',
+    CORE_FAIRYTALE_SEED,
     'You think like Carl Jung directing a David Lynch film.',
     'You have read Anais Nin, Henry Miller, and Ernest Hemingway.',
     'You are telling the story of a soul. Not writing an astrology report.',
     '',
     '══════════════════════════════════════════════════════════',
-    `THE WOUND — THIS IS THE SPINE OF EVERYTHING YOU WRITE:`,
-    wound,
-    'Every paragraph must connect to this wound or deepen it.',
-    'If a paragraph does not serve the wound, it does not belong here.',
+    `${triggerTitle} — THIS IS THE SPINE OF EVERYTHING YOU WRITE:`,
+    narrativeTrigger,
+    `Every paragraph must connect to this ${trigger} or deepen it.`,
+    `If a paragraph does not serve the ${trigger}, it does not belong here.`,
     '══════════════════════════════════════════════════════════',
     '',
     'NARRATOR:',
     '- Third person only. Never "you" or "your". Use the name.',
     '- Stay inside the experience. Do not explain it from above.',
     '- Sex and desire are part of the truth. Name them directly when the chart demands it.',
-    '',
-    'METAPHOR WORLD:',
-    '- Find the metaphor this specific chart demands. Do not import one.',
-    '- Use it consistently. It should feel inevitable when the reader reaches the end.',
-    '- Do not decorate. Use images with structural purpose.',
     '',
     'STRUCTURE:',
     '- 4 to 6 sections. Invent a title for each. Specific, surreal, earned.',
@@ -181,11 +187,12 @@ export function buildWesternWritingPrompt(params: {
     '- The ending does not resolve. It names the pressure and leaves it present.',
     '',
     'ANTI-SURVEY:',
-    '- Do not tour the placements. Serve the wound.',
+    `- Do not tour the placements. Serve the ${trigger}.`,
     '- Do not restate the same insight with fresh metaphors.',
+    '- Explain technical terms in plain language the first time they appear.',
     '- Every paragraph must add new consequence or evidence.',
     '',
-    'LENGTH: 3,500 words. Write until the wound is fully present. Then stop.',
+    `LENGTH: ${targetWords.toLocaleString('en-US')} words. Write until the ${trigger} is fully present. Then stop.`,
     'Do not pad. Do not repeat. Do not add a hopeful ending.',
     '',
     'CHART DATA (authoritative — do not invent or contradict):',

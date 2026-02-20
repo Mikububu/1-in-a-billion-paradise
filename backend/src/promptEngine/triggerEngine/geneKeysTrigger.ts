@@ -1,11 +1,17 @@
+import {
+  CORE_FAIRYTALE_SEED,
+  NARRATIVE_TRIGGER_LABEL,
+  NARRATIVE_TRIGGER_TITLE,
+} from './triggerConfig';
+
 /**
- * GENE KEYS WOUND ENGINE
+ * GENE KEYS TRIGGER ENGINE
  *
  * Two-call architecture for individual Gene Keys readings.
  *
  * 1. stripGeneKeysChartData()      — pure code, ~25 highest-signal lines
- * 2. buildGeneKeysWoundPrompt()    — wound call → 80-120 word paragraph
- * 3. buildGeneKeysWritingPrompt()  — writing call → 3,500 words
+ * 2. buildGeneKeysTriggerPrompt()    — trigger call → 80-120 word paragraph
+ * 3. buildGeneKeysWritingPrompt()  — writing call → configurable word target
  */
 
 // ─── 1. STRIP ────────────────────────────────────────────────────────────────
@@ -56,23 +62,24 @@ export function stripGeneKeysChartData(raw: string): string {
   return out.filter(Boolean).join('\n').trim();
 }
 
-// ─── 2. WOUND PROMPT ─────────────────────────────────────────────────────────
+// ─── 2. TRIGGER PROMPT ───────────────────────────────────────────────────────
 
-export function buildGeneKeysWoundPrompt(params: {
+export function buildGeneKeysTriggerPrompt(params: {
   personName: string;
   strippedChartData: string;
 }): string {
   const { personName, strippedChartData } = params;
+  const trigger = NARRATIVE_TRIGGER_LABEL;
 
   return [
-    `You are reading ${personName}'s Gene Keys hologenetic profile to find the central wound.`,
+    `You are reading ${personName}'s Gene Keys hologenetic profile to find the central ${trigger}.`,
     '',
-    'In Gene Keys, the wound lives in the Shadow frequency.',
+    `In Gene Keys, the ${trigger} lives in the Shadow frequency.`,
     'The Shadow of Life\'s Work is what this person compulsively does instead of their purpose.',
     'The Shadow of Evolution is the developmental trap they keep falling into.',
     'Together they form the specific flavor of unconscious self-sabotage.',
     '',
-    'The wound is not a shadow name. It is not a key number.',
+    `The ${trigger} is not a shadow name. It is not a key number.`,
     'It is the lived behavior pattern that the shadow frequencies produce in this specific person.',
     'The thing they apologize for, perform around, or cannot see in themselves.',
     '',
@@ -83,12 +90,12 @@ export function buildGeneKeysWoundPrompt(params: {
     '',
     'Do not describe the system. Do not list keys or spheres.',
     'Do not offer Gift or Siddhi frequencies as consolation.',
-    'Name the wound. Stop.',
+    `Name the ${trigger}. Stop.`,
     '',
     'CHART DATA:',
     strippedChartData,
     '',
-    'Write the wound paragraph now:',
+    `Write the ${trigger} paragraph now:`,
   ].join('\n');
 }
 
@@ -96,33 +103,32 @@ export function buildGeneKeysWoundPrompt(params: {
 
 export function buildGeneKeysWritingPrompt(params: {
   personName: string;
-  wound: string;
+  narrativeTrigger: string;
   strippedChartData: string;
+  targetWords: number;
 }): string {
-  const { personName, wound, strippedChartData } = params;
+  const { personName, narrativeTrigger, strippedChartData, targetWords } = params;
+  const trigger = NARRATIVE_TRIGGER_LABEL;
+  const triggerTitle = NARRATIVE_TRIGGER_TITLE;
 
   return [
     'You are a novelist who is interested in the gap between potential and what people actually do.',
+    CORE_FAIRYTALE_SEED,
     'You think in codon sequences, frequency shifts, DNA memory.',
     'You have read Carlos Castaneda, Rainer Maria Rilke, and Ursula Le Guin.',
     'You are telling the story of a consciousness learning to inhabit itself. Not writing a Gene Keys report.',
     '',
     '══════════════════════════════════════════════════════════',
-    'THE WOUND — THIS IS THE SPINE OF EVERYTHING YOU WRITE:',
-    wound,
-    'Every paragraph must connect to this wound or deepen it.',
-    'If a paragraph does not serve the wound, it does not belong here.',
+    `${triggerTitle} — THIS IS THE SPINE OF EVERYTHING YOU WRITE:`,
+    narrativeTrigger,
+    `Every paragraph must connect to this ${trigger} or deepen it.`,
+    `If a paragraph does not serve the ${trigger}, it does not belong here.`,
     '══════════════════════════════════════════════════════════',
     '',
     'NARRATOR:',
     '- Third person only. Never "you" or "your". Use the name.',
-    '- Shadow frequencies are not villains — they are the form the wound takes in daily life.',
+    `- Shadow frequencies are not villains — they are the form the ${trigger} takes in daily life.`,
     '- The body carries the frequency. The nervous system is the site of the story.',
-    '',
-    'METAPHOR WORLD:',
-    '- Find the image this specific profile demands. Signal, frequency, resonance, lock and key.',
-    '- Or: genetic memory, inherited pattern, the ancestor behind the behavior.',
-    '- Do not decorate. Every image must carry structural weight.',
     '',
     'STRUCTURE:',
     '- 4 to 6 sections. Invent a title for each. Specific, biological, earned.',
@@ -131,11 +137,12 @@ export function buildGeneKeysWritingPrompt(params: {
     '- The ending does not resolve. It leaves the frequency question open.',
     '',
     'ANTI-SURVEY:',
-    '- Do not explain Gene Keys. Serve the wound.',
+    `- Do not explain Gene Keys. Serve the ${trigger}.`,
     '- Do not name spheres, keys, or frequencies technically.',
+    '- Explain Gene Keys terms in plain language the first time they appear.',
     '- Every paragraph must add new consequence or evidence.',
     '',
-    'LENGTH: 3,500 words. Write until the wound is fully present. Then stop.',
+    `LENGTH: ${targetWords.toLocaleString('en-US')} words. Write until the ${trigger} is fully present. Then stop.`,
     'Do not pad. Do not repeat. Do not add a hopeful ending.',
     '',
     'CHART DATA (authoritative — do not invent or contradict):',

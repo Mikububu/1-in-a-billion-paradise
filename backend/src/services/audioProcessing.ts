@@ -114,6 +114,103 @@ export function splitIntoChunks(text: string, maxChunkLength: number = AUDIO_CON
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// TEXT DE-DUPLICATION (pre-TTS safety)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const SENTENCE_REGEX = /[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g;
+
+function normalizeSentenceKey(sentence: string): string {
+  return String(sentence || '')
+    .toLowerCase()
+    .replace(/[`"“”'’]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractFirstSentence(chunk: string): string {
+  const match = String(chunk || '').match(SENTENCE_REGEX);
+  return match?.[0]?.trim() || '';
+}
+
+function extractLastSentence(chunk: string): string {
+  const match = String(chunk || '').match(SENTENCE_REGEX);
+  if (!match || match.length === 0) return '';
+  return String(match[match.length - 1] || '').trim();
+}
+
+function stripFirstSentence(chunk: string): string {
+  const source = String(chunk || '').trim();
+  const match = source.match(SENTENCE_REGEX);
+  if (!match || match.length === 0) return source;
+  const first = String(match[0] || '');
+  const idx = source.indexOf(first);
+  if (idx < 0) return source;
+  return source.slice(idx + first.length).trim();
+}
+
+/**
+ * Remove exact/near-exact adjacent duplicate sentences in text.
+ * This does NOT remove distant thematic repetition; only immediate sentence echoes.
+ */
+export function dedupeAdjacentSentences(text: string): { text: string; removed: number } {
+  const sentences = String(text || '').match(SENTENCE_REGEX) || [String(text || '')];
+  const out: string[] = [];
+  let prevKey = '';
+  let removed = 0;
+
+  for (const raw of sentences) {
+    const sentence = String(raw || '').trim();
+    if (!sentence) continue;
+    const key = normalizeSentenceKey(sentence);
+    if (key && key === prevKey) {
+      removed += 1;
+      continue;
+    }
+    out.push(sentence);
+    prevKey = key;
+  }
+
+  return {
+    text: out.join(' ').replace(/\s+/g, ' ').trim(),
+    removed,
+  };
+}
+
+/**
+ * Remove sentence overlap between consecutive chunks.
+ * If chunk N ends with the same sentence chunk N+1 starts with, drop the leading sentence in N+1.
+ */
+export function dedupeChunkBoundaryOverlap(chunks: string[]): { chunks: string[]; removed: number } {
+  if (!Array.isArray(chunks) || chunks.length <= 1) {
+    return { chunks: Array.isArray(chunks) ? chunks : [], removed: 0 };
+  }
+
+  const out = [...chunks];
+  let removed = 0;
+
+  for (let i = 1; i < out.length; i++) {
+    const prev = String(out[i - 1] || '');
+    const curr = String(out[i] || '');
+    if (!prev || !curr) continue;
+
+    const prevLast = normalizeSentenceKey(extractLastSentence(prev));
+    const currFirst = normalizeSentenceKey(extractFirstSentence(curr));
+    if (!prevLast || !currFirst) continue;
+
+    if (prevLast === currFirst) {
+      const stripped = stripFirstSentence(curr);
+      if (stripped && stripped !== curr.trim()) {
+        out[i] = stripped;
+        removed += 1;
+      }
+    }
+  }
+
+  return { chunks: out, removed };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // WAV FORMAT DETECTION & CONVERSION
 // ═══════════════════════════════════════════════════════════════════════════
 

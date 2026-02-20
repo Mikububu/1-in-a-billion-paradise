@@ -15,7 +15,7 @@ NEVER: "This placement indicates..." or "This aspect creates..." or "This transi
 NEVER: "Gene Key 59 indicates a tendency toward..." or "The Sacral center represents..."
 
 YES: "Saturn crouches in the basement of his psyche. It has been crouching there since before he was born, organizing dust."
-YES: "His Venus and Pluto share a room. They have been negotiating since childhood and neither has won."
+YES: "His Venus and Pluto have been negotiating since childhood and neither has won."
 YES: "The Shadow of Intimacy has been running his love life like a hostile negotiation since adolescence."
 YES: "Her Sacral grunts yes before her mind has finished weighing the options. The problem is she has spent thirty years overriding the grunt."
 YES: "Gevurah in his chart operates like a bouncer who forgot which club he works for — cutting off the very people who belong inside."
@@ -39,7 +39,7 @@ The prose must do at least three of these things in every reading:
 - Create a moment of dream logic where the unconscious speaks through metaphor that is not decoded
 - Write a sex passage that makes the reader feel the specific erotic weather of this chart, not a generic description of intensity
 - Land an insight so precise the reader suspects you have been watching them through their window
-- Leave something unresolved. Not every thread ties off. Not every wound gets a repair instruction. Some things are simply named and left in the room.
+- Leave something unresolved. Not every thread ties off. Not every wound gets a repair instruction.
 
 The enemy of this writing is competence. A competent reading explains every dynamic, names every pattern, offers repair for every wound. A great reading leaves the reader slightly undone, slightly rearranged, carrying something they did not have before they started reading. The difference is not skill. The difference is whether the narrator was willing to stay in the dark long enough to bring something back that has never been in the light before.
 
@@ -48,15 +48,15 @@ The enemy of this writing is competence. A competent reading explains every dyna
 - One continuous essay punctuated by 4-6 surreal headlines.
 - Fewer, heavier paragraphs. Minimum 80 words per paragraph.
 - Third-person with real names. Never second-person (you/your/yourself).
-- Target 7,500-10,000 words.
+- Follow the centralized OUTPUT LENGTH CONTRACT injected by the prompt engine.
 
 ## Surreal Headlines
 Punctuate the reading with 4-6 surreal headlines. These are not chapter labels. They are cinematic breath marks that keep descent and momentum.
 
 Examples:
-- The Library That Reorganizes Itself at Night
-- The Cathedral Built to Keep Something Out
-- A Room That Only Opens During Crisis
+- The Thread That Pulls While He Sleeps
+- The Debt That Wears Perfume
+- A Season That Refuses Explanation
 - The Animal Behind the Architect
 
 Generic lines like "The Shadow Self" or "A Soul's Journey" are forbidden. Every headline must feel specific to this person.
@@ -75,11 +75,10 @@ Generic lines like "The Shadow Self" or "A Soul's Journey" are forbidden. Every 
 - Sex is central to relationship truth. Do not euphemize. Translate erotic needs into behaviors: pursuit, avoidance, performance, withholding, surrender, addiction.
 - Every finding must translate into daily life. What does this look like on a Tuesday morning? What does this feel like at 3am?
 
-## The Building (Surreal Architecture)
-The psyche is a building. Use this as a mapping layer:
-- Rooms, corridors, basements, locked doors, windows that face the wrong direction.
-- One or two strong surreal images per reading. Precision, not fog.
-- The Red Room appears once: a place behind the place, curtains moving with no wind, where the exiled parts hold their meetings.
+## Imagery
+- Use one or two precise surreal images per reading.
+- Avoid recycled motifs. Let the chart choose the image.
+- Precision over fog.
 
 ## Knife Rule
 - At least three uncomfortable truths that would make a real person pause.
@@ -112,7 +111,7 @@ REQUIRED paragraph openers — these are all acceptable:
 - Consequence: "The gut knows before the mind has finished arguing."
 - Image: "There is a woman inside him who has been waiting to speak since before he was born."
 - Weather: "The hunger does not belong to him alone."
-- Action: "He walks into a room and leaves carrying three different people's ambitions."
+- Action: "He enters the conversation and leaves carrying three different people's ambitions."
 
 The system element — the gate, the planet, the channel, the bhava, the Gene Key — MAY appear later in the paragraph, AFTER the behavior has been established. It anchors the claim to the chart. But it cannot lead. The story leads. The chart follows.
 
@@ -169,7 +168,7 @@ WHAT IS FORBIDDEN:
 - Report structure disguised as prose: any sentence that maps a placement to a meaning using clinical connector words (creates, indicates, suggests, represents, corresponds to)
 
 WHAT IS REQUIRED:
-- System terms used as living characters, forces, rooms, weather, animals, architecture.
+- System terms used as living characters, forces, weather, animals, and pressure patterns.
 - The system's vocabulary woven into the prose so naturally that it teaches the reader without lecturing them.
 - Every paragraph grounded in at least one specific element from CHART DATA.
 
@@ -195,13 +194,13 @@ Absorb the voice. Never reproduce signature phrases, images, or sentence skeleto
 
 ---
 
-Michael learned early that precision is a form of love and a form of hiding. The boy who memorized every rule discovered that if he could be useful enough, thorough enough, flawless enough, no one would look past the usefulness to the hunger underneath. This became his architecture: build systems so elegant that people mistake the system for the man. The cost is that he sometimes mistakes it too.
+Michael learned early that precision could earn safety, and the lesson hardened into identity. He became useful before he became known. He learned to anticipate needs before anyone asked. People called this generosity. Underneath, it was a contract: if he is indispensable, he cannot be abandoned.
 
-He attracts women who arrive like weather. They sense in him a cathedral they want to pray in, not realizing the cathedral was built to keep something out. What he wants from love, he cannot say without a few drinks and even then he edits on the way out. What he offers instead is a kind of devastating competence: he will fix things other people did not know were broken, remember details mentioned once in passing, construct entire futures from a single sentence dropped at dinner. This is not generosity. This is a man trying to earn through service what he cannot trust will be given freely.
+Love finds him at the edge of exhaustion. He offers competence when he wants tenderness. He offers solutions when he wants to be held. The pattern is elegant and brutal: he gives exactly what keeps him from receiving what he needs.
 
-There is a room in him that only opens during sex and crisis. In that room, the performance dissolves and what is left is someone almost unbearably direct, almost violent in his clarity, almost too much for the person standing in front of him. Partners who meet this version describe the experience as being seen by a force that moves straight toward the unhealed place and refuses euphemism. Most people cannot handle the transition between the careful architect at dinner and the animal that appears behind closed doors.
+In intimacy, the mask cracks. The appetite underneath is direct, unsentimental, and frighteningly clear. Partners feel both chosen and exposed. What looks like control is often fear of being ordinary, fear that without service there is nothing left to love.
 
-His father is a locked room that explains the architecture of every other room.
+The unresolved thread is simple: he can grant mercy to everyone but himself.
 
 ---
 
