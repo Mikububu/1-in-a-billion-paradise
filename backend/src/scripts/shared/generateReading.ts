@@ -225,8 +225,66 @@ function stripLeadingCoverMetadata(text: string): string {
   return text;
 }
 
-function cleanForPdf(raw: string, options?: { preserveSurrealHeadlines?: boolean }): string {
+function normalizePipeTables(text: string): string {
+  const lines = String(text || '').split('\n');
+  const out: string[] = [];
+  let i = 0;
+
+  const parseRow = (line: string): string[] => {
+    const trimmed = line.trim().replace(/^\|/, '').replace(/\|$/, '');
+    return trimmed.split('|').map((c) => c.trim()).filter((c) => c.length > 0);
+  };
+
+  const isSeparatorCell = (cell: string): boolean => /^:?-{3,}:?$/.test(cell);
+
+  while (i < lines.length) {
+    const line = lines[i] || '';
+    if (!line.trim().startsWith('|')) {
+      out.push(line);
+      i += 1;
+      continue;
+    }
+
+    const block: string[] = [];
+    while (i < lines.length && (lines[i] || '').trim().startsWith('|')) {
+      block.push(lines[i] || '');
+      i += 1;
+    }
+
+    const converted: string[] = [];
+    for (let r = 0; r < block.length; r += 1) {
+      const cells = parseRow(block[r] || '');
+      if (cells.length === 0) continue;
+      if (cells.every(isSeparatorCell)) continue;
+      if (
+        r === 0 &&
+        cells.length >= 2 &&
+        /dimension/i.test(cells[0] || '') &&
+        /score/i.test(cells[1] || '')
+      ) {
+        continue;
+      }
+      if (cells.length === 1) {
+        converted.push(cells[0] || '');
+        continue;
+      }
+      const left = cells[0] || '';
+      const right = cells[1] || '';
+      const rest = cells.slice(2).join(' | ');
+      converted.push(rest ? `${left}: ${right} — ${rest}` : `${left}: ${right}`);
+    }
+
+    if (converted.length > 0) {
+      out.push(...converted);
+    }
+  }
+
+  return out.join('\n');
+}
+
+function cleanForPdf(raw: string): string {
   let out = String(raw || '')
+    .replace(/^\s*\|---.*\|\s*$/gim, '')
     .replace(/—/g, ', ')
     .replace(/–/g, '-')
     .replace(/\*\*\*/g, '')
@@ -244,15 +302,10 @@ function cleanForPdf(raw: string, options?: { preserveSurrealHeadlines?: boolean
     // Defensive scrub: never let internal file IDs leak into customer-facing prose.
     .replace(/\b(?:individual|overlay)_[a-z0-9-]+(?:_[a-z0-9-]+){2,}\b/gi, '');
 
-  if (!options?.preserveSurrealHeadlines) {
-    out = out.replace(/^(The |THE |CHAPTER |Section |Part )?[A-Z][A-Za-z\s]{5,40}\n\n/gm, '');
-  }
+  out = normalizePipeTables(out);
 
-  if (options?.preserveSurrealHeadlines) {
-    out = splitInlineRomanHeadings(out);
-    out = splitInlineAllCapsHeadlines(out);
-    out = capSurrealHeadlines(out, 6);
-  }
+  // Remove standalone heading-like lines to keep continuous prose output stable.
+  out = out.replace(/^(The |THE |CHAPTER |Section |Part )?[A-Z][A-Za-z\s]{5,40}\n\n/gm, '');
   out = stripLeadingCoverMetadata(out);
 
   return out
@@ -261,7 +314,7 @@ function cleanForPdf(raw: string, options?: { preserveSurrealHeadlines?: boolean
     .trim();
 }
 
-function tightenParagraphs(raw: string, options?: { preserveSurrealHeadlines?: boolean }): string {
+function tightenParagraphs(raw: string): string {
   const text = String(raw || '').trim();
   if (!text) return text;
 
@@ -277,14 +330,7 @@ function tightenParagraphs(raw: string, options?: { preserveSurrealHeadlines?: b
   for (let i = 0; i < paras.length; i += 1) {
     const p = paras[i]!;
     const words = countWords(p);
-    const isSurrealHeadline = options?.preserveSurrealHeadlines && isHeadlineLine(p);
-
     if (i === 0) {
-      out.push(p);
-      continue;
-    }
-
-    if (isSurrealHeadline) {
       out.push(p);
       continue;
     }
@@ -301,7 +347,6 @@ function tightenParagraphs(raw: string, options?: { preserveSurrealHeadlines?: b
     let shortestIdx = -1;
     let shortestWords = Number.POSITIVE_INFINITY;
     for (let i = 2; i < out.length; i += 1) {
-      if (options?.preserveSurrealHeadlines && isHeadlineLine(out[i]!)) continue;
       const w = countWords(out[i]!);
       if (w < shortestWords) {
         shortestWords = w;
@@ -665,7 +710,7 @@ async function repairComplianceIfNeeded(options: { system: SystemId; text: strin
       maxRetries: 3,
     });
 
-    out = tightenParagraphs(cleanForPdf(repaired, { preserveSurrealHeadlines: options.preserveSurrealHeadlines }), { preserveSurrealHeadlines: options.preserveSurrealHeadlines });
+    out = tightenParagraphs(cleanForPdf(repaired));
   }
 
   return out;
@@ -700,7 +745,7 @@ async function rewriteIncarnationStyleIfNeeded(options: {
         cleaned = cleaned.replace(new RegExp(`^\\s*${escaped}\\s*$`, 'gmi'), '');
       }
       cleaned = normalizePronounGrammar(cleaned);
-      cleaned = tightenParagraphs(cleanForPdf(cleaned, { preserveSurrealHeadlines: true }), { preserveSurrealHeadlines: true });
+      cleaned = tightenParagraphs(cleanForPdf(cleaned));
 
       const postZone2 = extractZone2Text(cleaned);
       const postIssues = getComplianceIssues(postZone2).filter((i) => i.kind !== 'second_person');
@@ -720,7 +765,7 @@ async function rewriteIncarnationStyleIfNeeded(options: {
       'Rewrite the reading below without changing facts, storyline, or emotional arc.',
       '',
       'HARD REQUIREMENTS:',
-      '- Keep 4-6 surreal headline lines as standalone lines with blank lines around them.',
+      '- Keep one continuous essay. No section titles or standalone headline lines.',
       '- Keep third-person naming only; no second-person pronouns.',
       '- Use correct English pronoun grammar (name/he/him/she/her). Never output errors like "for he" or "what have he done".',
       '- Zone 1 (first ~600 words): mythic astrology language is allowed.',
@@ -746,7 +791,7 @@ async function rewriteIncarnationStyleIfNeeded(options: {
       systemPrompt: options.systemPrompt,
     });
 
-    out = tightenParagraphs(cleanForPdf(rewritten, { preserveSurrealHeadlines: true }), { preserveSurrealHeadlines: true });
+    out = tightenParagraphs(cleanForPdf(rewritten));
   }
 
   return out;
@@ -784,7 +829,7 @@ async function expandToHardFloor(options: {
       '- Do not repeat, summarize, or restart the reading.',
       '- Keep the same voice, intensity, and perspective (third-person, names only).',
       '- NEVER address the reader. No second-person pronouns anywhere (you/your/yourself).',
-      options.preserveSurrealHeadlines ? '- Keep surreal headline lines intact. Preserve or add headline beats so the full reading contains 4-6 surreal headlines.' : '- No headings. No labels. No lists. No markdown.',
+      '- No headings. No labels. No lists. No markdown.',
       '- Do NOT introduce any new chart factors (new planet/sign/house/aspect/transit/profection) beyond what is already present in the text or explicitly listed in CHART DATA.',
       '- If you mention any placement or transit, it must match CHART DATA exactly.',
       options.preserveSurrealHeadlines
@@ -812,7 +857,7 @@ async function expandToHardFloor(options: {
       systemPrompt: options.systemPrompt,
     });
 
-    let cleanedChunk = cleanForPdf(chunk, { preserveSurrealHeadlines: options.preserveSurrealHeadlines }).trim();
+    let cleanedChunk = cleanForPdf(chunk).trim();
     const chunkFooter = extractChartSignatureFooter(cleanedChunk);
     cleanedChunk = chunkFooter.body;
     if (options.preserveSurrealHeadlines) {
@@ -827,7 +872,7 @@ async function expandToHardFloor(options: {
         }
         sanitized = normalizePronounGrammar(sanitized);
         sanitized = stripHouseDefinitionSentences(sanitized);
-        cleanedChunk = tightenParagraphs(cleanForPdf(sanitized, { preserveSurrealHeadlines: true }), { preserveSurrealHeadlines: true });
+        cleanedChunk = tightenParagraphs(cleanForPdf(sanitized));
         console.warn(`⚠️ Expansion pass ${pass} has compliance drift: issues=${expansionIssues.map((i) => i.kind === 'forbidden_phrase' ? `forbidden:${i.ids.slice(0, 4).join(',')}` : i.kind).join('|') || 'none'} technical=${expansionTechnical.length}`);
       }
     }
@@ -1140,15 +1185,15 @@ export async function generateSingleReading(options: GenerateSingleReadingOption
       maxRetries: 3,
     });
 
-    let candidate = cleanForPdf(raw, { preserveSurrealHeadlines: true });
+    let candidate = cleanForPdf(raw);
     candidate = stripControlTextLeaks(candidate);
     candidate = normalizePronounGrammar(candidate);
     candidate = stripHouseDefinitionSentences(candidate);
-    candidate = tightenParagraphs(candidate, { preserveSurrealHeadlines: true });
+    candidate = tightenParagraphs(candidate);
 
     const extracted = extractChartSignatureFooter(candidate);
-    candidate = ensureSectionHeadlines(extracted.body, 4, 6);
-    candidate = tightenParagraphs(candidate, { preserveSurrealHeadlines: true });
+    candidate = extracted.body;
+    candidate = tightenParagraphs(candidate);
 
     const words = countWords(candidate);
     const headlines = countHeadlineLines(candidate);

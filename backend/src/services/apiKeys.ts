@@ -43,7 +43,9 @@ export async function getApiKey(
           ? ['claude', 'anthropic']
           : service === 'anthropic'
             ? ['anthropic', 'claude']
-            : [service];
+            : service === 'replicate'
+              ? ['replicate', 'REPLICATE_API_TOKEN', 'replicate_api']
+              : [service];
 
       for (const serviceName of serviceCandidates) {
         const { data: apiKeysData, error: apiKeysError } = await supabase
@@ -113,10 +115,6 @@ export async function getApiKey(
     };
     console.log(`✅ [API Keys] Loaded ${service} from environment`);
   } else {
-    cache[service] = {
-      value: null,
-      timestamp: Date.now(),
-    };
     console.warn(`⚠️ [API Keys] No key found for ${service} (Supabase or env)`);
   }
 

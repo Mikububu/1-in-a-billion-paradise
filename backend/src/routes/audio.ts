@@ -6,7 +6,7 @@ import * as crypto from 'crypto';
 import axios from 'axios';
 import { execSync } from 'child_process';
 import { audioService } from '../services/audioService';
-import { getApiKey } from '../services/apiKeys';
+import { clearApiKeyCache } from '../services/apiKeys';
 import { apiKeys } from '../services/apiKeysHelper';
 import { cleanupTextForTTS } from '../utils/textCleanup';
 import {
@@ -124,7 +124,12 @@ router.post('/generate-tts', async (c) => {
   // CHATTERBOX via Replicate (resemble-ai/chatterbox-turbo)
   if (parsed.provider === 'chatterbox') {
     // Get Replicate API token from Supabase api_keys table (with env fallback)
-    const replicateToken = await apiKeys.replicate().catch(() => null) || env.REPLICATE_API_TOKEN;
+    let replicateToken = await apiKeys.replicate().catch(() => null) || env.REPLICATE_API_TOKEN;
+    if (!replicateToken) {
+      // Forced refresh: avoid stale negative cache after transient Supabase/API hiccups.
+      clearApiKeyCache('replicate');
+      replicateToken = await apiKeys.replicate().catch(() => null) || env.REPLICATE_API_TOKEN;
+    }
 
     if (!replicateToken) {
       return c.json({

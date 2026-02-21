@@ -96,8 +96,61 @@ function findVoiceAnchorLeak(text: string): string | null {
   return null;
 }
 
+function normalizePipeTables(text: string): string {
+  const lines = String(text || '').split('\n');
+  const out: string[] = [];
+  let i = 0;
+
+  const parseRow = (line: string): string[] => {
+    const trimmed = line.trim().replace(/^\|/, '').replace(/\|$/, '');
+    return trimmed.split('|').map((c) => c.trim()).filter((c) => c.length > 0);
+  };
+  const isSeparatorCell = (cell: string): boolean => /^:?-{3,}:?$/.test(cell);
+
+  while (i < lines.length) {
+    const line = lines[i] || '';
+    if (!line.trim().startsWith('|')) {
+      out.push(line);
+      i += 1;
+      continue;
+    }
+
+    const block: string[] = [];
+    while (i < lines.length && (lines[i] || '').trim().startsWith('|')) {
+      block.push(lines[i] || '');
+      i += 1;
+    }
+
+    const converted: string[] = [];
+    for (let r = 0; r < block.length; r += 1) {
+      const cells = parseRow(block[r] || '');
+      if (cells.length === 0) continue;
+      if (cells.every(isSeparatorCell)) continue;
+      if (
+        r === 0 &&
+        cells.length >= 2 &&
+        /dimension/i.test(cells[0] || '') &&
+        /score/i.test(cells[1] || '')
+      ) {
+        continue;
+      }
+      if (cells.length === 1) {
+        converted.push(cells[0] || '');
+        continue;
+      }
+      const left = cells[0] || '';
+      const right = cells[1] || '';
+      const rest = cells.slice(2).join(' | ');
+      converted.push(rest ? `${left}: ${right} — ${rest}` : `${left}: ${right}`);
+    }
+    if (converted.length > 0) out.push(...converted);
+  }
+  return out.join('\n');
+}
+
 function cleanReadingText(raw: string, options?: { preserveSurrealHeadlines?: boolean }): string {
   let out = String(raw || '')
+    .replace(/^\s*\|---.*\|\s*$/gim, '')
     // Remove em-dashes and en-dashes
     .replace(/—/g, ', ').replace(/–/g, '-')
     // Remove markdown bold/italic asterisks
@@ -110,6 +163,8 @@ function cleanReadingText(raw: string, options?: { preserveSurrealHeadlines?: bo
     .replace(/^(.+)\n\1$/gm, '$1')
     // Remove expansion seam marker if model inserts it.
     .replace(/^\s*The Reading Continues\s*$/gim, '');
+
+  out = normalizePipeTables(out);
 
   if (!options?.preserveSurrealHeadlines) {
     // Remove section headers (short lines 2-5 words followed by blank line then text)
@@ -737,7 +792,7 @@ export class TextWorker extends BaseWorker {
 	        }
 
 	        // Clean and return — no expansion passes for western
-	        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: true }), { preserveSurrealHeadlines: true });
+	        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
 	        const westernFooter = extractChartSignatureFooter(text);
 	        text = westernFooter.body;
 	        wordCount = countWords(text);
@@ -780,7 +835,7 @@ export class TextWorker extends BaseWorker {
 	        const wUsageV = llmPaid.getLastUsage();
 	        if (wUsageV) await logLLMCost(jobId, task.id, { provider: wUsageV.provider, inputTokens: wUsageV.usage.inputTokens, outputTokens: wUsageV.usage.outputTokens }, `text_vedic_writing_${docType}`);
 
-	        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: true }), { preserveSurrealHeadlines: true });
+	        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
 	        const vedicFooter = extractChartSignatureFooter(text);
 	        text = vedicFooter.body;
 	        wordCount = countWords(text);
@@ -823,7 +878,7 @@ export class TextWorker extends BaseWorker {
 	        const wUsageH = llmPaid.getLastUsage();
 	        if (wUsageH) await logLLMCost(jobId, task.id, { provider: wUsageH.provider, inputTokens: wUsageH.usage.inputTokens, outputTokens: wUsageH.usage.outputTokens }, `text_hd_writing_${docType}`);
 
-	        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: true }), { preserveSurrealHeadlines: true });
+	        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
 	        const hdFooter = extractChartSignatureFooter(text);
 	        text = hdFooter.body;
 	        wordCount = countWords(text);
@@ -866,7 +921,7 @@ export class TextWorker extends BaseWorker {
 	        const wUsageG = llmPaid.getLastUsage();
 	        if (wUsageG) await logLLMCost(jobId, task.id, { provider: wUsageG.provider, inputTokens: wUsageG.usage.inputTokens, outputTokens: wUsageG.usage.outputTokens }, `text_gk_writing_${docType}`);
 
-	        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: true }), { preserveSurrealHeadlines: true });
+	        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
 	        const gkFooter = extractChartSignatureFooter(text);
 	        text = gkFooter.body;
 	        wordCount = countWords(text);
@@ -909,7 +964,7 @@ export class TextWorker extends BaseWorker {
 	        const wUsageK = llmPaid.getLastUsage();
 	        if (wUsageK) await logLLMCost(jobId, task.id, { provider: wUsageK.provider, inputTokens: wUsageK.usage.inputTokens, outputTokens: wUsageK.usage.outputTokens }, `text_kab_writing_${docType}`);
 
-	        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: true }), { preserveSurrealHeadlines: true });
+	        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
 	        const kabFooter = extractChartSignatureFooter(text);
 	        text = kabFooter.body;
 	        wordCount = countWords(text);
@@ -952,7 +1007,7 @@ export class TextWorker extends BaseWorker {
           const wUsageO = llmPaid.getLastUsage();
           if (wUsageO) await logLLMCost(jobId, task.id, { provider: wUsageO.provider, inputTokens: wUsageO.usage.inputTokens, outputTokens: wUsageO.usage.outputTokens }, 'text_western_overlay_writing');
 
-          text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: true }), { preserveSurrealHeadlines: true });
+          text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
           const overlayFooter = extractChartSignatureFooter(text);
           text = overlayFooter.body;
           wordCount = countWords(text);
@@ -995,7 +1050,7 @@ export class TextWorker extends BaseWorker {
           const wUsageO = llmPaid.getLastUsage();
           if (wUsageO) await logLLMCost(jobId, task.id, { provider: wUsageO.provider, inputTokens: wUsageO.usage.inputTokens, outputTokens: wUsageO.usage.outputTokens }, 'text_vedic_overlay_writing');
 
-          text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: true }), { preserveSurrealHeadlines: true });
+          text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
           const overlayFooter = extractChartSignatureFooter(text);
           text = overlayFooter.body;
           wordCount = countWords(text);
@@ -1038,7 +1093,7 @@ export class TextWorker extends BaseWorker {
           const wUsageO = llmPaid.getLastUsage();
           if (wUsageO) await logLLMCost(jobId, task.id, { provider: wUsageO.provider, inputTokens: wUsageO.usage.inputTokens, outputTokens: wUsageO.usage.outputTokens }, 'text_hd_overlay_writing');
 
-          text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: true }), { preserveSurrealHeadlines: true });
+          text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
           const overlayFooter = extractChartSignatureFooter(text);
           text = overlayFooter.body;
           wordCount = countWords(text);
@@ -1081,7 +1136,7 @@ export class TextWorker extends BaseWorker {
           const wUsageO = llmPaid.getLastUsage();
           if (wUsageO) await logLLMCost(jobId, task.id, { provider: wUsageO.provider, inputTokens: wUsageO.usage.inputTokens, outputTokens: wUsageO.usage.outputTokens }, 'text_gk_overlay_writing');
 
-          text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: true }), { preserveSurrealHeadlines: true });
+          text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
           const overlayFooter = extractChartSignatureFooter(text);
           text = overlayFooter.body;
           wordCount = countWords(text);
@@ -1124,7 +1179,7 @@ export class TextWorker extends BaseWorker {
           const wUsageO = llmPaid.getLastUsage();
           if (wUsageO) await logLLMCost(jobId, task.id, { provider: wUsageO.provider, inputTokens: wUsageO.usage.inputTokens, outputTokens: wUsageO.usage.outputTokens }, 'text_kab_overlay_writing');
 
-          text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: true }), { preserveSurrealHeadlines: true });
+          text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
           const overlayFooter = extractChartSignatureFooter(text);
           text = overlayFooter.body;
           wordCount = countWords(text);
@@ -1167,10 +1222,8 @@ export class TextWorker extends BaseWorker {
     let llmInstance: typeof llm | typeof llmPaid = llm;
     const llmSystemPrompt = composedV2?.systemPrompt || undefined;
     let extractedFooter = { body: '', footer: '' };
-    // preserveSurrealHeadlines: true for western (uses section headlines) and incarnation style
-    let preserveSurrealHeadlines = generationComplete
-      ? true // western narrativeTrigger engine always uses surreal headlines
-      : String(composedV2?.diagnostics?.styleLayerId || '').includes('incarnation');
+    // Headline inference is disabled globally for stable plain-prose output.
+    const preserveSurrealHeadlines = false;
 
     if (!generationComplete) {
       console.log(`🔧 System "${system}" → Provider: ${configuredProvider}`);
@@ -1262,9 +1315,8 @@ export class TextWorker extends BaseWorker {
           '- Continue seamlessly from the text below.',
           '- Do not repeat, summarize, or restart the reading.',
           '- Keep the same voice, intensity, and style.',
-          preserveSurrealHeadlines
-            ? '- Keep surreal headline lines intact. Preserve or add headline beats so the full reading contains 4-6 surreal headlines.'
-            : '- No bullet points. No lists. No markdown. Continuous prose only.',
+          '- No section titles or standalone headline lines.',
+          '- No bullet points. No lists. No markdown. Continuous prose only.',
           '- Never address the reader. No second-person pronouns (you/your/yourself).',
           '- Do NOT introduce any new chart factors (new planet/sign/house/aspect/transit/profection) beyond what is already present in the text or explicitly listed in CHART DATA.',
           '- If you mention any placement or transit, it must match CHART DATA exactly.',
@@ -1370,7 +1422,7 @@ export class TextWorker extends BaseWorker {
           '',
           'HARD REQUIREMENTS:',
           '- Keep the same person, same chart evidence, same overall length, and same intensity.',
-          '- Keep 4-6 surreal headline lines as standalone lines with blank lines around them.',
+          '- Do not add section titles or standalone headline lines.',
           '- Zone 1 (first ~600 words): mythic astrology language is allowed.',
           '- Zone 2 (after ~600 words): convert ALL technical astrology syntax into behavior language.',
           '- Remove terms like conjunction, opposition, square, trine, sextile, transit, natal, profection, house-number syntax.',

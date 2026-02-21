@@ -23,6 +23,7 @@ import { BaseWorker, TaskResult } from './baseWorker';
 import { JobTask, supabase } from '../services/supabaseClient';
 import { env } from '../config/env';
 import { apiKeys } from '../services/apiKeysHelper';
+import { clearApiKeyCache } from '../services/apiKeys';
 import { getVoiceById, isTurboPresetVoice } from '../config/voices';
 import { getSystemDisplayName } from '../config/systemConfig';
 import { cleanupTextForTTS } from '../utils/textCleanup';
@@ -432,7 +433,12 @@ export class AudioWorker extends BaseWorker {
 
       // Get Replicate API token
       console.log(`🔑 [AudioWorker] Fetching Replicate API token...`);
-      const replicateToken = await apiKeys.replicate().catch(() => null) || env.REPLICATE_API_TOKEN;
+      let replicateToken = await apiKeys.replicate().catch(() => null) || env.REPLICATE_API_TOKEN;
+      if (!replicateToken) {
+        // Forced refresh: avoid stale negative cache after transient Supabase/API hiccups.
+        clearApiKeyCache('replicate');
+        replicateToken = await apiKeys.replicate().catch(() => null) || env.REPLICATE_API_TOKEN;
+      }
       if (!replicateToken) {
         console.error(`❌ [AudioWorker] REPLICATE TOKEN NOT FOUND!`);
         throw new Error('Replicate API token not found (check Supabase api_keys table or REPLICATE_API_TOKEN env var)');
