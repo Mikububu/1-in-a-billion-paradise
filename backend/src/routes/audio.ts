@@ -290,7 +290,7 @@ router.post('/generate-tts', async (c) => {
       
       const startTime = Date.now();
       let audioBuffers: Buffer[] = [];
-      const parallelMode = String(process.env.AUDIO_ROUTE_PARALLEL || '').toLowerCase() === 'true';
+      const parallelMode = String(process.env.AUDIO_ROUTE_PARALLEL || 'true').toLowerCase() === 'true';
       const parallelLimit = Math.max(1, parseInt(process.env.AUDIO_ROUTE_CONCURRENCY || '2', 10));
 
       if (parallelMode) {
