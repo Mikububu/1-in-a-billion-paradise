@@ -290,23 +290,40 @@ router.post('/generate-tts', async (c) => {
       
       const startTime = Date.now();
       let audioBuffers: Buffer[] = [];
+      const parallelMode = String(process.env.AUDIO_ROUTE_PARALLEL || '').toLowerCase() === 'true';
+      const parallelLimit = Math.max(1, parseInt(process.env.AUDIO_ROUTE_CONCURRENCY || '2', 10));
 
-      // SEQUENTIAL MODE - safer for rate limits
-      console.log(`🚀 Starting SEQUENTIAL Replicate generation of ${chunks.length} chunks (${chunkDelayMs}ms delay)...`);
-      
-      for (let i = 0; i < chunks.length; i++) {
-        try {
-          const buffer = await generateChunk(chunks[i]!, i);
-          audioBuffers.push(buffer);
-          
-          // Add delay between chunks to respect rate limits (except for last chunk)
-          if (i < chunks.length - 1 && chunkDelayMs > 0) {
-            console.log(`  ⏳ Waiting ${chunkDelayMs}ms before next chunk...`);
-            await new Promise(r => setTimeout(r, chunkDelayMs));
+      if (parallelMode) {
+        const pLimit = (await import('p-limit')).default;
+        const limiter = pLimit(parallelLimit);
+        console.log(`🚀 Starting PARALLEL Replicate generation of ${chunks.length} chunks (limit ${parallelLimit})...`);
+        const results = await Promise.all(
+          chunks.map((chunk, i) =>
+            limiter(async () => {
+              const buffer = await generateChunk(chunk, i);
+              return { i, buffer };
+            })
+          )
+        );
+        results.sort((a, b) => a.i - b.i);
+        audioBuffers = results.map((r) => r.buffer);
+      } else {
+        // SEQUENTIAL MODE - safer for strict rate limits
+        console.log(`🚀 Starting SEQUENTIAL Replicate generation of ${chunks.length} chunks (${chunkDelayMs}ms delay)...`);
+        for (let i = 0; i < chunks.length; i++) {
+          try {
+            const buffer = await generateChunk(chunks[i]!, i);
+            audioBuffers.push(buffer);
+
+            // Add delay between chunks to respect rate limits (except for last chunk)
+            if (i < chunks.length - 1 && chunkDelayMs > 0) {
+              console.log(`  ⏳ Waiting ${chunkDelayMs}ms before next chunk...`);
+              await new Promise(r => setTimeout(r, chunkDelayMs));
+            }
+          } catch (err: any) {
+            console.error(`❌ Chunk ${i + 1} failed permanently: ${err.message}`);
+            throw err;
           }
-        } catch (err: any) {
-          console.error(`❌ Chunk ${i + 1} failed permanently: ${err.message}`);
-          throw err;
         }
       }
 
