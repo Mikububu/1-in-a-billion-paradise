@@ -263,8 +263,9 @@ router.post('/generate-tts', async (c) => {
         throw new Error(`Chunk ${index + 1} failed after ${maxRetries} retries`);
       };
 
-      // Inter-chunk delay to respect Replicate rate limits
-      const chunkDelayMs = parseInt(process.env.REPLICATE_CHUNK_DELAY_MS || '11000', 10);
+      // Inter-chunk delay to respect Replicate rate limits.
+      // Keep default low; retries already honor API-provided retry_after.
+      const chunkDelayMs = parseInt(process.env.REPLICATE_CHUNK_DELAY_MS || '2000', 10);
       
       const startTime = Date.now();
       let audioBuffers: Buffer[] = [];

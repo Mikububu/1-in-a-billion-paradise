@@ -6,7 +6,7 @@
  * - Chunks text into 450-char segments (Chatterbox has input limits)
  * - Processes chunks SEQUENTIALLY via Replicate (respects rate limits)
  * - Concatenates WAV chunks into single audio
- * - Converts to MP3 (with M4A fallback)
+ * - Converts to MP3 (Mac-safe default)
  * - Uploads artifact to Supabase Storage
  * 
  * IMPORTANT: Chunks are processed sequentially, not in parallel, to avoid
@@ -258,29 +258,6 @@ async function runFfmpeg(args: string[]): Promise<void> {
       reject(new Error(`ffmpeg failed (code=${code}): ${stderr.slice(-500)}`));
     });
   });
-}
-
-async function convertWavToM4a(wav: Buffer): Promise<Buffer> {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'iab-audio-'));
-  const inPath = path.join(dir, 'in.wav');
-  const outPath = path.join(dir, 'out.m4a');
-  try {
-    await fs.writeFile(inPath, wav);
-    // Volume normalization (loudnorm) + AAC 96k — M4A primary, no MP3 fallback
-    await runFfmpeg([
-      '-i', inPath,
-      '-vn',
-      '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11',
-      '-c:a', 'aac',
-      '-b:a', '96k',
-      outPath
-    ]);
-    const m4a = await fs.readFile(outPath);
-    console.log(`WAV->M4A (normalized): ${Math.round(wav.length / 1024)}KB -> ${Math.round(m4a.length / 1024)}KB`);
-    return m4a;
-  } finally {
-    await fs.rm(dir, { recursive: true, force: true }).catch(() => { });
-  }
 }
 
 async function convertWavToMp3(wav: Buffer): Promise<Buffer> {
@@ -590,15 +567,16 @@ export class AudioWorker extends BaseWorker {
           throw new Error(`Chunk ${index + 1} exhausted retries`);
         };
 
-      // NOTE: We intentionally do NOT generate any spoken introductions.
+      // Spoken intro is prepended above via buildSpokenIntro.
 
         // Generate all chunks with Replicate
         const startTime = Date.now();
         // Default to SEQUENTIAL mode for rate limit safety
         const useParallelMode = process.env.AUDIO_PARALLEL_MODE === 'true';
         const concurrentLimit = parseInt(process.env.AUDIO_CONCURRENT_LIMIT || '2', 10);
-        // Inter-chunk delay to respect Replicate rate limits (6 req/min with <$5 credit)
-        const chunkDelayMs = parseInt(process.env.REPLICATE_CHUNK_DELAY_MS || '11000', 10);
+        // Inter-chunk delay to respect Replicate rate limits.
+        // Keep default low; retries already honor API-provided retry_after.
+        const chunkDelayMs = parseInt(process.env.REPLICATE_CHUNK_DELAY_MS || '2000', 10);
         
         let audioBuffers: Buffer[] = [];
 
@@ -661,19 +639,13 @@ export class AudioWorker extends BaseWorker {
       console.log(`     • Provider: Replicate Chatterbox Turbo`);
       console.log('═'.repeat(70) + '\n');
 
-      // Concatenate and convert: MP3 primary (QuickTime-safe), M4A optional.
+      // Concatenate and convert: MP3 only (QuickTime-safe default).
       const wavAudio = concatenateWavBuffers(audioBuffers);
       const mp3 = await convertWavToMp3(wavAudio);
-      let m4a: Buffer | null = null;
-      try {
-        m4a = await convertWavToM4a(wavAudio);
-      } catch (m4aErr: any) {
-        console.warn(`⚠️ [AudioWorker] M4A conversion failed, continuing with MP3 only: ${m4aErr?.message || String(m4aErr)}`);
-      }
       const duration = Math.ceil((wavAudio.length - 44) / 48000);
 
       console.log(
-        `🎵 [AudioWorker] Final: ${Math.round(mp3.length / 1024)}KB MP3${m4a ? ` + ${Math.round(m4a.length / 1024)}KB M4A` : ''}, ~${duration}s from ${chunks.length} chunks (Replicate)`
+        `🎵 [AudioWorker] Final: ${Math.round(mp3.length / 1024)}KB MP3, ~${duration}s from ${chunks.length} chunks (Replicate)`
       );
 
       return {
@@ -684,7 +656,7 @@ export class AudioWorker extends BaseWorker {
           duration,
           provider: 'replicate',
           processingTime: elapsedMs,
-          formats: m4a ? ['mp3', 'm4a'] : ['mp3'],
+          formats: ['mp3'],
         },
         artifacts: [
           {
@@ -704,25 +676,6 @@ export class AudioWorker extends BaseWorker {
               docType: task.input?.docType,
             },
           },
-          ...(m4a
-            ? [{
-              type: 'audio_m4a' as const,
-              buffer: m4a,
-              contentType: 'audio/mp4',
-              metadata: {
-                textLength: text.length,
-                chunks: chunks.length,
-                duration,
-                format: 'm4a',
-                provider: 'replicate',
-                voice: voiceId,
-                voiceType: isTurboPreset ? 'turbo-preset' : 'custom-clone',
-                docNum: task.input?.docNum,
-                system: task.input?.system,
-                docType: task.input?.docType,
-              },
-            }]
-            : []),
         ],
       };
 
