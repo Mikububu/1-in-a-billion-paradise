@@ -35,6 +35,22 @@ import {
   dedupeChunkBoundaryOverlap,
 } from '../services/audioProcessing';
 
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  let timeoutHandle: NodeJS.Timeout | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+          reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Audio Format Detection
 // ─────────────────────────────────────────────────────────────────────────────
@@ -475,9 +491,13 @@ export class AudioWorker extends BaseWorker {
             
             const startTime = Date.now();
             
-            // Call Replicate API - it handles timeouts internally
-            // replicate.run() returns the output directly (or array, need to handle both)
-            const output = await replicate.run('resemble-ai/chatterbox-turbo', { input });
+            // Call Replicate API with hard timeout to avoid hung chunks.
+            const chunkTimeoutMs = parseInt(process.env.REPLICATE_CHUNK_TIMEOUT_MS || '120000', 10);
+            const output = await withTimeout(
+              replicate.run('resemble-ai/chatterbox-turbo', { input }),
+              chunkTimeoutMs,
+              `Replicate chunk ${index + 1}`
+            );
             
             const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
             console.log(`  ⏱️  [Replicate] API call completed in ${elapsed}s`);
