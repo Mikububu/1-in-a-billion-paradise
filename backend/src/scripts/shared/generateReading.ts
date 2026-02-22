@@ -1195,7 +1195,27 @@ export async function generateSingleReading(options: GenerateSingleReadingOption
     candidate = extracted.body;
     candidate = tightenParagraphs(candidate);
 
-    const words = countWords(candidate);
+    let words = countWords(candidate);
+    if (words < hardFloorWords) {
+      try {
+        candidate = await expandToHardFloor({
+          system,
+          baseText: candidate,
+          label: fileBase,
+          hardFloorWords,
+          styleLayerId,
+          chartData: triggerBundle.strippedChartData,
+          preserveSurrealHeadlines: false,
+        });
+        candidate = tightenParagraphs(cleanForPdf(candidate));
+        words = countWords(candidate);
+      } catch (err: any) {
+        console.warn(
+          `⚠️ Trigger-pipeline expansion failed for ${fileBase} (attempt ${attempt}): ${err?.message || String(err)}`
+        );
+      }
+    }
+
     const headlines = countHeadlineLines(candidate);
     const pronounIssue = findPronounGrammarIssue(candidate);
     const hasSecond = hasSecondPerson(candidate);
