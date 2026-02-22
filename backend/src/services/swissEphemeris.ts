@@ -390,6 +390,7 @@ export type PlacementSummary = {
     strategy: string;
     authority: string;
     profile: string; // e.g., '4/6'
+    definition?: string; // e.g., 'Single', 'Split'
     incarnationCross: string; // e.g., 'Right Angle Cross of Planning'
     definedCenters: string[]; // e.g., ['Throat', 'G', 'Sacral']
     activeGates: number[]; // All defined gates (conscious + unconscious)
@@ -1124,6 +1125,7 @@ export class SwissEphemerisEngine {
         strategy: hdResult.strategy,
         authority: hdResult.authority,
         profile: hdResult.profile,
+        definition: hdResult.definition,
         incarnationCross: hdResult.incarnationCross,
         definedCenters: hdResult.definedCenters,
         activeGates: hdResult.activeGates,
