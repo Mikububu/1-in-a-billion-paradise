@@ -19,6 +19,7 @@ import {
   WORD_COUNT_LIMITS_VERDICT,
 } from '../prompts/config/wordCounts';
 import { logLLMCost } from '../services/costTracking';
+import { composePromptFromJobStartPayload } from '../promptEngine/fromJobPayload';
 import { buildChartDataForSystem } from '../services/chartDataBuilder';
 import {
   stripWesternChartData,
@@ -62,23 +63,6 @@ import {
   buildKabbalahOverlayTriggerPrompt,
   buildKabbalahOverlayWritingPrompt,
 } from '../promptEngine/triggerEngine/overlayTrigger';
-
-const TRIGGER_TEMPERATURE = 0.55;
-const WRITING_TEMPERATURE = 0.72;
-const INDIVIDUAL_SYSTEM_PROMPT = [
-  'You are telling the story of a soul, not analyzing a chart.',
-  'This is consciousness noir: a dark fairytale for adults, intimate, penetrating, unforgettable.',
-  'Write third-person narrative prose grounded in chart data.',
-  'Do not invent specific biographical events, dialogue, or named third parties.',
-  'But do not play it safe. Name the wound. Name the desire. Name the cost.',
-].join(' ');
-const OVERLAY_SYSTEM_PROMPT = [
-  'You are telling the story of two souls colliding, not comparing two charts.',
-  'This is consciousness noir: a dark fairytale for adults, intimate, penetrating, unforgettable.',
-  'Write third-person relational narrative prose grounded in both charts.',
-  'Do not invent specific biographical events, dialogue, or named third parties.',
-  'But do not play it safe. Name the wound. Name the desire. Name what this costs them both.',
-].join(' ');
 
 function clampSpice(level: number): SpiceLevel {
   const clamped = Math.min(10, Math.max(1, Math.round(level)));
@@ -167,8 +151,8 @@ function normalizePipeTables(text: string): string {
 function cleanReadingText(raw: string, options?: { preserveSurrealHeadlines?: boolean }): string {
   let out = String(raw || '')
     .replace(/^\s*\|---.*\|\s*$/gim, '')
-    // Keep em-dashes for prose rhythm; normalize en-dashes only.
-    .replace(/–/g, '-')
+    // Remove em-dashes and en-dashes
+    .replace(/—/g, ', ').replace(/–/g, '-')
     // Remove markdown bold/italic asterisks
     .replace(/\*\*\*/g, '').replace(/\*\*/g, '').replace(/\*/g, '')
     // Remove markdown headers (# ## ### etc)
@@ -182,10 +166,10 @@ function cleanReadingText(raw: string, options?: { preserveSurrealHeadlines?: bo
 
   out = normalizePipeTables(out);
 
-  // Preserve narrative headlines — only strip obvious structural labels like "CHAPTER 1", "Section 2", "Part Three".
-  // Evocative headlines ("The Attraction", "What Burns Beneath") are part of the reading's voice.
   if (!options?.preserveSurrealHeadlines) {
-    out = out.replace(/^(CHAPTER|Section|Part)\s+\d+[:\s]?.*\n\n/gm, '');
+    // Remove section headers (short lines 2-5 words followed by blank line then text)
+    // Common patterns: "The Attraction", "Core Identity", "THE SYNTHESIS", etc.
+    out = out.replace(/^(The |THE |CHAPTER |Section |Part )?[A-Z][A-Za-z\s]{5,40}\n\n/gm, '');
   }
 
   return out
@@ -203,8 +187,8 @@ function tightenParagraphs(raw: string, options?: { preserveSurrealHeadlines?: b
     .map((p) => p.replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim())
     .filter(Boolean);
 
-  const MIN_WORDS = 45; // Keep short literary beats while merging obvious fragments.
-  const MAX_PARAS = 36; // Allow more breathing room before forced merges.
+  const MIN_WORDS = 70; // Merge AI-ish short paragraphs into neighbors.
+  const MAX_PARAS = 24; // Keep the essay feel: fewer, heavier paragraphs.
   const out: string[] = [];
 
   for (let i = 0; i < paras.length; i += 1) {
@@ -321,7 +305,6 @@ function findAgeMismatch(text: string, expectedAge?: number): string | null {
 }
 
 const FORBIDDEN_PATTERNS: Array<{ id: string; re: RegExp }> = [
-  // AI slop phrases
   { id: 'in_conclusion', re: /\b(in conclusion)\b/i },
   { id: 'ultimately_end_of_day', re: /\b(ultimately,? at the end of the day)\b/i },
   { id: 'heres_the_thing', re: /\b(here's the thing)\b/i },
@@ -329,17 +312,20 @@ const FORBIDDEN_PATTERNS: Array<{ id: string; re: RegExp }> = [
   { id: 'carries_the_signature', re: /\bcarries the signature\b/i },
   { id: 'gift_and_curse', re: /\bgift and curse\b/i },
   { id: 'fascinating_tension', re: /\bfascinating tension\b/i },
-  // Textbook definitional frames (kills narrative voice)
   { id: 'sun_represents', re: /\bThe Sun represents\b/i },
   { id: 'moon_governs', re: /\bThe Moon governs\b/i },
   { id: 'rising_is', re: /\bThe rising sign is\b/i },
   { id: 'astrologers_call', re: /\bAstrologers call\b/i },
   { id: 'house_is_def', re: /\bthe (?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth) house is\b/i },
   { id: 'ordinal_house_is_def', re: /\bthe (?:\d+)(?:st|nd|rd|th) house is\b/i },
-  // NOTE: technical_planet_sign_structure and technical_planet_house_structure REMOVED.
-  // Banning "Moon in Scorpio" or "Saturn in her eighth house" was stripping natural astrological
-  // anchoring that readers expect. The prompt already instructs explain-on-first-use; the textbook
-  // definitional frames above ("The Sun represents...") catch actual report-mode drift.
+  {
+    id: 'technical_planet_sign_structure',
+    re: /\b(?:The\s+)?(?:Sun|Moon|Mercury|Venus|Mars|Jupiter|Saturn|Uranus|Neptune|Pluto)\s+in\s+(?:Aries|Taurus|Gemini|Cancer|Leo|Virgo|Libra|Scorpio|Sagittarius|Capricorn|Aquarius|Pisces)\b/i,
+  },
+  {
+    id: 'technical_planet_house_structure',
+    re: /\b(?:The\s+)?(?:Sun|Moon|Mercury|Venus|Mars|Jupiter|Saturn|Uranus|Neptune|Pluto)\s+in\s+(?:his|her|the)\s+(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|\d+(?:st|nd|rd|th))\s+house\b/i,
+  },
 ];
 
 function getForbiddenMatchIds(text: string): string[] {
@@ -646,6 +632,7 @@ export class TextWorker extends BaseWorker {
     const expectedAge = extractExpectedAge(chartData);
 
 	    let prompt = '';
+	    let composedV2: ReturnType<typeof composePromptFromJobStartPayload> | null = null;
 	    let label = `job:${jobId}:doc:${docNum}`;
 	    let text = '';
 	    let wordCount = 0;
@@ -769,7 +756,7 @@ export class TextWorker extends BaseWorker {
 	        console.log(`🩸 [TextWorker] Western narrativeTrigger call for ${subject.name}...`);
 	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
 	          maxTokens: 300,
-	          temperature: TRIGGER_TEMPERATURE,
+	          temperature: 0.7,
 	          maxRetries: 3,
 	        });
 	        const triggerUsage = llmPaid.getLastUsage();
@@ -788,15 +775,15 @@ export class TextWorker extends BaseWorker {
             personName: subject.name,
             narrativeTrigger,
             strippedChartData: stripped,
-            targetWords: WORD_COUNT_LIMITS.target,
+            targetWords: WORD_COUNT_LIMITS.min,
           });
 
 	        console.log(`✍️ [TextWorker] Western writing call for ${subject.name}...`);
 	        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
 	          maxTokens: 16384,
-	          temperature: WRITING_TEMPERATURE,
+	          temperature: 0.8,
 	          maxRetries: 3,
-	          systemPrompt: INDIVIDUAL_SYSTEM_PROMPT,
+	          systemPrompt: 'You are a novelist who is haunted by your subject. You are telling the story of a soul.',
 	        });
 
 	        const writingUsage = llmPaid.getLastUsage();
@@ -823,7 +810,7 @@ export class TextWorker extends BaseWorker {
 	        const triggerPrompt = buildVedicTriggerPrompt({ personName: subject.name, strippedChartData: stripped });
 	        console.log(`🩸 [TextWorker] Vedic narrativeTrigger call for ${subject.name}...`);
 	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
-	          maxTokens: 300, temperature: TRIGGER_TEMPERATURE, maxRetries: 3,
+	          maxTokens: 300, temperature: 0.7, maxRetries: 3,
 	        });
 	        const triggerUsageV = llmPaid.getLastUsage();
 	        if (triggerUsageV) await logLLMCost(jobId, task.id, { provider: triggerUsageV.provider, inputTokens: triggerUsageV.usage.inputTokens, outputTokens: triggerUsageV.usage.outputTokens }, `text_vedic_trigger_${docType}`);
@@ -838,12 +825,12 @@ export class TextWorker extends BaseWorker {
             personName: subject.name,
             narrativeTrigger,
             strippedChartData: stripped,
-            targetWords: WORD_COUNT_LIMITS.target,
+            targetWords: WORD_COUNT_LIMITS.min,
           });
 	        console.log(`✍️ [TextWorker] Vedic writing call for ${subject.name}...`);
 	        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
-	          maxTokens: 16384, temperature: WRITING_TEMPERATURE, maxRetries: 3,
-	          systemPrompt: INDIVIDUAL_SYSTEM_PROMPT,
+	          maxTokens: 16384, temperature: 0.8, maxRetries: 3,
+	          systemPrompt: 'You are a novelist haunted by your subject. You are telling the story of a soul.',
 	        });
 	        const wUsageV = llmPaid.getLastUsage();
 	        if (wUsageV) await logLLMCost(jobId, task.id, { provider: wUsageV.provider, inputTokens: wUsageV.usage.inputTokens, outputTokens: wUsageV.usage.outputTokens }, `text_vedic_writing_${docType}`);
@@ -866,7 +853,7 @@ export class TextWorker extends BaseWorker {
 	        const triggerPrompt = buildHDTriggerPrompt({ personName: subject.name, strippedChartData: stripped });
 	        console.log(`🩸 [TextWorker] HD narrativeTrigger call for ${subject.name}...`);
 	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
-	          maxTokens: 300, temperature: TRIGGER_TEMPERATURE, maxRetries: 3,
+	          maxTokens: 300, temperature: 0.7, maxRetries: 3,
 	        });
 	        const triggerUsageH = llmPaid.getLastUsage();
 	        if (triggerUsageH) await logLLMCost(jobId, task.id, { provider: triggerUsageH.provider, inputTokens: triggerUsageH.usage.inputTokens, outputTokens: triggerUsageH.usage.outputTokens }, `text_hd_trigger_${docType}`);
@@ -881,12 +868,12 @@ export class TextWorker extends BaseWorker {
             personName: subject.name,
             narrativeTrigger,
             strippedChartData: stripped,
-            targetWords: WORD_COUNT_LIMITS.target,
+            targetWords: WORD_COUNT_LIMITS.min,
           });
 	        console.log(`✍️ [TextWorker] HD writing call for ${subject.name}...`);
 	        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
-	          maxTokens: 16384, temperature: WRITING_TEMPERATURE, maxRetries: 3,
-	          systemPrompt: INDIVIDUAL_SYSTEM_PROMPT,
+	          maxTokens: 16384, temperature: 0.8, maxRetries: 3,
+	          systemPrompt: 'You are a novelist haunted by your subject. You are telling the story of a soul.',
 	        });
 	        const wUsageH = llmPaid.getLastUsage();
 	        if (wUsageH) await logLLMCost(jobId, task.id, { provider: wUsageH.provider, inputTokens: wUsageH.usage.inputTokens, outputTokens: wUsageH.usage.outputTokens }, `text_hd_writing_${docType}`);
@@ -909,7 +896,7 @@ export class TextWorker extends BaseWorker {
 	        const triggerPrompt = buildGeneKeysTriggerPrompt({ personName: subject.name, strippedChartData: stripped });
 	        console.log(`🩸 [TextWorker] Gene Keys narrativeTrigger call for ${subject.name}...`);
 	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
-	          maxTokens: 300, temperature: TRIGGER_TEMPERATURE, maxRetries: 3,
+	          maxTokens: 300, temperature: 0.7, maxRetries: 3,
 	        });
 	        const triggerUsageG = llmPaid.getLastUsage();
 	        if (triggerUsageG) await logLLMCost(jobId, task.id, { provider: triggerUsageG.provider, inputTokens: triggerUsageG.usage.inputTokens, outputTokens: triggerUsageG.usage.outputTokens }, `text_gk_trigger_${docType}`);
@@ -924,12 +911,12 @@ export class TextWorker extends BaseWorker {
             personName: subject.name,
             narrativeTrigger,
             strippedChartData: stripped,
-            targetWords: WORD_COUNT_LIMITS.target,
+            targetWords: WORD_COUNT_LIMITS.min,
           });
 	        console.log(`✍️ [TextWorker] Gene Keys writing call for ${subject.name}...`);
 	        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
-	          maxTokens: 16384, temperature: WRITING_TEMPERATURE, maxRetries: 3,
-	          systemPrompt: INDIVIDUAL_SYSTEM_PROMPT,
+	          maxTokens: 16384, temperature: 0.8, maxRetries: 3,
+	          systemPrompt: 'You are a novelist haunted by your subject. You are telling the story of a soul.',
 	        });
 	        const wUsageG = llmPaid.getLastUsage();
 	        if (wUsageG) await logLLMCost(jobId, task.id, { provider: wUsageG.provider, inputTokens: wUsageG.usage.inputTokens, outputTokens: wUsageG.usage.outputTokens }, `text_gk_writing_${docType}`);
@@ -952,7 +939,7 @@ export class TextWorker extends BaseWorker {
 	        const triggerPrompt = buildKabbalahTriggerPrompt({ personName: subject.name, strippedChartData: stripped });
 	        console.log(`🩸 [TextWorker] Kabbalah narrativeTrigger call for ${subject.name}...`);
 	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
-	          maxTokens: 300, temperature: TRIGGER_TEMPERATURE, maxRetries: 3,
+	          maxTokens: 300, temperature: 0.7, maxRetries: 3,
 	        });
 	        const triggerUsageK = llmPaid.getLastUsage();
 	        if (triggerUsageK) await logLLMCost(jobId, task.id, { provider: triggerUsageK.provider, inputTokens: triggerUsageK.usage.inputTokens, outputTokens: triggerUsageK.usage.outputTokens }, `text_kab_trigger_${docType}`);
@@ -967,12 +954,12 @@ export class TextWorker extends BaseWorker {
             personName: subject.name,
             narrativeTrigger,
             strippedChartData: stripped,
-            targetWords: WORD_COUNT_LIMITS.target,
+            targetWords: WORD_COUNT_LIMITS.min,
           });
 	        console.log(`✍️ [TextWorker] Kabbalah writing call for ${subject.name}...`);
 	        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
-	          maxTokens: 16384, temperature: WRITING_TEMPERATURE, maxRetries: 3,
-	          systemPrompt: INDIVIDUAL_SYSTEM_PROMPT,
+	          maxTokens: 16384, temperature: 0.8, maxRetries: 3,
+	          systemPrompt: 'You are a novelist haunted by your subject. You are telling the story of a soul.',
 	        });
 	        const wUsageK = llmPaid.getLastUsage();
 	        if (wUsageK) await logLLMCost(jobId, task.id, { provider: wUsageK.provider, inputTokens: wUsageK.usage.inputTokens, outputTokens: wUsageK.usage.outputTokens }, `text_kab_writing_${docType}`);
@@ -997,7 +984,7 @@ export class TextWorker extends BaseWorker {
           });
           console.log(`🩸 [TextWorker] Western overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
           const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
-            maxTokens: 300, temperature: TRIGGER_TEMPERATURE, maxRetries: 3,
+            maxTokens: 300, temperature: 0.7, maxRetries: 3,
           });
           const triggerUsageO = llmPaid.getLastUsage();
           if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_western_overlay_trigger');
@@ -1010,12 +997,12 @@ export class TextWorker extends BaseWorker {
             person2Name: person2!.name,
             narrativeTrigger,
             strippedChartData: stripped,
-            targetWords: WORD_COUNT_LIMITS_OVERLAY.target,
+            targetWords: WORD_COUNT_LIMITS_OVERLAY.min,
           });
           console.log(`✍️ [TextWorker] Western overlay writing call for ${person1.name} & ${person2!.name}...`);
           text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
-            maxTokens: 16384, temperature: WRITING_TEMPERATURE, maxRetries: 3,
-            systemPrompt: OVERLAY_SYSTEM_PROMPT,
+            maxTokens: 16384, temperature: 0.8, maxRetries: 3,
+            systemPrompt: 'You are a witness to a collision between two souls. You report what you saw.',
           });
           const wUsageO = llmPaid.getLastUsage();
           if (wUsageO) await logLLMCost(jobId, task.id, { provider: wUsageO.provider, inputTokens: wUsageO.usage.inputTokens, outputTokens: wUsageO.usage.outputTokens }, 'text_western_overlay_writing');
@@ -1040,7 +1027,7 @@ export class TextWorker extends BaseWorker {
           });
           console.log(`🩸 [TextWorker] Vedic overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
           const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
-            maxTokens: 300, temperature: TRIGGER_TEMPERATURE, maxRetries: 3,
+            maxTokens: 300, temperature: 0.7, maxRetries: 3,
           });
           const triggerUsageO = llmPaid.getLastUsage();
           if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_vedic_overlay_trigger');
@@ -1053,12 +1040,12 @@ export class TextWorker extends BaseWorker {
             person2Name: person2!.name,
             narrativeTrigger,
             strippedChartData: stripped,
-            targetWords: WORD_COUNT_LIMITS_OVERLAY.target,
+            targetWords: WORD_COUNT_LIMITS_OVERLAY.min,
           });
           console.log(`✍️ [TextWorker] Vedic overlay writing call for ${person1.name} & ${person2!.name}...`);
           text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
-            maxTokens: 16384, temperature: WRITING_TEMPERATURE, maxRetries: 3,
-            systemPrompt: OVERLAY_SYSTEM_PROMPT,
+            maxTokens: 16384, temperature: 0.8, maxRetries: 3,
+            systemPrompt: 'You are a witness to a collision between two souls. You report what you saw.',
           });
           const wUsageO = llmPaid.getLastUsage();
           if (wUsageO) await logLLMCost(jobId, task.id, { provider: wUsageO.provider, inputTokens: wUsageO.usage.inputTokens, outputTokens: wUsageO.usage.outputTokens }, 'text_vedic_overlay_writing');
@@ -1083,7 +1070,7 @@ export class TextWorker extends BaseWorker {
           });
           console.log(`🩸 [TextWorker] HD overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
           const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
-            maxTokens: 300, temperature: TRIGGER_TEMPERATURE, maxRetries: 3,
+            maxTokens: 300, temperature: 0.7, maxRetries: 3,
           });
           const triggerUsageO = llmPaid.getLastUsage();
           if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_hd_overlay_trigger');
@@ -1096,12 +1083,12 @@ export class TextWorker extends BaseWorker {
             person2Name: person2!.name,
             narrativeTrigger,
             strippedChartData: stripped,
-            targetWords: WORD_COUNT_LIMITS_OVERLAY.target,
+            targetWords: WORD_COUNT_LIMITS_OVERLAY.min,
           });
           console.log(`✍️ [TextWorker] HD overlay writing call for ${person1.name} & ${person2!.name}...`);
           text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
-            maxTokens: 16384, temperature: WRITING_TEMPERATURE, maxRetries: 3,
-            systemPrompt: OVERLAY_SYSTEM_PROMPT,
+            maxTokens: 16384, temperature: 0.8, maxRetries: 3,
+            systemPrompt: 'You are a witness to a collision between two souls. You report what you saw.',
           });
           const wUsageO = llmPaid.getLastUsage();
           if (wUsageO) await logLLMCost(jobId, task.id, { provider: wUsageO.provider, inputTokens: wUsageO.usage.inputTokens, outputTokens: wUsageO.usage.outputTokens }, 'text_hd_overlay_writing');
@@ -1126,7 +1113,7 @@ export class TextWorker extends BaseWorker {
           });
           console.log(`🩸 [TextWorker] Gene Keys overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
           const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
-            maxTokens: 300, temperature: TRIGGER_TEMPERATURE, maxRetries: 3,
+            maxTokens: 300, temperature: 0.7, maxRetries: 3,
           });
           const triggerUsageO = llmPaid.getLastUsage();
           if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_gk_overlay_trigger');
@@ -1139,12 +1126,12 @@ export class TextWorker extends BaseWorker {
             person2Name: person2!.name,
             narrativeTrigger,
             strippedChartData: stripped,
-            targetWords: WORD_COUNT_LIMITS_OVERLAY.target,
+            targetWords: WORD_COUNT_LIMITS_OVERLAY.min,
           });
           console.log(`✍️ [TextWorker] Gene Keys overlay writing call for ${person1.name} & ${person2!.name}...`);
           text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
-            maxTokens: 16384, temperature: WRITING_TEMPERATURE, maxRetries: 3,
-            systemPrompt: OVERLAY_SYSTEM_PROMPT,
+            maxTokens: 16384, temperature: 0.8, maxRetries: 3,
+            systemPrompt: 'You are a witness to a collision between two souls. You report what you saw.',
           });
           const wUsageO = llmPaid.getLastUsage();
           if (wUsageO) await logLLMCost(jobId, task.id, { provider: wUsageO.provider, inputTokens: wUsageO.usage.inputTokens, outputTokens: wUsageO.usage.outputTokens }, 'text_gk_overlay_writing');
@@ -1169,7 +1156,7 @@ export class TextWorker extends BaseWorker {
           });
           console.log(`🩸 [TextWorker] Kabbalah overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
           const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
-            maxTokens: 300, temperature: TRIGGER_TEMPERATURE, maxRetries: 3,
+            maxTokens: 300, temperature: 0.7, maxRetries: 3,
           });
           const triggerUsageO = llmPaid.getLastUsage();
           if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_kab_overlay_trigger');
@@ -1182,12 +1169,12 @@ export class TextWorker extends BaseWorker {
             person2Name: person2!.name,
             narrativeTrigger,
             strippedChartData: stripped,
-            targetWords: WORD_COUNT_LIMITS_OVERLAY.target,
+            targetWords: WORD_COUNT_LIMITS_OVERLAY.min,
           });
           console.log(`✍️ [TextWorker] Kabbalah overlay writing call for ${person1.name} & ${person2!.name}...`);
           text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
-            maxTokens: 16384, temperature: WRITING_TEMPERATURE, maxRetries: 3,
-            systemPrompt: OVERLAY_SYSTEM_PROMPT,
+            maxTokens: 16384, temperature: 0.8, maxRetries: 3,
+            systemPrompt: 'You are a witness to a collision between two souls. You report what you saw.',
           });
           const wUsageO = llmPaid.getLastUsage();
           if (wUsageO) await logLLMCost(jobId, task.id, { provider: wUsageO.provider, inputTokens: wUsageO.usage.inputTokens, outputTokens: wUsageO.usage.outputTokens }, 'text_kab_overlay_writing');
@@ -1200,36 +1187,58 @@ export class TextWorker extends BaseWorker {
           generationComplete = true;
         }
 
-        if (!generationComplete) {
-          throw new Error(
-            `No trigger-engine pipeline matched for docType=${docType}, system=${system}. ` +
-            `Legacy prompt-layer fallback is disabled by design.`
-          );
-        }
+	      // V2 prompt engine (MD prompt layers) is the source of truth for all systems.
+	      // Map docType into the prompt-engine job type.
+	      if (!generationComplete) {
+	      const promptPayload: any = {
+	        type: docType === 'overlay' ? 'synastry' : 'extended',
+	        systems: [system],
+	        person1: docType === 'person2' ? person2 : person1,
+	        ...(docType === 'overlay' ? { person2 } : {}),
+	        chartData: chartDataForPrompt,
+	        relationshipPreferenceScale: spiceLevel,
+	        personalContext: params.personalContext,
+	        relationshipContext: params.relationshipContext,
+	        outputLanguage: params.outputLanguage,
+        outputLengthContract: params.outputLengthContract,
+        promptLayerDirective: params.promptLayerDirective,
+      };
+
+      const composed = composePromptFromJobStartPayload(promptPayload);
+      composedV2 = composed;
+      prompt = composed.prompt;
+      label += `:v2prompt:${docType}:${system}`;
+
+      console.log(
+        `🧩 [PromptEngine] style=${composed.diagnostics.styleLayerId} systems=${composed.diagnostics.systemLayerIds
+	          .map((s) => `${s.system}:${s.layerId}`)
+	          .join(',')} chars=${composed.diagnostics.totalChars}`
+	      );
+	      }
 	    }
 
     // Use centralized LLM service with per-system provider config
     const configuredProvider = getProviderForSystem(system || 'western');
     let llmInstance: typeof llm | typeof llmPaid = llm;
-    let llmSystemPrompt: string | undefined = undefined;
+    const llmSystemPrompt = composedV2?.systemPrompt || undefined;
     let extractedFooter = { body: '', footer: '' };
     // Headline inference is disabled globally for stable plain-prose output.
     const preserveSurrealHeadlines = false;
 
     if (!generationComplete) {
       console.log(`🔧 System "${system}" → Provider: ${configuredProvider}`);
-      const llmUserMessage = prompt;
+      const llmUserMessage = composedV2?.userMessage || prompt;
       const promptLength = llmUserMessage.length;
       const promptWordCount = llmUserMessage.split(/\s+/).filter(Boolean).length;
       console.log(`📝 [TextWorker] Prompt stats: ${promptLength} chars, ~${promptWordCount} words`);
-      console.log('📝 [TextWorker] systemPrompt: none');
+      console.log(`📝 [TextWorker] systemPrompt: ${llmSystemPrompt ? `${llmSystemPrompt.length} chars` : 'none'}`);
       console.log(`📝 [TextWorker] Prompt preview (first 500 chars): ${llmUserMessage.substring(0, 500)}`);
 
       if (configuredProvider === 'claude') {
         llmInstance = llmPaid;
         text = await llmPaid.generateStreaming(llmUserMessage, label, {
           maxTokens: 16384,
-          temperature: WRITING_TEMPERATURE,
+          temperature: 0.8,
           maxRetries: 3,
           systemPrompt: llmSystemPrompt,
         });
@@ -1237,7 +1246,7 @@ export class TextWorker extends BaseWorker {
         llmInstance = llm;
         text = await llm.generate(llmUserMessage, label, {
           maxTokens: 12000,
-          temperature: WRITING_TEMPERATURE,
+          temperature: 0.8,
           provider: configuredProvider as LLMProvider,
           systemPrompt: llmSystemPrompt,
         });
@@ -1279,7 +1288,7 @@ export class TextWorker extends BaseWorker {
         : docType === 'verdict'
           ? WORD_COUNT_LIMITS_VERDICT.min
           : WORD_COUNT_LIMITS.min;
-    const MAX_EXPANSION_PASSES = 2;
+    const MAX_EXPANSION_PASSES = 3;
 
     async function expandToHardFloor(initial: string): Promise<string> {
       let out = initial;
@@ -1289,7 +1298,7 @@ export class TextWorker extends BaseWorker {
         if (currentWords >= HARD_FLOOR_WORDS) break;
 
         const missing = HARD_FLOOR_WORDS - currentWords;
-        const minAdditional = Math.max(250, missing + 150); // Keep continuation focused, avoid padding drift.
+        const minAdditional = Math.max(300, missing + 250); // Buffer avoids borderline failures.
         const tail = out.length > 9000 ? out.slice(-9000) : out;
         const chartBlock = chartDataForPrompt
           ? `\n\nCHART DATA (authoritative; do not invent or contradict):\n${chartDataForPrompt}`
@@ -1337,14 +1346,14 @@ export class TextWorker extends BaseWorker {
         if (configuredProvider === 'claude') {
           chunk = await llmPaid.generateStreaming(expansionPrompt, expansionLabel, {
             maxTokens: 8192,
-            temperature: WRITING_TEMPERATURE,
+            temperature: 0.8,
             maxRetries: 3,
             systemPrompt: llmSystemPrompt,
           });
         } else {
           chunk = await llm.generate(expansionPrompt, expansionLabel, {
             maxTokens: 8192,
-            temperature: WRITING_TEMPERATURE,
+            temperature: 0.8,
             provider: configuredProvider as LLMProvider,
             systemPrompt: llmSystemPrompt,
           });
@@ -1518,6 +1527,11 @@ export class TextWorker extends BaseWorker {
 
     console.log(`✅ Word count validation passed: ${wordCount} words (minimum ${HARD_FLOOR_WORDS})`);
 
+    // Extract headline from first line of text
+    const lines = text.split('\n').filter(line => line.trim());
+    const headline = lines[0]?.trim() || '';
+    console.log(`📰 Extracted headline: "${headline}"`);
+
     const excerpt = text.slice(0, 600);
 
     // Generate dramatic titles (separate LLM call for evocative titles)
@@ -1535,8 +1549,6 @@ export class TextWorker extends BaseWorker {
     console.log(`✅ Dramatic titles generated:`);
     console.log(`   📖 Reading: "${dramaticTitles.readingTitle}"`);
     console.log(`   🎵 Song: "${dramaticTitles.songTitle}"`);
-    const headline = dramaticTitles.readingTitle;
-    console.log(`📰 Stable headline: "${headline}"`);
 
     // Match BaseWorker storage path logic for output (so SQL trigger can enqueue audio tasks)
     const artifactType = 'text' as const;

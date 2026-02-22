@@ -57,7 +57,6 @@ import {
 } from '../../promptEngine/triggerEngine/triggerConfig';
 
 const CLAUDE_MAX_TOKENS_PER_CALL = 16384;
-const WRITING_TEMPERATURE = 0.65;
 const SCRIPT_VERDICT_POLICY = 'script_reconstruct';
 
 let repoSafetyChecked = false;
@@ -853,7 +852,7 @@ async function expandToHardFloor(options: {
     const chunk = await llmPaid.generateStreaming(expansionPrompt, `${options.label}:expand:${pass}`, {
       provider: 'claude',
       maxTokens: CLAUDE_MAX_TOKENS_PER_CALL,
-      temperature: WRITING_TEMPERATURE,
+      temperature: 0.8,
       maxRetries: 3,
       systemPrompt: options.systemPrompt,
     });
@@ -1170,7 +1169,6 @@ export async function generateSingleReading(options: GenerateSingleReadingOption
     '- Third-person narration only. Never address the subject or reader as "you/your".',
     '- Explain technical vocabulary on first use in plain language, then continue story-first.',
     '- Keep the prose compelling like an audiobook: no report tone, no bullet formatting.',
-    '- Do not invent concrete biographical events, dialogue, named third parties, jobs, timelines, or incidents not present in chart data/user context.',
     '- Never output internal planning text, internal labels, or file identifiers.',
   ].join('\n');
   if (writeDebugArtifacts) {
@@ -1183,7 +1181,7 @@ export async function generateSingleReading(options: GenerateSingleReadingOption
     const raw = await llmPaid.generateStreaming(writingPrompt, `${fileBase}:writing:${attempt}`, {
       provider: 'claude',
       maxTokens: CLAUDE_MAX_TOKENS_PER_CALL,
-      temperature: WRITING_TEMPERATURE,
+      temperature: 0.8,
       maxRetries: 3,
     });
 
@@ -1197,27 +1195,7 @@ export async function generateSingleReading(options: GenerateSingleReadingOption
     candidate = extracted.body;
     candidate = tightenParagraphs(candidate);
 
-    let words = countWords(candidate);
-    if (words < hardFloorWords) {
-      try {
-        candidate = await expandToHardFloor({
-          system,
-          baseText: candidate,
-          label: fileBase,
-          hardFloorWords,
-          styleLayerId,
-          chartData: triggerBundle.strippedChartData,
-          preserveSurrealHeadlines: false,
-        });
-        candidate = tightenParagraphs(cleanForPdf(candidate));
-        words = countWords(candidate);
-      } catch (err: any) {
-        console.warn(
-          `⚠️ Trigger-pipeline expansion failed for ${fileBase} (attempt ${attempt}): ${err?.message || String(err)}`
-        );
-      }
-    }
-
+    const words = countWords(candidate);
     const headlines = countHeadlineLines(candidate);
     const pronounIssue = findPronounGrammarIssue(candidate);
     const hasSecond = hasSecondPerson(candidate);

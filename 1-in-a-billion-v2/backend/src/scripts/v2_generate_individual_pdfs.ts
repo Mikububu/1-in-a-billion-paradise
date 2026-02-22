@@ -11,18 +11,6 @@ import { buildChartReferencePage } from '../services/chartReferencePage';
 import { generateSingleReading, safeFileToken } from './shared/generateReading';
 import type { SystemId } from '../promptEngine/types';
 
-function envString(key: string, fallback: string): string {
-  const value = process.env[key];
-  return value && value.trim() ? value.trim() : fallback;
-}
-
-function envNumber(key: string, fallback: number): number {
-  const raw = process.env[key];
-  if (!raw || !raw.trim()) return fallback;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
 function tsTag(): string {
   return new Date().toISOString().replace(/[:.]/g, '-');
 }
@@ -116,16 +104,15 @@ async function main() {
       : '';
   const resolvedPersonalContext = resolvedContextRaw.trim().length > 0 ? resolvedContextRaw.trim() : undefined;
 
-  const person1PortraitFile = envString('PERSON1_PORTRAIT_FILE', 'Michael_2.jpg');
   const person1 = {
-    name: envString('PERSON1_NAME', 'Michael'),
-    birthDate: envString('PERSON1_BIRTH_DATE', '1968-08-23'),
-    birthTime: envString('PERSON1_BIRTH_TIME', '13:45'),
-    timezone: envString('PERSON1_TIMEZONE', 'Europe/Vienna'),
-    latitude: envNumber('PERSON1_LATITUDE', 46.6103),
-    longitude: envNumber('PERSON1_LONGITUDE', 13.8558),
-    birthPlace: envString('PERSON1_BIRTH_PLACE', 'Villach, Austria'),
-    portraitPath: path.join(portraitsDir, person1PortraitFile),
+    name: 'Michael',
+    birthDate: '1968-08-23',
+    birthTime: '13:45',
+    timezone: 'Europe/Vienna',
+    latitude: 46.6103,
+    longitude: 13.8558,
+    birthPlace: 'Villach, Austria',
+    portraitPath: path.join(portraitsDir, 'Michael_2.jpg'),
   };
   const userId = process.env.USER_ID || 'f23f2057-5a74-4fc7-ab39-2a1f17729c2c';
   const person1Id = process.env.PERSON1_ID || `self-${userId}`;
