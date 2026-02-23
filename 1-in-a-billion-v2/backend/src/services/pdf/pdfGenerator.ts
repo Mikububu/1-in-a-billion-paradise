@@ -295,7 +295,7 @@ function renderReadingText(doc: any, text: string, hasPlayfairBold: boolean, all
       const paragraph = plainParagraphs[pi];
       doc.font('Garamond').fontSize(11).fillColor('#111111');
       // First paragraph: no indent. Others: indent for continuous essay feel, minimal gap.
-      const indent = pi === 0 ? 0 : 18;
+      const indent = pi === 0 ? 0 : 12;
       doc.text(paragraph, doc.page.margins.left + indent, undefined, {
         align: 'justify',
         width: doc.page.width - doc.page.margins.left - doc.page.margins.right - indent,
@@ -409,7 +409,7 @@ function renderReadingText(doc: any, text: string, hasPlayfairBold: boolean, all
 
     doc.font('Garamond').fontSize(11).fillColor('#111111');
     // Indent non-first body paragraphs for continuous essay feel, minimal gap.
-    const bodyIndent = (i > 0 && !headline) ? 18 : 0;
+    const bodyIndent = (i > 0 && !headline) ? 12 : 0;
     doc.text(paragraph, doc.page.margins.left + bodyIndent, undefined, {
       align: 'justify',
       width: doc.page.width - doc.page.margins.left - doc.page.margins.right - bodyIndent,
