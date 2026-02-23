@@ -3,9 +3,7 @@ import path from 'path';
 
 // Load .env from backend root directory explicitly
 const envPath = path.resolve(__dirname, '../../.env');
-console.log('Loading .env from:', envPath);
 const result = config({ path: envPath });
-console.log('Dotenv result:', result.error ? result.error.message : 'OK, parsed:', Object.keys(result.parsed || {}).length, 'vars');
 
 // NOTE: API keys are now fetched from Supabase api_keys table via getApiKey()
 // Environment variables are used as fallback only
@@ -81,6 +79,7 @@ export const env = {
   
   // Google AI Studio API (for portrait generation) - Will be loaded from Supabase via getApiKey()
   GOOGLE_AI_STUDIO_API_KEY: process.env.GOOGLE_AI_STUDIO_API_KEY ?? '',
+  GOOGLE_IMAGE_MODEL: process.env.GOOGLE_IMAGE_MODEL ?? 'gemini-3-pro-image-preview',
   
   // Frontend URL for email redirects
   FRONTEND_URL: process.env.FRONTEND_URL ?? 'oneinabillion://auth',

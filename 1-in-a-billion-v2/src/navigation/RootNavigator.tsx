@@ -350,10 +350,6 @@ export type MainStackParamList = {
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 const MainStack = createNativeStackNavigator<MainStackParamList>();
 
-// Wrapper for SignInScreen in onboarding flow
-const SignInScreenWrapper = ({ route }: any) => (
-    <SignInScreen />
-);
 
 const OnboardingNavigator = ({ initialRouteName = "Intro" }: { initialRouteName?: keyof OnboardingStackParamList }) => {
     return (
@@ -365,7 +361,7 @@ const OnboardingNavigator = ({ initialRouteName = "Intro" }: { initialRouteName?
             initialRouteName={initialRouteName}
         >
             <OnboardingStack.Screen name="Intro" component={IntroScreen} />
-            <OnboardingStack.Screen name="SignIn" component={SignInScreenWrapper} />
+            <OnboardingStack.Screen name="SignIn" component={SignInScreen} />
             <OnboardingStack.Screen name="Relationship" component={RelationshipScreen} />
             <OnboardingStack.Screen name="BirthInfo" component={BirthInfoScreen} />
             <OnboardingStack.Screen name="Languages" component={LanguagesScreen} />
@@ -438,10 +434,10 @@ const MainNavigator = () => {
 };
 
 export const RootNavigator = () => {
-    const user = useAuthStore((state: any) => state.user);
-    const isLoading = useAuthStore((state: any) => state.isLoading);
-    const isAuthReady = useAuthStore((state: any) => state.isAuthReady);
-    const setEntitlementState = useAuthStore((state: any) => state.setEntitlementState);
+    const user = useAuthStore((state) => state.user);
+    const isLoading = useAuthStore((state) => state.isLoading);
+    const isAuthReady = useAuthStore((state) => state.isAuthReady);
+    const setEntitlementState = useAuthStore((state) => state.setEntitlementState);
 
     // 1. Hydrate authStore from persisted Supabase session
     useSupabaseAuthBootstrap();

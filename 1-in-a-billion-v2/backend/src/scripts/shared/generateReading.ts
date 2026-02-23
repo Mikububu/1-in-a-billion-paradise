@@ -4,37 +4,29 @@ import path from 'node:path';
 
 import { llmPaid } from '../../services/llm';
 import type { SystemId } from '../../promptEngine/types';
+import { getSystemPromptForStyle } from '../../prompts/styles';
+import { buildChartAwareProvocations } from '../../prompts/chartProvocations';
 import {
-  stripWesternChartData,
   buildWesternTriggerPrompt,
   buildWesternWritingPrompt,
 } from '../../promptEngine/triggerEngine/westernTrigger';
 import {
-  stripVedicChartData,
   buildVedicTriggerPrompt,
   buildVedicWritingPrompt,
 } from '../../promptEngine/triggerEngine/vedicTrigger';
 import {
-  stripHDChartData,
   buildHDTriggerPrompt,
   buildHDWritingPrompt,
 } from '../../promptEngine/triggerEngine/humanDesignTrigger';
 import {
-  stripGeneKeysChartData,
   buildGeneKeysTriggerPrompt,
   buildGeneKeysWritingPrompt,
 } from '../../promptEngine/triggerEngine/geneKeysTrigger';
 import {
-  stripKabbalahChartData,
   buildKabbalahTriggerPrompt,
   buildKabbalahWritingPrompt,
 } from '../../promptEngine/triggerEngine/kabbalahTrigger';
 import {
-  stripWesternOverlayData,
-  stripVedicOverlayData,
-  stripHDOverlayData,
-  stripGeneKeysOverlayData,
-  stripKabbalahOverlayData,
   buildWesternOverlayTriggerPrompt,
   buildVedicOverlayTriggerPrompt,
   buildHDOverlayTriggerPrompt,
@@ -988,100 +980,64 @@ function buildTriggerPipelineBundle(options: {
   }
 
   if (docType === 'individual') {
-    switch (system) {
-      case 'western': {
-        const stripped = stripWesternChartData(chartData);
-        return {
-          strippedChartData: stripped,
-          triggerPrompt: buildWesternTriggerPrompt({ personName, strippedChartData: stripped }),
-          writingPromptBase: buildWesternWritingPrompt({ personName, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: stripped, targetWords: hardFloorWords }),
-        };
-      }
-      case 'vedic': {
-        const stripped = stripVedicChartData(chartData);
-        return {
-          strippedChartData: stripped,
-          triggerPrompt: buildVedicTriggerPrompt({ personName, strippedChartData: stripped }),
-          writingPromptBase: buildVedicWritingPrompt({ personName, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: stripped, targetWords: hardFloorWords }),
-        };
-      }
-      case 'human_design': {
-        const stripped = stripHDChartData(chartData);
-        return {
-          strippedChartData: stripped,
-          triggerPrompt: buildHDTriggerPrompt({ personName, strippedChartData: stripped }),
-          writingPromptBase: buildHDWritingPrompt({ personName, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: stripped, targetWords: hardFloorWords }),
-        };
-      }
-      case 'gene_keys': {
-        const stripped = stripGeneKeysChartData(chartData);
-        return {
-          strippedChartData: stripped,
-          triggerPrompt: buildGeneKeysTriggerPrompt({ personName, strippedChartData: stripped }),
-          writingPromptBase: buildGeneKeysWritingPrompt({ personName, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: stripped, targetWords: hardFloorWords }),
-        };
-      }
-      case 'kabbalah': {
-        const stripped = stripKabbalahChartData(chartData);
-        return {
-          strippedChartData: stripped,
-          triggerPrompt: buildKabbalahTriggerPrompt({ personName, strippedChartData: stripped }),
-          writingPromptBase: buildKabbalahWritingPrompt({ personName, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: stripped, targetWords: hardFloorWords }),
-        };
-      }
-      default:
-        return null;
-    }
+    // FIX 1: Full chart data — no stripping. LLM sees 100% of chart data.
+    const triggerBuilders: Record<string, (opts: any) => string> = {
+      western: buildWesternTriggerPrompt,
+      vedic: buildVedicTriggerPrompt,
+      human_design: buildHDTriggerPrompt,
+      gene_keys: buildGeneKeysTriggerPrompt,
+      kabbalah: buildKabbalahTriggerPrompt,
+    };
+    const writingBuilders: Record<string, (opts: any) => string> = {
+      western: buildWesternWritingPrompt,
+      vedic: buildVedicWritingPrompt,
+      human_design: buildHDWritingPrompt,
+      gene_keys: buildGeneKeysWritingPrompt,
+      kabbalah: buildKabbalahWritingPrompt,
+    };
+
+    const buildTrigger = triggerBuilders[system];
+    const buildWriting = writingBuilders[system];
+    if (!buildTrigger || !buildWriting) return null;
+
+    return {
+      strippedChartData: chartData, // Full chart data (no stripping)
+      triggerPrompt: buildTrigger({ personName, strippedChartData: chartData }),
+      writingPromptBase: buildWriting({ personName, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: chartData, targetWords: hardFloorWords }),
+    };
   }
 
+  // FIX 1: Full chart data for overlays — no stripping. Simple concatenation.
   const p1Raw = String(chartDataPerson1 || '').trim();
   const p2Raw = String(chartDataPerson2 || '').trim();
   if (!p1Raw || !p2Raw) return null;
 
-  switch (system) {
-    case 'western': {
-      const stripped = stripWesternOverlayData(p1Raw, p2Raw);
-      return {
-        strippedChartData: stripped,
-        triggerPrompt: buildWesternOverlayTriggerPrompt({ person1Name: p1Name, person2Name: p2Name, strippedChartData: stripped }),
-        writingPromptBase: buildWesternOverlayWritingPrompt({ person1Name: p1Name, person2Name: p2Name, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: stripped, targetWords: hardFloorWords }),
-      };
-    }
-    case 'vedic': {
-      const stripped = stripVedicOverlayData(p1Raw, p2Raw);
-      return {
-        strippedChartData: stripped,
-        triggerPrompt: buildVedicOverlayTriggerPrompt({ person1Name: p1Name, person2Name: p2Name, strippedChartData: stripped }),
-        writingPromptBase: buildVedicOverlayWritingPrompt({ person1Name: p1Name, person2Name: p2Name, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: stripped, targetWords: hardFloorWords }),
-      };
-    }
-    case 'human_design': {
-      const stripped = stripHDOverlayData(p1Raw, p2Raw);
-      return {
-        strippedChartData: stripped,
-        triggerPrompt: buildHDOverlayTriggerPrompt({ person1Name: p1Name, person2Name: p2Name, strippedChartData: stripped }),
-        writingPromptBase: buildHDOverlayWritingPrompt({ person1Name: p1Name, person2Name: p2Name, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: stripped, targetWords: hardFloorWords }),
-      };
-    }
-    case 'gene_keys': {
-      const stripped = stripGeneKeysOverlayData(p1Raw, p2Raw);
-      return {
-        strippedChartData: stripped,
-        triggerPrompt: buildGeneKeysOverlayTriggerPrompt({ person1Name: p1Name, person2Name: p2Name, strippedChartData: stripped }),
-        writingPromptBase: buildGeneKeysOverlayWritingPrompt({ person1Name: p1Name, person2Name: p2Name, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: stripped, targetWords: hardFloorWords }),
-      };
-    }
-    case 'kabbalah': {
-      const stripped = stripKabbalahOverlayData(p1Raw, p2Raw);
-      return {
-        strippedChartData: stripped,
-        triggerPrompt: buildKabbalahOverlayTriggerPrompt({ person1Name: p1Name, person2Name: p2Name, strippedChartData: stripped }),
-        writingPromptBase: buildKabbalahOverlayWritingPrompt({ person1Name: p1Name, person2Name: p2Name, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: stripped, targetWords: hardFloorWords }),
-      };
-    }
-    default:
-      return null;
-  }
+  const combinedChartData = `PERSON1 CHART:\n${p1Raw}\n\nPERSON2 CHART:\n${p2Raw}`;
+
+  const overlayTriggerBuilders: Record<string, (opts: any) => string> = {
+    western: buildWesternOverlayTriggerPrompt,
+    vedic: buildVedicOverlayTriggerPrompt,
+    human_design: buildHDOverlayTriggerPrompt,
+    gene_keys: buildGeneKeysOverlayTriggerPrompt,
+    kabbalah: buildKabbalahOverlayTriggerPrompt,
+  };
+  const overlayWritingBuilders: Record<string, (opts: any) => string> = {
+    western: buildWesternOverlayWritingPrompt,
+    vedic: buildVedicOverlayWritingPrompt,
+    human_design: buildHDOverlayWritingPrompt,
+    gene_keys: buildGeneKeysOverlayWritingPrompt,
+    kabbalah: buildKabbalahOverlayWritingPrompt,
+  };
+
+  const buildOverlayTrigger = overlayTriggerBuilders[system];
+  const buildOverlayWriting = overlayWritingBuilders[system];
+  if (!buildOverlayTrigger || !buildOverlayWriting) return null;
+
+  return {
+    strippedChartData: combinedChartData, // Full combined chart data (no stripping)
+    triggerPrompt: buildOverlayTrigger({ person1Name: p1Name, person2Name: p2Name, strippedChartData: combinedChartData }),
+    writingPromptBase: buildOverlayWriting({ person1Name: p1Name, person2Name: p2Name, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: combinedChartData, targetWords: hardFloorWords }),
+  };
 }
 
 export type GenerateSingleReadingOptions = {
@@ -1160,8 +1116,23 @@ export async function generateSingleReading(options: GenerateSingleReadingOption
   const narrativeTrigger = stripControlTextLeaks(String(triggerRaw || '').replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ').trim());
   if (!narrativeTrigger) throw new Error(`Trigger call returned empty text for ${fileBase}`);
 
+  // FIX 3: Chart-aware provocations — anchor LLM to specific placements
+  const spiceLevel = Number(payloadBase?.relationshipPreferenceScale || 7);
+  const chartProvocations = docType === 'individual'
+    ? buildChartAwareProvocations(personName, system, chartData, spiceLevel)
+    : ''; // Overlay provocations not needed (chart data already has both charts)
+
+  // FIX 2: Style-specific system prompt
+  const llmSystemPrompt = getSystemPromptForStyle(
+    'spicy_surreal',
+    docType === 'overlay' ? 'overlay' : 'individual',
+  );
+
+  const baseWritingPrompt = triggerBundle.writingPromptBase.replace('__NARRATIVE_TRIGGER_PLACEHOLDER__', narrativeTrigger);
   const writingPrompt = [
-    triggerBundle.writingPromptBase.replace('__NARRATIVE_TRIGGER_PLACEHOLDER__', narrativeTrigger),
+    chartProvocations,
+    chartProvocations ? '' : null,
+    baseWritingPrompt,
     '',
     'OUTPUT CONTRACT (HARD):',
     `- Minimum length: ${hardFloorWords} words.`,
@@ -1170,9 +1141,10 @@ export async function generateSingleReading(options: GenerateSingleReadingOption
     '- Explain technical vocabulary on first use in plain language, then continue story-first.',
     '- Keep the prose compelling like an audiobook: no report tone, no bullet formatting.',
     '- Never output internal planning text, internal labels, or file identifiers.',
-  ].join('\n');
+  ].filter(v => v !== null).join('\n');
   if (writeDebugArtifacts) {
     fs.writeFileSync(writingPromptPath, writingPrompt, 'utf8');
+    fs.writeFileSync(systemPromptPath, llmSystemPrompt, 'utf8');
   }
 
   let finalReading = '';
@@ -1183,6 +1155,7 @@ export async function generateSingleReading(options: GenerateSingleReadingOption
       maxTokens: CLAUDE_MAX_TOKENS_PER_CALL,
       temperature: 0.8,
       maxRetries: 3,
+      systemPrompt: llmSystemPrompt,
     });
 
     let candidate = cleanForPdf(raw);

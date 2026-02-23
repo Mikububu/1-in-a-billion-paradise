@@ -440,7 +440,9 @@ export const HomeScreen = ({ navigation }: Props) => {
             },
           } as any);
         }
-      } catch {}
+      } catch (err) {
+        console.warn('Failed to check cloud audio:', err);
+      }
       setAudioLoading(false); setAudioLoadingText(null);
     }
 
@@ -459,7 +461,10 @@ export const HomeScreen = ({ navigation }: Props) => {
         setAudioPlaying(result === 'playing');
       }
       setAudioLoading(false);
-    } catch { setAudioLoading(false); }
+    } catch (err) {
+      console.warn('Audio toggle failed:', err);
+      setAudioLoading(false);
+    }
   }, [selectedReading, hookAudio, partnerAudio, modalReadings, currentPerson, authUserId, toggleAudio, getModalAudioKey, setHookAudio, setPartnerAudio]);
 
   // Animations
@@ -491,11 +496,7 @@ export const HomeScreen = ({ navigation }: Props) => {
         <Text style={styles.settingsIcon}>⚙</Text>
       </TouchableOpacity>
 
-      {/* <View style={styles.walkersOverlay} pointerEvents="none">
-        <AntChase width={windowWidth} height={windowHeight} />
-      </View> */}
-
-      <ScrollView style={styles.scrollView} scrollEnabled={false} contentContainerStyle={[styles.content, { gap: spacing.lg * compactV, paddingTop: spacing.xl + 20 }]}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={[styles.content, { gap: spacing.lg * compactV, paddingTop: spacing.xl + 20 }]}>
         <Animated.View style={{ opacity: fadeAnim }}>
           <View style={styles.headlineWrap}>
             <Text style={styles.headlineTop} numberOfLines={2} ellipsizeMode="tail">

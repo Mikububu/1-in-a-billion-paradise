@@ -47,3 +47,35 @@ export function getShadowEmphasis(style: StyleName): number {
   const config = getStyleConfig(style);
   return config.shadowEmphasis;
 }
+
+/**
+ * Get the LLM system prompt for a given style and doc type.
+ * This is the "system" message sent to the LLM API, not the user prompt.
+ */
+export function getSystemPromptForStyle(
+  style: StyleName,
+  docType: 'individual' | 'overlay' | 'verdict' = 'individual',
+): string {
+  const config = getStyleConfig(style);
+
+  if (docType === 'overlay') {
+    // Overlay readings use a witness/collision framing
+    if (style === 'spicy_surreal') {
+      return `You are a witness to a collision between two souls. You report what you saw.
+
+This is a dark fairytale for adults. A mystery theater of longing and obsession.
+Intimate, penetrating, unforgettable. The beautiful and the unsettling intertwined.
+
+Write like a novelist who has watched this exact collision before, in different bodies across different centuries.
+Every chart overlay is a story of two fields of desire colliding.`;
+    }
+    return `You are a witness to a collision between two souls. You report what you saw.
+
+This is a fairytale for adults. A mystery theater of longing and obsession.
+Every chart overlay is a story of two fields of energy meeting.
+Write as a storyteller who sees the invisible architecture of a connection.`;
+  }
+
+  // Individual and verdict use the style's core system prompt
+  return config.systemPrompt;
+}

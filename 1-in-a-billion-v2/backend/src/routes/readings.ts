@@ -43,6 +43,40 @@ const buildResponse = (
 
 const router = new Hono();
 
+/**
+ * Auto-correct timezone if UTC is sent but coordinates are far from GMT.
+ * Uses Google Timezone API as a safety net.
+ */
+async function correctTimezoneIfNeeded(timezone: string, latitude: number, longitude: number, label: string): Promise<string> {
+  if (timezone !== 'UTC') return timezone;
+  const expectedOffset = Math.round(longitude / 15);
+  if (Math.abs(expectedOffset) <= 1) return timezone;
+
+  console.error(`⚠️ [${label}] TIMEZONE BUG DETECTED! Timezone is UTC but coordinates suggest offset:`, {
+    timezone, longitude,
+    expectedOffset: `UTC${expectedOffset >= 0 ? '+' : ''}${expectedOffset}`,
+    coordinates: `${latitude}, ${longitude}`,
+  });
+
+  try {
+    const { getApiKey } = await import('../services/apiKeys');
+    const googleKey = await getApiKey('google_places');
+    if (googleKey) {
+      const timestamp = Math.floor(Date.now() / 1000);
+      const tzUrl = `https://maps.googleapis.com/maps/api/timezone/json?location=${latitude},${longitude}&timestamp=${timestamp}&key=${googleKey}`;
+      const tzResponse = await fetch(tzUrl);
+      const tzData = await tzResponse.json();
+      if (tzData.status === 'OK' && tzData.timeZoneId) {
+        console.log(`✅ [${label}] AUTO-CORRECTED timezone: UTC → ${tzData.timeZoneId}`);
+        return tzData.timeZoneId;
+      }
+    }
+  } catch (tzErr) {
+    console.warn(`[${label}] Failed to auto-correct timezone:`, tzErr);
+  }
+  return timezone;
+}
+
 // Placements endpoint (Swiss Ephemeris only)
 // Used by mobile to compute Sun/Moon/Rising immediately after saving a person.
 const placementsSchema = z.object({
@@ -67,39 +101,8 @@ router.post('/placements', async (c) => {
     system: parsed.system,
   });
 
-  // CRITICAL WARNING: Detect timezone mismatch
-  // If timezone is UTC but coordinates are far from GMT, the user likely has a bug
-  let correctedTimezone = parsed.timezone;
-  if (parsed.timezone === 'UTC') {
-    const expectedOffset = Math.round(parsed.longitude / 15); // Rough timezone estimate
-    if (Math.abs(expectedOffset) > 1) {
-      console.error('⚠️ [Placements] TIMEZONE BUG DETECTED! Timezone is UTC but coordinates suggest offset:', {
-        timezone: parsed.timezone,
-        longitude: parsed.longitude,
-        expectedOffset: `UTC${expectedOffset >= 0 ? '+' : ''}${expectedOffset}`,
-        coordinates: `${parsed.latitude}, ${parsed.longitude}`,
-      });
-      
-      // SAFETY NET: Try to fetch correct timezone from Google Timezone API
-      try {
-        const { getApiKey } = await import('../services/apiKeys');
-        const googleKey = await getApiKey('google_places');
-        if (googleKey) {
-          const timestamp = Math.floor(Date.now() / 1000);
-          const tzUrl = `https://maps.googleapis.com/maps/api/timezone/json?location=${parsed.latitude},${parsed.longitude}&timestamp=${timestamp}&key=${googleKey}`;
-          const tzResponse = await fetch(tzUrl);
-          const tzData = await tzResponse.json();
-          if (tzData.status === 'OK' && tzData.timeZoneId) {
-            console.log(`✅ [Placements] AUTO-CORRECTED timezone: UTC → ${tzData.timeZoneId}`);
-            correctedTimezone = tzData.timeZoneId;
-          }
-        }
-      } catch (tzErr) {
-        console.warn('[Placements] Failed to auto-correct timezone:', tzErr);
-        // Continue with UTC if correction fails
-      }
-    }
-  }
+  // Auto-correct timezone if UTC but coordinates suggest otherwise
+  const correctedTimezone = await correctTimezoneIfNeeded(parsed.timezone, parsed.latitude, parsed.longitude, 'Placements');
 
   // VALIDATION: Reject invalid coordinates (0,0 is in the middle of the ocean)
   if (parsed.latitude === 0 && parsed.longitude === 0) {
@@ -159,7 +162,11 @@ router.post('/sun', async (c) => {
     return c.json({ error: 'Invalid birth location - coordinates are 0,0' }, 400);
   }
   
-  const cacheKey = JSON.stringify({ type: 'sun', parsed });
+  // Auto-correct timezone if needed
+  const correctedTimezone = await correctTimezoneIfNeeded(parsed.timezone, parsed.latitude, parsed.longitude, 'Sun');
+  const correctedParsed = correctedTimezone !== parsed.timezone ? { ...parsed, timezone: correctedTimezone } : parsed;
+
+  const cacheKey = JSON.stringify({ type: 'sun', parsed: correctedParsed });
   if (!nocache) {
     const cached = sunCache.get(cacheKey);
     if (cached) {
@@ -170,7 +177,7 @@ router.post('/sun', async (c) => {
     console.log('🔥 [Sun] NOCACHE mode - bypassing cache, generating fresh reading');
   }
 
-  const placements = await swissEngine.computePlacements(parsed);
+  const placements = await swissEngine.computePlacements(correctedParsed);
   const { reading, source } = await deepSeekClient.generateHookReading({ 
     type: 'sun', 
     sign: placements.sunSign, 
@@ -202,7 +209,11 @@ router.post('/moon', async (c) => {
     return c.json({ error: 'Invalid birth location - coordinates are 0,0' }, 400);
   }
   
-  const cacheKey = JSON.stringify({ type: 'moon', parsed });
+  // Auto-correct timezone if needed
+  const correctedTimezone = await correctTimezoneIfNeeded(parsed.timezone, parsed.latitude, parsed.longitude, 'Moon');
+  const correctedParsed = correctedTimezone !== parsed.timezone ? { ...parsed, timezone: correctedTimezone } : parsed;
+
+  const cacheKey = JSON.stringify({ type: 'moon', parsed: correctedParsed });
   if (!nocache) {
     const cached = moonCache.get(cacheKey);
     if (cached) {
@@ -213,7 +224,7 @@ router.post('/moon', async (c) => {
     console.log('🔥 [Moon] NOCACHE mode - bypassing cache, generating fresh reading');
   }
 
-  const placements = await swissEngine.computePlacements(parsed);
+  const placements = await swissEngine.computePlacements(correctedParsed);
   const { reading, source } = await deepSeekClient.generateHookReading({ 
     type: 'moon', 
     sign: placements.moonSign, 
@@ -245,7 +256,11 @@ router.post('/rising', async (c) => {
     return c.json({ error: 'Invalid birth location - coordinates are 0,0' }, 400);
   }
   
-  const cacheKey = JSON.stringify({ type: 'rising', parsed });
+  // Auto-correct timezone if needed
+  const correctedTimezone = await correctTimezoneIfNeeded(parsed.timezone, parsed.latitude, parsed.longitude, 'Rising');
+  const correctedParsed = correctedTimezone !== parsed.timezone ? { ...parsed, timezone: correctedTimezone } : parsed;
+
+  const cacheKey = JSON.stringify({ type: 'rising', parsed: correctedParsed });
   if (!nocache) {
     const cached = risingCache.get(cacheKey);
     if (cached) {
@@ -256,7 +271,7 @@ router.post('/rising', async (c) => {
     console.log('🔥 [Rising] NOCACHE mode - bypassing cache, generating fresh reading');
   }
 
-  const placements = await swissEngine.computePlacements(parsed);
+  const placements = await swissEngine.computePlacements(correctedParsed);
   const { reading, source } = await deepSeekClient.generateHookReading({ 
     type: 'rising', 
     sign: placements.risingSign, 

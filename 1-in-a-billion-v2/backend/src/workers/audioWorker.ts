@@ -662,7 +662,13 @@ export class AudioWorker extends BaseWorker {
       // Concatenate and convert: MP3 only (QuickTime-safe default).
       const wavAudio = concatenateWavBuffers(audioBuffers);
       const mp3 = await convertWavToMp3(wavAudio);
-      const duration = Math.ceil((wavAudio.length - 44) / 48000);
+      // Calculate duration from WAV header (sample rate, channels, bits per sample)
+      const wavHeader = parseWavHeader(wavAudio);
+      const bytesPerSecond = wavHeader
+        ? wavHeader.sampleRate * wavHeader.numChannels * (wavHeader.bitsPerSample / 8)
+        : 48000; // fallback: 24kHz mono 16-bit
+      const dataSize = wavHeader ? wavHeader.dataSize : (wavAudio.length - 44);
+      const duration = Math.ceil(dataSize / bytesPerSecond);
 
       console.log(
         `🎵 [AudioWorker] Final: ${Math.round(mp3.length / 1024)}KB MP3, ~${duration}s from ${chunks.length} chunks (Replicate)`

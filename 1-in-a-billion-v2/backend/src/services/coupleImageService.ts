@@ -166,7 +166,7 @@ export async function composeCoupleImage(
     ];
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
+      model: env.GOOGLE_IMAGE_MODEL || 'gemini-3-pro-image-preview',
       contents: { parts },
       config: {
         imageConfig: {

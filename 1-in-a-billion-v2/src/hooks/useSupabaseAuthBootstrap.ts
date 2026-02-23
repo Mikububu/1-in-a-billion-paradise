@@ -16,6 +16,11 @@ export const useSupabaseAuthBootstrap = () => {
             setUser(session?.user || null);
             setIsAuthReady(true);
             console.log('🔒 SupabaseAuthBootstrap: Complete', !!session);
+        }).catch((error) => {
+            console.error('🔒 SupabaseAuthBootstrap: getSession failed', error);
+            setSession(null);
+            setUser(null);
+            setIsAuthReady(true);
         });
 
         // Listen for changes
