@@ -10,6 +10,7 @@ import { generateAIPortrait } from '../services/aiPortraitService';
 import { composeCoupleImage } from '../services/coupleImageService';
 import { buildChartReferencePage } from '../services/chartReferencePage';
 import { generateSingleReading, safeFileToken } from './shared/generateReading';
+import { generateCompatibilityScores } from './shared/compatibilityScoring';
 import type { SystemId } from '../promptEngine/types';
 
 type PersonSeed = {
@@ -466,6 +467,19 @@ async function main() {
       })
       : undefined;
 
+    // Separate LLM scoring call for overlay compatibility snapshot (PDF-only)
+    let compatibilityScores: Awaited<ReturnType<typeof generateCompatibilityScores>> | undefined;
+    if (job.id === 'overlay') {
+      compatibilityScores = await generateCompatibilityScores({
+        person1Name: person1.name,
+        person2Name: person2.name,
+        readingText: generated.reading,
+        chartData: generated.chartDataForPrompt,
+        label: fileBase,
+        isVerdict: false,
+      });
+    }
+
     const coverQuote = extractCoverQuote(generated.reading);
 
     const pdf = await generateReadingPDF({
@@ -502,6 +516,7 @@ async function main() {
             : { person1Reading: generated.reading }),
         },
       ],
+      compatibilityScores,
       chartReferencePage,
       chartReferencePageRight,
       generatedAt: new Date(),

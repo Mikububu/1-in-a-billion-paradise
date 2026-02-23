@@ -60,6 +60,8 @@ interface PDFGenerationOptions {
   chartReferencePage?: string;
   chartReferencePageRight?: string;
   compatibilityAppendix?: string;
+  /** Pre-computed compatibility scores from separate LLM scoring call (PDF-only, not in reading text) */
+  compatibilityScores?: Array<{ label: string; score: number; scoreTen: number; note: string }>;
   generatedAt: Date;
   spicyScore?: number;
   safeStableScore?: number;
@@ -291,16 +293,16 @@ function renderReadingText(doc: any, text: string, hasPlayfairBold: boolean, all
       .map((p) => p.trim())
       .filter(Boolean);
 
+    let isFirstAfterBreak = true;
     for (let pi = 0; pi < plainParagraphs.length; pi++) {
       const paragraph = plainParagraphs[pi];
       doc.font('Garamond').fontSize(11).fillColor('#111111');
-      // First paragraph: no indent. Others: indent for continuous essay feel, minimal gap.
-      const indent = pi === 0 ? 0 : 12;
-      doc.text(paragraph, doc.page.margins.left + indent, undefined, {
+      doc.text(paragraph, doc.page.margins.left, undefined, {
         align: 'justify',
-        width: doc.page.width - doc.page.margins.left - doc.page.margins.right - indent,
+        width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+        indent: isFirstAfterBreak ? 0 : 22,
       });
-      doc.moveDown(0.15);
+      isFirstAfterBreak = false;
     }
     return;
   }
@@ -368,11 +370,14 @@ function renderReadingText(doc: any, text: string, hasPlayfairBold: boolean, all
   }
 
   const wordsIn = (value: string): number => value.split(/\s+/).filter(Boolean).length;
+  let isFirstAfterHeadline = true;
   const renderHeadlineLine = (line: string): void => {
+    doc.moveDown(0.6);
     doc.font('GaramondBold').fontSize(12.8).fillColor('#111111');
     doc.text(line, { align: 'left' });
-    doc.moveDown(0.4);
+    doc.moveDown(0.25);
     wordsSinceLastHeadline = 0;
+    isFirstAfterHeadline = true;
   };
   let wordsSinceLastHeadline = 999;
   for (let i = 0; i < normalizedParagraphs.length; i += 1) {
@@ -408,13 +413,12 @@ function renderReadingText(doc: any, text: string, hasPlayfairBold: boolean, all
     }
 
     doc.font('Garamond').fontSize(11).fillColor('#111111');
-    // Indent non-first body paragraphs for continuous essay feel, minimal gap.
-    const bodyIndent = (i > 0 && !headline) ? 12 : 0;
-    doc.text(paragraph, doc.page.margins.left + bodyIndent, undefined, {
+    doc.text(paragraph, doc.page.margins.left, undefined, {
       align: 'justify',
-      width: doc.page.width - doc.page.margins.left - doc.page.margins.right - bodyIndent,
+      width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+      indent: isFirstAfterHeadline ? 0 : 22,
     });
-    doc.moveDown(0.15);
+    isFirstAfterHeadline = false;
     wordsSinceLastHeadline += wordsIn(paragraph);
   }
 }
@@ -1023,13 +1027,23 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
       }
 
       if (options.type === 'overlay') {
-        // LLM embeds compatibility scores directly in the reading text (overlay or verdict).
-        const allReadingText = cleanedChapters
-          .map((c) => [c.overlayReading, c.verdict].filter(Boolean).join('\n\n'))
-          .join('\n\n');
-        const compatibilityRows = extractCompatibilityRows(allReadingText);
-        if (compatibilityRows.length > 0) {
-          renderCompatibilitySnapshotPage(doc, compatibilityRows, hasPlayfairBold);
+        // Priority 1: Use pre-computed scores from separate scoring call
+        if (options.compatibilityScores && options.compatibilityScores.length > 0) {
+          const rows: CompatibilityRow[] = options.compatibilityScores.map((s) => ({
+            label: s.label,
+            score: s.scoreTen,
+            note: s.note || undefined,
+          }));
+          renderCompatibilitySnapshotPage(doc, rows, hasPlayfairBold);
+        } else {
+          // Fallback: try to extract from reading text (legacy/worker path)
+          const allReadingText = cleanedChapters
+            .map((c) => [c.overlayReading, c.verdict].filter(Boolean).join('\n\n'))
+            .join('\n\n');
+          const compatibilityRows = extractCompatibilityRows(allReadingText);
+          if (compatibilityRows.length > 0) {
+            renderCompatibilitySnapshotPage(doc, compatibilityRows, hasPlayfairBold);
+          }
         }
       }
 

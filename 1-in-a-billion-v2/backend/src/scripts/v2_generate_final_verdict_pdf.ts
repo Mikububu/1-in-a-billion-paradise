@@ -9,6 +9,7 @@ import { generateAIPortrait } from '../services/aiPortraitService';
 import { composeCoupleImage } from '../services/coupleImageService';
 import { buildChartReferencePage } from '../services/chartReferencePage';
 import { generateSingleReading, safeFileToken } from './shared/generateReading';
+import { generateCompatibilityScores } from './shared/compatibilityScoring';
 import type { SystemId } from '../promptEngine/types';
 
 type PersonSeed = {
@@ -291,6 +292,16 @@ async function main() {
     compact: true,
   });
 
+  // Separate LLM scoring call for verdict compatibility snapshot (PDF-only, 16 categories)
+  const compatibilityScores = await generateCompatibilityScores({
+    person1Name: person1.name,
+    person2Name: person2.name,
+    readingText: generated.reading,
+    chartData: generated.chartDataForPrompt,
+    label: fileBase,
+    isVerdict: true,
+  });
+
   const pdf = await generateReadingPDF({
     type: 'overlay',
     title: `Final Verdict about ${person1.name} & ${person2.name}`,
@@ -319,6 +330,7 @@ async function main() {
         verdict: generated.reading,
       },
     ],
+    compatibilityScores,
     chartReferencePage,
     chartReferencePageRight,
     generatedAt: new Date(),
