@@ -59,7 +59,7 @@ export const CORE_FAIRYTALE_SEED = [
  */
 export const CORE_FAIRYTALE_SEED_OVERLAY =
   [
-    'Write this as a fairytale about two souls who came to Earth and collided here.',
+    'Write this as a fairytale about two souls who came to Earth, and what the charts suggest would happen if they collided.',
     `The narrative trigger is the ${RELATIONAL_TRIGGER_LABEL}; serve it relentlessly.`,
     NARRATIVE_TRIGGER_VARIATION_RULE,
   ].join(' ');

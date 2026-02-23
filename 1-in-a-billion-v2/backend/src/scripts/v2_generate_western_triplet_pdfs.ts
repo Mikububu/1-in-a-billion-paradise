@@ -8,7 +8,7 @@ import { getSystemDisplayName } from '../config/systemConfig';
 import { WORD_COUNT_LIMITS } from '../prompts/config/wordCounts';
 import { generateAIPortrait } from '../services/aiPortraitService';
 import { composeCoupleImage } from '../services/coupleImageService';
-import { buildChartReferencePage, buildCompatibilityAppendix } from '../services/chartReferencePage';
+import { buildChartReferencePage } from '../services/chartReferencePage';
 import { generateSingleReading, safeFileToken } from './shared/generateReading';
 import type { SystemId } from '../promptEngine/types';
 
@@ -398,18 +398,6 @@ async function main() {
       })
       : undefined;
 
-    // Compatibility appendix for overlay readings
-    const compatibilityAppendix = job.id === 'overlay'
-      ? buildCompatibilityAppendix({
-        system,
-        person1Name: person1.name,
-        person2Name: person2.name,
-        person1ChartData,
-        person2ChartData,
-        combinedChartData: job.chartData,
-      })
-      : undefined;
-
     const coverQuote = extractCoverQuote(generated.reading);
 
     const pdf = await generateReadingPDF({
@@ -448,7 +436,6 @@ async function main() {
       ],
       chartReferencePage,
       chartReferencePageRight,
-      compatibilityAppendix,
       generatedAt: new Date(),
     });
 

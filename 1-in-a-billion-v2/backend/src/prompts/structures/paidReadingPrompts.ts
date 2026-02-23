@@ -18,6 +18,7 @@ import { buildSpiceSection } from '../spice/levels';
 import { buildSystemSection } from '../systems';
 import { buildIndividualStructure } from './individual';
 import { buildOverlayStructure } from './overlay';
+import { RELATIONSHIP_STATUS_RULES } from '../core/output-rules';
 
 export const SYSTEMS = ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'] as const;
 export type SystemName = typeof SYSTEMS[number];
@@ -158,35 +159,36 @@ YOUR TASK: Tell ${personName}'s story. Not the chart - the PERSON inside the cha
 function buildOverlayProvocations(person1Name: string, person2Name: string, spiceLevel: number): string {
   const base = `
 BEFORE YOU WRITE, CONTEMPLATE THESE ABOUT ${person1Name.toUpperCase()} AND ${person2Name.toUpperCase()}:
+(Remember: these two may or may not know each other. You are reading chart potential, not narrating a relationship.)
 
-THE MEETING:
-1. What does each person see in the other that they can't find in themselves?
+THE POTENTIAL COLLISION:
+1. What would each person see in the other that they cannot find in themselves?
 2. What wound in one fits perfectly into the wound of the other?
-3. What will they use each other for - consciously or not?
+3. What could they use each other for, consciously or not, if they came together?
 `;
 
   const sex = spiceLevel >= 5 ? `
-SEX BETWEEN THEM:
-4. Who dominates? Who submits? Who pretends?
-5. Is the sex a doorway to transformation or a drug to avoid intimacy?
-6. What fetish or hunger does one awaken in the other?
-7. How could the sex destroy them? How could it liberate them?
+SEXUAL CHEMISTRY (ACCORDING TO THE CHARTS):
+4. Who would dominate? Who would submit? Who would pretend?
+5. Could the sexual energy become a doorway to transformation or a drug to avoid intimacy?
+6. What fetish or hunger could one awaken in the other?
+7. How could the sexual dynamic destroy them? How could it liberate them?
 ` : `
-INTIMACY BETWEEN THEM:
-4. How do they affect each other emotionally?
-5. What do they unlock in each other that was previously closed?
+INTIMACY POTENTIAL:
+4. How could they affect each other emotionally?
+5. What could they unlock in each other that was previously closed?
 `;
 
   const danger = `
 THE DANGER:
 8. How could this connection destroy them both?
-9. When they're unconscious, how do they use each other's wounds as weapons?
+9. If unconscious, how could they use each other's wounds as weapons?
 
 THE POSSIBILITY:
 10. What could they become together that neither could become alone?
-11. Is this a comfort trap or a crucible that transforms?
+11. Would this be a comfort trap or a crucible that transforms?
 
-YOUR TASK: Tell the story of these two souls colliding.
+YOUR TASK: Tell the story of what the charts suggest would unfold if these two souls collided.
 `;
 
   return `${base}${sex}${danger}`;
@@ -428,30 +430,61 @@ ${tragicRealismBlock()}
 
 ${buildForbiddenSection(style)}
 
+${RELATIONSHIP_STATUS_RULES}
+
 ═══════════════════════════════════════════════════════════════════════════════
 OUTPUT REQUIREMENTS
 ═══════════════════════════════════════════════════════════════════════════════
 
 **WORD COUNT: 4500 WORDS MINIMUM. This becomes 28-32 minutes of audio. DO NOT STOP EARLY.**
 
+CRITICAL: These two people may or may not know each other. NEVER assume they have met, are together, or share a history. This is a chart reading of what WOULD happen if their energies collided. Use hypothetical language throughout.
+
 STRUCTURE (for your guidance only - do NOT include headers in output):
-1. The Attraction - what draws ${person1Name} and ${person2Name} together magnetically (1000 words)
-2. The Friction - where they clash and what drives them crazy (600 words)
-3. Sex & Power - who dominates, who surrenders, bedroom as battlefield and sanctuary (700 words)
-4. The Shadow Dance - how they wound each other, destruction potential (700 words)
+1. The Attraction - what could draw ${person1Name} and ${person2Name} together magnetically (1000 words)
+2. The Friction - where they would clash and what would drive them crazy (600 words)
+3. Sexual Chemistry and Power - according to the charts, who would dominate, who would surrender, the bedroom as potential battlefield and sanctuary (700 words)
+4. The Shadow Dance - how they could wound each other, destruction potential (700 words)
 5. The Gift - what they could become together if conscious (300 words)
 
 FORMAT RULES (THIS IS SPOKEN AUDIO):
-- OPENING: Begin like a mystery theater of longing - an invocation that draws two souls into focus (up to 20 words)
+- OPENING: Begin like a mystery theater of what could be - an invocation that draws two energies into focus (up to 20 words)
   Think: García Márquez, Anaïs Nin, Rumi, David Lynch. Set the atmosphere.
-- Then ONE CONTINUOUS ESSAY - no section headers, let the story of these two souls unfold
+- Then ONE CONTINUOUS ESSAY - no section headers, let the story of what could unfold between these two souls flow
 - Use both names (never "you/your")
 - Pure prose - NO asterisks, NO markdown, NO bullets
 - Spell out all numbers
 - NO em-dashes, NO AI phrases
 
 ${languageInstruction}
-Tell the story of these two souls now:
+Tell the story of what these charts reveal could unfold between these two souls.
+
+THEN, after the prose ends, append a MINI COMPATIBILITY SNAPSHOT for this system only.
+Format it EXACTLY like this — no markdown, no asterisks, clean plain text, each score with 2 sentences:
+
+COMPATIBILITY SNAPSHOT: ${person1Name} & ${person2Name}
+
+SEXUAL CHEMISTRY: [0-100]
+[2 sentences: what kind of sexual dynamic these charts suggest. Whether the bedroom would liberate or consume.]
+
+PAST LIFE CONNECTION: [0-100]
+[2 sentences: how strongly this system's placements suggest pre-existing soul familiarity. Recognition or repetition.]
+
+WORLD-CHANGING POTENTIAL: [0-100]
+[2 sentences: what these two could build or ignite externally if they combined forces. Private connection or larger purpose.]
+
+KARMIC VERDICT: [0-100]
+[2 sentences: comfort trap or genuine crucible of transformation? Does this collision serve evolution or repetition.]
+
+MAGNETIC PULL: [0-100]
+[2 sentences: the raw gravitational force regardless of wisdom. How hard it would be to walk away.]
+
+SHADOW RISK: [0-100]
+[2 sentences: destruction potential if both remain unconscious. What this looks like at its worst.]
+
+SCORING RULES:
+- Use the full 0-100 range. Do not cluster around 70-80.
+- These scores are derived from THIS system's chart data only — not a guess across all systems.
 `.trim();
 }
 
@@ -500,6 +533,7 @@ ${buildForbiddenSection(style)}
 
 You have read these two human souls through all five systems.
 Not as a couple. Not as a category. As two fields of energy whose mathematics have now been fully mapped.
+These two may or may not know each other. You are synthesizing what the charts suggest WOULD happen if these energies met.
 Now deliver the synthesis.
 
 PRIMARY SIGNAL INPUT (NARRATIVE TRIGGERS):
@@ -551,47 +585,62 @@ What does the universe appear to be doing by placing these two fields in proximi
 PART 5 — COMPATIBILITY SCORES (final section — structured)
 After the prose ends, output the following score block exactly as formatted below.
 These scores are derived from the five system readings. They are not opinions. They are mathematical conclusions.
-Each score is a number from 0 to 100. Each score has a one-sentence verdict beneath it.
+Each score is a number from 0 to 100. Each score has a 4-sentence verdict beneath it — specific, chart-anchored, and unflinching.
 
 Format the score block EXACTLY like this — no markdown, no asterisks, clean plain text:
 
 COMPATIBILITY SCORES: ${person1Name} & ${person2Name}
 
 OVERALL ALIGNMENT: [0-100]
-[One sentence: the headline truth about this connection in plain language]
+[4 sentences: the headline truth about this connection. What makes it rare or ordinary. What the mathematics actually say when all five systems are held together. The one thing anyone reading this score needs to understand.]
 
 WESTERN ASTROLOGY: [0-100]
-[One sentence derived from tropical chart synastry]
+[4 sentences derived from tropical chart synastry. Name the specific cross-aspects that drive this score. What the planetary contacts promise and threaten. Where the charts harmonize and where they grind.]
 
 VEDIC JYOTISH: [0-100]
-[One sentence derived from sidereal synastry and Dasha alignment]
+[4 sentences derived from sidereal synastry and Dasha alignment. Name the Nakshatra compatibility, Rahu/Ketu axis interplay, and timing windows. What karma is at work here and what the Dashas suggest about when it activates.]
 
 HUMAN DESIGN: [0-100]
-[One sentence derived from circuit compatibility, channel resonance, authority compatibility]
+[4 sentences derived from circuit compatibility, channel completion, authority compatibility. Which centers define versus amplify each other. What happens to each person's decision-making in proximity to the other. Where the design friction lives.]
 
 GENE KEYS: [0-100]
-[One sentence derived from shadow/gift/siddhi resonance across profiles]
+[4 sentences derived from shadow/gift/siddhi resonance across profiles. Which shadows trigger each other and which gifts catalyze. The specific frequency dynamic between these two hologenetic profiles. What evolution this connection could accelerate or block.]
 
 KABBALAH: [0-100]
-[One sentence derived from Tikkun alignment, Sefirotic structure, Klipothic interference]
+[4 sentences derived from Tikkun alignment, Sefirotic structure, Klipothic interference. Whether the soul corrections support or obstruct each other. What the Tree of Life reveals about the spiritual architecture of this connection. Where the klipothic shadows could consume both people.]
+
+SEXUAL CHEMISTRY: [0-100]
+[4 sentences: the raw erotic potential according to the charts. What kind of sexual dynamic these energies would produce. Whether the bedroom would become a place of liberation or destruction. What each person's body would want from the other that neither might say aloud.]
+
+PAST LIFE CONNECTION: [0-100]
+[4 sentences: how strongly the charts suggest pre-existing soul familiarity. Which placements point to unfinished business from other lifetimes. Whether this connection carries the weight of recognition or the ache of repetition. What the karmic signatures across all five systems reveal about why these two souls would feel they have met before.]
+
+WORLD-CHANGING POTENTIAL: [0-100]
+[4 sentences: what these two could build, create, or ignite in the world if they combined forces. Whether this is a private connection or one with a larger purpose beyond the two people inside it. What the charts say about the creative, professional, or spiritual impact of this collision. Whether the world would notice if these two worked together.]
+
+KARMIC VERDICT: [0-100]
+[4 sentences: is this a comfort trap or a genuine crucible of transformation? Would this connection make both people grow or would it keep them safely asleep? What is the cost of entering it and the cost of avoiding it? The final karmic truth — does this collision serve evolution or does it serve repetition?]
 
 GROWTH POTENTIAL: [0-100]
-[One sentence: what they could become together if both are conscious]
+[4 sentences: what they could become together if both are conscious. What specific gifts each person's chart offers the other. What inner work would be required from each person to access the highest octave of this connection. What the ceiling looks like if both people rise to it.]
 
 SHADOW RISK: [0-100]
-[One sentence: the destruction potential if both remain unconscious — higher score = higher risk]
+[4 sentences: the destruction potential if both remain unconscious — higher score means higher risk. Name the specific patterns that would emerge in the dark. How they could use each other's wounds as weapons. What this connection looks like at its worst.]
 
 MAGNETIC PULL: [0-100]
-[One sentence: the raw gravitational force of the connection regardless of its wisdom]
+[4 sentences: the raw gravitational force of the connection regardless of its wisdom. What makes the pull so strong or so faint. Whether the magnetism is rooted in genuine resonance or in wound-matching. How hard it would be to walk away even if walking away were wise.]
 
 LONG-TERM SUSTAINABILITY: [0-100]
-[One sentence: can this field sustain itself over time without consuming both people]
+[4 sentences: can this field sustain itself over time without consuming both people? What the charts say about endurance versus burnout. Whether the initial intensity would deepen into something lasting or collapse under its own weight. The structural truth about whether this is built to last.]
 
 SCORING RULES:
 - Do not cluster scores around 70-80. Use the full range.
 - A score of 95+ means genuinely rare — use it only if the mathematics justify it.
 - A score below 30 means significant structural incompatibility — do not soften it.
 - Shadow Risk scoring: 90+ means this connection has genuine destructive potential. Name it.
+- Past Life Connection: 90+ means overwhelming karmic indicators across multiple systems.
+- World-Changing Potential: score the external impact, not the internal relationship quality.
+- Karmic Verdict: high score = genuine crucible of growth; low score = comfort trap or repetition.
 - Overall Alignment is NOT an average. It is a synthesis judgment.
 
 FORMAT RULES (THIS IS SPOKEN AUDIO):

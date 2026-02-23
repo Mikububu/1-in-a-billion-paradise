@@ -291,10 +291,16 @@ function renderReadingText(doc: any, text: string, hasPlayfairBold: boolean, all
       .map((p) => p.trim())
       .filter(Boolean);
 
-    for (const paragraph of plainParagraphs) {
+    for (let pi = 0; pi < plainParagraphs.length; pi++) {
+      const paragraph = plainParagraphs[pi];
       doc.font('Garamond').fontSize(11).fillColor('#111111');
-      doc.text(paragraph, { align: 'justify' });
-      doc.moveDown(0.6);
+      // First paragraph: no indent. Others: indent for continuous essay feel, minimal gap.
+      const indent = pi === 0 ? 0 : 18;
+      doc.text(paragraph, doc.page.margins.left + indent, undefined, {
+        align: 'justify',
+        width: doc.page.width - doc.page.margins.left - doc.page.margins.right - indent,
+      });
+      doc.moveDown(0.15);
     }
     return;
   }
@@ -402,8 +408,13 @@ function renderReadingText(doc: any, text: string, hasPlayfairBold: boolean, all
     }
 
     doc.font('Garamond').fontSize(11).fillColor('#111111');
-    doc.text(paragraph, { align: 'justify' });
-    doc.moveDown(0.6);
+    // Indent non-first body paragraphs for continuous essay feel, minimal gap.
+    const bodyIndent = (i > 0 && !headline) ? 18 : 0;
+    doc.text(paragraph, doc.page.margins.left + bodyIndent, undefined, {
+      align: 'justify',
+      width: doc.page.width - doc.page.margins.left - doc.page.margins.right - bodyIndent,
+    });
+    doc.moveDown(0.15);
     wordsSinceLastHeadline += wordsIn(paragraph);
   }
 }
@@ -622,52 +633,81 @@ function renderChartReferenceText(doc: any, chartReferencePage: string, hasPlayf
 }
 
 type CompatibilityRow = { label: string; score: number; note?: string };
-function extractCompatibilityRows(reading: string, appendix?: string): CompatibilityRow[] {
-  const text = String(reading || '');
-  const appendixText = String(appendix || '');
-  const explicitRows: CompatibilityRow[] = [];
-  const explicitRe = /^-\s*([^:]{3,60}):\s*(\d{1,2}(?:\.\d+)?)\s*\/\s*10\s*[—-]\s*(.+)$/gmi;
-  let explicitMatch: RegExpExecArray | null;
-  while ((explicitMatch = explicitRe.exec(appendixText)) !== null) {
-    const label = explicitMatch[1]?.trim() || '';
-    const score = Number(explicitMatch[2]);
-    const note = (explicitMatch[3] || '').trim();
-    if (!label || !Number.isFinite(score)) continue;
-    explicitRows.push({ label, score: Math.max(0, Math.min(10, score)), note });
-  }
-  if (explicitRows.length > 0) return explicitRows.slice(0, 8);
 
-  const labels = [
-    'Safe to Spicy',
-    'Karmic Resonance',
-    'Karmic Bond',
-    'Daily Life',
-    'Daily Life Together',
-    'Toxic Relationship Potential',
-    'Healing Potential',
-    'Long-Term Sustainability',
-    'Emotional and Sexual Depth',
-    'Growth Potential',
-    'Danger',
-    'Danger/Risk',
-    'Timing',
-    'Overall',
-  ];
-  const rows: CompatibilityRow[] = [];
-  for (const label of labels) {
-    const re = new RegExp(`${label.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}[^\\d]{0,30}(\\d{1,2}(?:\\.\\d)?)\\s*\\/\\s*10`, 'i');
-    const m = text.match(re);
-    if (!m) continue;
-    const score = Number(m[1]);
-    if (!Number.isFinite(score)) continue;
-    rows.push({ label, score: Math.max(0, Math.min(10, score)) });
+/**
+ * Extract compatibility scores from LLM-generated reading text.
+ *
+ * The LLM appends a COMPATIBILITY SNAPSHOT block at the end of each overlay
+ * reading (and a larger COMPATIBILITY SCORES block in the verdict).
+ *
+ * Format produced by the LLM:
+ *   SEXUAL CHEMISTRY: 72
+ *   Two sentences of reasoning about the score.
+ *
+ * Scores are on a 0-100 scale. We convert to 0-10 for the PDF progress bars.
+ */
+function extractCompatibilityRows(reading: string, _appendix?: string): CompatibilityRow[] {
+  const text = String(reading || '');
+
+  // ── Strategy 1: Parse LLM /100 format ──────────────────────────────────
+  // Match lines like "SEXUAL CHEMISTRY: 72" or "OVERALL ALIGNMENT: 95"
+  // followed by sentence(s) until the next score label or end of text.
+  const scoreBlockRe = /^([A-Z][A-Z &\-\/]+?):\s*(\d{1,3})\s*$/gm;
+  const matches: Array<{ label: string; score100: number; index: number }> = [];
+  let m: RegExpExecArray | null;
+  while ((m = scoreBlockRe.exec(text)) !== null) {
+    const rawLabel = (m[1] || '').trim();
+    const score100 = Number(m[2]);
+    if (!rawLabel || !Number.isFinite(score100)) continue;
+    // Skip header lines like "COMPATIBILITY SNAPSHOT:" or "SCORING RULES:"
+    if (/^(COMPATIBILITY|SCORING|FORMAT|OUTPUT|STRUCTURE|STYLE)/i.test(rawLabel)) continue;
+    if (score100 < 0 || score100 > 100) continue;
+    matches.push({ label: toTitleCase(rawLabel), score100, index: m.index + m[0].length });
   }
-  const dedup = new Map<string, CompatibilityRow>();
-  for (const r of rows) {
-    const key = r.label.toLowerCase().replace('/risk', '');
-    if (!dedup.has(key)) dedup.set(key, r);
+
+  if (matches.length >= 3) {
+    const rows: CompatibilityRow[] = [];
+    for (let i = 0; i < matches.length; i++) {
+      const current = matches[i];
+      const nextIndex = i + 1 < matches.length ? matches[i + 1].index - matches[i + 1].label.length - 10 : text.length;
+      // Extract the note text between this score line and the next
+      const noteText = text.slice(current.index, nextIndex).trim();
+      // Take the first 2-4 sentences as the note
+      const sentences = noteText
+        .split(/(?<=[.!?])\s+/)
+        .filter((s) => s.trim().length > 10)
+        .slice(0, 4);
+      const note = sentences.join(' ').trim() || undefined;
+      rows.push({
+        label: current.label,
+        score: Math.max(0, Math.min(10, Math.round((current.score100 / 10) * 10) / 10)),
+        note,
+      });
+    }
+    return rows.slice(0, 14);
   }
-  return Array.from(dedup.values());
+
+  // ── Strategy 2: Legacy /10 format (backward compat) ────────────────────
+  const legacyRe = /^-?\s*([^:]{3,60}):\s*(\d{1,2}(?:\.\d+)?)\s*\/\s*10\s*(?:[—-]\s*(.+))?$/gmi;
+  const legacyRows: CompatibilityRow[] = [];
+  while ((m = legacyRe.exec(text)) !== null) {
+    const label = (m[1] || '').trim();
+    const score = Number(m[2]);
+    const note = (m[3] || '').trim() || undefined;
+    if (!label || !Number.isFinite(score)) continue;
+    legacyRows.push({ label, score: Math.max(0, Math.min(10, score)), note });
+  }
+  if (legacyRows.length >= 3) return legacyRows.slice(0, 14);
+
+  return [];
+}
+
+function toTitleCase(str: string): string {
+  return str
+    .toLowerCase()
+    .split(/[\s-]+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
 }
 
 function renderCompatibilitySnapshotPage(doc: any, rows: CompatibilityRow[], hasPlayfairBold: boolean): void {
@@ -983,8 +1023,11 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
       }
 
       if (options.type === 'overlay') {
-        const overlayText = cleanedChapters.map((c) => c.overlayReading || '').join('\n\n');
-        const compatibilityRows = extractCompatibilityRows(overlayText, options.compatibilityAppendix);
+        // LLM embeds compatibility scores directly in the reading text (overlay or verdict).
+        const allReadingText = cleanedChapters
+          .map((c) => [c.overlayReading, c.verdict].filter(Boolean).join('\n\n'))
+          .join('\n\n');
+        const compatibilityRows = extractCompatibilityRows(allReadingText);
         if (compatibilityRows.length > 0) {
           renderCompatibilitySnapshotPage(doc, compatibilityRows, hasPlayfairBold);
         }

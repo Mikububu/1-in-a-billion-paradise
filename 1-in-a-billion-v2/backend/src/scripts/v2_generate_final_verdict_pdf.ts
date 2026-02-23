@@ -7,7 +7,7 @@ import { generateReadingPDF } from '../services/pdf/pdfGenerator';
 import { WORD_COUNT_LIMITS_VERDICT } from '../prompts/config/wordCounts';
 import { generateAIPortrait } from '../services/aiPortraitService';
 import { composeCoupleImage } from '../services/coupleImageService';
-import { buildChartReferencePage, buildCompatibilityAppendix } from '../services/chartReferencePage';
+import { buildChartReferencePage } from '../services/chartReferencePage';
 import { generateSingleReading, safeFileToken } from './shared/generateReading';
 import type { SystemId } from '../promptEngine/types';
 
@@ -219,15 +219,6 @@ async function main() {
     .map(({ display, p2 }) => `=== ${display.toUpperCase()} PERSON 2 ===\n${p2}`)
     .join('\n\n');
 
-  const compatibilityAppendix = buildCompatibilityAppendix({
-    system: 'verdict',
-    person1Name: person1.name,
-    person2Name: person2.name,
-    person1ChartData: person1AllSystemsChartData,
-    person2ChartData: person2AllSystemsChartData,
-    combinedChartData: verdictChartData,
-  });
-
   const payloadBase: Record<string, any> = {
     type: 'bundle_verdict',
     systems,
@@ -330,7 +321,6 @@ async function main() {
     ],
     chartReferencePage,
     chartReferencePageRight,
-    compatibilityAppendix,
     generatedAt: new Date(),
   });
 

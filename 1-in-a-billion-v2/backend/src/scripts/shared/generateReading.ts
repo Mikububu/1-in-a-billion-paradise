@@ -699,7 +699,7 @@ async function repairComplianceIfNeeded(options: { system: SystemId; text: strin
       provider: 'claude',
       maxTokens: CLAUDE_MAX_TOKENS_PER_CALL,
       temperature: 0.35,
-      maxRetries: 3,
+      maxRetries: 5,
     });
 
     out = tightenParagraphs(cleanForPdf(repaired));
@@ -779,7 +779,7 @@ async function rewriteIncarnationStyleIfNeeded(options: {
       provider: 'claude',
       maxTokens: CLAUDE_MAX_TOKENS_PER_CALL,
       temperature: 0.6,
-      maxRetries: 3,
+      maxRetries: 5,
       systemPrompt: options.systemPrompt,
     });
 
@@ -845,7 +845,7 @@ async function expandToHardFloor(options: {
       provider: 'claude',
       maxTokens: CLAUDE_MAX_TOKENS_PER_CALL,
       temperature: 0.8,
-      maxRetries: 3,
+      maxRetries: 5,
       systemPrompt: options.systemPrompt,
     });
 
@@ -1111,7 +1111,7 @@ export async function generateSingleReading(options: GenerateSingleReadingOption
     provider: 'claude',
     maxTokens: 1200,
     temperature: 0.45,
-    maxRetries: 3,
+    maxRetries: 5,
   });
   const narrativeTrigger = stripControlTextLeaks(String(triggerRaw || '').replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ').trim());
   if (!narrativeTrigger) throw new Error(`Trigger call returned empty text for ${fileBase}`);
@@ -1154,7 +1154,7 @@ export async function generateSingleReading(options: GenerateSingleReadingOption
       provider: 'claude',
       maxTokens: CLAUDE_MAX_TOKENS_PER_CALL,
       temperature: 0.8,
-      maxRetries: 3,
+      maxRetries: 5,
       systemPrompt: llmSystemPrompt,
     });
 
@@ -1180,12 +1180,28 @@ export async function generateSingleReading(options: GenerateSingleReadingOption
     );
     const hasControlLeak = controlLeakRe.test(candidate);
 
-    if (
-      words >= hardFloorWords &&
-      !pronounIssue &&
-      !hasControlLeak
-    ) {
-      finalReading = extracted.footer ? `${candidate}\n\n${extracted.footer}`.trim() : candidate;
+    if (!pronounIssue && !hasControlLeak) {
+      // Candidate is clean — accept or expand to meet word floor
+      if (words >= hardFloorWords) {
+        finalReading = extracted.footer ? `${candidate}\n\n${extracted.footer}`.trim() : candidate;
+        if (hasSecond) {
+          console.warn(`⚠️ Trigger-pipeline accepted with second-person residue for ${fileBase}.`);
+        }
+        break;
+      }
+      // Under word floor but otherwise clean — expand instead of discarding
+      console.log(`📏 Trigger-pipeline attempt ${attempt}: ${words}/${hardFloorWords} words (clean). Expanding...`);
+      const expanded = await expandToHardFloor({
+        system,
+        baseText: candidate,
+        label: fileBase,
+        hardFloorWords,
+        styleLayerId: styleLayerId || 'writing-style-guide-incarnation-v1',
+        chartData: triggerBundle.strippedChartData,
+        systemPrompt: llmSystemPrompt,
+        preserveSurrealHeadlines: true,
+      });
+      finalReading = extracted.footer ? `${expanded}\n\n${extracted.footer}`.trim() : expanded;
       if (hasSecond) {
         console.warn(`⚠️ Trigger-pipeline accepted with second-person residue for ${fileBase}.`);
       }

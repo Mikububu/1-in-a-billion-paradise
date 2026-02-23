@@ -276,7 +276,7 @@ class LLMService {
     // Clamp to provider limits to avoid invalid requests.
     const maxTokens = Math.min(options?.maxTokens ?? 5000, config.maxTokens);
     const temperature = options?.temperature || 0.8;
-    const maxRetries = options?.maxRetries ?? 2;
+    const maxRetries = options?.maxRetries ?? 5;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       const startTime = Date.now();

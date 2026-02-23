@@ -29,22 +29,23 @@ function buildOverlayTriggerPromptBase(params: {
   const relationalTrigger = RELATIONAL_TRIGGER_LABEL;
 
   return [
-    `You are reading the relational field between ${person1Name} and ${person2Name}.`,
+    `You are reading the relational field between ${person1Name} and ${person2Name}. These two may or may not know each other. You are reading what the charts suggest would happen if their energies met.`,
     '',
     systemInstruction,
     '',
     `Find the ${relationalTrigger}. Not person1 trigger. Not person2 trigger.`,
-    'Name the dynamic that appears only when these two fields collide.',
-    'What one has that the other is unconsciously organized around needing.',
-    'How they can damage each other if unconscious.',
-    'What the pull is made of.',
-    'What this connection is FOR under their story about it.',
+    'Name the dynamic that would appear if these two fields were to collide.',
+    'What one has that the other would be unconsciously organized around needing.',
+    'How they could damage each other if unconscious.',
+    'What the pull would be made of.',
+    'What this connection would be FOR — its purpose according to the charts.',
     '',
     'Write one paragraph. 80-120 words exactly.',
     'Third person. Use both names.',
     'No system terms. No technical syntax. No repair instructions. No hope language.',
     'Specific enough that no other pair of charts produces this exact sentence.',
     'It must cost something to read.',
+    'NEVER assume they have met, are together, or have a history. This is a chart reading of potential.',
     '',
     'CHART DATA:',
     strippedChartData,
@@ -68,8 +69,14 @@ function buildOverlayWritingPromptBase(params: {
   return [
     narratorIdentity,
     CORE_FAIRYTALE_SEED_OVERLAY,
-    'You are a witness to collision, not a therapist, not a judge.',
-    'You describe what happens when these two fields collide in ordinary life.',
+    'You are reading a potential collision, not a therapist, not a judge.',
+    'You describe what the charts suggest would happen if these two fields collided in ordinary life.',
+    '',
+    'CRITICAL FRAMING:',
+    '- NEVER assume these two people know each other, have met, or are in a relationship.',
+    '- This is a chart reading of POTENTIAL — what the stars describe would unfold if these energies met.',
+    '- Use hypothetical language: "would", "could", "if they were to", "the charts suggest".',
+    '- You may write with conviction about what the charts reveal, but the collision itself is hypothetical.',
     '',
     '══════════════════════════════════════════════════════════',
     `${relationalTriggerTitle} — THIS IS THE SPINE OF EVERYTHING YOU WRITE:`,
@@ -80,19 +87,19 @@ function buildOverlayWritingPromptBase(params: {
     '',
     'NARRATOR:',
     `- Third person. Use both names (${person1Name}, ${person2Name}). Never "you" or "your".`,
-    '- You are watching two fields collide. Stay in the observation. Do not explain from above.',
+    '- You are reading what would happen if two fields collided. Stay in the chart analysis.',
     '- The attraction and the damage are not separate things. Name both.',
     'STRUCTURE:',
     '- 4 to 6 sections. Invent a title for each. Specific, earned.',
     '- Section titles must be standalone plain-text lines. No numbering, no Roman numerals, no dashes, no markdown.',
-    '- Show what draws them, what they do to each other, what this is for.',
-    '- The ending does not resolve. It names the pressure still active.',
+    '- Show what could draw them together, what they could do to each other, what the charts say this would be for.',
+    '- The ending does not resolve. It names the pressure that would remain active.',
     '',
     'ANTI-SURVEY:',
     `- Do not tour placements or systems. Serve the ${relationalTrigger}.`,
     '- Do not write person1 section + person2 section + merged section.',
     '- Explain system terms in plain language the first time they appear.',
-    '- They are already in collision. Every paragraph adds consequence or evidence.',
+    '- Within the reading, treat the collision as vivid and real — but never narrate actual events, meetings, or shared history.',
     '',
     `LENGTH: ${targetWords.toLocaleString('en-US')} words. Write until the dynamic is fully present. Then stop.`,
     'Do not pad. Do not repeat. Do not add a hopeful ending.',
@@ -194,7 +201,7 @@ export function buildWesternOverlayWritingPrompt(params: {
   return buildOverlayWritingPromptBase({
     ...params,
     narratorIdentity:
-      'You are a novelist who has watched this exact collision before, in different bodies across different centuries.',
+      'You are a novelist who has seen charts like these before, and you know what this collision would look like if it happened — because you have watched similar mathematics play out in different bodies across different centuries.',
   });
 }
 
@@ -208,7 +215,7 @@ export function buildVedicOverlayWritingPrompt(params: {
   return buildOverlayWritingPromptBase({
     ...params,
     narratorIdentity:
-      'You are a storyteller who understands karma as physics and cycles as structure, watching unfinished business become present tense.',
+      'You are a storyteller who understands karma as physics and cycles as structure, exploring what unfinished karmic business these charts suggest would surface if these souls met.',
   });
 }
 
@@ -222,7 +229,7 @@ export function buildHDOverlayWritingPrompt(params: {
   return buildOverlayWritingPromptBase({
     ...params,
     narratorIdentity:
-      'You are a novelist who understands the body as a receiver and relationship as a circuit that can regulate or overload.',
+      'You are a novelist who understands the body as a receiver and relationship as a circuit — exploring what would regulate and what would overload if these two designs shared a space.',
   });
 }
 
@@ -236,7 +243,7 @@ export function buildGeneKeysOverlayWritingPrompt(params: {
   return buildOverlayWritingPromptBase({
     ...params,
     narratorIdentity:
-      'You are a novelist studying what two people activate in each other that neither can activate alone, and what it costs.',
+      'You are a novelist studying what two people could activate in each other that neither could activate alone — and what the charts suggest it would cost.',
   });
 }
 
@@ -250,6 +257,6 @@ export function buildKabbalahOverlayWritingPrompt(params: {
   return buildOverlayWritingPromptBase({
     ...params,
     narratorIdentity:
-      'You are a novelist who understands correction as collision, watching two soul corrections either accelerate or obstruct each other.',
+      'You are a novelist who understands correction as collision, exploring what would happen if two soul corrections either accelerated or obstructed each other.',
   });
 }

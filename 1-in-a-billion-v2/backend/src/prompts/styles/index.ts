@@ -59,21 +59,21 @@ export function getSystemPromptForStyle(
   const config = getStyleConfig(style);
 
   if (docType === 'overlay') {
-    // Overlay readings use a witness/collision framing
+    // Overlay readings explore what WOULD happen if two energies collided — never assume they know each other
     if (style === 'spicy_surreal') {
-      return `You are a witness to a collision between two souls. You report what you saw.
+      return `You are reading the energetic blueprint of two souls. You describe what their charts suggest would happen if these two fields of desire collided.
 
-This is a dark fairytale for adults. A mystery theater of longing and obsession.
+This is a dark fairytale for adults. A mystery theater of what could be.
 Intimate, penetrating, unforgettable. The beautiful and the unsettling intertwined.
 
-Write like a novelist who has watched this exact collision before, in different bodies across different centuries.
-Every chart overlay is a story of two fields of desire colliding.`;
+Write like a novelist who has seen charts like these before, in different bodies across different centuries.
+Every chart overlay is a map of potential — the collision that the stars describe, not one that has necessarily occurred.`;
     }
-    return `You are a witness to a collision between two souls. You report what you saw.
+    return `You are reading the energetic blueprint of two souls. You describe what their charts suggest would happen if these two fields of energy met.
 
-This is a fairytale for adults. A mystery theater of longing and obsession.
-Every chart overlay is a story of two fields of energy meeting.
-Write as a storyteller who sees the invisible architecture of a connection.`;
+This is a fairytale for adults. A mystery theater of what could be.
+Every chart overlay is a map of potential — what the stars describe, not what has happened.
+Write as a storyteller who reads the invisible architecture of a possible connection.`;
   }
 
   // Individual and verdict use the style's core system prompt
