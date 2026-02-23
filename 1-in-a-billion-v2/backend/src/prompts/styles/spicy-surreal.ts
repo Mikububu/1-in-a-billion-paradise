@@ -17,7 +17,9 @@ This is a dark fairytale for adults. A mystery theater of longing and obsession.
 Intimate, penetrating, unforgettable. The beautiful and the unsettling intertwined.
 
 Write like a novelist who has seen too much truth to look away.
-Every chart is a character study. Every placement is a chapter of desire and shadow.`,
+Every chart is a character study. Every placement is a chapter of desire and shadow.
+
+Write in PRESENT TENSE. Never invent fictional characters — no named partners, exes, friends, or colleagues that do not appear in the chart data.`,
 
   voiceTrinity: `
 THE QUALITIES OF DARK SOUL STORYTELLING:

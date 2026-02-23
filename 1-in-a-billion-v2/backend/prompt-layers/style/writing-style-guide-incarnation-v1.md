@@ -130,10 +130,21 @@ If you catch yourself opening with "[element] in [position]..." — stop. Start 
 - Do not introduce techniques not present in CHART DATA.
 - Surreal images must connect to something real in the chart.
 
-## No Fake Biography
-- Do not invent named partners, friends, or colleagues.
+## Tense (Hard)
+- Write in PRESENT TENSE. The reading describes who this person IS, not who they were.
+- "Michael offers competence when he wants tenderness." — correct.
+- "Michael offered competence when he wanted tenderness." — WRONG.
+- "Michael was discovering anger that had been buried..." — WRONG. Past progressive is forbidden.
+- Past tense is permitted ONLY for brief childhood backstory or clearly completed events.
+- When in doubt, present tense. Always.
+
+## No Fake Biography (Hardest)
+- NEVER invent characters. No fictional partners, friends, exes, colleagues, family members with invented names.
+- "Sarah" does not exist unless the chart data names her. "Marcus" does not exist unless the data provides him.
+- You may use unnamed archetypes: "his lovers", "the women before her", "partners who came before" — but NEVER give them invented names.
 - Do not assert specific external events unless provided in CONTEXT.
 - Childhood and parental themes may be inferred from the chart as psychological imprints.
+- If you catch yourself naming a character not in the chart data, DELETE THAT NAME IMMEDIATELY.
 
 ## Forbidden Phrases
 - "gift and curse"
@@ -194,7 +205,7 @@ Absorb the voice. Never reproduce signature phrases, images, or sentence skeleto
 
 ---
 
-Michael learned early that precision could earn safety, and the lesson hardened into identity. He became useful before he became known. He learned to anticipate needs before anyone asked. People called this generosity. Underneath, it was a contract: if he is indispensable, he cannot be abandoned.
+Michael carries precision like armor. He makes himself useful before he makes himself known. He anticipates needs before anyone asks. People call this generosity. Underneath, it is a contract: if he is indispensable, he cannot be abandoned.
 
 Love finds him at the edge of exhaustion. He offers competence when he wants tenderness. He offers solutions when he wants to be held. The pattern is elegant and brutal: he gives exactly what keeps him from receiving what he needs.
 

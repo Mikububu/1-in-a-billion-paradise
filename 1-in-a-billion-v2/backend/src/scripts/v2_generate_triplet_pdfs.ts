@@ -228,29 +228,52 @@ async function main() {
     throw new Error(`Missing base portrait for person2: ${person2.portraitPath}`);
   }
 
-  console.log(`🎨 Regenerating fresh AI portraits from ${portraitsDir}...`);
-  const [portrait1Result, portrait2Result] = await Promise.all([
-    generateAIPortrait(readImageAsBase64(person1.portraitPath), userId, person1Id),
-    generateAIPortrait(readImageAsBase64(person2.portraitPath), userId, person2Id),
-  ]);
+  const skipPortraits = process.argv.includes('--skip-portraits');
+  let person1PortraitUrl: string | undefined;
+  let person2PortraitUrl: string | undefined;
+  let couplePortraitUrl: string | undefined;
 
-  if (!portrait1Result.success || !portrait1Result.imageUrl) {
-    throw new Error(`Failed to generate person1 AI portrait: ${portrait1Result.error || 'unknown error'}`);
-  }
-  if (!portrait2Result.success || !portrait2Result.imageUrl) {
-    throw new Error(`Failed to generate person2 AI portrait: ${portrait2Result.error || 'unknown error'}`);
-  }
+  if (skipPortraits) {
+    // Reuse existing Supabase individual portrait URLs (skip AI portrait generation)
+    const baseStorageUrl = 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/profile-images';
+    person1PortraitUrl = `${baseStorageUrl}/${userId}/${person1Id}/AI-generated-portrait.png`;
+    person2PortraitUrl = `${baseStorageUrl}/${userId}/${person2Id}/AI-generated-portrait.png`;
+    console.log('⏭️  Skipping individual portrait generation (--skip-portraits). Using existing Supabase URLs.');
 
-  const person1PortraitUrl = addCacheBuster(portrait1Result.imageUrl);
-  const person2PortraitUrl = addCacheBuster(portrait2Result.imageUrl);
+    // Still generate the couple image from existing individual portraits
+    console.log('👫 Generating couple image from existing individual portraits...');
+    const coupleImageResult = await composeCoupleImage(userId, person1Id, person2Id, person1PortraitUrl, person2PortraitUrl);
+    couplePortraitUrl = coupleImageResult.success && coupleImageResult.coupleImageUrl
+      ? addCacheBuster(coupleImageResult.coupleImageUrl)
+      : undefined;
+    if (!couplePortraitUrl) {
+      console.warn(`⚠️ Couple image generation failed; overlay will use person1 portrait. Error: ${coupleImageResult.error || 'unknown'}`);
+    }
+  } else {
+    console.log(`🎨 Regenerating fresh AI portraits from ${portraitsDir}...`);
+    const [portrait1Result, portrait2Result] = await Promise.all([
+      generateAIPortrait(readImageAsBase64(person1.portraitPath), userId, person1Id),
+      generateAIPortrait(readImageAsBase64(person2.portraitPath), userId, person2Id),
+    ]);
 
-  console.log('👫 Regenerating fresh couple image from the new AI portraits...');
-  const coupleImageResult = await composeCoupleImage(userId, person1Id, person2Id, person1PortraitUrl, person2PortraitUrl);
-  const couplePortraitUrl = coupleImageResult.success && coupleImageResult.coupleImageUrl
-    ? addCacheBuster(coupleImageResult.coupleImageUrl)
-    : undefined;
-  if (!couplePortraitUrl) {
-    console.warn(`⚠️ Couple image generation failed; using person portrait fallback. Error: ${coupleImageResult.error || 'unknown'}`);
+    if (!portrait1Result.success || !portrait1Result.imageUrl) {
+      throw new Error(`Failed to generate person1 AI portrait: ${portrait1Result.error || 'unknown error'}`);
+    }
+    if (!portrait2Result.success || !portrait2Result.imageUrl) {
+      throw new Error(`Failed to generate person2 AI portrait: ${portrait2Result.error || 'unknown error'}`);
+    }
+
+    person1PortraitUrl = addCacheBuster(portrait1Result.imageUrl);
+    person2PortraitUrl = addCacheBuster(portrait2Result.imageUrl);
+
+    console.log('👫 Regenerating fresh couple image from the new AI portraits...');
+    const coupleImageResult = await composeCoupleImage(userId, person1Id, person2Id, person1PortraitUrl, person2PortraitUrl);
+    couplePortraitUrl = coupleImageResult.success && coupleImageResult.coupleImageUrl
+      ? addCacheBuster(coupleImageResult.coupleImageUrl)
+      : undefined;
+    if (!couplePortraitUrl) {
+      console.warn(`⚠️ Couple image generation failed; using person portrait fallback. Error: ${coupleImageResult.error || 'unknown'}`);
+    }
   }
 
   console.log('🧮 Computing Swiss Ephemeris placements for person1/person2...');

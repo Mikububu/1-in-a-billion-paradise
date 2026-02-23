@@ -1138,7 +1138,12 @@ export async function generateSingleReading(options: GenerateSingleReadingOption
     `- Minimum length: ${hardFloorWords} words.`,
     `- Preferred range: ${Math.max(hardFloorWords + 400, 4400)}-${Math.max(hardFloorWords + 2600, 7600)} words.`,
     '- Third-person narration only. Never address the subject or reader as "you/your".',
+    '- PRESENT TENSE. Who this person IS, not who they were. Past tense only for brief childhood backstory.',
+    '- Do NOT overuse "would" or "could". Describe the dynamic in present tense: "creates", "demands", "pulls".',
+    '- NEVER structure by seasons (spring, summer, autumn, winter). Structure by dynamics and themes.',
+    '- NEVER invent fictional characters. No named partners, exes, friends, or colleagues unless they appear in chart data.',
     '- Explain technical vocabulary on first use in plain language, then continue story-first.',
+    '- One continuous essay. NO section titles, NO chapter headings, NO standalone headline lines. Pure flowing prose.',
     '- Keep the prose compelling like an audiobook: no report tone, no bullet formatting.',
     '- Never output internal planning text, internal labels, or file identifiers.',
   ].filter(v => v !== null).join('\n');

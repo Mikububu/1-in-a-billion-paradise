@@ -288,22 +288,17 @@ function isInlineTitleHeadlineCandidate(candidate: string): boolean {
 
 function renderReadingText(doc: any, text: string, hasPlayfairBold: boolean, allowInferredHeadlines: boolean = true): void {
   if (!allowInferredHeadlines) {
-    const plainParagraphs = String(text || '')
+    const joined = String(text || '')
       .split(/\n+/)
       .map((p) => p.trim())
-      .filter(Boolean);
+      .filter(Boolean)
+      .join(' ');
 
-    let isFirstAfterBreak = true;
-    for (let pi = 0; pi < plainParagraphs.length; pi++) {
-      const paragraph = plainParagraphs[pi];
-      doc.font('Garamond').fontSize(11).fillColor('#111111');
-      doc.text(paragraph, doc.page.margins.left, undefined, {
-        align: 'justify',
-        width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
-        indent: isFirstAfterBreak ? 0 : 22,
-      });
-      isFirstAfterBreak = false;
-    }
+    doc.font('Garamond').fontSize(10).fillColor('#111111');
+    doc.text(joined, doc.page.margins.left, undefined, {
+      align: 'justify',
+      width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+    });
     return;
   }
 
@@ -416,8 +411,8 @@ function renderReadingText(doc: any, text: string, hasPlayfairBold: boolean, all
     doc.text(paragraph, doc.page.margins.left, undefined, {
       align: 'justify',
       width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
-      indent: isFirstAfterHeadline ? 0 : 22,
     });
+    doc.moveDown(0.25);
     isFirstAfterHeadline = false;
     wordsSinceLastHeadline += wordsIn(paragraph);
   }
@@ -717,60 +712,51 @@ function toTitleCase(str: string): string {
 function renderCompatibilitySnapshotPage(doc: any, rows: CompatibilityRow[], hasPlayfairBold: boolean): void {
   if (!rows.length) return;
   doc.addPage();
-  doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fontSize(18).fillColor('#7a4a12')
-    .text('Compatibility Snapshot', { align: 'center' });
-  doc.moveDown(0.7);
 
-  const left = 74;
-  const right = doc.page.width - 74;
-  const labelWidth = 200;
-  const scoreWidth = 78;
-  const gap = 12;
-  const maxBar = Math.max(120, right - (left + labelWidth + gap + scoreWidth + gap));
-  const barX = left + labelWidth + gap;
-  const scoreX = barX + maxBar + gap;
-  const pageBottom = doc.page.height - 120;
-  let y = doc.y + 10;
+  const left = doc.page.margins.left;
+  const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const pageBottom = doc.page.height - doc.page.margins.bottom;
+
+  // Title
+  doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fontSize(16).fillColor('#7a4a12')
+    .text('Compatibility Snapshot', { width: contentWidth, align: 'center' });
+  doc.moveDown(1.0);
+
   for (const row of rows) {
-    if (y > pageBottom - 40) {
-      doc.addPage();
-      doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fontSize(18).fillColor('#7a4a12')
-        .text('Compatibility Snapshot', { align: 'center' });
-      doc.moveDown(0.7);
-      y = 112;
-    }
-    doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fontSize(11).fillColor('#111111');
-    const labelHeight = Math.max(14, doc.heightOfString(row.label, { width: labelWidth, align: 'left' }));
-    const noteHeight = row.note
-      ? doc.heightOfString(row.note, { width: right - left, align: 'left' })
-      : 0;
-    const requiredHeight = labelHeight + 8 + (row.note ? noteHeight + 12 : 0);
-    if (y + requiredHeight > pageBottom) {
-      doc.addPage();
-      doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fontSize(18).fillColor('#7a4a12')
-        .text('Compatibility Snapshot', { align: 'center' });
-      doc.moveDown(0.7);
-      y = 112;
-    }
-    doc.text(row.label, left, y, { width: labelWidth, align: 'left' });
-    const barY = y + Math.max(1, (labelHeight - 10) / 2);
-    doc.roundedRect(barX, barY, maxBar, 10, 5).lineWidth(0.8).strokeColor('#d1d5db').stroke();
-    const fillW = (row.score / 10) * maxBar;
-    doc.roundedRect(barX, barY, fillW, 10, 5).fillColor('#b91c1c').fill();
+    // Pre-measure full row
+    doc.font('Garamond').fontSize(9);
+    const noteH = row.note ? doc.heightOfString(row.note, { width: contentWidth }) : 0;
+    const rowH = 16 + 12 + noteH + 24; // label + bar + note + generous gap
 
-    doc.font('Garamond').fontSize(10.5).fillColor('#111111')
-      .text(`${row.score.toFixed(1)}/10`, scoreX, y, { width: scoreWidth, align: 'right' });
+    if (doc.y + rowH > pageBottom) {
+      doc.addPage();
+    }
 
-    let nextY = y + Math.max(labelHeight, 14) + 8;
+    // ── Label left, score right on same line ──
+    const lineY = doc.y;
+    doc.font(hasPlayfairBold ? 'PlayfairBold' : 'GaramondBold').fontSize(10.5).fillColor('#111111');
+    doc.text(row.label, left, lineY, { width: contentWidth - 60, continued: false });
+    doc.font('Garamond').fontSize(10).fillColor('#555555');
+    doc.text(`${row.score.toFixed(1)}/10`, left, lineY, { width: contentWidth, align: 'right' });
+
+    // ── Progress bar ──
+    const barY = lineY + 15;
+    doc.roundedRect(left, barY, contentWidth, 6, 3).lineWidth(0.5).strokeColor('#d1d5db').stroke();
+    doc.roundedRect(left, barY, (row.score / 10) * contentWidth, 6, 3).fillColor('#b91c1c').fill();
+
+    // Advance doc.y past the bar
+    doc.y = barY + 10;
+    doc.x = left;
+
+    // ── Note text ── NO explicit x,y on doc.text — pure auto-flow for pagination
     if (row.note) {
-      doc.font('Garamond').fontSize(9.5).fillColor('#4b5563')
-        .text(row.note, left, nextY, { width: right - left, align: 'left' });
-      nextY += noteHeight + 12;
+      doc.font('Garamond').fontSize(9).fillColor('#4b5563');
+      doc.text(row.note, { width: contentWidth });
     }
-    y = nextY;
+
+    // Generous spacing between rows
+    doc.moveDown(1.0);
   }
-  doc.x = doc.page.margins.left;
-  doc.moveDown(1.2);
 }
 
 function renderLegacyChartReferenceText(doc: any, chartReferencePage: string, hasPlayfairBold: boolean): void {
@@ -1013,16 +999,16 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
       // Body text
       for (const chapter of cleanedChapters) {
       if (chapter.person1Reading) {
-          renderReadingText(doc, chapter.person1Reading, hasPlayfairBold, options.allowInferredHeadlines ?? true);
+          renderReadingText(doc, chapter.person1Reading, hasPlayfairBold, options.allowInferredHeadlines ?? false);
         }
         if (chapter.person2Reading) {
-          renderReadingText(doc, chapter.person2Reading, hasPlayfairBold, options.allowInferredHeadlines ?? true);
+          renderReadingText(doc, chapter.person2Reading, hasPlayfairBold, options.allowInferredHeadlines ?? false);
         }
         if (chapter.overlayReading) {
-          renderReadingText(doc, chapter.overlayReading, hasPlayfairBold, options.allowInferredHeadlines ?? true);
+          renderReadingText(doc, chapter.overlayReading, hasPlayfairBold, options.allowInferredHeadlines ?? false);
         }
         if (chapter.verdict) {
-          renderReadingText(doc, chapter.verdict, hasPlayfairBold, options.allowInferredHeadlines ?? true);
+          renderReadingText(doc, chapter.verdict, hasPlayfairBold, options.allowInferredHeadlines ?? false);
         }
       }
 

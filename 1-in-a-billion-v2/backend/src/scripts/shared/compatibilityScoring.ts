@@ -76,6 +76,7 @@ function buildScoringPrompt(params: {
     '- Use the FULL 0-100 range. Do not cluster around 70-80.',
     '- A score of 90+ means genuinely rare alignment. Below 30 means structural incompatibility.',
     '- Each score MUST have 2-3 sentences of specific reasoning anchored to chart data or the reading.',
+    `- ALTERNATE which person you mention first. Do NOT always lead with ${person1Name}. This is about the PAIR, not about one person.`,
     '- Be honest and unflinching. No therapy language. No fake positivity.',
     isVerdict
       ? '- OVERALL ALIGNMENT is NOT an average — it is a synthesis judgment across all five systems.'

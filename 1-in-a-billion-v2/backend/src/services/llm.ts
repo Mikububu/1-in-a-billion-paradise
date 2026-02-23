@@ -15,8 +15,20 @@
  */
 
 import axios from 'axios';
+import https from 'https';
 import { env } from '../config/env';
 import { getApiKey } from './apiKeys';
+
+/**
+ * Shared HTTPS agent with keep-alive to reuse TCP connections.
+ * Prevents ETIMEDOUT errors caused by opening too many fresh connections
+ * during sequential streaming calls (e.g. person1 → person2 → overlay).
+ */
+const sharedHttpsAgent = new https.Agent({
+  keepAlive: true,
+  keepAliveMsecs: 30000,
+  maxSockets: 5,
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -216,6 +228,7 @@ class LLMService {
         const response = await axios.post(config.url, body, {
           headers: await config.getHeaders(),
           timeout: 300000, // 5 min timeout
+          httpsAgent: sharedHttpsAgent,
         });
 
         const text = config.parseResponse(response.data);
@@ -315,6 +328,7 @@ class LLMService {
           headers: await config.getHeaders(),
           responseType: 'stream',
           timeout: 600000, // 10 min for streaming
+          httpsAgent: sharedHttpsAgent,
         });
 
         // Process the stream
