@@ -1113,7 +1113,10 @@ export async function generateSingleReading(options: GenerateSingleReadingOption
     temperature: 0.45,
     maxRetries: 5,
   });
-  const narrativeTrigger = stripControlTextLeaks(String(triggerRaw || '').replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ').trim());
+  // Light cleanup only — do NOT apply stripControlTextLeaks here because the trigger
+  // paragraph legitimately contains trigger-title phrases ("RELATIONAL CORE FRACTURE" etc.)
+  // that the strip function would kill.
+  const narrativeTrigger = String(triggerRaw || '').replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ').trim();
   if (!narrativeTrigger) throw new Error(`Trigger call returned empty text for ${fileBase}`);
 
   // FIX 3: Chart-aware provocations — anchor LLM to specific placements

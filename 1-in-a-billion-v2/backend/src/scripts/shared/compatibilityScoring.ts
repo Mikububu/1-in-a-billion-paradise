@@ -89,7 +89,7 @@ function buildScoringPrompt(params: {
 function parseScores(raw: string): CompatibilityScore[] {
   const text = String(raw || '');
   const scoreBlockRe = /^([A-Z][A-Z &\-\/]+?):\s*(\d{1,3})\s*$/gm;
-  const matches: Array<{ label: string; score100: number; index: number }> = [];
+  const matches: Array<{ label: string; score100: number; startIndex: number; endIndex: number }> = [];
   let m: RegExpExecArray | null;
 
   while ((m = scoreBlockRe.exec(text)) !== null) {
@@ -98,16 +98,16 @@ function parseScores(raw: string): CompatibilityScore[] {
     if (!rawLabel || !Number.isFinite(score100)) continue;
     if (/^(COMPATIBILITY|SCORING|FORMAT|OUTPUT|STRUCTURE|STYLE|BASED|SCORE)/i.test(rawLabel)) continue;
     if (score100 < 0 || score100 > 100) continue;
-    matches.push({ label: rawLabel, score100, index: m.index + m[0].length });
+    matches.push({ label: rawLabel, score100, startIndex: m.index, endIndex: m.index + m[0].length });
   }
 
   const rows: CompatibilityScore[] = [];
   for (let i = 0; i < matches.length; i++) {
     const current = matches[i];
     const nextIndex = i + 1 < matches.length
-      ? matches[i + 1].index - matches[i + 1].label.length - 10
+      ? matches[i + 1].startIndex  // Start of next label line — no more guessing offsets
       : text.length;
-    const noteText = text.slice(current.index, nextIndex).trim();
+    const noteText = text.slice(current.endIndex, nextIndex).trim();
     const sentences = noteText
       .split(/(?<=[.!?])\s+/)
       .filter((s) => s.trim().length > 10)

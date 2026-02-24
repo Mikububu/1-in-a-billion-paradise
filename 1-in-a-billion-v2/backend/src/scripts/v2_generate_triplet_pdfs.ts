@@ -72,7 +72,7 @@ function cleanupDebugArtifacts(outDir: string, fileBase: string): void {
   const files = fs.readdirSync(outDir);
   for (const file of files) {
     if (!file.startsWith(fileBase)) continue;
-    if (file.endsWith('.pdf')) continue;
+    if (file.endsWith('.pdf') || file.endsWith('.reading.txt')) continue;
     const abs = path.join(outDir, file);
     try {
       fs.unlinkSync(abs);
@@ -547,9 +547,13 @@ async function main() {
 
     const pdfOutPath = path.join(outDir, `${fileBase}.pdf`);
     fs.copyFileSync(pdf.filePath, pdfOutPath);
+    // Always save reading text for audio pipeline
+    const textOutPath = path.join(outDir, `${fileBase}.reading.txt`);
+    fs.writeFileSync(textOutPath, generated.reading, 'utf8');
     cleanupDebugArtifacts(outDir, fileBase);
     outputs.push(pdfOutPath);
     console.log(`✅ Wrote PDF: ${pdfOutPath}`);
+    console.log(`✅ Wrote reading text: ${textOutPath}`);
   }
 
   console.log(`\n✅ Done. ${system} triplet PDFs written:`);

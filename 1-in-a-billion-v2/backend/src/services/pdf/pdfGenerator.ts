@@ -748,9 +748,15 @@ function renderCompatibilitySnapshotPage(doc: any, rows: CompatibilityRow[], has
     doc.y = barY + 10;
     doc.x = left;
 
-    // ── Note text ── NO explicit x,y on doc.text — pure auto-flow for pagination
+    // ── Note text ── pure auto-flow for pagination
     if (row.note) {
       doc.font('Garamond').fontSize(9).fillColor('#4b5563');
+      // Safety: if note would overflow this page, break first
+      const remainingOnPage = pageBottom - doc.y;
+      const noteHeight = doc.heightOfString(row.note, { width: contentWidth });
+      if (noteHeight > remainingOnPage) {
+        doc.addPage();
+      }
       doc.text(row.note, { width: contentWidth });
     }
 
