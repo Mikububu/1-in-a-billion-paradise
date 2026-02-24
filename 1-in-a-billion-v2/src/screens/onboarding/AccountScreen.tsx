@@ -101,6 +101,8 @@ export const AccountScreen = ({ navigation, route }: Props) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showOtpInput, setShowOtpInput] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
 
   const isFormValid = name.trim().length > 0 && email.trim().length > 0 && password.trim().length > 0;
 
@@ -381,20 +383,45 @@ export const AccountScreen = ({ navigation, route }: Props) => {
 
       if (error) throw error;
 
-      let userId = data.user?.id || null;
-
-      if (!data.session) {
-        const login = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password: password.trim(),
-        });
-        if (login.error) throw login.error;
-        userId = login.data.user?.id || userId;
+      if (data.session) {
+        // Email confirmation disabled — signed in immediately
+        const userId = data.user?.id;
+        if (!userId) throw new Error('Could not establish session after sign-up.');
+        if (fromPayment) {
+          await finalizePaidSignup(userId);
+        } else {
+          await finalizePrePaymentSignup(userId);
+        }
+      } else {
+        // Email confirmation enabled — show OTP pin code input
+        setShowOtpInput(true);
+        setOtpCode('');
       }
+    } catch (e: any) {
+      Alert.alert('Sign-up failed', e?.message || 'Could not create account.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      if (!userId) {
-        throw new Error('Could not establish session after sign-up.');
-      }
+  const handleVerifyOtp = async () => {
+    if (otpCode.trim().length < 6) {
+      Alert.alert('Enter code', 'Please enter the 6-digit code from your email.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: otpCode.trim(),
+        type: 'signup',
+      });
+
+      if (error) throw error;
+
+      const userId = data.user?.id;
+      if (!userId) throw new Error('Verification succeeded but no user session.');
 
       if (fromPayment) {
         await finalizePaidSignup(userId);
@@ -402,7 +429,23 @@ export const AccountScreen = ({ navigation, route }: Props) => {
         await finalizePrePaymentSignup(userId);
       }
     } catch (e: any) {
-      Alert.alert('Sign-up failed', e?.message || 'Could not create account.');
+      Alert.alert('Verification failed', e?.message || 'Invalid code. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email.trim(),
+      });
+      if (error) throw error;
+      Alert.alert('Code resent', 'A new code has been sent to your email.');
+    } catch (e: any) {
+      Alert.alert('Resend failed', e?.message || 'Could not resend code.');
     } finally {
       setIsLoading(false);
     }
@@ -566,7 +609,8 @@ export const AccountScreen = ({ navigation, route }: Props) => {
             return;
           }
           if (hasPassedLanguages && !authUser?.id) {
-            Alert.alert('Complete account', 'Create your account to continue.');
+            // User hasn't signed up yet — let them go back freely
+            navigation.goBack();
             return;
           }
           if (hasPassedLanguages && authUser?.id) {
@@ -610,17 +654,64 @@ export const AccountScreen = ({ navigation, route }: Props) => {
 
       <View style={styles.contentContainer}>
         <View style={styles.authSection}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>
-            {fromPayment
-              ? 'Payment complete. Create your account to enter your dashboard.'
-              : 'Create your account to save your readings while you continue onboarding.'}
-          </Text>
+          <View style={styles.headlineCard}>
+            <Text style={styles.title}>{showOtpInput ? 'Verify Email' : 'Create Account'}</Text>
+            <Text style={styles.subtitle}>
+              {showOtpInput
+                ? 'Enter the 6-digit code we sent to your email.'
+                : fromPayment
+                  ? 'Payment complete. Create your account to enter your dashboard.'
+                  : 'Create your account to save your readings while you continue onboarding.'}
+            </Text>
+          </View>
 
           {fromPayment && authUser?.id ? (
             <View style={styles.input}>
               <Text style={styles.subtitle}>Finalizing your subscription and syncing your data...</Text>
             </View>
+          ) : showOtpInput ? (
+            <>
+              <Text style={styles.otpPrompt}>
+                We sent a 6-digit code to{'\n'}
+                <Text style={styles.otpEmail}>{email.trim()}</Text>
+              </Text>
+
+              <TextInput
+                style={[styles.input, styles.otpInput]}
+                placeholder="000000"
+                placeholderTextColor={colors.mutedText}
+                value={otpCode}
+                onChangeText={(text) => setOtpCode(text.replace(/[^0-9]/g, '').slice(0, 6))}
+                keyboardType="number-pad"
+                maxLength={6}
+                textAlign="center"
+                autoFocus
+                editable={!isLoading}
+              />
+
+              <TouchableOpacity
+                style={[styles.authButton, styles.primaryBtn, (otpCode.length < 6 && !isLoading) && styles.primaryBtnDisabled]}
+                onPress={handleVerifyOtp}
+                disabled={isLoading || otpCode.length < 6}
+              >
+                {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Verify & Continue</Text>}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.resendBtn}
+                onPress={handleResendOtp}
+                disabled={isLoading}
+              >
+                <Text style={styles.resendText}>Didn't get the code? Resend</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.resendBtn}
+                onPress={() => { setShowOtpInput(false); setOtpCode(''); }}
+              >
+                <Text style={styles.resendText}>← Back to sign up</Text>
+              </TouchableOpacity>
+            </>
           ) : (
             <>
               <TextInput
@@ -722,6 +813,13 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
     padding: spacing.lg,
   },
+  headlineCard: {
+    backgroundColor: 'rgba(245,243,240,0.7)',
+    borderRadius: radii.card,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+  },
   title: {
     fontFamily: typography.headline,
     color: colors.text,
@@ -808,5 +906,33 @@ const styles = StyleSheet.create({
     color: '#000',
     fontFamily: typography.sansBold,
     fontSize: 16,
+  },
+  otpPrompt: {
+    fontFamily: typography.sansRegular,
+    color: colors.text,
+    textAlign: 'center',
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  otpEmail: {
+    fontFamily: typography.sansBold,
+    color: colors.text,
+  },
+  otpInput: {
+    fontSize: 28,
+    letterSpacing: 12,
+    fontFamily: typography.sansBold,
+    textAlign: 'center',
+    paddingVertical: spacing.lg,
+  },
+  resendBtn: {
+    alignSelf: 'center',
+    paddingVertical: spacing.sm,
+  },
+  resendText: {
+    fontFamily: typography.sansMedium,
+    color: colors.mutedText,
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
 });

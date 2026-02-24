@@ -25,13 +25,15 @@ const EMAIL_CONFIG = {
  */
 const EMAIL_TEMPLATES = {
   signup: {
-    subject: 'Confirm your email for 1 In A Billion',
+    subject: 'Your 1 In A Billion verification code',
     body: `
 <h2>Welcome to 1 In A Billion</h2>
-<p>Thank you for signing up! Click the link below to confirm your email address:</p>
-<p><a href="{{ .ConfirmationURL }}" style="background-color: #007AFF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">Confirm Email</a></p>
-<p>If you didn't create an account, you can safely ignore this email.</p>
-<p style="color: #666; font-size: 12px; margin-top: 24px;">This link will expire in 24 hours.</p>
+<p>Enter this code in the app to verify your email:</p>
+<div style="text-align: center; margin: 24px 0;">
+  <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; background: #f5f3f0; padding: 16px 28px; border-radius: 12px; display: inline-block;">{{ .Token }}</span>
+</div>
+<p style="color: #666; font-size: 14px;">This code expires in 24 hours.</p>
+<p style="color: #999; font-size: 12px; margin-top: 24px;">If you didn't create an account, you can safely ignore this email.</p>
     `.trim(),
   },
   resetPassword: {
