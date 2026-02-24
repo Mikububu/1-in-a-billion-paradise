@@ -161,6 +161,7 @@ export type MainStackParamList = {
         };
         personId?: string;
         targetPersonName?: string;
+        useIncludedReading?: boolean;
     };
     PersonalContext: {
         personName?: string;

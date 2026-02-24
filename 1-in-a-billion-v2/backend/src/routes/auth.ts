@@ -237,7 +237,7 @@ router.post('/resend-confirmation', async (c) => {
             type: 'signup',
             email,
             options: {
-                emailRedirectTo: `${env.FRONTEND_URL || 'oneinabillion://auth/confirm'}`,
+                emailRedirectTo: `${env.FRONTEND_URL || 'oneinabillionv2://auth/confirm'}`,
             },
         });
 
@@ -293,7 +293,7 @@ router.post('/forgot-password', async (c) => {
         );
 
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${env.FRONTEND_URL || 'oneinabillion://auth/reset-password'}`,
+            redirectTo: `${env.FRONTEND_URL || 'oneinabillionv2://auth/reset-password'}`,
         });
 
         if (error) {

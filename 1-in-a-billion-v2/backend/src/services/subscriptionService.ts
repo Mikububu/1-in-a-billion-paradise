@@ -1,7 +1,7 @@
 /**
  * SUBSCRIPTION SERVICE
  * 
- * Handles subscription entitlement checks for the $9.90/year plan.
+ * Handles subscription entitlement checks for the yearly plan (price from RevenueCat).
  * Each subscription includes ONE free personal reading (15-20 min audio).
  */
 

@@ -82,7 +82,7 @@ export const env = {
   GOOGLE_IMAGE_MODEL: process.env.GOOGLE_IMAGE_MODEL ?? 'gemini-3-pro-image-preview',
   
   // Frontend URL for email redirects
-  FRONTEND_URL: process.env.FRONTEND_URL ?? 'oneinabillion://auth',
+  FRONTEND_URL: process.env.FRONTEND_URL ?? 'oneinabillionv2://auth',
   
   // Development mode - bypasses email confirmation for testing
   // Set to 'true' to auto-confirm emails (DEV ONLY - never in production!)

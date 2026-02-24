@@ -71,6 +71,92 @@ function requireAuth(c: any): Response | null {
   return null;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// POST /api/jobs/v2/start — Create a new reading job
+// ═══════════════════════════════════════════════════════════════════════════
+router.post('/v2/start', async (c) => {
+  try {
+    // Auth: either Bearer token or X-User-Id header (dev mode)
+    let userId = await getAuthenticatedUserId(c);
+    if (!userId) {
+      userId = c.req.header('X-User-Id') || c.req.header('x-user-id') || null;
+    }
+    if (!userId) {
+      return c.json({ success: false, error: 'Missing authentication' }, 401);
+    }
+
+    const body = await c.req.json();
+    const {
+      type = 'extended',
+      systems,
+      person1,
+      person2,
+      voiceId,
+      promptLayerDirective,
+      relationshipPreferenceScale,
+      bundleComposition,
+      relationshipContext,
+      personalContext,
+      useIncludedReading,
+    } = body;
+
+    if (!systems || !Array.isArray(systems) || systems.length === 0) {
+      return c.json({ success: false, error: 'Missing systems array' }, 400);
+    }
+    if (!person1?.birthDate || !person1?.birthTime || !person1?.timezone) {
+      return c.json({ success: false, error: 'Missing person1 birth data' }, 400);
+    }
+
+    // If claiming the free included reading, verify eligibility server-side
+    if (useIncludedReading) {
+      const { canUseIncludedReading } = await import('../services/subscriptionService');
+      const eligible = await canUseIncludedReading(userId);
+      if (!eligible) {
+        return c.json({
+          success: false,
+          error: 'Not eligible for included reading (no active subscription or already used)',
+        }, 403);
+      }
+    }
+
+    // Build job params (same shape the workers expect)
+    const params: any = {
+      type,
+      systems,
+      person1,
+      promptLayerDirective,
+      relationshipPreferenceScale: Math.min(10, Math.max(1, Math.round(relationshipPreferenceScale || 5))),
+    };
+    if (person2) params.person2 = person2;
+    if (voiceId) params.voiceId = voiceId;
+    if (bundleComposition) params.bundleComposition = bundleComposition;
+    if (relationshipContext) params.relationshipContext = relationshipContext;
+    if (personalContext) params.personalContext = personalContext;
+    if (useIncludedReading) params.useIncludedReading = true;
+
+    // Create job (DB trigger auto-creates tasks)
+    const jobId = await jobQueueV2.createJob({
+      userId,
+      type: type as any,
+      params,
+    });
+
+    // If this was a free included reading, mark it as used
+    if (useIncludedReading) {
+      const { markIncludedReadingUsed } = await import('../services/subscriptionService');
+      const system = systems[0] || 'unknown';
+      await markIncludedReadingUsed(userId, system, jobId);
+      console.log(`🎁 Free included reading claimed: user=${userId} system=${system} job=${jobId}`);
+    }
+
+    console.log(`🚀 Job started: ${jobId} type=${type} systems=${systems.join(',')} user=${userId}`);
+    return c.json({ success: true, jobId });
+  } catch (error: any) {
+    console.error('❌ Failed to start job:', error);
+    return c.json({ success: false, error: error?.message ?? 'Failed to start job' }, 500);
+  }
+});
+
 // V2: Supabase-backed job read (RLS enforced).
 // This is safe to expose to clients; it will never leak cross-user jobs.
 const getJobHandler = async (c: any) => {

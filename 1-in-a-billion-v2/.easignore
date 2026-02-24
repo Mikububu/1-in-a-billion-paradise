@@ -1,0 +1,25 @@
+# Backend (not needed for mobile build)
+backend/
+.claude/
+
+# Local artifacts
+_preview/
+_pipeline_out/
+runtime/
+*.pdf
+*.mp3
+*.wav
+
+# Test files
+test_*
+backend/test_*
+
+# Git
+.git/
+
+# Node modules will be reinstalled on EAS
+# node_modules/  # EAS needs this, don't ignore
+
+# Development files
+.DS_Store
+*.log

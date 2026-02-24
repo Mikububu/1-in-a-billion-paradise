@@ -2,6 +2,7 @@ import axios from 'axios';
 import { ReadingPayload, ReadingResponse, AudioGenerateResponse, BirthChart, EntitlementResponse, ProductInfo, SynastryResponse, CompatibilityScores } from '@/types/api';
 import { env } from '@/config/env';
 import { buildPromptLayerDirective } from '@/config/promptLayers';
+import { useAuthStore } from '@/store/authStore';
 
 const CORE_API_URL = process.env.EXPO_PUBLIC_CORE_API_URL || process.env.EXPO_PUBLIC_API_URL || env.CORE_API_URL;
 const SUPABASE_FUNCTION_URL = process.env.EXPO_PUBLIC_SUPABASE_FUNCTION_URL || CORE_API_URL;
@@ -327,5 +328,25 @@ export async function createIncludedReading(
             success: false,
             error: error.response?.data?.error || error.message || 'Failed to create reading',
         };
+    }
+}
+
+/**
+ * Check if current user is eligible for the free included reading.
+ * Returns true if they have an active subscription and haven't used their free reading yet.
+ */
+export async function checkIncludedReadingEligible(): Promise<boolean> {
+    try {
+        const accessToken = useAuthStore.getState().session?.access_token;
+        if (!accessToken) return false;
+
+        const response = await coreClient.get('/api/payments/included-reading-status', {
+            headers: { Authorization: `Bearer ${accessToken}` },
+        });
+
+        return response.data?.eligible === true;
+    } catch (error: any) {
+        console.warn('Failed to check included reading eligibility:', error?.message);
+        return false;
     }
 }

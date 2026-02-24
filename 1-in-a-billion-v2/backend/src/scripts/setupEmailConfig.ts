@@ -12,11 +12,11 @@ import { env } from '../config/env';
 const EMAIL_CONFIG = {
   senderEmail: 'noreply@oneinabillion.app',
   senderName: '1 In A Billion',
-  frontendUrl: env.FRONTEND_URL || 'oneinabillion://auth',
+  frontendUrl: env.FRONTEND_URL || 'oneinabillionv2://auth',
   redirectUrls: [
-    'oneinabillion://auth/confirm',
-    'oneinabillion://auth/reset-password',
-    'oneinabillion://auth/callback',
+    'oneinabillionv2://auth/confirm',
+    'oneinabillionv2://auth/reset-password',
+    'oneinabillionv2://auth/callback',
   ],
 };
 

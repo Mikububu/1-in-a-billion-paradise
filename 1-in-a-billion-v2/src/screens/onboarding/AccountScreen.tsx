@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
@@ -99,6 +100,9 @@ export const AccountScreen = ({ navigation, route }: Props) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  const isFormValid = name.trim().length > 0 && email.trim().length > 0 && password.trim().length > 0;
 
   const completeOnboarding = useOnboardingStore((s) => s.completeOnboarding);
   const setHasCompletedOnboarding = useOnboardingStore((s) => s.setHasCompletedOnboarding);
@@ -639,16 +643,25 @@ export const AccountScreen = ({ navigation, route }: Props) => {
                 editable={!isLoading}
               />
 
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                placeholderTextColor={colors.mutedText}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                autoCapitalize="none"
-                editable={!isLoading}
-              />
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={[styles.input, styles.passwordInput]}
+                  placeholder="Password"
+                  placeholderTextColor={colors.mutedText}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  editable={!isLoading}
+                />
+                <TouchableOpacity
+                  style={styles.eyeToggle}
+                  onPress={() => setShowPassword(!showPassword)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={22} color={colors.mutedText} />
+                </TouchableOpacity>
+              </View>
 
               <TouchableOpacity
                 style={styles.passwordGenerator}
@@ -658,7 +671,11 @@ export const AccountScreen = ({ navigation, route }: Props) => {
                 <Text style={styles.passwordGeneratorText}>Generate strong password</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={[styles.authButton, styles.primaryBtn]} onPress={handleEmailSignUp} disabled={isLoading}>
+              <TouchableOpacity
+                style={[styles.authButton, styles.primaryBtn, (!isFormValid && !isLoading) && styles.primaryBtnDisabled]}
+                onPress={handleEmailSignUp}
+                disabled={isLoading || !isFormValid}
+              >
                 {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Create with Email</Text>}
               </TouchableOpacity>
 
@@ -729,6 +746,19 @@ const styles = StyleSheet.create({
     color: colors.text,
     minHeight: 54,
   },
+  passwordContainer: {
+    position: 'relative' as const,
+  },
+  passwordInput: {
+    paddingRight: 48,
+  },
+  eyeToggle: {
+    position: 'absolute' as const,
+    right: 14,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center' as const,
+  },
   passwordGenerator: {
     alignSelf: 'flex-end',
     paddingVertical: spacing.xs,
@@ -752,6 +782,9 @@ const styles = StyleSheet.create({
   },
   primaryBtn: {
     backgroundColor: colors.primary,
+  },
+  primaryBtnDisabled: {
+    opacity: 0.4,
   },
   primaryText: {
     color: '#fff',
