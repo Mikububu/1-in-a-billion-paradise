@@ -610,7 +610,10 @@ export const AccountScreen = ({ navigation, route }: Props) => {
           }
           if (hasPassedLanguages && !authUser?.id) {
             // User hasn't signed up yet — let them go back freely
-            navigation.goBack();
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Intro' }],
+            });
             return;
           }
           if (hasPassedLanguages && authUser?.id) {

@@ -10,7 +10,7 @@ import { createSupabaseServiceClient } from '../services/supabaseClient';
 import { env } from '../config/env';
 
 const EMAIL_CONFIG = {
-  senderEmail: 'noreply@oneinabillion.app',
+  senderEmail: 'noreply@1-in-a-billion.app',
   senderName: '1 In A Billion',
   frontendUrl: env.FRONTEND_URL || 'oneinabillionv2://auth',
   redirectUrls: [
@@ -143,7 +143,7 @@ function printConfigurationInstructions() {
   console.log('\n═'.repeat(60));
   console.log('STEP 6: Domain Verification (if using custom domain)');
   console.log('═'.repeat(60));
-  console.log('If using noreply@oneinabillion.app:');
+  console.log('If using noreply@1-in-a-billion.app:');
   console.log('  1. Add SPF record: v=spf1 include:supabase.co ~all');
   console.log('  2. Add DKIM record (provided by Supabase)');
   console.log('  3. Verify domain in Supabase Dashboard');

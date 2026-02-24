@@ -9,7 +9,7 @@ import { Resend } from 'resend';
 import { getApiKey } from './apiKeys';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
-const EMAIL_FROM = '1 In A Billion <noreply@oneinabillion.app>';
+const EMAIL_FROM = '1 In A Billion <noreply@1-in-a-billion.app>';
 
 export interface NotificationPayload {
   title: string;
