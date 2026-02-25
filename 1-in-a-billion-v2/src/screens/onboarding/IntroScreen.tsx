@@ -327,11 +327,12 @@ export const IntroScreen = ({ navigation }: Props) => {
                   // Fade out music when going to Dashboard
                   const accessAllowed = await canEnterDashboard();
                   if (!accessAllowed) return;
+                  // Prevent focus handlers on next screens from immediately restarting intro music.
+                  useMusicStore.getState().setIsPlaying(false);
                   AmbientMusic.fadeOut();
                   setShowDashboard(true);
                 } else {
-                  // Fade out music when starting sign up flow
-                  AmbientMusic.fadeOut();
+                  // Keep intro music running through onboarding flow.
                   // Reset onboarding completion flag when starting fresh
                   useOnboardingStore.getState().setHasCompletedOnboarding(false);
                   navigation.navigate('Relationship');

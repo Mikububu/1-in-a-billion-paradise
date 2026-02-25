@@ -6,7 +6,6 @@ import { Button } from '@/components/Button';
 import { AutocompleteInput, AutocompleteOption } from '@/components/AutocompleteInput';
 import { languages } from '@/data/languages';
 import { useOnboardingStore } from '@/store/onboardingStore';
-import { useAuthStore } from '@/store/authStore';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { LanguageOption } from '@/types/forms';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -16,8 +15,6 @@ import { BackButton } from '@/components/BackButton';
 
 export const LanguagesScreen = () => {
     const navigation = useNavigation<any>();
-    const hasSession = useAuthStore((state: any) => Boolean(state.user));
-    const hasPassedLanguages = useOnboardingStore((state: any) => state.hasPassedLanguages);
     const setHasPassedLanguages = useOnboardingStore((state: any) => state.setHasPassedLanguages);
     const primaryLanguage = useOnboardingStore((state: any) => state.primaryLanguage);
     const secondaryLanguage = useOnboardingStore((state: any) => state.secondaryLanguage);
@@ -46,14 +43,6 @@ export const LanguagesScreen = () => {
         }
     }, []); // Run once on mount
 
-    useEffect(() => {
-        if (!hasPassedLanguages) return;
-        navigation.reset({
-            index: 0,
-            routes: [{ name: hasSession ? 'CoreIdentitiesIntro' : 'Account' }],
-        });
-    }, [hasPassedLanguages, hasSession, navigation]);
-
     const options = useMemo<AutocompleteOption<LanguageOption>[]>(() => {
         return languages.map((lang) => ({
             id: lang.code,
@@ -74,13 +63,6 @@ export const LanguagesScreen = () => {
             {/* Back Button */}
             <BackButton
                 onPress={() => {
-                    if (hasPassedLanguages) {
-                        navigation.reset({
-                            index: 0,
-                            routes: [{ name: hasSession ? 'CoreIdentitiesIntro' : 'Account' }],
-                        });
-                        return;
-                    }
                     navigation.goBack();
                 }}
             />

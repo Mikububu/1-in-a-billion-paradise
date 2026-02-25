@@ -15,7 +15,6 @@ import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
-import { Video, ResizeMode } from 'expo-av';
 import { BackButton } from '@/components/BackButton';
 import { env } from '@/config/env';
 import { colors, radii, spacing, typography } from '@/theme/tokens';
@@ -90,21 +89,22 @@ const generateStrongPassword = (length = 16) => {
 
 export const AccountScreen = ({ navigation, route }: Props) => {
   const fromPayment = Boolean(route.params?.fromPayment);
-  const captureOnly = !fromPayment;
+  const captureOnly = Boolean(route.params?.captureOnly);
   const revenueCatAppUserId = route.params?.revenueCatAppUserId?.trim() || '';
   const paymentBypassEnabled = env.ALLOW_PAYMENT_BYPASS;
   const authUser = useAuthStore((s) => s.user);
 
   const [isLoading, setIsLoading] = useState(false);
-  const [videoReady, setVideoReady] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [otpCode, setOtpCode] = useState('');
+  const [signupStep, setSignupStep] = useState<'name' | 'method' | 'email'>('name');
 
-  const isFormValid = name.trim().length > 0 && email.trim().length > 0 && password.trim().length > 0;
+  const hasName = name.trim().length > 0;
+  const isEmailFormValid = hasName && email.trim().length > 0 && password.trim().length > 0;
 
   const completeOnboarding = useOnboardingStore((s) => s.completeOnboarding);
   const setHasCompletedOnboarding = useOnboardingStore((s) => s.setHasCompletedOnboarding);
@@ -122,6 +122,16 @@ export const AccountScreen = ({ navigation, route }: Props) => {
       setHasPassedLanguages(true);
     }
   }, [captureOnly, setHasPassedLanguages]);
+
+  useEffect(() => {
+    // Keep onboarding order strict: Account comes after Languages unless this is payment completion.
+    if (fromPayment) return;
+    if (hasPassedLanguages) return;
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Languages' }],
+    });
+  }, [fromPayment, hasPassedLanguages, navigation]);
 
   const assertEntitlementStillActive = useCallback(async () => {
     if (!revenueCatAppUserId) {
@@ -376,15 +386,19 @@ export const AccountScreen = ({ navigation, route }: Props) => {
 
     setIsLoading(true);
     try {
+      const normalizedEmail = email.trim().toLowerCase();
+      const trimmedPassword = password.trim();
       const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password: password.trim(),
+        email: normalizedEmail,
+        password: trimmedPassword,
+        options: {
+          data: { full_name: name.trim() },
+        },
       });
 
       if (error) throw error;
 
       if (data.session) {
-        // Email confirmation disabled — signed in immediately
         const userId = data.user?.id;
         if (!userId) throw new Error('Could not establish session after sign-up.');
         if (fromPayment) {
@@ -393,7 +407,6 @@ export const AccountScreen = ({ navigation, route }: Props) => {
           await finalizePrePaymentSignup(userId);
         }
       } else {
-        // Email confirmation enabled — show OTP pin code input
         setShowOtpInput(true);
         setOtpCode('');
       }
@@ -402,6 +415,14 @@ export const AccountScreen = ({ navigation, route }: Props) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleContinueFromName = () => {
+    if (!name.trim()) {
+      Alert.alert('Name required', 'Please enter your first name.');
+      return;
+    }
+    setSignupStep('method');
   };
 
   const handleVerifyOtp = async () => {
@@ -602,6 +623,14 @@ export const AccountScreen = ({ navigation, route }: Props) => {
 
   return (
     <View style={styles.container}>
+      <View style={styles.bottomImageWrap} pointerEvents="none">
+        <Image
+          source={require('../../../assets/images/Jesus_Vix.png')}
+          style={styles.bottomImage}
+          resizeMode="contain"
+        />
+      </View>
+
       <BackButton
         onPress={() => {
           if (fromPayment) {
@@ -635,24 +664,6 @@ export const AccountScreen = ({ navigation, route }: Props) => {
             routes: [{ name: 'Intro' }],
           });
         }}
-      />
-
-      {!videoReady && (
-        <Image
-          source={require('../../../assets/images/signin-poster.jpg')}
-          style={styles.backgroundVideo}
-          resizeMode="cover"
-        />
-      )}
-
-      <Video
-        source={require('../../../assets/videos/signin-background.mp4')}
-        style={styles.backgroundVideo}
-        resizeMode={ResizeMode.COVER}
-        shouldPlay
-        isLooping
-        isMuted
-        onReadyForDisplay={() => setVideoReady(true)}
       />
 
       <View style={styles.contentContainer}>
@@ -710,7 +721,11 @@ export const AccountScreen = ({ navigation, route }: Props) => {
 
               <TouchableOpacity
                 style={styles.resendBtn}
-                onPress={() => { setShowOtpInput(false); setOtpCode(''); }}
+                onPress={() => {
+                  setShowOtpInput(false);
+                  setOtpCode('');
+                  setSignupStep('email');
+                }}
               >
                 <Text style={styles.resendText}>← Back to sign up</Text>
               </TouchableOpacity>
@@ -722,66 +737,103 @@ export const AccountScreen = ({ navigation, route }: Props) => {
                 placeholder="First Name"
                 placeholderTextColor={colors.mutedText}
                 value={name}
-                onChangeText={setName}
+                onChangeText={(text) => {
+                  setName(text);
+                  if (!text.trim()) {
+                    setSignupStep('name');
+                  }
+                }}
                 editable={!isLoading}
               />
 
-              <TextInput
-                style={styles.input}
-                placeholder="Email"
-                placeholderTextColor={colors.mutedText}
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                editable={!isLoading}
-              />
-
-              <View style={styles.passwordContainer}>
-                <TextInput
-                  style={[styles.input, styles.passwordInput]}
-                  placeholder="Password"
-                  placeholderTextColor={colors.mutedText}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  editable={!isLoading}
-                />
+              {signupStep === 'name' && (
                 <TouchableOpacity
-                  style={styles.eyeToggle}
-                  onPress={() => setShowPassword(!showPassword)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={[styles.authButton, styles.primaryBtn, (!hasName && !isLoading) && styles.primaryBtnDisabled]}
+                  onPress={handleContinueFromName}
+                  disabled={isLoading || !hasName}
                 >
-                  <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={22} color={colors.mutedText} />
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                style={styles.passwordGenerator}
-                onPress={handleGeneratePassword}
-                disabled={isLoading}
-              >
-                <Text style={styles.passwordGeneratorText}>Generate strong password</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.authButton, styles.primaryBtn, (!isFormValid && !isLoading) && styles.primaryBtnDisabled]}
-                onPress={handleEmailSignUp}
-                disabled={isLoading || !isFormValid}
-              >
-                {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Create with Email</Text>}
-              </TouchableOpacity>
-
-              {Platform.OS === 'ios' && (
-                <TouchableOpacity style={[styles.authButton, styles.appleBtn]} onPress={handleAppleSignUp} disabled={isLoading}>
-                  <Text style={styles.appleText}>Continue with Apple</Text>
+                  <Text style={styles.primaryText}>Continue</Text>
                 </TouchableOpacity>
               )}
 
-              <TouchableOpacity style={[styles.authButton, styles.googleBtn]} onPress={handleGoogleSignUp} disabled={isLoading}>
-                <Text style={styles.googleText}>Continue with Google</Text>
-              </TouchableOpacity>
+              {signupStep === 'method' && (
+                <>
+                  <Text style={styles.methodHint}>Choose how to create your account</Text>
+
+                  <TouchableOpacity
+                    style={[styles.authButton, styles.primaryBtn]}
+                    onPress={() => setSignupStep('email')}
+                    disabled={isLoading}
+                  >
+                    <Text style={styles.primaryText}>Continue with Email</Text>
+                  </TouchableOpacity>
+
+                  {Platform.OS === 'ios' && (
+                    <TouchableOpacity style={[styles.authButton, styles.appleBtn]} onPress={handleAppleSignUp} disabled={isLoading}>
+                      <Text style={styles.appleText}>Continue with Apple</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity style={[styles.authButton, styles.googleBtn]} onPress={handleGoogleSignUp} disabled={isLoading}>
+                    <Text style={styles.googleText}>Continue with Google</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+
+              {signupStep === 'email' && (
+                <>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Email"
+                    placeholderTextColor={colors.mutedText}
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    editable={!isLoading}
+                  />
+
+                  <View style={styles.passwordContainer}>
+                    <TextInput
+                      style={[styles.input, styles.passwordInput]}
+                      placeholder="Password"
+                      placeholderTextColor={colors.mutedText}
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry={!showPassword}
+                      autoCapitalize="none"
+                      editable={!isLoading}
+                    />
+                    <TouchableOpacity
+                      style={styles.eyeToggle}
+                      onPress={() => setShowPassword(!showPassword)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={22} color={colors.mutedText} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.passwordGenerator}
+                    onPress={handleGeneratePassword}
+                    disabled={isLoading}
+                  >
+                    <Text style={styles.passwordGeneratorText}>Generate strong password</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.authButton, styles.primaryBtn, (!isEmailFormValid && !isLoading) && styles.primaryBtnDisabled]}
+                    onPress={handleEmailSignUp}
+                    disabled={isLoading || !isEmailFormValid}
+                  >
+                    {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Create with Email</Text>}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.resendBtn} onPress={() => setSignupStep('method')} disabled={isLoading}>
+                    <Text style={styles.resendText}>← Back to options</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </>
           )}
         </View>
@@ -795,20 +847,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
   },
-  backgroundVideo: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: '100%',
-    height: '100%',
-  },
   contentContainer: {
     flex: 1,
     paddingHorizontal: spacing.page,
     paddingTop: 120,
     paddingBottom: spacing.xl,
+    zIndex: 1,
+  },
+  bottomImageWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '35%',
+    overflow: 'hidden',
+    zIndex: 0,
+  },
+  bottomImage: {
+    width: '100%',
+    height: '100%',
+    alignSelf: 'center',
+    opacity: 0.95,
   },
   authSection: {
     gap: spacing.sm,
@@ -817,9 +876,8 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   headlineCard: {
-    backgroundColor: 'rgba(245,243,240,0.7)',
-    borderRadius: radii.card,
-    paddingVertical: spacing.md,
+    backgroundColor: 'transparent',
+    paddingVertical: spacing.lg,
     paddingHorizontal: spacing.lg,
     alignItems: 'center',
   },
@@ -831,9 +889,19 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontFamily: typography.sansRegular,
+    fontSize: 16,
+    lineHeight: 24,
+    color: colors.mutedText,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  methodHint: {
+    fontFamily: typography.sansMedium,
     color: colors.text,
     textAlign: 'center',
     marginBottom: spacing.sm,
+    marginTop: spacing.xs,
   },
   input: {
     backgroundColor: 'rgba(255,255,255,0.85)',

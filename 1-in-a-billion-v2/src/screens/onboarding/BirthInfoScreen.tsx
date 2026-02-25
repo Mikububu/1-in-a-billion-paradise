@@ -20,7 +20,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button } from '@/components/Button';
 import { BackButton } from '@/components/BackButton';
 import { useOnboardingStore } from '@/store/onboardingStore';
-import { useAuthStore } from '@/store/authStore';
 import { searchCities } from '@/services/geonames';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { CityOption } from '@/types/forms';
@@ -68,8 +67,6 @@ const formatDateDisplay = (date: Date) => {
 export const BirthInfoScreen = () => {
     const navigation = useNavigation<any>();
     const insets = useSafeAreaInsets();
-    const hasSession = useAuthStore((state: any) => Boolean(state.user));
-    const hasPassedLanguages = useOnboardingStore((state: any) => state.hasPassedLanguages);
 
     const storedDate = useOnboardingStore((state: any) => state.birthDate);
     const storedTime = useOnboardingStore((state: any) => state.birthTime);
@@ -121,14 +118,6 @@ export const BirthInfoScreen = () => {
         }, 8000);
         return () => clearInterval(interval);
     }, [fadeAnim]);
-
-    useEffect(() => {
-        if (!hasPassedLanguages) return;
-        navigation.reset({
-            index: 0,
-            routes: [{ name: hasSession ? 'CoreIdentitiesIntro' : 'Account' }],
-        });
-    }, [hasPassedLanguages, hasSession, navigation]);
 
     // Debounced city search
     useEffect(() => {
