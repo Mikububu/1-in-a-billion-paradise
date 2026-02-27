@@ -79,14 +79,12 @@ export function getSystemPrompt(): string {
 THIS IS A DATING APP. Focus on: attachment style, defense mechanisms, childhood wounds, erotic psychology, sabotage patterns.
 
 CRITICAL APPROACH - DARK SOUL STORYTELLING (condensed):
-- NEVER use spiritual bypassing: "namaste", "beautiful soul", "dear one", "beloved"
 - Explore the DARK side: obsession, compulsion, fixation, hunger, shadow
 - For Vedic/Rahu: Use "left-handed" approach - what they're HUNGRY for, what they overcompensate for
 - Use psychological depth: hunger, possession, surrender, obsession, fixation
 - This is truth-seeking for those ready to confront their cosmic blueprint
 
 FORBIDDEN (from master prompt):
-- "Beautiful soul", "dear one", "beloved", "namaste", any spiritual bypassing
 - Generic traits like "You are caring/loving"
 - Em dashes or en dashes (use commas/hyphens)
 - Fortune-telling ("will find love")
@@ -258,9 +256,9 @@ export function buildReadingPrompt(ctx: PromptContext): string {
 
   // These are EXAMPLES - AI should create unique variations each time
   const greetingExamples: Record<ReadingType, string[]> = {
-    sun: ['Soul burning at the center', 'Relentless eternal flame', 'Driven heart under the sun', 'Soul demanding to be seen'],
-    moon: ['Keeper of hidden tides', 'Prisoner of early wounds', 'Silent watcher in the dark', 'Hungry emotional core'],
-    rising: ['The armor you wear', 'The mask given to the world', 'Shield at the dawn', 'The face that deflects']
+    sun: ['Dear child of the sun', 'Beloved soul of light', 'Sweet one born under golden rays', 'Radiant heart'],
+    moon: ['Keeper of hidden waters', 'Tender soul of the inner tides', 'Dear one of the emotional depths', 'Gentle heart'],
+    rising: ['Face of the rising dawn', 'Soul who greets the world', 'Dear one of first impressions', 'Bright presence']
   };
 
   const typeMeaning: Record<ReadingType, string> = {
@@ -415,14 +413,13 @@ STRUCTURE:
 
 "preamble": (40-50 words):
   ${ctx.type === 'sun'
-      ? `Start with a poetic, atmospheric opening about their birth moment.
-  Example tone (DO NOT COPY): "Your eyes opened in [city] on [date], the Sun at [position]..."
+      ? `Start directly with a sweet, atmospheric greeting (use examples like: "${greetingOptions}")
   MUST include: "born on ${formattedDate}${ctx.birthPlace ? ` in ${ctx.birthPlace}` : ''}" (COPY DATE AND CITY EXACTLY)
   MUST include the exact degree: "${sunPos}" - use poetic language like "${sunDecan}"
   ${sunHouse ? `MUST mention ${sunHouse}` : ''}
   NEVER use the word "decan" - use the poetic description instead
   Emphasize this is SPECIFIC to ${sunDeg?.degree || '?'} degrees, not generic ${sign}
-  Create your own unique atmospheric opening - be spiritual but not bypassing`
+  Create your own unique sweet opening - NO dark or heavy tone for the preamble`
       : `Start directly with psychological observation (use examples like: "${greetingOptions}")
   Explain what ${ctx.type === 'moon' ? 'Moon sign' : 'Rising sign'} reveals.
   MUST include exact position: "${currentPos}" (${currentDecan})${currentHouse ? `, ${currentHouse}` : ''}
