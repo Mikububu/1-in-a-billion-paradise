@@ -3,6 +3,7 @@ import { ReadingPayload, ReadingResponse, AudioGenerateResponse, BirthChart, Ent
 import { env } from '@/config/env';
 import { buildPromptLayerDirective } from '@/config/promptLayers';
 import { useAuthStore } from '@/store/authStore';
+import { generateLocalHookReading } from './localReadings';
 
 const CORE_API_URL = process.env.EXPO_PUBLIC_CORE_API_URL || process.env.EXPO_PUBLIC_API_URL || env.CORE_API_URL;
 const SUPABASE_FUNCTION_URL = process.env.EXPO_PUBLIC_SUPABASE_FUNCTION_URL || CORE_API_URL;
@@ -24,14 +25,14 @@ const supabaseClient = axios.create({
         : undefined,
 });
 
-// Fixed: Empty sign triggers UI fallback to '—' instead of long "To be calculated" text
+// Fallback keeps onboarding flow alive when hook endpoints are temporarily unavailable.
 const readingFallback = (payload: ReadingPayload, type: 'sun' | 'moon' | 'rising'): ReadingResponse => ({
-    reading: {
+    reading: generateLocalHookReading({
         type,
         sign: '',
-        intro: 'Your reading is being generated...',
-        main: 'Please wait a moment while we calculate your chart.',
-    },
+        relationshipPreferenceScale: payload.relationshipPreferenceScale,
+        birthDate: payload.birthDate,
+    }),
     metadata: {
         cacheHit: false,
         generatedAt: new Date().toISOString(),
@@ -41,7 +42,7 @@ const readingFallback = (payload: ReadingPayload, type: 'sun' | 'moon' | 'rising
 export const readingsApi = {
     sun: async (payload: ReadingPayload): Promise<ReadingResponse> => {
         try {
-            const response = await coreClient.post<ReadingResponse>('/api/reading/sun?nocache=true', payload);
+            const response = await coreClient.post<ReadingResponse>('/api/reading/sun?provider=deepseek&nocache=true', payload);
             return response.data;
         } catch (error) {
             console.warn('Falling back to local Sun reading', error);
@@ -50,7 +51,7 @@ export const readingsApi = {
     },
     moon: async (payload: ReadingPayload): Promise<ReadingResponse> => {
         try {
-            const response = await coreClient.post<ReadingResponse>('/api/reading/moon?nocache=true', payload);
+            const response = await coreClient.post<ReadingResponse>('/api/reading/moon?provider=deepseek&nocache=true', payload);
             return response.data;
         } catch (error) {
             console.warn('Falling back to local Moon reading', error);
@@ -59,7 +60,7 @@ export const readingsApi = {
     },
     rising: async (payload: ReadingPayload): Promise<ReadingResponse> => {
         try {
-            const response = await coreClient.post<ReadingResponse>('/api/reading/rising?nocache=true', payload);
+            const response = await coreClient.post<ReadingResponse>('/api/reading/rising?provider=deepseek&nocache=true', payload);
             return response.data;
         } catch (error) {
             console.warn('Falling back to local Rising reading', error);
@@ -86,6 +87,9 @@ export const audioApi = {
     generateTTS: async (text: string, options?: {
         exaggeration?: number;
         audioUrl?: string; // Custom voice sample URL
+        spokenIntro?: string;
+        includeIntro?: boolean;
+        timeoutMs?: number;
     }): Promise<{
         success: boolean;
         audioBase64?: string;
@@ -100,8 +104,10 @@ export const audioApi = {
                 provider: 'chatterbox', // Always use Chatterbox (cheapest + voice cloning)
                 exaggeration: options?.exaggeration ?? 0.5,
                 audioUrl: options?.audioUrl && options.audioUrl.length > 0 ? options.audioUrl : undefined, // For custom voice cloning
+                spokenIntro: options?.spokenIntro,
+                includeIntro: options?.includeIntro,
             }, {
-                timeout: 240000, // 4 minute timeout (Replicate cold start ~30s + chunked generation + network)
+                timeout: options?.timeoutMs ?? 240000,
             });
             return response.data;
         } catch (error: any) {
@@ -116,7 +122,7 @@ export const audioApi = {
     // Generate hook audio - backend stores in Supabase Storage, returns URL
     generateHookAudio: async (params: {
         text: string;
-        userId?: string; // Optional: if not provided, uses temp storage
+        userId: string;
         type: 'sun' | 'moon' | 'rising';
         exaggeration?: number;
         audioUrl?: string;
@@ -133,7 +139,7 @@ export const audioApi = {
         try {
             const response = await coreClient.post('/api/audio/hook-audio/generate', {
                 text: params.text,
-                userId: params.userId, // Optional - backend will use temp storage if not provided
+                userId: params.userId,
                 type: params.type,
                 exaggeration: params.exaggeration ?? 0.3,
                 audioUrl: params.audioUrl,

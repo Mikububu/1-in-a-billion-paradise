@@ -25,6 +25,66 @@ const PORT = process.env.PORT || '8787';
 const TTS_URL = `http://localhost:${PORT}/api/audio/generate-tts`;
 const MEDIA_DIR = process.env.MEDIA_DIR || '/Users/michaelperinwogenburg/Desktop/1-in-a-billion-media';
 const VOICE_URL = 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/david.wav';
+const FILE_DELAY_MS = parseInt(process.env.BATCH_AUDIO_FILE_DELAY_MS || '0', 10);
+
+function prettyName(token: string): string {
+  return String(token || '')
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
+}
+
+function detectSystemLabel(baseName: string): string {
+  const value = baseName.toLowerCase();
+  if (value.includes('western-astrology')) return 'Western Astrology';
+  if (value.includes('vedic-astrology-jyotish') || value.includes('vedic-astrology')) return 'Vedic Astrology';
+  if (value.includes('human-design')) return 'Human Design';
+  if (value.includes('gene-keys')) return 'Gene Keys';
+  if (value.includes('kabbalah')) return 'Kabbalah';
+  if (value.includes('verdict')) return 'Final Verdict';
+  return 'Compatibility';
+}
+
+function buildSpokenIntroFromFile(baseName: string): string {
+  const generatedOn = new Date().toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+  const system = detectSystemLabel(baseName);
+
+  if (baseName.startsWith('verdict_')) {
+    const parts = baseName.split('_');
+    const p1 = prettyName(parts[1] || 'Person 1');
+    const p2 = prettyName(parts[2] || 'Person 2');
+    return `This is the final verdict reading for ${p1} and ${p2}. Generated on ${generatedOn} by 1 in a billion app, powered by forbidden-yoga dot com.`;
+  }
+
+  if (baseName.startsWith('overlay_')) {
+    const parts = baseName.split('_');
+    const p1 = prettyName(parts[1] || 'Person 1');
+    const p2 = prettyName(parts[2] || 'Person 2');
+    return `This is a ${system} compatibility reading for ${p1} and ${p2}. Generated on ${generatedOn} by 1 in a billion app, powered by forbidden-yoga dot com.`;
+  }
+
+  if (baseName.startsWith('individual_')) {
+    const parts = baseName.split('_');
+    const person = prettyName(parts[1] || 'Person 1');
+    return `This is a ${system} reading for ${person}. Generated on ${generatedOn} by 1 in a billion app, powered by forbidden-yoga dot com.`;
+  }
+
+  return `This is an audio reading. Generated on ${generatedOn} by 1 in a billion app, powered by forbidden-yoga dot com.`;
+}
+
+type TimingRow = {
+  file: string;
+  baseName: string;
+  success: boolean;
+  durationSec: number;
+  textChars: number;
+  audioPath?: string;
+  error?: string;
+};
 
 async function main() {
   console.log('🔊 BATCH AUDIO GENERATION');
@@ -56,7 +116,8 @@ async function main() {
   }
 
   // 3. Process each file
-  const results: Array<{ file: string; success: boolean; audioPath?: string; error?: string }> = [];
+  const results: TimingRow[] = [];
+  const batchStartedAt = Date.now();
 
   for (let i = 0; i < textFiles.length; i++) {
     const textFile = textFiles[i];
@@ -68,12 +129,22 @@ async function main() {
     // Skip if audio already exists
     if (fs.existsSync(audioOutPath)) {
       console.log(`⏭️  [${i + 1}/${textFiles.length}] Skipping ${baseName} (audio already exists)`);
-      results.push({ file: textFile, success: true, audioPath: audioOutPath });
+      results.push({
+        file: textFile,
+        baseName,
+        success: true,
+        durationSec: 0,
+        textChars: text.length,
+        audioPath: audioOutPath,
+      });
       continue;
     }
 
     console.log(`🎙️  [${i + 1}/${textFiles.length}] Generating audio for: ${baseName}`);
     console.log(`   Text length: ${text.length} chars`);
+
+    const startedAt = Date.now();
+    const spokenIntro = buildSpokenIntroFromFile(baseName);
 
     try {
       const res = await axios.post(
@@ -84,34 +155,60 @@ async function main() {
           exaggeration: 0.3,
           audioUrl: VOICE_URL,
           title: baseName.replace(/_/g, ' '),
+          spokenIntro,
+          includeIntro: true,
         },
         {
           headers: { 'Content-Type': 'application/json' },
-          timeout: 30 * 60 * 1000, // 30 min timeout per reading
+          timeout: 120 * 60 * 1000, // 120 min timeout per reading (long chunked TTS jobs)
         }
       );
 
       if (!res.data?.success || !res.data?.audioBase64) {
+        const durationSec = Number(((Date.now() - startedAt) / 1000).toFixed(1));
         console.error(`   ❌ TTS returned no audio: ${res.data?.message || 'unknown'}`);
-        results.push({ file: textFile, success: false, error: res.data?.message || 'no audio' });
+        results.push({
+          file: textFile,
+          baseName,
+          success: false,
+          durationSec,
+          textChars: text.length,
+          error: res.data?.message || 'no audio',
+        });
         continue;
       }
 
       const buf = Buffer.from(res.data.audioBase64, 'base64');
       fs.writeFileSync(audioOutPath, buf);
       const sizeKb = buf.length / 1024;
-      console.log(`   ✅ Saved: ${audioOutPath} (${sizeKb.toFixed(1)} KB)`);
-      results.push({ file: textFile, success: true, audioPath: audioOutPath });
+      const durationSec = Number(((Date.now() - startedAt) / 1000).toFixed(1));
+      console.log(`   ✅ Saved: ${audioOutPath} (${sizeKb.toFixed(1)} KB) in ${durationSec}s`);
+      results.push({
+        file: textFile,
+        baseName,
+        success: true,
+        durationSec,
+        textChars: text.length,
+        audioPath: audioOutPath,
+      });
     } catch (e: any) {
       const errMsg = e.response?.data?.message || e.message || 'unknown';
+      const durationSec = Number(((Date.now() - startedAt) / 1000).toFixed(1));
       console.error(`   ❌ TTS failed: ${errMsg}`);
-      results.push({ file: textFile, success: false, error: errMsg });
+      results.push({
+        file: textFile,
+        baseName,
+        success: false,
+        durationSec,
+        textChars: text.length,
+        error: errMsg,
+      });
     }
 
-    // Small delay between readings
-    if (i < textFiles.length - 1) {
-      console.log('   ⏳ Waiting 3s before next...\n');
-      await new Promise((r) => setTimeout(r, 3000));
+    // Optional delay between readings
+    if (i < textFiles.length - 1 && FILE_DELAY_MS > 0) {
+      console.log(`   ⏳ Waiting ${FILE_DELAY_MS}ms before next...\n`);
+      await new Promise((r) => setTimeout(r, FILE_DELAY_MS));
     }
   }
 
@@ -127,6 +224,24 @@ async function main() {
     failures.forEach((f) => console.log(`   - ${f.file}: ${f.error}`));
   }
   successes.forEach((s) => console.log(`   📁 ${s.audioPath}`));
+
+  const totalDurationSec = Number(((Date.now() - batchStartedAt) / 1000).toFixed(1));
+  const report = {
+    generatedAt: new Date().toISOString(),
+    mediaDir: MEDIA_DIR,
+    totalFiles: results.length,
+    successCount: successes.length,
+    failureCount: failures.length,
+    totalDurationSec,
+    averageSuccessDurationSec: successes.length > 0
+      ? Number((successes.reduce((acc, row) => acc + row.durationSec, 0) / successes.length).toFixed(1))
+      : 0,
+    results,
+  };
+  const stamp = new Date().toISOString().replace(/[:.]/g, '').replace('T', '_').slice(0, 15);
+  const reportPath = path.join(MEDIA_DIR, `audio_generation_timing_${stamp}.json`);
+  fs.writeFileSync(reportPath, JSON.stringify(report, null, 2), 'utf8');
+  console.log(`🧾 Timing report: ${reportPath}`);
 }
 
 main().catch((err) => {

@@ -8,7 +8,8 @@ const router = new Hono();
 /**
  * POST /api/auth/signup
  * 
- * Creates a new user account with email and password.
+ * Creates a new user account with email+password via Supabase OTP flow.
+ * In production this should require email verification before session is issued.
  * 
  * Request:
  * {
@@ -20,7 +21,8 @@ const router = new Hono();
  * {
  *   "success": true,
  *   "user": { ... },
- *   "session": { access_token, refresh_token, ... }
+ *   "session": { access_token, refresh_token, ... } | null,
+ *   "requiresVerification": true|false
  * }
  */
 router.post('/signup', async (c) => {
@@ -45,7 +47,7 @@ router.post('/signup', async (c) => {
 
         console.log(`📧 Creating account for: ${email}${name ? ` (${name})` : ''}`);
 
-        if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+        if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
             console.error('❌ Supabase not configured');
             return c.json({
                 success: false,
@@ -55,7 +57,7 @@ router.post('/signup', async (c) => {
 
         const supabase = createClient(
             env.SUPABASE_URL,
-            env.SUPABASE_SERVICE_ROLE_KEY
+            env.SUPABASE_ANON_KEY
         );
 
         // Build user metadata with name if provided
@@ -63,20 +65,18 @@ router.post('/signup', async (c) => {
             ? { full_name: name.trim() }
             : {};
 
-        // ALWAYS auto-confirm email (no email confirmation required)
-        console.log('✅ Auto-confirming email (no confirmation email required)');
-        
-        // Use admin API to create pre-confirmed user
-        const { data: createData, error: createError } = await supabase.auth.admin.createUser({
+        const { data, error } = await supabase.auth.signUp({
             email,
             password,
-            email_confirm: true, // Auto-confirm email
-            user_metadata: userMetadata,
+            options: {
+                data: userMetadata,
+                emailRedirectTo: `${env.FRONTEND_URL || 'oneinabillionv2://auth/confirm'}`,
+            },
         });
 
-        if (createError) {
-            console.error('❌ Signup error:', createError.message);
-            const msg = (createError.message || '').toLowerCase();
+        if (error) {
+            console.error('❌ Signup error:', error.message);
+            const msg = (error.message || '').toLowerCase();
             if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('duplicate')) {
                 return c.json({
                     success: false,
@@ -86,31 +86,18 @@ router.post('/signup', async (c) => {
             }
             return c.json({
                 success: false,
-                error: createError.message
+                error: error.message
             }, 400);
         }
 
-        // Auto sign-in after creating account
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
-
-        if (signInError) {
-            console.error('❌ Auto sign-in error:', signInError.message);
-            return c.json({
-                success: false,
-                error: 'Account created but sign-in failed: ' + signInError.message
-            }, 400);
-        }
-
-        console.log('✅ Account created and auto-signed in');
+        console.log(`✅ Signup accepted for ${email}; requiresVerification=${!data.session}`);
 
         return c.json({
             success: true,
-            user: signInData.user,
-            session: signInData.session,
-            clearLocalStorage: true, // Signal frontend to clear AsyncStorage for fresh start
+            user: data.user,
+            session: data.session,
+            requiresVerification: !data.session,
+            clearLocalStorage: false,
         });
 
     } catch (error: any) {
@@ -161,7 +148,7 @@ router.post('/signin', async (c) => {
 
         console.log(`📧 Signing in: ${email}`);
 
-        if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+        if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
             console.error('❌ Supabase not configured');
             return c.json({
                 success: false,
@@ -171,7 +158,7 @@ router.post('/signin', async (c) => {
 
         const supabase = createClient(
             env.SUPABASE_URL,
-            env.SUPABASE_SERVICE_ROLE_KEY
+            env.SUPABASE_ANON_KEY
         );
 
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -205,6 +192,72 @@ router.post('/signin', async (c) => {
 });
 
 /**
+ * POST /api/auth/verify-signup-code
+ *
+ * Verifies 6-digit signup OTP code sent to email.
+ */
+router.post('/verify-signup-code', async (c) => {
+    try {
+        const body = await c.req.json();
+        const { email: emailRaw, code } = body;
+        const email = typeof emailRaw === 'string' ? emailRaw.trim().toLowerCase() : emailRaw;
+        const token = typeof code === 'string' ? code.trim() : '';
+
+        if (!email || typeof email !== 'string' || !email.includes('@')) {
+            return c.json({
+                success: false,
+                error: 'Invalid email address'
+            }, 400);
+        }
+
+        if (!token || token.length < 6) {
+            return c.json({
+                success: false,
+                error: 'Verification code is required'
+            }, 400);
+        }
+
+        if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
+            return c.json({
+                success: false,
+                error: 'Server configuration error'
+            }, 500);
+        }
+
+        const supabase = createClient(
+            env.SUPABASE_URL,
+            env.SUPABASE_ANON_KEY
+        );
+
+        const { data, error } = await supabase.auth.verifyOtp({
+            email,
+            token,
+            type: 'signup',
+        });
+
+        if (error) {
+            console.error('❌ Verify signup code error:', error.message);
+            return c.json({
+                success: false,
+                error: error.message
+            }, 400);
+        }
+
+        return c.json({
+            success: true,
+            user: data.user,
+            session: data.session,
+        });
+    } catch (error: any) {
+        console.error('❌ Verify signup code endpoint error:', error);
+        return c.json({
+            success: false,
+            error: 'Internal server error'
+        }, 500);
+    }
+});
+
+/**
  * POST /api/auth/resend-confirmation
  * 
  * Resends the email confirmation link to the user.
@@ -221,7 +274,7 @@ router.post('/resend-confirmation', async (c) => {
             }, 400);
         }
 
-        if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+        if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
             return c.json({
                 success: false,
                 error: 'Server configuration error'
@@ -230,7 +283,7 @@ router.post('/resend-confirmation', async (c) => {
 
         const supabase = createClient(
             env.SUPABASE_URL,
-            env.SUPABASE_SERVICE_ROLE_KEY
+            env.SUPABASE_ANON_KEY
         );
 
         const { error } = await supabase.auth.resend({

@@ -34,6 +34,10 @@ import {
   dedupeAdjacentSentences,
   dedupeChunkBoundaryOverlap,
 } from '../services/audioProcessing';
+import {
+  isReplicateRateLimitError,
+  runReplicateWithRateLimit,
+} from '../services/replicateRateLimiter';
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
   let timeoutHandle: NodeJS.Timeout | null = null;
@@ -459,7 +463,7 @@ export class AudioWorker extends BaseWorker {
 
       // Replicate chunk generator (works for both preset + custom voices)
       const generateChunkReplicate = async (chunk: string, index: number): Promise<Buffer> => {
-        const maxRetries = 5; // Increased for rate limit retries
+        const maxRetries = Math.max(1, parseInt(process.env.REPLICATE_CHUNK_MAX_RETRIES || '6', 10));
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
           try {
             console.log(`  [Replicate] Chunk ${index + 1}/${chunks.length} (${chunk.length} chars) attempt ${attempt}`);
@@ -493,10 +497,14 @@ export class AudioWorker extends BaseWorker {
             
             // Call Replicate API with hard timeout to avoid hung chunks.
             const chunkTimeoutMs = parseInt(process.env.REPLICATE_CHUNK_TIMEOUT_MS || '120000', 10);
-            const output = await withTimeout(
-              replicate.run('resemble-ai/chatterbox-turbo', { input }),
-              chunkTimeoutMs,
-              `Replicate chunk ${index + 1}`
+            const output = await runReplicateWithRateLimit(
+              `audioWorker:chunk:${index + 1}`,
+              () =>
+                withTimeout(
+                  replicate.run('resemble-ai/chatterbox-turbo', { input }),
+                  chunkTimeoutMs,
+                  `Replicate chunk ${index + 1}`
+                )
             );
             
             const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
@@ -540,7 +548,7 @@ export class AudioWorker extends BaseWorker {
               return audioBuffer;
               
             } catch (error: any) {
-              const is429 = error.message?.includes('429') || error.message?.includes('throttled') || error.message?.includes('rate limit');
+              const is429 = isReplicateRateLimitError(error);
               const isAuthError = error.message?.includes('401') || error.message?.includes('authentication') || error.message?.includes('Unauthorized');
               const isBadRequest = error.message?.includes('400') || error.message?.includes('422') || error.message?.includes('invalid');
               
@@ -594,15 +602,14 @@ export class AudioWorker extends BaseWorker {
         // Default to SEQUENTIAL mode for rate limit safety
         const useParallelMode = process.env.AUDIO_PARALLEL_MODE === 'true';
         const concurrentLimit = parseInt(process.env.AUDIO_CONCURRENT_LIMIT || '2', 10);
-        // Inter-chunk delay to respect Replicate rate limits.
-        // Keep default low; retries already honor API-provided retry_after.
-        const chunkDelayMs = parseInt(process.env.REPLICATE_CHUNK_DELAY_MS || '2000', 10);
+        // Optional extra spacing (shared limiter already enforces pacing).
+        const chunkDelayMs = parseInt(process.env.REPLICATE_CHUNK_DELAY_MS || '0', 10);
         
         let audioBuffers: Buffer[] = [];
 
         if (useParallelMode) {
           console.log(`🚀 [AudioWorker] Starting PARALLEL Replicate generation of ${chunks.length} chunks (limit: ${concurrentLimit})...`);
-          console.warn(`⚠️  PARALLEL mode may hit rate limits. Consider AUDIO_PARALLEL_MODE=false for safer generation.`);
+          console.warn(`⚠️  PARALLEL mode enabled; shared Replicate limiter will serialize API calls per process.`);
           const pLimit = (await import('p-limit')).default;
           const limit = pLimit(concurrentLimit);
           

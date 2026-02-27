@@ -256,15 +256,27 @@ async function main() {
       generateAIPortrait(readImageAsBase64(person2.portraitPath), userId, person2Id),
     ]);
 
+    const baseStorageUrl = 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/profile-images';
+    const person1OriginalUrl = `${baseStorageUrl}/${userId}/${person1Id}/original.jpg`;
+    const person2OriginalUrl = `${baseStorageUrl}/${userId}/${person2Id}/original.jpg`;
+
     if (!portrait1Result.success || !portrait1Result.imageUrl) {
-      throw new Error(`Failed to generate person1 AI portrait: ${portrait1Result.error || 'unknown error'}`);
-    }
-    if (!portrait2Result.success || !portrait2Result.imageUrl) {
-      throw new Error(`Failed to generate person2 AI portrait: ${portrait2Result.error || 'unknown error'}`);
+      console.warn(
+        `⚠️ Person1 AI portrait failed; falling back to original image. Error: ${portrait1Result.error || 'unknown'}`
+      );
+      person1PortraitUrl = addCacheBuster(person1OriginalUrl);
+    } else {
+      person1PortraitUrl = addCacheBuster(portrait1Result.imageUrl);
     }
 
-    person1PortraitUrl = addCacheBuster(portrait1Result.imageUrl);
-    person2PortraitUrl = addCacheBuster(portrait2Result.imageUrl);
+    if (!portrait2Result.success || !portrait2Result.imageUrl) {
+      console.warn(
+        `⚠️ Person2 AI portrait failed; falling back to original image. Error: ${portrait2Result.error || 'unknown'}`
+      );
+      person2PortraitUrl = addCacheBuster(person2OriginalUrl);
+    } else {
+      person2PortraitUrl = addCacheBuster(portrait2Result.imageUrl);
+    }
 
     console.log('👫 Regenerating fresh couple image from the new AI portraits...');
     const coupleImageResult = await composeCoupleImage(userId, person1Id, person2Id, person1PortraitUrl, person2PortraitUrl);

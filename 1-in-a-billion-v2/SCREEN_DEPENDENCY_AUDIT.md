@@ -1,12 +1,12 @@
 # Screen Dependency Audit (V2)
 
-Generated: 2026-02-14T07:47:41.894Z
+Generated: 2026-02-27T08:49:10.288Z
 
 ## Summary
 - V2 screens audited: 46
 - Registered route entries: 50
 - Unique route names: 46
-- Screens with source path match: 44
+- Screens with source path match: 45
 - Unresolved outgoing literal route refs: 0
 
 Scope per screen: incoming callers, outgoing navigation, media refs, services/stores/hooks/contexts imports, source-path parity.
@@ -60,7 +60,7 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
 
 ## `home/GeneratingReadingScreen.tsx`
 - Route names: `GeneratingReading`
-- Source path parity: NO
+- Source path parity: YES
 - Incoming interactions: 1
   - `src/screens/home/TreeOfLifeVideoScreen.tsx:38` via `replace(GeneratingReading)`
 - Outgoing route targets: `ComparePeople`, `Home`, `JobDetail`, `MyLibrary`
@@ -120,7 +120,7 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
 - Route names: `NextStep`
 - Source path parity: YES
 - Incoming interactions: 1
-  - `src/screens/home/HomeScreen.tsx:550` via `navigate(NextStep)`
+  - `src/screens/home/HomeScreen.tsx:551` via `navigate(NextStep)`
 - Outgoing route targets: `ComparePeople`, `Home`, `MyLibrary`, `SystemsOverview`
 - Services: _none_
 - Stores: _none_
@@ -167,7 +167,7 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
   - `src/screens/home/PartnerCoreIdentitiesScreen.tsx:600` via `replace(PartnerReadings)`
   - `src/screens/home/PartnerCoreIdentitiesScreen.tsx:649` via `replace(PartnerReadings)`
   - `src/screens/onboarding/AddThirdPersonPromptScreen.tsx:119` via `replace(PartnerReadings)`
-  - `src/screens/onboarding/HookSequenceScreen.tsx:331` via `navigate(PartnerReadings)`
+  - `src/screens/onboarding/HookSequenceScreen.tsx:335` via `navigate(PartnerReadings)`
 - Outgoing route targets: `BirthInfo`, `EditBirthData`, `PartnerInfo`, `SynastryPreview`
 - Services: `@/services/api`, `@/services/hookAudioCloud`, `@/services/supabase`
 - Stores: `@/store/authStore`, `@/store/onboardingStore`, `@/store/profileStore`
@@ -193,11 +193,12 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
 ## `home/PersonPhotoUploadScreen.tsx`
 - Route names: `PersonPhotoUpload`
 - Source path parity: YES
-- Incoming interactions: 4
+- Incoming interactions: 5
   - `src/screens/home/ComparePeopleScreen.tsx:157` via `navigate(PersonPhotoUpload)`
   - `src/screens/home/MyLibraryScreen.tsx:184` via `navigate(PersonPhotoUpload)`
   - `src/screens/home/MyLibraryScreen.tsx:94` via `navigate(PersonPhotoUpload)`
   - `src/screens/home/PersonProfileScreen.tsx:180` via `navigate(PersonPhotoUpload)`
+  - `src/screens/home/SystemsOverviewScreen.tsx:108` via `navigate(PersonPhotoUpload)`
 - Outgoing route targets: _none_
 - Services: `@/services/peopleService`, `@/services/personPhotoService`
 - Stores: `@/store/authStore`, `@/store/profileStore`
@@ -319,9 +320,9 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
   - `src/screens/home/MyLibraryScreen.tsx:290` via `navigate(SystemsOverview)`
   - `src/screens/home/NextStepScreen.tsx:49` via `navigate(SystemsOverview)`
   - `src/screens/home/PersonReadingsScreen.tsx:165` via `navigate(SystemsOverview)`
-- Outgoing route targets: `SystemExplainer`
-- Services: _none_
-- Stores: _none_
+- Outgoing route targets: `PersonPhotoUpload`, `SystemExplainer`
+- Services: `@/services/api`
+- Stores: `@/store/authStore`, `@/store/profileStore`
 - Hooks: _none_
 - Contexts: _none_
 - Media refs: _none_
@@ -330,7 +331,7 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
 - Route names: `TreeOfLifeVideo`
 - Source path parity: YES
 - Incoming interactions: 1
-  - `src/screens/home/VoiceSelectionScreen.tsx:293` via `replace(TreeOfLifeVideo)`
+  - `src/screens/home/VoiceSelectionScreen.tsx:289` via `replace(TreeOfLifeVideo)`
 - Outgoing route targets: `GeneratingReading`, `Home`
 - Services: _none_
 - Stores: _none_
@@ -368,8 +369,8 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
 - Route names: `SystemExplainer`
 - Source path parity: YES
 - Incoming interactions: 2
-  - `src/screens/home/SystemsOverviewScreen.tsx:41` via `navigate(SystemExplainer)`
-  - `src/screens/home/SystemsOverviewScreen.tsx:56` via `navigate(SystemExplainer)`
+  - `src/screens/home/SystemsOverviewScreen.tsx:141` via `navigate(SystemExplainer)`
+  - `src/screens/home/SystemsOverviewScreen.tsx:157` via `navigate(SystemExplainer)`
 - Outgoing route targets: `SystemSelection`
 - Services: _none_
 - Stores: _none_
@@ -380,23 +381,24 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
 ## `onboarding/AccountScreen.tsx`
 - Route names: `Account`
 - Source path parity: YES
-- Incoming interactions: 4
-  - `src/screens/onboarding/LanguagesScreen.tsx:136` via `navigate(Account)`
+- Incoming interactions: 5
+  - `src/screens/onboarding/CoreIdentitiesScreen.tsx:327` via `reset(Account)`
+  - `src/screens/onboarding/LanguagesScreen.tsx:118` via `navigate(Account)`
   - `src/screens/onboarding/PostHookOfferScreen.tsx:209` via `navigate(Account)`
   - `src/screens/onboarding/PostHookOfferScreen.tsx:218` via `navigate(Account)`
   - `src/screens/onboarding/PostHookOfferScreen.tsx:227` via `navigate(Account)`
-- Outgoing route targets: `CoreIdentitiesIntro`, `Intro`
+- Outgoing route targets: `CoreIdentitiesIntro`, `Intro`, `Languages`
 - Services: `@/services/compatibilityCloud`, `@/services/matchNotifications`, `@/services/payments`, `@/services/peopleCloud`, `@/services/supabase`, `@/services/userReadings`
 - Stores: `@/store/authStore`, `@/store/onboardingStore`, `@/store/profileStore`
 - Hooks: _none_
 - Contexts: _none_
-- Media refs: `../../../assets/images/signin-poster.jpg`, `../../../assets/videos/signin-background.mp4`
+- Media refs: `../../../assets/images/Jesus_Vix.png`
 
 ## `onboarding/AddThirdPersonPromptScreen.tsx`
 - Route names: `AddThirdPersonPrompt`
 - Source path parity: YES
 - Incoming interactions: 1
-  - `src/screens/onboarding/HookSequenceScreen.tsx:342` via `navigate(AddThirdPersonPrompt)`
+  - `src/screens/onboarding/HookSequenceScreen.tsx:346` via `navigate(AddThirdPersonPrompt)`
 - Outgoing route targets: `HookSequence`, `PartnerInfo`, `PartnerReadings`, `PostHookOffer`
 - Services: _none_
 - Stores: `@/store/profileStore`
@@ -407,12 +409,13 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
 ## `onboarding/BirthInfoScreen.tsx`
 - Route names: `BirthInfo`
 - Source path parity: YES
-- Incoming interactions: 2
+- Incoming interactions: 3
   - `src/screens/home/PartnerReadingsScreen.tsx:128` via `navigate(BirthInfo)`
+  - `src/screens/onboarding/CoreIdentitiesScreen.tsx:322` via `reset(BirthInfo)`
   - `src/screens/onboarding/RelationshipScreen.tsx:98` via `navigate(BirthInfo)`
 - Outgoing route targets: `Languages`
 - Services: `@/services/ambientMusic`, `@/services/geonames`
-- Stores: `@/store/authStore`, `@/store/musicStore`, `@/store/onboardingStore`
+- Stores: `@/store/musicStore`, `@/store/onboardingStore`
 - Hooks: _none_
 - Contexts: _none_
 - Media refs: `../../../assets/images/cities/hongkong.png`, `../../../assets/images/cities/newyork.png`, `../../../assets/images/cities/vienna.png`, `../../../assets/images/cities/villach.png`
@@ -421,36 +424,36 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
 - Route names: `CoreIdentitiesIntro`
 - Source path parity: YES
 - Incoming interactions: 3
-  - `src/screens/onboarding/AccountScreen.tsx:201` via `reset(CoreIdentitiesIntro)`
-  - `src/screens/onboarding/AccountScreen.tsx:571` via `reset(CoreIdentitiesIntro)`
-  - `src/screens/onboarding/AccountScreen.tsx:578` via `reset(CoreIdentitiesIntro)`
-- Outgoing route targets: `CoreIdentities`
+  - `src/screens/onboarding/AccountScreen.tsx:217` via `reset(CoreIdentitiesIntro)`
+  - `src/screens/onboarding/AccountScreen.tsx:708` via `reset(CoreIdentitiesIntro)`
+  - `src/screens/onboarding/AccountScreen.tsx:715` via `reset(CoreIdentitiesIntro)`
+- Outgoing route targets: _none_
 - Services: _none_
-- Stores: _none_
-- Hooks: `@/hooks/useHookReadings`
+- Stores: `@/store/onboardingStore`
+- Hooks: _none_
 - Contexts: _none_
 - Media refs: _none_
 
 ## `onboarding/CoreIdentitiesScreen.tsx`
 - Route names: `CoreIdentities`
 - Source path parity: YES
-- Incoming interactions: 1
-  - `src/screens/onboarding/CoreIdentitiesIntroScreen.tsx:58` via `replace(CoreIdentities)`
-- Outgoing route targets: `HookSequence`
+- Incoming interactions: 0
+- Outgoing route targets: `Account`, `BirthInfo`, `HookSequence`
 - Services: `@/services/ambientMusic`, `@/services/api`
 - Stores: `@/store/authStore`, `@/store/onboardingStore`
-- Hooks: `@/hooks/useHookReadings`
+- Hooks: _none_
 - Contexts: `@/contexts/AudioContext`
 - Media refs: _none_
 
 ## `onboarding/HookSequenceScreen.tsx`
 - Route names: `HookSequence`
 - Source path parity: YES
-- Incoming interactions: 5
+- Incoming interactions: 6
   - `src/screens/home/PartnerInfoScreen.tsx:358` via `navigate(HookSequence)`
   - `src/screens/home/PartnerInfoScreen.tsx:85` via `navigate(HookSequence)`
   - `src/screens/onboarding/AddThirdPersonPromptScreen.tsx:76` via `navigate(HookSequence)`
-  - `src/screens/onboarding/CoreIdentitiesScreen.tsx:304` via `reset(HookSequence)`
+  - `src/screens/onboarding/CoreIdentitiesScreen.tsx:275` via `reset(HookSequence)`
+  - `src/screens/onboarding/CoreIdentitiesScreen.tsx:336` via `reset(HookSequence)`
   - `src/screens/onboarding/PostHookOfferScreen.tsx:280` via `navigate(HookSequence)`
 - Outgoing route targets: `AddThirdPersonPrompt`, `PartnerReadings`
 - Services: `@/services/api`, `@/services/userReadings`
@@ -462,10 +465,11 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
 ## `onboarding/IntroScreen.tsx`
 - Route names: `Intro`
 - Source path parity: YES
-- Incoming interactions: 4
-  - `src/screens/auth/SignInScreen.tsx:169` via `navigate(Intro)`
-  - `src/screens/auth/SignInScreen.tsx:362` via `navigate(Intro)`
-  - `src/screens/onboarding/AccountScreen.tsx:584` via `reset(Intro)`
+- Incoming interactions: 5
+  - `src/screens/auth/SignInScreen.tsx:197` via `navigate(Intro)`
+  - `src/screens/auth/SignInScreen.tsx:391` via `navigate(Intro)`
+  - `src/screens/onboarding/AccountScreen.tsx:701` via `reset(Intro)`
+  - `src/screens/onboarding/AccountScreen.tsx:721` via `reset(Intro)`
   - `src/screens/onboarding/RelationshipScreen.tsx:53` via `reset(Intro)`
 - Outgoing route targets: `Relationship`, `SignIn`
 - Services: `@/services/ambientMusic`, `@/services/payments`, `@/services/supabase`
@@ -477,11 +481,12 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
 ## `onboarding/LanguagesScreen.tsx`
 - Route names: `Languages`
 - Source path parity: YES
-- Incoming interactions: 1
-  - `src/screens/onboarding/BirthInfoScreen.tsx:197` via `navigate(Languages)`
+- Incoming interactions: 2
+  - `src/screens/onboarding/AccountScreen.tsx:132` via `reset(Languages)`
+  - `src/screens/onboarding/BirthInfoScreen.tsx:186` via `navigate(Languages)`
 - Outgoing route targets: `Account`
 - Services: `@/services/ambientMusic`
-- Stores: `@/store/authStore`, `@/store/musicStore`, `@/store/onboardingStore`
+- Stores: `@/store/musicStore`, `@/store/onboardingStore`
 - Hooks: _none_
 - Contexts: _none_
 - Media refs: `../../../assets/images/mouth-veo-transparent_1.gif`
@@ -502,7 +507,7 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
 - Route names: `Relationship`
 - Source path parity: YES
 - Incoming interactions: 1
-  - `src/screens/onboarding/IntroScreen.tsx:337` via `navigate(Relationship)`
+  - `src/screens/onboarding/IntroScreen.tsx:338` via `navigate(Relationship)`
 - Outgoing route targets: `BirthInfo`, `Intro`
 - Services: `@/services/ambientMusic`
 - Stores: `@/store/authStore`, `@/store/musicStore`, `@/store/onboardingStore`
@@ -574,7 +579,7 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
 - Route names: `Settings`
 - Source path parity: YES
 - Incoming interactions: 2
-  - `src/screens/home/HomeScreen.tsx:490` via `navigate(Settings)`
+  - `src/screens/home/HomeScreen.tsx:495` via `navigate(Settings)`
   - `src/screens/home/MyLibraryScreen.tsx:142` via `navigate(Settings)`
 - Outgoing route targets: `About`, `AccountDeletion`, `ContactSupport`, `DataPrivacy`, `MyLibrary`, `PrivacyPolicy`, `TermsOfService`, `YourChart`
 - Services: `@/services/matchNotifications`, `@/services/peopleCloud`, `@/services/supabase`
@@ -626,8 +631,8 @@ Scope per screen: incoming callers, outgoing navigation, media refs, services/st
 - Route names: `Gallery`
 - Source path parity: YES
 - Incoming interactions: 3
-  - `src/screens/home/HomeScreen.tsx:530` via `navigate(Gallery)`
-  - `src/screens/home/HomeScreen.tsx:563` via `navigate(Gallery)`
+  - `src/screens/home/HomeScreen.tsx:531` via `navigate(Gallery)`
+  - `src/screens/home/HomeScreen.tsx:564` via `navigate(Gallery)`
   - `src/screens/social/ChatListScreen.tsx:201` via `navigate(Gallery)`
 - Outgoing route targets: `Chat`, `ChatList`
 - Services: _none_

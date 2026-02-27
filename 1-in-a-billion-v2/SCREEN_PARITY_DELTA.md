@@ -1,22 +1,21 @@
 # Screen Parity Delta (Source -> V2)
 
-Generated: 2026-02-14T07:47:42.170Z
+Generated: 2026-02-27T12:25:04.479Z
 
 ## Summary
 - V2 screens: 46
-- Source screens: 72
-- Path-matched screens compared: 44
-- V2-only screens (no source path match): 2
-- Matched screens with dependency/navigation deltas: 43
+- Source screens: 160
+- Path-matched screens compared: 45
+- V2-only screens (no source path match): 1
+- Matched screens with dependency/navigation deltas: 45
 
 ## V2-only screens
-- `home/GeneratingReadingScreen.tsx`
 - `home/ReadingContentScreen.tsx`
 
 ## Deltas by screen
 
 ### `auth/SignInScreen.tsx`
-- Line delta (V2 - source): -92
+- Line delta (V2 - source): -94
 - Services added in V2: `@/services/payments`
 - Outgoing routes removed from source: `BirthInfo`, `Home`
 
@@ -29,8 +28,16 @@ Generated: 2026-02-14T07:47:42.170Z
 - Services added in V2: `@/services/peopleCloud`, `@/services/placementsCalculator`
 - Services removed from source: `@/services/peopleService`
 
+### `home/GeneratingReadingScreen.tsx`
+- Line delta (V2 - source): -528
+- Services added in V2: `@/services/jobStatus`
+- Services removed from source: `@/services/pushNotifications`, `@/services/supabase`
+- Stores added in V2: `@/store/profileStore`
+- Stores removed from source: `@/store/authStore`, `@/store/onboardingStore`
+- Outgoing routes added in V2: `JobDetail`
+
 ### `home/HomeScreen.tsx`
-- Line delta (V2 - source): -838
+- Line delta (V2 - source): -833
 - Stores removed from source: `@/store/subscriptionStore`
 - Contexts added in V2: `@/contexts/AudioContext`
 
@@ -42,7 +49,7 @@ Generated: 2026-02-14T07:47:42.170Z
 - Outgoing routes removed from source: `AudioPlayer`, `DeepReadingReader`, `JobDetail`, `OverlayReader`
 
 ### `home/MyLibraryScreen.tsx`
-- Line delta (V2 - source): -3458
+- Line delta (V2 - source): -3460
 - Services added in V2: `@/services/jobStatus`
 - Services removed from source: `@/services/audioDownload`, `@/services/coupleImageService`, `@/services/nuclearReadingsService`, `@/services/peopleService`, `@/services/placementsCalculator`, `@/services/supabase`
 - Stores removed from source: `@/store/authStore`, `@/store/onboardingStore`
@@ -57,11 +64,11 @@ Generated: 2026-02-14T07:47:42.170Z
 - Services removed from source: `@/services/supabase`
 
 ### `home/PartnerInfoScreen.tsx`
-- Line delta (V2 - source): 50
+- Line delta (V2 - source): 64
 - Outgoing routes added in V2: `HookSequence`
 
 ### `home/PartnerReadingsScreen.tsx`
-- Line delta (V2 - source): 17
+- Line delta (V2 - source): 20
 - Contexts added in V2: `@/contexts/AudioContext`
 - Outgoing routes added in V2: `BirthInfo`, `PartnerInfo`
 
@@ -74,7 +81,7 @@ Generated: 2026-02-14T07:47:42.170Z
 - Services removed from source: `@/services/peopleService`, `@/services/supabase`
 
 ### `home/PersonPhotoUploadScreen.tsx`
-- Line delta (V2 - source): -21
+- Line delta (V2 - source): -16
 - Services added in V2: `@/services/peopleService`
 - Stores added in V2: `@/store/authStore`
 
@@ -110,13 +117,16 @@ Generated: 2026-02-14T07:47:42.170Z
 - Outgoing routes removed from source: `SystemExplainer`, `TreeOfLifeVideo`, `VoiceSelection`
 
 ### `home/SystemsOverviewScreen.tsx`
-- Line delta (V2 - source): -76
+- Line delta (V2 - source): 54
+- Services added in V2: `@/services/api`
+- Stores added in V2: `@/store/authStore`, `@/store/profileStore`
+- Outgoing routes added in V2: `PersonPhotoUpload`
 
 ### `home/TreeOfLifeVideoScreen.tsx`
 - Line delta (V2 - source): -22
 
 ### `home/VoiceSelectionScreen.tsx`
-- Line delta (V2 - source): -226
+- Line delta (V2 - source): -229
 - Services removed from source: `@/services/ambientMusic`, `@/services/peopleService`, `@/services/supabase`
 
 ### `home/YourChartScreen.tsx`
@@ -127,49 +137,55 @@ Generated: 2026-02-14T07:47:42.170Z
 - Outgoing routes added in V2: `SystemSelection`
 
 ### `onboarding/AccountScreen.tsx`
-- Line delta (V2 - source): -88
+- Line delta (V2 - source): 174
 - Services added in V2: `@/services/compatibilityCloud`, `@/services/matchNotifications`, `@/services/payments`, `@/services/peopleCloud`, `@/services/userReadings`
 - Services removed from source: `@/services/ambientMusic`
 - Stores added in V2: `@/store/profileStore`
 - Stores removed from source: `@/store/musicStore`
-- Outgoing routes added in V2: `CoreIdentitiesIntro`
+- Media refs added in V2: `assets/images/jesus_vix.png`
+- Media refs removed from source: `assets/images/signin-poster.jpg`, `assets/videos/signin-background.mp4`
+- Outgoing routes added in V2: `CoreIdentities`, `Languages`
 - Outgoing routes removed from source: `FreeReadingSelection`
 
+### `onboarding/AddThirdPersonPromptScreen.tsx`
+- Line delta (V2 - source): 1
+
 ### `onboarding/BirthInfoScreen.tsx`
-- Line delta (V2 - source): 13
-- Stores added in V2: `@/store/authStore`
+- Line delta (V2 - source): 3
 
 ### `onboarding/CoreIdentitiesIntroScreen.tsx`
-- Line delta (V2 - source): -13
+- Line delta (V2 - source): -154
+- Hooks removed from source: `@/hooks/useHookReadings`
 - Outgoing routes added in V2: `CoreIdentities`
 - Outgoing routes removed from source: `HookSequence`
 
 ### `onboarding/CoreIdentitiesScreen.tsx`
-- Line delta (V2 - source): -502
-- Services removed from source: `@/services/hookAudioCloud`
+- Line delta (V2 - source): -436
+- Services removed from source: `@/services/ambientMusic`, `@/services/hookAudioCloud`
 - Stores removed from source: `@/store/profileStore`
-- Hooks added in V2: `@/hooks/useHookReadings`
-- Contexts added in V2: `@/contexts/AudioContext`
+- Outgoing routes added in V2: `BirthInfo`
 
 ### `onboarding/HookSequenceScreen.tsx`
-- Line delta (V2 - source): -998
+- Line delta (V2 - source): -978
 - Services removed from source: `@/services/hookAudioCloud`, `@/services/supabase`
 - Hooks removed from source: `@/hooks/useHookReadings`
 - Contexts added in V2: `@/contexts/AudioContext`
 
 ### `onboarding/IntroScreen.tsx`
-- Line delta (V2 - source): 6
+- Line delta (V2 - source): 21
 - Services added in V2: `@/services/payments`
 - Services removed from source: `@/services/api`
 
 ### `onboarding/LanguagesScreen.tsx`
-- Line delta (V2 - source): -13
-- Stores added in V2: `@/store/authStore`
+- Line delta (V2 - source): -31
 - Outgoing routes added in V2: `Account`
 - Outgoing routes removed from source: `CoreIdentities`
 
 ### `onboarding/PostHookOfferScreen.tsx`
-- Line delta (V2 - source): -46
+- Line delta (V2 - source): -29
+- Services added in V2: `@/services/payments`
+- Services removed from source: `@/services/revenuecat`
+- Media refs removed from source: `assets/audio/glass-horizon.mp3`
 
 ### `onboarding/RelationshipScreen.tsx`
 - Line delta (V2 - source): -26
@@ -180,7 +196,6 @@ Generated: 2026-02-14T07:47:42.170Z
 
 ### `settings/AccountDeletionScreen.tsx`
 - Line delta (V2 - source): -232
-- Outgoing routes added in V2: `Home`
 - Outgoing routes removed from source: `Settings`
 
 ### `settings/ContactSupportScreen.tsx`
@@ -210,6 +225,6 @@ Generated: 2026-02-14T07:47:42.170Z
 - Hooks added in V2: `@/hooks/useChatAccessGate`
 
 ### `social/GalleryScreen.tsx`
-- Line delta (V2 - source): 312
+- Line delta (V2 - source): 273
 - Hooks added in V2: `@/hooks/useChatAccessGate`
 - Outgoing routes added in V2: `Chat`, `ChatList`

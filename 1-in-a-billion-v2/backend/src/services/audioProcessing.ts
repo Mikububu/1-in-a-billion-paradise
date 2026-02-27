@@ -17,12 +17,11 @@
 
 export const AUDIO_CONFIG = {
   // Text chunking
-  // ⚠️ DO NOT INCREASE CHUNK_MAX_LENGTH - 450 caused gibberish, 300 is stable
-  // Chatterbox Turbo claims 500 char limit but produces gibberish on longer chunks
-  // Original Chatterbox uses 300 - more stable
-  CHUNK_MAX_LENGTH: 300,           // ⚠️ CRITICAL: Do not increase (causes gibberish)
-  CHUNK_OVERFLOW_TOLERANCE: 1.5,   // Allow chunks to exceed by this factor to complete sentences (1.5 = 50% over)
-  CHUNK_WORD_SPLIT_THRESHOLD: 2.0, // Only split at word boundaries if sentence exceeds this factor (2.0 = 2x max)
+  // Stable defaults tuned for Chatterbox Turbo in production.
+  // Keep sentence continuity first; avoid aggressive over-splitting.
+  CHUNK_MAX_LENGTH: 300,
+  CHUNK_OVERFLOW_TOLERANCE: 1.5,
+  CHUNK_WORD_SPLIT_THRESHOLD: 2.0,
   
   // Audio crossfade
   // ⚠️ DO NOT INCREASE CROSSFADE_DURATION_MS - 80ms caused stitching issues
@@ -83,7 +82,7 @@ export function splitIntoChunks(text: string, maxChunkLength: number = AUDIO_CON
       }
 
       // Handle the new sentence
-      // If single sentence exceeds threshold, split at word boundaries (rare case)
+      // If single sentence exceeds threshold, split at word boundaries
       if (trimmed.length > maxChunkLength * AUDIO_CONFIG.CHUNK_WORD_SPLIT_THRESHOLD) {
         const words = trimmed.split(/\s+/);
         let wordChunk = '';
@@ -97,7 +96,7 @@ export function splitIntoChunks(text: string, maxChunkLength: number = AUDIO_CON
         }
         currentChunk = wordChunk;
       } else {
-        // Normal case: start new chunk with this sentence (even if it exceeds limit)
+        // Normal case: sentence fits and starts a new chunk
         currentChunk = trimmed;
       }
     }
@@ -149,6 +148,25 @@ function stripFirstSentence(chunk: string): string {
   return source.slice(idx + first.length).trim();
 }
 
+function stripFirstNSentences(chunk: string, count: number): string {
+  let out = String(chunk || '').trim();
+  for (let i = 0; i < count; i += 1) {
+    const next = stripFirstSentence(out);
+    if (!next || next === out) break;
+    out = next;
+  }
+  return out;
+}
+
+function areLikelyDuplicateSentences(a: string, b: string): boolean {
+  const ak = normalizeSentenceKey(a);
+  const bk = normalizeSentenceKey(b);
+  if (!ak || !bk) return false;
+  if (ak === bk) return true;
+  if (ak.length >= 24 && bk.length >= 24 && (ak.startsWith(bk) || bk.startsWith(ak))) return true;
+  return false;
+}
+
 /**
  * Remove exact/near-exact adjacent duplicate sentences in text.
  * This does NOT remove distant thematic repetition; only immediate sentence echoes.
@@ -194,15 +212,29 @@ export function dedupeChunkBoundaryOverlap(chunks: string[]): { chunks: string[]
     const curr = String(out[i] || '');
     if (!prev || !curr) continue;
 
-    const prevLast = normalizeSentenceKey(extractLastSentence(prev));
-    const currFirst = normalizeSentenceKey(extractFirstSentence(curr));
-    if (!prevLast || !currFirst) continue;
+    const prevSentences = prev.match(SENTENCE_REGEX)?.map((s) => s.trim()).filter(Boolean) || [];
+    const currSentences = curr.match(SENTENCE_REGEX)?.map((s) => s.trim()).filter(Boolean) || [];
+    if (prevSentences.length === 0 || currSentences.length === 0) continue;
 
-    if (prevLast === currFirst) {
-      const stripped = stripFirstSentence(curr);
+    const prevLast = prevSentences[prevSentences.length - 1] || '';
+    const prevSecondLast = prevSentences.length > 1 ? prevSentences[prevSentences.length - 2] || '' : '';
+    const currFirst = currSentences[0] || '';
+    const currSecond = currSentences.length > 1 ? currSentences[1] || '' : '';
+
+    let dropCount = 0;
+    if (areLikelyDuplicateSentences(prevLast, currFirst) || areLikelyDuplicateSentences(prevSecondLast, currFirst)) {
+      dropCount = 1;
+      // If model echoed two full sentences at boundary, strip both.
+      if (currSecond && (areLikelyDuplicateSentences(prevLast, currSecond) || areLikelyDuplicateSentences(prevSecondLast, currSecond))) {
+        dropCount = 2;
+      }
+    }
+
+    if (dropCount > 0) {
+      const stripped = stripFirstNSentences(curr, dropCount);
       if (stripped && stripped !== curr.trim()) {
         out[i] = stripped;
-        removed += 1;
+        removed += dropCount;
       }
     }
   }

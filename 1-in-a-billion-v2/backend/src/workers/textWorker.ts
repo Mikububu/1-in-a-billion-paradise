@@ -24,34 +24,44 @@ import { logLLMCost } from '../services/costTracking';
 import { composePromptFromJobStartPayload } from '../promptEngine/fromJobPayload';
 import { buildChartDataForSystem } from '../services/chartDataBuilder';
 import {
+  stripWesternChartData,
   buildWesternTriggerPrompt,
   buildWesternWritingPrompt,
 } from '../promptEngine/triggerEngine/westernTrigger';
 import {
+  stripVedicChartData,
   buildVedicTriggerPrompt,
   buildVedicWritingPrompt,
 } from '../promptEngine/triggerEngine/vedicTrigger';
 import {
+  stripHDChartData,
   buildHDTriggerPrompt,
   buildHDWritingPrompt,
 } from '../promptEngine/triggerEngine/humanDesignTrigger';
 import {
+  stripGeneKeysChartData,
   buildGeneKeysTriggerPrompt,
   buildGeneKeysWritingPrompt,
 } from '../promptEngine/triggerEngine/geneKeysTrigger';
 import {
+  stripKabbalahChartData,
   buildKabbalahTriggerPrompt,
   buildKabbalahWritingPrompt,
 } from '../promptEngine/triggerEngine/kabbalahTrigger';
 import {
+  stripWesternOverlayData,
   buildWesternOverlayTriggerPrompt,
   buildWesternOverlayWritingPrompt,
+  stripVedicOverlayData,
   buildVedicOverlayTriggerPrompt,
   buildVedicOverlayWritingPrompt,
+  stripHDOverlayData,
   buildHDOverlayTriggerPrompt,
   buildHDOverlayWritingPrompt,
+  stripGeneKeysOverlayData,
   buildGeneKeysOverlayTriggerPrompt,
   buildGeneKeysOverlayWritingPrompt,
+  stripKabbalahOverlayData,
   buildKabbalahOverlayTriggerPrompt,
   buildKabbalahOverlayWritingPrompt,
 } from '../promptEngine/triggerEngine/overlayTrigger';
@@ -741,8 +751,8 @@ export class TextWorker extends BaseWorker {
 	        const subject = docType === 'person2' ? person2 : person1;
 	        if (!subject?.name) throw new Error(`Missing subject name for western ${docType}`);
 
-	        // Call 1: narrativeTrigger paragraph (full chart data — no stripping)
-	        const triggerPrompt = buildWesternTriggerPrompt({ personName: subject.name, strippedChartData: chartData });
+          const stripped = stripWesternChartData(chartData);
+	        const triggerPrompt = buildWesternTriggerPrompt({ personName: subject.name, strippedChartData: stripped });
 	        console.log(`🩸 [TextWorker] Western narrativeTrigger call for ${subject.name}...`);
 	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
 	          maxTokens: 300,
@@ -765,7 +775,7 @@ export class TextWorker extends BaseWorker {
 	        const baseWritingPrompt = buildWesternWritingPrompt({
             personName: subject.name,
             narrativeTrigger,
-            strippedChartData: chartData,
+            strippedChartData: stripped,
             targetWords: WORD_COUNT_LIMITS.min,
           });
 	        const writingPrompt = `${chartProvocations}\n\n${baseWritingPrompt}`;
@@ -797,7 +807,8 @@ export class TextWorker extends BaseWorker {
 	        const subject = docType === 'person2' ? person2 : person1;
 	        if (!subject?.name) throw new Error(`Missing subject name for vedic ${docType}`);
 
-	        const triggerPrompt = buildVedicTriggerPrompt({ personName: subject.name, strippedChartData: chartData });
+          const stripped = stripVedicChartData(chartData);
+	        const triggerPrompt = buildVedicTriggerPrompt({ personName: subject.name, strippedChartData: stripped });
 	        console.log(`🩸 [TextWorker] Vedic narrativeTrigger call for ${subject.name}...`);
 	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
 	          maxTokens: 300, temperature: 0.7, maxRetries: 3,
@@ -815,7 +826,7 @@ export class TextWorker extends BaseWorker {
 	        const baseWritingPromptV = buildVedicWritingPrompt({
             personName: subject.name,
             narrativeTrigger,
-            strippedChartData: chartData,
+            strippedChartData: stripped,
             targetWords: WORD_COUNT_LIMITS.min,
           });
 	        const writingPrompt = `${chartProvocationsV}\n\n${baseWritingPromptV}`;
@@ -840,7 +851,8 @@ export class TextWorker extends BaseWorker {
 	        const subject = docType === 'person2' ? person2 : person1;
 	        if (!subject?.name) throw new Error(`Missing subject name for human_design ${docType}`);
 
-	        const triggerPrompt = buildHDTriggerPrompt({ personName: subject.name, strippedChartData: chartData });
+          const stripped = stripHDChartData(chartData);
+	        const triggerPrompt = buildHDTriggerPrompt({ personName: subject.name, strippedChartData: stripped });
 	        console.log(`🩸 [TextWorker] HD narrativeTrigger call for ${subject.name}...`);
 	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
 	          maxTokens: 300, temperature: 0.7, maxRetries: 3,
@@ -858,7 +870,7 @@ export class TextWorker extends BaseWorker {
 	        const baseWritingPromptH = buildHDWritingPrompt({
             personName: subject.name,
             narrativeTrigger,
-            strippedChartData: chartData,
+            strippedChartData: stripped,
             targetWords: WORD_COUNT_LIMITS.min,
           });
 	        const writingPrompt = `${chartProvocationsH}\n\n${baseWritingPromptH}`;
@@ -883,7 +895,8 @@ export class TextWorker extends BaseWorker {
 	        const subject = docType === 'person2' ? person2 : person1;
 	        if (!subject?.name) throw new Error(`Missing subject name for gene_keys ${docType}`);
 
-	        const triggerPrompt = buildGeneKeysTriggerPrompt({ personName: subject.name, strippedChartData: chartData });
+          const stripped = stripGeneKeysChartData(chartData);
+	        const triggerPrompt = buildGeneKeysTriggerPrompt({ personName: subject.name, strippedChartData: stripped });
 	        console.log(`🩸 [TextWorker] Gene Keys narrativeTrigger call for ${subject.name}...`);
 	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
 	          maxTokens: 300, temperature: 0.7, maxRetries: 3,
@@ -901,7 +914,7 @@ export class TextWorker extends BaseWorker {
 	        const baseWritingPromptG = buildGeneKeysWritingPrompt({
             personName: subject.name,
             narrativeTrigger,
-            strippedChartData: chartData,
+            strippedChartData: stripped,
             targetWords: WORD_COUNT_LIMITS.min,
           });
 	        const writingPrompt = `${chartProvocationsG}\n\n${baseWritingPromptG}`;
@@ -926,7 +939,8 @@ export class TextWorker extends BaseWorker {
 	        const subject = docType === 'person2' ? person2 : person1;
 	        if (!subject?.name) throw new Error(`Missing subject name for kabbalah ${docType}`);
 
-	        const triggerPrompt = buildKabbalahTriggerPrompt({ personName: subject.name, strippedChartData: chartData });
+          const stripped = stripKabbalahChartData(chartData);
+	        const triggerPrompt = buildKabbalahTriggerPrompt({ personName: subject.name, strippedChartData: stripped });
 	        console.log(`🩸 [TextWorker] Kabbalah narrativeTrigger call for ${subject.name}...`);
 	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
 	          maxTokens: 300, temperature: 0.7, maxRetries: 3,
@@ -944,7 +958,7 @@ export class TextWorker extends BaseWorker {
 	        const baseWritingPromptK = buildKabbalahWritingPrompt({
             personName: subject.name,
             narrativeTrigger,
-            strippedChartData: chartData,
+            strippedChartData: stripped,
             targetWords: WORD_COUNT_LIMITS.min,
           });
 	        const writingPrompt = `${chartProvocationsK}\n\n${baseWritingPromptK}`;
@@ -967,7 +981,7 @@ export class TextWorker extends BaseWorker {
         // ── WESTERN OVERLAY narrativeTrigger engine ────────────────────────────────────
         if (!generationComplete && system === 'western' && docType === 'overlay') {
           const { person1Raw, person2Raw } = buildOverlayChartParts('western');
-          const combinedChartData = `PERSON1 CHART:\n${person1Raw}\n\nPERSON2 CHART:\n${person2Raw}`;
+          const combinedChartData = stripWesternOverlayData(person1Raw, person2Raw);
 
           const triggerPrompt = buildWesternOverlayTriggerPrompt({
             person1Name: person1.name,
@@ -1010,7 +1024,7 @@ export class TextWorker extends BaseWorker {
         // ── VEDIC OVERLAY narrativeTrigger engine ──────────────────────────────────────
         if (!generationComplete && system === 'vedic' && docType === 'overlay') {
           const { person1Raw, person2Raw } = buildOverlayChartParts('vedic');
-          const combinedChartData = `PERSON1 CHART:\n${person1Raw}\n\nPERSON2 CHART:\n${person2Raw}`;
+          const combinedChartData = stripVedicOverlayData(person1Raw, person2Raw);
 
           const triggerPrompt = buildVedicOverlayTriggerPrompt({
             person1Name: person1.name,
@@ -1053,7 +1067,7 @@ export class TextWorker extends BaseWorker {
         // ── HUMAN DESIGN OVERLAY narrativeTrigger engine ───────────────────────────────
         if (!generationComplete && system === 'human_design' && docType === 'overlay') {
           const { person1Raw, person2Raw } = buildOverlayChartParts('human_design');
-          const combinedChartData = `PERSON1 CHART:\n${person1Raw}\n\nPERSON2 CHART:\n${person2Raw}`;
+          const combinedChartData = stripHDOverlayData(person1Raw, person2Raw);
 
           const triggerPrompt = buildHDOverlayTriggerPrompt({
             person1Name: person1.name,
@@ -1096,7 +1110,7 @@ export class TextWorker extends BaseWorker {
         // ── GENE KEYS OVERLAY narrativeTrigger engine ──────────────────────────────────
         if (!generationComplete && system === 'gene_keys' && docType === 'overlay') {
           const { person1Raw, person2Raw } = buildOverlayChartParts('gene_keys');
-          const combinedChartData = `PERSON1 CHART:\n${person1Raw}\n\nPERSON2 CHART:\n${person2Raw}`;
+          const combinedChartData = stripGeneKeysOverlayData(person1Raw, person2Raw);
 
           const triggerPrompt = buildGeneKeysOverlayTriggerPrompt({
             person1Name: person1.name,
@@ -1139,7 +1153,7 @@ export class TextWorker extends BaseWorker {
         // ── KABBALAH OVERLAY narrativeTrigger engine ───────────────────────────────────
         if (!generationComplete && system === 'kabbalah' && docType === 'overlay') {
           const { person1Raw, person2Raw } = buildOverlayChartParts('kabbalah');
-          const combinedChartData = `PERSON1 CHART:\n${person1Raw}\n\nPERSON2 CHART:\n${person2Raw}`;
+          const combinedChartData = stripKabbalahOverlayData(person1Raw, person2Raw);
 
           const triggerPrompt = buildKabbalahOverlayTriggerPrompt({
             person1Name: person1.name,

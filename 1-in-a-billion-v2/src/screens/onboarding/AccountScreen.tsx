@@ -388,19 +388,28 @@ export const AccountScreen = ({ navigation, route }: Props) => {
     try {
       const normalizedEmail = email.trim().toLowerCase();
       const trimmedPassword = password.trim();
-      const { data, error } = await supabase.auth.signUp({
-        email: normalizedEmail,
-        password: trimmedPassword,
-        options: {
-          data: { full_name: name.trim() },
-        },
+      const response = await fetch(`${env.CORE_API_URL}/api/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          password: trimmedPassword,
+          name: name.trim(),
+        }),
       });
 
-      if (error) throw error;
+      const payload = await response.json().catch(() => ({} as any));
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Could not create account.');
+      }
 
-      if (data.session) {
-        const userId = data.user?.id;
-        if (!userId) throw new Error('Could not establish session after sign-up.');
+      if (payload?.session?.access_token && payload?.session?.refresh_token) {
+        await applySessionTokens(payload.session.access_token, payload.session.refresh_token);
+      }
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      if (userId) {
         if (fromPayment) {
           await finalizePaidSignup(userId);
         } else {
@@ -433,15 +442,25 @@ export const AccountScreen = ({ navigation, route }: Props) => {
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        email: email.trim(),
-        token: otpCode.trim(),
-        type: 'signup',
+      const response = await fetch(`${env.CORE_API_URL}/api/auth/verify-signup-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          code: otpCode.trim(),
+        }),
       });
+      const payload = await response.json().catch(() => ({} as any));
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Invalid code. Please try again.');
+      }
 
-      if (error) throw error;
+      if (payload?.session?.access_token && payload?.session?.refresh_token) {
+        await applySessionTokens(payload.session.access_token, payload.session.refresh_token);
+      }
 
-      const userId = data.user?.id;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id || payload?.user?.id;
       if (!userId) throw new Error('Verification succeeded but no user session.');
 
       if (fromPayment) {
@@ -459,11 +478,17 @@ export const AccountScreen = ({ navigation, route }: Props) => {
   const handleResendOtp = async () => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email.trim(),
+      const response = await fetch(`${env.CORE_API_URL}/api/auth/resend-confirmation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+        }),
       });
-      if (error) throw error;
+      const payload = await response.json().catch(() => ({} as any));
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Could not resend code.');
+      }
       Alert.alert('Code resent', 'A new code has been sent to your email.');
     } catch (e: any) {
       Alert.alert('Resend failed', e?.message || 'Could not resend code.');
@@ -477,22 +502,54 @@ export const AccountScreen = ({ navigation, route }: Props) => {
     setPassword(generated);
   };
 
+  const applySessionTokens = useCallback(async (accessToken: string, refreshToken: string) => {
+    const { data: existingData } = await supabase.auth.getSession();
+    const existing = existingData.session;
+
+    if (existing?.access_token === accessToken) {
+      return;
+    }
+
+    // Ensure local auth state is clean before applying a new token pair.
+    await supabase.auth.signOut({ scope: 'local' });
+
+    const { error } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+
+    if (error) throw error;
+  }, []);
+
   const processOAuthResult = useCallback(
     async (url: string) => {
       const normalizedUrl = url.replace('#', '?');
       const params = new URL(normalizedUrl).searchParams;
       const accessToken = params.get('access_token');
       const refreshToken = params.get('refresh_token');
+      const code = params.get('code');
+
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) throw error;
+
+        const { data } = await supabase.auth.getSession();
+        const userId = data.session?.user?.id;
+        if (!userId) throw new Error('No authenticated user after OAuth.');
+
+        if (fromPayment) {
+          await finalizePaidSignup(userId);
+        } else {
+          await finalizePrePaymentSignup(userId);
+        }
+        return;
+      }
 
       if (!accessToken || !refreshToken) {
         throw new Error('Missing OAuth tokens.');
       }
 
-      const { error } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
-      if (error) throw error;
+      await applySessionTokens(accessToken, refreshToken);
 
       const { data } = await supabase.auth.getSession();
       const userId = data.session?.user?.id;
@@ -504,7 +561,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
         await finalizePrePaymentSignup(userId);
       }
     },
-    [finalizePaidSignup, finalizePrePaymentSignup, fromPayment]
+    [applySessionTokens, finalizePaidSignup, finalizePrePaymentSignup, fromPayment]
   );
 
   const handleGoogleSignUp = async () => {
@@ -685,11 +742,6 @@ export const AccountScreen = ({ navigation, route }: Props) => {
             </View>
           ) : showOtpInput ? (
             <>
-              <Text style={styles.otpPrompt}>
-                We sent a 6-digit code to{'\n'}
-                <Text style={styles.otpEmail}>{email.trim()}</Text>
-              </Text>
-
               <TextInput
                 style={[styles.input, styles.otpInput]}
                 placeholder="000000"
@@ -719,16 +771,6 @@ export const AccountScreen = ({ navigation, route }: Props) => {
                 <Text style={styles.resendText}>Didn't get the code? Resend</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.resendBtn}
-                onPress={() => {
-                  setShowOtpInput(false);
-                  setOtpCode('');
-                  setSignupStep('email');
-                }}
-              >
-                <Text style={styles.resendText}>← Back to sign up</Text>
-              </TouchableOpacity>
             </>
           ) : (
             <>
@@ -912,6 +954,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.button,
     fontSize: 16,
     fontFamily: typography.sansRegular,
+    letterSpacing: 0,
     color: colors.text,
     minHeight: 54,
   },
@@ -977,17 +1020,6 @@ const styles = StyleSheet.create({
     color: '#000',
     fontFamily: typography.sansBold,
     fontSize: 16,
-  },
-  otpPrompt: {
-    fontFamily: typography.sansRegular,
-    color: colors.text,
-    textAlign: 'center',
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  otpEmail: {
-    fontFamily: typography.sansBold,
-    color: colors.text,
   },
   otpInput: {
     fontSize: 28,

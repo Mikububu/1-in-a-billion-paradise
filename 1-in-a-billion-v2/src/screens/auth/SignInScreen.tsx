@@ -8,7 +8,7 @@
  * - Music: CONTINUOUS playback from IntroScreen (explicitly plays on focus)
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     StyleSheet,
     Text,
@@ -63,6 +63,8 @@ export const SignInScreen = () => {
     const [emailAuthState, setEmailAuthState] = useState<EmailAuthState>('idle');
     const [showEmailInput, setShowEmailInput] = useState(false);
     const [showForgotPassword, setShowForgotPassword] = useState(false);
+    const processedOAuthUrlsRef = useRef<Set<string>>(new Set());
+    const oauthInFlightRef = useRef(false);
 
     const finalizeSignInAccess = useCallback(async () => {
         if (!isSupabaseConfigured) {
@@ -107,7 +109,7 @@ export const SignInScreen = () => {
             setShowDashboard(false);
             navigation.reset({
                 index: 0,
-                routes: [{ name: hasPassedLanguages ? 'CoreIdentitiesIntro' : 'Relationship' }],
+                routes: [{ name: hasPassedLanguages ? 'CoreIdentities' : 'Relationship' }],
             });
             return true;
         }
@@ -117,7 +119,7 @@ export const SignInScreen = () => {
         setShowDashboard(false);
         navigation.reset({
             index: 0,
-            routes: [{ name: hasPassedLanguages ? 'CoreIdentitiesIntro' : 'Relationship' }],
+            routes: [{ name: hasPassedLanguages ? 'CoreIdentities' : 'Relationship' }],
         });
         return true;
     }, [
@@ -140,6 +142,25 @@ export const SignInScreen = () => {
         }, [isPlaying])
     );
 
+    const applySessionTokens = useCallback(async (accessToken: string, refreshToken: string) => {
+        const { data: existingData } = await supabase.auth.getSession();
+        const existing = existingData.session;
+
+        if (existing?.access_token === accessToken) {
+            return;
+        }
+
+        // Clear any stale local session first so rotated refresh tokens do not collide.
+        await supabase.auth.signOut({ scope: 'local' });
+
+        const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+        });
+
+        if (error) throw error;
+    }, []);
+
     const handleDeepLink = useCallback(async (event: { url: string }) => {
         if (!isSupabaseConfigured) return;
 
@@ -155,12 +176,19 @@ export const SignInScreen = () => {
 
         // Handle OAuth callbacks (Google, Apple)
         if (url.includes('auth/callback') || url.includes('access_token=') || url.includes('code=')) {
+            if (processedOAuthUrlsRef.current.has(url) || oauthInFlightRef.current) {
+                return;
+            }
+            processedOAuthUrlsRef.current.add(url);
+            oauthInFlightRef.current = true;
+
             try {
                 const normalizedUrl = url.replace('#', '?');
                 const params = new URL(normalizedUrl).searchParams;
 
                 const accessToken = params.get('access_token');
                 const refreshToken = params.get('refresh_token');
+                const code = params.get('code');
                 const errorCode = params.get('error_code');
                 const errorDescription = params.get('error_description');
 
@@ -171,33 +199,34 @@ export const SignInScreen = () => {
                     return;
                 }
 
-                if (accessToken && refreshToken) {
-                    console.log('✅ Found tokens, setting session...');
-
-                    const { error: sessionError } = await supabase.auth.setSession({
-                        access_token: accessToken,
-                        refresh_token: refreshToken,
-                    });
-
-                    if (sessionError) {
-                        console.error('❌ Session error:', sessionError.message);
-                        setIsLoading(false);
-                        Alert.alert('Session Error', sessionError.message);
-                        return;
+                if (code) {
+                    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+                    if (exchangeError) {
+                        throw exchangeError;
                     }
-
-                    console.log('✅ Session set successfully');
                     await finalizeSignInAccess();
                     setIsLoading(false);
-                    // Bootstrapping hook in RootNavigator will handle navigation
+                    return;
                 }
+
+                if (accessToken && refreshToken) {
+                    console.log('✅ Found tokens, setting session...');
+                    await applySessionTokens(accessToken, refreshToken);
+                    await finalizeSignInAccess();
+                    setIsLoading(false);
+                    return;
+                }
+
+                setIsLoading(false);
             } catch (error: any) {
                 console.error('❌ Deep link error:', error.message);
                 setIsLoading(false);
                 Alert.alert('Auth Error', 'Failed to process authentication');
+            } finally {
+                oauthInFlightRef.current = false;
             }
         }
-    }, [finalizeSignInAccess]);
+    }, [applySessionTokens, finalizeSignInAccess]);
 
     useEffect(() => {
         const subscription = Linking.addEventListener('url', handleDeepLink);

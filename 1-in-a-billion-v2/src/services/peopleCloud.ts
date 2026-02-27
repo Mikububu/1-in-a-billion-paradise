@@ -135,34 +135,62 @@ export async function syncPeopleToSupabase(userId: string, people: Person[]) {
 
     console.log(`📤 syncPeopleToSupabase: Pushing ${selfProfiles.length} self, ${partnerProfiles.length} partners`);
 
+    // NOTE: Avoid relying on ON CONFLICT targets here.
+    // Some environments miss matching unique constraints, which blocks onboarding.
+    // We use deterministic update-then-insert keyed by logical identifiers instead.
     if (selfProfiles.length > 0) {
         const bestSelf = selfProfiles.sort((a, b) =>
             (new Date(b.updated_at || 0).getTime()) - (new Date(a.updated_at || 0).getTime())
         )[0];
 
-        const { error } = await supabase
+        const { data: updatedRows, error: updateError } = await supabase
             .from(TABLE_PEOPLE)
-            .upsert(bestSelf, {
-                onConflict: 'user_id',
-                ignoreDuplicates: false,
-            });
+            .update(bestSelf)
+            .eq('user_id', userId)
+            .eq('is_user', true)
+            .select('client_person_id');
 
-        if (error) {
-            console.error(`❌ Self profile upsert failed:`, error.message);
-            return { success: false, error: error.message };
+        if (updateError) {
+            console.error(`❌ Self profile update failed:`, updateError.message);
+            return { success: false, error: updateError.message };
+        }
+
+        if (!updatedRows || updatedRows.length === 0) {
+            const { error: insertError } = await supabase
+                .from(TABLE_PEOPLE)
+                .insert(bestSelf);
+
+            if (insertError) {
+                console.error(`❌ Self profile insert failed:`, insertError.message);
+                return { success: false, error: insertError.message };
+            }
         }
     }
 
     if (partnerProfiles.length > 0) {
-        const { error } = await supabase
-            .from(TABLE_PEOPLE)
-            .upsert(partnerProfiles, {
-                onConflict: 'user_id,client_person_id',
-            });
+        for (const partnerRow of partnerProfiles) {
+            const { data: updatedRows, error: updateError } = await supabase
+                .from(TABLE_PEOPLE)
+                .update(partnerRow)
+                .eq('user_id', userId)
+                .eq('client_person_id', partnerRow.client_person_id as string)
+                .select('client_person_id');
 
-        if (error) {
-            console.error(`❌ Partner profiles sync failed:`, error.message);
-            return { success: false, error: error.message };
+            if (updateError) {
+                console.error(`❌ Partner profile update failed:`, updateError.message);
+                return { success: false, error: updateError.message };
+            }
+
+            if (!updatedRows || updatedRows.length === 0) {
+                const { error: insertError } = await supabase
+                    .from(TABLE_PEOPLE)
+                    .insert(partnerRow);
+
+                if (insertError) {
+                    console.error(`❌ Partner profile insert failed:`, insertError.message);
+                    return { success: false, error: insertError.message };
+                }
+            }
         }
     }
 

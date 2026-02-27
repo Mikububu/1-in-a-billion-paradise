@@ -63,12 +63,21 @@ export function stripKabbalahChartData(raw: string): string {
     if (/^HEBREW BIRTH DATE/.test(t)) { out.push(line); continue; }
     if (/^- [0-9]/.test(t) && out.some(l => l.includes('HEBREW'))) { out.push(line); continue; }
 
-    if (inTikkun) { out.push(line); continue; }
+    if (inTikkun) {
+      if (/^- (Hebrew Month|Tikkun Name|Correction|Trap|Gift):/.test(t)) out.push(line);
+      continue;
+    }
 
     if (inSefirot) { continue; } // Section header only kept above
 
     if (inDominantStrong) {
-      if (/^- /.test(t) && strongCount < 3) { out.push(line); strongCount++; }
+      if (/^- /.test(t) && strongCount < 3) {
+        const normalized = line
+          .replace(/\s+via\s+[A-Z_]+\s+in\s+[A-Za-z]+\s*(?:\(House\s+\d+\))?/i, '')
+          .replace(/\s+\|\s+letter=.*$/i, '');
+        out.push(normalized);
+        strongCount++;
+      }
       continue;
     }
 
@@ -89,8 +98,6 @@ export function stripKabbalahChartData(raw: string): string {
     }
 
     if (inTransitWeather || inModality) { continue; }
-
-    out.push(line);
   }
 
   return out.filter(Boolean).join('\n').trim();
@@ -120,11 +127,11 @@ export function buildKabbalahTriggerPrompt(params: {
     'the strength that covers what they cannot access.',
     '',
     'Write one paragraph. 80-120 words exactly.',
-    'Third person. No jargon. No Kabbalah vocabulary. No repair instructions. No softening.',
+    'Third person. Use Kabbalah terms only when needed and explain first use in plain language. No repair instructions. No softening.',
     'Specific enough that no other profile produces this exact sentence.',
     'It must cost something to read.',
     '',
-    'Do not describe the system. Do not name Sefirot or Hebrew terms.',
+    'Do not describe the system abstractly.',
     'Do not offer correction or elevation as consolation.',
     `Name the ${trigger}. Stop.`,
     '',
@@ -173,7 +180,7 @@ export function buildKabbalahWritingPrompt(params: {
     '',
     'ANTI-SURVEY:',
     `- Do not explain Kabbalah. Serve the ${trigger}.`,
-    '- Do not name Sefirot, worlds, or Hebrew concepts technically.',
+    '- Use Sefirot/world/Hebrew term language only when it carries concrete evidence.',
     '- Explain Kabbalah terms in plain language the first time they appear.',
     '- Every paragraph must add new consequence or evidence.',
     '',

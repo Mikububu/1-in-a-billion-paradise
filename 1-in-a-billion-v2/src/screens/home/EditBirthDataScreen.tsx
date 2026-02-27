@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
     },
     iconArt: { fontSize: 24, marginRight: spacing.sm, color: colors.text, fontWeight: '300' },
     inputText: { flex: 1, fontFamily: typography.sansRegular, fontSize: 16, color: colors.text },
-    cityInput: { flex: 1, fontFamily: typography.sansRegular, fontSize: 16, color: colors.text },
+    cityInput: { flex: 1, fontFamily: typography.sansRegular, fontSize: 16, color: colors.text, letterSpacing: 0 },
     pickerWrapper: { backgroundColor: colors.background, borderRadius: radii.card, marginBottom: spacing.sm },
     pickerDone: { alignItems: 'center', paddingVertical: spacing.sm, borderTopWidth: 1, borderTopColor: colors.divider },
     pickerDoneText: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.primary },

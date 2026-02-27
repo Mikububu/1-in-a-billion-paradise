@@ -386,6 +386,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: colors.text,
         flex: 1,
+        letterSpacing: 0,
     },
     pickerWrapper: {
         borderRadius: radii.card,

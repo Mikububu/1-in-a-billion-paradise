@@ -608,9 +608,9 @@ export const RootNavigator = () => {
     }
 
     const shouldShowMainNavigator = hasSession && (showDashboard || hasCompletedOnboarding);
-    const onboardingInitialRoute: keyof OnboardingStackParamList = hasPassedLanguages
-        ? (hasSession ? 'CoreIdentitiesIntro' : 'Account')
-        : 'Intro';
+    // Deterministic cold start for onboarding:
+    // always begin at Intro unless user is already in MainNavigator.
+    const onboardingInitialRoute: keyof OnboardingStackParamList = 'Intro';
 
     return (
         <AudioProvider>

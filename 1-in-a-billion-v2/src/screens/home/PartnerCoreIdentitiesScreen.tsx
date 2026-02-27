@@ -336,7 +336,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
           
           const result = await audioApi.generateTTS(
             `${sunData.reading.intro}\n\n${sunData.reading.main}`,
-            { exaggeration: AUDIO_CONFIG.exaggeration }
+            { exaggeration: AUDIO_CONFIG.exaggeration, includeIntro: false }
           );
           if (result.success) {
             const immediateSource = result.audioUrl;
@@ -414,7 +414,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         console.log(`🎵 Starting ${name}'s MOON audio generation...`);
         moonAudioPromise = audioApi.generateTTS(
           `${moonData.reading.intro}\n\n${moonData.reading.main}`,
-          { exaggeration: AUDIO_CONFIG.exaggeration }
+          { exaggeration: AUDIO_CONFIG.exaggeration, includeIntro: false }
         )
           .then((result) => {
             if (result.success) {
@@ -480,7 +480,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         console.log(`🎵 Starting ${name}'s RISING audio generation...`);
         risingAudioPromise = audioApi.generateTTS(
           `${risingData.reading.intro}\n\n${risingData.reading.main}`,
-          { exaggeration: AUDIO_CONFIG.exaggeration }
+          { exaggeration: AUDIO_CONFIG.exaggeration, includeIntro: false }
         )
           .then((result) => {
             if (result.success) {

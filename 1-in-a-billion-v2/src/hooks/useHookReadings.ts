@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { readingsApi } from '@/services/api';
 import { HookReading } from '@/types/forms';
@@ -15,6 +15,9 @@ export const useHookReadings = () => {
     const relationshipPreferenceScale = useOnboardingStore((state) => state.relationshipPreferenceScale);
     const secondaryLanguage = useOnboardingStore((state) => state.secondaryLanguage);
     const setHookReading = useOnboardingStore((state) => state.setHookReading);
+    const cachedSun = useOnboardingStore((state) => state.hookReadings.sun);
+    const cachedMoon = useOnboardingStore((state) => state.hookReadings.moon);
+    const cachedRising = useOnboardingStore((state) => state.hookReadings.rising);
 
     const hasRequiredData = Boolean(birthDate && birthTime && birthCity && primaryLanguage);
 
@@ -60,12 +63,17 @@ export const useHookReadings = () => {
         });
     }, [sunResult?.data, moonResult?.data, risingResult?.data, setHookReading]);
 
+    const refetchAll = useCallback(() => {
+        [sunResult, moonResult, risingResult].forEach((query) => query?.refetch());
+    }, [moonResult, risingResult, sunResult]);
+
     return {
-        sun: sunResult?.data?.reading,
-        moon: moonResult?.data?.reading,
-        rising: risingResult?.data?.reading,
+        sun: sunResult?.data?.reading || cachedSun,
+        moon: moonResult?.data?.reading || cachedMoon,
+        rising: risingResult?.data?.reading || cachedRising,
         isLoading: [sunResult, moonResult, risingResult].some((query) => query?.isLoading),
         isError: [sunResult, moonResult, risingResult].some((query) => !!query?.error),
-        refetchAll: () => [sunResult, moonResult, risingResult].forEach((query) => query?.refetch()),
+        hasRequiredData,
+        refetchAll,
     };
 };

@@ -25,6 +25,20 @@ function addCacheBuster(url: string): string {
   return `${url}${separator}v=${Date.now()}`;
 }
 
+function envNumber(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function resolvePortraitPath(portraitsDir: string): string {
+  const explicit = (process.env.PERSON1_PORTRAIT_PATH || process.env.PERSON1_PORTRAIT_FILE || '').trim();
+  if (!explicit) return path.join(portraitsDir, 'Michael_2.jpg');
+  if (path.isAbsolute(explicit)) return explicit;
+  return path.join(portraitsDir, explicit);
+}
+
 function extractCoverQuote(reading: string): string {
   const raw = String(reading || '')
     .replace(/\b(?:individual|overlay)_[a-z0-9-]+(?:_[a-z0-9-]+){2,}\b/gi, '')
@@ -105,14 +119,14 @@ async function main() {
   const resolvedPersonalContext = resolvedContextRaw.trim().length > 0 ? resolvedContextRaw.trim() : undefined;
 
   const person1 = {
-    name: 'Michael',
-    birthDate: '1968-08-23',
-    birthTime: '13:45',
-    timezone: 'Europe/Vienna',
-    latitude: 46.6103,
-    longitude: 13.8558,
-    birthPlace: 'Villach, Austria',
-    portraitPath: path.join(portraitsDir, 'Michael_2.jpg'),
+    name: (process.env.PERSON1_NAME || 'Michael').trim(),
+    birthDate: (process.env.PERSON1_BIRTH_DATE || '1968-08-23').trim(),
+    birthTime: (process.env.PERSON1_BIRTH_TIME || '13:45').trim(),
+    timezone: (process.env.PERSON1_TIMEZONE || 'Europe/Vienna').trim(),
+    latitude: envNumber('PERSON1_LATITUDE', 46.6103),
+    longitude: envNumber('PERSON1_LONGITUDE', 13.8558),
+    birthPlace: (process.env.PERSON1_BIRTH_PLACE || 'Villach, Austria').trim(),
+    portraitPath: resolvePortraitPath(portraitsDir),
   };
   const userId = process.env.USER_ID || 'f23f2057-5a74-4fc7-ab39-2a1f17729c2c';
   const person1Id = process.env.PERSON1_ID || `self-${userId}`;
@@ -237,7 +251,7 @@ async function main() {
       type: 'single',
       title: pdfTitle,
       coverQuote,
-      allowInferredHeadlines: !safeFileToken(generated.resolvedStyleLayerId || styleLayerId).includes('production-v3'),
+      allowInferredHeadlines: false,
       person1: {
         name: person1.name,
         birthDate: person1.birthDate,
@@ -263,6 +277,11 @@ async function main() {
     );
     fs.copyFileSync(pdf.filePath, pdfOut);
     console.log(`✅ Wrote PDF: ${pdfOut}`);
+
+    // Persist reading text for downstream audio generation.
+    const textOut = pdfOut.replace(/\.pdf$/i, '.reading.txt');
+    fs.writeFileSync(textOut, generated.reading, 'utf8');
+    console.log(`✅ Wrote reading text: ${textOut}`);
   }
 
   console.log('\n✅ Done. Outputs in:', outDir);

@@ -175,7 +175,10 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
 
       const textToSpeak = `${reading.intro}\n\n${reading.main}`;
       const p = audioApi
-        .generateTTS(textToSpeak, { exaggeration: AUDIO_CONFIG.exaggeration })
+        .generateTTS(textToSpeak, {
+          exaggeration: AUDIO_CONFIG.exaggeration,
+          includeIntro: false,
+        })
         .then(async (result) => {
           if (!result.success) return null;
 

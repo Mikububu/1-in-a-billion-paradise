@@ -42,7 +42,7 @@ function buildOverlayTriggerPromptBase(params: {
     '',
     'Write one paragraph. 80-120 words exactly.',
     'Third person. Use both names — ALTERNATE who you mention first.',
-    'No system terms. No technical syntax. No repair instructions. No hope language.',
+    'Use system terms only when they are chart-grounded, and explain first use in plain language. No technical report syntax. No repair instructions. No hope language.',
     'Specific enough that no other pair of charts produces this exact sentence.',
     'It must cost something to read.',
     'PRESENT TENSE. Not "would", not "could". Describe the dynamic as it IS.',

@@ -7,30 +7,40 @@ import type { SystemId } from '../../promptEngine/types';
 import { getSystemPromptForStyle } from '../../prompts/styles';
 import { buildChartAwareProvocations } from '../../prompts/chartProvocations';
 import {
+  stripWesternChartData,
   buildWesternTriggerPrompt,
   buildWesternWritingPrompt,
 } from '../../promptEngine/triggerEngine/westernTrigger';
 import {
+  stripVedicChartData,
   buildVedicTriggerPrompt,
   buildVedicWritingPrompt,
 } from '../../promptEngine/triggerEngine/vedicTrigger';
 import {
+  stripHDChartData,
   buildHDTriggerPrompt,
   buildHDWritingPrompt,
 } from '../../promptEngine/triggerEngine/humanDesignTrigger';
 import {
+  stripGeneKeysChartData,
   buildGeneKeysTriggerPrompt,
   buildGeneKeysWritingPrompt,
 } from '../../promptEngine/triggerEngine/geneKeysTrigger';
 import {
+  stripKabbalahChartData,
   buildKabbalahTriggerPrompt,
   buildKabbalahWritingPrompt,
 } from '../../promptEngine/triggerEngine/kabbalahTrigger';
 import {
+  stripWesternOverlayData,
   buildWesternOverlayTriggerPrompt,
+  stripVedicOverlayData,
   buildVedicOverlayTriggerPrompt,
+  stripHDOverlayData,
   buildHDOverlayTriggerPrompt,
+  stripGeneKeysOverlayData,
   buildGeneKeysOverlayTriggerPrompt,
+  stripKabbalahOverlayData,
   buildKabbalahOverlayTriggerPrompt,
   buildWesternOverlayWritingPrompt,
   buildVedicOverlayWritingPrompt,
@@ -980,7 +990,13 @@ function buildTriggerPipelineBundle(options: {
   }
 
   if (docType === 'individual') {
-    // FIX 1: Full chart data — no stripping. LLM sees 100% of chart data.
+    const stripBuilders: Record<string, (raw: string) => string> = {
+      western: stripWesternChartData,
+      vedic: stripVedicChartData,
+      human_design: stripHDChartData,
+      gene_keys: stripGeneKeysChartData,
+      kabbalah: stripKabbalahChartData,
+    };
     const triggerBuilders: Record<string, (opts: any) => string> = {
       western: buildWesternTriggerPrompt,
       vedic: buildVedicTriggerPrompt,
@@ -998,21 +1014,28 @@ function buildTriggerPipelineBundle(options: {
 
     const buildTrigger = triggerBuilders[system];
     const buildWriting = writingBuilders[system];
-    if (!buildTrigger || !buildWriting) return null;
+    const strip = stripBuilders[system];
+    if (!strip || !buildTrigger || !buildWriting) return null;
+    const stripped = strip(chartData);
 
     return {
-      strippedChartData: chartData, // Full chart data (no stripping)
-      triggerPrompt: buildTrigger({ personName, strippedChartData: chartData }),
-      writingPromptBase: buildWriting({ personName, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: chartData, targetWords: hardFloorWords }),
+      strippedChartData: stripped,
+      triggerPrompt: buildTrigger({ personName, strippedChartData: stripped }),
+      writingPromptBase: buildWriting({ personName, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: stripped, targetWords: hardFloorWords }),
     };
   }
 
-  // FIX 1: Full chart data for overlays — no stripping. Simple concatenation.
   const p1Raw = String(chartDataPerson1 || '').trim();
   const p2Raw = String(chartDataPerson2 || '').trim();
   if (!p1Raw || !p2Raw) return null;
 
-  const combinedChartData = `PERSON1 CHART:\n${p1Raw}\n\nPERSON2 CHART:\n${p2Raw}`;
+  const stripOverlayBuilders: Record<string, (person1Raw: string, person2Raw: string) => string> = {
+    western: stripWesternOverlayData,
+    vedic: stripVedicOverlayData,
+    human_design: stripHDOverlayData,
+    gene_keys: stripGeneKeysOverlayData,
+    kabbalah: stripKabbalahOverlayData,
+  };
 
   const overlayTriggerBuilders: Record<string, (opts: any) => string> = {
     western: buildWesternOverlayTriggerPrompt,
@@ -1031,10 +1054,12 @@ function buildTriggerPipelineBundle(options: {
 
   const buildOverlayTrigger = overlayTriggerBuilders[system];
   const buildOverlayWriting = overlayWritingBuilders[system];
-  if (!buildOverlayTrigger || !buildOverlayWriting) return null;
+  const stripOverlay = stripOverlayBuilders[system];
+  if (!stripOverlay || !buildOverlayTrigger || !buildOverlayWriting) return null;
+  const combinedChartData = stripOverlay(p1Raw, p2Raw);
 
   return {
-    strippedChartData: combinedChartData, // Full combined chart data (no stripping)
+    strippedChartData: combinedChartData,
     triggerPrompt: buildOverlayTrigger({ person1Name: p1Name, person2Name: p2Name, strippedChartData: combinedChartData }),
     writingPromptBase: buildOverlayWriting({ person1Name: p1Name, person2Name: p2Name, narrativeTrigger: '__NARRATIVE_TRIGGER_PLACEHOLDER__', strippedChartData: combinedChartData, targetWords: hardFloorWords }),
   };

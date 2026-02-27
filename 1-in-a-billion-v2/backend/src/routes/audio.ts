@@ -16,6 +16,10 @@ import {
   dedupeAdjacentSentences,
   dedupeChunkBoundaryOverlap,
 } from '../services/audioProcessing';
+import {
+  isReplicateRateLimitError,
+  runReplicateWithRateLimit,
+} from '../services/replicateRateLimiter';
 
 const router = new Hono();
 
@@ -201,7 +205,8 @@ router.post('/generate-tts', async (c) => {
         : 1.7;
 
       // Replicate chunk generator
-      const generateChunk = async (chunk: string, index: number, maxRetries = 5): Promise<Buffer> => {
+      const routeChunkMaxRetries = Math.max(1, parseInt(process.env.REPLICATE_CHUNK_MAX_RETRIES || '6', 10));
+      const generateChunk = async (chunk: string, index: number, maxRetries = routeChunkMaxRetries): Promise<Buffer> => {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
           try {
             console.log(`  [Replicate] Chunk ${index + 1}/${chunks.length} (${chunk.length} chars) attempt ${attempt}`);
@@ -220,10 +225,14 @@ router.post('/generate-tts', async (c) => {
 
             // Call Replicate API with hard timeout to avoid hung chunks.
             const chunkTimeoutMs = parseInt(process.env.REPLICATE_CHUNK_TIMEOUT_MS || '120000', 10);
-            const output = await withTimeout(
-              replicate.run('resemble-ai/chatterbox-turbo', { input }),
-              chunkTimeoutMs,
-              `Replicate chunk ${index + 1}`
+            const output = await runReplicateWithRateLimit(
+              `audioRoute:chunk:${index + 1}`,
+              () =>
+                withTimeout(
+                  replicate.run('resemble-ai/chatterbox-turbo', { input }),
+                  chunkTimeoutMs,
+                  `Replicate chunk ${index + 1}`
+                )
             );
 
             const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
@@ -261,7 +270,7 @@ router.post('/generate-tts', async (c) => {
             return audioBuffer;
 
           } catch (error: any) {
-            const is429 = error.message?.includes('429') || error.message?.includes('throttled') || error.message?.includes('rate limit');
+            const is429 = isReplicateRateLimitError(error);
             const isAuthError = error.message?.includes('401') || error.message?.includes('authentication') || error.message?.includes('Unauthorized');
             const isBadRequest = error.message?.includes('400') || error.message?.includes('422') || error.message?.includes('invalid');
 
@@ -286,7 +295,7 @@ router.post('/generate-tts', async (c) => {
 
       // Inter-chunk delay to respect Replicate rate limits.
       // Keep default low; retries already honor API-provided retry_after.
-      const chunkDelayMs = parseInt(process.env.REPLICATE_CHUNK_DELAY_MS || '2000', 10);
+      const chunkDelayMs = parseInt(process.env.REPLICATE_CHUNK_DELAY_MS || '0', 10);
       
       const startTime = Date.now();
       let audioBuffers: Buffer[] = [];
@@ -296,7 +305,7 @@ router.post('/generate-tts', async (c) => {
       if (parallelMode) {
         const pLimit = (await import('p-limit')).default;
         const limiter = pLimit(parallelLimit);
-        console.log(`🚀 Starting PARALLEL Replicate generation of ${chunks.length} chunks (limit ${parallelLimit})...`);
+        console.log(`🚀 Starting PARALLEL chunk scheduling for ${chunks.length} chunks (limit ${parallelLimit}); shared limiter enforces Replicate pacing...`);
         const results = await Promise.all(
           chunks.map((chunk, i) =>
             limiter(async () => {
@@ -577,7 +586,7 @@ router.post('/generate-tts-stream', async (c) => {
 // Hook audio generation endpoint - stores in Supabase Storage and returns URL
 const hookAudioSchema = z.object({
   text: z.string().min(1).max(50000),
-  userId: z.string().uuid().optional(), // Optional: if not provided, use temp storage
+  userId: z.string().uuid(),
   type: z.enum(['sun', 'moon', 'rising']),
   exaggeration: z.number().min(0).max(1).optional().default(0.3),
   audioUrl: z.string().optional(), // Voice sample URL
@@ -587,72 +596,103 @@ router.post('/hook-audio/generate', async (c) => {
   try {
     const parsed = hookAudioSchema.parse(await c.req.json());
     const { supabase } = await import('../services/supabaseClient');
+    const { env } = await import('../config/env');
+    const Replicate = (await import('replicate')).default;
 
     if (!supabase) {
       return c.json({ success: false, error: 'Supabase not configured' }, 500);
     }
 
-    // Use userId if provided, otherwise use temp storage (for pre-signup hook audio)
-    const userId = parsed.userId || 'temp';
+    const userId = parsed.userId;
     console.log(`🎤 Hook audio generation: ${parsed.type} for user ${userId} (${parsed.text.length} chars)`);
 
-    // SINGLE SOURCE OF TRUTH: Supabase api_keys table
-    // This ensures endpoint ID changes (e.g., after RunPod restore) apply immediately
-    let runpodApiKey: string;
-    let runpodEndpointId: string;
-    try {
-      runpodApiKey = await apiKeys.runpod();
-      runpodEndpointId = await apiKeys.runpodEndpoint();
-    } catch (err) {
+    // Single source of truth: Supabase api_keys table (fallback to env)
+    let replicateToken = await apiKeys.replicate().catch(() => null) || env.REPLICATE_API_TOKEN;
+    if (!replicateToken) {
+      clearApiKeyCache('replicate');
+      replicateToken = await apiKeys.replicate().catch(() => null) || env.REPLICATE_API_TOKEN;
+    }
+    if (!replicateToken) {
       return c.json({
         success: false,
-        error: 'RunPod not configured (check Supabase api_keys table)',
+        error: 'Replicate API token not found',
       }, 500);
     }
+    const replicate = new Replicate({ auth: replicateToken });
 
-    // Generate audio using same logic as /generate-tts
+    // Generate hook audio using the same Chatterbox model as long-form audio.
     const textLength = parsed.text.length;
-    const chunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || String(AUDIO_CONFIG.CHUNK_MAX_LENGTH), 10);
-    const chunks = splitIntoChunks(parsed.text, chunkSize);
+    const configuredChunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || String(AUDIO_CONFIG.CHUNK_MAX_LENGTH), 10);
+    const chunkSize = Math.max(120, Math.min(300, Number.isFinite(configuredChunkSize) ? configuredChunkSize : AUDIO_CONFIG.CHUNK_MAX_LENGTH));
+    let chunks = splitIntoChunks(parsed.text, chunkSize);
+    const boundaryDedup = dedupeChunkBoundaryOverlap(chunks);
+    chunks = boundaryDedup.chunks;
     console.log(`📦 Chunking ${textLength} chars into ${chunks.length} pieces`);
 
     const voiceSampleUrl = parsed.audioUrl || 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/david.wav';
 
-    // Generate chunks sequentially
+    const repetitionPenaltyRaw = Number(process.env.CHATTERBOX_REPETITION_PENALTY || '1.7');
+    const repetitionPenalty = Number.isFinite(repetitionPenaltyRaw)
+      ? Math.max(1, Math.min(2, repetitionPenaltyRaw))
+      : 1.7;
+
+    // Generate chunks sequentially (hook audio is short, this is stable and quick).
     const audioBuffers: Buffer[] = [];
     for (let i = 0; i < chunks.length; i++) {
-      const maxRetries = 3;
+      const maxRetries = Math.max(1, parseInt(process.env.REPLICATE_CHUNK_MAX_RETRIES || '6', 10));
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          const response = await axios.post(
-            `https://api.runpod.ai/v2/${runpodEndpointId}/runsync`,
-            {
-              input: {
-                text: chunks[i]!,
-                audio_url: voiceSampleUrl,
-                exaggeration: parsed.exaggeration,
-                cfg_weight: 0.5,
-              }
-            },
-            {
-              headers: {
-                'Authorization': `Bearer ${runpodApiKey}`,
-                'Content-Type': 'application/json',
-              },
-              timeout: 180000,
-            }
+          const input: any = {
+            text: chunks[i]!,
+            reference_audio: voiceSampleUrl,
+            temperature: 0.7,
+            top_p: 0.95,
+            repetition_penalty: repetitionPenalty,
+          };
+
+          const chunkTimeoutMs = parseInt(process.env.REPLICATE_CHUNK_TIMEOUT_MS || '120000', 10);
+          const output = await runReplicateWithRateLimit(
+            `hookAudio:${parsed.userId}:${parsed.type}:${i + 1}`,
+            () =>
+              withTimeout(
+                replicate.run('resemble-ai/chatterbox-turbo', { input }),
+                chunkTimeoutMs,
+                `Hook chunk ${i + 1}`
+              )
           );
 
-          const output = response.data?.output;
-          if (!output?.audio_base64) {
-            throw new Error(`No audio_base64 in response for chunk ${i + 1}`);
+          let audioBuffer: Buffer;
+          if (output instanceof ReadableStream || (output as any).getReader) {
+            const reader = (output as ReadableStream).getReader();
+            const streamChunks: Uint8Array[] = [];
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              streamChunks.push(value);
+            }
+            audioBuffer = Buffer.concat(streamChunks);
+          } else if (typeof output === 'string') {
+            const response = await axios.get(output, { responseType: 'arraybuffer' });
+            audioBuffer = Buffer.from(response.data);
+          } else if (Buffer.isBuffer(output)) {
+            audioBuffer = output;
+          } else if (Array.isArray(output)) {
+            const first = output[0] as any;
+            if (typeof first === 'string') {
+              const response = await axios.get(first, { responseType: 'arraybuffer' });
+              audioBuffer = Buffer.from(response.data);
+            } else {
+              throw new Error(`Unexpected array output for hook chunk ${i + 1}`);
+            }
+          } else {
+            throw new Error(`Unexpected output type for hook chunk ${i + 1}`);
           }
 
-          audioBuffers.push(Buffer.from(output.audio_base64, 'base64'));
+          audioBuffers.push(audioBuffer);
           break; // Success, move to next chunk
         } catch (error: any) {
           if (attempt < maxRetries) {
-            const waitTime = attempt * 5000;
+            const waitTime = isReplicateRateLimitError(error) ? 12000 : attempt * 3000;
             console.log(`⚠️ Chunk ${i + 1} failed, retrying in ${waitTime / 1000}s...`);
             await new Promise(r => setTimeout(r, waitTime));
           } else {
@@ -668,10 +708,7 @@ router.post('/hook-audio/generate', async (c) => {
     const estimatedDuration = Math.ceil((wavAudio.length - 44) / 48000);
 
     // Store in Supabase Storage (library bucket, same as hookAudioCloud.ts)
-    // Use temp/ prefix if no userId provided (will be moved to user folder after signup)
-    const storagePath = parsed.userId 
-      ? `hook-audio/${parsed.userId}/${parsed.type}.${format}`
-      : `hook-audio/temp/${parsed.type}_${Date.now()}.${format}`;
+    const storagePath = `hook-audio/${parsed.userId}/${parsed.type}.${format}`;
     const contentType = 'audio/mp4';
 
     const { data: uploadData, error: uploadError } = await supabase.storage

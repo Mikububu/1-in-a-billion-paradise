@@ -23,6 +23,18 @@ type PersonSeed = {
   portraitPath: string;
 };
 
+function envString(key: string, fallback: string): string {
+  const value = process.env[key];
+  return value && value.trim() ? value.trim() : fallback;
+}
+
+function envNumber(key: string, fallback: number): number {
+  const raw = process.env[key];
+  if (!raw || !raw.trim()) return fallback;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 function tsTag(): string {
   return new Date().toISOString().replace(/[:.]/g, '-');
 }
@@ -107,28 +119,31 @@ async function main() {
 
   const userId = process.env.USER_ID || 'f23f2057-5a74-4fc7-ab39-2a1f17729c2c';
   const person1Id = process.env.PERSON1_ID || `self-${userId}`;
-  const person2Id = process.env.PERSON2_ID || 'partner-tata-umana-1982';
+  const person2Id = process.env.PERSON2_ID || 'partner-person2';
+
+  const person1PortraitFile = envString('PERSON1_PORTRAIT_FILE', 'Michael_2.jpg');
+  const person2PortraitFile = envString('PERSON2_PORTRAIT_FILE', 'Tata.jpeg');
 
   const person1: PersonSeed = {
-    name: 'Michael',
-    birthDate: '1968-08-23',
-    birthTime: '13:45',
-    timezone: 'Europe/Vienna',
-    latitude: 46.6103,
-    longitude: 13.8558,
-    birthPlace: 'Villach, Austria',
-    portraitPath: path.join(portraitsDir, 'Michael_2.jpg'),
+    name: envString('PERSON1_NAME', 'Michael'),
+    birthDate: envString('PERSON1_BIRTH_DATE', '1968-08-23'),
+    birthTime: envString('PERSON1_BIRTH_TIME', '13:45'),
+    timezone: envString('PERSON1_TIMEZONE', 'Europe/Vienna'),
+    latitude: envNumber('PERSON1_LATITUDE', 46.6103),
+    longitude: envNumber('PERSON1_LONGITUDE', 13.8558),
+    birthPlace: envString('PERSON1_BIRTH_PLACE', 'Villach, Austria'),
+    portraitPath: path.join(portraitsDir, person1PortraitFile),
   };
 
   const person2: PersonSeed = {
-    name: 'Tata Umana',
-    birthDate: '1982-06-30',
-    birthTime: '15:15',
-    timezone: 'America/Bogota',
-    latitude: 4.711,
-    longitude: -74.0721,
-    birthPlace: 'Bogota, Colombia',
-    portraitPath: path.join(portraitsDir, 'Tata.jpeg'),
+    name: envString('PERSON2_NAME', 'Tata Umana'),
+    birthDate: envString('PERSON2_BIRTH_DATE', '1982-06-30'),
+    birthTime: envString('PERSON2_BIRTH_TIME', '15:15'),
+    timezone: envString('PERSON2_TIMEZONE', 'America/Bogota'),
+    latitude: envNumber('PERSON2_LATITUDE', 4.711),
+    longitude: envNumber('PERSON2_LONGITUDE', -74.0721),
+    birthPlace: envString('PERSON2_BIRTH_PLACE', 'Bogota, Colombia'),
+    portraitPath: path.join(portraitsDir, person2PortraitFile),
   };
 
   if (!fs.existsSync(person1.portraitPath)) throw new Error(`Missing base portrait for person1: ${person1.portraitPath}`);
@@ -146,11 +161,25 @@ async function main() {
     generateAIPortrait(readImageAsBase64(person1.portraitPath), userId, person1Id),
     generateAIPortrait(readImageAsBase64(person2.portraitPath), userId, person2Id),
   ]);
-  if (!portrait1Result.success || !portrait1Result.imageUrl) throw new Error(`Failed to generate person1 AI portrait: ${portrait1Result.error || 'unknown error'}`);
-  if (!portrait2Result.success || !portrait2Result.imageUrl) throw new Error(`Failed to generate person2 AI portrait: ${portrait2Result.error || 'unknown error'}`);
+  const baseStorageUrl = 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/profile-images';
+  const person1OriginalUrl = `${baseStorageUrl}/${userId}/${person1Id}/original.jpg`;
+  const person2OriginalUrl = `${baseStorageUrl}/${userId}/${person2Id}/original.jpg`;
 
-  const person1PortraitUrl = addCacheBuster(portrait1Result.imageUrl);
-  const person2PortraitUrl = addCacheBuster(portrait2Result.imageUrl);
+  const person1PortraitUrl =
+    portrait1Result.success && portrait1Result.imageUrl
+      ? addCacheBuster(portrait1Result.imageUrl)
+      : (console.warn(
+          `⚠️ Person1 AI portrait failed; falling back to original image. Error: ${portrait1Result.error || 'unknown'}`
+        ),
+        addCacheBuster(person1OriginalUrl));
+
+  const person2PortraitUrl =
+    portrait2Result.success && portrait2Result.imageUrl
+      ? addCacheBuster(portrait2Result.imageUrl)
+      : (console.warn(
+          `⚠️ Person2 AI portrait failed; falling back to original image. Error: ${portrait2Result.error || 'unknown'}`
+        ),
+        addCacheBuster(person2OriginalUrl));
 
   console.log('👫 Regenerating fresh couple image from the new AI portraits...');
   const coupleImageResult = await composeCoupleImage(userId, person1Id, person2Id, person1PortraitUrl, person2PortraitUrl);
