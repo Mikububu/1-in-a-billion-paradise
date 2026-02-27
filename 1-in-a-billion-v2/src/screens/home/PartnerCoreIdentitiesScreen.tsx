@@ -115,11 +115,11 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
   const partnerIdFromRoute = (route.params as any)?.partnerId as string | undefined;
   const isPrepayOnboarding = (route.params as any)?.mode === 'onboarding_hook';
   const name = partnerName || 'Partner';
-  
+
   const [currentScreen, setCurrentScreen] = useState<ScreenKey>('intro');
   const [statusText, setStatusText] = useState('');
   const [progress, setProgress] = useState(0); // 0 to 100
-  
+
   // Profile store for saving partner
   const addPerson = useProfileStore((state) => state.addPerson);
   const setHookReadings = useProfileStore((state) => state.setHookReadings);
@@ -128,20 +128,20 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
   // Use the same config knobs as the 1st-person hook pipeline (don’t hardcode).
   const relationshipPreferenceScale = useOnboardingStore((s: any) => s.relationshipPreferenceScale) ?? 5;
   const primaryLanguage = useOnboardingStore((s: any) => s.primaryLanguage?.code) ?? 'en';
-  
+
   // Audio store for partner audio pre-rendering
   const setPartnerAudio = useOnboardingStore((state: any) => state.setPartnerAudio);
   const clearPartnerAudio = useOnboardingStore((state: any) => state.clearPartnerAudio);
-  
+
   // Check if person already exists with cached placements
-  const existingPerson = people.find(p => 
-    p.name?.toLowerCase() === name.toLowerCase() && 
+  const existingPerson = people.find(p =>
+    p.name?.toLowerCase() === name.toLowerCase() &&
     !p.isUser &&
-    p.placements?.sunSign && 
-    p.placements?.moonSign && 
+    p.placements?.sunSign &&
+    p.placements?.moonSign &&
     p.placements?.risingSign
   );
-  
+
   // Animation refs
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -159,7 +159,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
       ])
     );
     pulse.start();
-    
+
     const rotate = Animated.loop(
       Animated.timing(rotateAnim, {
         toValue: 1,
@@ -187,9 +187,9 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
       ])
     );
     rising.start();
-    
+
     runSequence();
-    
+
     return () => {
       pulse.stop();
       rotate.stop();
@@ -247,7 +247,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
       navigation.goBack();
       return;
     }
-    
+
     // CRITICAL: Validate birth location has valid coordinates
     if (
       typeof partnerBirthCity?.latitude !== 'number' ||
@@ -284,19 +284,20 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         });
       }
     }
-    
+
     const payload = {
       birthDate: partnerBirthDate,
       birthTime: partnerBirthTime || '12:00',
       timezone: resolvedTimezone,
       latitude: partnerBirthCity.latitude,
       longitude: partnerBirthCity.longitude,
-      relationshipPreferenceScale,
+      relationshipIntensity: relationshipPreferenceScale,
+      relationshipMode: 'sensual',
       primaryLanguage,
       subjectName: name,
       isPartnerReading: true,
     };
-    
+
     console.log(`🚀 Partner payload for ${name}:`, {
       birthDate: payload.birthDate,
       birthTime: payload.birthTime,
@@ -311,20 +312,20 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
       setCurrentScreen('intro');
       setStatusText(`Preparing ${name}'s chart...`);
       setProgress(5);
-      
+
       const nocacheParam = __DEV__ ? '&nocache=true' : ''; // Always bypass cache in dev
       const sunReadingPromise = fetch(`${env.CORE_API_URL}/api/reading/sun?provider=deepseek${nocacheParam}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       }).then(res => res.ok ? res.json() : null);
-      
+
       // Start Sun audio generation during intro screen (same as 1st person readings)
       const sunAudioPromise = sunReadingPromise.then(async (sunData) => {
         if (sunData?.reading) {
           sunSign = sunData.reading.sign;
           console.log(`🎵 Starting ${name}'s SUN audio generation...`);
-          
+
           // ✅ SAVE PLACEMENTS for partner
           if (sunData.placements) {
             console.log(`💾 Saving ${name}'s placements:`, sunData.placements);
@@ -333,7 +334,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
             moonSign = moonSign || sunData.placements.moonSign;
             risingSign = risingSign || sunData.placements.risingSign;
           }
-          
+
           const result = await audioApi.generateTTS(
             `${sunData.reading.intro}\n\n${sunData.reading.main}`,
             { exaggeration: AUDIO_CONFIG.exaggeration, includeIntro: false }
@@ -344,7 +345,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
               setPartnerAudio('sun', immediateSource);
             }
             console.log(`✅ ${name}'s SUN audio ready`);
-            
+
             // Upload to Supabase in background (non-blocking)
             const userId = useAuthStore.getState().user?.id;
             if (!isPrepayOnboarding && userId && partnerIdFromRoute && result.audioBase64) {
@@ -366,13 +367,13 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
                     console.log(`☁️ ${name}'s SUN synced to Supabase`);
                   }
                 })
-                .catch(() => {});
+                .catch(() => { });
             }
           }
         }
         return sunData;
       });
-      
+
       await delay(10000);
       setProgress(10);
 
@@ -380,7 +381,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
       setCurrentScreen('sun');
       setStatusText(`Calculating ${name}'s Sun sign...`);
       setProgress(15);
-      
+
       // Wait for Sun audio to complete before proceeding
       const sunData = await sunAudioPromise;
       console.log(`✅ ${name}'s Sun audio ready!`);
@@ -391,7 +392,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
       setCurrentScreen('moon');
       setStatusText(`Calculating ${name}'s Moon sign...`);
       setProgress(40);
-      
+
       const moonRes = await fetch(`${env.CORE_API_URL}/api/reading/moon?provider=deepseek${nocacheParam}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -407,7 +408,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         moonSign = moonSign || moonData.placements.moonSign;
         risingSign = risingSign || moonData.placements.risingSign;
       }
-      
+
       // Start Moon audio generation (returns promise for later awaiting)
       let moonAudioPromise: Promise<void> | null = null;
       if (moonData?.reading) {
@@ -423,7 +424,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
                 setPartnerAudio('moon', immediateSource);
               }
               console.log(`✅ ${name}'s MOON audio ready`);
-              
+
               // Upload to Supabase in background (non-blocking)
               const userId = useAuthStore.getState().user?.id;
               if (!isPrepayOnboarding && userId && partnerIdFromRoute && result.audioBase64) {
@@ -445,7 +446,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
                       console.log(`☁️ ${name}'s MOON synced to Supabase`);
                     }
                   })
-                  .catch(() => {});
+                  .catch(() => { });
               }
             }
           })
@@ -458,7 +459,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
       setCurrentScreen('rising');
       setStatusText(`Calculating ${name}'s Rising sign...`);
       setProgress(70);
-      
+
       const risingRes = await fetch(`${env.CORE_API_URL}/api/reading/rising?provider=deepseek${nocacheParam}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -473,7 +474,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         moonSign = moonSign || risingData.placements.moonSign;
         risingSign = risingSign || risingData.placements.risingSign;
       }
-      
+
       // Start Rising audio generation (returns promise for later awaiting)
       let risingAudioPromise: Promise<void> | null = null;
       if (risingData?.reading) {
@@ -489,7 +490,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
                 setPartnerAudio('rising', immediateSource);
               }
               console.log(`✅ ${name}'s RISING audio ready`);
-              
+
               // Upload to Supabase in background (non-blocking)
               const userId = useAuthStore.getState().user?.id;
               if (!isPrepayOnboarding && userId && partnerIdFromRoute && result.audioBase64) {
@@ -511,7 +512,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
                       console.log(`☁️ ${name}'s RISING synced to Supabase`);
                     }
                   })
-                  .catch(() => {});
+                  .catch(() => { });
               }
             }
           })
@@ -521,7 +522,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
 
       // ========== WAIT FOR ALL AUDIO BEFORE NAVIGATING ==========
       setStatusText(`Giving ${name}'s reading a voice…`);
-      
+
       // Wait for Moon and Rising audio (Sun was already awaited earlier)
       console.log(`🎵 Waiting for ${name}'s Moon and Rising audio...`);
       await Promise.all([
@@ -529,7 +530,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         risingAudioPromise || Promise.resolve(),
       ]);
       console.log(`✅ All ${name}'s audio ready!`);
-      
+
       setProgress(95);
       setStatusText('All readings ready!');
       await delay(1500);
@@ -558,7 +559,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
           placements: sunSign && moonSign && risingSign ? { sunSign, moonSign, risingSign } : undefined,
         });
       console.log(`✅ Using partner ID: ${ensuredPartnerId}`);
-      
+
       // Save the 3 hook readings to profileStore (for Home carousel rotation).
       // IMPORTANT: store them in `person.hookReadings`, not as normal readings.
       // (hook readings are previews and should not be mixed with deep readings.)
@@ -631,7 +632,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
       console.error('Error fetching partner readings:', error);
       setStatusText('Error - retrying...');
       await delay(2000);
-      
+
       // Still save partner even on error
       const partnerId = addPerson({
         name: partnerName || 'Partner',
@@ -645,7 +646,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
           longitude: partnerBirthCity?.longitude || 0,
         },
       });
-      
+
       navigation.replace('PartnerReadings', {
         partnerName,
         partnerBirthDate,
@@ -659,7 +660,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
   const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
   const screen = SCREENS[currentScreen];
-  
+
   // Rotation interpolation
   const spin = rotateAnim.interpolate({
     inputRange: [0, 1],
@@ -674,62 +675,62 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         <Text style={[styles.line1, { color: screen.colors.line1 }]} selectable>
           {screen.line1}
         </Text>
-        
+
         {/* Line 2 - Animated symbol with different animations per type */}
         {currentScreen === 'intro' ? (
           // Intro screen: show pulsating "3"
-          <Animated.Text 
+          <Animated.Text
             style={[
-              styles.line2, 
+              styles.line2,
               { color: screen.colors.line2, transform: [{ scale: pulseAnim }] }
-            ]} 
+            ]}
             selectable
           >
             3
           </Animated.Text>
         ) : currentScreen === 'sun' ? (
           // Sun: pulsating glow
-          <Animated.Text 
+          <Animated.Text
             style={[
-              styles.line2Symbol, 
+              styles.line2Symbol,
               { color: screen.colors.line2, transform: [{ scale: sunPulseAnim }] }
-            ]} 
+            ]}
             selectable
           >
             ☉
           </Animated.Text>
         ) : currentScreen === 'moon' ? (
           // Moon: rotating (phases)
-          <Animated.Text 
+          <Animated.Text
             style={[
-              styles.line2Symbol, 
+              styles.line2Symbol,
               { color: screen.colors.line2, transform: [{ rotate: spin }] }
-            ]} 
+            ]}
             selectable
           >
             ☽
           </Animated.Text>
         ) : (
           // Rising: THE BEAUTIFUL ARROW that moves UP!
-          <Animated.Text 
+          <Animated.Text
             style={[
-              styles.line2Symbol, 
+              styles.line2Symbol,
               { color: screen.colors.line2, transform: [{ translateY: risingAnim }] }
-            ]} 
+            ]}
             selectable
           >
             ↑
           </Animated.Text>
         )}
-        
+
         <Text style={[styles.line3, { color: screen.colors.line3 }]} selectable>
           {screen.line3}
         </Text>
-        
+
         <Text style={[styles.line4, { color: screen.colors.line4 }]} selectable>
           {screen.line4}
         </Text>
-        
+
         <Text style={[styles.line5, { color: screen.colors.line5 }]} selectable>
           {screen.line5}
         </Text>
@@ -740,7 +741,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         <View style={styles.loadingBarContainer}>
           <View style={[styles.loadingBar, { width: `${progress}%` }]} />
         </View>
-        
+
         {/* Status text */}
         <Text style={styles.statusText} selectable>
           {statusText}

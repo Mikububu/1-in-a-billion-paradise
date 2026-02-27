@@ -10,11 +10,11 @@ Keep these blocks concise and direct so the image model follows them reliably.
 ## single_portrait
 
 <!-- PROMPT:single_portrait:start -->
-Torso shot in a black Yamamoto dress against a red background.
+hyperreal fashion photoshoot in black yamamoto dress before red background
 <!-- PROMPT:single_portrait:end -->
 
 ## synastry_portrait
 
 <!-- PROMPT:synastry_portrait:start -->
-Compose these two stylized portraits into one couple portrait head on head. White background. Show emotional closeness and mutual presence without adding text or symbols.
+2 people together same style
 <!-- PROMPT:synastry_portrait:end -->

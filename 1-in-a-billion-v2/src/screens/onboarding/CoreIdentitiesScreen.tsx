@@ -247,8 +247,7 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
   const birthDate = useOnboardingStore((state) => state.birthDate);
   const birthTime = useOnboardingStore((state) => state.birthTime);
   const birthCity = useOnboardingStore((state) => state.birthCity);
-  const relationshipIntensity = useOnboardingStore((state) => state.relationshipIntensity);
-  const relationshipMode = useOnboardingStore((state) => state.relationshipMode);
+  const relationshipPreferenceScale = useOnboardingStore((state) => state.relationshipPreferenceScale);
   const primaryLanguage = useOnboardingStore((state) => state.primaryLanguage);
   const setHookReading = useOnboardingStore((state) => state.setHookReading);
   const setHookAudio = useOnboardingStore((state) => state.setHookAudio);
@@ -349,7 +348,7 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
     // use reverseGeocode to get the correct timezone from the backend
     // ════════════════════════════════════════════════════════════════════════════
     let resolvedTimezone = birthCity.timezone || 'UTC';
-    
+
     if (resolvedTimezone === 'UTC') {
       const expectedOffset = Math.round(birthCity.longitude / 15);
       if (Math.abs(expectedOffset) > 1) {
@@ -357,11 +356,11 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
         try {
           const { reverseGeocode } = await import('@/services/geonames');
           const refreshedCity = await reverseGeocode(birthCity.latitude, birthCity.longitude);
-          
+
           if (refreshedCity?.timezone && refreshedCity.timezone !== 'UTC') {
             resolvedTimezone = refreshedCity.timezone;
             console.log(`✅ Timezone auto-refreshed: UTC → ${resolvedTimezone}`);
-            
+
             // Update the cached birthCity with correct timezone for future use
             const setBirthCity = useOnboardingStore.getState().setBirthCity;
             setBirthCity({
@@ -385,11 +384,11 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
       latitude: birthCity.latitude,
       longitude: birthCity.longitude,
       birthPlace: birthCity.name, // City name for poetic intro
-      relationshipIntensity: relationshipIntensity || 5,
-      relationshipMode: relationshipMode || 'sensual',
+      relationshipIntensity: relationshipPreferenceScale || 5,
+      relationshipMode: 'sensual',
       primaryLanguage: primaryLanguage?.code || 'en',
     };
-    
+
     console.log('🚀 CoreIdentities payload:', {
       birthDate: payload.birthDate,
       birthTime: payload.birthTime,
@@ -414,12 +413,12 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
     //   - NO pre-rendering in HookSequenceScreen
     //   - User stays on waiting screen until everything is ready
     // ============================================================================
-    
+
     // Store readings at function scope (not inside callbacks)
     let sunReading: any = null;
     let moonReading: any = null;
     let risingReading: any = null;
-    
+
     // Audio promises - ALL generated here, no staggered preload
     let sunAudioPromise: Promise<void> | null = null;
     let moonAudioPromise: Promise<void> | null = null;
@@ -429,7 +428,7 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
     const generateAudioForType = async (type: 'sun' | 'moon' | 'rising', reading: any): Promise<void> => {
       if (!reading) return;
       console.log(`🎵 Starting ${type.toUpperCase()} audio generation...`);
-      
+
       try {
         const tts = await audioApi.generateTTS(`${reading.intro}\n\n${reading.main}`, {
           exaggeration: AUDIO_CONFIG.exaggeration,
@@ -441,12 +440,12 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
           // Store base64 directly in memory for immediate playback
           setHookAudio(type, tts.audioBase64);
           console.log(`✅ ${type.toUpperCase()} audio ready (in memory)`);
-          
+
           // Upload to Supabase in background (non-blocking, for cross-device sync)
           const userId = useAuthStore.getState().user?.id;
           const user = useProfileStore.getState().people.find(p => p.isUser);
           const personId = user?.id;
-          
+
           if (userId && personId && tts.audioBase64) {
             uploadHookAudioBase64({
               userId,
@@ -474,7 +473,7 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
     try {
       // Hide initialization overlay after a brief delay (smooth transition from AccountScreen)
       setTimeout(() => setIsInitializing(false), 300);
-      
+
       // ========== SCREEN 1: INTRO (15s minimum) ==========
       setCurrentScreen('intro');
       setStatusText('Preparing your chart...');
@@ -605,9 +604,9 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
       // This is a hard requirement - no pre-rendering in HookSequenceScreen
       setProgress(85);
       setStatusText('Giving your reading a voice…');
-      
+
       const MAX_RETRIES = 2;
-      
+
       // Helper to wait for a single audio type with retry logic
       const waitForAudio = async (
         type: 'sun' | 'moon' | 'rising',
@@ -618,14 +617,14 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
         while (attempt < MAX_RETRIES) {
           attempt++;
           console.log(`🎵 ${type.toUpperCase()} audio attempt ${attempt}/${MAX_RETRIES}`);
-          
+
           try {
             if (attempt === 1 && promise) {
               await promise;
             } else if (reading) {
               await generateAudioForType(type, reading);
             }
-            
+
             const stored = useOnboardingStore.getState().hookAudio[type];
             if (stored) {
               console.log(`✅ ${type.toUpperCase()} audio ready!`);
@@ -642,7 +641,7 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
         console.error(`❌ ${type.toUpperCase()} audio failed after all retries`);
         return false;
       };
-      
+
       // Wait for ALL audio in parallel
       console.log('🎵 Waiting for all audio to complete...');
       const [sunReady, moonReady, risingReady] = await Promise.all([
@@ -650,9 +649,9 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
         waitForAudio('moon', moonAudioPromise, moonReading),
         waitForAudio('rising', risingAudioPromise, risingReading),
       ]);
-      
+
       setProgress(95);
-      
+
       const allReady = sunReady && moonReady && risingReady;
       if (allReady) {
         setStatusText('All readings ready!');
@@ -780,7 +779,7 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
         <View style={styles.loadingBarContainer}>
           <View style={[styles.loadingBar, { width: `${progress}%` }]} />
         </View>
-        
+
         {/* Status text */}
         <Text style={styles.statusText}>{statusText}</Text>
       </View>

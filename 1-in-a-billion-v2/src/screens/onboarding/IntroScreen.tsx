@@ -44,10 +44,10 @@ export const IntroScreen = ({ navigation }: Props) => {
     if (tapTimeout.current) {
       clearTimeout(tapTimeout.current);
     }
-    
+
     const newCount = tapCount + 1;
     setTapCount(newCount);
-    
+
     if (newCount >= 5) {
       // Reset everything - full purge like Sign Out
       Alert.alert(
@@ -62,35 +62,38 @@ export const IntroScreen = ({ navigation }: Props) => {
               try {
                 // Delete ALL user data from backend (same as Sign Out)
                 const backendUrl = env.CORE_API_URL || 'https://1-in-a-billion-backend.fly.dev';
-                
+
                 if (isSupabaseConfigured) {
                   const { data: { session } } = await supabase.auth.getSession();
-                  
+
                   if (session?.user?.id) {
-                    // Call backend to delete all data
-                    const response = await fetch(`${backendUrl}/api/account/purge`, {
-                      method: 'DELETE',
-                      headers: {
-                        'Authorization': `Bearer ${session.access_token}`,
-                        'Content-Type': 'application/json',
-                      },
-                    });
-                    
-                    if (!response.ok) {
-                      const errorData = await response.json().catch(() => ({}));
-                      throw new Error(errorData.error || 'Failed to delete account data');
+                    try {
+                      const response = await fetch(`${backendUrl}/api/account/purge`, {
+                        method: 'DELETE',
+                        headers: {
+                          'Authorization': `Bearer ${session.access_token}`,
+                          'Content-Type': 'application/json',
+                        },
+                      });
+
+                      if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        console.warn('Backend purge failed, but continuing local reset:', errorData.error);
+                      }
+                    } catch (fetchErr) {
+                      console.warn('Network error during purge, continuing local reset:', fetchErr);
                     }
                   }
                 }
-                
+
                 // Clear ALL local data
                 reset(); // Clears onboarding store
                 resetProfile(); // Clears all people (person 1 and 3)
                 setShowDashboard(false);
-                
+
                 // Sign out (clears auth session)
                 await signOut();
-                
+
                 setTapCount(0);
                 Alert.alert('Done', 'All data has been deleted and app reset.');
               } catch (error: any) {
@@ -174,41 +177,44 @@ export const IntroScreen = ({ navigation }: Props) => {
         'By signing out you would delete all your user data and history. Are you sure?',
         [
           { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Sign Out', 
-            style: 'destructive', 
+          {
+            text: 'Sign Out',
+            style: 'destructive',
             onPress: async () => {
               try {
                 // Delete ALL user data before signing out
                 const backendUrl = env.CORE_API_URL || 'https://1-in-a-billion-backend.fly.dev';
-                
+
                 if (isSupabaseConfigured) {
                   const { data: { session } } = await supabase.auth.getSession();
-                  
+
                   if (session?.user?.id) {
-                    // Call backend to delete all data
-                    const response = await fetch(`${backendUrl}/api/account/purge`, {
-                      method: 'DELETE',
-                      headers: {
-                        'Authorization': `Bearer ${session.access_token}`,
-                        'Content-Type': 'application/json',
-                      },
-                    });
-                    
-                    if (!response.ok) {
-                      const errorData = await response.json().catch(() => ({}));
-                      throw new Error(errorData.error || 'Failed to delete account');
+                    try {
+                      const response = await fetch(`${backendUrl}/api/account/purge`, {
+                        method: 'DELETE',
+                        headers: {
+                          'Authorization': `Bearer ${session.access_token}`,
+                          'Content-Type': 'application/json',
+                        },
+                      });
+
+                      if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        console.warn('Backend purge failed, but continuing local signout:', errorData.error);
+                      }
+                    } catch (fetchErr) {
+                      console.warn('Network error during purge, continuing local signout:', fetchErr);
                     }
                   }
                 }
-                
+
                 // Clear ALL local data (onboarding + profile + auth)
                 reset(); // Clears onboarding store
                 resetProfile(); // CRITICAL: Clears all people including person 3
-                
+
                 // Reset showDashboard flag
                 setShowDashboard(false);
-                
+
                 // Sign out (clears auth session)
                 await signOut();
               } catch (error: any) {
@@ -247,7 +253,11 @@ export const IntroScreen = ({ navigation }: Props) => {
         setEntitlementState('inactive');
         return true;
       }
-      Alert.alert('Continue onboarding', 'Finish onboarding and subscription to unlock dashboard access.');
+      Alert.alert(
+        'Continue onboarding',
+        'Finish onboarding and subscription to unlock dashboard access.',
+        [{ text: 'OK', onPress: () => navigation.navigate('CoreIdentitiesIntro' as any) }]
+      );
       return false;
     }
 

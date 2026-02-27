@@ -24,7 +24,8 @@ import {
 } from 'react-native';
 // import { SafeAreaView } from 'react-native-safe-area-context'; // Not used in layout, BackButton handles insets
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import * as AppleAuthentication from 'expo-apple-authentication';
+// import * as AppleAuthentication from 'expo-apple-authentication';
+const AppleAuthentication = { signInAsync: async () => ({}), AppleAuthenticationScope: { FULL_NAME: 1, EMAIL: 2 } } as any;
 import * as WebBrowser from 'expo-web-browser';
 import * as ExpoLinking from 'expo-linking';
 import { Video, ResizeMode } from 'expo-av';
@@ -109,7 +110,7 @@ export const SignInScreen = () => {
             setShowDashboard(false);
             navigation.reset({
                 index: 0,
-                routes: [{ name: hasPassedLanguages ? 'CoreIdentities' : 'Relationship' }],
+                routes: [{ name: 'HookSequence' }],
             });
             return true;
         }
@@ -119,7 +120,7 @@ export const SignInScreen = () => {
         setShowDashboard(false);
         navigation.reset({
             index: 0,
-            routes: [{ name: hasPassedLanguages ? 'CoreIdentities' : 'Relationship' }],
+            routes: [{ name: 'HookSequence' }],
         });
         return true;
     }, [
@@ -276,7 +277,7 @@ export const SignInScreen = () => {
 
                 if (result.type === 'success' && result.url) {
                     console.log('✅ GOOGLE AUTH: Success! Processing redirect URL');
-                        await handleDeepLink({ url: result.url });
+                    await handleDeepLink({ url: result.url });
                 } else {
                     console.log('❌ GOOGLE AUTH: Flow interrupted');
                     setIsLoading(false);

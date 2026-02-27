@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import * as AppleAuthentication from 'expo-apple-authentication';
+// import * as AppleAuthentication from 'expo-apple-authentication';
+const AppleAuthentication = { signInAsync: async () => ({}), AppleAuthenticationScope: { FULL_NAME: 1, EMAIL: 2 } } as any;
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { BackButton } from '@/components/BackButton';
@@ -214,7 +215,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
 
       navigation.reset({
         index: 0,
-        routes: [{ name: 'CoreIdentitiesIntro' }],
+        routes: [{ name: 'HookSequence' }],
       });
     },
     [
@@ -705,14 +706,14 @@ export const AccountScreen = ({ navigation, route }: Props) => {
           if (hasPassedLanguages && authUser?.id) {
             navigation.reset({
               index: 0,
-              routes: [{ name: 'CoreIdentitiesIntro' }],
+              routes: [{ name: 'HookSequence' }],
             });
             return;
           }
           if (authUser?.id) {
             navigation.reset({
               index: 0,
-              routes: [{ name: 'CoreIdentitiesIntro' }],
+              routes: [{ name: 'HookSequence' }],
             });
             return;
           }

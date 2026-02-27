@@ -62,7 +62,6 @@ export default function App() {
                 <SafeAreaProvider>
                     <QueryClientProvider client={queryClient}>
                         <NavigationContainer
-                            key={hasSession ? `auth-${user?.id}` : 'unauth'}
                             ref={navigationRef}
                             theme={navigationTheme}
                         >

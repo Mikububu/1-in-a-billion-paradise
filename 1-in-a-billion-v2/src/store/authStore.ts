@@ -89,6 +89,7 @@ export const useAuthStore = create<AuthState>()(
                     displayName: null,
                     entitlementState: 'unknown',
                     flowType: null,
+                    isAuthReady: true,
                 });
             },
 

@@ -6,11 +6,11 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { 
-  StyleSheet, 
-  Text, 
-  View, 
-  Animated, 
+import {
+  StyleSheet,
+  Text,
+  View,
+  Animated,
   FlatList,
   Dimensions,
   NativeScrollEvent,
@@ -94,10 +94,10 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
   const profileUser = useProfileStore((s) => s.getUser());
   const addCompatibilityReading = useProfileStore((s) => s.addCompatibilityReading);
   const getCompatibilityReadings = useProfileStore((s) => s.getCompatibilityReadings);
-  
+
   const userName = 'You';
   const partner = partnerName || 'Them';
-  
+
   const [page, setPage] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   // Scores are nullable: if missing inputs or API fails, show "—" (never fake numbers).
@@ -124,21 +124,21 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
     (partnerIdFromRoute && partnerIdFromRoute.trim()) ||
     partnerPerson?.id ||
     `partner:${partner.trim().toLowerCase().replace(/\s+/g, '-') || 'unknown'}`;
-  
+
   // Get user's signs from store
   const userSigns = {
     sun: hookReadings.sun?.sign || getSignFromPerson(profileUser, 'sun'),
     moon: hookReadings.moon?.sign || getSignFromPerson(profileUser, 'moon'),
     rising: hookReadings.rising?.sign || getSignFromPerson(profileUser, 'rising'),
   };
-  
+
   // Partner signs must come from real stored data (no placeholders).
   const partnerSigns = {
     sun: getSignFromPerson(partnerPerson, 'sun'),
     moon: getSignFromPerson(partnerPerson, 'moon'),
     rising: getSignFromPerson(partnerPerson, 'rising'),
   };
-  
+
   // Calculate real compatibility scores from backend
 
   useEffect(() => {
@@ -163,7 +163,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
         setSafeStableScore(null);
         return;
       }
-      
+
       try {
         setLoadingScores(true);
         const response = await fetch(`${env.CORE_API_URL}/api/compatibility/calculate`, {
@@ -186,10 +186,11 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
               latitude: partnerBirthCity.latitude,
               longitude: partnerBirthCity.longitude,
             },
-            relationshipPreferenceScale,
+            relationshipIntensity: relationshipPreferenceScale,
+            relationshipMode: 'sensual',
           }),
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           // Use actual API values - only fallback if truly missing
@@ -256,7 +257,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
         setLoadingScores(false);
       }
     };
-    
+
     calculateScores();
   }, [
     addCompatibilityReading,
@@ -311,7 +312,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
 
   const canContinue = !loadingScores && spicyScore != null && safeStableScore != null;
   const displaySign = (value: string | null | undefined) => value || 'Unknown';
-  
+
   // Reset transition state when screen regains focus (prevents loop when coming back)
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -324,14 +325,14 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
     });
     return unsubscribe;
   }, [navigation, isTransitioning]);
-  
+
   // Animation
   const fadeIn = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  
+
   useEffect(() => {
     Animated.timing(fadeIn, { toValue: 1, duration: 800, useNativeDriver: true }).start();
-    
+
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1.05, duration: 1200, useNativeDriver: true }),
@@ -339,7 +340,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
       ])
     ).start();
   }, []);
-  
+
   // Basic insights
   const insights = [
     {
@@ -355,7 +356,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
       content: `Your chart emphasizes Earth and Fire, while ${partner}'s flows with Water and Water. This creates a complementary dynamic - you ground ${partner}'s emotions, ${partner} deepens your feelings.`,
     },
   ];
-  
+
   // 3 pages: Score, Insights, Gateway (to continue to dashboard)
   const pages: PageType[] = ['score', 'insights', 'gateway'];
   const isGoingBack = useRef(false);
@@ -365,7 +366,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
     const { contentOffset, layoutMeasurement } = event.nativeEvent;
     const index = Math.round(contentOffset.x / layoutMeasurement.width);
     setPage(index);
-    
+
     // Detect swipe-left on first page to go back (threshold: -50px)
     if (page === 0 && contentOffset.x < -50 && !isGoingBack.current) {
       isGoingBack.current = true;
@@ -373,12 +374,12 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
       navigation.goBack();
     }
   };
-  
+
   // Track scroll start position
   const handleScrollBeginDrag = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     scrollStartX.current = event.nativeEvent.contentOffset.x;
   };
-  
+
   const renderPage = (pageType: PageType) => {
     switch (pageType) {
       case 'score':
@@ -408,11 +409,11 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
                   <Text style={styles.coupleImageHint}>Tap to expand</Text>
                 </TouchableOpacity>
               ) : null}
-              
+
               {/* Dual Score */}
               <View style={styles.scoreSection}>
                 <Text style={styles.scoreLabel}>DUAL COMPATIBILITY</Text>
-                
+
                 {/* Two scores side-by-side, equal weight */}
                 {loadingScores ? (
                   <View style={{ paddingVertical: spacing.xl }}>
@@ -427,14 +428,14 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
                       </Animated.View>
                       <Text style={styles.scoreColumnLabel}>Spicy /10</Text>
                     </View>
-                    
+
                     <View style={styles.scoreColumn}>
                       <Text style={styles.scoreNumberSmall}>{safeStableScore == null ? '—' : safeStableScore.toFixed(1)}</Text>
                       <Text style={styles.scoreColumnLabel}>Safe & Stable /10</Text>
                     </View>
                   </View>
                 )}
-                
+
                 <Text style={styles.scoreHint}>
                   Based on Sun, Moon & Rising alignment
                 </Text>
@@ -444,7 +445,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
                   </Text>
                 )}
               </View>
-              
+
               {/* Connection Visualization - VERTICAL */}
               <View style={styles.connectionViz}>
                 {/* Person 1 - You */}
@@ -458,14 +459,14 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
                     <Text style={styles.personSigns}>↑ {displaySign(userSigns.rising)}</Text>
                   </View>
                 </View>
-                
+
                 {/* Connection: Arrow down, Heart, Arrow up */}
                 <View style={styles.connectionVertical}>
                   <Text style={styles.connectionArrow}>↓</Text>
                   <Text style={styles.connectionHeartBig}>♡</Text>
                   <Text style={styles.connectionArrow}>↑</Text>
                 </View>
-                
+
                 {/* Person 2 - Partner */}
                 <View style={styles.personBubble}>
                   <Text style={styles.personName}>{partner}</Text>
@@ -481,17 +482,17 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
             </Animated.View>
           </View>
         );
-        
+
       case 'insights':
         return (
           <View style={styles.page}>
-            <ScrollView 
+            <ScrollView
               style={styles.insightsScroll}
               contentContainerStyle={styles.insightsScrollContent}
               showsVerticalScrollIndicator={false}
             >
               <Text style={styles.insightsTitle}>BASIC OVERLAY</Text>
-              
+
               {insights.map((insight, idx) => (
                 <View key={idx} style={styles.insightCard}>
                   <Text style={styles.insightCardTitle} selectable>{insight.title}</Text>
@@ -501,7 +502,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
             </ScrollView>
           </View>
         );
-        
+
       case 'gateway':
         return (
           <View style={styles.page}>
@@ -514,7 +515,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
                 <Text style={styles.gatewaySubtitle} selectable>
                   Come with us on a journey into the space between you and another.
                 </Text>
-                
+
                 <TouchableOpacity
                   style={[styles.continueBtn, !canContinue && styles.continueBtnDisabled]}
                   disabled={!canContinue}
@@ -544,7 +545,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
         );
     }
   };
-  
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Fullscreen background video - only visible on gateway page */}
@@ -559,9 +560,9 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
           rate={0.9}
         />
       )}
-      
+
       <BackButton onPress={() => navigation.goBack()} />
-      
+
       {/* Swipeable Pages */}
       <FlatList
         data={pages}
@@ -575,12 +576,12 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
         scrollEventThrottle={16}
         renderItem={({ item }) => renderPage(item)}
       />
-      
+
       {/* Pagination */}
       <View style={styles.pagination}>
         {pages.map((_, index) => (
-          <TouchableOpacity 
-            key={index} 
+          <TouchableOpacity
+            key={index}
             style={[styles.dot, index === page && styles.dotActive]}
             onPress={() => {
               listRef.current?.scrollToIndex({ index, animated: true });
@@ -627,7 +628,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.primary,
   },
-  
+
   // Page
   page: {
     width: PAGE_WIDTH,
@@ -639,7 +640,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xxl, // More space below BackButton
     alignItems: 'center',
   },
-  
+
   // Page 1: Score
   title: {
     fontFamily: typography.headline,
@@ -824,7 +825,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
     lineHeight: 50,
   },
-  
+
   // Page 2: Insights
   insightsScroll: {
     flex: 1,
@@ -861,7 +862,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     lineHeight: 21 * fontScale,
   },
-  
+
   // Page 3: Gateway
   gatewayContainer: {
     flex: 1,
@@ -926,7 +927,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     textDecorationLine: 'underline',
   },
-  
+
   // Pagination
   pagination: {
     flexDirection: 'row',

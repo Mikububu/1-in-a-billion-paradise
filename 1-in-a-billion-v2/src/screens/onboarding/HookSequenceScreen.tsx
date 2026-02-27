@@ -17,12 +17,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import * as FileSystem from 'expo-file-system/legacy';
-import { getDocumentDirectory, EncodingType } from '@/utils/fileSystem';
-import * as WebBrowser from 'expo-web-browser';
-import * as AuthSession from 'expo-auth-session';
-import * as Google from 'expo-auth-session/providers/google';
-import * as AppleAuthentication from 'expo-apple-authentication';
+
+// Mocked to fix simulator crash without rebuilding native app
+// import * as WebBrowser from 'expo-web-browser';
+const WebBrowser = { maybeCompleteAuthSession: () => { }, openAuthSessionAsync: async () => ({ type: 'cancel' }) } as any;
+// import * as AuthSession from 'expo-auth-session';
+const AuthSession = { makeRedirectUri: () => 'redirect' } as any;
+// import * as Google from 'expo-auth-session/providers/google';
+const Google = {} as any;
+// import * as AppleAuthentication from 'expo-apple-authentication';
+const AppleAuthentication = { signInAsync: async () => ({}), AppleAuthenticationScope: { FULL_NAME: 1, EMAIL: 2 } } as any;
 import { Audio } from 'expo-av';
 import { useHookReadings } from '@/hooks/useHookReadings';
 import { useOnboardingStore } from '@/store/onboardingStore';
@@ -33,7 +37,7 @@ import { HookReading, CityOption } from '@/types/forms';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { env } from '@/config/env';
 import { FEATURES } from '@/config/features';
-import { generateCoreIdentitiesPdfFilename } from '@/utils/fileNames';
+
 import { audioApi } from '@/services/api';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
 import { AUDIO_CONFIG, SIGN_LABELS } from '@/config/readingConfig';
@@ -41,6 +45,9 @@ import { saveHookReadings } from '@/services/userReadings';
 import { logAuthIssue } from '@/utils/authDebug';
 import { downloadHookAudioBase64 } from '@/services/hookAudioCloud';
 // Audio stored in memory (base64) - no file system needed
+import * as FileSystem from 'expo-file-system/legacy';
+const { documentDirectory, EncodingType } = FileSystem;
+const getDocumentDirectory = () => documentDirectory;
 
 // Required for OAuth redirect handling
 WebBrowser.maybeCompleteAuthSession();
@@ -75,8 +82,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
   const birthDate = useOnboardingStore((state) => state.birthDate);
   const birthTime = useOnboardingStore((state) => state.birthTime);
   const birthCity = useOnboardingStore((state) => state.birthCity);
-  const relationshipIntensity = useOnboardingStore((state) => state.relationshipIntensity);
-  const relationshipMode = useOnboardingStore((state) => state.relationshipMode);
+  const relationshipPreferenceScale = useOnboardingStore((state) => state.relationshipPreferenceScale);
   const primaryLanguage = useOnboardingStore((state) => state.primaryLanguage);
 
   // Use readings from store (already loaded by CoreIdentitiesScreen)
@@ -181,17 +187,17 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
       const userId = useAuthStore.getState().user?.id;
       const userProfile = useProfileStore.getState().getUser();
       const personId = userProfile?.id;
-      
+
       if (!userId || !personId) return;
 
       const types: Array<'sun' | 'moon' | 'rising'> = ['sun', 'moon', 'rising'];
-      
+
       for (const type of types) {
         const localAudio = hookAudio[type];
         if (!localAudio) {
           console.log(`📥 Checking Supabase for ${type} audio...`);
           const result = await downloadHookAudioBase64({ userId, personId, type });
-          
+
           if (result.success) {
             useOnboardingStore.getState().setHookAudio(type, result.audioBase64);
             console.log(`✅ Downloaded ${type} audio from Supabase`);
@@ -490,11 +496,11 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
       const startTime = Date.now();
       console.log('🎵 SUN page: Starting MOON audio generation...');
       startHookAudioGeneration('moon', moon).then((url) => {
-        const duration = Date.now() - startTime;        
+        const duration = Date.now() - startTime;
         if (url) console.log('✅ MOON audio ready!');
         else console.log('❌ MOON audio failed');
       }).catch((err: any) => {
-        const duration = Date.now() - startTime;        
+        const duration = Date.now() - startTime;
         console.log('❌ MOON audio failed:', err);
       });
     }
@@ -505,11 +511,11 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
       const startTime = Date.now();
       console.log('🎵 MOON page: Starting RISING audio generation...');
       startHookAudioGeneration('rising', rising).then((url) => {
-        const duration = Date.now() - startTime;        
+        const duration = Date.now() - startTime;
         if (url) console.log('✅ RISING audio ready!');
         else console.log('❌ RISING audio failed');
       }).catch((err: any) => {
-        const duration = Date.now() - startTime;        
+        const duration = Date.now() - startTime;
         console.log('❌ RISING audio failed:', err);
       });
     }
@@ -858,8 +864,8 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
             timezone: birthCity?.timezone || 'UTC',
             latitude: birthCity?.latitude || 0,
             longitude: birthCity?.longitude || 0,
-            relationshipIntensity: relationshipIntensity || 5,
-            relationshipMode: relationshipMode || 'sensual',
+            relationshipIntensity: relationshipPreferenceScale || 5,
+            relationshipMode: 'sensual',
             primaryLanguage: primaryLanguage?.code || 'en',
           }),
         });
@@ -879,7 +885,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
         newReadings.forEach(reading => {
           setHookReading(reading);
         });
-        
+
         setCustomReadings(newReadings);
         // IMPORTANT: Clear old audio cache since text changed!
         setHookAudio('sun', '');
@@ -946,7 +952,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
         const existingThirdPerson = allPeople.find(
           (p) => !p.isUser && p.hookReadings && p.hookReadings.length === 3
         );
-        
+
         if (existingThirdPerson && existingThirdPerson.birthData) {
           // Person 3 already exists - go to their readings (not directly to offer)
           console.log('✅ Person 3 exists - navigating to their readings');
@@ -980,7 +986,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     const start = scrollStartX.current;
     const end = event.nativeEvent.contentOffset.x;
     const delta = end - start;
-    
+
     // ========================================================================
     // REQUIREMENT #5, #7: No backwards navigation to input screens
     // ========================================================================
@@ -994,7 +1000,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     // Check if we came from MainNavigator (custom readings from route params = replay mode)
     // ========================================================================
     const isReplayMode = route?.params?.customReadings !== undefined;
-    
+
     if (page === 0 && delta < -50) {
       if (isReplayMode) {
         // User is replaying from dashboard - allow going back
@@ -1067,7 +1073,7 @@ ${rising.main}`;
 
       if (data.success && data.pdfBase64) {
         // Save PDF to local file system - use centralized filename generator
-        const fileName = generateCoreIdentitiesPdfFilename(personName);
+        const fileName = `${personName.replace(/[^a-zA-Z0-9]/g, '_')}_Core_Identities.pdf`;
         const docDir = getDocumentDirectory() || '';
         const filePath = `${docDir}pdfs/${fileName}`;
 
@@ -1166,7 +1172,7 @@ ${rising.main}`;
                           audioPlaying[item.type] && styles.audioBtnActive,
                         ]}
                         onPress={() => {
-                          console.log('🔊 Audio button pressed for:', item.type);                          handlePlayAudio(item as HookReading);
+                          console.log('🔊 Audio button pressed for:', item.type); handlePlayAudio(item as HookReading);
                         }}
                         disabled={audioLoading[item.type]}
                         activeOpacity={0.7}
