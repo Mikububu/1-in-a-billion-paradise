@@ -461,8 +461,8 @@ export const AccountScreen = ({ navigation, route }: Props) => {
   };
 
   const handleVerifyOtp = async () => {
-    if (otpCode.trim().length < 6) {
-      Alert.alert('Enter code', 'Please enter the 6-digit code from your email.');
+    if (otpCode.trim().length < 8) {
+      Alert.alert('Enter code', 'Please enter the 8-digit code from your email.');
       return;
     }
 
@@ -773,21 +773,21 @@ export const AccountScreen = ({ navigation, route }: Props) => {
             <>
               <TextInput
                 style={[styles.input, styles.otpInput]}
-                placeholder="000000"
+                placeholder="00000000"
                 placeholderTextColor={colors.mutedText}
                 value={otpCode}
-                onChangeText={(text) => setOtpCode(text.replace(/[^0-9]/g, '').slice(0, 6))}
+                onChangeText={(text) => setOtpCode(text.replace(/[^0-9]/g, '').slice(0, 8))}
                 keyboardType="number-pad"
-                maxLength={6}
+                maxLength={8}
                 textAlign="center"
                 autoFocus
                 editable={!isLoading}
               />
 
               <TouchableOpacity
-                style={[styles.authButton, styles.primaryBtn, (otpCode.length < 6 && !isLoading) && styles.primaryBtnDisabled]}
+                style={[styles.authButton, styles.primaryBtn, (otpCode.length < 8 && !isLoading) && styles.primaryBtnDisabled]}
                 onPress={handleVerifyOtp}
-                disabled={isLoading || otpCode.length < 6}
+                disabled={isLoading || otpCode.length < 8}
               >
                 {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Verify & Continue</Text>}
               </TouchableOpacity>
