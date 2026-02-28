@@ -79,6 +79,37 @@ export async function verifyRevenueCatWebhookAuth(authHeader: string | undefined
 }
 
 /**
+ * Subscription tier — derived from RevenueCat product_id.
+ * basic  = monthly plan
+ * yearly = yearly plan (default)
+ * billionaire = billionaire plan (unlimited readings, no IAP)
+ */
+export type SubscriptionTier = 'basic' | 'yearly' | 'billionaire';
+
+/**
+ * Map a RevenueCat product_id to a subscription tier.
+ * Add new product IDs here as they are created in RevenueCat / App Store Connect.
+ */
+export function resolveSubscriptionTier(productId: string | null | undefined): SubscriptionTier {
+  if (!productId) return 'yearly'; // safe default
+
+  const pid = productId.toLowerCase();
+
+  // Billionaire tier identifiers (match generously)
+  if (pid.includes('billionaire') || pid.includes('10008') || pid.includes('whale')) {
+    return 'billionaire';
+  }
+
+  // Monthly / basic identifiers
+  if (pid.includes('monthly') || pid.includes('month') || pid.includes('basic')) {
+    return 'basic';
+  }
+
+  // Everything else is yearly (the default subscription)
+  return 'yearly';
+}
+
+/**
  * Upsert subscription from RevenueCat event into user_subscriptions.
  * Uses stripe_subscription_id = 'rc_' + transaction_id for uniqueness.
  */
@@ -99,6 +130,7 @@ export async function upsertRevenueCatSubscriptionToSupabase(params: {
 
   const rcSubscriptionId = 'rc_' + params.transactionId;
   const rcCustomerId = 'rc_' + params.appUserId;
+  const tier = resolveSubscriptionTier(params.productId);
 
   const { error } = await supabase
     .from('user_subscriptions')
@@ -110,6 +142,7 @@ export async function upsertRevenueCatSubscriptionToSupabase(params: {
         stripe_subscription_id: rcSubscriptionId,
         stripe_price_id: params.productId || null,
         status: params.status,
+        subscription_tier: tier,
         cancel_at_period_end: false,
         current_period_start: toTs(params.purchasedAtMs ?? null),
         current_period_end: toTs(params.currentPeriodEndMs ?? null),
@@ -122,7 +155,7 @@ export async function upsertRevenueCatSubscriptionToSupabase(params: {
   if (error) {
     console.error('❌ Failed to upsert user_subscriptions (RevenueCat):', error);
   } else {
-    console.log(`✅ RevenueCat subscription upserted: ${params.appUserId} -> ${params.status}`);
+    console.log(`✅ RevenueCat subscription upserted: ${params.appUserId} -> ${params.status} (tier: ${tier})`);
   }
 }
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, Modal, Pressable } from 'react-native';
+import { ActivityIndicator, AppState, StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainStackParamList } from '@/navigation/RootNavigator';
@@ -10,10 +10,12 @@ import { fetchJobSnapshot, type JobSnapshot } from '@/services/jobStatus';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'MyLibrary'>;
 
-type TrackedJob = {
+type TrackedReading = {
+    id: string;
     jobId: string;
-    personNames: string[];
-    systems: string[];
+    docNum: number | undefined;
+    personName: string;
+    system: string;
     lastTimestamp: number;
 };
 
@@ -41,46 +43,27 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         [people]
     );
 
-    const trackedJobs = useMemo<TrackedJob[]>(() => {
-        const map = new Map<string, { names: Set<string>; systems: Set<string>; lastTimestamp: number }>();
+    const trackedReadings = useMemo<TrackedReading[]>(() => {
+        const readings: TrackedReading[] = [];
 
         for (const person of people) {
-            const readingJobIds = (person.readings || []).map((r) => r.jobId).filter(Boolean) as string[];
-            const allJobIds = Array.from(new Set([...(person.jobIds || []), ...readingJobIds]));
+            for (const reading of person.readings || []) {
+                if (!reading.jobId) continue;
 
-            for (const jobId of allJobIds) {
-                const existing = map.get(jobId) || {
-                    names: new Set<string>(),
-                    systems: new Set<string>(),
-                    lastTimestamp: 0,
-                };
+                const ts = Math.max(toEpoch(reading.createdAt), toEpoch(reading.generatedAt));
 
-                existing.names.add(person.name);
-
-                for (const reading of person.readings || []) {
-                    if (reading.jobId !== jobId) continue;
-                    if (reading.system) existing.systems.add(reading.system);
-                    const ts = Math.max(toEpoch(reading.createdAt), toEpoch(reading.generatedAt));
-                    if (ts > existing.lastTimestamp) existing.lastTimestamp = ts;
-                }
-
-                const personTs = Math.max(toEpoch(person.updatedAt), toEpoch(person.createdAt));
-                if (existing.lastTimestamp === 0 && personTs > 0) {
-                    existing.lastTimestamp = personTs;
-                }
-
-                map.set(jobId, existing);
+                readings.push({
+                    id: reading.id,
+                    jobId: reading.jobId,
+                    docNum: reading.docNum,
+                    personName: person.name,
+                    system: reading.system,
+                    lastTimestamp: ts > 0 ? ts : Math.max(toEpoch(person.updatedAt), toEpoch(person.createdAt)),
+                });
             }
         }
 
-        return Array.from(map.entries())
-            .map(([jobId, value]) => ({
-                jobId,
-                personNames: Array.from(value.names),
-                systems: Array.from(value.systems),
-                lastTimestamp: value.lastTimestamp,
-            }))
-            .sort((a, b) => b.lastTimestamp - a.lastTimestamp);
+        return readings.sort((a, b) => b.lastTimestamp - a.lastTimestamp);
     }, [people]);
 
     const handleOpenPortrait = useCallback(() => {
@@ -95,11 +78,13 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         }
     }, [navigation, user?.id, user?.name, user?.originalPhotoUrl, user?.portraitUrl]);
 
+    // Poll job status, but pause when app is in the background to save battery
     useEffect(() => {
         let cancelled = false;
+        let timer: ReturnType<typeof setInterval> | null = null;
 
         const poll = async () => {
-            if (trackedJobs.length === 0) {
+            if (trackedReadings.length === 0) {
                 if (!cancelled) {
                     setJobSnapshotById({});
                     setIsJobsLoading(false);
@@ -108,7 +93,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             }
 
             setIsJobsLoading(true);
-            const jobsToFetch = trackedJobs.slice(0, 12);
+            const jobsToFetch = trackedReadings.slice(0, 16);
             const results = await Promise.all(
                 jobsToFetch.map(async (j) => [j.jobId, await fetchJobSnapshot(j.jobId)] as const)
             );
@@ -124,14 +109,29 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             setIsJobsLoading(false);
         };
 
-        poll();
-        const timer = setInterval(poll, 15000);
+        const startPolling = () => {
+            poll();
+            if (timer) clearInterval(timer);
+            timer = setInterval(poll, 15000);
+        };
+
+        const stopPolling = () => {
+            if (timer) { clearInterval(timer); timer = null; }
+        };
+
+        startPolling();
+
+        const sub = AppState.addEventListener('change', (state) => {
+            if (state === 'active') startPolling();
+            else stopPolling();
+        });
 
         return () => {
             cancelled = true;
-            clearInterval(timer);
+            stopPolling();
+            sub.remove();
         };
-    }, [trackedJobs]);
+    }, [trackedReadings]);
 
     return (
         <SafeAreaView style={styles.container}>
@@ -150,44 +150,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                 <Text style={styles.title}>My Souls Library</Text>
                 <Text style={styles.subtitle}>Your people, readings, and next actions.</Text>
 
-                <View style={styles.card}>
-                    <Text style={styles.cardTitle}>{user?.name || 'You'}</Text>
-                    <Text style={styles.cardMeta}>
-                        {user?.placements?.sunSign || '?'} Sun | {user?.placements?.moonSign || '?'} Moon | {user?.placements?.risingSign || '?'} Rising
-                    </Text>
-                    {user?.id ? (
-                        <TouchableOpacity
-                            style={styles.portraitSquare}
-                            onPress={handleOpenPortrait}
-                            activeOpacity={0.8}
-                        >
-                            {user.portraitUrl || user.originalPhotoUrl ? (
-                                <Image source={{ uri: user.portraitUrl || user.originalPhotoUrl }} style={styles.portraitImage} />
-                            ) : (
-                                <View style={styles.portraitPlaceholder}>
-                                    <Text style={styles.portraitInitial}>{(user.name || 'Y').charAt(0).toUpperCase()}</Text>
-                                    <Text style={styles.portraitHint}>Tap to upload</Text>
-                                </View>
-                            )}
-                        </TouchableOpacity>
-                    ) : null}
-                    <View style={styles.linkRow}>
-                        <TouchableOpacity
-                            style={styles.linkButton}
-                            onPress={() => navigation.navigate('YourChart')}
-                        >
-                            <Text style={styles.linkText}>Open Your Chart</Text>
-                        </TouchableOpacity>
-                        {user?.id ? (
-                            <TouchableOpacity
-                                style={styles.linkButton}
-                                onPress={() => navigation.navigate('PersonPhotoUpload', { personId: user.id })}
-                            >
-                                <Text style={styles.linkText}>Upload Portrait</Text>
-                            </TouchableOpacity>
-                        ) : null}
-                    </View>
-                </View>
+
 
                 <View style={styles.statsRow}>
                     <View style={styles.statCard}>
@@ -219,25 +182,20 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                     </View>
                 </View>
 
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Recent Jobs</Text>
-                    {isJobsLoading ? <ActivityIndicator color={colors.primary} size="small" /> : null}
-                </View>
+                {isJobsLoading ? <ActivityIndicator color={colors.primary} size="small" style={{ marginBottom: spacing.sm }} /> : null}
 
-                {trackedJobs.length === 0 ? (
+                {trackedReadings.length === 0 ? (
                     <View style={styles.emptyJobCard}>
-                        <Text style={styles.emptyJobText}>No tracked jobs yet. Start a deep reading to see live status here.</Text>
+                        <Text style={styles.emptyJobText}>No tracked readings yet. Start a deep reading to see live status here.</Text>
                     </View>
                 ) : (
                     <View style={styles.jobsList}>
-                        {trackedJobs.slice(0, 8).map((job) => {
-                            const snapshot = jobSnapshotById[job.jobId];
-                            const names = job.personNames.length > 0 ? job.personNames.join(' & ') : 'Reading';
-                            const readingLabel = `Reading ${job.jobId.slice(0, 8)}`;
-                            const readingDate = job.lastTimestamp
-                                ? new Date(job.lastTimestamp).toLocaleString()
+                        {trackedReadings.slice(0, 16).map((reading) => {
+                            const snapshot = jobSnapshotById[reading.jobId];
+                            const readingDate = reading.lastTimestamp
+                                ? new Date(reading.lastTimestamp).toLocaleString()
                                 : '';
-                            const systems = job.systems.length > 0 ? job.systems.join(', ') : 'Systems pending';
+                            const systemName = reading.system ? reading.system.charAt(0).toUpperCase() + reading.system.slice(1) : 'Reading';
                             const status = snapshot
                                 ? `${snapshot.status.toUpperCase()}${typeof snapshot.percent === 'number' ? ` · ${snapshot.percent}%` : ''}`
                                 : 'Status unavailable';
@@ -245,22 +203,26 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
                             return (
                                 <TouchableOpacity
-                                    key={job.jobId}
+                                    key={`${reading.jobId}-${reading.id}`}
                                     style={styles.jobCard}
-                                    onPress={() => navigation.navigate('JobDetail', { jobId: job.jobId })}
+                                    onPress={() => navigation.navigate('JobDetail', {
+                                        jobId: reading.jobId,
+                                        docNum: reading.docNum,
+                                        personName: reading.personName,
+                                        system: reading.system
+                                    })}
                                 >
                                     <View style={styles.readingBadge}>
                                         <Text style={styles.readingBadgeText}>R</Text>
                                     </View>
                                     <View style={styles.jobMain}>
-                                        <Text style={styles.jobTitle} numberOfLines={1}>{readingLabel}</Text>
+                                        <Text style={styles.jobTitle} numberOfLines={1}>{reading.personName}</Text>
                                         {readingDate ? (
                                             <Text style={styles.jobDate} numberOfLines={1}>
-                                                Reading from {readingDate}
+                                                From {readingDate}
                                             </Text>
                                         ) : null}
-                                        <Text style={styles.jobMeta} numberOfLines={1}>{names}</Text>
-                                        <Text style={styles.jobMeta} numberOfLines={1}>{systems}</Text>
+                                        <Text style={styles.jobMeta} numberOfLines={1}>{systemName}</Text>
                                     </View>
                                     <View style={styles.jobStatusWrap}>
                                         <Text style={styles.jobStatus}>{status}</Text>
@@ -272,26 +234,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                     </View>
                 )}
 
-                <View style={styles.actions}>
-                    <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => navigation.navigate('PeopleList')}
-                    >
-                        <Text style={styles.actionText}>Manage People</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => navigation.navigate('ComparePeople')}
-                    >
-                        <Text style={styles.actionText}>Compare People</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => navigation.navigate('SystemsOverview')}
-                    >
-                        <Text style={styles.actionText}>Deep Reading Systems</Text>
-                    </TouchableOpacity>
-                </View>
+
             </ScrollView>
 
             <Modal
@@ -362,80 +305,7 @@ const styles = StyleSheet.create({
         fontSize: 17,
         lineHeight: 20,
     },
-    card: {
-        backgroundColor: colors.surface,
-        borderRadius: radii.card,
-        borderWidth: 1,
-        borderColor: colors.border,
-        padding: spacing.md,
-        marginBottom: spacing.md,
-    },
-    cardTitle: {
-        fontFamily: typography.sansBold,
-        fontSize: 20,
-        color: colors.text,
-    },
-    cardMeta: {
-        fontFamily: typography.sansRegular,
-        fontSize: 14,
-        color: colors.mutedText,
-        marginTop: spacing.xs,
-    },
-    linkButton: {
-        alignSelf: 'flex-start',
-        marginTop: spacing.sm,
-        borderRadius: 999,
-        borderWidth: 1,
-        borderColor: colors.primary,
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.xs,
-    },
-    linkRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.sm,
-    },
-    portraitSquare: {
-        width: 116,
-        height: 116,
-        borderRadius: 14,
-        overflow: 'hidden',
-        marginTop: spacing.sm,
-        borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.background,
-    },
-    portraitImage: {
-        width: '100%',
-        height: '100%',
-    },
-    portraitPlaceholder: {
-        width: '100%',
-        height: '100%',
-        borderWidth: 1,
-        borderStyle: 'dashed',
-        borderColor: colors.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: colors.primarySoft,
-        paddingHorizontal: spacing.xs,
-    },
-    portraitInitial: {
-        fontFamily: typography.headline,
-        fontSize: 34,
-        color: colors.primary,
-    },
-    portraitHint: {
-        marginTop: 2,
-        fontFamily: typography.sansRegular,
-        fontSize: 10,
-        color: colors.primary,
-    },
-    linkText: {
-        fontFamily: typography.sansSemiBold,
-        color: colors.primary,
-        fontSize: 13,
-    },
+
     statsRow: {
         flexDirection: 'row',
         gap: spacing.sm,
@@ -461,20 +331,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: colors.mutedText,
     },
-    sectionHeader: {
-        marginTop: spacing.md,
-        marginBottom: spacing.sm,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    sectionTitle: {
-        fontFamily: typography.sansSemiBold,
-        fontSize: 14,
-        color: colors.text,
-        textTransform: 'uppercase',
-        letterSpacing: 0.8,
-    },
+
     emptyJobCard: {
         backgroundColor: colors.surface,
         borderRadius: radii.card,
@@ -552,23 +409,7 @@ const styles = StyleSheet.create({
         fontSize: 11,
         color: colors.mutedText,
     },
-    actions: {
-        marginTop: spacing.md,
-        gap: spacing.sm,
-    },
-    actionButton: {
-        backgroundColor: colors.surface,
-        borderRadius: radii.button,
-        borderWidth: 1,
-        borderColor: colors.border,
-        paddingVertical: spacing.md,
-        alignItems: 'center',
-    },
-    actionText: {
-        fontFamily: typography.sansSemiBold,
-        fontSize: 16,
-        color: colors.text,
-    },
+
     previewBackdrop: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.7)',

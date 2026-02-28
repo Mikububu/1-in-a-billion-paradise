@@ -69,11 +69,11 @@ export const TreeOfLifeVideoScreen = ({ navigation, route }: Props) => {
             playsInSilentModeIOS: true,
             staysActiveInBackground: false,
             shouldDuckAndroid: false,
-        }).catch(() => { });
+        }).catch((e) => console.warn('Audio mode setup error:', e));
     }, []);
 
     useEffect(() => {
-        videoRef.current?.playAsync().catch(() => { });
+        videoRef.current?.playAsync().catch((e) => console.warn('Video play error:', e));
     }, []);
 
     return (

@@ -38,6 +38,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
     } = (route.params || {}) as any;
 
     const authUser = useAuthStore((s) => s.user);
+    const unlimitedReadings = useAuthStore((s) => s.unlimitedReadings);
     const getPerson = useProfileStore((s) => s.getPerson);
     const getUser = useProfileStore((s) => s.getUser);
     const people = useProfileStore((s) => s.people);
@@ -211,6 +212,9 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
             ? 'bundle_verdict'
             : (readingType === 'overlay' ? 'synastry' : 'extended');
 
+        // Billionaire tier gets all readings free — always send useIncludedReading
+        const shouldUseIncluded = unlimitedReadings || Boolean(restParams.useIncludedReading);
+
         const payload: any = {
             type: jobType,
             systems,
@@ -218,6 +222,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
             person1,
             relationshipPreferenceScale: relationshipPreferenceScale ?? 5,
             voiceId: selectedVoice,
+            ...(shouldUseIncluded && { useIncludedReading: true }),
         };
 
         const outputContract = getReadingOutputContract(productType);

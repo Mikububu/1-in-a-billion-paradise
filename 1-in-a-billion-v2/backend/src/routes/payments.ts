@@ -21,7 +21,7 @@ import {
   handleRevenueCatEvent,
   type RevenueCatWebhookBody,
 } from '../services/revenuecatService';
-import { canUseIncludedReading, checkUserSubscription } from '../services/subscriptionService';
+import { canUseIncludedReading, checkUserSubscription, getUserSubscriptionTier, hasUnlimitedReadings } from '../services/subscriptionService';
 import { createSupabaseUserClientFromAccessToken } from '../services/supabaseClient';
 import { env } from '../config/env';
 import { requireAuth } from '../middleware/requireAuth';
@@ -189,6 +189,34 @@ payments.post('/link-app-user', async (c) => {
   } catch (error: any) {
     console.error('❌ link-app-user error:', error);
     return c.json({ success: false, error: error?.message ?? 'Linking failed' }, 500);
+  }
+});
+
+/**
+ * GET /api/payments/subscription-tier
+ * Returns the user's subscription tier and whether they have unlimited readings.
+ * Requires Authorization: Bearer <supabase access token>
+ */
+payments.get('/subscription-tier', async (c) => {
+  try {
+    const userId = await getAuthUserId(c);
+    if (!userId) {
+      return c.json({ success: false, error: 'Unauthorized' }, 401);
+    }
+
+    const tier = await getUserSubscriptionTier(userId);
+    const unlimited = await hasUnlimitedReadings(userId);
+    const includedReadingEligible = await canUseIncludedReading(userId);
+
+    return c.json({
+      success: true,
+      tier,              // 'basic' | 'yearly' | 'billionaire' | null
+      unlimitedReadings: unlimited,
+      includedReadingEligible,
+    });
+  } catch (error: any) {
+    console.error('❌ subscription-tier error:', error);
+    return c.json({ success: false, error: error?.message ?? 'Check failed' }, 500);
   }
 });
 

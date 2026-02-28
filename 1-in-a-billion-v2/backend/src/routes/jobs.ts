@@ -18,6 +18,7 @@ import axios from 'axios';
 import archiver from 'archiver';
 import { PassThrough, Readable } from 'node:stream';
 import { requireAuth as jwtAuth, getAuthUserId } from '../middleware/requireAuth';
+import { sanitizeDirective, sanitizeContext } from '../utils/sanitizeInput';
 import type { AppEnv } from '../types/hono';
 
 const router = new Hono<AppEnv>();
@@ -53,29 +54,8 @@ function getBearerToken(c: any): string | null {
   return m ? m[1] : null;
 }
 
-/** DEPRECATED: Extract verified user ID from Bearer token. Returns null if unauthenticated.
- * Use the jwtAuth middleware and getAuthUserId from ../middleware/requireAuth instead.
- */
-async function getAuthenticatedUserId(c: any): Promise<string | null> {
-  const token = getBearerToken(c);
-  if (!token) return null;
-  const userClient = createSupabaseUserClientFromAccessToken(token);
-  if (!userClient) return null;
-  const { data: { user }, error } = await userClient.auth.getUser(token);
-  if (error || !user) return null;
-  return user.id;
-}
-
-/** DEPRECATED: Require Bearer auth for debug/admin endpoints.
- * Use the jwtAuth middleware from ../middleware/requireAuth instead.
- */
-function requireAuth(c: any): Response | null {
-  const token = getBearerToken(c);
-  if (!token) {
-    return c.json({ success: false, error: 'Missing authorization token' }, 401);
-  }
-  return null;
-}
+// REMOVED: Deprecated getAuthenticatedUserId and requireAuth functions.
+// All endpoints now use jwtAuth middleware from ../middleware/requireAuth.
 
 // ═══════════════════════════════════════════════════════════════════════════
 // POST /api/jobs/v2/start — Create a new reading job
@@ -109,9 +89,13 @@ router.post('/v2/start', jwtAuth, async (c) => {
       return c.json({ success: false, error: 'Missing person1 birth data' }, 400);
     }
 
+    // Check if billionaire tier — they get unlimited readings without IAP
+    const { canUseIncludedReading, hasUnlimitedReadings } = await import('../services/subscriptionService');
+    const unlimited = await hasUnlimitedReadings(userId);
+
     // If claiming the free included reading, verify eligibility server-side
-    if (useIncludedReading) {
-      const { canUseIncludedReading } = await import('../services/subscriptionService');
+    // (Billionaire users are always eligible via canUseIncludedReading)
+    if (useIncludedReading && !unlimited) {
       const eligible = await canUseIncludedReading(userId);
       if (!eligible) {
         return c.json({
@@ -126,14 +110,15 @@ router.post('/v2/start', jwtAuth, async (c) => {
       type,
       systems,
       person1,
-      promptLayerDirective,
+      promptLayerDirective: sanitizeDirective(promptLayerDirective),
       relationshipPreferenceScale: Math.min(10, Math.max(1, Math.round(relationshipPreferenceScale || 5))),
     };
     if (person2) params.person2 = person2;
     if (voiceId) params.voiceId = voiceId;
     if (bundleComposition) params.bundleComposition = bundleComposition;
-    if (relationshipContext) params.relationshipContext = relationshipContext;
-    if (personalContext) params.personalContext = personalContext;
+    // Sanitize user-provided text fields before they reach the LLM
+    if (relationshipContext) params.relationshipContext = sanitizeContext(relationshipContext);
+    if (personalContext) params.personalContext = sanitizeContext(personalContext);
     if (useIncludedReading) params.useIncludedReading = true;
 
     // Create job (DB trigger auto-creates tasks)
@@ -143,12 +128,15 @@ router.post('/v2/start', jwtAuth, async (c) => {
       params,
     });
 
-    // If this was a free included reading, mark it as used
-    if (useIncludedReading) {
+    // If this was a free included reading, mark it as used (skip for billionaire — they're unlimited)
+    if (useIncludedReading && !unlimited) {
       const { markIncludedReadingUsed } = await import('../services/subscriptionService');
       const system = systems[0] || 'unknown';
       await markIncludedReadingUsed(userId, system, jobId);
       console.log(`🎁 Free included reading claimed: user=${userId} system=${system} job=${jobId}`);
+    }
+    if (unlimited) {
+      console.log(`💎 Billionaire reading (no charge): user=${userId} job=${jobId}`);
     }
 
     console.log(`🚀 Job started: ${jobId} type=${type} systems=${systems.join(',')} user=${userId}`);
@@ -160,39 +148,30 @@ router.post('/v2/start', jwtAuth, async (c) => {
 });
 
 // V2: Supabase-backed job read (RLS enforced).
-// This is safe to expose to clients; it will never leak cross-user jobs.
+// Requires authentication — uses user's token for RLS-safe queries.
 const getJobHandler = async (c: any) => {
   const accessToken = getBearerToken(c);
+  if (!accessToken) {
+    return c.json({ success: false, error: 'Missing authorization token' }, 401);
+  }
 
-  // If no auth token, use service role (for dev mode)
   const jobId = c.req.param('jobId');
   let job, error;
 
-  if (!accessToken) {
-    // Dev mode - use service role client
-    const { jobQueueV2 } = await import('../services/jobQueueV2');
-    const result = await jobQueueV2.getJob(jobId);
-    if (!result) {
-      return c.json({ success: false, error: 'Job not found' }, 404);
-    }
-    job = result;
-    error = null;
-  } else {
-    // Authenticated - use user client with RLS
-    const userClient = createSupabaseUserClientFromAccessToken(accessToken);
-    if (!userClient) {
-      return c.json({ success: false, error: 'Supabase user client not configured' }, 500);
-    }
-
-    const result = await userClient
-      .from('jobs')
-      .select(`*, artifacts:job_artifacts(*)`)
-      .eq('id', jobId)
-      .single();
-
-    job = result.data;
-    error = result.error;
+  // Authenticated - use user client with RLS
+  const userClient = createSupabaseUserClientFromAccessToken(accessToken);
+  if (!userClient) {
+    return c.json({ success: false, error: 'Supabase user client not configured' }, 500);
   }
+
+  const result = await userClient
+    .from('jobs')
+    .select(`*, artifacts:job_artifacts(*)`)
+    .eq('id', jobId)
+    .single();
+
+  job = result.data;
+  error = result.error;
 
   if (error || !job) {
     return c.json({ success: false, error: 'Job not found' }, 404);
@@ -490,10 +469,8 @@ router.get('/v2/:jobId/export', async (c) => {
   return new Response(body, { status: 200, headers });
 });
 
-// DEBUG: Get all tasks for a job (requires auth)
-router.get('/v2/:jobId/tasks', async (c) => {
-  const authErr = requireAuth(c);
-  if (authErr) return authErr;
+// DEBUG: Get all tasks for a job (requires JWT auth)
+router.get('/v2/:jobId/tasks', jwtAuth, async (c) => {
 
   const jobId = c.req.param('jobId');
   const tasks = await jobQueueV2.getJobTasks(jobId);
@@ -515,10 +492,8 @@ router.get('/v2/:jobId/tasks', async (c) => {
   });
 });
 
-// DEBUG: Delete a job (requires auth)
-router.delete('/v2/:jobId', async (c) => {
-  const authErr = requireAuth(c);
-  if (authErr) return authErr;
+// DEBUG: Delete a job (requires JWT auth)
+router.delete('/v2/:jobId', jwtAuth, async (c) => {
 
   const jobId = c.req.param('jobId');
   if (!env.SUPABASE_URL) {
@@ -537,12 +512,14 @@ router.delete('/v2/:jobId', async (c) => {
   return c.json({ success: true, deleted: jobId });
 });
 
-// DEBUG: List all jobs for a user (requires auth)
-router.get('/v2/user/:userId/jobs', async (c) => {
-  const authErr = requireAuth(c);
-  if (authErr) return authErr;
-
+// DEBUG: List all jobs for a user (requires JWT auth, only own jobs)
+router.get('/v2/user/:userId/jobs', jwtAuth, async (c) => {
+  const authUserId = c.get('userId');
   const userId = c.req.param('userId');
+  // Users can only list their own jobs
+  if (authUserId !== userId) {
+    return c.json({ success: false, error: 'Forbidden' }, 403);
+  }
   const jobs = await jobQueueV2.getUserJobs(userId, 10);
   
   // Fetch tasks for each job to show detailed status
@@ -1040,10 +1017,8 @@ router.get('/v2/:jobId/pdf/:docNum', async (c) => {
   }
 });
 
-// DEBUG: Reset stuck tasks (requires auth)
-router.post('/v2/:jobId/reset-stuck', async (c) => {
-  const authErr = requireAuth(c);
-  if (authErr) return authErr;
+// DEBUG: Reset stuck tasks (requires JWT auth)
+router.post('/v2/:jobId/reset-stuck', jwtAuth, async (c) => {
 
   const jobId = c.req.param('jobId');
   if (!env.SUPABASE_URL) {

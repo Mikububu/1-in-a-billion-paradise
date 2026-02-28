@@ -39,15 +39,24 @@ const AudioContext = createContext<AudioContextValue>(defaultAudioContext);
 const isWebUrl = (v: string) => /^https?:\/\//i.test(v);
 const isDataUri = (v: string) => /^data:/i.test(v);
 const isFileLikeUri = (v: string) => /^(file|content|asset):\/\//i.test(v);
-const isAbsoluteFilePath = (v: string) => /^\/.+\.(mp3|m4a|wav|aac)$/i.test(v);
+const isAbsoluteFilePath = (v: string) => /^\/.+\.(mp3|m4a|wav|aac|ogg|opus|webm)(\?|$)/i.test(v);
 const extractLibraryPathFromPublicUrl = (url: string): string | null => {
     try {
         const parsed = new URL(url);
-        const marker = '/storage/v1/object/public/library/';
-        const idx = parsed.pathname.indexOf(marker);
-        if (idx < 0) return null;
-        const rawPath = parsed.pathname.slice(idx + marker.length);
-        return decodeURIComponent(rawPath);
+        // Support multiple Supabase storage buckets
+        const bucketMarkers = [
+            '/storage/v1/object/public/library/',
+            '/storage/v1/object/public/readings/',
+            '/storage/v1/object/public/job-artifacts/',
+            '/storage/v1/object/sign/',
+        ];
+        for (const marker of bucketMarkers) {
+            const idx = parsed.pathname.indexOf(marker);
+            if (idx >= 0) {
+                return decodeURIComponent(parsed.pathname.slice(idx + marker.length));
+            }
+        }
+        return null;
     } catch {
         return null;
     }
@@ -212,7 +221,7 @@ export const AudioProvider = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         return () => {
-            releaseAllAudio().catch(() => { });
+            releaseAllAudio().catch((e) => console.warn('Audio cleanup error:', e));
         };
     }, [releaseAllAudio]);
 

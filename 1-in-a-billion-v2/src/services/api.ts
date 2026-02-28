@@ -9,6 +9,9 @@ const CORE_API_URL = process.env.EXPO_PUBLIC_CORE_API_URL || process.env.EXPO_PU
 const SUPABASE_FUNCTION_URL = process.env.EXPO_PUBLIC_SUPABASE_FUNCTION_URL || CORE_API_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
+// Supabase Edge Function path — change this in ONE place if the function ID changes on redeploy
+const EDGE_FN = '/make-server-02a2a601';
+
 // Session expiry handler
 let onSessionExpired: (() => void) | null = null;
 export function setSessionExpiredHandler(handler: () => void) {
@@ -117,7 +120,7 @@ export const readingsApi = {
 export const audioApi = {
     generate: async (readingId: string): Promise<AudioGenerateResponse> => {
         try {
-            const response = await supabaseClient.post<AudioGenerateResponse>('/make-server-02a2a601/generate-audio', { readingId });
+            const response = await supabaseClient.post<AudioGenerateResponse>(`${EDGE_FN}/generate-audio`, { readingId });
             return response.data;
         } catch (error) {
             console.warn('Audio fallback', error);
@@ -213,7 +216,7 @@ export const entitlementsApi = {
     // Get user's active entitlements
     getEntitlements: async (userId: string): Promise<EntitlementResponse> => {
         try {
-            const response = await supabaseClient.get<EntitlementResponse>(`/make-server-02a2a601/entitlements/${userId}`);
+            const response = await supabaseClient.get<EntitlementResponse>(`${EDGE_FN}/entitlements/${userId}`);
             return response.data;
         } catch (error) {
             console.warn('Failed to get entitlements', error);
@@ -232,7 +235,7 @@ export const entitlementsApi = {
         feature: 'audio' | 'western' | 'vedic' | 'human_design' | 'gene_keys' | 'kabbalah' | 'synastry'
     ): Promise<{ allowed: boolean; requiredProduct?: string; productInfo?: ProductInfo }> => {
         try {
-            const response = await supabaseClient.post('/make-server-02a2a601/check-access', {
+            const response = await supabaseClient.post(`${EDGE_FN}/check-access`, {
                 userId,
                 feature,
             });
@@ -252,7 +255,7 @@ export const entitlementsApi = {
         receiptData?: string
     ): Promise<{ success: boolean; entitlement?: object }> => {
         try {
-            const response = await supabaseClient.post('/make-server-02a2a601/grant-entitlement', {
+            const response = await supabaseClient.post(`${EDGE_FN}/grant-entitlement`, {
                 userId,
                 productId,
                 platform,
@@ -269,7 +272,7 @@ export const entitlementsApi = {
     // Get available products
     getProducts: async (): Promise<{ products: Array<ProductInfo & { id: string }> }> => {
         try {
-            const response = await supabaseClient.get('/make-server-02a2a601/products');
+            const response = await supabaseClient.get(`${EDGE_FN}/products`);
             return response.data;
         } catch (error) {
             console.warn('Failed to get products', error);
@@ -289,7 +292,7 @@ export const synastryApi = {
         user2: { name: string; birthChart: BirthChart }
     ): Promise<{ success: boolean; compatibility?: CompatibilityScores }> => {
         try {
-            const response = await supabaseClient.post('/make-server-02a2a601/calculate-synastry-scores', {
+            const response = await supabaseClient.post(`${EDGE_FN}/calculate-synastry-scores`, {
                 user1,
                 user2,
             });
@@ -309,7 +312,7 @@ export const synastryApi = {
         skipEntitlementCheck?: boolean
     ): Promise<SynastryResponse> => {
         try {
-            const response = await supabaseClient.post<SynastryResponse>('/make-server-02a2a601/generate-synastry-overlay', {
+            const response = await supabaseClient.post<SynastryResponse>(`${EDGE_FN}/generate-synastry-overlay`, {
                 userId,
                 user1,
                 user2,

@@ -23,19 +23,46 @@ import peopleRouter from './routes/people';
 import profileRouter from './routes/profile';
 import couplesRouter from './routes/couples';
 import chatRouter from './routes/chat';
+import couponsRouter from './routes/coupons';
 import { preloadApiKeys } from './services/apiKeys';
+import { globalLimiter, authLimiter, llmLimiter, webhookLimiter } from './middleware/rateLimiter';
+import { errorHandler } from './middleware/errorHandler';
 import './services/jobHealthCheck'; // Auto-starts job health check service
 
 const app = new Hono();
 
-// CORS middleware - allow all origins for mobile apps
+// CORS middleware - restrict to known origins
 app.use('*', cors({
-  origin: '*',
+  origin: [
+    'https://1-in-a-billion.app',
+    'https://www.1-in-a-billion.app',
+    'http://localhost:8081',       // Expo dev
+    'http://localhost:19006',      // Expo web dev
+  ],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'X-User-Id', 'X-Admin-Secret'],
+  allowHeaders: ['Content-Type', 'Authorization'],
   exposeHeaders: ['Content-Length'],
   maxAge: 86400,
 }));
+
+// Global error handler — must be first middleware
+app.use('*', errorHandler);
+
+// Security headers
+app.use('*', async (c, next) => {
+  await next();
+  c.header('X-Content-Type-Options', 'nosniff');
+  c.header('X-Frame-Options', 'DENY');
+  c.header('X-XSS-Protection', '1; mode=block');
+  c.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+});
+
+// Rate limiting - applied globally, tighter on auth & AI endpoints
+app.use('*', globalLimiter);
+app.use('/api/auth/*', authLimiter);
+app.use('/api/jobs/*', llmLimiter);
+app.use('/api/payments/webhook', webhookLimiter);
 
 app.get('/health', (c) => c.json({ status: 'ok', time: new Date().toISOString() }));
 
@@ -67,6 +94,7 @@ app.route('/api/people', peopleRouter);
 app.route('/api/profile', profileRouter);
 app.route('/api/couples', couplesRouter);
 app.route('/api/chat', chatRouter);
+app.route('/api/coupons', couponsRouter);
 
 // Start text worker in background (processes Supabase queue)
 // No GPU needed - just calls DeepSeek API

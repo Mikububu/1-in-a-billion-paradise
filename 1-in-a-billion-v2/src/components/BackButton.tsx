@@ -22,6 +22,8 @@ export const BackButton = ({ onPress, label = '← Back' }: BackButtonProps) => 
             activeOpacity={0.8}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             style={[styles.button, { top: insets.top + layout.backButtonOffsetTop, left: layout.backButtonOffsetLeft }]}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
         >
             <Text style={styles.text}>{label}</Text>
         </TouchableOpacity>

@@ -127,8 +127,13 @@ export const HomeScreen = ({ navigation }: Props) => {
         ])
       );
       blink.start();
-      return () => blink.stop();
+      return () => {
+        blink.stop();
+        blinkAnim.setValue(1); // Reset opacity on cleanup
+      };
     }
+    // Photo loaded — ensure full opacity
+    blinkAnim.setValue(1);
   }, [portraitPhotoUrl, blinkAnim]);
 
   const handleUploadPhoto = async () => {
@@ -493,7 +498,7 @@ export const HomeScreen = ({ navigation }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <TouchableOpacity style={[styles.settingsButton, { top: insets.top + spacing.sm }]} onPress={() => navigation.navigate('Settings')}>
+      <TouchableOpacity style={[styles.settingsButton, { top: insets.top + spacing.sm }]} onPress={() => navigation.navigate('Settings')} accessibilityRole="button" accessibilityLabel="Settings">
         <Text style={styles.settingsIcon}>⚙</Text>
       </TouchableOpacity>
 
@@ -514,7 +519,7 @@ export const HomeScreen = ({ navigation }: Props) => {
 
         <Animated.View style={[styles.signsCardRow, { opacity: fadeAnim }]}>
           {([['SUN', '☉', 'sun', shimmerColor1], ['MOON', '☽', 'moon', shimmerColor2], ['RISING', '↑', 'rising', shimmerColor3]] as const).map(([label, icon, type, color]) => (
-            <TouchableOpacity key={type} onPress={() => coreSigns[type] ? setSelectedReading(type) : Alert.alert('No data')} activeOpacity={0.7} disabled={!coreSigns[type]}>
+            <TouchableOpacity key={type} onPress={() => coreSigns[type] ? setSelectedReading(type) : Alert.alert('No data')} activeOpacity={0.7} disabled={!coreSigns[type]} accessibilityRole="button" accessibilityLabel={`${label} sign: ${coreSigns[type] || 'no data'}`}>
               <Animated.View style={[styles.signCard, { borderColor: coreSigns[type] ? color : colors.border }]}>
                 <Text style={styles.signCardLabel}>{label}</Text>
                 <Text style={styles.signCardIcon}>{icon}</Text>
@@ -530,6 +535,8 @@ export const HomeScreen = ({ navigation }: Props) => {
             <TouchableOpacity
               style={styles.matchCountWrapper}
               onPress={() => navigation.navigate('Gallery' as any)}
+              accessibilityRole="button"
+              accessibilityLabel={`${displayedMatchCount} matches, view gallery`}
             >
               <Text style={styles.statusNumber}>{displayedMatchCount}</Text>
             </TouchableOpacity>

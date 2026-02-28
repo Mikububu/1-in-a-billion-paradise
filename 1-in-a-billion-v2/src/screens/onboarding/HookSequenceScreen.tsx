@@ -38,15 +38,13 @@ import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { HookReading, CityOption } from '@/types/forms';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { env } from '@/config/env';
-import { FEATURES } from '@/config/features';
 
 import { audioApi } from '@/services/api';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
 import { AUDIO_CONFIG, SIGN_LABELS } from '@/config/readingConfig';
 import { saveHookReadings } from '@/services/userReadings';
 import { logAuthIssue } from '@/utils/authDebug';
-import { downloadHookAudioBase64 } from '@/services/hookAudioCloud';
-// Audio stored in memory (base64) - no file system needed
+
 import * as FileSystem from 'expo-file-system/legacy';
 const { documentDirectory, EncodingType } = FileSystem;
 const getDocumentDirectory = () => documentDirectory;
@@ -227,34 +225,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
   }, [sun, moon, rising, isRegenerating, customReadings]);
 
   // Download missing audio from Supabase (for reinstall/new device sync)
-  useEffect(() => {
-    const downloadMissingAudio = async () => {
-      const userId = useAuthStore.getState().user?.id;
-      const userProfile = useProfileStore.getState().getUser();
-      const personId = userProfile?.id;
-
-      if (!userId || !personId) return;
-
-      const types: Array<'sun' | 'moon' | 'rising'> = ['sun', 'moon', 'rising'];
-
-      for (const type of types) {
-        const localAudio = hookAudio[type];
-        if (!localAudio) {
-          console.log(`📥 Checking Supabase for ${type} audio...`);
-          const result = await downloadHookAudioBase64({ userId, personId, type });
-
-          if (result.success) {
-            useOnboardingStore.getState().setHookAudio(type, result.audioBase64);
-            console.log(`✅ Downloaded ${type} audio from Supabase`);
-          } else {
-            console.log(`⚠️ ${type} audio not found in Supabase (will generate on-demand)`);
-          }
-        }
-      }
-    };
-
-    downloadMissingAudio();
-  }, []); // Run once on mount
+  // Disabled downloadMissingAudio for Claude version
 
 
   // Readings array - 3 hook readings + 4th handoff page
@@ -1016,7 +987,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
             longitude: typeof existingThirdPerson.birthData.longitude === 'number' ? existingThirdPerson.birthData.longitude : 0,
             timezone: existingThirdPerson.birthData.timezone || 'UTC',
           };
-          navigation.navigate('Onboarding_PartnerReadings' as any, {
+          (navigation as any).navigate('Onboarding_PartnerReadings', {
             partnerName: existingThirdPerson.name,
             partnerBirthDate: existingThirdPerson.birthData.birthDate,
             partnerBirthTime: existingThirdPerson.birthData.birthTime,
@@ -1196,6 +1167,14 @@ ${rising.main}`;
               onScrollBeginDrag={handleScrollBeginDrag}
               onScrollEndDrag={handleScrollEndDrag}
               onMomentumScrollEnd={handleScroll}
+              initialNumToRender={1}
+              maxToRenderPerBatch={2}
+              removeClippedSubviews={Platform.OS !== 'ios'}
+              getItemLayout={(_, index) => ({
+                length: PAGE_WIDTH - (spacing.page * 2),
+                offset: (PAGE_WIDTH - (spacing.page * 2)) * index,
+                index,
+              })}
               renderItem={({ item }) => {
                 if ((item as any).type === 'gateway') {
                   // Minimal handoff page: user swiped here, so we auto-navigate.
@@ -1227,6 +1206,9 @@ ${rising.main}`;
                         }}
                         disabled={audioLoading[item.type]}
                         activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={audioPlaying[item.type] ? `Stop ${SIGN_LABELS[item.type]} audio` : `Play ${SIGN_LABELS[item.type]} audio`}
+                        accessibilityState={{ disabled: audioLoading[item.type], busy: audioLoading[item.type] }}
                       >
                         {audioLoading[item.type] ? (
                           <ActivityIndicator size="small" color={colors.background} />

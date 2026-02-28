@@ -13,7 +13,7 @@ import { prewarmArtifactSignedUrls } from '@/services/artifactSignedUrlCache';
 type Props = NativeStackScreenProps<MainStackParamList, 'JobDetail'>;
 
 export const JobDetailScreen = ({ navigation, route }: Props) => {
-    const { jobId } = route.params;
+    const { jobId, docNum, personName, system } = route.params;
     const [job, setJob] = useState<any>(null);
     const [artifacts, setArtifacts] = useState<JobArtifact[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -81,22 +81,27 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
         };
     }, [loadJob]);
 
+    const relevantArtifacts = useMemo(() => {
+        if (typeof docNum !== 'number') return artifacts;
+        return artifacts.filter(a => a.doc_num === docNum);
+    }, [artifacts, docNum]);
+
     const hasText = useMemo(
-        () => artifacts.some((a) => a.artifact_type === 'text' && Boolean(a.storage_path)),
-        [artifacts]
+        () => relevantArtifacts.some((a) => a.artifact_type === 'text' && Boolean(a.storage_path)),
+        [relevantArtifacts]
     );
     const hasAudio = useMemo(
         () =>
-            artifacts.some(
+            relevantArtifacts.some(
                 (a) =>
                     (a.artifact_type === 'audio' || a.artifact_type === 'audio_mp3' || a.artifact_type === 'audio_m4a') &&
                     Boolean(a.storage_path)
             ),
-        [artifacts]
+        [relevantArtifacts]
     );
     const hasSong = useMemo(
-        () => artifacts.some((a) => a.artifact_type === 'audio_song' && (Boolean(a.storage_path) || (a.metadata as any)?.error === true)),
-        [artifacts]
+        () => relevantArtifacts.some((a) => a.artifact_type === 'audio_song' && (Boolean(a.storage_path) || (a.metadata as any)?.error === true)),
+        [relevantArtifacts]
     );
 
     useEffect(() => {
@@ -113,11 +118,11 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
             .map((a) => a.storage_path);
 
         if (pathsToPrewarm.length === 0) return;
-        prewarmArtifactSignedUrls(pathsToPrewarm).catch(() => { });
+        prewarmArtifactSignedUrls(pathsToPrewarm).catch((e) => console.warn('Prewarm error:', e));
     }, [artifacts]);
     const hasPdf = useMemo(
-        () => artifacts.some((a) => a.artifact_type === 'pdf' && Boolean(a.storage_path)),
-        [artifacts]
+        () => relevantArtifacts.some((a) => a.artifact_type === 'pdf' && Boolean(a.storage_path)),
+        [relevantArtifacts]
     );
 
     const taskProgress = useMemo(() => {
@@ -164,17 +169,19 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
     }, [job, taskProgress]);
 
     const subjects = useMemo(() => {
+        if (personName) return personName;
         const p1 = job?.input?.person1?.name || job?.input?.person?.name;
         const p2 = job?.input?.person2?.name;
         if (p1 && p2) return `${p1} & ${p2}`;
         return p1 || 'Reading';
-    }, [job]);
+    }, [job, personName]);
 
     const systemsLabel = useMemo(() => {
+        if (system) return system.charAt(0).toUpperCase() + system.slice(1);
         const systems = Array.isArray(job?.input?.systems) ? job.input.systems : [];
         if (systems.length === 0) return 'No systems listed';
         return systems.join(', ');
-    }, [job]);
+    }, [job, system]);
 
     const updatedAt = useMemo(() => {
         const value = job?.updatedAt || job?.updated_at || job?.createdAt || job?.created_at;
@@ -192,10 +199,10 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
         if (!isStrictReady || hasAutoNavigatedRef.current) return;
         hasAutoNavigatedRef.current = true;
         const timer = setTimeout(() => {
-            navigation.replace('ReadingContent', { jobId });
+            navigation.replace('ReadingContent', { jobId, docNum, personName, system });
         }, 500);
         return () => clearTimeout(timer);
-    }, [isStrictReady, jobId, navigation]);
+    }, [isStrictReady, jobId, docNum, personName, system, navigation]);
 
     return (
         <SafeAreaView style={styles.container}>
@@ -223,35 +230,35 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
                     ) : null}
                     <Text style={styles.statusText}>{statusLine}</Text>
                     <Text style={styles.readinessTitle}>Readiness: {readinessSummary}</Text>
-                    <Text style={styles.readinessItem}>
-                        {hasText ? '✓' : '○'} Text
-                    </Text>
-                    <Text style={styles.readinessItem}>
-                        {hasAudio ? '✓' : '○'} Audio
-                    </Text>
-                    <Text style={styles.readinessItem}>
-                        {hasSong ? '✓' : '○'} Song
-                    </Text>
-                    <Text style={styles.readinessItem}>
-                        {hasPdf ? '✓' : '○'} PDF
-                    </Text>
+
+                    <View style={styles.readinessRow}>
+                        <Text style={styles.readinessItemRow}>
+                            {hasText ? '✓' : '○'} Text
+                        </Text>
+                        <Text style={styles.readinessItemRow}>
+                            {hasAudio ? '✓' : '○'} Audio
+                        </Text>
+                        <Text style={styles.readinessItemRow}>
+                            {hasSong ? '✓' : '○'} Song
+                        </Text>
+                        <Text style={styles.readinessItemRow}>
+                            {hasPdf ? '✓' : '○'} PDF
+                        </Text>
+                    </View>
+
                     {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
                 </View>
 
                 {isLoading ? (
                     <View style={styles.loadingWrap}>
                         <ActivityIndicator color={colors.primary} />
-                        <Text style={styles.loadingText}>Refreshing job status...</Text>
+                        <Text style={styles.loadingText}>Loading status...</Text>
                     </View>
                 ) : null}
 
-                <TouchableOpacity style={styles.actionButton} onPress={loadJob}>
-                    <Text style={styles.actionButtonText}>Refresh</Text>
-                </TouchableOpacity>
-
                 <TouchableOpacity
                     style={[styles.actionButton, !isStrictReady && styles.actionButtonDisabled]}
-                    onPress={() => navigation.navigate('ReadingContent', { jobId })}
+                    onPress={() => navigation.navigate('ReadingContent', { jobId, docNum, personName, system })}
                     disabled={!isStrictReady}
                 >
                     <Text style={[styles.actionButtonText, !isStrictReady && styles.actionButtonTextDisabled]}>
@@ -369,12 +376,16 @@ const styles = StyleSheet.create({
         color: colors.text,
         textAlign: 'center',
     },
-    readinessItem: {
-        marginTop: 2,
+    readinessRow: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: spacing.md,
+        marginTop: spacing.sm,
+    },
+    readinessItemRow: {
         fontFamily: typography.sansRegular,
         fontSize: 13,
         color: colors.text,
-        textAlign: 'center',
     },
     errorText: {
         marginTop: spacing.sm,

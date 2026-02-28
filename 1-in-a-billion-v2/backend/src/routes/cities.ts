@@ -147,7 +147,7 @@ function isValidCityType(types: string[]): boolean {
  * 3. Finally tries no type restriction for maximum coverage
  */
 router.get('/search', async (c) => {
-    const query = c.req.query('q');
+    const query = (c.req.query('q') || '').trim().slice(0, 200);
 
     if (!query || query.length < 2) {
         return c.json({ cities: [] });

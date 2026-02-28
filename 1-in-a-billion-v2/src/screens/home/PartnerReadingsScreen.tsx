@@ -143,7 +143,7 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
       partnerBirthTime,
       partnerBirthCity,
       partnerId,
-      onboardingNext: 'PostHookOffer',
+      onboardingNext: 'Pricing',
     });
   }, [
     isNavigatingToSynastry,

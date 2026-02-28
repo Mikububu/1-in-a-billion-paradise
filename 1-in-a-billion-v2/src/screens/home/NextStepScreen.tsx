@@ -17,9 +17,9 @@ export const NextStepScreen = ({ navigation }: Props) => {
     // Be explicit: expo-av can sometimes fail to autoplay with only `shouldPlay`.
     useEffect(() => {
         if (isFocused) {
-            videoRef.current?.playAsync().catch(() => { });
+            videoRef.current?.playAsync().catch((e) => console.warn('Video play error:', e));
         } else {
-            videoRef.current?.pauseAsync().catch(() => { });
+            videoRef.current?.pauseAsync().catch((e) => console.warn('Video pause error:', e));
         }
     }, [isFocused]);
 
@@ -29,7 +29,7 @@ export const NextStepScreen = ({ navigation }: Props) => {
             // Hold on last frame for 1 second, then restart
             setTimeout(() => {
                 videoRef.current?.setPositionAsync(0).then(() => {
-                    videoRef.current?.playAsync().catch(() => { });
+                    videoRef.current?.playAsync().catch((e) => console.warn('Video play error:', e));
                 });
             }, 1000);
         }
@@ -86,7 +86,7 @@ export const NextStepScreen = ({ navigation }: Props) => {
                 progressUpdateIntervalMillis={100}
                 onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
                 onReadyForDisplay={() => {
-                    if (isFocused) videoRef.current?.playAsync().catch(() => { });
+                    if (isFocused) videoRef.current?.playAsync().catch((e) => console.warn('Video play error:', e));
                 }}
             />
         </View>

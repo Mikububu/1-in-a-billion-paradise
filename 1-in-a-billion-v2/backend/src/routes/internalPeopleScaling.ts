@@ -12,6 +12,7 @@
 
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { timingSafeEqual } from 'node:crypto';
 import { env } from '../config/env';
 import { createSupabaseServiceClient } from '../services/supabaseClient';
 import type { AppEnv } from '../types/hono';
@@ -20,7 +21,13 @@ const router = new Hono<AppEnv>();
 
 function requireAdminSecret(c: any) {
   const secret = c.req.header('x-admin-secret');
-  if (!env.ADMIN_PANEL_SECRET || secret !== env.ADMIN_PANEL_SECRET) {
+  if (!env.ADMIN_PANEL_SECRET || !secret) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  // Timing-safe comparison to prevent secret guessing via response time
+  const expected = Buffer.from(env.ADMIN_PANEL_SECRET, 'utf8');
+  const received = Buffer.from(secret, 'utf8');
+  if (expected.length !== received.length || !timingSafeEqual(expected, received)) {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   return null;

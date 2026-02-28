@@ -34,8 +34,8 @@ const router = new Hono<AppEnv>();
  */
 router.get('/gallery', optionalAuth, async (c) => {
   const userId = c.get('userId') || undefined;
-  const limit = parseInt(c.req.query('limit') || '50');
-  const offset = parseInt(c.req.query('offset') || '0');
+  const limit = Math.min(Math.max(1, parseInt(c.req.query('limit') || '50') || 50), 100);
+  const offset = Math.max(0, parseInt(c.req.query('offset') || '0') || 0);
 
   const gallery = await getGallery({
     limit,
@@ -52,7 +52,7 @@ router.get('/gallery', optionalAuth, async (c) => {
  * NOTE: Includes the user's own profile so they can view it
  */
 router.get('/gallery/random', async (c) => {
-  const count = parseInt(c.req.query('count') || '20');
+  const count = Math.min(Math.max(1, parseInt(c.req.query('count') || '20') || 20), 100);
 
   // Don't exclude the user - they should be able to see their own portrait in the gallery
   const gallery = await getRandomGallery(count);
@@ -86,7 +86,7 @@ router.get('/matches', requireAuth, async (c) => {
  * POST /api/chat/matches
  * Create a new match (admin/system use)
  */
-router.post('/matches', async (c) => {
+router.post('/matches', requireAuth, async (c) => {
   try {
     const body = await c.req.json();
     const { user1Id, user2Id, person1Id, person2Id, compatibilityScore, matchReason, systemsMatched } = body;
@@ -109,7 +109,8 @@ router.post('/matches', async (c) => {
 
     return c.json({ success: true, matchId: result.matchId });
   } catch (error: any) {
-    return c.json({ success: false, error: error.message }, 500);
+    console.error('Failed to create match:', error);
+    return c.json({ success: false, error: 'Failed to create match' }, 500);
   }
 });
 
@@ -154,8 +155,8 @@ router.get('/conversations', requireAuth, async (c) => {
 router.get('/conversations/:conversationId/messages', requireAuth, async (c) => {
   const userId = c.get('userId');
   const conversationId = c.req.param('conversationId');
-  const limit = parseInt(c.req.query('limit') || '50');
-  const before = c.req.query('before');
+  const limit = Math.min(Math.max(1, parseInt(c.req.query('limit') || '50') || 50), 200);
+  const before = c.req.query('before') || undefined;
 
   const messages = await getConversationMessages(conversationId, { limit, before });
 
@@ -174,11 +175,15 @@ router.post('/conversations/:conversationId/messages', requireAuth, async (c) =>
     const body = await c.req.json();
     const { content, messageType } = body;
 
-    if (!content) {
+    if (!content || typeof content !== 'string') {
       return c.json({ success: false, error: 'Missing message content' }, 400);
     }
 
-    const message = await sendMessage(conversationId, userId, content, messageType);
+    if (content.length > 5000) {
+      return c.json({ success: false, error: 'Message too long (max 5000 characters)' }, 400);
+    }
+
+    const message = await sendMessage(conversationId, userId, content.trim(), messageType);
 
     if (!message) {
       return c.json({ success: false, error: 'Failed to send message' }, 500);
@@ -186,7 +191,8 @@ router.post('/conversations/:conversationId/messages', requireAuth, async (c) =>
 
     return c.json({ success: true, message });
   } catch (error: any) {
-    return c.json({ success: false, error: error.message }, 500);
+    console.error('Failed to send message:', error);
+    return c.json({ success: false, error: 'Failed to send message' }, 500);
   }
 });
 

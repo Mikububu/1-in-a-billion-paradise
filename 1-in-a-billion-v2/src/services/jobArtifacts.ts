@@ -13,6 +13,7 @@ export type JobArtifact = {
         wordCount?: number;
     };
     created_at: string;
+    doc_num?: number;
 };
 
 export async function fetchJobArtifacts(jobId: string): Promise<JobArtifact[]> {

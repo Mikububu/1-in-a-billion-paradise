@@ -1,5 +1,5 @@
-import { useMemo, useState, useCallback } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert, Image, Modal, Pressable } from 'react-native';
+import { useMemo, useState, useCallback, useEffect } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert, Image, Modal, Pressable, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainStackParamList } from '@/navigation/RootNavigator';
@@ -31,6 +31,16 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
     const personB = useMemo(() => candidates.find((p) => p.id === personBId), [candidates, personBId]);
 
     const canContinue = Boolean(personA);
+
+    const badgeBlinkAnim = useMemo(() => new Animated.Value(0.4), []);
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(badgeBlinkAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                Animated.timing(badgeBlinkAnim, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+            ])
+        ).start();
+    }, [badgeBlinkAnim]);
 
     const handlePick = useCallback((id: string) => {
         if (personAId === id) {
@@ -184,41 +194,84 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                             const isA = personAId === p.id;
                             const isB = personBId === p.id;
                             const hasPortrait = Boolean(p.portraitUrl);
+
+                            // Example astrology logic for background colors based on gender
+                            // If neither, fallback to a neutral color
+                            const isMale = p.gender === 'male';
+                            const isFemale = p.gender === 'female';
+                            const fallbackBg = '#E5E7EB';
+
+                            // Let's make females slightly warmer, males slightly cooler
+                            const avatarBgColor = hasPortrait ? 'transparent' : (isFemale ? '#FDF2F8' : isMale ? '#EFF6FF' : fallbackBg);
+                            const avatarTextColor = isFemale ? '#DB2777' : isMale ? '#2563EB' : '#4B5563';
+
                             return (
                                 <TouchableOpacity
                                     key={p.id}
-                                    style={[styles.personCard, (isA || isB) && styles.personCardSelected]}
+                                    style={[styles.row, (isA || isB) && styles.rowSelected]}
                                     onPress={() => handlePick(p.id)}
                                     onLongPress={() => handleDeletePerson(p)}
                                 >
-                                    <View style={styles.personRow}>
-                                        <TouchableOpacity
-                                            style={styles.avatarWrap}
-                                            onPress={() => handleAvatarPress(p)}
-                                            activeOpacity={0.75}
-                                        >
+                                    <TouchableOpacity
+                                        style={styles.avatarContainer}
+                                        onPress={() => handleAvatarPress(p)}
+                                        activeOpacity={0.8}
+                                    >
+                                        <View style={[styles.avatar, { backgroundColor: avatarBgColor }]}>
                                             {hasPortrait ? (
                                                 <Image source={{ uri: p.portraitUrl }} style={styles.avatarImage} />
                                             ) : (
-                                                <View style={styles.avatarPlaceholder}>
-                                                    <Text style={styles.avatarInitial}>{p.name.charAt(0).toUpperCase()}</Text>
-                                                </View>
+                                                <Text style={[styles.avatarText, { color: avatarTextColor }]}>
+                                                    {p.name.charAt(0).toUpperCase()}
+                                                </Text>
                                             )}
-                                            {!hasPortrait ? <Text style={styles.avatarPlus}>+</Text> : null}
-                                        </TouchableOpacity>
+                                        </View>
+                                        {!hasPortrait && (
+                                            <Animated.View style={[styles.cameraIconHint, { opacity: badgeBlinkAnim }]}>
+                                                <Text style={styles.cameraIcon}>+</Text>
+                                            </Animated.View>
+                                        )}
+                                    </TouchableOpacity>
 
-                                        <View style={styles.personInfo}>
-                                            <Text style={styles.personName}>
-                                                {p.name} {isA ? '• A' : ''}{isB ? '• B' : ''}
-                                            </Text>
-                                            <Text style={styles.personMeta}>
-                                                {p.birthData?.birthDate || 'No birth date'} · {p.birthData?.birthTime || 'No birth time'}
-                                            </Text>
+                                    <View style={styles.personInfo}>
+                                        <Text style={styles.rowName}>{p.name}</Text>
+                                        <Text style={styles.rowMeta} numberOfLines={1}>
+                                            {p.birthData?.birthDate || 'No birth date'} · {p.birthData?.birthTime || 'No birth time'}
+                                        </Text>
+                                        {p.birthData?.birthCity && (
+                                            <Text style={styles.rowMeta} numberOfLines={1}>{p.birthData.birthCity}</Text>
+                                        )}
+                                        <View style={styles.rowSigns}>
+                                            <Text style={styles.rowSignBadge}>☉ {p.placements?.sunSign || '…'}</Text>
+                                            <Text style={styles.rowSignBadge}>☽ {p.placements?.moonSign || '…'}</Text>
+                                            <Text style={styles.rowSignBadge}>↑ {p.placements?.risingSign || '…'}</Text>
                                         </View>
                                     </View>
+
+                                    {isA && (
+                                        <View style={[styles.pickChip, styles.pickChipA]}>
+                                            <Text style={styles.pickChipText}>A</Text>
+                                        </View>
+                                    )}
+                                    {isB && (
+                                        <View style={[styles.pickChip, styles.pickChipB]}>
+                                            <Text style={styles.pickChipText}>B</Text>
+                                        </View>
+                                    )}
                                 </TouchableOpacity>
                             );
                         })}
+
+                        <TouchableOpacity
+                            style={styles.addPersonRow}
+                            onPress={() => navigation.navigate('PartnerInfo', { mode: 'add_person_only', returnTo: 'ComparePeople' })}
+                            activeOpacity={0.85}
+                        >
+                            <View style={[styles.avatar, styles.addPersonAvatar]}>
+                                <Text style={styles.addPersonIcon}>+</Text>
+                            </View>
+                            <Text style={styles.addPersonText}>Add another person</Text>
+                        </TouchableOpacity>
                     </ScrollView>
                 )}
 
@@ -270,12 +323,20 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: spacing.xs,
     },
+    boldSubheadline: {
+        fontFamily: typography.sansBold,
+        fontSize: 14,
+        color: colors.primary,
+        textAlign: 'center',
+        marginTop: spacing.lg,
+        marginBottom: spacing.xs,
+        lineHeight: 20,
+    },
     helper: {
         fontFamily: typography.sansRegular,
         fontSize: 12,
         color: colors.mutedText,
         textAlign: 'center',
-        marginTop: spacing.xs,
         marginBottom: spacing.md,
     },
     emptyState: {
@@ -298,75 +359,134 @@ const styles = StyleSheet.create({
     list: {
         flex: 1,
     },
-    personCard: {
+    row: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
         backgroundColor: colors.surface,
-        borderRadius: radii.card,
         borderWidth: 1,
         borderColor: colors.border,
-        padding: spacing.md,
+        borderRadius: radii.card,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.md,
         marginBottom: spacing.sm,
     },
-    personCardSelected: {
+    rowSelected: {
         borderColor: colors.primary,
-        backgroundColor: colors.primarySoft,
+        backgroundColor: colors.surface,
     },
-    personName: {
-        fontFamily: typography.sansSemiBold,
-        fontSize: 16,
-        color: colors.text,
-    },
-    personMeta: {
-        fontFamily: typography.sansRegular,
-        fontSize: 13,
-        color: colors.mutedText,
+    avatarContainer: {
+        position: 'relative',
+        marginRight: spacing.md,
         marginTop: 2,
     },
-    personRow: {
-        flexDirection: 'row',
+    avatar: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
         alignItems: 'center',
-    },
-    avatarWrap: {
-        width: 56,
-        height: 56,
-        borderRadius: 12,
-        marginRight: spacing.sm,
-        position: 'relative',
+        justifyContent: 'center',
         overflow: 'hidden',
     },
     avatarImage: {
         width: '100%',
         height: '100%',
-        borderRadius: 12,
     },
-    avatarPlaceholder: {
-        width: '100%',
-        height: '100%',
-        borderRadius: 12,
+    avatarText: {
+        fontFamily: typography.headline,
+        fontSize: 22,
+    },
+    cameraIconHint: {
+        position: 'absolute',
+        bottom: -2,
+        right: -2,
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        backgroundColor: '#000000',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+        borderColor: colors.surface,
+    },
+    cameraIcon: {
+        fontSize: 18,
+        fontWeight: '300',
+        color: '#FFFFFF',
+        marginTop: -2,
+    },
+    rowName: {
+        fontFamily: typography.sansSemiBold,
+        fontSize: 16,
+        color: colors.text,
+    },
+    rowMeta: {
+        fontFamily: typography.sansRegular,
+        fontSize: 13,
+        color: colors.mutedText,
+        marginTop: 2,
+    },
+    rowSigns: {
+        flexDirection: 'row',
+        marginTop: spacing.xs,
+        gap: spacing.xs,
+    },
+    rowSignBadge: {
+        fontFamily: typography.sansRegular,
+        fontSize: 11,
+        color: colors.mutedText,
+        backgroundColor: colors.background,
+        paddingHorizontal: 6,
+        paddingVertical: 1,
+        borderRadius: 8,
+    },
+    pickChip: {
+        minWidth: 34,
+        height: 28,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginLeft: spacing.md,
+        paddingHorizontal: spacing.sm,
+        marginTop: 2,
+    },
+    pickChipA: { backgroundColor: colors.primary },
+    pickChipB: { backgroundColor: colors.text },
+    pickChipText: {
+        fontFamily: typography.sansBold,
+        fontSize: 13,
+        color: '#FFFFFF'
+    },
+    addPersonRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.surface,
         borderWidth: 1,
-        borderStyle: 'dashed',
         borderColor: colors.primary,
+        borderRadius: radii.card,
+        padding: spacing.md,
+        marginTop: spacing.sm,
+        borderStyle: 'dashed',
+    },
+    addPersonAvatar: {
         backgroundColor: colors.primarySoft,
+        width: 50,
+        height: 50,
+        borderRadius: 25,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    avatarInitial: {
+    addPersonIcon: {
         fontFamily: typography.sansBold,
-        fontSize: 20,
+        fontSize: 28,
         color: colors.primary,
+        lineHeight: 28,
+        marginTop: -2,
     },
-    avatarPlus: {
-        position: 'absolute',
-        right: 4,
-        bottom: 2,
-        fontFamily: typography.sansBold,
-        fontSize: 14,
+    addPersonText: {
+        fontFamily: typography.sansMedium,
+        fontSize: 16,
         color: colors.primary,
-        backgroundColor: colors.surface,
-        borderRadius: 999,
-        width: 16,
-        height: 16,
-        textAlign: 'center',
-        lineHeight: 15,
+        marginLeft: spacing.md,
     },
     personInfo: {
         flex: 1,

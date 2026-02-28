@@ -48,15 +48,21 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
     const getUser = useProfileStore((s) => s.getUser);
     const getPerson = useProfileStore((s) => s.getPerson);
     const user = useAuthStore((s) => s.user);
+    const unlimitedReadings = useAuthStore((s) => s.unlimitedReadings);
 
     // Check eligibility on mount
     useEffect(() => {
         let cancelled = false;
+        // Billionaire tier always eligible — skip the network call
+        if (unlimitedReadings) {
+            setFreeReadingEligible(true);
+            return;
+        }
         checkIncludedReadingEligible().then((eligible) => {
             if (!cancelled) setFreeReadingEligible(eligible);
         });
         return () => { cancelled = true; };
-    }, []);
+    }, [unlimitedReadings]);
 
     // Pulsing animation for FREE badge
     useEffect(() => {
@@ -121,6 +127,12 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
     };
 
     const showFreeReadingConfirmation = (system: SystemInfo) => {
+        if (unlimitedReadings) {
+            // Billionaire — no confirmation needed, go straight to reading
+            navigateToExplainer(system.id, true);
+            return;
+        }
+
         Alert.alert(
             'Claim your free reading',
             `Your subscription includes one free personal reading. Claim "${system.name}" now?`,
@@ -156,7 +168,7 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
     const handleComplete = () => {
         navigation.navigate('SystemExplainer', {
             system: 'all',
-            forPurchase: true,
+            forPurchase: !unlimitedReadings, // Billionaire skips purchase flow
             readingType: actualReadingType,
             forPartner,
             partnerName,
@@ -165,6 +177,7 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
             partnerBirthCity,
             personId,
             targetPersonName,
+            useIncludedReading: unlimitedReadings, // Billionaire uses included reading flag
         });
     };
 

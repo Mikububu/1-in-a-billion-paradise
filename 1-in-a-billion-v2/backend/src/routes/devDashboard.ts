@@ -14,6 +14,7 @@ import { createSupabaseServiceClient } from '../services/supabaseClient';
 import { getSignedArtifactUrl } from '../services/supabaseClient';
 import axios from 'axios';
 import { apiKeys } from '../services/apiKeysHelper';
+import { requireAuth } from '../middleware/requireAuth';
 import type { AppEnv } from '../types/hono';
 
 const router = new Hono<AppEnv>();
@@ -24,6 +25,9 @@ function getBearerTokenFromReq(c: any): string | null {
   const m = auth.match(/^Bearer\s+(.+)$/i);
   return m ? m[1] : null;
 }
+
+// All dev dashboard routes require authentication
+router.use('/*', requireAuth);
 
 // List all jobs (both legacy queue and Supabase queue)
 router.get('/dashboard', async (c) => {

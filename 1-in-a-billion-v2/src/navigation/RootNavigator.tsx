@@ -15,7 +15,7 @@ import { useSupabaseAuthBootstrap } from '@/hooks/useSupabaseAuthBootstrap';
 import { useSupabaseLibraryAutoSync } from '@/hooks/useSupabaseLibraryAutoSync';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeArtifactSync';
 import { useSecureOnboardingSync } from '@/hooks/useSecureOnboardingSync';
-import { verifyEntitlementWithBackend } from '@/services/payments';
+import { verifyEntitlementWithBackend, fetchSubscriptionTier } from '@/services/payments';
 import { env } from '@/config/env';
 import { TexturedBackground } from '@/components/TexturedBackground';
 import { AudioProvider } from '@/contexts/AudioContext';
@@ -29,7 +29,7 @@ import { AccountScreen } from '@/screens/onboarding/AccountScreen';
 import { CoreIdentitiesIntroScreen } from '@/screens/onboarding/CoreIdentitiesIntroScreen';
 import { CoreIdentitiesScreen } from '@/screens/onboarding/CoreIdentitiesScreen';
 import { HookSequenceScreen } from '@/screens/onboarding/HookSequenceScreen';
-import { PostHookOfferScreen } from '@/screens/onboarding/PostHookOfferScreen';
+import { PricingScreen } from '@/screens/onboarding/PricingScreen';
 import { AddThirdPersonPromptScreen } from '@/screens/onboarding/AddThirdPersonPromptScreen';
 
 
@@ -78,7 +78,7 @@ export type OnboardingStackParamList = {
     Relationship: undefined;
     BirthInfo: undefined;
     Languages: undefined;
-    Account: { fromPayment?: boolean; captureOnly?: boolean; revenueCatAppUserId?: string } | undefined;
+    Account: { fromPayment?: boolean; captureOnly?: boolean; revenueCatAppUserId?: string; couponRedemptionId?: string; couponCustomerId?: string } | undefined;
     CoreIdentitiesIntro: undefined;
     CoreIdentities: undefined;
     HookSequence: {
@@ -86,7 +86,7 @@ export type OnboardingStackParamList = {
         customReadings?: any[];
         personName?: string;
     } | undefined;
-    PostHookOffer: undefined;
+    Pricing: undefined;
     AddThirdPersonPrompt: undefined;
     Onboarding_PartnerInfo: { mode?: string; returnTo?: string } | undefined;
     Onboarding_PartnerCoreIdentities: any;
@@ -339,9 +339,15 @@ export type MainStackParamList = {
     };
     JobDetail: {
         jobId: string;
+        docNum?: number;
+        personName?: string;
+        system?: string;
     };
     ReadingContent: {
         jobId: string;
+        docNum?: number;
+        personName?: string;
+        system?: string;
     };
     PartnerInfo: { mode?: 'add_person_only' | 'onboarding_hook'; returnTo?: 'ComparePeople' } | undefined;
     PartnerCoreIdentities: any;
@@ -382,7 +388,7 @@ const OnboardingNavigator = ({ initialRouteName = "Intro" }: { initialRouteName?
             <OnboardingStack.Screen name="Onboarding_PartnerCoreIdentities" component={PartnerCoreIdentitiesScreen as any} />
             <OnboardingStack.Screen name="Onboarding_PartnerReadings" component={PartnerReadingsScreen as any} />
             <OnboardingStack.Screen name="Onboarding_SynastryPreview" component={SynastryPreviewScreen as any} />
-            <OnboardingStack.Screen name="PostHookOffer" component={PostHookOfferScreen} />
+            <OnboardingStack.Screen name="Pricing" component={PricingScreen} />
         </OnboardingStack.Navigator>
     );
 };
@@ -466,6 +472,8 @@ export const RootNavigator = () => {
     const isLoading = useAuthStore((state) => state.isLoading);
     const isAuthReady = useAuthStore((state) => state.isAuthReady);
     const setEntitlementState = useAuthStore((state) => state.setEntitlementState);
+    const setSubscriptionTier = useAuthStore((state) => state.setSubscriptionTier);
+    const setUnlimitedReadings = useAuthStore((state) => state.setUnlimitedReadings);
 
     // 1. Hydrate authStore from persisted Supabase session
     useSupabaseAuthBootstrap();
@@ -547,6 +555,24 @@ export const RootNavigator = () => {
             if (verification.success && verification.active) {
                 setEntitlementStatus('active');
                 setEntitlementState('active');
+
+                // Fetch subscription tier (billionaire gets unlimited readings)
+                try {
+                    const { supabase } = await import('@/services/supabase');
+                    const { data: { session: currentSession } } = await supabase.auth.getSession();
+                    const token = currentSession?.access_token;
+                    if (token && !cancelled) {
+                        const tierResult = await fetchSubscriptionTier(token);
+                        if (!cancelled && tierResult.success) {
+                            setSubscriptionTier(tierResult.tier);
+                            setUnlimitedReadings(tierResult.unlimitedReadings);
+                            console.log(`💎 Subscription tier: ${tierResult.tier}, unlimited: ${tierResult.unlimitedReadings}`);
+                        }
+                    }
+                } catch (tierErr) {
+                    console.warn('⚠️ Failed to fetch subscription tier', tierErr);
+                }
+
                 return;
             }
 
@@ -555,6 +581,8 @@ export const RootNavigator = () => {
             if (verification.success && !verification.active) {
                 setEntitlementStatus('inactive');
                 setEntitlementState('inactive');
+                setSubscriptionTier(null);
+                setUnlimitedReadings(false);
                 return;
             }
 
@@ -576,6 +604,8 @@ export const RootNavigator = () => {
         hasSession,
         isAuthReady,
         setEntitlementState,
+        setSubscriptionTier,
+        setUnlimitedReadings,
         user,
     ]);
 

@@ -136,7 +136,7 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
 
           <Button
             label="NO, CONTINUE"
-            onPress={() => navigation.navigate('PostHookOffer')}
+            onPress={() => navigation.navigate('Pricing')}
             variant="secondary"
             style={styles.button}
           />

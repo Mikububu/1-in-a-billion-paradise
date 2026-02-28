@@ -11,14 +11,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, Session } from '@supabase/supabase-js';
 
 export type EntitlementState = 'unknown' | 'active' | 'inactive';
+export type SubscriptionTier = 'basic' | 'yearly' | 'billionaire' | null;
 
 type AuthState = {
     user: User | null;
     session: Session | null;
     isLoading: boolean;
-    isAuthReady: boolean; // NEW: true when session hydration complete
+    isAuthReady: boolean;
     displayName: string | null;
     entitlementState: EntitlementState;
+    subscriptionTier: SubscriptionTier;
+    unlimitedReadings: boolean;
     // Context to distinguish Direct Login vs Onboarding Sign Up
     flowType: 'direct_login' | 'onboarding' | null;
     // Compatibility preview entitlement (client-side guard; not bulletproof vs reinstall)
@@ -29,9 +32,11 @@ type AuthState = {
     setSession: (session: Session | null) => void;
     setDisplayName: (name: string) => void;
     setEntitlementState: (state: EntitlementState) => void;
+    setSubscriptionTier: (tier: SubscriptionTier) => void;
+    setUnlimitedReadings: (unlimited: boolean) => void;
     setFlowType: (type: 'direct_login' | 'onboarding' | null) => void;
     setIsLoading: (loading: boolean) => void;
-    setIsAuthReady: (ready: boolean) => void; // NEW
+    setIsAuthReady: (ready: boolean) => void;
     signOut: () => Promise<void>;
     hasUsedFreeOverlay: (userId?: string | null) => boolean;
     markFreeOverlayUsed: (userId?: string | null) => void;
@@ -46,6 +51,8 @@ export const useAuthStore = create<AuthState>()(
             isAuthReady: false, // NEW: starts false, set to true after bootstrap
             displayName: null,
             entitlementState: 'unknown',
+            subscriptionTier: null,
+            unlimitedReadings: false,
             flowType: null,
             freeOverlayUsedByUserId: {},
 
@@ -53,6 +60,8 @@ export const useAuthStore = create<AuthState>()(
             setSession: (session) => set({ session }),
             setDisplayName: (displayName) => set({ displayName }),
             setEntitlementState: (entitlementState) => set({ entitlementState }),
+            setSubscriptionTier: (subscriptionTier) => set({ subscriptionTier }),
+            setUnlimitedReadings: (unlimitedReadings) => set({ unlimitedReadings }),
             setFlowType: (flowType) => set({ flowType }),
             setIsLoading: (isLoading) => set({ isLoading }),
             setIsAuthReady: (isAuthReady) => set({ isAuthReady }), // NEW
@@ -88,6 +97,8 @@ export const useAuthStore = create<AuthState>()(
                     session: null,
                     displayName: null,
                     entitlementState: 'unknown',
+                    subscriptionTier: null,
+                    unlimitedReadings: false,
                     flowType: null,
                     isAuthReady: true,
                 });
@@ -133,6 +144,8 @@ export const useAuthStore = create<AuthState>()(
             partialize: (state) => ({
                 displayName: state.displayName,
                 entitlementState: state.entitlementState,
+                subscriptionTier: state.subscriptionTier,
+                unlimitedReadings: state.unlimitedReadings,
                 freeOverlayUsedByUserId: state.freeOverlayUsedByUserId,
                 // user: state.user, // Do not persist user manually. Rely on Bootstrap + Supabase Session.
             }),

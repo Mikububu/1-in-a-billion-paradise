@@ -101,7 +101,8 @@ router.delete('/:clientPersonId', async (c) => {
       .eq('user_id', userId);
 
     if (jobsFetchError) {
-      return c.json({ success: false, error: `Failed to load jobs: ${jobsFetchError.message}` }, 500);
+      console.error('Failed to load jobs:', jobsFetchError);
+      return c.json({ success: false, error: 'Failed to load related data' }, 500);
     }
 
     const personName = personRow?.name;
@@ -165,7 +166,8 @@ router.delete('/:clientPersonId', async (c) => {
     if (jobIds.length > 0) {
       const { error: delJobsError } = await serviceClient.from('jobs').delete().in('id', jobIds);
       if (delJobsError) {
-        return c.json({ success: false, error: `Failed to delete jobs: ${delJobsError.message}` }, 500);
+        console.error('Failed to delete jobs:', delJobsError);
+        return c.json({ success: false, error: 'Failed to delete related data' }, 500);
       }
       deletedJobsCount = jobIds.length;
     }
@@ -178,7 +180,8 @@ router.delete('/:clientPersonId', async (c) => {
       .eq('client_person_id', clientPersonId);
 
     if (delPersonError) {
-      return c.json({ success: false, error: `Failed to delete person: ${delPersonError.message}` }, 500);
+      console.error('Failed to delete person:', delPersonError);
+      return c.json({ success: false, error: 'Failed to delete person' }, 500);
     }
 
     return c.json({
@@ -189,7 +192,8 @@ router.delete('/:clientPersonId', async (c) => {
       deletedPersonName: personName || null,
     });
   } catch (err: any) {
-    return c.json({ success: false, error: err?.message || 'Unknown error' }, 500);
+    console.error('Delete person error:', err);
+    return c.json({ success: false, error: 'An unexpected error occurred' }, 500);
   }
 });
 

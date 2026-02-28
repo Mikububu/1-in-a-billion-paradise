@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -87,10 +88,25 @@ export const ChatScreen = ({ navigation, route }: Props) => {
     }
   }, [conversationId, userId]);
 
+  // Poll for new messages, but pause when app is in the background to save battery
   useEffect(() => {
     fetchMessages();
-    const interval = setInterval(fetchMessages, 5000);
-    return () => clearInterval(interval);
+    let interval = setInterval(fetchMessages, 5000);
+
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        fetchMessages();
+        clearInterval(interval);
+        interval = setInterval(fetchMessages, 5000);
+      } else {
+        clearInterval(interval);
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      sub.remove();
+    };
   }, [fetchMessages]);
 
   const handleSend = useCallback(async () => {
@@ -239,6 +255,9 @@ export const ChatScreen = ({ navigation, route }: Props) => {
             ]}
             onPress={handleSend}
             disabled={!newMessage.trim() || sending || chatBlocked}
+            accessibilityRole="button"
+            accessibilityLabel="Send message"
+            accessibilityState={{ disabled: !newMessage.trim() || sending || chatBlocked }}
           >
             <Text style={styles.sendText}>{sending ? '...' : '>'}</Text>
           </TouchableOpacity>

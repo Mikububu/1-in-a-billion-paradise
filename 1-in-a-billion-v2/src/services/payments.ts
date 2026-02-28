@@ -187,6 +187,140 @@ export async function verifyEntitlementWithBackend(params: {
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+// SUBSCRIPTION TIER API
+// ─────────────────────────────────────────────────────────────
+
+export type SubscriptionTier = 'basic' | 'yearly' | 'billionaire';
+
+export type SubscriptionTierResponse = {
+  success: boolean;
+  tier: SubscriptionTier | null;
+  unlimitedReadings: boolean;
+  includedReadingEligible: boolean;
+  error?: string;
+};
+
+/**
+ * Fetch the authenticated user's subscription tier from the backend.
+ * Requires a valid Supabase access token.
+ */
+export async function fetchSubscriptionTier(accessToken: string): Promise<SubscriptionTierResponse> {
+  if (!accessToken) {
+    return { success: false, tier: null, unlimitedReadings: false, includedReadingEligible: false, error: 'No token' };
+  }
+
+  try {
+    const response = await fetch(`${env.CORE_API_URL}/api/payments/subscription-tier`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const json = await response.json().catch(() => ({}));
+
+    return {
+      success: Boolean(json?.success),
+      tier: json?.tier ?? null,
+      unlimitedReadings: Boolean(json?.unlimitedReadings),
+      includedReadingEligible: Boolean(json?.includedReadingEligible),
+      error: json?.error,
+    };
+  } catch (e: any) {
+    return { success: false, tier: null, unlimitedReadings: false, includedReadingEligible: false, error: e?.message || 'Request failed' };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// COUPON CODE API
+// ─────────────────────────────────────────────────────────────
+
+export type CouponValidateResponse = {
+  success: boolean;
+  valid: boolean;
+  discount_percent?: number;
+  message?: string;
+  error?: string;
+};
+
+export type CouponRedeemResponse = {
+  success: boolean;
+  redemption_id?: string;
+  discount_percent?: number;
+  subscription_active?: boolean;
+  coupon_customer_id?: string;
+  error?: string;
+};
+
+export async function validateCouponCode(code: string): Promise<CouponValidateResponse> {
+  const trimmed = code.trim();
+  if (!trimmed) return { success: false, valid: false, error: 'No code provided' };
+
+  try {
+    const response = await fetch(
+      `${env.CORE_API_URL}/api/coupons/validate?code=${encodeURIComponent(trimmed)}`
+    );
+    const json = await response.json().catch(() => ({}));
+    return {
+      success: Boolean(json?.success),
+      valid: Boolean(json?.valid),
+      discount_percent: json?.discount_percent,
+      message: json?.message,
+      error: json?.error,
+    };
+  } catch (e: any) {
+    return { success: false, valid: false, error: e?.message || 'Validation failed' };
+  }
+}
+
+export async function redeemCouponCode(code: string, deviceId?: string): Promise<CouponRedeemResponse> {
+  const trimmed = code.trim();
+  if (!trimmed) return { success: false, error: 'No code provided' };
+
+  try {
+    const response = await fetch(`${env.CORE_API_URL}/api/coupons/redeem`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: trimmed, deviceId }),
+    });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, error: json?.error || `Redeem failed (${response.status})` };
+    }
+    return {
+      success: Boolean(json?.success),
+      redemption_id: json?.redemption_id,
+      discount_percent: json?.discount_percent,
+      subscription_active: Boolean(json?.subscription_active),
+      coupon_customer_id: json?.coupon_customer_id,
+      error: json?.error,
+    };
+  } catch (e: any) {
+    return { success: false, error: e?.message || 'Redeem request failed' };
+  }
+}
+
+export async function linkCouponUser(params: {
+  accessToken: string;
+  redemptionId: string;
+  couponCustomerId: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(`${env.CORE_API_URL}/api/coupons/link-user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${params.accessToken}`,
+      },
+      body: JSON.stringify({
+        redemptionId: params.redemptionId,
+        couponCustomerId: params.couponCustomerId,
+      }),
+    });
+    const json = await response.json().catch(() => ({}));
+    return { success: Boolean(json?.success), error: json?.error };
+  } catch (e: any) {
+    return { success: false, error: e?.message || 'Link failed' };
+  }
+}
+
 export async function linkRevenueCatAppUser(params: {
   accessToken: string;
   previousAppUserId: string;

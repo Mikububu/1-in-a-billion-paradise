@@ -25,6 +25,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useProfileStore } from '@/store/profileStore';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
 import {
+  linkCouponUser,
   linkRevenueCatAppUser,
   logInRevenueCat,
   verifyEntitlementWithBackend,
@@ -92,6 +93,9 @@ export const AccountScreen = ({ navigation, route }: Props) => {
   const fromPayment = Boolean(route.params?.fromPayment);
   const captureOnly = Boolean(route.params?.captureOnly);
   const revenueCatAppUserId = route.params?.revenueCatAppUserId?.trim() || '';
+  const couponRedemptionId = route.params?.couponRedemptionId || '';
+  const couponCustomerId = route.params?.couponCustomerId || '';
+  const isCouponSignup = Boolean(couponCustomerId);
   const paymentBypassEnabled = env.ALLOW_PAYMENT_BYPASS;
   const authUser = useAuthStore((s) => s.user);
 
@@ -135,6 +139,9 @@ export const AccountScreen = ({ navigation, route }: Props) => {
   }, [fromPayment, hasPassedLanguages, navigation]);
 
   const assertEntitlementStillActive = useCallback(async () => {
+    // Coupon signups already have an active subscription — skip RevenueCat check
+    if (isCouponSignup) return true;
+
     if (!revenueCatAppUserId) {
       if (paymentBypassEnabled) return true;
       Alert.alert('Payment verification failed', 'Missing purchase identity. Please return and purchase again.');
@@ -281,7 +288,21 @@ export const AccountScreen = ({ navigation, route }: Props) => {
           }
         }
 
-        if (revenueCatAppUserId) {
+        if (isCouponSignup) {
+          // Coupon-based signup: link the coupon subscription to this user
+          const { data: sessionData } = await supabase.auth.getSession();
+          const accessToken = sessionData.session?.access_token;
+          if (accessToken) {
+            const linkRes = await linkCouponUser({
+              accessToken,
+              redemptionId: couponRedemptionId,
+              couponCustomerId,
+            });
+            if (!linkRes.success) {
+              console.warn('Coupon link warning:', linkRes.error);
+            }
+          }
+        } else if (revenueCatAppUserId) {
           const linked = await logInRevenueCat(userId);
           if (!linked && !paymentBypassEnabled) {
             throw new Error('Could not link RevenueCat purchase to your account.');
@@ -352,6 +373,9 @@ export const AccountScreen = ({ navigation, route }: Props) => {
     },
     [
       completeOnboarding,
+      couponCustomerId,
+      couponRedemptionId,
+      isCouponSignup,
       name,
       paymentBypassEnabled,
       revenueCatAppUserId,

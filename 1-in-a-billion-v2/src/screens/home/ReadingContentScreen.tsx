@@ -10,7 +10,6 @@ import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { downloadTextContent, fetchJobArtifacts, type JobArtifact } from '@/services/jobArtifacts';
 import { getCachedArtifactSignedUrl, prewarmArtifactSignedUrls } from '@/services/artifactSignedUrlCache';
-import { splitIntoBlocks } from '@/utils/readingTextFormat';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ReadingContent'>;
 
@@ -42,7 +41,7 @@ const formatClock = (seconds: number) => {
 };
 
 export const ReadingContentScreen = ({ navigation, route }: Props) => {
-    const { jobId } = route.params;
+    const { jobId, docNum, personName, system } = route.params;
 
     const [job, setJob] = useState<any>(null);
     const [artifacts, setArtifacts] = useState<JobArtifact[]>([]);
@@ -69,7 +68,6 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
         song: null,
     });
     const [errorText, setErrorText] = useState<string | null>(null);
-    const [activeChapterIndex, setActiveChapterIndex] = useState(0);
     const [activeAudioKind, setActiveAudioKind] = useState<AudioKind | null>(null);
     const [downloadingTarget, setDownloadingTarget] = useState<'pdf' | AudioKind | null>(null);
 
@@ -84,19 +82,31 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
     });
     const prepareAudioPromiseRef = useRef<Partial<Record<AudioKind, Promise<boolean> | null>>>({});
     const progressTrackWidthRef = useRef(1);
-    const readingScrollRef = useRef<ScrollView | null>(null);
-    const chapterOffsetsRef = useRef<Record<number, number>>({});
-    const textArtifact = useMemo(() => getFirstTextArtifact(artifacts), [artifacts]);
-    const narrationArtifact = useMemo(() => getFirstNarrationArtifact(artifacts), [artifacts]);
-    const songArtifact = useMemo(() => getFirstSongArtifact(artifacts), [artifacts]);
-    const pdfArtifact = useMemo(() => getFirstPdfArtifact(artifacts), [artifacts]);
+
+    const relevantArtifacts = useMemo(() => {
+        if (typeof docNum !== 'number') return artifacts;
+        return artifacts.filter(a => a.doc_num === docNum);
+    }, [artifacts, docNum]);
+
+    const textArtifact = useMemo(() => getFirstTextArtifact(relevantArtifacts), [relevantArtifacts]);
+    const narrationArtifact = useMemo(() => getFirstNarrationArtifact(relevantArtifacts), [relevantArtifacts]);
+    const songArtifact = useMemo(() => getFirstSongArtifact(relevantArtifacts), [relevantArtifacts]);
+    const pdfArtifact = useMemo(() => getFirstPdfArtifact(relevantArtifacts), [relevantArtifacts]);
 
     const title = useMemo(() => {
+        if (personName) return personName;
         const p1 = job?.input?.person1?.name || job?.input?.person?.name;
         const p2 = job?.input?.person2?.name;
         if (p1 && p2) return `${p1} & ${p2}`;
         return p1 || 'Reading';
-    }, [job]);
+    }, [job, personName]);
+
+    const readingTypeSubheadline = useMemo(() => {
+        if (system) {
+            return `System: ${system.charAt(0).toUpperCase() + system.slice(1)}`;
+        }
+        return `Job: ${jobId}`;
+    }, [system, jobId]);
 
     const statusLine = useMemo(() => {
         const status = String(job?.status || 'unknown').toUpperCase();
@@ -112,25 +122,6 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
 
         return [status, `${pct}%`, message].filter(Boolean).join(' · ');
     }, [job]);
-
-    const blocks = useMemo(() => splitIntoBlocks(textBody || ''), [textBody]);
-
-    const chapters = useMemo<Chapter[]>(() => {
-        const list = blocks
-            .map((block, blockIndex) => (block.kind === 'heading' ? { block, blockIndex } : null))
-            .filter(Boolean)
-            .map((entry: any, idx: number) => ({
-                index: idx,
-                blockIndex: entry.blockIndex,
-                title: entry.block.text,
-            }));
-
-        if (list.length > 0) return list;
-        if (blocks.length > 0) {
-            return [{ index: 0, blockIndex: 0, title: 'FULL READING' }];
-        }
-        return [];
-    }, [blocks]);
 
     const load = useCallback(async () => {
         try {
@@ -174,7 +165,7 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                             Boolean(artifact.storage_path)
                     )
                     .map((artifact) => artifact.storage_path)
-            ).catch(() => { });
+            ).catch((e) => console.warn('Prewarm error:', e));
         } catch (error: any) {
             setErrorText(error?.message || 'Unknown error');
         } finally {
@@ -192,16 +183,11 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                 prepareAudioPromiseRef.current[kind] = null;
                 preparingAudioPathRef.current[kind] = null;
                 loadedAudioPathRef.current[kind] = null;
-                soundsRef.current[kind]?.unloadAsync().catch(() => { });
+                soundsRef.current[kind]?.unloadAsync().catch((e) => console.warn('Audio unload error:', e));
                 delete soundsRef.current[kind];
             }
         };
     }, []);
-
-    useEffect(() => {
-        chapterOffsetsRef.current = {};
-        setActiveChapterIndex(0);
-    }, [textBody]);
 
     useEffect(() => {
         if (!textArtifact?.storage_path || textBody.trim().length > 0) return;
@@ -211,7 +197,7 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                 if (cancelled) return;
                 if (body) setTextBody(body);
             })
-            .catch(() => { });
+            .catch((e) => console.warn('Text download error:', e));
         return () => {
             cancelled = true;
         };
@@ -291,7 +277,7 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                 setAudioSignedUrlByKind((prev) => ({ ...prev, [kind]: signedUrl }));
 
                 if (soundsRef.current[kind]) {
-                    await (soundsRef.current[kind] as Audio.Sound).unloadAsync().catch(() => { });
+                    await (soundsRef.current[kind] as Audio.Sound).unloadAsync().catch((e) => console.warn('Audio unload error:', e));
                     delete soundsRef.current[kind];
                 }
 
@@ -338,13 +324,13 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
         if (narrationArtifact?.storage_path) {
             const alreadyLoaded = loadedAudioPathRef.current.narration === narrationArtifact.storage_path;
             if (!alreadyLoaded) {
-                prepareAudio(narrationArtifact, false, 'narration').catch(() => { });
+                prepareAudio(narrationArtifact, false, 'narration').catch((e) => console.warn('Narration prep error:', e));
             }
         }
         if (songArtifact?.storage_path) {
             const alreadyLoaded = loadedAudioPathRef.current.song === songArtifact.storage_path;
             if (!alreadyLoaded) {
-                prepareAudio(songArtifact, false, 'song').catch(() => { });
+                prepareAudio(songArtifact, false, 'song').catch((e) => console.warn('Song prep error:', e));
             }
         }
     }, [narrationArtifact, songArtifact, prepareAudio]);
@@ -417,37 +403,7 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
         } finally {
             setDownloadingTarget(null);
         }
-    }, [narrationArtifact, songArtifact, pdfArtifact]);
-
-    const jumpToChapter = useCallback((chapterIndex: number) => {
-        const chapter = chapters[chapterIndex];
-        if (!chapter) return;
-
-        const y = chapterOffsetsRef.current[chapter.blockIndex] ?? 0;
-        readingScrollRef.current?.scrollTo({
-            y: Math.max(0, y - 16),
-            animated: true,
-        });
-        setActiveChapterIndex(chapterIndex);
-    }, [chapters]);
-
-    const handleReadingScroll = useCallback((event: any) => {
-        if (chapters.length === 0) return;
-
-        const y = Number(event?.nativeEvent?.contentOffset?.y || 0) + 24;
-        let nextActive = activeChapterIndex;
-
-        for (const chapter of chapters) {
-            const offset = chapterOffsetsRef.current[chapter.blockIndex];
-            if (typeof offset === 'number' && y >= offset) {
-                nextActive = chapter.index;
-            }
-        }
-
-        if (nextActive !== activeChapterIndex) {
-            setActiveChapterIndex(nextActive);
-        }
-    }, [activeChapterIndex, chapters]);
+    }, [pdfArtifact, narrationArtifact, songArtifact, getCachedArtifactSignedUrl]);
 
     const activePositionSec = activeAudioKind ? audioPositionSecByKind[activeAudioKind] : 0;
     const activeDurationSec = activeAudioKind ? audioDurationSecByKind[activeAudioKind] : 0;
@@ -460,15 +416,11 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
             <View style={styles.topSpacer} />
 
             <ScrollView
-                ref={readingScrollRef}
                 style={styles.scroll}
                 contentContainerStyle={styles.content}
-                onScroll={handleReadingScroll}
-                scrollEventThrottle={16}
             >
                 <Text style={styles.title}>{title}</Text>
-                <Text style={styles.subtitle}>{statusLine}</Text>
-                <Text style={styles.jobLine}>Job: {jobId}</Text>
+                <Text style={styles.subtitle}>{readingTypeSubheadline}</Text>
 
                 <View style={styles.actionsRow}>
                     <TouchableOpacity style={styles.actionButton} onPress={load}>
@@ -577,65 +529,14 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                         </Text>
                     </View>
                 ) : null}
-
-                {chapters.length > 0 ? (
-                    <View style={styles.chapterSection}>
-                        <Text style={styles.chapterLabel}>Chapters</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chapterRow}>
-                            {chapters.map((chapter) => {
-                                const selected = chapter.index === activeChapterIndex;
-                                return (
-                                    <TouchableOpacity
-                                        key={`${chapter.index}-${chapter.blockIndex}`}
-                                        style={[styles.chapterPill, selected && styles.chapterPillActive]}
-                                        onPress={() => jumpToChapter(chapter.index)}
-                                    >
-                                        <Text style={[styles.chapterPillText, selected && styles.chapterPillTextActive]} numberOfLines={1}>
-                                            {chapter.title}
-                                        </Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </ScrollView>
-                    </View>
-                ) : null}
-
-                {isLoading ? (
-                    <View style={styles.loadingWrap}>
-                        <ActivityIndicator color={colors.primary} />
-                        <Text style={styles.loadingText}>Loading reading assets...</Text>
-                    </View>
-                ) : null}
-
-                {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
-
-                <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Reading Text</Text>
-                    {blocks.length === 0 ? (
-                        <Text style={styles.readingText} selectable>
-                            {textBody || 'Text unavailable for this job.'}
-                        </Text>
-                    ) : (
-                        blocks.map((block, blockIndex) =>
-                            block.kind === 'heading' ? (
-                                <Text
-                                    key={`h-${blockIndex}`}
-                                    style={styles.readingHeading}
-                                    onLayout={(event) => {
-                                        chapterOffsetsRef.current[blockIndex] = event.nativeEvent.layout.y;
-                                    }}
-                                    selectable
-                                >
-                                    {block.text}
-                                </Text>
-                            ) : (
-                                <Text key={`p-${blockIndex}`} style={styles.readingText} selectable>
-                                    {block.text}
-                                </Text>
-                            )
-                        )
-                    )}
+                <View style={styles.readingStatusWrap}>
+                    <Text style={styles.jobLine}>{statusLine}</Text>
                 </View>
+
+                <Text style={styles.cardTitle}>Reading Text</Text>
+                <Text style={styles.readingText} selectable>
+                    {textBody || 'Text unavailable for this job.'}
+                </Text>
             </ScrollView>
         </SafeAreaView>
     );
@@ -682,43 +583,12 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
         marginBottom: spacing.md,
     },
-    chapterSection: {
+    readingStatusWrap: {
+        alignItems: 'center',
+        paddingVertical: spacing.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
         marginBottom: spacing.md,
-    },
-    chapterLabel: {
-        fontFamily: typography.sansSemiBold,
-        fontSize: 13,
-        color: colors.text,
-        marginBottom: spacing.xs,
-        textTransform: 'uppercase',
-        letterSpacing: 0.8,
-    },
-    chapterRow: {
-        gap: spacing.xs,
-        paddingRight: spacing.md,
-    },
-    chapterPill: {
-        maxWidth: 200,
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: radii.button,
-        paddingHorizontal: spacing.sm,
-        paddingVertical: spacing.xs,
-    },
-    chapterPillActive: {
-        borderColor: colors.primary,
-        backgroundColor: colors.primarySoft,
-    },
-    chapterPillText: {
-        fontFamily: typography.sansRegular,
-        fontSize: 12,
-        color: colors.mutedText,
-        textTransform: 'uppercase',
-    },
-    chapterPillTextActive: {
-        color: colors.primary,
-        fontFamily: typography.sansSemiBold,
     },
     actionButton: {
         flex: 1,

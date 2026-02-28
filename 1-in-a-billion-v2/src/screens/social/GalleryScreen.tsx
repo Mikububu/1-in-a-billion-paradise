@@ -207,7 +207,7 @@ export const GalleryScreen = ({ navigation }: Props) => {
   };
 
   const renderPerson = ({ item }: { item: GalleryPerson }) => (
-    <TouchableOpacity style={styles.galleryItem} onPress={() => setSelectedPerson(item)} activeOpacity={0.8}>
+    <TouchableOpacity style={styles.galleryItem} onPress={() => setSelectedPerson(item)} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={`View ${item.displayName || 'profile'}`}>
       {item.portraitUrl ? (
         <Image source={{ uri: item.portraitUrl }} style={styles.galleryImage} />
       ) : (
@@ -351,6 +351,10 @@ export const GalleryScreen = ({ navigation }: Props) => {
         contentContainerStyle={styles.galleryGrid}
         columnWrapperStyle={styles.galleryRow}
         showsVerticalScrollIndicator={false}
+        initialNumToRender={12}
+        maxToRenderPerBatch={8}
+        windowSize={5}
+        removeClippedSubviews
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
