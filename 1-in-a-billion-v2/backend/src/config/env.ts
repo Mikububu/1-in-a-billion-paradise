@@ -99,4 +99,7 @@ export const env = {
   // - 2: clear
   // - 3: mythic / destiny-forward (Michael's preference)
   TRAGIC_REALISM_LEVEL: Math.max(0, Math.min(3, Number(process.env.TRAGIC_REALISM_LEVEL ?? 3))),
+
+  // CORS allowed origins (comma-separated, in addition to built-in defaults)
+  ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS ?? '',
 };

@@ -23,14 +23,26 @@ export class SongWorker extends BaseWorker {
    */
   protected async processTask(task: any): Promise<TaskResult> {
     try {
-      await processSongTask(task);
-      
-      return {
-        success: true,
-        output: {
-          message: 'Song generated successfully',
-        },
-      };
+      const result = await processSongTask(task);
+
+      if (result.success) {
+        return {
+          success: true,
+          output: {
+            message: 'Song generated successfully',
+          },
+        };
+      } else {
+        // Song failed but error artifact was created - report as success
+        // so the job pipeline continues, but include the error details
+        return {
+          success: true,
+          output: {
+            message: `Song generation failed gracefully: ${result.error}`,
+            songError: true,
+          },
+        };
+      }
     } catch (error: any) {
       return {
         success: false,

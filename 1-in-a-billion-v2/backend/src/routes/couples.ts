@@ -1,13 +1,18 @@
 /**
  * COUPLE ROUTES
- * 
+ *
  * Handles couple AI portrait image generation for matched pairs and synastry readings.
  */
 
 import { Hono } from 'hono';
 import { getCoupleImage } from '../services/coupleImageService';
+import { requireAuth } from '../middleware/requireAuth';
+import type { AppEnv } from '../types/hono';
 
-const router = new Hono();
+const router = new Hono<AppEnv>();
+
+// All couple routes require authentication
+router.use('*', requireAuth);
 
 /**
  * GET /api/couples/health
@@ -27,14 +32,10 @@ router.get('/health', (c) => c.json({ ok: true }));
  * - portrait2Url: Person 2 AI portrait URL
  * - forceRegenerate: Optional - regenerate even if exists
  * 
- * Headers:
- * - X-User-Id: Required - User ID
+ * Requires: Authorization Bearer token
  */
 router.post('/image', async (c) => {
-  const userId = c.req.header('X-User-Id');
-  if (!userId) {
-    return c.json({ success: false, error: 'Missing X-User-Id header' }, 401);
-  }
+  const userId = c.get('userId');
 
   try {
     const body = await c.req.json();

@@ -1,14 +1,19 @@
 /**
  * PROFILE ROUTES
- * 
+ *
  * Handles user profile operations including AI portrait generation.
  */
 
 import { Hono } from 'hono';
 import { generateAIPortrait, getAIPortrait } from '../services/aiPortraitService';
 import { logCost } from '../services/costTracking';
+import { requireAuth, getAuthUserId } from '../middleware/requireAuth';
+import type { AppEnv } from '../types/hono';
 
-const router = new Hono();
+const router = new Hono<AppEnv>();
+
+// All profile routes require authentication
+router.use('*', requireAuth);
 
 /**
  * POST /api/profile/portrait
@@ -20,13 +25,10 @@ const router = new Hono();
  * - personId: Optional - library_people ID to associate with
  * 
  * Headers:
- * - X-User-Id: Required - User ID
+ * Requires: Authorization Bearer token
  */
 router.post('/portrait', async (c) => {
-  const userId = c.req.header('X-User-Id');
-  if (!userId) {
-    return c.json({ success: false, error: 'Missing X-User-Id header' }, 401);
-  }
+  const userId = c.get('userId');
 
   try {
     const body = await c.req.json();
@@ -70,11 +72,7 @@ router.post('/portrait', async (c) => {
  * Get existing AI portrait URL for a person.
  */
 router.get('/portrait/:personId', async (c) => {
-  const userId = c.req.header('X-User-Id');
-  if (!userId) {
-    return c.json({ success: false, error: 'Missing X-User-Id header' }, 401);
-  }
-
+  const userId = c.get('userId');
   const personId = c.req.param('personId');
 
   try {
@@ -96,10 +94,7 @@ router.get('/portrait/:personId', async (c) => {
  * Get the user's own AI portrait.
  */
 router.get('/portrait', async (c) => {
-  const userId = c.req.header('X-User-Id');
-  if (!userId) {
-    return c.json({ success: false, error: 'Missing X-User-Id header' }, 401);
-  }
+  const userId = c.get('userId');
 
   try {
     const imageUrl = await getAIPortrait(userId);

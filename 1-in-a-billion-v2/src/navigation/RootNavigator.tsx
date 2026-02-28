@@ -1,9 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { CityOption } from '@/types/forms';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useAuthStore } from '@/store/authStore';
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  DEV RESET — set to true to wipe all data on next reload   ║
+// ║  Set back to false after confirming the reset worked.      ║
+// ╚══════════════════════════════════════════════════════════════╝
+const DEV_FORCE_RESET = false;
 import { useSupabaseAuthBootstrap } from '@/hooks/useSupabaseAuthBootstrap';
 import { useSupabaseLibraryAutoSync } from '@/hooks/useSupabaseLibraryAutoSync';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeArtifactSync';
@@ -81,10 +88,10 @@ export type OnboardingStackParamList = {
     } | undefined;
     PostHookOffer: undefined;
     AddThirdPersonPrompt: undefined;
-    PartnerInfo: { mode?: string; returnTo?: string } | undefined;
-    PartnerCoreIdentities: any;
-    PartnerReadings: any;
-    SynastryPreview: any;
+    Onboarding_PartnerInfo: { mode?: string; returnTo?: string } | undefined;
+    Onboarding_PartnerCoreIdentities: any;
+    Onboarding_PartnerReadings: any;
+    Onboarding_SynastryPreview: any;
 };
 
 export type MainStackParamList = {
@@ -371,10 +378,10 @@ const OnboardingNavigator = ({ initialRouteName = "Intro" }: { initialRouteName?
             <OnboardingStack.Screen name="CoreIdentities" component={CoreIdentitiesScreen} />
             <OnboardingStack.Screen name="HookSequence" component={HookSequenceScreen} />
             <OnboardingStack.Screen name="AddThirdPersonPrompt" component={AddThirdPersonPromptScreen} />
-            <OnboardingStack.Screen name="PartnerInfo" component={PartnerInfoScreen as any} />
-            <OnboardingStack.Screen name="PartnerCoreIdentities" component={PartnerCoreIdentitiesScreen as any} />
-            <OnboardingStack.Screen name="PartnerReadings" component={PartnerReadingsScreen as any} />
-            <OnboardingStack.Screen name="SynastryPreview" component={SynastryPreviewScreen as any} />
+            <OnboardingStack.Screen name="Onboarding_PartnerInfo" component={PartnerInfoScreen as any} />
+            <OnboardingStack.Screen name="Onboarding_PartnerCoreIdentities" component={PartnerCoreIdentitiesScreen as any} />
+            <OnboardingStack.Screen name="Onboarding_PartnerReadings" component={PartnerReadingsScreen as any} />
+            <OnboardingStack.Screen name="Onboarding_SynastryPreview" component={SynastryPreviewScreen as any} />
             <OnboardingStack.Screen name="PostHookOffer" component={PostHookOfferScreen} />
         </OnboardingStack.Navigator>
     );
@@ -435,6 +442,26 @@ const MainNavigator = () => {
 };
 
 export const RootNavigator = () => {
+    const [devResetDone, setDevResetDone] = useState(!DEV_FORCE_RESET);
+
+    // One-shot dev reset: wipe AsyncStorage → all Zustand stores rehydrate to defaults
+    useEffect(() => {
+        if (!DEV_FORCE_RESET) return;
+        (async () => {
+            console.log('🔴 DEV_FORCE_RESET: Clearing ALL AsyncStorage keys…');
+            await AsyncStorage.multiRemove([
+                'onboarding-storage',
+                'auth-storage',
+                'profile-storage',
+            ]);
+            // Also call store resets so in-memory state matches
+            useOnboardingStore.getState().reset();
+            useAuthStore.getState().signOut();
+            console.log('✅ DEV_FORCE_RESET complete — app will start fresh');
+            setDevResetDone(true);
+        })();
+    }, []);
+
     const user = useAuthStore((state) => state.user);
     const isLoading = useAuthStore((state) => state.isLoading);
     const isAuthReady = useAuthStore((state) => state.isAuthReady);
@@ -458,6 +485,8 @@ export const RootNavigator = () => {
     const hasCompletedOnboarding = useOnboardingStore((s) => s.hasCompletedOnboarding);
     const hasPassedLanguages = useOnboardingStore((s) => s.hasPassedLanguages);
     const isHydrated = useOnboardingStore((s) => s._hasHydrated);
+    const hookReadings = useOnboardingStore((s) => s.hookReadings);
+    const birthDate = useOnboardingStore((s) => s.birthDate);
 
     const [hydrationTimeout, setHydrationTimeout] = useState(false);
     const [entitlementStatus, setEntitlementStatus] = useState<'idle' | 'checking' | 'active' | 'inactive' | 'error'>('idle');
@@ -598,8 +627,14 @@ export const RootNavigator = () => {
         user,
     ]);
 
-    if (!isAuthReady && !hydrationTimeout) {
-        console.log('⏳ RootNavigator: Waiting for Auth Bootstrap...');
+    // Wait for dev reset to finish before rendering anything
+    if (!devResetDone) {
+        console.log('⏳ RootNavigator: DEV_FORCE_RESET in progress…');
+        return null;
+    }
+
+    if ((!isAuthReady || !isHydrated) && !hydrationTimeout) {
+        console.log('⏳ RootNavigator: Waiting for Auth Bootstrap and store hydration...');
         return null;
     }
 
@@ -608,8 +643,8 @@ export const RootNavigator = () => {
     }
 
     const shouldShowMainNavigator = hasSession && (showDashboard || hasCompletedOnboarding);
-    // Deterministic cold start for onboarding:
-    // always begin at Intro unless user is already in MainNavigator.
+
+    // Always start onboarding from Intro. Each screen navigates forward explicitly.
     const onboardingInitialRoute: keyof OnboardingStackParamList = 'Intro';
 
     return (

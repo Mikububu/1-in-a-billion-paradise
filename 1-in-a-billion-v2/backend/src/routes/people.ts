@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import { env } from '../config/env';
+import type { AppEnv } from '../types/hono';
 
-const router = new Hono();
+const router = new Hono<AppEnv>();
 
 function getBearerToken(c: any): string | null {
   const auth = c.req.header('Authorization') || c.req.header('authorization');

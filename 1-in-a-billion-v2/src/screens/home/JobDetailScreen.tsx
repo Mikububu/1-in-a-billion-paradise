@@ -95,7 +95,7 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
         [artifacts]
     );
     const hasSong = useMemo(
-        () => artifacts.some((a) => a.artifact_type === 'audio_song' && Boolean(a.storage_path)),
+        () => artifacts.some((a) => a.artifact_type === 'audio_song' && (Boolean(a.storage_path) || (a.metadata as any)?.error === true)),
         [artifacts]
     );
 

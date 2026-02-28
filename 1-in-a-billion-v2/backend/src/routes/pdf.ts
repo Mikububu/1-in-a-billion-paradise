@@ -2,8 +2,9 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { generateReadingPDF, generateChapterPDF } from '../services/pdf/pdfGenerator';
 import fs from 'fs';
+import type { AppEnv } from '../types/hono';
 
-const router = new Hono();
+const router = new Hono<AppEnv>();
 
 // Schema for single/overlay PDF
 const pdfPayloadSchema = z.object({

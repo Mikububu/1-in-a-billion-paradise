@@ -793,7 +793,7 @@ export class TextWorker extends BaseWorker {
 	          await logLLMCost(jobId, task.id, { provider: writingUsage.provider, inputTokens: writingUsage.usage.inputTokens, outputTokens: writingUsage.usage.outputTokens }, `text_western_writing_${docType}`);
 	        }
 
-	        // Clean and return — no expansion passes for western
+	        // Clean and return — expansion passes handled downstream if needed
 	        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
 	        const westernFooter = extractChartSignatureFooter(text);
 	        text = westernFooter.body;
@@ -1400,7 +1400,8 @@ export class TextWorker extends BaseWorker {
       return out;
     }
 
-    if (!generationComplete && wordCount < HARD_FLOOR_WORDS && system !== 'western') {
+    if (wordCount < HARD_FLOOR_WORDS) {
+      console.log(`📏 [TextWorker] Word count ${wordCount} below floor ${HARD_FLOOR_WORDS} for ${system} — running expansion loop...`);
       text = await expandToHardFloor(text);
       wordCount = countWords(text);
     }

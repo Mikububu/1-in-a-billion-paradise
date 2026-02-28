@@ -89,16 +89,28 @@ export function generateLocalHookReading(input: LocalReadingInput): HookReading 
   const scale = normalizeScale(input.relationshipPreferenceScale);
   const scaleLine = describeScale(scale);
 
+  // Sweet greetings only for Sun reading (matching backend prompt style)
+  const sunGreetings = [
+    'Dear child of the sun',
+    'Beloved soul of light',
+    'Sweet one born under golden rays',
+    'Radiant heart',
+  ];
+  // Pick a greeting deterministically from birthDate so it's stable across reloads
+  const greetingIndex = input.birthDate
+    ? input.birthDate.split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % 4
+    : 0;
+
   const introByType: Record<HookReading['type'], string> = {
-    sun: `Your Sun in ${sign} describes the central style of identity. This chart points to ${traits.essence} expressed in a way that is ${traits.style}.`,
-    moon: `Your Moon in ${sign} describes emotional rhythm. Under closeness, this chart expresses ${traits.style} feeling and a deep need for ${traits.need}.`,
-    rising: `Your Rising in ${sign} describes first impression and social mask. People usually meet ${traits.essence} first, before they discover the full inner story.`,
+    sun: `${sunGreetings[greetingIndex]} — your Sun in ${sign} describes the central architecture of your identity, the pattern you return to when everything else is stripped away. This chart points to ${traits.essence}, expressed in a way that is ${traits.style}. In love, the Sun sign isn't what you show first; it's what you protect most fiercely. It's the version of yourself that only emerges when you feel genuinely seen.`,
+    moon: `Your Moon in ${sign} maps the emotional undercurrent that runs beneath every relationship you've ever had. Under closeness, this placement expresses ${traits.style} feeling and a deep, often unspoken need for ${traits.need}. The Moon doesn't ask permission — it reacts before the mind catches up. Understanding this rhythm is the difference between partnerships that feel like home and ones that feel like performance.`,
+    rising: `Your Rising in ${sign} is the doorway others walk through before they ever meet the real you. People encounter ${traits.essence} first — in your posture, your timing, the way you enter a room — long before they discover the full inner story. This is your social signature, the unconscious first impression that either invites people closer or keeps them at a comfortable distance.`,
   };
 
   const mainByType: Record<HookReading['type'], string> = {
-    sun: `With relationship intensity set to ${scale}/10, the love dynamic asks for ${scaleLine}. In practice, this means the strongest connections form when ${traits.need} is present from the beginning.`,
-    moon: `At ${scale}/10 intensity, emotional safety stays central. The Moon signature is healthiest when ${traits.need} is named directly, not guessed.`,
-    rising: `At ${scale}/10 intensity, first impressions matter more than usual. This Rising pattern works best when outer style and inner truth stay aligned.`,
+    sun: `With relationship intensity set to ${scale}/10, the love dynamic asks for ${scaleLine}. In practice, this means the strongest connections form when ${traits.need} is present from the very beginning — not earned over time, but offered as a baseline. The ${sign} Sun doesn't do well with ambiguity in love. It needs to know where it stands.\n\nThis placement suggests that your deepest relationships will be the ones where you don't have to perform confidence — where ${traits.essence} is welcomed rather than managed. When that safety is present, ${sign} opens in ways that surprise even itself. The challenge is learning to recognize when that openness is being offered, and not mistaking vulnerability for weakness.`,
+    moon: `At ${scale}/10 intensity, emotional safety stays central to everything. The Moon in ${sign} is healthiest when ${traits.need} is named directly, not guessed at or assumed. This placement carries an emotional intelligence that can feel like a superpower in the right relationship — and an unbearable weight in the wrong one.\n\nThe core pattern here is ${traits.style} feeling: a tendency to process love through sensation and instinct rather than logic. When the Moon in ${sign} feels safe, there's a warmth and depth that few other placements can match. When it doesn't feel safe, the withdrawal is total and swift. Learning to communicate this rhythm — rather than expecting partners to intuit it — is the single most transformative relationship skill this chart suggests.`,
+    rising: `At ${scale}/10 intensity, first impressions carry more weight than usual. Your Rising in ${sign} creates a pattern where the outer presentation and the inner truth need to stay in alignment — any gap between the two will eventually create friction in close relationships.\n\nThe ${sign} Rising moves through the world with ${traits.essence}, and partners are initially drawn to exactly that quality. The deeper work is making sure the person they fell for and the person they wake up next to are recognizably the same. When ${traits.need} is present in a relationship, this alignment happens naturally. The Rising sign relaxes, the mask softens, and what's underneath — which is often more tender and complex than the exterior suggests — finally gets room to breathe.`,
   };
 
   return {

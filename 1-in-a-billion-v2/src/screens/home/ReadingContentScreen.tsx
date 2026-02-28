@@ -25,7 +25,7 @@ const isSongArtifact = (a: JobArtifact) => a.artifact_type === 'audio_song';
 const getFirstTextArtifact = (artifacts: JobArtifact[]) => artifacts.find((a) => a.artifact_type === 'text' && a.storage_path);
 const getFirstPdfArtifact = (artifacts: JobArtifact[]) => artifacts.find((a) => a.artifact_type === 'pdf' && a.storage_path);
 const getFirstNarrationArtifact = (artifacts: JobArtifact[]) => artifacts.find((a) => isNarrationArtifact(a) && a.storage_path);
-const getFirstSongArtifact = (artifacts: JobArtifact[]) => artifacts.find((a) => isSongArtifact(a) && a.storage_path);
+const getFirstSongArtifact = (artifacts: JobArtifact[]) => artifacts.find((a) => isSongArtifact(a) && a.storage_path && !a.storage_path.startsWith('error/') && !(a.metadata as any)?.error);
 
 type Chapter = {
     index: number;

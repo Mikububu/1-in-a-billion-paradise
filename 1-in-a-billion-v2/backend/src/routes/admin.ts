@@ -1,6 +1,6 @@
 /**
  * ADMIN ROUTES
- * 
+ *
  * Role-based admin system for managing users, jobs, and platform operations.
  * All routes require admin authentication and appropriate permissions.
  */
@@ -15,8 +15,9 @@ import { llm, llmPaid } from '../services/llm';
 import { apiKeys } from '../services/apiKeysHelper';
 import { env } from '../config/env';
 import { getTodayCosts, getMonthCosts, getCostSummary, LLM_PRICING, REPLICATE_PRICING } from '../services/costTracking';
+import type { AppEnv } from '../types/hono';
 
-const router = new Hono();
+const router = new Hono<AppEnv>();
 
 // Apply admin auth to all routes
 router.use('/*', requireAdminAuth);

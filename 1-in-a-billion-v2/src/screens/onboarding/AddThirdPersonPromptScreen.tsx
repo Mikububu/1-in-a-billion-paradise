@@ -116,7 +116,7 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
             onPress={() => {
               if (existingPartner && existingPartnerCity) {
                 // Reuse existing free partner hook reading; do not create a new one.
-                navigation.replace('PartnerReadings' as any, {
+                navigation.replace('Onboarding_PartnerReadings' as any, {
                   partnerName: existingPartner.name,
                   partnerBirthDate: existingPartner.birthData?.birthDate,
                   partnerBirthTime: existingPartner.birthData?.birthTime,
@@ -128,7 +128,7 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
               }
               // IMPORTANT: replace, don't navigate.
               // This removes AddThirdPersonPrompt from history so users can't land on it again when swiping/clicking back.
-              navigation.replace('PartnerInfo', { mode: 'onboarding_hook' } as any);
+              navigation.replace('Onboarding_PartnerInfo', { mode: 'onboarding_hook' } as any);
             }}
             variant="primary"
             style={styles.button}

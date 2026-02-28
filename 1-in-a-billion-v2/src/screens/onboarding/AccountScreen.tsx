@@ -215,7 +215,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
 
       navigation.reset({
         index: 0,
-        routes: [{ name: 'HookSequence' }],
+        routes: [{ name: 'CoreIdentities' }],
       });
     },
     [
@@ -706,14 +706,14 @@ export const AccountScreen = ({ navigation, route }: Props) => {
           if (hasPassedLanguages && authUser?.id) {
             navigation.reset({
               index: 0,
-              routes: [{ name: 'HookSequence' }],
+              routes: [{ name: 'CoreIdentities' }],
             });
             return;
           }
           if (authUser?.id) {
             navigation.reset({
               index: 0,
-              routes: [{ name: 'HookSequence' }],
+              routes: [{ name: 'CoreIdentities' }],
             });
             return;
           }

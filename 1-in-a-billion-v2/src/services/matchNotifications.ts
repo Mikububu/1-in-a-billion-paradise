@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { env } from '@/config/env';
+import { getAuthHeaders } from '@/services/api';
 
 export type MatchNotificationPreferences = {
   userId: string;
@@ -62,7 +63,7 @@ export async function getMatchNotificationPreferences(
   try {
     const response = await fetchWithTimeout(`${env.CORE_API_URL}/api/notifications/preferences/match`, {
       headers: {
-        'X-User-Id': userId,
+        ...getAuthHeaders(),
       },
     });
 
@@ -143,7 +144,7 @@ export async function updateMatchNotificationPreferences(params: {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'X-User-Id': userId,
+        ...getAuthHeaders(),
       },
       body: JSON.stringify({
         enabled,

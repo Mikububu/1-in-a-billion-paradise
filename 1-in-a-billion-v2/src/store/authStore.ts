@@ -132,6 +132,7 @@ export const useAuthStore = create<AuthState>()(
             },
             partialize: (state) => ({
                 displayName: state.displayName,
+                entitlementState: state.entitlementState,
                 freeOverlayUsedByUserId: state.freeOverlayUsedByUserId,
                 // user: state.user, // Do not persist user manually. Rely on Bootstrap + Supabase Session.
             }),

@@ -1,6 +1,6 @@
 /**
  * CHAT & MATCHING ROUTES
- * 
+ *
  * API endpoints for:
  * - Gallery of AI portrait portraits
  * - User matches
@@ -19,8 +19,10 @@ import {
   sendMessage,
   markMessagesRead,
 } from '../services/matchingService';
+import { requireAuth, optionalAuth } from '../middleware/requireAuth';
+import type { AppEnv } from '../types/hono';
 
-const router = new Hono();
+const router = new Hono<AppEnv>();
 
 // ═══════════════════════════════════════════════════════════════════════════
 // GALLERY ENDPOINTS
@@ -30,15 +32,15 @@ const router = new Hono();
  * GET /api/chat/gallery
  * Get worldwide gallery of AI portrait portraits
  */
-router.get('/gallery', async (c) => {
-  const userId = c.req.header('X-User-Id');
+router.get('/gallery', optionalAuth, async (c) => {
+  const userId = c.get('userId') || undefined;
   const limit = parseInt(c.req.query('limit') || '50');
   const offset = parseInt(c.req.query('offset') || '0');
 
   const gallery = await getGallery({
     limit,
     offset,
-    excludeUserId: userId || undefined,
+    excludeUserId: userId,
   });
 
   return c.json({ success: true, gallery, count: gallery.length });
@@ -66,11 +68,8 @@ router.get('/gallery/random', async (c) => {
  * GET /api/chat/matches
  * Get all matches for the current user
  */
-router.get('/matches', async (c) => {
-  const userId = c.req.header('X-User-Id');
-  if (!userId) {
-    return c.json({ success: false, error: 'Missing X-User-Id header' }, 401);
-  }
+router.get('/matches', requireAuth, async (c) => {
+  const userId = c.get('userId');
 
   const matches = await getUserMatches(userId);
   const unseenCount = matches.filter(m => !m.seenAt).length;
@@ -118,12 +117,8 @@ router.post('/matches', async (c) => {
  * POST /api/chat/matches/:matchId/seen
  * Mark a match as seen
  */
-router.post('/matches/:matchId/seen', async (c) => {
-  const userId = c.req.header('X-User-Id');
-  if (!userId) {
-    return c.json({ success: false, error: 'Missing X-User-Id header' }, 401);
-  }
-
+router.post('/matches/:matchId/seen', requireAuth, async (c) => {
+  const userId = c.get('userId');
   const matchId = c.req.param('matchId');
   const success = await markMatchSeen(matchId, userId);
 
@@ -138,11 +133,8 @@ router.post('/matches/:matchId/seen', async (c) => {
  * GET /api/chat/conversations
  * Get all conversations for the current user
  */
-router.get('/conversations', async (c) => {
-  const userId = c.req.header('X-User-Id');
-  if (!userId) {
-    return c.json({ success: false, error: 'Missing X-User-Id header' }, 401);
-  }
+router.get('/conversations', requireAuth, async (c) => {
+  const userId = c.get('userId');
 
   const conversations = await getUserConversations(userId);
   const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
@@ -159,12 +151,8 @@ router.get('/conversations', async (c) => {
  * GET /api/chat/conversations/:conversationId/messages
  * Get messages for a conversation
  */
-router.get('/conversations/:conversationId/messages', async (c) => {
-  const userId = c.req.header('X-User-Id');
-  if (!userId) {
-    return c.json({ success: false, error: 'Missing X-User-Id header' }, 401);
-  }
-
+router.get('/conversations/:conversationId/messages', requireAuth, async (c) => {
+  const userId = c.get('userId');
   const conversationId = c.req.param('conversationId');
   const limit = parseInt(c.req.query('limit') || '50');
   const before = c.req.query('before');
@@ -178,11 +166,8 @@ router.get('/conversations/:conversationId/messages', async (c) => {
  * POST /api/chat/conversations/:conversationId/messages
  * Send a message
  */
-router.post('/conversations/:conversationId/messages', async (c) => {
-  const userId = c.req.header('X-User-Id');
-  if (!userId) {
-    return c.json({ success: false, error: 'Missing X-User-Id header' }, 401);
-  }
+router.post('/conversations/:conversationId/messages', requireAuth, async (c) => {
+  const userId = c.get('userId');
 
   try {
     const conversationId = c.req.param('conversationId');
@@ -209,12 +194,8 @@ router.post('/conversations/:conversationId/messages', async (c) => {
  * POST /api/chat/conversations/:conversationId/read
  * Mark all messages in a conversation as read
  */
-router.post('/conversations/:conversationId/read', async (c) => {
-  const userId = c.req.header('X-User-Id');
-  if (!userId) {
-    return c.json({ success: false, error: 'Missing X-User-Id header' }, 401);
-  }
-
+router.post('/conversations/:conversationId/read', requireAuth, async (c) => {
+  const userId = c.get('userId');
   const conversationId = c.req.param('conversationId');
   const success = await markMessagesRead(conversationId, userId);
 

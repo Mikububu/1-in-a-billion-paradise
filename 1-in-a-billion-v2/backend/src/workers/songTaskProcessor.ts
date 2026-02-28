@@ -25,7 +25,7 @@ export interface SongTaskInput {
 /**
  * Process a song generation task - ONE song per document
  */
-export async function processSongTask(task: { id: string; job_id: string; input: SongTaskInput }): Promise<void> {
+export async function processSongTask(task: { id: string; job_id: string; input: SongTaskInput }): Promise<{ success: boolean; error?: string }> {
   const { job_id, input } = task;
   const { docNum, docType, system } = input;
   let { personName } = input;
@@ -171,11 +171,13 @@ export async function processSongTask(task: { id: string; job_id: string; input:
     try {
       const { data: configData, error: configError } = await supabase!
         .from('assistant_config')
-        .select('minimax_personas')
-        .single();
+        .select('value')
+        .eq('key', 'minimax_personas')
+        .maybeSingle();
 
-      if (configData?.minimax_personas) {
-        personas = configData.minimax_personas;
+      const parsedPersonas = configData?.value ? (typeof configData.value === 'string' ? JSON.parse(configData.value) : configData.value) : null;
+      if (Array.isArray(parsedPersonas) && parsedPersonas.length > 0) {
+        personas = parsedPersonas;
         console.log(`🎛️  Using dynamic persona mix: ${personas.map((p: any) => `${p.name}:${p.weight}%`).join(', ')}`);
       }
     } catch (e) {
@@ -309,6 +311,7 @@ export async function processSongTask(task: { id: string; job_id: string; input:
     }
 
     console.log(`✅ Song task ${task.id} (doc ${docNum}) completed successfully!`);
+    return { success: true };
   } catch (error: any) {
     // ========================================================================
     // REQUIREMENT #9: Graceful Minimax Failure Handling
@@ -326,6 +329,7 @@ export async function processSongTask(task: { id: string; job_id: string; input:
     
     // Create a "failed" artifact so frontend knows this song failed
     // but can still display the rest of the reading
+    // NOTE: storage_path has a NOT NULL constraint, so use a sentinel value
     try {
       const { error: artifactError } = await supabase!
         .from('job_artifacts')
@@ -333,8 +337,8 @@ export async function processSongTask(task: { id: string; job_id: string; input:
           job_id: job_id,
           task_id: task.id,
           artifact_type: 'audio_song',
-          storage_path: null, // No file
-          public_url: null,   // No URL
+          storage_path: `error/${job_id}/song_failed_${task.id}`, // Sentinel path (NOT NULL constraint)
+          public_url: null,
           metadata: {
             docNum,
             docType,
@@ -344,7 +348,7 @@ export async function processSongTask(task: { id: string; job_id: string; input:
             duration: 0,
             // CRITICAL: Include error info for frontend
             error: true,
-            errorMessage: isMinimaxError 
+            errorMessage: isMinimaxError
               ? 'Song generation is temporarily unavailable. Your reading and narration are still available below.'
               : `Song generation failed: ${errorMessage}. Your reading and narration are still available.`,
             failedAt: new Date().toISOString(),
@@ -363,6 +367,7 @@ export async function processSongTask(task: { id: string; job_id: string; input:
     // Don't throw - the task "succeeds" with an error artifact
     // This prevents the job from being stuck in "processing" state
     console.log(`⚠️ Song task ${task.id} (doc ${docNum}) completed with error artifact`);
+    return { success: false, error: errorMessage };
   }
 }
 

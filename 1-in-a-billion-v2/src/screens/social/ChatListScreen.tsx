@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { env } from '@/config/env';
+import { getAuthHeaders } from '@/services/api';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { useAuthStore } from '@/store/authStore';
 import { colors, spacing, typography } from '@/theme/tokens';
@@ -64,7 +65,7 @@ export const ChatListScreen = ({ navigation }: Props) => {
 
       try {
         const response = await fetch(`${env.CORE_API_URL}/api/chat/conversations`, {
-          headers: { 'X-User-Id': userId },
+          headers: { ...getAuthHeaders() },
         });
         const data = await response.json();
 

@@ -2,8 +2,9 @@
 import { Hono } from 'hono';
 import { env } from '../config/env';
 import { createClient } from '@supabase/supabase-js';
+import type { AppEnv } from '../types/hono';
 
-const router = new Hono();
+const router = new Hono<AppEnv>();
 
 /**
  * POST /api/auth/signup

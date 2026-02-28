@@ -9,6 +9,7 @@
 
 import { createSupabaseServiceClient } from './supabaseClient';
 import { getApiKey } from './apiKeys';
+import { timingSafeEqual } from 'crypto';
 
 export type RevenueCatEventType =
   | 'TEST'
@@ -66,7 +67,15 @@ export async function verifyRevenueCatWebhookAuth(authHeader: string | undefined
   if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
   const token = authHeader.slice(7).trim();
   const secret = await getRevenueCatSecretKey();
-  return !!secret && token === secret;
+  if (!secret || !token) return false;
+  try {
+    const tokenBuf = Buffer.from(token);
+    const secretBuf = Buffer.from(secret);
+    if (tokenBuf.length !== secretBuf.length) return false;
+    return timingSafeEqual(tokenBuf, secretBuf);
+  } catch {
+    return false;
+  }
 }
 
 /**

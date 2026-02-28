@@ -1,12 +1,12 @@
 /**
  * JOB ROUTES - 5-PART NUCLEAR APPROACH
- * 
+ *
  * Nuclear Package:
  * - 5 parts (Portraits, Hunger, Abyss, Labyrinth, Mirror)
  * - Each part ~6000 words (max_tokens: 8192)
  * - Total ~30,000 words
  * - Progressive generation: TEXT → PDF → AUDIO per part
- * 
+ *
  * Uses the new modular prompt system for Claude Desktop-quality output.
  */
 
@@ -17,8 +17,10 @@ import { env } from '../config/env';
 import axios from 'axios';
 import archiver from 'archiver';
 import { PassThrough, Readable } from 'node:stream';
+import { requireAuth as jwtAuth, getAuthUserId } from '../middleware/requireAuth';
+import type { AppEnv } from '../types/hono';
 
-const router = new Hono();
+const router = new Hono<AppEnv>();
 const DEBUG_LOG_PATH = process.env.DEBUG_LOG_PATH || `${process.cwd()}/.cursor/debug.log`;
 
 function appendAgentDebug(location: string, message: string, data: Record<string, any>, hypothesisId: string): void {
@@ -51,7 +53,9 @@ function getBearerToken(c: any): string | null {
   return m ? m[1] : null;
 }
 
-/** Extract verified user ID from Bearer token. Returns null if unauthenticated. */
+/** DEPRECATED: Extract verified user ID from Bearer token. Returns null if unauthenticated.
+ * Use the jwtAuth middleware and getAuthUserId from ../middleware/requireAuth instead.
+ */
 async function getAuthenticatedUserId(c: any): Promise<string | null> {
   const token = getBearerToken(c);
   if (!token) return null;
@@ -62,7 +66,9 @@ async function getAuthenticatedUserId(c: any): Promise<string | null> {
   return user.id;
 }
 
-/** Require Bearer auth for debug/admin endpoints. Returns 401 response if not authenticated. */
+/** DEPRECATED: Require Bearer auth for debug/admin endpoints.
+ * Use the jwtAuth middleware from ../middleware/requireAuth instead.
+ */
 function requireAuth(c: any): Response | null {
   const token = getBearerToken(c);
   if (!token) {
@@ -74,13 +80,9 @@ function requireAuth(c: any): Response | null {
 // ═══════════════════════════════════════════════════════════════════════════
 // POST /api/jobs/v2/start — Create a new reading job
 // ═══════════════════════════════════════════════════════════════════════════
-router.post('/v2/start', async (c) => {
+router.post('/v2/start', jwtAuth, async (c) => {
   try {
-    // Auth: either Bearer token or X-User-Id header (dev mode)
-    let userId = await getAuthenticatedUserId(c);
-    if (!userId) {
-      userId = c.req.header('X-User-Id') || c.req.header('x-user-id') || null;
-    }
+    const userId = c.get('userId');
     if (!userId) {
       return c.json({ success: false, error: 'Missing authentication' }, 401);
     }

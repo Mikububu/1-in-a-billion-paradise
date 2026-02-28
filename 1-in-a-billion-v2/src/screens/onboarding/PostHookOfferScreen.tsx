@@ -184,6 +184,12 @@ export const PostHookOfferScreen = ({ navigation }: Props) => {
     setIsPaying(true);
 
     try {
+      // In dev/Expo Go, skip RevenueCat entirely and go straight to Account
+      if (paymentBypassEnabled) {
+        navigation.navigate('Account', { fromPayment: true });
+        return;
+      }
+
       const ready = await initializeRevenueCat(userId);
       if (!ready) {
         Alert.alert('Payment unavailable', 'RevenueCat is not available in this build.');

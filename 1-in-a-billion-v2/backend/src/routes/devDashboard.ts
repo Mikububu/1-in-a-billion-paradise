@@ -1,9 +1,9 @@
 /**
  * DEV DASHBOARD - View all jobs and readings
- * 
+ *
  * Endpoint to monitor all background jobs, view status, and listen to audio.
  * Useful for stress testing and checking results.
- * 
+ *
  * GET /api/dev/dashboard - List all jobs with status
  * GET /api/dev/jobs/:jobId - Get specific job details
  */
@@ -14,8 +14,9 @@ import { createSupabaseServiceClient } from '../services/supabaseClient';
 import { getSignedArtifactUrl } from '../services/supabaseClient';
 import axios from 'axios';
 import { apiKeys } from '../services/apiKeysHelper';
+import type { AppEnv } from '../types/hono';
 
-const router = new Hono();
+const router = new Hono<AppEnv>();
 
 function getBearerTokenFromReq(c: any): string | null {
   const auth = c.req.header('Authorization') || c.req.header('authorization');

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { swissEngine } from '../services/swissEphemeris';
 import { llm } from '../services/llm';
 import { ResponseCache } from '../services/cache';
+import type { AppEnv } from '../types/hono';
 
 const compatibilitySchema = z.object({
   person1: z.object({
@@ -25,7 +26,7 @@ const compatibilitySchema = z.object({
 
 const compatibilityCache = new ResponseCache<any>();
 
-const router = new Hono();
+const router = new Hono<AppEnv>();
 
 router.post('/calculate', async (c) => {
   const body = await c.req.json();

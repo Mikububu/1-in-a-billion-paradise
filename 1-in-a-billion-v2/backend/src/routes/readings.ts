@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { ReadingResponse } from '../types';
 import { swissEngine } from '../services/swissEphemeris';
 import { deepSeekClient } from '../services/text/deepseekClient';
+import type { AppEnv } from '../types/hono';
 import { llm } from '../services/llm';
 import { ResponseCache } from '../services/cache';
 // Prompts are built inline in deepseekClient.ts
@@ -41,7 +42,7 @@ const buildResponse = (
   },
 });
 
-const router = new Hono();
+const router = new Hono<AppEnv>();
 
 /**
  * Auto-correct timezone if UTC is sent but coordinates are far from GMT.

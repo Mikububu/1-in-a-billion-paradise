@@ -18,15 +18,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 
-// Mocked to fix simulator crash without rebuilding native app
-// import * as WebBrowser from 'expo-web-browser';
-const WebBrowser = { maybeCompleteAuthSession: () => { }, openAuthSessionAsync: async () => ({ type: 'cancel' }) } as any;
-// import * as AuthSession from 'expo-auth-session';
-const AuthSession = { makeRedirectUri: () => 'redirect' } as any;
-// import * as Google from 'expo-auth-session/providers/google';
-const Google = {} as any;
-// import * as AppleAuthentication from 'expo-apple-authentication';
-const AppleAuthentication = { signInAsync: async () => ({}), AppleAuthenticationScope: { FULL_NAME: 1, EMAIL: 2 } } as any;
+// Lazy-loaded to avoid crashing Expo Go (expo-crypto native module not available)
+// These are only needed when the user triggers Google/Apple sign-in
+let WebBrowser: typeof import('expo-web-browser') | null = null;
+let AuthSession: typeof import('expo-auth-session') | null = null;
+let AppleAuthentication: typeof import('expo-apple-authentication') | null = null;
+
+async function loadAuthModules() {
+  if (!WebBrowser) WebBrowser = await import('expo-web-browser');
+  if (!AuthSession) AuthSession = await import('expo-auth-session');
+  if (!AppleAuthentication) AppleAuthentication = await import('expo-apple-authentication');
+}
 import { Audio } from 'expo-av';
 import { useHookReadings } from '@/hooks/useHookReadings';
 import { useOnboardingStore } from '@/store/onboardingStore';
@@ -49,13 +51,27 @@ import * as FileSystem from 'expo-file-system/legacy';
 const { documentDirectory, EncodingType } = FileSystem;
 const getDocumentDirectory = () => documentDirectory;
 
-// Required for OAuth redirect handling
-WebBrowser.maybeCompleteAuthSession();
+// OAuth redirect URI and session completion are initialized lazily
+// to avoid loading expo-crypto (native module) at import time in Expo Go.
+let _redirectUri: string | null = null;
+let _authSessionCompleted = false;
 
-const REDIRECT_URI = AuthSession.makeRedirectUri({
-  scheme: 'oneinabillion',
-  path: 'auth/callback',
-});
+function getRedirectUri(): string {
+  if (!_redirectUri && AuthSession) {
+    _redirectUri = AuthSession.makeRedirectUri({
+      scheme: 'oneinabillion',
+      path: 'auth/callback',
+    });
+  }
+  return _redirectUri || 'oneinabillion://auth/callback';
+}
+
+function ensureAuthSessionCompleted() {
+  if (!_authSessionCompleted && WebBrowser) {
+    WebBrowser.maybeCompleteAuthSession();
+    _authSessionCompleted = true;
+  }
+}
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'HookSequence'> | NativeStackScreenProps<any, 'HookSequence'>;
 
@@ -99,6 +115,35 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
   const [customReadings, setCustomReadings] = useState<HookReading[] | null>(
     customReadingsFromRoute || null
   );
+
+  // 5-tap reset (same as IntroScreen) — allows resetting even when stuck on HookSequence
+  const resetOnboarding = useOnboardingStore((state) => state.reset);
+  const resetProfile = useProfileStore((state: any) => state.reset);
+  const signOut = useAuthStore((state) => state.signOut);
+  const [resetTapCount, setResetTapCount] = useState(0);
+  const resetTapTimeout = useRef<NodeJS.Timeout | null>(null);
+  const handleResetTap = useCallback(() => {
+    if (resetTapTimeout.current) clearTimeout(resetTapTimeout.current);
+    const next = resetTapCount + 1;
+    setResetTapCount(next);
+    if (next >= 5) {
+      Alert.alert('Reset App', 'Delete ALL data and start from screen 1?', [
+        { text: 'Cancel', style: 'cancel', onPress: () => setResetTapCount(0) },
+        {
+          text: 'Reset Everything', style: 'destructive', onPress: async () => {
+            try {
+              resetOnboarding();
+              resetProfile();
+              await signOut();
+              setResetTapCount(0);
+            } catch (e: any) { console.error('Reset error', e); }
+          },
+        },
+      ]);
+    } else {
+      resetTapTimeout.current = setTimeout(() => setResetTapCount(0), 2000);
+    }
+  }, [resetTapCount, resetOnboarding, resetProfile, signOut]);
 
   const getInitialPage = () => {
     if (!initialReading) return 0;
@@ -364,11 +409,13 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
       if (existing) return existing;
 
       const textToSpeak = `${reading.intro}\n\n${reading.main}`;
+      // SUN may hit Replicate cold start — use longer timeout
+      const timeout = type === 'sun' ? 180000 : 90000;
       const p = audioApi
         .generateTTS(textToSpeak, {
           exaggeration: AUDIO_CONFIG.exaggeration,
           includeIntro: false,
-          timeoutMs: 90000,
+          timeoutMs: timeout,
         })
         .then(async (result) => {
           if (result.success && result.audioBase64) {
@@ -580,13 +627,16 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     if (isSigningIn) return;
     setIsSigningIn(true);
     try {
+      await loadAuthModules();
+      ensureAuthSessionCompleted();
+      const redirectUri = getRedirectUri();
       console.log('🚀 ONBOARDING GOOGLE AUTH: Starting Google sign-in flow');
-      console.log('🔗 ONBOARDING GOOGLE AUTH: Redirect URI:', REDIRECT_URI);
+      console.log('🔗 ONBOARDING GOOGLE AUTH: Redirect URI:', redirectUri);
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: REDIRECT_URI,
+          redirectTo: redirectUri,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -602,7 +652,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
 
       if (data?.url) {
         console.log('🌐 ONBOARDING GOOGLE AUTH: Opening browser with URL');
-        const result = await WebBrowser.openAuthSessionAsync(data.url, REDIRECT_URI);
+        const result = await WebBrowser!.openAuthSessionAsync(data.url, redirectUri);
         console.log('🔙 ONBOARDING GOOGLE AUTH: Browser returned, type:', result.type);
 
         if (result.type === 'success' && result.url) {
@@ -695,10 +745,11 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
 
     setIsSigningIn(true);
     try {
-      const credential = await AppleAuthentication.signInAsync({
+      await loadAuthModules();
+      const credential = await AppleAuthentication!.signInAsync({
         requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          AppleAuthentication!.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication!.AppleAuthenticationScope.EMAIL,
         ],
       });
 
@@ -965,7 +1016,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
             longitude: typeof existingThirdPerson.birthData.longitude === 'number' ? existingThirdPerson.birthData.longitude : 0,
             timezone: existingThirdPerson.birthData.timezone || 'UTC',
           };
-          navigation.navigate('PartnerReadings' as any, {
+          navigation.navigate('Onboarding_PartnerReadings' as any, {
             partnerName: existingThirdPerson.name,
             partnerBirthDate: existingThirdPerson.birthData.birthDate,
             partnerBirthTime: existingThirdPerson.birthData.birthTime,
@@ -1163,7 +1214,7 @@ ${rising.main}`;
                     {/* Header - centered */}
                     <View style={styles.headerCenter}>
                       <Text style={styles.badgeText} selectable>{SIGN_LABELS[item.type]}</Text>
-                      <Text style={styles.signName} selectable>{item.sign}</Text>
+                      <Text style={styles.signName} selectable onPress={handleResetTap}>{item.sign}</Text>
 
                       {/* Audio button */}
                       <TouchableOpacity

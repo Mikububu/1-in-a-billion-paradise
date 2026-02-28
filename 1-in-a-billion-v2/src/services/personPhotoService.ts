@@ -1,5 +1,6 @@
 import { env } from '@/config/env';
 import { useAuthStore } from '@/store/authStore';
+import { getAuthHeaders } from '@/services/api';
 
 export type UploadPhotoResult = {
     success: boolean;
@@ -18,7 +19,7 @@ export async function uploadPersonPhoto(personId: string, photoBase64: string): 
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-User-Id': userId,
+                ...getAuthHeaders(),
             },
             body: JSON.stringify({
                 personId,

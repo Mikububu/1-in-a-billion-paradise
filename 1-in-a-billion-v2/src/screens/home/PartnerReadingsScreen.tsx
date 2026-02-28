@@ -174,10 +174,13 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
       if (existing) return existing;
 
       const textToSpeak = `${reading.intro}\n\n${reading.main}`;
+      const timeout = type === 'sun' ? 180000 : 90000;
+      console.log(`🎵 Starting ${partnerName}'s ${type.toUpperCase()} audio generation (timeout ${timeout / 1000}s)...`);
       const p = audioApi
         .generateTTS(textToSpeak, {
           exaggeration: AUDIO_CONFIG.exaggeration,
           includeIntro: false,
+          timeoutMs: timeout,
         })
         .then(async (result) => {
           if (!result.success) return null;

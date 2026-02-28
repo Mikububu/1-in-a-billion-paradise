@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { env } from '@/config/env';
+import { getAuthHeaders } from '@/services/api';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { useAuthStore } from '@/store/authStore';
 import { colors, spacing, typography } from '@/theme/tokens';
@@ -61,9 +62,10 @@ export const ChatScreen = ({ navigation, route }: Props) => {
     }
 
     try {
+      const authHeaders = getAuthHeaders();
       const response = await fetch(
         `${env.CORE_API_URL}/api/chat/conversations/${conversationId}/messages`,
-        { headers: { 'X-User-Id': userId } }
+        { headers: { ...authHeaders } }
       );
       const data = await response.json();
 
@@ -72,7 +74,7 @@ export const ChatScreen = ({ navigation, route }: Props) => {
 
         fetch(`${env.CORE_API_URL}/api/chat/conversations/${conversationId}/read`, {
           method: 'POST',
-          headers: { 'X-User-Id': userId },
+          headers: { ...authHeaders },
         }).catch(() => {});
       } else {
         setMessages([]);
@@ -121,7 +123,7 @@ export const ChatScreen = ({ navigation, route }: Props) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-User-Id': userId,
+            ...getAuthHeaders(),
           },
           body: JSON.stringify({ content: messageContent }),
         }

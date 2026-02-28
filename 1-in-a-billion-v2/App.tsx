@@ -10,18 +10,31 @@ import { PlayfairDisplay_600SemiBold, PlayfairDisplay_700Bold } from '@expo-goog
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { View, Text } from 'react-native';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { useAuthStore } from '@/store/authStore';
 import { colors } from '@/theme/tokens';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { logger } from '@/utils/logger';
+import { initGlobalErrorHandler } from '@/utils/globalErrorHandler';
 
-const queryClient = new QueryClient();
-
-// Stub ErrorBoundary for now if not exists
-// const ErrorBoundary = ({ children }: any) => <>{children}</>;
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 2,
+      staleTime: 5 * 60_000,
+      gcTime: 10 * 60_000,
+    },
+  },
+});
 
 export default function App() {
-    console.log('🔥 APP RENDER CYCLE START');
+    // Initialize global error handler once on mount
+    useEffect(() => {
+        initGlobalErrorHandler();
+    }, []);
+
+    logger.info('APP RENDER CYCLE START');
 
     // Get auth state to key NavigationContainer
     const user = useAuthStore((state: any) => state.user);
@@ -50,14 +63,18 @@ export default function App() {
         };
     }, []);
 
-    console.log('🔥 APP STATE:', { fontsLoaded, isAuthReady, hasSession, userId: user?.id });
+    logger.info('APP STATE:', { fontsLoaded, isAuthReady, hasSession, userId: user?.id });
 
     if (!fontsLoaded) {
-        return null;
+        return (
+            <View style={{ flex: 1, backgroundColor: '#0a0a0a', justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ color: '#999', fontSize: 16 }}>Loading...</Text>
+            </View>
+        );
     }
 
     return (
-        <ErrorBoundary>
+        <ErrorBoundary onReset={() => navigationRef.current?.reset({ index: 0, routes: [{ name: 'Root' as any }] })}>
             <GestureHandlerRootView style={{ flex: 1 }}>
                 <SafeAreaProvider>
                     <QueryClientProvider client={queryClient}>

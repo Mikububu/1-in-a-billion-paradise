@@ -427,13 +427,16 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
     // Helper to generate audio for a reading - SIMPLE: store base64 in memory, no file system
     const generateAudioForType = async (type: 'sun' | 'moon' | 'rising', reading: any): Promise<void> => {
       if (!reading) return;
-      console.log(`🎵 Starting ${type.toUpperCase()} audio generation...`);
+      // SUN is always first → Replicate cold start can take 90-120s.
+      // Moon/Rising run after the model is warm and finish much faster.
+      const timeout = type === 'sun' ? 180000 : 90000;
+      console.log(`🎵 Starting ${type.toUpperCase()} audio generation (timeout ${timeout / 1000}s)...`);
 
       try {
         const tts = await audioApi.generateTTS(`${reading.intro}\n\n${reading.main}`, {
           exaggeration: AUDIO_CONFIG.exaggeration,
           includeIntro: false,
-          timeoutMs: 90000,
+          timeoutMs: timeout,
         });
 
         if (tts.success && tts.audioBase64) {
@@ -470,11 +473,14 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
       }
     };
 
+    // Track whether we got real backend responses (have placements) vs local fallbacks
+    let gotRealBackendResponse = false;
+
     try {
       // Hide initialization overlay after a brief delay (smooth transition from AccountScreen)
       setTimeout(() => setIsInitializing(false), 300);
 
-      // ========== SCREEN 1: INTRO (15s minimum) ==========
+      // ========== SCREEN 1: INTRO ==========
       setCurrentScreen('intro');
       setStatusText('Preparing your chart...');
       setProgress(5);
@@ -487,8 +493,9 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
         setHookReading(data.reading);
         console.log('✅ SUN reading received');
 
-        // Save placements from backend
+        // Save placements from backend (only real responses have placements)
         if (data.placements) {
+          gotRealBackendResponse = true;
           const user = useProfileStore.getState().people.find(p => p.isUser);
           if (user) {
             useProfileStore.getState().updatePerson(user.id, {
@@ -505,16 +512,29 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
         }
       });
 
-      // Wait for intro (15s) AND sun reading fetch - allows RunPod warmup
-      await Promise.all([delay(15000), sunFetchPromise]);
+      // Wait for intro AND sun reading fetch
+      // Use shorter delay (3s) if backend seems unreachable, full 15s otherwise
+      const introDelay = delay(3000); // Start with short delay
+      await Promise.all([introDelay, sunFetchPromise]);
+
+      // If we got a real backend response, show the full animated experience
+      // Otherwise we're using fallbacks — move quickly
+      const useFastPath = !gotRealBackendResponse;
+      console.log(`🔍 CoreIdentities: gotRealBackendResponse=${gotRealBackendResponse}, useFastPath=${useFastPath}, sunReading=${!!sunReading}`);
+      if (!useFastPath) {
+        // Backend is responding — give the full cinematic delay
+        await delay(12000); // remaining 12s of the 15s intro
+      }
       setProgress(15);
 
-      // START SUN AUDIO NOW (after reading is available, not inside .then())
-      if (sunReading) {
+      // Only start audio if we got real backend readings
+      console.log(`🎵 Audio decision: sunReading=${!!sunReading}, useFastPath=${useFastPath}`);
+      if (sunReading && !useFastPath) {
+        console.log('🎵 Starting SUN audio generation from CoreIdentities...');
         sunAudioPromise = generateAudioForType('sun', sunReading);
       }
 
-      // ========== SCREEN 2: SUN (4s minimum) ==========
+      // ========== SCREEN 2: SUN ==========
       setCurrentScreen('sun');
       setStatusText('Analyzing Sun sign...');
       setProgress(25);
@@ -527,8 +547,8 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
         setHookReading(data.reading);
         console.log('✅ MOON reading received');
 
-        // Save placements fallback
         if (data.placements) {
+          gotRealBackendResponse = true;
           const user = useProfileStore.getState().people.find(p => p.isUser);
           if (user && !user.placements) {
             useProfileStore.getState().updatePerson(user.id, {
@@ -545,15 +565,14 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
         }
       });
 
-      await Promise.all([delay(4000), moonFetchPromise]);
+      await Promise.all([delay(useFastPath ? 1500 : 4000), moonFetchPromise]);
       setProgress(35);
 
-      // START MOON AUDIO NOW (all audio generated here, no staggered preload)
-      if (moonReading) {
+      if (moonReading && !useFastPath) {
         moonAudioPromise = generateAudioForType('moon', moonReading);
       }
 
-      // ========== SCREEN 3: MOON (4s minimum) ==========
+      // ========== SCREEN 3: MOON ==========
       setCurrentScreen('moon');
       setStatusText('Calculating Moon sign...');
       setProgress(45);
@@ -566,8 +585,8 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
         setHookReading(data.reading);
         console.log('✅ RISING reading received');
 
-        // Save placements fallback
         if (data.placements) {
+          gotRealBackendResponse = true;
           const user = useProfileStore.getState().people.find(p => p.isUser);
           if (user && !user.placements) {
             useProfileStore.getState().updatePerson(user.id, {
@@ -584,86 +603,66 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
         }
       });
 
-      await Promise.all([delay(4000), risingFetchPromise]);
+      await Promise.all([delay(useFastPath ? 1500 : 4000), risingFetchPromise]);
       setProgress(55);
 
-      // START RISING AUDIO NOW (all audio generated here, no staggered preload)
-      if (risingReading) {
+      if (risingReading && !useFastPath) {
         risingAudioPromise = generateAudioForType('rising', risingReading);
       }
 
-      // ========== SCREEN 4: RISING (3s minimum) ==========
+      // ========== SCREEN 4: RISING ==========
       setCurrentScreen('rising');
       setStatusText('Calculating Rising sign...');
       setProgress(70);
-      await delay(3000);
+      await delay(useFastPath ? 1000 : 3000);
       setProgress(80);
 
-      // ========== WAIT FOR ALL AUDIO BEFORE NAVIGATING ==========
-      // ALL audio (sun, moon, rising) must be ready before user sees HookSequence
-      // This is a hard requirement - no pre-rendering in HookSequenceScreen
-      setProgress(85);
-      setStatusText('Giving your reading a voice…');
-
-      const MAX_RETRIES = 2;
-
-      // Helper to wait for a single audio type with retry logic
-      const waitForAudio = async (
-        type: 'sun' | 'moon' | 'rising',
-        promise: Promise<void> | null,
-        reading: any
-      ): Promise<boolean> => {
-        let attempt = 0;
-        while (attempt < MAX_RETRIES) {
-          attempt++;
-          console.log(`🎵 ${type.toUpperCase()} audio attempt ${attempt}/${MAX_RETRIES}`);
-
-          try {
-            if (attempt === 1 && promise) {
-              await promise;
-            } else if (reading) {
-              await generateAudioForType(type, reading);
-            }
-
-            const stored = useOnboardingStore.getState().hookAudio[type];
-            if (stored) {
-              console.log(`✅ ${type.toUpperCase()} audio ready!`);
-              return true;
-            }
-            throw new Error(`${type} audio not stored`);
-          } catch (error: any) {
-            console.warn(`⚠️ ${type.toUpperCase()} attempt ${attempt} failed:`, error.message);
-            if (attempt < MAX_RETRIES) {
-              await delay(1000);
-            }
-          }
-        }
-        console.error(`❌ ${type.toUpperCase()} audio failed after all retries`);
-        return false;
-      };
-
-      // Wait for ALL audio in parallel
-      console.log('🎵 Waiting for all audio to complete...');
-      const [sunReady, moonReady, risingReady] = await Promise.all([
-        waitForAudio('sun', sunAudioPromise, sunReading),
-        waitForAudio('moon', moonAudioPromise, moonReading),
-        waitForAudio('rising', risingAudioPromise, risingReading),
-      ]);
-
-      setProgress(95);
-
-      const allReady = sunReady && moonReady && risingReady;
-      if (allReady) {
-        setStatusText('All readings ready!');
+      // ========== WAIT FOR AUDIO (only if backend responded) ==========
+      if (useFastPath) {
+        // Backend unreachable — skip audio, navigate immediately with fallback readings
+        console.log('⚡ Fast path: backend unreachable, skipping audio, using fallback readings');
+        setProgress(100);
+        setStatusText('Ready!');
+        await delay(500);
       } else {
-        setStatusText('Continuing…');
-        console.warn('⚠️ Some audio failed, proceeding anyway');
-      }
-      await delay(1500);
+        // Backend responded — try audio but don't block forever
+        setProgress(85);
+        setStatusText('Giving your reading a voice…');
 
-      setProgress(100);
-      setStatusText('Ready!');
-      await delay(1000);
+        // Race each audio promise against a timeout so we never hang
+        const AUDIO_TIMEOUT_MS = 120000; // 120s max per type — TTS takes ~30-60s for full readings
+        const audioWithTimeout = (promise: Promise<void> | null): Promise<void> => {
+          if (!promise) return Promise.resolve();
+          return Promise.race([
+            promise,
+            new Promise<void>((_, reject) =>
+              setTimeout(() => reject(new Error('audio timeout')), AUDIO_TIMEOUT_MS)
+            ),
+          ]);
+        };
+
+        try {
+          await Promise.allSettled([
+            sunAudioPromise ? audioWithTimeout(sunAudioPromise) : Promise.resolve(),
+            moonAudioPromise ? audioWithTimeout(moonAudioPromise) : Promise.resolve(),
+            risingAudioPromise ? audioWithTimeout(risingAudioPromise) : Promise.resolve(),
+          ]);
+        } catch (e) {
+          // swallow — allSettled shouldn't throw but just in case
+        }
+
+        const hookAudioState = useOnboardingStore.getState().hookAudio;
+        const audioCount = [hookAudioState.sun, hookAudioState.moon, hookAudioState.rising].filter(Boolean).length;
+        console.log(`🎵 Audio results: ${audioCount}/3 ready`);
+
+        setProgress(95);
+        setStatusText(audioCount === 3 ? 'All readings ready!' : 'Continuing…');
+        await delay(1000);
+
+        setProgress(100);
+        setStatusText('Ready!');
+        await delay(500);
+      }
 
       // Log audio state for debugging
       const hookAudioAtNavigation = useOnboardingStore.getState().hookAudio;

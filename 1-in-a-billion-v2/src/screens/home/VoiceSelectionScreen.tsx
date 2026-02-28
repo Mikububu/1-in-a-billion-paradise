@@ -9,6 +9,7 @@ import { Button } from '@/components/Button';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { VOICE_OPTIONS } from '@/config/voices';
 import { env } from '@/config/env';
+import { getAuthHeaders } from '@/services/api';
 import { buildPromptLayerDirective } from '@/config/promptLayers';
 import { getReadingOutputContract } from '@/config/readingOutputContracts';
 import { useOnboardingStore } from '@/store/onboardingStore';
@@ -246,7 +247,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-User-Id': xUserId,
+                    ...getAuthHeaders(),
                 },
                 body: JSON.stringify(payload),
             });

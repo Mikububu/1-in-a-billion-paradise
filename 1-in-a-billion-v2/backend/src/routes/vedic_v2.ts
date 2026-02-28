@@ -4,8 +4,9 @@ import {
     matchVedicPair,
     matchBatch
 } from '../services/vedic/vedic_ashtakoota.vectorized.engine';
+import type { AppEnv } from '../types/hono';
 
-const vedicV2 = new Hono();
+const vedicV2 = new Hono<AppEnv>();
 
 // Helper: Assert vector shape
 function assertVedicVector(v: any): asserts v is VedicPersonVector {

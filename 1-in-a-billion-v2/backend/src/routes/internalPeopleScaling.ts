@@ -14,8 +14,9 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { env } from '../config/env';
 import { createSupabaseServiceClient } from '../services/supabaseClient';
+import type { AppEnv } from '../types/hono';
 
-const router = new Hono();
+const router = new Hono<AppEnv>();
 
 function requireAdminSecret(c: any) {
   const secret = c.req.header('x-admin-secret');

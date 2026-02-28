@@ -319,7 +319,7 @@ export const useOnboardingStore = create<OnboardingState>()(
         {
             name: 'onboarding-storage', // Storage key
             storage: createJSONStorage(() => AsyncStorage),
-            version: 8, // Current V2 schema
+            version: 9, // Current V2 schema
             migrate: (persistedState: any, version) => {
 
                 if (version < 3) {
@@ -357,6 +357,15 @@ export const useOnboardingStore = create<OnboardingState>()(
                         );
                     }
                 }
+                if (version < 9) {
+                    // Migrate from version 8 to 9: preserve showDashboard state
+                    if (persistedState && typeof persistedState === 'object') {
+                        // showDashboard is now persisted, so preserve it from old state or default to false
+                        if (!('showDashboard' in persistedState)) {
+                            persistedState.showDashboard = false;
+                        }
+                    }
+                }
                 return persistedState;
             },
             // Persist everything except functions
@@ -381,16 +390,15 @@ export const useOnboardingStore = create<OnboardingState>()(
                 hasCompletedOnboarding: state.hasCompletedOnboarding,
                 hasPassedLanguages: state.hasPassedLanguages,
                 redirectAfterOnboarding: state.redirectAfterOnboarding,
+                showDashboard: state.showDashboard,
                 lastActiveTimestamp: state.lastActiveTimestamp, // Persist for inactivity tracking
-                // showDashboard is NOT persisted - always starts as false on app launch
                 _hasHydrated: state._hasHydrated,
             } as any),
             onRehydrateStorage: () => (state) => {
                 if (state) {
                     state._hasHydrated = true;
-                    // NOTE: showDashboard is NOT persisted (see partialize above)
-                    // On cold app launch, it defaults to false from baseState
-                    // Do NOT reset here - it breaks signup flow where AccountScreen sets showDashboard=true
+                    // NOTE: showDashboard is NOW persisted (as of version 9)
+                    // It will be restored from storage on app rehydration
                     // The 24h inactivity reset is handled by AppState listener in RootNavigator
                 }
             },
@@ -418,4 +426,6 @@ export const buildProfileSnapshot = (state: OnboardingState): ProfileSnapshot | 
 };
 
 // DEPRECATED - causes infinite loops. Use individual selectors.
-export const useProfileSnapshot = () => undefined;
+export const useProfileSnapshot = () => {
+  throw new Error('useProfileSnapshot is deprecated. Use buildProfileSnapshot() or individual selectors instead.');
+};

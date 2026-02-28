@@ -1,13 +1,14 @@
 /**
  * NOTIFICATIONS API ROUTES
- * 
+ *
  * Handles push notification subscriptions and manual notification triggers.
  */
 
 import { Hono } from 'hono';
 import { subscribeToNotifications, notifyJobComplete } from '../services/notificationService';
+import type { AppEnv } from '../types/hono';
 
-const app = new Hono();
+const app = new Hono<AppEnv>();
 
 /**
  * POST /api/notifications/subscribe

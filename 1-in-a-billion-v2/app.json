@@ -2,7 +2,7 @@
   "expo": {
     "name": "1 In A Billion V2",
     "slug": "in-a-billion-v2",
-    "scheme": "oneinabillionv2",
+    "scheme": "oneinabillion",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",

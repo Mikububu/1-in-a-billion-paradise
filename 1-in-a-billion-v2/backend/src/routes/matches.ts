@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { matchEngine } from '../services/matchEngine';
+import type { AppEnv } from '../types/hono';
 
 const payloadSchema = z.object({
   birthDate: z.string(),
@@ -18,7 +19,7 @@ const detailSchema = payloadSchema.extend({
   matchId: z.string(),
 });
 
-const router = new Hono();
+const router = new Hono<AppEnv>();
 
 router.post('/preview', async (c) => {
   const parsed = payloadSchema.parse(await c.req.json());

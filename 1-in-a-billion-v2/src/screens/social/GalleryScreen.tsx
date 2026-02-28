@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { env } from '@/config/env';
+import { getAuthHeaders } from '@/services/api';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { useAuthStore } from '@/store/authStore';
 import { colors, spacing, typography } from '@/theme/tokens';
@@ -92,14 +93,15 @@ export const GalleryScreen = ({ navigation }: Props) => {
       else setLoading(true);
 
       try {
+        const authHeaders = getAuthHeaders();
         const galleryReq = fetch(`${env.CORE_API_URL}/api/chat/gallery/random?count=90`, {
-          headers: userId ? { 'X-User-Id': userId } : {},
+          headers: { ...authHeaders },
         });
         const matchesReq = userId
-          ? fetch(`${env.CORE_API_URL}/api/chat/matches`, { headers: { 'X-User-Id': userId } })
+          ? fetch(`${env.CORE_API_URL}/api/chat/matches`, { headers: { ...authHeaders } })
           : Promise.resolve(null);
         const conversationsReq = userId
-          ? fetch(`${env.CORE_API_URL}/api/chat/conversations`, { headers: { 'X-User-Id': userId } })
+          ? fetch(`${env.CORE_API_URL}/api/chat/conversations`, { headers: { ...authHeaders } })
           : Promise.resolve(null);
 
         const [galleryRes, matchesRes, conversationsRes] = await Promise.all([

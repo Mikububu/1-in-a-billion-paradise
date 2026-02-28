@@ -1,5 +1,6 @@
 import { env } from '@/config/env';
 import { useAuthStore } from '@/store/authStore';
+import { getAuthHeaders } from '@/services/api';
 
 export interface CoupleImageResult {
     success: boolean;
@@ -29,7 +30,7 @@ export async function getCoupleImage(
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-User-Id': userId,
+                ...getAuthHeaders(),
             },
             body: JSON.stringify({
                 person1Id,

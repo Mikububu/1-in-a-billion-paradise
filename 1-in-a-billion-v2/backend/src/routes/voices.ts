@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import { VOICES, getEnabledVoices, getVoiceSampleUrl } from '../config/voices';
+import type { AppEnv } from '../types/hono';
 
-const router = new Hono();
+const router = new Hono<AppEnv>();
 
 /**
  * GET /api/voices/samples

@@ -20,8 +20,9 @@ import {
   isReplicateRateLimitError,
   runReplicateWithRateLimit,
 } from '../services/replicateRateLimiter';
+import type { AppEnv } from '../types/hono';
 
-const router = new Hono();
+const router = new Hono<AppEnv>();
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
   let timeoutHandle: NodeJS.Timeout | null = null;

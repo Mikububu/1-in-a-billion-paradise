@@ -34,14 +34,26 @@ export async function fetchJobArtifacts(jobId: string): Promise<JobArtifact[]> {
 
 export async function createArtifactSignedUrl(storagePath: string, expiresInSeconds: number = 60 * 60): Promise<string | null> {
     if (!isSupabaseConfigured || !storagePath) return null;
+    // Skip error sentinel paths
+    if (storagePath.startsWith('error/')) return null;
 
     try {
         const { data, error } = await supabase.storage
             .from('job-artifacts')
             .createSignedUrl(storagePath, expiresInSeconds);
 
-        if (error) return null;
-        return data?.signedUrl || null;
+        if (!error && data?.signedUrl) return data.signedUrl;
+    } catch {
+        // Fall through to public URL fallback
+    }
+
+    // Fallback: bucket is public, so use the public URL directly
+    try {
+        const { data } = supabase.storage
+            .from('job-artifacts')
+            .getPublicUrl(storagePath);
+
+        return data?.publicUrl || null;
     } catch {
         return null;
     }

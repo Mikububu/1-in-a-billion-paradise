@@ -6,6 +6,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '@/store/authStore';
 import { env } from '@/config/env';
+import { getAuthHeaders } from '@/services/api';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { backfillMissingPlacements } from '@/services/placementsCalculator';
 import { supabase } from '@/services/supabase';
@@ -155,7 +156,7 @@ export const HomeScreen = ({ navigation }: Props) => {
       }
       const response = await fetch(`${env.CORE_API_URL}/api/profile/portrait`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ photoBase64: result.assets[0].base64 }),
       });
       const data = await response.json();

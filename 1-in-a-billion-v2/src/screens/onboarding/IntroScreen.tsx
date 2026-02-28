@@ -256,7 +256,7 @@ export const IntroScreen = ({ navigation }: Props) => {
       Alert.alert(
         'Continue onboarding',
         'Finish onboarding and subscription to unlock dashboard access.',
-        [{ text: 'OK', onPress: () => navigation.navigate('CoreIdentitiesIntro' as any) }]
+        [{ text: 'OK', onPress: () => navigation.navigate('CoreIdentities' as any) }]
       );
       return false;
     }

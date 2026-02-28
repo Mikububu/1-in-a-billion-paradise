@@ -24,8 +24,10 @@ import {
 import { canUseIncludedReading, checkUserSubscription } from '../services/subscriptionService';
 import { createSupabaseUserClientFromAccessToken } from '../services/supabaseClient';
 import { env } from '../config/env';
+import { requireAuth } from '../middleware/requireAuth';
+import type { AppEnv } from '../types/hono';
 
-const payments = new Hono();
+const payments = new Hono<AppEnv>();
 
 /**
  * GET /api/payments/config
@@ -109,7 +111,7 @@ payments.get('/included-reading-status', async (c) => {
  * Verify that a RevenueCat app_user_id has an active subscription.
  * Body: { appUserId: string }
  */
-payments.post('/verify-entitlement', async (c) => {
+payments.post('/verify-entitlement', requireAuth, async (c) => {
   try {
     const { appUserId } = (await c.req.json()) as { appUserId?: string };
     if (!appUserId) {

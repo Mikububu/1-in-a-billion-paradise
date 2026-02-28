@@ -1,6 +1,6 @@
 /**
  * VEDIC MATCHMAKING API ROUTES
- * 
+ *
  * REST endpoints for Jyotish matchmaking computation.
  * Uses verified scoring engine and vectorized tables.
  */
@@ -9,8 +9,9 @@ import { Hono } from 'hono';
 import { computeVedicMatch } from '../services/vedic/vedic_matchmaking.engine';
 import { scorePair, matchOneToMany, fastReject } from '../services/vedic/vedic_ashtakoota.batch';
 import { PersonChart, VedicPerson } from '../services/vedic/vedic_matchmaking.types';
+import type { AppEnv } from '../types/hono';
 
-const vedicRoutes = new Hono();
+const vedicRoutes = new Hono<AppEnv>();
 
 // ============================================================================
 // 1. ONE-TO-ONE MATCH

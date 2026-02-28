@@ -1,8 +1,8 @@
 /**
  * CITY SEARCH API
- * 
+ *
  * GET /api/cities/search?q=<query>
- * 
+ *
  * Uses Google Places API to search for cities worldwide.
  * Returns city name, country, timezone, and coordinates.
  */
@@ -10,8 +10,9 @@
 import { Hono } from 'hono';
 import axios from 'axios';
 import { getApiKey } from '../services/apiKeys';
+import type { AppEnv } from '../types/hono';
 
-const router = new Hono();
+const router = new Hono<AppEnv>();
 
 interface CityResult {
     id: string;

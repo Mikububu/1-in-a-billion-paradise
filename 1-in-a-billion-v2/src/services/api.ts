@@ -9,9 +9,33 @@ const CORE_API_URL = process.env.EXPO_PUBLIC_CORE_API_URL || process.env.EXPO_PU
 const SUPABASE_FUNCTION_URL = process.env.EXPO_PUBLIC_SUPABASE_FUNCTION_URL || CORE_API_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
+// Session expiry handler
+let onSessionExpired: (() => void) | null = null;
+export function setSessionExpiredHandler(handler: () => void) {
+  onSessionExpired = handler;
+}
+
+/**
+ * Returns Authorization header with the current Supabase access token.
+ * Use this for raw fetch() calls that bypass the Axios coreClient.
+ */
+export function getAuthHeaders(): Record<string, string> {
+  const token = useAuthStore.getState().session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 const coreClient = axios.create({
     baseURL: CORE_API_URL,
     timeout: 20000,
+});
+
+// Automatically attach Supabase access token to every coreClient request
+coreClient.interceptors.request.use((config) => {
+    const token = useAuthStore.getState().session?.access_token;
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
 });
 
 const supabaseClient = axios.create({
@@ -25,11 +49,32 @@ const supabaseClient = axios.create({
         : undefined,
 });
 
+// Add response interceptor for 401 errors to both clients
+coreClient.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401 && onSessionExpired) {
+            onSessionExpired();
+        }
+        return Promise.reject(error);
+    }
+);
+
+supabaseClient.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401 && onSessionExpired) {
+            onSessionExpired();
+        }
+        return Promise.reject(error);
+    }
+);
+
 // Fallback keeps onboarding flow alive when hook endpoints are temporarily unavailable.
+// NOTE: We omit `sign` so generateLocalHookReading estimates it from birthDate.
 const readingFallback = (payload: ReadingPayload, type: 'sun' | 'moon' | 'rising'): ReadingResponse => ({
     reading: generateLocalHookReading({
         type,
-        sign: '',
         relationshipPreferenceScale: payload.relationshipPreferenceScale,
         birthDate: payload.birthDate,
     }),
@@ -311,6 +356,7 @@ export async function createIncludedReading(
     relationshipPreferenceScale: number = 5
 ): Promise<{ success: boolean; jobId?: string; error?: string }> {
     try {
+        // Auth token is attached automatically by the coreClient request interceptor
         const response = await coreClient.post('/api/jobs/v2/start', {
             type: 'extended',
             systems: [system],
@@ -318,10 +364,6 @@ export async function createIncludedReading(
             person1: birthData,
             relationshipPreferenceScale: Math.min(10, Math.max(1, Math.round(relationshipPreferenceScale))),
             useIncludedReading: true, // Flag: use the one included reading from subscription
-        }, {
-            headers: {
-                'X-User-Id': userId,
-            },
         });
 
         return {
@@ -346,9 +388,8 @@ export async function checkIncludedReadingEligible(): Promise<boolean> {
         const accessToken = useAuthStore.getState().session?.access_token;
         if (!accessToken) return false;
 
-        const response = await coreClient.get('/api/payments/included-reading-status', {
-            headers: { Authorization: `Bearer ${accessToken}` },
-        });
+        // Auth token is attached automatically by the coreClient request interceptor
+        const response = await coreClient.get('/api/payments/included-reading-status');
 
         return response.data?.eligible === true;
     } catch (error: any) {
