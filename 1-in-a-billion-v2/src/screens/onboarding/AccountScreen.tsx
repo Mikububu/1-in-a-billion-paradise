@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
+  Dimensions,
   Platform,
   StyleSheet,
   Text,
@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 const AppleAuthentication = { signInAsync: async () => ({}), AppleAuthenticationScope: { FULL_NAME: 1, EMAIL: 2 } } as any;
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
+import { Video, ResizeMode } from 'expo-av';
 import { BackButton } from '@/components/BackButton';
 import { env } from '@/config/env';
 import { colors, radii, spacing, typography } from '@/theme/tokens';
@@ -706,10 +707,13 @@ export const AccountScreen = ({ navigation, route }: Props) => {
   return (
     <View style={styles.container}>
       <View style={styles.bottomImageWrap} pointerEvents="none">
-        <Image
-          source={require('../../../assets/images/Jesus_Vix.png')}
+        <Video
+          source={require('../../../assets/videos/plastilin_pingpong.mp4')}
           style={styles.bottomImage}
-          resizeMode="contain"
+          resizeMode={ResizeMode.COVER}
+          shouldPlay
+          isLooping
+          isMuted
         />
       </View>
 
@@ -926,14 +930,17 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: '35%',
+    height: Math.round(Dimensions.get('window').height * 0.28),
     overflow: 'hidden',
     zIndex: 0,
   },
   bottomImage: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     width: '100%',
     height: '100%',
-    alignSelf: 'center',
     opacity: 0.95,
   },
   authSection: {

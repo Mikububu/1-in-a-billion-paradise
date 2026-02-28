@@ -40,14 +40,19 @@ setInterval(() => {
 /**
  * Get client IP from Hono context.
  * Checks X-Forwarded-For (Fly.io/nginx) then falls back to connection info.
+ * Defensive: some requests (e.g. CORS preflight) may have non-standard header objects.
  */
 function getClientIp(c: Context): string {
-  const forwarded = c.req.header('x-forwarded-for');
-  if (forwarded) {
-    return forwarded.split(',')[0].trim();
+  try {
+    const forwarded = c.req.header('x-forwarded-for');
+    if (forwarded) {
+      return forwarded.split(',')[0].trim();
+    }
+    const realIp = c.req.header('x-real-ip');
+    if (realIp) return realIp;
+  } catch {
+    // Header access failed (e.g. raw request headers not fully initialised)
   }
-  const realIp = c.req.header('x-real-ip');
-  if (realIp) return realIp;
   return 'unknown';
 }
 
@@ -68,8 +73,15 @@ export function createRateLimiter(name: string, config: RateLimitConfig) {
   }
 
   return async (c: Context, next: Next) => {
+    // If anything in rate limiting fails, fail open (allow the request through)
+    let key: string;
+    try {
+      key = keyGenerator(c);
+    } catch {
+      await next();
+      return;
+    }
     const store = stores.get(name)!;
-    const key = keyGenerator(c);
     const now = Date.now();
 
     // Get or create entry
