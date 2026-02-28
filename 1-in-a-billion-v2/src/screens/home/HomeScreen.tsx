@@ -83,20 +83,27 @@ export const HomeScreen = ({ navigation }: Props) => {
   const [matchCount, setMatchCount] = useState(0);
   const blinkAnim = useRef(new Animated.Value(1)).current;
 
-  useEffect(() => {
-    const loadUserData = async () => {
-      if (!authUserId) return;
-      try {
-        const { data } = await supabase.from('library_people').select('portrait_url').eq('user_id', authUserId).eq('is_user', true).single();
-        if (data?.portrait_url) setPortraitPhotoUrl(data.portrait_url);
-        const { count } = await supabase.from('matches').select('*', { count: 'exact', head: true }).or(`user1_id.eq.${authUserId},user2_id.eq.${authUserId}`);
-        setMatchCount(count || 0);
-      } catch (error) {
-        console.error('Failed to load user data:', error);
-      }
-    };
-    loadUserData();
+  const loadUserData = useCallback(async () => {
+    if (!authUserId) return;
+    try {
+      const { data } = await supabase.from('library_people').select('portrait_url').eq('user_id', authUserId).eq('is_user', true).single();
+      if (data?.portrait_url) setPortraitPhotoUrl(data.portrait_url);
+      const { count } = await supabase.from('matches').select('*', { count: 'exact', head: true }).or(`user1_id.eq.${authUserId},user2_id.eq.${authUserId}`);
+      setMatchCount(count || 0);
+    } catch (error) {
+      console.error('Failed to load user data:', error);
+    }
   }, [authUserId]);
+
+  useEffect(() => {
+    loadUserData();
+  }, [loadUserData]);
+
+  // Re-fetch portrait + match count every time the screen comes into focus
+  // so photos uploaded from other screens show up immediately
+  useFocusEffect(useCallback(() => {
+    loadUserData();
+  }, [loadUserData]));
 
   useEffect(() => {
     if (!authUserId || matchCount <= 0) return;
