@@ -257,6 +257,131 @@ router.put('/users/:userId', requirePermission('users', 'write'), async (c) => {
   }
 });
 
+/**
+ * DELETE /api/admin/users/:userId
+ * Permanently delete a user and ALL associated data.
+ * Requires superadmin permission. This action is irreversible.
+ */
+router.delete('/users/:userId', requirePermission('users', 'delete'), async (c) => {
+  const supabase = createSupabaseServiceClient();
+  if (!supabase) {
+    return c.json({ error: 'Database connection failed' }, 500);
+  }
+
+  const userId = c.req.param('userId');
+  const admin = getAdmin(c)!;
+
+  try {
+    // Verify user exists before deleting
+    const { data: userCheck, error: userCheckError } = await supabase.auth.admin.getUserById(userId);
+    if (userCheckError || !userCheck?.user) {
+      return c.json({ error: 'User not found' }, 404);
+    }
+    const userEmail = userCheck.user.email;
+
+    const errors: string[] = [];
+
+    // ── 1. Delete all user data from app tables (order matters for FK constraints) ──
+
+    const tablesToDelete: string[] = [
+      // Job-related (delete tasks/artifacts before jobs)
+      'job_notification_subscriptions',
+      'job_alerts',
+      'job_metrics',
+      'job_tasks',
+      'job_artifacts',
+      'vedic_job_artifacts',
+      'jobs',
+      'audiobook_jobs',
+      // Reading-related
+      'readings',
+      'library_people',
+      'library',
+      // People/match related
+      'vedic_matches',
+      'vedic_match_jobs',
+      'vedic_people',
+      'matches',
+      'couple_portraits',
+      'people',
+      // Content
+      'audio',
+      'audiobook_chapters',
+      'songs',
+      'messages',
+      'conversations',
+      // Subscription / commerce
+      'coupon_redemptions',
+      'purchases',
+      'subscription_history',
+      'user_subscriptions',
+      'user_commercial_state',
+      // Misc user data
+      'user_push_tokens',
+      'user_activity',
+      'user_notes',
+      'cost_logs',
+    ];
+
+    for (const table of tablesToDelete) {
+      const { error } = await supabase.from(table as any).delete().eq('user_id', userId);
+      if (error) {
+        // Log but continue — some tables may not have user_id or row may not exist
+        console.warn(`⚠️  Could not delete from ${table} for user ${userId}: ${error.message}`);
+        errors.push(`${table}: ${error.message}`);
+      }
+    }
+
+    // ── 2. Delete Supabase Storage files for this user ──
+    // Try common bucket paths — ignore errors if buckets don't exist or are empty
+    const storageBuckets = ['avatars', 'audio', 'pdfs', 'portraits', 'videos'];
+    for (const bucket of storageBuckets) {
+      try {
+        const { data: files } = await supabase.storage.from(bucket).list(userId);
+        if (files && files.length > 0) {
+          const paths = files.map((f: any) => `${userId}/${f.name}`);
+          await supabase.storage.from(bucket).remove(paths);
+        }
+      } catch {
+        // Bucket may not exist or user has no files — fine
+      }
+    }
+
+    // ── 3. Delete the Supabase Auth user (this removes the auth record) ──
+    const { error: authDeleteError } = await supabase.auth.admin.deleteUser(userId);
+    if (authDeleteError) {
+      console.error(`❌ Failed to delete auth user ${userId}:`, authDeleteError.message);
+      return c.json({
+        error: 'Failed to delete auth user',
+        details: authDeleteError.message,
+        data_deletion_errors: errors,
+      }, 500);
+    }
+
+    // ── 4. Audit log ──
+    await logAdminAction(
+      admin.id,
+      'user_deleted',
+      'user',
+      userId,
+      { email: userEmail, data_deletion_errors: errors },
+      c.req.header('x-forwarded-for') || undefined,
+      c.req.header('user-agent') || undefined
+    );
+
+    console.log(`🗑️  Admin ${admin.id} deleted user ${userId} (${userEmail})`);
+
+    return c.json({
+      success: true,
+      message: `User ${userEmail} and all associated data permanently deleted.`,
+      warnings: errors.length > 0 ? errors : undefined,
+    });
+  } catch (err: any) {
+    console.error('Error deleting user:', err);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
 // ───────────────────────────────────────────────────────────────────────────
 // JOB MONITORING
 // ───────────────────────────────────────────────────────────────────────────
