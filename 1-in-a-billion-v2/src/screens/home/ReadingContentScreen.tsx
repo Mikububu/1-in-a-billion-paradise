@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Audio, AVPlaybackStatus } from 'expo-av';
+import { Audio, AVPlaybackStatus, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 import { BackButton } from '@/components/BackButton';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
@@ -223,12 +223,11 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
         if (!otherSound) return;
 
         try {
-            const otherStatus = await otherSound.getStatusAsync();
-            if (!otherStatus.isLoaded || !otherStatus.isPlaying) return;
+            // Always attempt to pause — don't rely on isPlaying check which can race
             await otherSound.pauseAsync();
             setIsAudioPlayingByKind((prev) => ({ ...prev, [otherKind]: false }));
         } catch {
-            // ignore playback race
+            // ignore if already stopped / unloaded
         }
     }, []);
 
@@ -266,7 +265,9 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                 await Audio.setAudioModeAsync({
                     playsInSilentModeIOS: true,
                     staysActiveInBackground: false,
+                    interruptionModeIOS: InterruptionModeIOS.DoNotMix,
                     shouldDuckAndroid: true,
+                    interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
                 });
 
                 const signedUrl = await getCachedArtifactSignedUrl(artifact.storage_path, 60 * 60);
