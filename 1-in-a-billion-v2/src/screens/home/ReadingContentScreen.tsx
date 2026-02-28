@@ -110,8 +110,8 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
 
     const statusLine = useMemo(() => {
         const status = String(job?.status || 'unknown').toUpperCase();
-        const total = job?.progress?.totalTasks;
-        const done = job?.progress?.completedTasks;
+        const total = job?.progress?.tasksTotal ?? job?.progress?.totalTasks;
+        const done = job?.progress?.tasksComplete ?? job?.progress?.completedTasks;
         const pctRaw = typeof job?.progress?.percent === 'number'
             ? job.progress.percent
             : typeof total === 'number' && total > 0
