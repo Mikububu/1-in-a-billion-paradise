@@ -1935,7 +1935,7 @@ router.get('/matches/stats', async (c) => {
     const { count: activeUsers } = await supabase
       .from('library_people')
       .select('*', { count: 'exact', head: true })
-      .eq('is_self', true)
+      .eq('is_user', true)
       .gte('last_active_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
 
     const { count: recentUploads } = await supabase
@@ -2045,7 +2045,7 @@ router.get('/gallery', async (c) => {
         created_at
       `)
       .not('portrait_url', 'is', null)
-      .eq('is_self', true)
+      .eq('is_user', true)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
