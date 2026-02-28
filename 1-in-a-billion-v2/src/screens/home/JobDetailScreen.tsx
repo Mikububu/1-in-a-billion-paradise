@@ -126,8 +126,8 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
     );
 
     const taskProgress = useMemo(() => {
-        const totalFromProgress = Number(job?.progress?.totalTasks);
-        const doneFromProgress = Number(job?.progress?.completedTasks);
+        const totalFromProgress = Number(job?.progress?.tasksTotal ?? job?.progress?.totalTasks);
+        const doneFromProgress = Number(job?.progress?.tasksComplete ?? job?.progress?.completedTasks);
         if (Number.isFinite(totalFromProgress) && totalFromProgress > 0 && Number.isFinite(doneFromProgress) && doneFromProgress >= 0) {
             return {
                 done: Math.max(0, Math.min(totalFromProgress, doneFromProgress)),

@@ -43,8 +43,9 @@ export async function fetchJobSnapshot(jobId: string): Promise<JobSnapshot | nul
     const job = data?.job;
     if (!job) return null;
 
-    const total = job.progress?.totalTasks;
-    const done = job.progress?.completedTasks;
+    // Backend stores these as tasksTotal/tasksComplete (also check totalTasks/completedTasks for compatibility)
+    const total = job.progress?.tasksTotal ?? job.progress?.totalTasks;
+    const done = job.progress?.tasksComplete ?? job.progress?.completedTasks;
     const pctRaw =
       typeof job.progress?.percent === 'number'
         ? job.progress.percent

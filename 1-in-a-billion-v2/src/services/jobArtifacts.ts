@@ -27,7 +27,11 @@ export async function fetchJobArtifacts(jobId: string): Promise<JobArtifact[]> {
             .order('created_at', { ascending: true });
 
         if (error) return [];
-        return (data || []) as JobArtifact[];
+        // Normalise doc_num: the DB stores it inside metadata.docNum, not as a top-level column
+        return (data || []).map((row: any) => ({
+            ...row,
+            doc_num: row.doc_num ?? row.metadata?.docNum ?? null,
+        })) as JobArtifact[];
     } catch {
         return [];
     }
