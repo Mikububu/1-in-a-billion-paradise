@@ -2,12 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Audio } from 'expo-av';
+import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
-import { VOICE_OPTIONS } from '@/config/voices';
+import { VOICE_OPTIONS, type VoiceOption } from '@/config/voices';
 import { env } from '@/config/env';
 import { getAuthHeaders } from '@/services/api';
 import { buildPromptLayerDirective } from '@/config/promptLayers';
@@ -108,7 +108,9 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
             await Audio.setAudioModeAsync({
                 playsInSilentModeIOS: true,
                 staysActiveInBackground: false,
+                interruptionModeIOS: InterruptionModeIOS.DoNotMix,
                 shouldDuckAndroid: true,
+                interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
             });
 
             const { sound } = await Audio.Sound.createAsync(
@@ -323,32 +325,38 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
                 </Text>
 
                 <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-                    {VOICE_OPTIONS.map((voice) => {
+                    {VOICE_OPTIONS.map((voice, index) => {
                         const selected = voice.id === selectedVoice;
+                        const prevVoice = index > 0 ? VOICE_OPTIONS[index - 1] : null;
+                        const showTurboHeader = voice.isTurbo && (!prevVoice || !prevVoice.isTurbo);
                         return (
-                            <TouchableOpacity
-                                key={voice.id}
-                                style={[styles.voiceCard, selected && styles.voiceCardSelected]}
-                                onPress={() => setSelectedVoice(voice.id)}
-                                activeOpacity={0.8}
-                            >
-                                <View style={styles.voiceInfo}>
-                                    <Text style={styles.voiceLabel}>{voice.label}</Text>
-                                    <Text style={styles.voiceDescription}>{voice.description}</Text>
-                                </View>
+                            <View key={voice.id}>
+                                {showTurboHeader && (
+                                    <Text style={styles.sectionHeader}>Turbo Voices</Text>
+                                )}
                                 <TouchableOpacity
-                                    style={[styles.previewButton, playingVoice === voice.id && styles.previewButtonActive]}
-                                    onPress={() => {
-                                        void playVoiceSample(voice.id);
-                                    }}
+                                    style={[styles.voiceCard, selected && styles.voiceCardSelected]}
+                                    onPress={() => setSelectedVoice(voice.id)}
                                     activeOpacity={0.8}
                                 >
-                                    <Text style={styles.previewButtonText}>{playingVoice === voice.id ? '■' : '▶'}</Text>
+                                    <View style={styles.voiceInfo}>
+                                        <Text style={styles.voiceLabel}>{voice.label}</Text>
+                                        <Text style={styles.voiceDescription}>{voice.description}</Text>
+                                    </View>
+                                    <TouchableOpacity
+                                        style={[styles.previewButton, playingVoice === voice.id && styles.previewButtonActive]}
+                                        onPress={() => {
+                                            void playVoiceSample(voice.id);
+                                        }}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={styles.previewButtonText}>{playingVoice === voice.id ? '■' : '▶'}</Text>
+                                    </TouchableOpacity>
+                                    <Text style={[styles.check, selected && styles.checkSelected]}>
+                                        {selected ? '●' : '○'}
+                                    </Text>
                                 </TouchableOpacity>
-                                <Text style={[styles.check, selected && styles.checkSelected]}>
-                                    {selected ? '●' : '○'}
-                                </Text>
-                            </TouchableOpacity>
+                            </View>
                         );
                     })}
                 </ScrollView>
@@ -396,6 +404,15 @@ const styles = StyleSheet.create({
     listContent: {
         gap: spacing.sm,
         paddingBottom: spacing.md,
+    },
+    sectionHeader: {
+        fontFamily: typography.sansSemiBold,
+        fontSize: 11,
+        color: colors.primary,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginTop: spacing.md,
+        marginBottom: spacing.xs,
     },
     voiceCard: {
         flexDirection: 'row',

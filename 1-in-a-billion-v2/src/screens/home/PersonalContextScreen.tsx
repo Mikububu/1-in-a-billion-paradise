@@ -63,16 +63,19 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                         <View style={[styles.outerRing, styles.outerRingOne]} />
                         <View style={[styles.outerRing, styles.outerRingTwo]} />
                         <View style={styles.circleInputShell}>
-                            <TextInput
-                                value={context}
-                                onChangeText={setContext}
-                                multiline
-                                maxLength={maxChars}
-                                placeholder='I will speak the truth'
-                                placeholderTextColor={colors.mutedText}
-                                style={styles.input}
-                                textAlignVertical="top"
-                            />
+                            <View style={styles.inputCenterWrap}>
+                                <TextInput
+                                    value={context}
+                                    onChangeText={setContext}
+                                    multiline
+                                    maxLength={maxChars}
+                                    placeholder='I will speak the truth'
+                                    placeholderTextColor={colors.mutedText}
+                                    style={styles.input}
+                                    textAlign="center"
+                                    textAlignVertical="center"
+                                />
+                            </View>
                             <Text style={styles.counter}>{context.length}/{maxChars}</Text>
                         </View>
                     </View>
@@ -156,16 +159,20 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.text,
         backgroundColor: colors.surface,
-        paddingHorizontal: spacing.md,
-        paddingTop: spacing.md,
+        paddingHorizontal: spacing.lg,
         paddingBottom: spacing.sm,
+        justifyContent: 'center',
+    },
+    inputCenterWrap: {
+        flex: 1,
+        justifyContent: 'center',
     },
     input: {
-        flex: 1,
         fontFamily: typography.sansRegular,
-        fontSize: 16,
-        lineHeight: 22,
+        fontSize: 12,
+        lineHeight: 18,
         color: colors.text,
+        textAlign: 'center',
     },
     counter: {
         marginTop: spacing.xs,
