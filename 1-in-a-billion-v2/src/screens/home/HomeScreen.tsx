@@ -82,6 +82,8 @@ export const HomeScreen = ({ navigation }: Props) => {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [matchCount, setMatchCount] = useState(0);
   const blinkAnim = useRef(new Animated.Value(1)).current;
+  const secretTapCountRef = useRef(0);
+  const secretTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadUserData = useCallback(async () => {
     if (!authUserId) return;
@@ -501,6 +503,47 @@ export const HomeScreen = ({ navigation }: Props) => {
   const handleMatchYes = () => Alert.alert('Registered!', 'Match feature coming soon!', [{ text: 'Got it' }]);
   const handleMatchNo = () => clearCompatibilityReadings?.();
   const matchingPaused = entitlementState === 'inactive';
+
+  // 5-tap secret reset on the "1"
+  const handleSecretTap = useCallback(() => {
+    secretTapCountRef.current += 1;
+    if (secretTapTimerRef.current) clearTimeout(secretTapTimerRef.current);
+    secretTapTimerRef.current = setTimeout(() => { secretTapCountRef.current = 0; }, 2000);
+
+    if (secretTapCountRef.current >= 5) {
+      secretTapCountRef.current = 0;
+      Alert.alert(
+        'Full Reset',
+        'This will clear ALL local data (AsyncStorage, stores, caches) and sign you out. Continue?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Reset Everything',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                // 1. Clear ALL AsyncStorage keys
+                await AsyncStorage.clear();
+                console.log('✅ AsyncStorage.clear() complete');
+
+                // 2. Sign out from Supabase
+                try { await supabase.auth.signOut(); } catch {}
+
+                // 3. Reset Zustand stores
+                useAuthStore.getState().signOut();
+                useOnboardingStore.getState().reset?.();
+                useProfileStore.getState().reset?.();
+
+                Alert.alert('Done', 'All local data has been cleared. The app will restart.');
+              } catch (e: any) {
+                Alert.alert('Error', e.message || 'Failed to reset');
+              }
+            },
+          },
+        ]
+      );
+    }
+  }, []);
   const displayedMatchCount = matchCount;
 
   return (
@@ -556,7 +599,7 @@ export const HomeScreen = ({ navigation }: Props) => {
             </TouchableOpacity>
           </View>
           <Animated.Text style={[styles.statusSub, { transform: [{ scale: pulseAnim }] }]}>
-            BUT THE <Text style={styles.statusOne}>1</Text> IN A BILLION IS STILL OUT THERE
+            BUT THE <Text style={styles.statusOne} onPress={handleSecretTap}>1</Text> IN A BILLION IS STILL OUT THERE
           </Animated.Text>
           {matchingPaused ? (
             <Text style={styles.subscriptionWarning}>{CHAT_RENEW_WARNING_TEXT}</Text>
