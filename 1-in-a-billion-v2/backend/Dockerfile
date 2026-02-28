@@ -1,4 +1,4 @@
-# Build stage
+# Build stage — cache bust: 2026-02-28
 FROM node:22-bookworm-slim AS builder
 
 # Install build tools for native modules

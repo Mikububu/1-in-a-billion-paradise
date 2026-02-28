@@ -73,44 +73,41 @@ export function createRateLimiter(name: string, config: RateLimitConfig) {
   }
 
   return async (c: Context, next: Next) => {
-    // If anything in rate limiting fails, fail open (allow the request through)
-    let key: string;
+    // Wrap everything — if rate limiting fails for any reason, fail open
     try {
-      key = keyGenerator(c);
-    } catch {
-      await next();
-      return;
-    }
-    const store = stores.get(name)!;
-    const now = Date.now();
+      const key = keyGenerator(c);
+      const store = stores.get(name);
+      if (!store) { await next(); return; }
+      const now = Date.now();
 
-    // Get or create entry
-    let entry = store.get(key);
-    if (!entry) {
-      entry = { timestamps: [] };
-      store.set(key, entry);
-    }
+      let entry = store.get(key);
+      if (!entry) {
+        entry = { timestamps: [] };
+        store.set(key, entry);
+      }
 
-    // Remove timestamps outside the window
-    entry.timestamps = entry.timestamps.filter(t => now - t < windowMs);
+      entry.timestamps = entry.timestamps.filter(t => now - t < windowMs);
 
-    // Check limit
-    if (entry.timestamps.length >= maxRequests) {
-      const retryAfter = Math.ceil((entry.timestamps[0] + windowMs - now) / 1000);
-      c.header('Retry-After', String(retryAfter));
+      if (entry.timestamps.length >= maxRequests) {
+        const retryAfter = Math.ceil((entry.timestamps[0] + windowMs - now) / 1000);
+        c.header('Retry-After', String(retryAfter));
+        c.header('X-RateLimit-Limit', String(maxRequests));
+        c.header('X-RateLimit-Remaining', '0');
+        return c.json({ success: false, error: message }, 429);
+      }
+
+      // Record this request
+      entry.timestamps.push(now);
+
+      // Set rate limit headers
       c.header('X-RateLimit-Limit', String(maxRequests));
-      c.header('X-RateLimit-Remaining', '0');
-      return c.json({ success: false, error: message }, 429);
+      c.header('X-RateLimit-Remaining', String(maxRequests - entry.timestamps.length));
+
+      await next();
+    } catch {
+      // Rate limiter error — fail open so the request still goes through
+      await next();
     }
-
-    // Record this request
-    entry.timestamps.push(now);
-
-    // Set rate limit headers
-    c.header('X-RateLimit-Limit', String(maxRequests));
-    c.header('X-RateLimit-Remaining', String(maxRequests - entry.timestamps.length));
-
-    await next();
   };
 }
 
