@@ -424,6 +424,12 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                 <Text style={styles.title}>{title}</Text>
                 <Text style={styles.subtitle}>{readingTypeSubheadline}</Text>
 
+                {errorText ? (
+                    <View style={{ backgroundColor: '#FEF2F2', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                        <Text style={[styles.errorText, { color: '#DC2626' }]}>{errorText}</Text>
+                    </View>
+                ) : null}
+
                 <View style={styles.actionsRow}>
                     <TouchableOpacity style={styles.actionButton} onPress={load}>
                         <Text style={styles.actionText}>Refresh</Text>
