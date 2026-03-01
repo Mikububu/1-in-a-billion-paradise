@@ -507,6 +507,20 @@ router.delete('/v2/:jobId', jwtAuth, async (c) => {
   }
   const supabase = supabaseService;
 
+  // Only allow users to delete their own jobs
+  const authUserId = c.get('userId');
+  const { data: job, error: fetchErr } = await supabase
+    .from('jobs')
+    .select('user_id')
+    .eq('id', jobId)
+    .single();
+  if (fetchErr || !job) {
+    return c.json({ success: false, error: 'Job not found' }, 404);
+  }
+  if (job.user_id !== authUserId) {
+    return c.json({ success: false, error: 'Not authorized to delete this job' }, 403);
+  }
+
   // Delete job (cascades to tasks and artifacts)
   const { error } = await supabase.from('jobs').delete().eq('id', jobId);
   if (error) {

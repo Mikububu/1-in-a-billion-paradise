@@ -327,8 +327,8 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
         const resolvedReadingType = readingType === 'overlay' ? 'overlay' : 'individual';
         const systems = isBundle ? [...ALL_SYSTEMS] : [system];
         const productType = resolvedReadingType === 'overlay'
-            ? (isBundle ? 'bundle_16_readings' : 'compatibility_overlay')
-            : (isBundle ? 'bundle_5_readings' : 'single_system');
+            ? (isBundle ? 'nuclear_package' : 'compatibility_overlay')
+            : (isBundle ? 'complete_reading' : 'single_system');
 
         if (!forPurchase) {
             navigation.navigate('SystemSelection', {

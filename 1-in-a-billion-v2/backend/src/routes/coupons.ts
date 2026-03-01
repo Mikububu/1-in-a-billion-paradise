@@ -8,11 +8,26 @@
  */
 
 import { Hono } from 'hono';
+import { timingSafeEqual } from 'node:crypto';
 import { env } from '../config/env';
 import { requireAuth } from '../middleware/requireAuth';
 import type { AppEnv } from '../types/hono';
 
 const coupons = new Hono<AppEnv>();
+
+/** Admin guard: requires x-admin-secret header matching ADMIN_PANEL_SECRET */
+function requireAdminSecret(c: any): Response | null {
+  const secret = c.req.header('x-admin-secret');
+  if (!env.ADMIN_PANEL_SECRET || !secret) {
+    return c.json({ error: 'Unauthorized — missing admin secret' }, 401);
+  }
+  const expected = Buffer.from(env.ADMIN_PANEL_SECRET, 'utf8');
+  const received = Buffer.from(secret, 'utf8');
+  if (expected.length !== received.length || !timingSafeEqual(expected, received)) {
+    return c.json({ error: 'Unauthorized — invalid admin secret' }, 401);
+  }
+  return null; // authorized
+}
 
 function getServiceClient() {
   const { createClient } = require('@supabase/supabase-js');
@@ -108,17 +123,33 @@ coupons.post('/redeem', async (c) => {
     return c.json({ success: false, error: 'This code has been fully redeemed' }, 400);
   }
 
-  // Increment usage counter
-  const { error: updateErr } = await supabase
-    .from('coupon_codes')
-    .update({
-      times_used: coupon.times_used + 1,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', coupon.id);
+  // Atomic increment usage counter (prevents race condition where two concurrent
+  // redemptions both read the same times_used and both pass the max_uses check)
+  const { data: updated, error: updateErr } = await supabase
+    .rpc('increment_coupon_usage', { coupon_id: coupon.id, usage_limit: coupon.max_uses });
 
-  if (updateErr) {
+  // If the RPC doesn't exist yet, fall back to optimistic update with re-check
+  if (updateErr?.code === '42883') {
+    // Fallback: conditional update that only succeeds if times_used hasn't changed
+    const { data: updatedRow, error: fallbackErr } = await supabase
+      .from('coupon_codes')
+      .update({
+        times_used: coupon.times_used + 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', coupon.id)
+      .eq('times_used', coupon.times_used)  // optimistic lock
+      .select('times_used')
+      .maybeSingle();
+
+    if (fallbackErr || !updatedRow) {
+      return c.json({ success: false, error: 'Coupon was just redeemed by someone else. Please try again.' }, 409);
+    }
+  } else if (updateErr) {
     console.error('Failed to increment coupon usage:', updateErr);
+  } else if (updated === false) {
+    // RPC returned false = limit exceeded
+    return c.json({ success: false, error: 'This code has been fully redeemed' }, 400);
   }
 
   // Create redemption record
@@ -148,6 +179,7 @@ coupons.post('/redeem', async (c) => {
         stripe_customer_id: `coupon_${coupon.code}`,
         stripe_subscription_id: `coupon_${redemption.id}`,
         stripe_price_id: 'coupon_free',
+        subscription_tier: 'yearly',  // Coupon users get yearly-tier quota (3 readings/month)
         status: 'active',
         current_period_start: new Date().toISOString(),
         current_period_end: oneYear.toISOString(),
@@ -235,6 +267,9 @@ coupons.post('/link-user', requireAuth, async (c) => {
 
 // POST /api/coupons/admin/create
 coupons.post('/admin/create', requireAuth, async (c) => {
+  const adminErr = requireAdminSecret(c);
+  if (adminErr) return adminErr;
+
   const body = await c.req.json().catch(() => ({})) as {
     code?: string;
     discount_percent?: number;
@@ -285,6 +320,9 @@ coupons.post('/admin/create', requireAuth, async (c) => {
 
 // GET /api/coupons/admin/list
 coupons.get('/admin/list', requireAuth, async (c) => {
+  const adminErr = requireAdminSecret(c);
+  if (adminErr) return adminErr;
+
   const supabase = getServiceClient();
   if (!supabase) {
     return c.json({ success: false, error: 'Service unavailable' }, 500);

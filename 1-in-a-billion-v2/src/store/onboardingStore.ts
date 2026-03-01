@@ -29,7 +29,7 @@ export type PersonProfile = {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export type ReadingSystem = 'western' | 'vedic' | 'human_design' | 'gene_keys' | 'kabbalah';
-export type ReadingBundle = 'complete' | 'bundle_16_readings'; // Multi-system bundles
+export type ReadingBundle = 'complete_reading' | 'nuclear_package'; // Multi-system bundles
 
 export type ReadingRecord = {
     id: string;

@@ -57,15 +57,15 @@ const CONTRACTS: Record<ReadingProduct, ReadingOutputContract> = {
     readingType: 'overlay',
     marketingPromise: FULL_READING_BASE.marketingPromise,
   },
-  bundle_5_readings: {
+  complete_reading: {
     profileId: 'bundle-5-readings-v1',
-    productType: 'bundle_5_readings',
+    productType: 'complete_reading',
     readingType: 'individual',
     marketingPromise: FULL_READING_BASE.marketingPromise,
   },
-  bundle_16_readings: {
+  nuclear_package: {
     profileId: 'bundle-16-readings-v1',
-    productType: 'bundle_16_readings',
+    productType: 'nuclear_package',
     readingType: 'overlay',
     // 15 system readings + 1 final verdict; each of those 16 uses FULL_READING_BASE length.
     marketingPromise: {
@@ -79,8 +79,8 @@ const CONTRACTS: Record<ReadingProduct, ReadingOutputContract> = {
 export function isReadingProduct(value: string): value is ReadingProduct {
   return value === 'single_system' ||
     value === 'compatibility_overlay' ||
-    value === 'bundle_5_readings' ||
-    value === 'bundle_16_readings';
+    value === 'complete_reading' ||
+    value === 'nuclear_package';
 }
 
 export function getReadingOutputContract(productType: string): ReadingOutputContract | null {
