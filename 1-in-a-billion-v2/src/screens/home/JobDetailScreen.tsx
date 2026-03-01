@@ -170,15 +170,17 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
 
     const subjects = useMemo(() => {
         if (personName) return personName;
-        const p1 = job?.input?.person1?.name || job?.input?.person?.name;
-        const p2 = job?.input?.person2?.name;
+        const params = job?.params || job?.input || {};
+        const p1 = params.person1?.name || params.person?.name;
+        const p2 = params.person2?.name;
         if (p1 && p2) return `${p1} & ${p2}`;
         return p1 || 'Reading';
     }, [job, personName]);
 
     const systemsLabel = useMemo(() => {
         if (system) return system.charAt(0).toUpperCase() + system.slice(1);
-        const systems = Array.isArray(job?.input?.systems) ? job.input.systems : [];
+        const params = job?.params || job?.input || {};
+        const systems = Array.isArray(params.systems) ? params.systems : [];
         if (systems.length === 0) return 'No systems listed';
         return systems.join(', ');
     }, [job, system]);

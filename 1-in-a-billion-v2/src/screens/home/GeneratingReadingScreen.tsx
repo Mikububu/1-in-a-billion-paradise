@@ -93,6 +93,27 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
             if (!hasOverlayPlaceholders) {
                 createPlaceholderReadings(personId, activeJobId, normalizedSystems, now, 'overlay', partnerName || 'Partner');
             }
+
+            // Final Verdict (16th reading — only for bundle_verdict / nuclear jobs)
+            // Stored under person1 as a special verdict reading with partner name
+            if (productType === 'nuclear_package' || productType === 'bundle_verdict') {
+                const refreshedReadings = getReadingsByJobId(personId, activeJobId);
+                const hasVerdictPlaceholder = refreshedReadings.some((r: any) => r.readingType === 'verdict');
+                if (!hasVerdictPlaceholder) {
+                    const addReading = useProfileStore.getState().addReading;
+                    addReading(personId, {
+                        system: 'western' as any, // verdict synthesizes all systems; western is default for chart ref
+                        content: '',
+                        generatedAt: now,
+                        jobId: activeJobId,
+                        docNum: normalizedSystems.length * 3 + 1, // 16 for 5 systems
+                        createdAt: now,
+                        note: 'Processing...',
+                        readingType: 'verdict',
+                        partnerName: partnerName || 'Partner',
+                    });
+                }
+            }
         } else if (personId) {
             linkJobToPerson(personId, activeJobId);
             if (normalizedSystems.length > 0 && getReadingsByJobId(personId, activeJobId).length === 0) {

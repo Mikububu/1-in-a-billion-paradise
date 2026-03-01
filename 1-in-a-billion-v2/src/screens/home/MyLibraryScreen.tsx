@@ -19,7 +19,7 @@ type TrackedReading = {
     personName: string;
     system: string;
     lastTimestamp: number;
-    readingType?: 'individual' | 'overlay';
+    readingType?: 'individual' | 'overlay' | 'verdict';
     partnerName?: string;
     personImageUrl?: string;
     partnerImageUrl?: string;
@@ -246,16 +246,18 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                             const readingDate = reading.lastTimestamp
                                 ? new Date(reading.lastTimestamp).toLocaleString()
                                 : '';
-                            const systemName = reading.system
-                                ? reading.system.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-                                : 'Reading';
+                            const systemName = reading.readingType === 'verdict'
+                                ? 'Final Verdict'
+                                : reading.system
+                                    ? reading.system.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+                                    : 'Reading';
                             const statusRaw = String(snapshot?.status || '').toLowerCase();
                             const isComplete = statusRaw === 'complete' || statusRaw === 'completed';
                             const status = snapshot
                                 ? (isComplete ? 'DONE' : `${typeof snapshot.percent === 'number' ? `${snapshot.percent}%` : '...'}`)
                                 : '...';
 
-                            const isOverlayReading = reading.readingType === 'overlay';
+                            const isOverlayReading = reading.readingType === 'overlay' || reading.readingType === 'verdict';
                             const displayTitle = isOverlayReading && reading.partnerName
                                 ? `${reading.personName} & ${reading.partnerName}`
                                 : reading.personName;

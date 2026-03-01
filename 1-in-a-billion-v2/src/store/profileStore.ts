@@ -49,7 +49,7 @@ export type Reading = {
     docNum?: number;
     duration?: number;
     createdAt?: string;
-    readingType?: 'individual' | 'overlay';
+    readingType?: 'individual' | 'overlay' | 'verdict';
     partnerName?: string;
 };
 
@@ -149,7 +149,7 @@ type ProfileState = {
     deleteReading: (personId: string, readingId: string) => void;
     getReadings: (personId: string, system?: ReadingSystem) => Reading[];
     syncReadingArtifacts: (personId: string, readingId: string, artifacts: { pdfPath?: string; audioPath?: string; songPath?: string; duration?: number }) => void;
-    createPlaceholderReadings: (personId: string, jobId: string, systems: ReadingSystem[], createdAt: string, readingType?: 'individual' | 'overlay', partnerName?: string) => void;
+    createPlaceholderReadings: (personId: string, jobId: string, systems: ReadingSystem[], createdAt: string, readingType?: 'individual' | 'overlay' | 'verdict', partnerName?: string) => void;
     getReadingsByJobId: (personId: string, jobId: string) => Reading[];
     linkJobToPerson: (personId: string, jobId: string) => void;
     linkJobToPersonByName: (personName: string, jobId: string) => void;
