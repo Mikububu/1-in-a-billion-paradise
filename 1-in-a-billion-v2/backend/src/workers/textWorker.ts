@@ -836,9 +836,9 @@ export class TextWorker extends BaseWorker {
 	        console.log(`✍️ [TextWorker] Western writing call for ${subject.name}...`);
 	        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
 	          maxTokens: 16384,
-	          temperature: 0.8,
+	          temperature: 0.7,
 	          maxRetries: 3,
-	          systemPrompt: getSystemPromptForStyle(style, 'individual'),
+	          systemPrompt: getSystemPromptForStyle(style, 'individual', 'western'),
 	        });
 
 	        const writingUsage = llmPaid.getLastUsage();
@@ -885,8 +885,8 @@ export class TextWorker extends BaseWorker {
 	        const writingPrompt = `${chartProvocationsV}\n\n${baseWritingPromptV}`;
 	        console.log(`✍️ [TextWorker] Vedic writing call for ${subject.name}...`);
 	        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
-	          maxTokens: 16384, temperature: 0.8, maxRetries: 3,
-	          systemPrompt: getSystemPromptForStyle(style, 'individual'),
+	          maxTokens: 16384, temperature: 0.7, maxRetries: 3,
+	          systemPrompt: getSystemPromptForStyle(style, 'individual', 'vedic'),
 	        });
 	        const wUsageV = llmPaid.getLastUsage();
 	        if (wUsageV) await logLLMCost(jobId, task.id, { provider: wUsageV.provider, inputTokens: wUsageV.usage.inputTokens, outputTokens: wUsageV.usage.outputTokens }, `text_vedic_writing_${docType}`);
@@ -929,8 +929,8 @@ export class TextWorker extends BaseWorker {
 	        const writingPrompt = `${chartProvocationsH}\n\n${baseWritingPromptH}`;
 	        console.log(`✍️ [TextWorker] HD writing call for ${subject.name}...`);
 	        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
-	          maxTokens: 16384, temperature: 0.8, maxRetries: 3,
-	          systemPrompt: getSystemPromptForStyle(style, 'individual'),
+	          maxTokens: 16384, temperature: 0.7, maxRetries: 3,
+	          systemPrompt: getSystemPromptForStyle(style, 'individual', 'human_design'),
 	        });
 	        const wUsageH = llmPaid.getLastUsage();
 	        if (wUsageH) await logLLMCost(jobId, task.id, { provider: wUsageH.provider, inputTokens: wUsageH.usage.inputTokens, outputTokens: wUsageH.usage.outputTokens }, `text_hd_writing_${docType}`);
@@ -973,8 +973,8 @@ export class TextWorker extends BaseWorker {
 	        const writingPrompt = `${chartProvocationsG}\n\n${baseWritingPromptG}`;
 	        console.log(`✍️ [TextWorker] Gene Keys writing call for ${subject.name}...`);
 	        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
-	          maxTokens: 16384, temperature: 0.8, maxRetries: 3,
-	          systemPrompt: getSystemPromptForStyle(style, 'individual'),
+	          maxTokens: 16384, temperature: 0.7, maxRetries: 3,
+	          systemPrompt: getSystemPromptForStyle(style, 'individual', 'gene_keys'),
 	        });
 	        const wUsageG = llmPaid.getLastUsage();
 	        if (wUsageG) await logLLMCost(jobId, task.id, { provider: wUsageG.provider, inputTokens: wUsageG.usage.inputTokens, outputTokens: wUsageG.usage.outputTokens }, `text_gk_writing_${docType}`);
@@ -1017,8 +1017,8 @@ export class TextWorker extends BaseWorker {
 	        const writingPrompt = `${chartProvocationsK}\n\n${baseWritingPromptK}`;
 	        console.log(`✍️ [TextWorker] Kabbalah writing call for ${subject.name}...`);
 	        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
-	          maxTokens: 16384, temperature: 0.8, maxRetries: 3,
-	          systemPrompt: getSystemPromptForStyle(style, 'individual'),
+	          maxTokens: 16384, temperature: 0.7, maxRetries: 3,
+	          systemPrompt: getSystemPromptForStyle(style, 'individual', 'kabbalah'),
 	        });
 	        const wUsageK = llmPaid.getLastUsage();
 	        if (wUsageK) await logLLMCost(jobId, task.id, { provider: wUsageK.provider, inputTokens: wUsageK.usage.inputTokens, outputTokens: wUsageK.usage.outputTokens }, `text_kab_writing_${docType}`);
@@ -1060,7 +1060,7 @@ export class TextWorker extends BaseWorker {
           });
           console.log(`✍️ [TextWorker] Western overlay writing call for ${person1.name} & ${person2!.name}...`);
           text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
-            maxTokens: 16384, temperature: 0.8, maxRetries: 3,
+            maxTokens: 16384, temperature: 0.7, maxRetries: 3,
             systemPrompt: getSystemPromptForStyle(style, 'overlay'),
           });
           const wUsageO = llmPaid.getLastUsage();
@@ -1103,7 +1103,7 @@ export class TextWorker extends BaseWorker {
           });
           console.log(`✍️ [TextWorker] Vedic overlay writing call for ${person1.name} & ${person2!.name}...`);
           text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
-            maxTokens: 16384, temperature: 0.8, maxRetries: 3,
+            maxTokens: 16384, temperature: 0.7, maxRetries: 3,
             systemPrompt: getSystemPromptForStyle(style, 'overlay'),
           });
           const wUsageO = llmPaid.getLastUsage();
@@ -1146,7 +1146,7 @@ export class TextWorker extends BaseWorker {
           });
           console.log(`✍️ [TextWorker] HD overlay writing call for ${person1.name} & ${person2!.name}...`);
           text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
-            maxTokens: 16384, temperature: 0.8, maxRetries: 3,
+            maxTokens: 16384, temperature: 0.7, maxRetries: 3,
             systemPrompt: getSystemPromptForStyle(style, 'overlay'),
           });
           const wUsageO = llmPaid.getLastUsage();
@@ -1189,7 +1189,7 @@ export class TextWorker extends BaseWorker {
           });
           console.log(`✍️ [TextWorker] Gene Keys overlay writing call for ${person1.name} & ${person2!.name}...`);
           text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
-            maxTokens: 16384, temperature: 0.8, maxRetries: 3,
+            maxTokens: 16384, temperature: 0.7, maxRetries: 3,
             systemPrompt: getSystemPromptForStyle(style, 'overlay'),
           });
           const wUsageO = llmPaid.getLastUsage();
@@ -1232,7 +1232,7 @@ export class TextWorker extends BaseWorker {
           });
           console.log(`✍️ [TextWorker] Kabbalah overlay writing call for ${person1.name} & ${person2!.name}...`);
           text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
-            maxTokens: 16384, temperature: 0.8, maxRetries: 3,
+            maxTokens: 16384, temperature: 0.7, maxRetries: 3,
             systemPrompt: getSystemPromptForStyle(style, 'overlay'),
           });
           const wUsageO = llmPaid.getLastUsage();

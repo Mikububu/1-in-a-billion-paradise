@@ -3,6 +3,7 @@ import {
   NARRATIVE_TRIGGER_LABEL,
   NARRATIVE_TRIGGER_TITLE,
 } from './triggerConfig';
+import { buildKabbalahSection } from '../../prompts/systems/kabbalah';
 
 /**
  * KABBALAH TRIGGER ENGINE
@@ -113,26 +114,25 @@ export function buildKabbalahTriggerPrompt(params: {
   const trigger = NARRATIVE_TRIGGER_LABEL;
 
   return [
-    `You are reading ${personName}'s Kabbalah profile to find the central ${trigger}.`,
+    `You are a Kabbalistic reader analyzing ${personName}'s Tree of Life profile to find the central ${trigger}.`,
     '',
-    `In Kabbalah, the ${trigger} is the Tikkun — the soul correction this person incarnated to work through.`,
+    `In Kabbalah, the ${trigger} is rooted in the Tikkun — the soul correction, the specific homework this soul incarnated to work through.`,
     'The Tikkun\'s trap tells you what they keep falling into.',
-    'The void Sefirot tell you where they are energetically absent.',
-    'The dominant Sefirot tell you the armor they build over the void.',
-    'The Primary Shadow Axis tells you the specific polarity they are caught between.',
+    'The void Sephiroth (think of them as dark rooms on the Tree of Life where no light reaches) tell you where they are energetically absent.',
+    'The dominant Sephiroth tell you the armor they build over the void.',
+    'The Klipothic risk (the shadow shells, the broken vessels) tells you what possesses them when they are unconscious.',
     '',
-    `The ${trigger} is not a Sefirah name. It is not a soul correction label.`,
-    'It is the specific lived experience of being caught in the trap:',
-    'the behavior they repeat, the relationship pattern they cannot break,',
-    'the strength that covers what they cannot access.',
+    'NAME the specific Tikkun and its trap.',
+    'NAME the Sephiroth involved — both dominant and void.',
+    'NAME the Klipothic shadow pattern.',
+    `The ${trigger} is the lived experience of being caught in the Tikkun\'s trap: the behavior they repeat, the relationship pattern they cannot break, the Sephirotic strength that covers what they cannot access.`,
     '',
     'Write one paragraph. 80-120 words exactly.',
-    'Third person. Use Kabbalah terms only when needed and explain first use in plain language. No repair instructions. No softening.',
+    'Third person. Use Kabbalistic terminology and explain each term naturally on first use — like a patient grandfather explaining something sacred.',
+    'No repair instructions. No correction or elevation as consolation. No softening.',
     'Specific enough that no other profile produces this exact sentence.',
     'It must cost something to read.',
     '',
-    'Do not describe the system abstractly.',
-    'Do not offer correction or elevation as consolation.',
     `Name the ${trigger}. Stop.`,
     '',
     'CHART DATA:',
@@ -154,12 +154,19 @@ export function buildKabbalahWritingPrompt(params: {
   const trigger = NARRATIVE_TRIGGER_LABEL;
   const triggerTitle = NARRATIVE_TRIGGER_TITLE;
 
+  // Inject the Kabbalah system guidance — Sephiroth, Tikkun, Klipoth, Four Worlds, accessibility
+  const kabbalahGuidance = buildKabbalahSection(false);
+
   return [
-    'You are a novelist who understands that the soul comes into life with unfinished business.',
-    CORE_FAIRYTALE_SEED,
+    'You are a Kabbalistic reader and literary novelist.',
     'You think in light and vessel, concealment and revelation, the teacher who is also the trap.',
-    'You have read Isaac Bashevis Singer, Nikos Kazantzakis, and Paul Celan.',
-    'You are telling the story of a soul\'s correction. Not writing a Kabbalah report.',
+    'You have read Isaac Bashevis Singer, Nikos Kazantzakis, Paul Celan, and the Zohar.',
+    CORE_FAIRYTALE_SEED,
+    '',
+    'You are telling the story of a soul\'s correction — through the lens of the Tree of Life.',
+    'This is NOT a generic spiritual essay. It is a Kabbalistic reading: grounded in specific Sephiroth, Tikkun patterns, Klipothic shadows, and the Four Worlds.',
+    '',
+    kabbalahGuidance,
     '',
     '══════════════════════════════════════════════════════════',
     `${triggerTitle} — THIS IS THE SPINE OF EVERYTHING YOU WRITE:`,
@@ -170,19 +177,24 @@ export function buildKabbalahWritingPrompt(params: {
     '',
     'NARRATOR:',
     '- Third person only. Never "you" or "your". Use the name.',
-    '- The soul correction is not a goal — it is the specific friction of this life.',
-    '- The void Sefirot mark what is missing; dominant Sefirot show the compensating pattern.',
+    '- The Tikkun (soul correction) is not a goal — it is the specific friction of this life.',
+    '- The void Sephiroth mark what is missing; dominant Sephiroth show the compensating pattern.',
+    '- Name specific Sephiroth (e.g., "Gevurah — severity, the left arm of the Tree") and their qualities.',
+    '- Name the Klipothic shadows — the broken vessels, the dark side of each emphasized Sephirah.',
+    '- Explain Kabbalistic terms naturally on first use — like a patient grandfather explaining something sacred.',
     '',
     'STRUCTURE:',
     '- One continuous essay. NO section titles, NO chapter headings, NO standalone headline lines.',
-    '- The Tikkun trap is the opening. The void is the middle. The correction is the pressure at the end.',
+    '- The Tikkun trap is the opening. The void Sephiroth are the middle. The correction pressure is the end.',
+    '- Touch on the Four Worlds (Atziluth, Beriah, Yetzirah, Assiyah) — where is this soul balanced, where weak?',
     '- The ending does not resolve. It names the correction still in progress.',
     '',
-    'ANTI-SURVEY:',
-    `- Do not explain Kabbalah. Serve the ${trigger}.`,
-    '- Use Sefirot/world/Hebrew term language only when it carries concrete evidence.',
-    '- Explain Kabbalah terms in plain language the first time they appear.',
-    '- Every paragraph must add new consequence or evidence.',
+    'KABBALISTIC VOICE:',
+    '- USE Kabbalistic terminology throughout: Sephiroth, Tikkun, Klipoth, Gilgul, the Four Worlds, the 22 Paths.',
+    '- NEVER use Western astrology terms — this is pure Kabbalah.',
+    '- Reference specific Sephiroth and their qualities from the chart data — these are the evidence.',
+    '- Every paragraph must add new consequence or evidence rooted in their specific Tree of Life mapping.',
+    '- Do not be generic. Ground every insight in a specific Sephirah, Klipothic pattern, or World imbalance.',
     '',
     `LENGTH: ${targetWords.toLocaleString('en-US')} words. Write until the ${trigger} is fully present. Then stop.`,
     'Do not pad. Do not repeat. Do not add a hopeful ending.',
@@ -190,6 +202,6 @@ export function buildKabbalahWritingPrompt(params: {
     'CHART DATA (authoritative — do not invent or contradict):',
     strippedChartData,
     '',
-    `Write ${personName}'s reading now:`,
+    `Write ${personName}'s Kabbalistic reading now:`,
   ].join('\n');
 }

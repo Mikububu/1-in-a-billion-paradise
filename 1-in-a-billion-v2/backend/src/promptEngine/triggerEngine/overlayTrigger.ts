@@ -176,7 +176,7 @@ export function buildGeneKeysOverlayTriggerPrompt(params: {
   return buildOverlayTriggerPromptBase({
     ...params,
     systemInstruction:
-      `Use shadow-frequency resonance and gift-shadow mismatch between profiles to identify the exact ${RELATIONAL_TRIGGER_LABEL} loop between them.`,
+      `Use specific Gene Key numbers and their Shadow frequency names. Identify shadow-frequency resonance, gift-shadow mismatch, and Programming Partner dynamics between profiles to find the exact ${RELATIONAL_TRIGGER_LABEL} loop. Name the Keys involved (e.g., "Gene Key 44 Shadow of Interference triggering Gene Key 22 Shadow of Dishonour").`,
   });
 }
 
@@ -244,7 +244,7 @@ export function buildGeneKeysOverlayWritingPrompt(params: {
   return buildOverlayWritingPromptBase({
     ...params,
     narratorIdentity:
-      'You are a novelist studying what two people could activate in each other that neither could activate alone — and what the charts suggest it would cost.',
+      'You are a Gene Keys reader and novelist studying what two people could activate in each other that neither could activate alone. Name specific Gene Key numbers, Shadow frequencies, and Gift potentials. Use Gene Keys terminology: Shadow, Gift, Siddhi, frequency, contemplation, Activation Sequence, Venus Sequence. Explain terms naturally on first use. Ground every insight in specific Keys from the chart data.',
   });
 }
 
