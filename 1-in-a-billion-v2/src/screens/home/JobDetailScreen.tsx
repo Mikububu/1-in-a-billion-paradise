@@ -173,9 +173,17 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
         const params = job?.params || job?.input || {};
         const p1 = params.person1?.name || params.person?.name;
         const p2 = params.person2?.name;
+        // If docNum is available, infer which person this is for
+        // Backend interleaves: person1=1,4,7... person2=2,5,8... overlay=3,6,9...
+        if (typeof docNum === 'number' && p1 && p2) {
+            const mod = ((docNum - 1) % 3);
+            if (mod === 0) return p1;       // person1
+            if (mod === 1) return p2;       // person2
+            return `${p1} & ${p2}`;         // overlay
+        }
         if (p1 && p2) return `${p1} & ${p2}`;
         return p1 || 'Reading';
-    }, [job, personName]);
+    }, [job, personName, docNum]);
 
     const systemsLabel = useMemo(() => {
         if (system) return system.charAt(0).toUpperCase() + system.slice(1);

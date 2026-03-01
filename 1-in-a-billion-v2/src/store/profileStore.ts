@@ -149,7 +149,7 @@ type ProfileState = {
     deleteReading: (personId: string, readingId: string) => void;
     getReadings: (personId: string, system?: ReadingSystem) => Reading[];
     syncReadingArtifacts: (personId: string, readingId: string, artifacts: { pdfPath?: string; audioPath?: string; songPath?: string; duration?: number }) => void;
-    createPlaceholderReadings: (personId: string, jobId: string, systems: ReadingSystem[], createdAt: string, readingType?: 'individual' | 'overlay' | 'verdict', partnerName?: string) => void;
+    createPlaceholderReadings: (personId: string, jobId: string, systems: ReadingSystem[], createdAt: string, readingType?: 'individual' | 'overlay' | 'verdict', partnerName?: string, docNums?: number[]) => void;
     getReadingsByJobId: (personId: string, jobId: string) => Reading[];
     linkJobToPerson: (personId: string, jobId: string) => void;
     linkJobToPersonByName: (personName: string, jobId: string) => void;
@@ -449,14 +449,14 @@ export const useProfileStore = create<ProfileState>()(
                 }));
             },
 
-            createPlaceholderReadings: (personId, jobId, systems, createdAt, readingType, partnerName) => {
+            createPlaceholderReadings: (personId, jobId, systems, createdAt, readingType, partnerName, docNums) => {
                 const placeholderReadings: Reading[] = systems.map((system, index) => ({
                     id: generateId(),
                     system,
                     content: '',
                     generatedAt: createdAt,
                     jobId,
-                    docNum: index + 1,
+                    docNum: docNums ? docNums[index] : index + 1,
                     createdAt,
                     note: 'Processing...',
                     ...(readingType ? { readingType } : {}),

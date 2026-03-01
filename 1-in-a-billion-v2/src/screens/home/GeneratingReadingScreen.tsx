@@ -65,48 +65,51 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
         const isOverlay = readingType === 'overlay';
 
         if (isOverlay && personId && normalizedSystems.length > 0) {
-            // Overlay/synastry produces 3 readings per system:
-            // 1. Person1 individual reading (under person1)
-            // 2. Person2 individual reading (under person2)
-            // 3. Overlay (compatibility) reading (under person1, marked as overlay)
+            // Backend assigns docNums in interleaved pattern per system:
+            //   system[0]: person1=1, person2=2, overlay=3
+            //   system[1]: person1=4, person2=5, overlay=6
+            //   ...
+            //   verdict = numSystems * 3 + 1
+            const numSys = normalizedSystems.length;
+            const p1DocNums = normalizedSystems.map((_, i) => i * 3 + 1);   // [1, 4, 7, 10, 13]
+            const p2DocNums = normalizedSystems.map((_, i) => i * 3 + 2);   // [2, 5, 8, 11, 14]
+            const overlayDocNums = normalizedSystems.map((_, i) => i * 3 + 3); // [3, 6, 9, 12, 15]
 
             // Person1 individual
             linkJobToPerson(personId, activeJobId);
             if (getReadingsByJobId(personId, activeJobId).length === 0) {
-                createPlaceholderReadings(personId, activeJobId, normalizedSystems, now, 'individual');
+                createPlaceholderReadings(personId, activeJobId, normalizedSystems, now, 'individual', undefined, p1DocNums);
             }
 
             // Person2 individual
             if (partnerId) {
                 linkJobToPerson(partnerId, activeJobId);
                 if (getReadingsByJobId(partnerId, activeJobId).length === 0) {
-                    createPlaceholderReadings(partnerId, activeJobId, normalizedSystems, now, 'individual');
+                    createPlaceholderReadings(partnerId, activeJobId, normalizedSystems, now, 'individual', undefined, p2DocNums);
                 }
             } else if (partnerName) {
                 linkJobToPersonByName(partnerName, activeJobId);
             }
 
             // Overlay reading (stored under person1, same jobId, with overlay type)
-            // Check if overlay placeholders already exist by looking for overlay-typed readings with this jobId
             const existingPerson1Readings = getReadingsByJobId(personId, activeJobId);
             const hasOverlayPlaceholders = existingPerson1Readings.some((r: any) => r.readingType === 'overlay');
             if (!hasOverlayPlaceholders) {
-                createPlaceholderReadings(personId, activeJobId, normalizedSystems, now, 'overlay', partnerName || 'Partner');
+                createPlaceholderReadings(personId, activeJobId, normalizedSystems, now, 'overlay', partnerName || 'Partner', overlayDocNums);
             }
 
-            // Final Verdict (16th reading — only for bundle_verdict / nuclear jobs)
-            // Stored under person1 as a special verdict reading with partner name
+            // Final Verdict (last reading — only for bundle_verdict / nuclear jobs)
             if (productType === 'nuclear_package' || productType === 'bundle_verdict') {
                 const refreshedReadings = getReadingsByJobId(personId, activeJobId);
                 const hasVerdictPlaceholder = refreshedReadings.some((r: any) => r.readingType === 'verdict');
                 if (!hasVerdictPlaceholder) {
                     const addReading = useProfileStore.getState().addReading;
                     addReading(personId, {
-                        system: 'western' as any, // verdict synthesizes all systems; western is default for chart ref
+                        system: 'western' as any,
                         content: '',
                         generatedAt: now,
                         jobId: activeJobId,
-                        docNum: normalizedSystems.length * 3 + 1, // 16 for 5 systems
+                        docNum: numSys * 3 + 1, // 16 for 5 systems
                         createdAt: now,
                         note: 'Processing...',
                         readingType: 'verdict',

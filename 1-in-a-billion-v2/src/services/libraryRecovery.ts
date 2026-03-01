@@ -93,6 +93,8 @@ export async function recoverReadingsFromCloud(userId: string): Promise<{ recove
         const person2Id = job.params?.person2?.id;
         const person2Name = job.params?.person2?.name;
         const isSynastry = job.type === 'synastry';
+        const isBundleVerdict = job.type === 'bundle_verdict';
+        const isMultiPerson = isSynastry || isBundleVerdict;
         const createdAt = job.createdAt || new Date().toISOString();
 
         // Find the person in local store
@@ -114,19 +116,38 @@ export async function recoverReadingsFromCloud(userId: string): Promise<{ recove
         const existingReadings = (person1.readings || []).filter((r) => r.jobId === job.id);
         if (existingReadings.length > 0) continue;
 
+        // Backend assigns docNums in interleaved pattern for multi-person jobs:
+        //   system[0]: person1=1, person2=2, overlay=3
+        //   system[1]: person1=4, person2=5, overlay=6 ...
+        const p1DocNums = isMultiPerson ? systems.map((_, i) => i * 3 + 1) : undefined;
+        const p2DocNums = isMultiPerson ? systems.map((_, i) => i * 3 + 2) : undefined;
+        const overlayDocNums = isMultiPerson ? systems.map((_, i) => i * 3 + 3) : undefined;
+
         // Create placeholder readings for person1
-        if (isSynastry) {
-            // Synastry: overlay readings on person1
+        if (isMultiPerson) {
+            // Person1 individual readings
+            store.createPlaceholderReadings(
+                person1.id,
+                job.id,
+                systems,
+                createdAt,
+                'individual',
+                undefined,
+                p1DocNums
+            );
+
+            // Overlay readings (under person1)
             store.createPlaceholderReadings(
                 person1.id,
                 job.id,
                 systems,
                 createdAt,
                 'overlay',
-                person2Name || 'Partner'
+                person2Name || 'Partner',
+                overlayDocNums
             );
         } else {
-            // Individual reading
+            // Individual reading (extended jobs)
             store.createPlaceholderReadings(
                 person1.id,
                 job.id,
@@ -138,8 +159,8 @@ export async function recoverReadingsFromCloud(userId: string): Promise<{ recove
 
         recovered += systems.length;
 
-        // For synastry, also create individual readings on person2 if they exist
-        if (isSynastry && person2Id) {
+        // For multi-person jobs, also create individual readings on person2
+        if (isMultiPerson && person2Id) {
             const person2 = findPerson(person2Id, person2Name);
             if (person2) {
                 const p2Existing = (person2.readings || []).filter((r) => r.jobId === job.id);
@@ -149,7 +170,9 @@ export async function recoverReadingsFromCloud(userId: string): Promise<{ recove
                         job.id,
                         systems,
                         createdAt,
-                        'individual'
+                        'individual',
+                        undefined,
+                        p2DocNums
                     );
                     recovered += systems.length;
                 }

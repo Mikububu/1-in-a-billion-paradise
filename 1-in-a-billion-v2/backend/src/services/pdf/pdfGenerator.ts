@@ -81,7 +81,8 @@ function buildOverlayCoverTitle(title: string): string {
 function formatPersonCoverLine(person: PDFGenerationOptions['person1']): string {
   const birthDate = formatBirthDate(person.birthDate);
   const time = String(person.birthTime || '').trim();
-  const place = String(person.birthPlace || person.timezone || '').trim();
+  // Never fall back to timezone (e.g. "Europe/Vienna") — it's misleading as a location name
+  const place = String(person.birthPlace || '').trim();
   return [
     birthDate ? `birthday: ${birthDate}` : '',
     time ? `time: ${time}` : '',

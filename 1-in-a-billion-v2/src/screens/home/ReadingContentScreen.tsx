@@ -98,9 +98,18 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
         const params = job?.params || job?.input || {};
         const p1 = params.person1?.name || params.person?.name;
         const p2 = params.person2?.name;
+        // Infer docType from the task metadata if available
+        const taskMeta = relevantArtifacts[0]?.metadata as Record<string, unknown> | undefined;
+        const docType = taskMeta?.docType as string | undefined;
+        if (docType === 'person2' && p2) return p2;
+        if (docType === 'overlay' || docType === 'verdict') {
+            if (p1 && p2) return `${p1} & ${p2}`;
+        }
+        if (docType === 'person1' || docType === 'individual') return p1 || 'Reading';
+        // Fallback: show combined if both people exist
         if (p1 && p2) return `${p1} & ${p2}`;
         return p1 || 'Reading';
-    }, [job, personName]);
+    }, [job, personName, relevantArtifacts]);
 
     const readingTypeSubheadline = useMemo(() => {
         if (system) {
