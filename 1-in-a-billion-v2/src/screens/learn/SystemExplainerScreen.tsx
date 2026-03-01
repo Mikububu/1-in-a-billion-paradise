@@ -1,97 +1,266 @@
-import { useMemo } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native';
+/**
+ * SYSTEM EXPLAINER SCREEN
+ *
+ * Educates users about each astrological/spiritual system before purchase.
+ * Split into 2 swipeable pages for better readability.
+ * Reimported from the Kalaa version with rich individual + overlay content.
+ */
+
+import { useCallback, useRef, useState } from 'react';
+import {
+    ActivityIndicator,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
+    FlatList,
+    Dimensions,
+    TouchableOpacity,
+    ScrollView,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { MainStackParamList } from '@/navigation/RootNavigator';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
-import { BackButton } from '@/components/BackButton';
+import { MainStackParamList } from '@/navigation/RootNavigator';
+import { SINGLE_SYSTEM, SYSTEM_PRICES, PRODUCT_STRINGS, PRODUCTS, formatAudioDuration } from '@/config/products';
 import { initiatePurchaseFlow } from '@/utils/purchaseFlow';
+import { validateCouponCode, redeemCouponCode } from '@/services/payments';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SystemExplainer'>;
 
-type SystemType = 'western' | 'vedic' | 'human_design' | 'gene_keys' | 'kabbalah' | 'all';
+export type SystemType = 'western' | 'vedic' | 'human_design' | 'gene_keys' | 'kabbalah' | 'all';
 const ALL_SYSTEMS = ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'] as const;
 
-const CONTENT: Record<SystemType, {
-    icon: string;
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// ── Individual content for each system ──────────────────────────────────
+
+const SYSTEM_CONTENT: Record<SystemType, {
     name: string;
     tagline: string;
+    origin: string;
     intro: string;
-    bullets: string[];
+    howItHelpsYou: string;
+    whatYouDiscover: string[];
+    personalNote: string;
+    icon: string;
 }> = {
     western: {
-        icon: '☉',
         name: 'Western Astrology',
-        tagline: 'Psychological map of your inner pattern',
-        intro: 'Western astrology frames your identity, emotional needs, and relational patterns through chart geometry.',
-        bullets: [
-            'Core motivations and identity pattern',
-            'Emotional wiring and attachment style',
-            'Key relationship tensions and growth edges',
+        tagline: 'The poetry of who you are',
+        origin: 'Ancient Greece & Babylon',
+        icon: '☉',
+        intro: `You know your Sun sign, but that's just the beginning of your story. The moment you were born, the entire sky arranged itself into a pattern that has never existed before and never will again. That pattern is you.`,
+        howItHelpsYou: `Think of your birth chart as a love letter from the universe, written in the language of planets and stars. It shows not just who you are, but why you love the way you love, what secretly scares you, and what makes your heart come alive.`,
+        whatYouDiscover: [
+            'Why you feel things so deeply (or why you don\'t)',
+            'The hidden patterns in your relationships',
+            'What you actually need vs what you think you want',
+            'Your unique gifts - the ones you probably undervalue',
         ],
+        personalNote: `"Sweetheart, with your Venus in the 8th house, you've probably been told you're 'too intense.' But here's the truth: you're not too much. You're designed for the kind of love most people are too afraid to ask for."`,
     },
+
     vedic: {
-        icon: 'ॐ',
         name: 'Jyotish (Vedic)',
-        tagline: 'Karmic timing and life chapters',
-        intro: 'Vedic astrology focuses on karmic momentum and timing windows, especially for relationship and purpose.',
-        bullets: [
-            'Current life chapter and timing cycle',
-            'Karmic themes repeating in relationships',
-            'Best timing windows for major moves',
+        tagline: 'Where your soul has been, where it\'s going',
+        origin: '5,000 years of Indian wisdom',
+        icon: 'ॐ',
+        intro: `While Western astrology asks "who are you?", Vedic astrology asks "where are you in your journey?" It's older, more precise, and deeply concerned with timing. It sees your life as a story unfolding in chapters.`,
+        howItHelpsYou: `Vedic astrology doesn't just describe you - it shows you when. When will the struggle ease? When should you make that move? When will love find you? Understanding which chapter you're in changes everything.`,
+        whatYouDiscover: [
+            'Which life chapter you\'re in right now',
+            'Why certain years felt harder than others',
+            'The karma you came here to work through',
+            'Timing for big decisions and relationships',
         ],
+        personalNote: `"Darling, you've been in a Saturn period, and I know it's felt relentless. But Saturn isn't punishing you - Saturn is preparing you. Whatever you're building right now, it's creating something that will last."`,
     },
+
     human_design: {
-        icon: '◬',
         name: 'Human Design',
-        tagline: 'Energetic decision architecture',
-        intro: 'Human Design explains how your energy system works and how to make aligned decisions.',
-        bullets: [
-            'Decision authority and strategy',
-            'Where energy is stable vs open',
-            'Relational friction and alignment points',
+        tagline: 'Permission to be yourself',
+        origin: 'A synthesis of ancient wisdom',
+        icon: '◬',
+        intro: `What if the way you've been trying to live your life simply isn't designed for you? Human Design reveals your energetic blueprint - how you're actually meant to make decisions, use your energy, and interact with others.`,
+        howItHelpsYou: `Most of us were taught to be something we're not. Push harder. Initiate more. Say yes to everything. But you have a specific design, and when you live according to it, life gets easier. The right people find you.`,
+        whatYouDiscover: [
+            'Your Type - how you\'re designed to engage with life',
+            'Your Strategy - the one rule that changes everything',
+            'Your Authority - how YOUR body makes decisions',
+            'Why certain environments drain you',
         ],
+        personalNote: `"Beautiful soul, you're a Projector, which means you were never supposed to hustle like everyone else. Your gift is seeing what others miss. But you have to wait to be invited. The right recognition will find you."`,
     },
+
     gene_keys: {
-        icon: '❋',
         name: 'Gene Keys',
-        tagline: 'Shadow to gift transformation path',
-        intro: 'Gene Keys maps emotional and behavioral patterns into a contemplative growth path.',
-        bullets: [
-            'Recurring shadow pattern',
-            'Gift layer hidden in the same pattern',
-            'Practical reframing for daily use',
+        tagline: 'Your shadows hold your gifts',
+        origin: 'Ancient wisdom meets modern genetics',
+        icon: '❋',
+        intro: `Here's something beautiful: your deepest wounds and your greatest gifts are the same thing, just at different frequencies. Gene Keys shows you the spectrum you're walking - from shadow to gift to something transcendent.`,
+        howItHelpsYou: `Gene Keys is less about information and more about transformation. You contemplate your keys, and slowly, gently, the patterns shift. The thing you've been ashamed of? It's actually your superpower in disguise.`,
+        whatYouDiscover: [
+            'The shadow pattern that keeps tripping you up',
+            'The gift hidden inside that shadow',
+            'Your Venus Sequence - how you open to love',
+            'The highest version of what you can become',
         ],
+        personalNote: `"Precious one, your Gene Key 36 shadow is Crisis - you create drama unconsciously because stillness feels dangerous. But your gift is Humanity - you feel everything, and that feeling is how you connect the world."`,
     },
+
     kabbalah: {
-        icon: '✧',
         name: 'Kabbalah',
-        tagline: 'Soul correction and meaning structure',
-        intro: 'Kabbalah frames your development as a soul-correction path, highlighting meaning and responsibility.',
-        bullets: [
-            'Core soul-correction theme',
-            'Where growth keeps repeating',
-            'How to turn friction into purpose',
+        tagline: 'The repair only you can make',
+        origin: 'Jewish mystical tradition',
+        icon: '✧',
+        intro: `Kabbalah teaches that your soul chose this life for a reason. You came here with a specific Tikkun - a repair, a correction, a piece of the cosmic puzzle that only you can complete.`,
+        howItHelpsYou: `The Tree of Life maps consciousness itself - and your place on it. Where do you tend to get stuck? What's the lesson that keeps returning? What are you here to transform, not just for yourself, but for everyone?`,
+        whatYouDiscover: [
+            'Your Tikkun - the soul correction you chose',
+            'Which Sephirah dominates your spiritual work',
+            'The blocks (Klipot) hiding your light',
+            'Practices to accelerate your transformation',
         ],
+        personalNote: `"Dear heart, your Tikkun is in Hod - the sphere of the mind. You overthink because you're trying to feel safe through understanding. Your correction isn't to think less - it's to let your brilliant mind serve your heart."`,
     },
+
     all: {
+        name: 'Complete Reading',
+        tagline: 'The complete picture of your soul',
+        origin: 'Five ancient wisdom traditions united',
         icon: '★',
-        name: 'All 5 Systems',
-        tagline: 'Unified, full-spectrum reading',
-        intro: 'Combines all five systems into one integrated view to avoid blind spots from any single model.',
-        bullets: [
-            'Cross-system pattern validation',
-            'Contradiction resolution between models',
-            'One integrated action map',
+        intro: `What if you could see yourself through five different lenses, each revealing something the others miss? Western astrology shows your psychology. Vedic reveals your karma. Human Design maps your energy. Gene Keys unlocks your gifts. Kabbalah shows your soul's purpose.`,
+        howItHelpsYou: `Each system sees a different facet of you. Together, they create something extraordinary - a complete portrait of who you are, why you're here, and what you're becoming. This isn't five separate readings. It's one unified understanding.`,
+        whatYouDiscover: [
+            'Your complete psychological and spiritual blueprint',
+            'How your karma shapes your current challenges',
+            'Your unique energy signature and decision-making style',
+            'The shadows hiding your greatest gifts',
+            'Your soul\'s purpose and the repair only you can make',
         ],
+        personalNote: `"Beautiful soul, when we look at you through all five systems, patterns emerge that none could show alone. The struggle you've been facing? It appears in every system - which means it's central to why you're here. And so is the breakthrough waiting for you."`,
     },
 };
+
+// ── Overlay / compatibility content ─────────────────────────────────────
+
+const OVERLAY_CONTENT: Record<SystemType, {
+    name: string;
+    tagline: string;
+    origin: string;
+    intro: string;
+    howItHelpsYou: string;
+    whatYouDiscover: string[];
+    personalNote: string;
+    icon: string;
+}> = {
+    western: {
+        name: 'Western Compatibility',
+        tagline: 'How your charts dance together',
+        origin: 'Synastry & Composite Analysis',
+        icon: '☉',
+        intro: `When two birth charts meet, something magical happens. Your Venus might land on their Mars. Their Moon might embrace your Sun. These connections tell the story of your relationship.`,
+        howItHelpsYou: `Synastry reveals why you're drawn to each other, where the passion lives, and where the friction comes from. It's not about whether you're "compatible" - it's about understanding the specific dance between you.`,
+        whatYouDiscover: [
+            'Why you felt that instant connection',
+            'Where passion and tension live in your relationship',
+            'Your communication patterns and blind spots',
+            'The growth each of you triggers in the other',
+        ],
+        personalNote: `"Your Venus on their 8th house? That's not casual attraction - that's soul-deep magnetism. This connection was never meant to be simple."`,
+    },
+
+    vedic: {
+        name: 'Vedic Compatibility',
+        tagline: 'The karmic threads between you',
+        origin: 'Kundali Milan \u00B7 Nakshatra Matching',
+        icon: '\u0950',
+        intro: `Vedic astrology has matched couples for thousands of years. It sees relationships as karmic contracts - souls who agreed to meet again, to heal something, to complete something.`,
+        howItHelpsYou: `The Nakshatra compatibility between you reveals past-life connections and present-life lessons. Why did your souls choose each other? What are you here to learn together?`,
+        whatYouDiscover: [
+            'Your Nakshatra compatibility score',
+            'Past-life connections showing up now',
+            'The karmic lessons you\'re learning together',
+            'Timing for major relationship milestones',
+        ],
+        personalNote: `"Your Nakshatras share the same Nadi - you've known each other before. This isn't your first dance together, and the universe made sure you'd find each other again."`,
+    },
+
+    human_design: {
+        name: 'Human Design Compatibility',
+        tagline: 'How your energies merge',
+        origin: 'Composite Bodygraph Analysis',
+        icon: '\u25EC',
+        intro: `When two Bodygraphs combine, new channels activate. Gates that were dormant suddenly light up. Your partnership creates an energy field that neither of you has alone.`,
+        howItHelpsYou: `Understanding your composite design shows why certain things only happen when you're together. The creativity, the conflicts, the magic - it's all in how your energies merge.`,
+        whatYouDiscover: [
+            'Channels that activate only together',
+            'Where you amplify each other\'s gifts',
+            'Potential friction points in your design',
+            'How to make decisions as a couple',
+        ],
+        personalNote: `"Together you complete the Channel of Discovery. Apart, you both search. Together, you find. This partnership was designed to explore."`,
+    },
+
+    gene_keys: {
+        name: 'Gene Keys Compatibility',
+        tagline: 'Shadows that heal, gifts that multiply',
+        origin: 'Venus Sequence Compatibility',
+        icon: '\u274B',
+        intro: `Your shadows and gifts don't exist in isolation - they dance with your partner's. Sometimes their gift unlocks your shadow. Sometimes your shadow triggers their wound. This is how relationships transform us.`,
+        howItHelpsYou: `Gene Keys compatibility reveals the alchemy between you. Which shadows are you healing in each other? Which gifts are you multiplying? This is relationship as transformation.`,
+        whatYouDiscover: [
+            'How your shadows interact and heal',
+            'Gifts you multiply when together',
+            'Your shared pathway to intimacy',
+            'The Siddhi potential of your union',
+        ],
+        personalNote: `"Your Gene Key 25 meets their 46 - Innocence meets Delight. Together, you remind each other that life is meant to be enjoyed, not survived."`,
+    },
+
+    kabbalah: {
+        name: 'Kabbalistic Compatibility',
+        tagline: 'Two souls, one Tree of Life',
+        origin: 'Shared Tikkun Analysis',
+        icon: '\u2727',
+        intro: `In Kabbalah, relationships are never random. You're together because your Tikkunim (soul corrections) are linked. What one needs to heal, the other can help transform.`,
+        howItHelpsYou: `Your combined Tree of Life shows where divine light flows between you and where it gets blocked. Understanding this map helps you become true partners in each other's spiritual growth.`,
+        whatYouDiscover: [
+            'How your Tikkunim complement each other',
+            'Shared pathways on the Tree of Life',
+            'Where you help each other grow',
+            'The spiritual purpose of your union',
+        ],
+        personalNote: `"Your Tikkunim are mirror images - what you struggle with, they've mastered, and vice versa. You're each other's teachers, dressed as lovers."`,
+    },
+
+    all: {
+        name: 'Nuclear Package',
+        tagline: 'The ultimate relationship analysis',
+        origin: 'Two souls \u00B7 Five systems \u00B7 Complete truth',
+        icon: '\u2605',
+        intro: `This is everything. Both of your complete readings across all 5 systems. Every compatibility overlay. And the final verdict - what your connection truly means and where it's headed.`,
+        howItHelpsYou: `16 documents. 100 pages. 3+ hours of audio. We analyze both of you individually, then layer your charts together in every system. Nothing is left unexplored. No question unanswered.`,
+        whatYouDiscover: [
+            'Both complete individual readings (5 systems each)',
+            'All 5 compatibility overlays combined',
+            'Where you harmonize and where you clash',
+            'The karmic purpose of your connection',
+            'The final verdict on your relationship',
+        ],
+        personalNote: `"This is for couples who want the complete truth. Not just surface compatibility - the deep patterns, the shadow dynamics, the soul contracts. Everything that makes your connection what it is."`,
+    },
+};
+
+// ── Component ───────────────────────────────────────────────────────────
 
 export const SystemExplainerScreen = ({ navigation, route }: Props) => {
     const {
         system = 'western',
         forPurchase = true,
-        readingType,
+        readingType = 'individual',
         forPartner,
         partnerName,
         partnerBirthDate,
@@ -104,14 +273,58 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
         targetPersonName,
     } = (route.params || {}) as any;
 
-    const content = useMemo(
-        () => CONTENT[(system as SystemType) || 'western'] || CONTENT.western,
-        [system]
-    );
+    const isOverlay = readingType === 'overlay';
+    const content = isOverlay
+        ? (OVERLAY_CONTENT[system as SystemType] || OVERLAY_CONTENT.western)
+        : (SYSTEM_CONTENT[system as SystemType] || SYSTEM_CONTENT.western);
 
-    const handleContinue = () => {
-        const resolvedReadingType = readingType === 'overlay' ? 'overlay' : 'individual';
+    // Price: bundle vs single, overlay vs individual
+    const price = system === 'all'
+        ? (isOverlay ? PRODUCTS.nuclear_package.priceUSD : PRODUCTS.complete_reading.priceUSD)
+        : (isOverlay ? PRODUCTS.compatibility_overlay.priceUSD : (SYSTEM_PRICES[system as SystemType] || SINGLE_SYSTEM.price));
+
+    const [currentPage, setCurrentPage] = useState(0);
+    const listRef = useRef<FlatList>(null);
+
+    // Coupon code
+    const [couponCode, setCouponCode] = useState('');
+    const [couponStatus, setCouponStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid' | 'redeeming'>('idle');
+    const [couponMessage, setCouponMessage] = useState('');
+
+    const handleCouponValidate = useCallback(async () => {
+        const code = couponCode.trim();
+        if (!code) return;
+        setCouponStatus('validating');
+        setCouponMessage('');
+        const result = await validateCouponCode(code);
+        if (result.valid) {
+            setCouponStatus('valid');
+            setCouponMessage(result.message || 'Valid code!');
+        } else {
+            setCouponStatus('invalid');
+            setCouponMessage(result.message || result.error || 'Invalid code');
+        }
+    }, [couponCode]);
+
+    const handleCouponRedeem = useCallback(async () => {
+        const code = couponCode.trim();
+        if (!code) return;
+        setCouponStatus('redeeming');
+        const result = await redeemCouponCode(code);
+        if (result.success) {
+            setCouponStatus('valid');
+            setCouponMessage(result.discount_percent
+                ? `${result.discount_percent}% discount applied!`
+                : 'Code redeemed successfully!');
+        } else {
+            setCouponStatus('invalid');
+            setCouponMessage(result.error || 'Could not redeem code');
+        }
+    }, [couponCode]);
+
+    const handleGetReading = () => {
         const isBundle = system === 'all';
+        const resolvedReadingType = readingType === 'overlay' ? 'overlay' : 'individual';
         const systems = isBundle ? [...ALL_SYSTEMS] : [system];
         const productType = resolvedReadingType === 'overlay'
             ? (isBundle ? 'bundle_16_readings' : 'compatibility_overlay')
@@ -154,54 +367,171 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
         });
     };
 
+    const pages = [
+        // ── Page 1: Intro, How it Helps, Personal Note ──
+        <ScrollView key="page1" style={[styles.page, { width: SCREEN_WIDTH }]} contentContainerStyle={styles.pageContent} showsVerticalScrollIndicator={false}>
+            <Text style={styles.icon}>{content.icon}</Text>
+            <Text style={styles.title} selectable>{content.name}</Text>
+            <Text style={styles.tagline} selectable>{content.tagline}</Text>
+            <Text style={styles.origin} selectable>{content.origin}</Text>
+
+            <View style={styles.section}>
+                <Text style={styles.sectionText} selectable>{content.intro}</Text>
+            </View>
+
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>{isOverlay ? 'How it helps your relationship' : 'How it helps you'}</Text>
+                <Text style={styles.sectionText} selectable>{content.howItHelpsYou}</Text>
+            </View>
+
+            <View style={styles.insightBox}>
+                <Text style={styles.insightLabel}>{isOverlay ? 'A note for you both' : 'A note for you'}</Text>
+                <Text style={styles.insightText} selectable>{content.personalNote}</Text>
+            </View>
+        </ScrollView>,
+
+        // ── Page 2: What You'll Discover + CTA ──
+        <ScrollView key="page2" style={[styles.page, { width: SCREEN_WIDTH }]} contentContainerStyle={styles.pageContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.discoverSection}>
+                <Text style={styles.discoverTitle}>What You'll Discover</Text>
+                {content.whatYouDiscover.map((item, idx) => {
+                    const symbols = ['\u2609', '\u263D', '\u2727', '\u25CE'];
+                    return (
+                        <View key={idx} style={styles.discoverItem}>
+                            <Text style={styles.discoverSymbol}>{symbols[idx % symbols.length]}</Text>
+                            <Text style={styles.discoverText} selectable>{item}</Text>
+                        </View>
+                    );
+                })}
+            </View>
+
+            {/* CTA button with price */}
+            <TouchableOpacity style={styles.bigCta} onPress={handleGetReading} activeOpacity={0.8}>
+                <Text style={styles.bigCtaTitle}>Get {content.name}</Text>
+                <Text style={styles.bigCtaDetails}>
+                    {system === 'all'
+                        ? (isOverlay
+                            ? `${PRODUCTS.nuclear_package.pagesMax} pages \u00B7 ${formatAudioDuration(PRODUCTS.nuclear_package.audioMinutes)} audio`
+                            : `${PRODUCTS.complete_reading.pagesMax} pages \u00B7 ${formatAudioDuration(PRODUCTS.complete_reading.audioMinutes)} audio`)
+                        : (isOverlay
+                            ? `${PRODUCTS.compatibility_overlay.pagesMax} pages \u00B7 ${formatAudioDuration(PRODUCTS.compatibility_overlay.audioMinutes)} audio`
+                            : PRODUCT_STRINGS.singleSystem.summary)}
+                </Text>
+                <Text style={styles.bigCtaPrice}>${price}</Text>
+            </TouchableOpacity>
+
+            {/* Coupon code input */}
+            <View style={styles.couponContainer}>
+                <View style={styles.couponInputRow}>
+                    <TextInput
+                        style={styles.couponInput}
+                        placeholder="Coupon code"
+                        placeholderTextColor="#999"
+                        value={couponCode}
+                        onChangeText={(t) => {
+                            setCouponCode(t.toUpperCase());
+                            setCouponStatus('idle');
+                            setCouponMessage('');
+                        }}
+                        autoCapitalize="characters"
+                        autoCorrect={false}
+                        returnKeyType="go"
+                        onSubmitEditing={handleCouponValidate}
+                    />
+                    <TouchableOpacity
+                        style={[
+                            styles.couponApplyBtn,
+                            couponStatus === 'valid' && styles.couponRedeemBtn,
+                        ]}
+                        onPress={couponStatus === 'valid' ? handleCouponRedeem : handleCouponValidate}
+                        disabled={
+                            couponStatus === 'validating' ||
+                            couponStatus === 'redeeming' ||
+                            !couponCode.trim()
+                        }
+                    >
+                        {couponStatus === 'validating' || couponStatus === 'redeeming' ? (
+                            <ActivityIndicator color="#fff" size="small" />
+                        ) : (
+                            <Text style={styles.couponApplyText}>
+                                {couponStatus === 'valid' ? 'Redeem' : 'Apply'}
+                            </Text>
+                        )}
+                    </TouchableOpacity>
+                </View>
+                {couponMessage ? (
+                    <Text
+                        style={[
+                            styles.couponMsg,
+                            couponStatus === 'valid' && styles.couponMsgValid,
+                            couponStatus === 'invalid' && styles.couponMsgInvalid,
+                        ]}
+                    >
+                        {couponMessage}
+                    </Text>
+                ) : null}
+            </View>
+        </ScrollView>,
+    ];
+
+    const handleScroll = (event: any) => {
+        const { contentOffset, layoutMeasurement } = event.nativeEvent;
+        const pageIndex = Math.round(contentOffset.x / layoutMeasurement.width);
+        setCurrentPage(pageIndex);
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <BackButton onPress={() => navigation.goBack()} />
-            <View style={styles.topSpacer} />
 
-            <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-                <Text style={styles.icon}>{content.icon}</Text>
-                <Text style={styles.title}>{content.name}</Text>
-                <Text style={styles.tagline}>{content.tagline}</Text>
+            {/* Swipeable Pages */}
+            <FlatList
+                ref={listRef}
+                data={pages}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={handleScroll}
+                renderItem={({ item }) => item}
+                keyExtractor={(_, index) => `page-${index}`}
+            />
 
-                <View style={styles.section}>
-                    <Text style={styles.sectionText}>{content.intro}</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>What You Get</Text>
-                    {content.bullets.map((item) => (
-                        <View key={item} style={styles.bulletRow}>
-                            <Text style={styles.bulletDot}>•</Text>
-                            <Text style={styles.bulletText}>{item}</Text>
-                        </View>
-                    ))}
-                </View>
-
-                <TouchableOpacity style={styles.cta} onPress={handleContinue} activeOpacity={0.8}>
-                    <Text style={styles.ctaTitle}>Continue</Text>
-                    <Text style={styles.ctaSubtitle}>Add context, choose speaker, then Tree of Life</Text>
-                </TouchableOpacity>
-            </ScrollView>
+            {/* Pagination Dots */}
+            <View style={styles.pagination}>
+                {pages.map((_, index) => (
+                    <TouchableOpacity
+                        key={index}
+                        style={[styles.dot, currentPage === index && styles.dotActive]}
+                        onPress={() => {
+                            listRef.current?.scrollToIndex({ index, animated: true });
+                            setCurrentPage(index);
+                        }}
+                    />
+                ))}
+            </View>
         </SafeAreaView>
     );
 };
+
+// ── Styles ──────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: 'transparent',
     },
-    topSpacer: {
-        height: 72,
-    },
-    scroll: {
+
+    // Page
+    page: {
         flex: 1,
     },
-    content: {
+    pageContent: {
         paddingHorizontal: spacing.page,
+        paddingTop: spacing.md,
         paddingBottom: spacing.xl,
     },
+
+    // Header content
     icon: {
         fontSize: 48,
         textAlign: 'center',
@@ -209,74 +539,197 @@ const styles = StyleSheet.create({
     },
     title: {
         fontFamily: typography.headline,
-        fontSize: 30,
+        fontSize: 28,
         color: colors.text,
         textAlign: 'center',
     },
     tagline: {
         fontFamily: typography.sansRegular,
-        fontSize: 15,
+        fontSize: 16,
         color: colors.primary,
+        textAlign: 'center',
+        marginTop: spacing.xs,
+        fontStyle: 'italic',
+    },
+    origin: {
+        fontFamily: typography.sansRegular,
+        fontSize: 13,
+        color: colors.mutedText,
         textAlign: 'center',
         marginTop: spacing.xs,
         marginBottom: spacing.lg,
     },
+
+    // Sections
     section: {
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: radii.card,
-        padding: spacing.md,
-        marginBottom: spacing.md,
+        marginBottom: spacing.lg,
     },
     sectionTitle: {
         fontFamily: typography.sansSemiBold,
-        fontSize: 14,
-        color: colors.text,
-        marginBottom: spacing.sm,
+        fontSize: 12,
+        color: colors.primary,
         textTransform: 'uppercase',
-        letterSpacing: 0.8,
+        letterSpacing: 1,
+        marginBottom: spacing.sm,
     },
     sectionText: {
         fontFamily: typography.sansRegular,
         fontSize: 15,
         color: colors.text,
-        lineHeight: 22,
+        lineHeight: 23,
     },
-    bulletRow: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
+
+    // What you'll discover
+    discoverSection: {
+        marginTop: 56,
+        marginBottom: spacing.sm,
+        alignItems: 'center',
+    },
+    discoverTitle: {
+        fontFamily: typography.headline,
+        fontSize: 28,
+        color: colors.text,
+        textAlign: 'center',
+        marginBottom: spacing.md,
+    },
+    discoverItem: {
+        alignItems: 'center',
         marginBottom: spacing.xs,
     },
-    bulletDot: {
-        fontFamily: typography.sansBold,
+    discoverSymbol: {
+        fontSize: 24,
         color: colors.primary,
-        marginRight: spacing.xs,
+        marginBottom: 2,
     },
-    bulletText: {
-        flex: 1,
+    discoverText: {
+        fontFamily: typography.sansRegular,
+        fontSize: 16,
+        color: colors.text,
+        textAlign: 'center',
+        lineHeight: 22,
+        paddingHorizontal: spacing.md,
+    },
+
+    // Insight box (personal note)
+    insightBox: {
+        backgroundColor: colors.surface,
+        padding: spacing.md,
+        borderRadius: radii.card,
+        borderWidth: 1,
+        borderColor: colors.border,
+        marginBottom: spacing.lg,
+    },
+    insightLabel: {
+        fontFamily: typography.sansSemiBold,
+        fontSize: 11,
+        color: colors.primary,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginBottom: spacing.sm,
+    },
+    insightText: {
         fontFamily: typography.sansRegular,
         fontSize: 14,
         color: colors.text,
-        lineHeight: 20,
+        lineHeight: 22,
+        fontStyle: 'italic',
     },
-    cta: {
+
+    // Big CTA button
+    bigCta: {
         backgroundColor: colors.primary,
         borderRadius: radii.card,
         paddingVertical: spacing.lg,
         paddingHorizontal: spacing.xl,
         alignItems: 'center',
+        marginTop: spacing.md,
     },
-    ctaTitle: {
+    bigCtaTitle: {
         fontFamily: typography.sansBold,
         fontSize: 18,
         color: colors.background,
+        marginBottom: spacing.xs,
     },
-    ctaSubtitle: {
+    bigCtaDetails: {
+        fontFamily: typography.sansRegular,
+        fontSize: 14,
+        color: colors.background,
+        opacity: 0.9,
+        marginBottom: spacing.sm,
+    },
+    bigCtaPrice: {
+        fontFamily: typography.sansBold,
+        fontSize: 24,
+        color: colors.background,
+    },
+
+    // Pagination
+    pagination: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        paddingVertical: spacing.lg,
+        gap: spacing.sm,
+    },
+    dot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: colors.divider,
+    },
+    dotActive: {
+        backgroundColor: colors.primary,
+        width: 24,
+    },
+
+    // Coupon code
+    couponContainer: {
+        marginTop: spacing.md,
+    },
+    couponInputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    couponInput: {
+        flex: 1,
+        height: 42,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: radii.input || 10,
+        paddingHorizontal: 14,
+        fontFamily: typography.sansRegular,
+        fontSize: 15,
+        color: colors.text,
+        backgroundColor: colors.surface,
+        letterSpacing: 2,
+    },
+    couponApplyBtn: {
+        height: 42,
+        paddingHorizontal: 18,
+        borderRadius: radii.input || 10,
+        backgroundColor: colors.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    couponRedeemBtn: {
+        backgroundColor: colors.success || '#2ecc71',
+    },
+    couponApplyText: {
+        fontFamily: typography.sansBold,
+        fontSize: 15,
+        color: '#fff',
+    },
+    couponMsg: {
         fontFamily: typography.sansRegular,
         fontSize: 13,
-        color: colors.background,
-        opacity: 0.92,
-        marginTop: spacing.xs,
+        marginTop: 4,
+        textAlign: 'center',
+        color: colors.mutedText,
+    },
+    couponMsgValid: {
+        color: colors.success || '#2ecc71',
+    },
+    couponMsgInvalid: {
+        color: colors.error || '#e74c3c',
     },
 });

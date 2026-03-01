@@ -1,4 +1,3 @@
-import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -6,8 +5,8 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
 import { BackButton } from '@/components/BackButton';
-import { Button } from '@/components/Button';
 import { useProfileStore } from '@/store/profileStore';
+import { PRODUCTS } from '@/config/products';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SystemSelection'>;
 
@@ -35,35 +34,16 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
         targetPersonName,
     } = (route.params || {}) as any;
 
-    const [selectedSystems, setSelectedSystems] = useState<string[]>(
-        preselectedSystem ? [preselectedSystem] : []
-    );
-
     const getPerson = useProfileStore((s) => s.getPerson);
     const getUser = useProfileStore((s) => s.getUser);
 
     const isOverlay = readingType === 'overlay';
     const title = isOverlay ? 'Choose Compatibility Systems' : 'Choose Reading Systems';
+    const singlePrice = isOverlay ? PRODUCTS.compatibility_overlay.priceUSD : PRODUCTS.single_system.priceUSD;
+    const bundlePrice = isOverlay ? PRODUCTS.nuclear_package.priceUSD : PRODUCTS.complete_reading.priceUSD;
+    const bundleFullPrice = isOverlay ? PRODUCTS.nuclear_package.fullPriceUSD : PRODUCTS.complete_reading.fullPriceUSD;
 
-    const toggleSystem = (id: string) => {
-        setSelectedSystems((prev) => {
-            if (prev.includes(id)) return prev.filter((x) => x !== id);
-            return [...prev, id];
-        });
-    };
-
-    const canContinue = selectedSystems.length > 0;
-
-    const summaryText = useMemo(
-        () => selectedSystems.length === 0
-            ? 'No system selected'
-            : `${selectedSystems.length} selected: ${selectedSystems.join(', ')}`,
-        [selectedSystems]
-    );
-
-    const handleContinue = () => {
-        if (!canContinue) return;
-
+    const navigateWithSystems = (chosenSystems: string[], isFullBundle: boolean) => {
         const self = getUser();
         const targetPerson = personId ? getPerson(personId) : null;
 
@@ -125,11 +105,10 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
             return;
         }
 
-        const isBundle = selectedSystems.length > 1;
-        const productType = isOverlay
-            ? (isBundle ? 'bundle_16_readings' : 'compatibility_overlay')
-            : (isBundle ? 'bundle_5_readings' : 'single_system');
-        const flowParams: any = {
+        // Route through SystemExplainer for education + pricing before purchase
+        navigation.navigate('SystemExplainer', {
+            system: isFullBundle ? 'all' : chosenSystems[0],
+            forPurchase: true,
             readingType: isOverlay ? 'overlay' : 'individual',
             forPartner,
             userName,
@@ -141,18 +120,7 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
             person2Override: person2,
             personId,
             targetPersonName,
-            productType,
-            systems: selectedSystems,
-        };
-
-        if (isOverlay) {
-            navigation.navigate('RelationshipContext', flowParams);
-        } else {
-            navigation.navigate('PersonalContext', {
-                ...flowParams,
-                personName: person1.name || targetPersonName || userName || 'You',
-            });
-        }
+        } as any);
     };
 
     return (
@@ -162,35 +130,42 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
 
             <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
                 <Text style={styles.title}>{title}</Text>
-                <Text style={styles.subtitle}>Pick one or multiple systems.</Text>
 
-                {SYSTEMS.map((system) => {
-                    const selected = selectedSystems.includes(system.id);
-                    return (
-                        <TouchableOpacity
-                            key={system.id}
-                            style={[styles.systemRow, selected && styles.systemRowSelected]}
-                            onPress={() => toggleSystem(system.id)}
-                            activeOpacity={0.75}
-                        >
-                            <AnimatedSystemIcon icon={system.icon} size={26} />
-                            <Text style={styles.systemLabel}>{system.label}</Text>
-                            <Text style={[styles.checkmark, selected && styles.checkmarkSelected]}>
-                                {selected ? '✓' : '○'}
-                            </Text>
-                        </TouchableOpacity>
-                    );
-                })}
+                {SYSTEMS.map((system) => (
+                    <TouchableOpacity
+                        key={system.id}
+                        style={styles.systemRow}
+                        onPress={() => navigateWithSystems([system.id], false)}
+                        activeOpacity={0.75}
+                    >
+                        <AnimatedSystemIcon icon={system.icon} size={26} />
+                        <Text style={styles.systemLabel}>{system.label}</Text>
+                        <Text style={styles.systemPrice}>${singlePrice}</Text>
+                        <Text style={styles.chevron}>›</Text>
+                    </TouchableOpacity>
+                ))}
 
-                <View style={styles.summaryCard}>
-                    <Text style={styles.summaryText}>{summaryText}</Text>
-                </View>
-
-                <Button
-                    label="Continue"
-                    onPress={handleContinue}
-                    disabled={!canContinue}
-                />
+                {/* ── ALL Systems + Final Verdict Bundle ── */}
+                <TouchableOpacity
+                    style={styles.bundleCard}
+                    onPress={() => navigateWithSystems(SYSTEMS.map((s) => s.id), true)}
+                    activeOpacity={0.75}
+                >
+                    <View style={styles.bundleBadge}>
+                        <Text style={styles.bundleBadgeText}>★ BEST VALUE</Text>
+                    </View>
+                    <Text style={styles.bundleTitle}>All 5 Systems + Final Verdict</Text>
+                    <Text style={styles.bundleDesc}>
+                        16 in-depth readings across every system{'\n'}with a comprehensive final verdict
+                    </Text>
+                    <View style={styles.bundlePriceRow}>
+                        <Text style={styles.bundleOldPrice}>${bundleFullPrice}</Text>
+                        <Text style={styles.bundlePrice}>${bundlePrice}</Text>
+                    </View>
+                    <View style={styles.bundleStats}>
+                        <Text style={styles.bundleStat}>☉ ॐ ◬ ❋ ✧</Text>
+                    </View>
+                </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>
     );
@@ -202,27 +177,20 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
     topSpacer: {
-        height: 72,
+        height: 64,
     },
     scroll: {
         flex: 1,
     },
     content: {
         paddingHorizontal: spacing.page,
-        paddingBottom: spacing.xl,
+        paddingBottom: spacing.md,
     },
     title: {
         fontFamily: typography.headline,
-        fontSize: 32,
+        fontSize: 28,
         color: colors.text,
         textAlign: 'center',
-    },
-    subtitle: {
-        fontFamily: typography.sansRegular,
-        fontSize: 14,
-        color: colors.mutedText,
-        textAlign: 'center',
-        marginTop: spacing.xs,
         marginBottom: spacing.lg,
     },
     systemRow: {
@@ -233,12 +201,8 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         paddingHorizontal: spacing.md,
-        paddingVertical: spacing.md,
-        marginBottom: spacing.sm,
-    },
-    systemRowSelected: {
-        borderColor: colors.primary,
-        backgroundColor: colors.primarySoft,
+        paddingVertical: 14,
+        marginBottom: 8,
     },
     systemLabel: {
         flex: 1,
@@ -247,26 +211,87 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: colors.text,
     },
-    checkmark: {
+    systemPrice: {
         fontFamily: typography.sansSemiBold,
-        fontSize: 18,
+        fontSize: 14,
+        color: colors.primary,
+        marginRight: spacing.xs,
+    },
+    chevron: {
+        fontFamily: typography.sansRegular,
+        fontSize: 22,
         color: colors.mutedText,
     },
-    checkmarkSelected: {
-        color: colors.primary,
+    /* ── Bundle Card ── */
+    bundleCard: {
+        backgroundColor: colors.primary,
+        borderRadius: radii.card,
+        borderWidth: 1.5,
+        borderColor: colors.primary,
+        paddingHorizontal: spacing.md,
+        paddingTop: 26,
+        paddingBottom: 14,
+        marginTop: 16,
+        alignItems: 'center',
+        position: 'relative' as const,
+        overflow: 'hidden' as const,
     },
-    summaryCard: {
-        backgroundColor: colors.surface,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: colors.border,
-        padding: spacing.md,
-        marginBottom: spacing.md,
+    bundleBadge: {
+        position: 'absolute' as const,
+        top: 0,
+        right: 0,
+        backgroundColor: 'rgba(0,0,0,0.25)',
+        paddingHorizontal: 10,
+        paddingVertical: 3,
+        borderBottomLeftRadius: 10,
     },
-    summaryText: {
-        fontFamily: typography.sansRegular,
-        fontSize: 13,
-        color: colors.text,
+    bundleBadgeText: {
+        fontFamily: typography.sansSemiBold,
+        fontSize: 11,
+        color: '#fff',
+        letterSpacing: 0.5,
+    },
+    bundleTitle: {
+        fontFamily: typography.serifBold,
+        fontSize: 20,
+        color: '#fff',
         textAlign: 'center',
+    },
+    bundleDesc: {
+        fontFamily: typography.sansRegular,
+        fontSize: 14,
+        color: 'rgba(255,255,255,0.85)',
+        textAlign: 'center',
+        marginTop: 4,
+        lineHeight: 19,
+    },
+    bundlePriceRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: spacing.sm,
+        gap: spacing.sm,
+    },
+    bundleOldPrice: {
+        fontFamily: typography.sansRegular,
+        fontSize: 16,
+        color: 'rgba(255,255,255,0.55)',
+        textDecorationLine: 'line-through',
+    },
+    bundlePrice: {
+        fontFamily: typography.sansBold,
+        fontSize: 22,
+        color: '#fff',
+    },
+    bundleStats: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        marginTop: 6,
+    },
+    bundleStat: {
+        fontFamily: typography.sansRegular,
+        fontSize: 16,
+        color: '#fff',
+        letterSpacing: 5,
     },
 });

@@ -23,6 +23,7 @@ import {
 import { logLLMCost } from '../services/costTracking';
 import { composePromptFromJobStartPayload } from '../promptEngine/fromJobPayload';
 import { buildChartDataForSystem } from '../services/chartDataBuilder';
+import { buildChartReferencePage } from '../services/chartReferencePage';
 import {
   stripWesternChartData,
   buildWesternTriggerPrompt,
@@ -632,6 +633,58 @@ export class TextWorker extends BaseWorker {
 	    // so we optionally replace this with a curated digest (two-pass prompting).
     let chartDataForPrompt = chartData;
     const expectedAge = extractExpectedAge(chartData);
+
+    // ─── Build chart reference page(s) for PDF injection ───────────────────────
+    // For individual docs: single chart reference page (person1 or person2)
+    // For overlay docs: two side-by-side pages (person1 left, person2 right)
+    let chartRefPage = '';
+    let chartRefPageRight = '';
+
+    if (docType === 'person2' && person2) {
+      chartRefPage = buildChartReferencePage({
+        chartData,
+        personName: person2.name,
+        birth: { birthDate: person2.birthDate, birthTime: person2.birthTime, birthPlace: p2BirthData?.birthPlace },
+        generatedAt: new Date(),
+        compact: true,
+        system: system || 'western',
+      });
+    } else if (docType === 'overlay' && person2) {
+      // For overlay: build separate reference pages for each person
+      const p1ChartData = buildChartDataForSystem(
+        system || 'western', person1.name, p1Placements, null, null, p1BirthData, null
+      );
+      const p2ChartData = buildChartDataForSystem(
+        system || 'western', person2.name, p2Placements, null, null, p2BirthData!, null
+      );
+      chartRefPage = buildChartReferencePage({
+        chartData: p1ChartData,
+        personName: person1.name,
+        birth: { birthDate: person1.birthDate, birthTime: person1.birthTime, birthPlace: p1BirthData.birthPlace },
+        generatedAt: new Date(),
+        compact: true,
+        system: system || 'western',
+      });
+      chartRefPageRight = buildChartReferencePage({
+        chartData: p2ChartData,
+        personName: person2.name,
+        birth: { birthDate: person2.birthDate, birthTime: person2.birthTime, birthPlace: p2BirthData!.birthPlace },
+        generatedAt: new Date(),
+        compact: true,
+        system: system || 'western',
+      });
+    } else {
+      // person1 / individual
+      chartRefPage = buildChartReferencePage({
+        chartData,
+        personName: person1.name,
+        birth: { birthDate: person1.birthDate, birthTime: person1.birthTime, birthPlace: p1BirthData.birthPlace },
+        generatedAt: new Date(),
+        compact: true,
+        system: system || 'western',
+      });
+    }
+    console.log(`📋 [TextWorker] Chart reference page built: ${chartRefPage.length} chars${chartRefPageRight ? `, right: ${chartRefPageRight.length} chars` : ''}`);
 
 	    let prompt = '';
 	    let composedV2: ReturnType<typeof composePromptFromJobStartPayload> | null = null;
@@ -1574,6 +1627,8 @@ export class TextWorker extends BaseWorker {
         narrativeTrigger: narrativeTriggerForOutput,
         textArtifactPath,
         headline, // Add headline to output
+        chartReferencePage: chartRefPage || undefined,
+        chartReferencePageRight: chartRefPageRight || undefined,
       },
       artifacts: [
         {

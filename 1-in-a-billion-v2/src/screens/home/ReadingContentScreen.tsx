@@ -95,15 +95,16 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
 
     const title = useMemo(() => {
         if (personName) return personName;
-        const p1 = job?.input?.person1?.name || job?.input?.person?.name;
-        const p2 = job?.input?.person2?.name;
+        const params = job?.params || job?.input || {};
+        const p1 = params.person1?.name || params.person?.name;
+        const p2 = params.person2?.name;
         if (p1 && p2) return `${p1} & ${p2}`;
         return p1 || 'Reading';
     }, [job, personName]);
 
     const readingTypeSubheadline = useMemo(() => {
         if (system) {
-            return `System: ${system.charAt(0).toUpperCase() + system.slice(1)}`;
+            return `System: ${system.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}`;
         }
         return `Job: ${jobId}`;
     }, [system, jobId]);
@@ -500,22 +501,34 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
 
                         <View style={styles.playerProgressWrap}>
                             <Pressable
-                                style={styles.playerTrack}
+                                style={styles.playerTrackHitArea}
                                 onLayout={(event) => {
                                     progressTrackWidthRef.current = event.nativeEvent.layout.width || 1;
                                 }}
                                 onPress={(event) => handleSeekPress(event.nativeEvent.locationX)}
                             >
-                                <View
-                                    style={[
-                                        styles.playerFill,
-                                        {
-                                            width: `${activeDurationSec > 0
-                                                ? Math.min(100, Math.max(0, (activePositionSec / activeDurationSec) * 100))
-                                                : 0}%`,
-                                        },
-                                    ]}
-                                />
+                                <View style={styles.playerTrack}>
+                                    <View
+                                        style={[
+                                            styles.playerFill,
+                                            {
+                                                width: `${activeDurationSec > 0
+                                                    ? Math.min(100, Math.max(0, (activePositionSec / activeDurationSec) * 100))
+                                                    : 0}%`,
+                                            },
+                                        ]}
+                                    />
+                                </View>
+                                {activeDurationSec > 0 && (
+                                    <View
+                                        style={[
+                                            styles.playerThumb,
+                                            {
+                                                left: `${Math.min(100, Math.max(0, (activePositionSec / activeDurationSec) * 100))}%`,
+                                            },
+                                        ]}
+                                    />
+                                )}
                             </Pressable>
                             <Text style={styles.playerTime}>
                                 {formatClock(activePositionSec)} / {formatClock(activeDurationSec)}
@@ -525,7 +538,7 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                             {activeLoading
                                 ? `Preparing ${activeAudioKind === 'song' ? 'song' : 'narration'}...`
                                 : activeSignedUrl
-                                    ? `${activeAudioKind === 'song' ? 'Song' : 'Narration'} ready (tap bar to seek)`
+                                    ? `${activeAudioKind === 'song' ? 'Song' : 'Narration'} ready`
                                     : 'Select narration or song'}
                         </Text>
                     </View>
@@ -534,10 +547,14 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                     <Text style={styles.jobLine}>{statusLine}</Text>
                 </View>
 
-                <Text style={styles.cardTitle}>Reading Text</Text>
-                <Text style={styles.readingText} selectable>
-                    {textBody || 'Text unavailable for this job.'}
-                </Text>
+                {textBody ? (
+                    <>
+                        <Text style={styles.cardTitle}>Reading Text</Text>
+                        <Text style={styles.readingText} selectable>
+                            {textBody}
+                        </Text>
+                    </>
+                ) : null}
             </ScrollView>
         </SafeAreaView>
     );
@@ -638,7 +655,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.sm,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: colors.primarySoft,
+        backgroundColor: 'transparent',
     },
     playerButtonDisabled: {
         borderColor: colors.border,
@@ -672,8 +689,12 @@ const styles = StyleSheet.create({
         flex: 1,
         marginTop: spacing.xs,
     },
+    playerTrackHitArea: {
+        paddingVertical: 12,
+        justifyContent: 'center',
+    },
     playerTrack: {
-        height: 8,
+        height: 6,
         borderRadius: 999,
         backgroundColor: colors.border,
         overflow: 'hidden',
@@ -681,6 +702,21 @@ const styles = StyleSheet.create({
     playerFill: {
         height: '100%',
         backgroundColor: colors.primary,
+        borderRadius: 999,
+    },
+    playerThumb: {
+        position: 'absolute',
+        top: 12 - 7,
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        backgroundColor: colors.primary,
+        marginLeft: -7,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.15,
+        shadowRadius: 2,
+        elevation: 2,
     },
     playerTime: {
         marginTop: spacing.xs,

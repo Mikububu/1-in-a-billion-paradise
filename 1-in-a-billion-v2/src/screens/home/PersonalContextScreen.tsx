@@ -43,8 +43,8 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
     };
 
     const maxChars = MAX_CHARS;
-    const headline = `${personName}, what should this reading know?`;
-    const subline = 'Share any context in your own words. Example: "I miss this woman so much."';
+    const headline = 'Personal Context';
+    const subline = 'Would you like to infuse your reading with a question or some additional context?';
 
     return (
         <SafeAreaView style={styles.container}>
@@ -136,6 +136,7 @@ const styles = StyleSheet.create({
         height: CIRCLE_SIZE,
         justifyContent: 'center',
         alignItems: 'center',
+        marginTop: 52,
     },
     outerRing: {
         position: 'absolute',
@@ -159,20 +160,24 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.text,
         backgroundColor: colors.surface,
-        paddingHorizontal: spacing.lg,
-        paddingBottom: spacing.sm,
+        paddingHorizontal: CIRCLE_SIZE * 0.15,
         justifyContent: 'center',
+        alignItems: 'center',
     },
     inputCenterWrap: {
-        flex: 1,
+        width: '100%',
         justifyContent: 'center',
+        alignItems: 'center',
     },
     input: {
+        width: '100%',
+        maxHeight: CIRCLE_SIZE * 0.55,
         fontFamily: typography.sansRegular,
         fontSize: 12,
         lineHeight: 18,
         color: colors.text,
         textAlign: 'center',
+        textAlignVertical: 'center',
     },
     counter: {
         marginTop: spacing.xs,

@@ -522,17 +522,17 @@ export const HomeScreen = ({ navigation }: Props) => {
             style: 'destructive',
             onPress: async () => {
               try {
-                // 1. Clear ALL AsyncStorage keys
-                await AsyncStorage.clear();
-                console.log('✅ AsyncStorage.clear() complete');
-
-                // 2. Sign out from Supabase
+                // 1. Sign out from Supabase FIRST — kills session so auto-sync stops
                 try { await supabase.auth.signOut(); } catch {}
 
-                // 3. Reset Zustand stores
+                // 2. Reset Zustand stores immediately (before async clear)
                 useAuthStore.getState().signOut();
                 useOnboardingStore.getState().reset?.();
                 useProfileStore.getState().reset?.();
+
+                // 3. Clear ALL AsyncStorage keys (persisted store data)
+                await AsyncStorage.clear();
+                console.log('✅ Full reset complete: signout → store reset → AsyncStorage.clear()');
 
                 Alert.alert('Done', 'All local data has been cleared. The app will restart.');
               } catch (e: any) {
@@ -552,7 +552,7 @@ export const HomeScreen = ({ navigation }: Props) => {
         <Text style={styles.settingsIcon}>⚙</Text>
       </TouchableOpacity>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={[styles.content, { gap: spacing.lg * compactV, paddingTop: spacing.xl + 20 }]}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={[styles.content, { gap: spacing.md * compactV, paddingTop: spacing.lg + 10 }]} bounces={false} showsVerticalScrollIndicator={false}>
         <Animated.View style={{ opacity: fadeAnim }}>
           <View style={styles.headlineWrap}>
             <Text style={styles.headlineTop} numberOfLines={2} ellipsizeMode="tail">
@@ -588,7 +588,7 @@ export const HomeScreen = ({ navigation }: Props) => {
               accessibilityRole="button"
               accessibilityLabel={`${displayedMatchCount} matches, view gallery`}
             >
-              <Text style={styles.statusNumber}>{displayedMatchCount}</Text>
+              <Text style={[styles.statusNumber, displayedMatchCount > 0 && styles.statusNumberMatch]}>{displayedMatchCount}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.howMatchingButton}
@@ -598,9 +598,18 @@ export const HomeScreen = ({ navigation }: Props) => {
               <Text style={styles.howMatchingButtonText}>How matching works</Text>
             </TouchableOpacity>
           </View>
-          <Animated.Text style={[styles.statusSub, { transform: [{ scale: pulseAnim }] }]}>
-            BUT THE <Text style={styles.statusOne} onPress={handleSecretTap}>1</Text> IN A BILLION IS STILL OUT THERE
-          </Animated.Text>
+          {displayedMatchCount > 0 ? (
+            <TouchableOpacity onPress={() => navigation.navigate('Gallery' as any)} activeOpacity={0.7}>
+              <Animated.Text style={[styles.statusSubMatch, { transform: [{ scale: pulseAnim }] }]}>
+                WE FOUND {displayedMatchCount === 1 ? 'A MATCH' : `${displayedMatchCount} MATCHES`} FOR YOU
+              </Animated.Text>
+              <Text style={styles.statusSubMatchHint}>Tap to view</Text>
+            </TouchableOpacity>
+          ) : (
+            <Animated.Text style={[styles.statusSub, { transform: [{ scale: pulseAnim }] }]}>
+              BUT THE <Text style={styles.statusOne} onPress={handleSecretTap}>1</Text> IN A BILLION IS STILL OUT THERE
+            </Animated.Text>
+          )}
           {matchingPaused ? (
             <Text style={styles.subscriptionWarning}>{CHAT_RENEW_WARNING_TEXT}</Text>
           ) : null}
@@ -715,19 +724,22 @@ export const HomeScreen = ({ navigation }: Props) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
   scrollView: { flex: 1 },
-  content: { paddingHorizontal: spacing.page, paddingBottom: spacing.xl * 2, gap: spacing.lg },
+  content: { paddingHorizontal: spacing.page, paddingBottom: spacing.lg, gap: spacing.md },
   headlineWrap: { alignItems: 'center' },
   headlineTop: { fontFamily: typography.headline, fontSize: 32, color: colors.text, textAlign: 'center' },
   headlineBottom: { fontFamily: typography.headline, fontSize: 32, color: colors.text, textAlign: 'center', marginTop: -2 },
   settingsButton: { position: 'absolute', right: spacing.page, zIndex: 50, padding: spacing.sm },
   settingsIcon: { fontSize: 24, color: colors.text },
-  libraryCard: { backgroundColor: colors.surface, borderRadius: radii.card, padding: spacing.lg, borderWidth: 1, borderColor: colors.primary, borderStyle: 'dashed', marginTop: spacing.lg },
+  libraryCard: { backgroundColor: colors.surface, borderRadius: radii.card, padding: spacing.md, borderWidth: 1, borderColor: colors.primary, borderStyle: 'dashed', marginTop: spacing.xs },
   libraryHeader: { alignItems: 'center' },
   libraryTitle: { fontFamily: typography.serifBold, fontSize: 20, color: colors.text },
-  statusSection: { alignItems: 'center', paddingTop: 40, paddingBottom: spacing.xl },
+  statusSection: { alignItems: 'center', paddingTop: spacing.md, paddingBottom: spacing.md },
   sectionLabel: { fontFamily: typography.sansSemiBold, color: colors.primary, fontSize: 12, textTransform: 'uppercase', marginBottom: spacing.xs },
-  statusNumber: { fontFamily: typography.sansRegular, color: colors.text, fontSize: 64 },
+  statusNumber: { fontFamily: typography.sansRegular, color: colors.text, fontSize: 60 },
+  statusNumberMatch: { color: colors.primary },
   statusSub: { fontFamily: typography.sansBold, color: colors.text, textAlign: 'center', fontSize: 13 },
+  statusSubMatch: { fontFamily: typography.sansBold, color: colors.primary, textAlign: 'center', fontSize: 14 },
+  statusSubMatchHint: { fontFamily: typography.sansRegular, color: colors.mutedText, textAlign: 'center', fontSize: 11, marginTop: 4 },
   statusOne: { fontFamily: typography.sansBold, color: colors.primary, fontSize: 16 },
   subscriptionWarning: {
     marginTop: spacing.xs,
@@ -756,16 +768,16 @@ const styles = StyleSheet.create({
   audioBtn: { backgroundColor: colors.primary, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: 24 },
   audioBtnActive: { backgroundColor: colors.text },
   audioBtnText: { color: colors.background, fontWeight: 'bold' },
-  profilePhotoSection: { alignItems: 'center', marginTop: spacing.xl },
+  profilePhotoSection: { alignItems: 'center', marginTop: spacing.sm },
   uploadPhotoButton: { alignItems: 'center' },
-  uploadPhotoPlaceholder: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  uploadPhotoPlaceholder: { width: 88, height: 88, borderRadius: 44, backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   uploadPhotoIcon: { fontSize: 32 },
   uploadPhotoLabel: { fontFamily: typography.sansRegular, fontSize: 12, color: colors.primary, marginTop: spacing.xs },
-  portraitImageLarge: { width: 200, height: 200, borderRadius: 100, borderWidth: 3, borderColor: colors.primary },
+  portraitImageLarge: { width: 88, height: 88, borderRadius: 44, borderWidth: 2, borderColor: colors.primary },
   producedBySection: {
     alignItems: 'center',
     marginTop: spacing.md,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
   producedByText: {
     fontFamily: typography.sansRegular,
@@ -776,10 +788,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
   forbiddenYogaLogo: {
-    width: 160,
-    height: 30,
+    width: 200,
+    height: 38,
   },
-  matchCountRow: { width: '100%', minHeight: 92, justifyContent: 'center', alignItems: 'center' },
+  matchCountRow: { width: '100%', minHeight: 64, justifyContent: 'center', alignItems: 'center' },
   matchCountWrapper: { padding: 10 },
   howMatchingButton: {
     position: 'absolute',

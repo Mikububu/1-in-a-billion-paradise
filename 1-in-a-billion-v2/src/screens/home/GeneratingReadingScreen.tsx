@@ -61,19 +61,45 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
                 s === 'kabbalah'
             );
 
-        if (personId) {
+        const now = new Date().toISOString();
+        const isOverlay = readingType === 'overlay';
+
+        if (isOverlay && personId && normalizedSystems.length > 0) {
+            // Overlay/synastry produces 3 readings per system:
+            // 1. Person1 individual reading (under person1)
+            // 2. Person2 individual reading (under person2)
+            // 3. Overlay (compatibility) reading (under person1, marked as overlay)
+
+            // Person1 individual
+            linkJobToPerson(personId, activeJobId);
+            if (getReadingsByJobId(personId, activeJobId).length === 0) {
+                createPlaceholderReadings(personId, activeJobId, normalizedSystems, now, 'individual');
+            }
+
+            // Person2 individual
+            if (partnerId) {
+                linkJobToPerson(partnerId, activeJobId);
+                if (getReadingsByJobId(partnerId, activeJobId).length === 0) {
+                    createPlaceholderReadings(partnerId, activeJobId, normalizedSystems, now, 'individual');
+                }
+            } else if (partnerName) {
+                linkJobToPersonByName(partnerName, activeJobId);
+            }
+
+            // Overlay reading (stored under person1, same jobId, with overlay type)
+            // Check if overlay placeholders already exist by looking for overlay-typed readings with this jobId
+            const existingPerson1Readings = getReadingsByJobId(personId, activeJobId);
+            const hasOverlayPlaceholders = existingPerson1Readings.some((r: any) => r.readingType === 'overlay');
+            if (!hasOverlayPlaceholders) {
+                createPlaceholderReadings(personId, activeJobId, normalizedSystems, now, 'overlay', partnerName || 'Partner');
+            }
+        } else if (personId) {
             linkJobToPerson(personId, activeJobId);
             if (normalizedSystems.length > 0 && getReadingsByJobId(personId, activeJobId).length === 0) {
-                createPlaceholderReadings(personId, activeJobId, normalizedSystems, new Date().toISOString());
+                createPlaceholderReadings(personId, activeJobId, normalizedSystems, now, 'individual');
             }
         } else if (personName) {
             linkJobToPersonByName(personName, activeJobId);
-        }
-
-        if (readingType === 'overlay' && partnerId) {
-            linkJobToPerson(partnerId, activeJobId);
-        } else if (readingType === 'overlay' && partnerName) {
-            linkJobToPersonByName(partnerName, activeJobId);
         }
 
         addJobToBuffer({
@@ -210,16 +236,7 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
                 </TouchableOpacity>
             </ScrollView>
 
-            <View style={styles.videoContainer}>
-                <Video
-                    source={require('../../../assets/videos/plastilin_pingpong.mp4')}
-                    style={styles.video}
-                    resizeMode={ResizeMode.COVER}
-                    shouldPlay
-                    isLooping
-                    isMuted
-                />
-            </View>
+            {/* Video removed — screen uses textured background only */}
         </SafeAreaView>
     );
 };

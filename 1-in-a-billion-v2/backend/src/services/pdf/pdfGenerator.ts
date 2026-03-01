@@ -965,8 +965,7 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
         doc.moveDown(1);
       }
 
-      // Chart reference page is currently disabled globally by product decision.
-      // Keep this branch explicit so it can be re-enabled cleanly later.
+      // Chart reference page (Natal Chart Overview) — always present for every reading
       if (ENABLE_CHART_REFERENCE_PAGE) {
         const hasChartReference = Boolean(String(options.chartReferencePage || '').trim() || String(options.chartReferencePageRight || '').trim());
         if (hasChartReference) {
@@ -974,6 +973,7 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
           renderChartReferenceText(doc, options.chartReferencePage || '', hasPlayfairBold, options.chartReferencePageRight);
         }
       }
+
       doc.addPage();
 
       const signatureBlocks: SignatureBlock[] = [];
@@ -1111,7 +1111,8 @@ export async function generateChapterPDF(
   chapter: ChapterContent,
   person1: PDFGenerationOptions['person1'],
   person2?: PDFGenerationOptions['person2'],
-  coupleImageUrl?: string
+  coupleImageUrl?: string,
+  extras?: { chartReferencePage?: string; chartReferencePageRight?: string; compatibilityScores?: Array<{ label: string; score: number; scoreTen: number; note: string }> }
 ): Promise<{ filePath: string; pageCount: number }> {
   // ⚠️ CRITICAL VALIDATION: Prevent using same content for different reading types
   // Count how many reading fields have content
@@ -1151,5 +1152,8 @@ export async function generateChapterPDF(
     coupleImageUrl,
     chapters: [chapter],
     generatedAt: new Date(),
+    chartReferencePage: extras?.chartReferencePage,
+    chartReferencePageRight: extras?.chartReferencePageRight,
+    compatibilityScores: extras?.compatibilityScores,
   });
 }

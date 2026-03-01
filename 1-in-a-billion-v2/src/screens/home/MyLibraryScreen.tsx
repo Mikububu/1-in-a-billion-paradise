@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { useProfileStore } from '@/store/profileStore';
+import { useAuthStore } from '@/store/authStore';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { BackButton } from '@/components/BackButton';
 import { fetchJobSnapshot, type JobSnapshot } from '@/services/jobStatus';
+import { recoverReadingsFromCloud } from '@/services/libraryRecovery';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'MyLibrary'>;
 
@@ -17,6 +19,10 @@ type TrackedReading = {
     personName: string;
     system: string;
     lastTimestamp: number;
+    readingType?: 'individual' | 'overlay';
+    partnerName?: string;
+    personImageUrl?: string;
+    partnerImageUrl?: string;
 };
 
 const toEpoch = (value?: string) => {
@@ -31,10 +37,35 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
     const savedAudios = useProfileStore((s) => s.savedAudios);
     const savedPDFs = useProfileStore((s) => s.savedPDFs);
 
+    const userId = useAuthStore((s) => s.user?.id || null);
+
     const [jobSnapshotById, setJobSnapshotById] = useState<Record<string, JobSnapshot>>({});
     const [isJobsLoading, setIsJobsLoading] = useState(false);
     const [previewImageUri, setPreviewImageUri] = useState<string | null>(null);
     const [previewTitle, setPreviewTitle] = useState<string>('Portrait');
+    const [isRecovering, setIsRecovering] = useState(false);
+
+    // AUTO-RECOVERY: If user has 0 readings but might have cloud jobs,
+    // attempt to rebuild reading placeholders from backend data.
+    const recoveryAttemptedRef = useRef(false);
+    useEffect(() => {
+        if (recoveryAttemptedRef.current || !userId || totalReadings > 0) return;
+        recoveryAttemptedRef.current = true;
+
+        (async () => {
+            setIsRecovering(true);
+            try {
+                const result = await recoverReadingsFromCloud(userId);
+                if (result.recovered > 0) {
+                    console.log(`🔄 Library auto-recovery: ${result.recovered} readings restored`);
+                }
+            } catch (err) {
+                console.warn('⚠️ Library recovery failed', err);
+            } finally {
+                setIsRecovering(false);
+            }
+        })();
+    }, [userId, totalReadings]);
 
     const user = useMemo(() => people.find((p) => p.isUser), [people]);
     const partners = useMemo(() => people.filter((p) => !p.isUser), [people]);
@@ -42,11 +73,27 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
         () => people.reduce((acc, p) => acc + (p.readings?.length || 0), 0),
         [people]
     );
+    // Count individual vs overlay readings from actual placeholder data
+    const individualReadingsCount = useMemo(
+        () => people.reduce((acc, p) => acc + (p.readings?.filter((r: any) => r.readingType !== 'overlay').length || 0), 0),
+        [people]
+    );
+    const overlayReadingsCount = useMemo(
+        () => people.reduce((acc, p) => acc + (p.readings?.filter((r: any) => r.readingType === 'overlay').length || 0), 0),
+        [people]
+    );
 
     const trackedReadings = useMemo<TrackedReading[]>(() => {
         const readings: TrackedReading[] = [];
 
         for (const person of people) {
+            // Find partner image if this person has overlay readings
+            const findPartnerImage = (partnerName?: string) => {
+                if (!partnerName) return undefined;
+                const partner = people.find((p) => p.name === partnerName);
+                return partner?.portraitUrl || partner?.originalPhotoUrl || undefined;
+            };
+
             for (const reading of person.readings || []) {
                 if (!reading.jobId) continue;
 
@@ -59,6 +106,10 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                     personName: person.name,
                     system: reading.system,
                     lastTimestamp: ts > 0 ? ts : Math.max(toEpoch(person.updatedAt), toEpoch(person.createdAt)),
+                    readingType: reading.readingType,
+                    partnerName: reading.partnerName,
+                    personImageUrl: person.portraitUrl || person.originalPhotoUrl || undefined,
+                    partnerImageUrl: findPartnerImage(reading.partnerName),
                 });
             }
         }
@@ -154,15 +205,15 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
                 <View style={styles.statsRow}>
                     <View style={styles.statCard}>
-                        <Text style={styles.statValue}>{partners.length}</Text>
-                        <Text style={styles.statLabel}>People</Text>
+                        <Text style={styles.statValue}>{people.length}</Text>
+                        <Text style={styles.statLabel}>Souls</Text>
                     </View>
                     <View style={styles.statCard}>
-                        <Text style={styles.statValue}>{totalReadings}</Text>
+                        <Text style={styles.statValue}>{individualReadingsCount}</Text>
                         <Text style={styles.statLabel}>Readings</Text>
                     </View>
                     <View style={styles.statCard}>
-                        <Text style={styles.statValue}>{compatibilityReadings.length}</Text>
+                        <Text style={styles.statValue}>{overlayReadingsCount}</Text>
                         <Text style={styles.statLabel}>Compatibility</Text>
                     </View>
                 </View>
@@ -182,9 +233,9 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                     </View>
                 </View>
 
-                {isJobsLoading ? <ActivityIndicator color={colors.primary} size="small" style={{ marginBottom: spacing.sm }} /> : null}
+                {(isJobsLoading || isRecovering) ? <ActivityIndicator color={colors.primary} size="small" style={{ marginBottom: spacing.sm }} /> : null}
 
-                {trackedReadings.length === 0 ? (
+                {trackedReadings.length === 0 && !isRecovering ? (
                     <View style={styles.emptyJobCard}>
                         <Text style={styles.emptyJobText}>No tracked readings yet. Start a deep reading to see live status here.</Text>
                     </View>
@@ -195,11 +246,19 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                             const readingDate = reading.lastTimestamp
                                 ? new Date(reading.lastTimestamp).toLocaleString()
                                 : '';
-                            const systemName = reading.system ? reading.system.charAt(0).toUpperCase() + reading.system.slice(1) : 'Reading';
+                            const systemName = reading.system
+                                ? reading.system.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+                                : 'Reading';
+                            const statusRaw = String(snapshot?.status || '').toLowerCase();
+                            const isComplete = statusRaw === 'complete' || statusRaw === 'completed';
                             const status = snapshot
-                                ? `${snapshot.status.toUpperCase()}${typeof snapshot.percent === 'number' ? ` · ${snapshot.percent}%` : ''}`
-                                : 'Status unavailable';
-                            const isComplete = String(snapshot?.status || '').toLowerCase() === 'complete' || String(snapshot?.status || '').toLowerCase() === 'completed';
+                                ? (isComplete ? 'DONE' : `${typeof snapshot.percent === 'number' ? `${snapshot.percent}%` : '...'}`)
+                                : '...';
+
+                            const isOverlayReading = reading.readingType === 'overlay';
+                            const displayTitle = isOverlayReading && reading.partnerName
+                                ? `${reading.personName} & ${reading.partnerName}`
+                                : reading.personName;
 
                             return (
                                 <TouchableOpacity
@@ -212,17 +271,42 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                                         system: reading.system
                                     })}
                                 >
-                                    <View style={styles.readingBadge}>
-                                        <Text style={styles.readingBadgeText}>R</Text>
-                                    </View>
+                                    {isOverlayReading ? (
+                                        <View style={styles.dualBadgeWrap}>
+                                            {reading.personImageUrl ? (
+                                                <Image source={{ uri: reading.personImageUrl }} style={styles.badgeImageLeft} />
+                                            ) : (
+                                                <View style={[styles.readingBadgeSmall, styles.badgeRed]}>
+                                                    <Text style={styles.readingBadgeSmallText}>{reading.personName.charAt(0)}</Text>
+                                                </View>
+                                            )}
+                                            {reading.partnerImageUrl ? (
+                                                <Image source={{ uri: reading.partnerImageUrl }} style={styles.badgeImageRight} />
+                                            ) : (
+                                                <View style={[styles.readingBadgeSmall, styles.badgeGreen]}>
+                                                    <Text style={styles.readingBadgeSmallTextGreen}>{(reading.partnerName || 'P').charAt(0)}</Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                    ) : (
+                                        reading.personImageUrl ? (
+                                            <Image source={{ uri: reading.personImageUrl }} style={styles.badgeImageSingle} />
+                                        ) : (
+                                            <View style={styles.readingBadge}>
+                                                <Text style={styles.readingBadgeText}>{reading.personName.charAt(0)}</Text>
+                                            </View>
+                                        )
+                                    )}
                                     <View style={styles.jobMain}>
-                                        <Text style={styles.jobTitle} numberOfLines={1}>{reading.personName}</Text>
+                                        <Text style={styles.jobTitle} numberOfLines={1}>{displayTitle}</Text>
                                         {readingDate ? (
                                             <Text style={styles.jobDate} numberOfLines={1}>
                                                 From {readingDate}
                                             </Text>
                                         ) : null}
-                                        <Text style={styles.jobMeta} numberOfLines={1}>{systemName}</Text>
+                                        <Text style={styles.jobMeta} numberOfLines={1}>
+                                            {systemName}
+                                        </Text>
                                     </View>
                                     <View style={styles.jobStatusWrap}>
                                         <Text style={styles.jobStatus}>{status}</Text>
@@ -360,9 +444,9 @@ const styles = StyleSheet.create({
         padding: spacing.md,
     },
     readingBadge: {
-        width: 42,
-        height: 42,
-        borderRadius: 21,
+        width: 50,
+        height: 50,
+        borderRadius: 25,
         backgroundColor: '#f8dada',
         alignItems: 'center',
         justifyContent: 'center',
@@ -370,8 +454,69 @@ const styles = StyleSheet.create({
     },
     readingBadgeText: {
         fontFamily: typography.serifBold,
-        fontSize: 24,
+        fontSize: 26,
         color: colors.primary,
+    },
+    /* ── Dual badge for overlay/synastry ── */
+    dualBadgeWrap: {
+        flexDirection: 'row',
+        marginRight: spacing.md,
+        width: 62,
+    },
+    readingBadgeSmall: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+        borderColor: '#fff',
+    },
+    badgeRed: {
+        backgroundColor: '#f8dada',
+        zIndex: 2,
+    },
+    badgeGreen: {
+        backgroundColor: '#d4edda',
+        marginLeft: -10,
+        zIndex: 1,
+    },
+    readingBadgeSmallText: {
+        fontFamily: typography.serifBold,
+        fontSize: 17,
+        color: colors.primary,
+    },
+    readingBadgeSmallTextGreen: {
+        fontFamily: typography.serifBold,
+        fontSize: 17,
+        color: '#28a745',
+    },
+    /* ── Image badges ── */
+    badgeImageSingle: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        marginRight: spacing.md,
+        backgroundColor: '#f8dada',
+    },
+    badgeImageLeft: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        borderWidth: 2,
+        borderColor: '#fff',
+        backgroundColor: '#f8dada',
+        zIndex: 2,
+    },
+    badgeImageRight: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        borderWidth: 2,
+        borderColor: '#fff',
+        backgroundColor: '#d4edda',
+        marginLeft: -10,
+        zIndex: 1,
     },
     jobMain: {
         flex: 1,

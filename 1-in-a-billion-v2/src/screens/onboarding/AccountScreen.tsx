@@ -217,10 +217,6 @@ export const AccountScreen = ({ navigation, route }: Props) => {
         }
       }
 
-      setHasCompletedOnboarding(false);
-      setShowDashboard(false);
-      setRedirectAfterOnboarding(null);
-
       navigation.reset({
         index: 0,
         routes: [{ name: 'CoreIdentities' }],
@@ -230,10 +226,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
       name,
       navigation,
       setDisplayName,
-      setHasCompletedOnboarding,
       setOnboardingName,
-      setRedirectAfterOnboarding,
-      setShowDashboard,
     ]
   );
 

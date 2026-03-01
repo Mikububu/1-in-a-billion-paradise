@@ -21,7 +21,7 @@ import {
   handleRevenueCatEvent,
   type RevenueCatWebhookBody,
 } from '../services/revenuecatService';
-import { canUseIncludedReading, checkUserSubscription, getUserSubscriptionTier, hasUnlimitedReadings } from '../services/subscriptionService';
+import { canUseIncludedReading, checkUserSubscription, getUserSubscriptionTier, hasUnlimitedReadings, getMonthlyQuotaStatus } from '../services/subscriptionService';
 import { createSupabaseUserClientFromAccessToken } from '../services/supabaseClient';
 import { env } from '../config/env';
 import { requireAuth } from '../middleware/requireAuth';
@@ -98,8 +98,25 @@ payments.get('/included-reading-status', async (c) => {
       return c.json({ success: false, error: 'Unauthorized' }, 401);
     }
 
-    const eligible = await canUseIncludedReading(userId);
-    return c.json({ success: true, eligible });
+    const quota = await getMonthlyQuotaStatus(userId);
+    if (!quota) {
+      return c.json({ success: true, eligible: false, quota: null });
+    }
+
+    return c.json({
+      success: true,
+      eligible: quota.canStartReading,
+      quota: {
+        tier: quota.tier,
+        monthlyLimit: quota.monthlyLimit,
+        used: quota.used,
+        remaining: quota.remaining,
+        canStartReading: quota.canStartReading,
+        canStartSynastry: quota.canStartSynastry,
+        periodStart: quota.periodStart,
+        periodEnd: quota.periodEnd,
+      },
+    });
   } catch (error: any) {
     console.error('❌ included-reading-status error:', error);
     return c.json({ success: false, error: error?.message ?? 'Check failed' }, 500);
@@ -206,13 +223,20 @@ payments.get('/subscription-tier', async (c) => {
 
     const tier = await getUserSubscriptionTier(userId);
     const unlimited = await hasUnlimitedReadings(userId);
-    const includedReadingEligible = await canUseIncludedReading(userId);
+    const quota = await getMonthlyQuotaStatus(userId);
 
     return c.json({
       success: true,
       tier,              // 'basic' | 'yearly' | 'billionaire' | null
       unlimitedReadings: unlimited,
-      includedReadingEligible,
+      includedReadingEligible: quota?.canStartReading ?? false,
+      quota: quota ? {
+        monthlyLimit: quota.monthlyLimit,
+        used: quota.used,
+        remaining: quota.remaining,
+        canStartReading: quota.canStartReading,
+        canStartSynastry: quota.canStartSynastry,
+      } : null,
     });
   } catch (error: any) {
     console.error('❌ subscription-tier error:', error);

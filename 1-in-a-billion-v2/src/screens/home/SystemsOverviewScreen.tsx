@@ -6,7 +6,7 @@ import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
 import { BackButton } from '@/components/BackButton';
-import { checkIncludedReadingEligible } from '@/services/api';
+import { checkIncludedReadingEligible, fetchReadingQuota, type ReadingQuota } from '@/services/api';
 import { useProfileStore } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
 
@@ -41,8 +41,9 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
 
     const actualReadingType = readingType || (forPartner ? 'overlay' : 'individual');
 
-    // ── Free included reading state ──
+    // ── Reading quota state ──
     const [freeReadingEligible, setFreeReadingEligible] = useState(false);
+    const [quota, setQuota] = useState<ReadingQuota | null>(null);
     const pulseAnim = useRef(new Animated.Value(0.4)).current;
 
     const getUser = useProfileStore((s) => s.getUser);
@@ -50,7 +51,7 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
     const user = useAuthStore((s) => s.user);
     const unlimitedReadings = useAuthStore((s) => s.unlimitedReadings);
 
-    // Check eligibility on mount
+    // Check eligibility and quota on mount
     useEffect(() => {
         let cancelled = false;
         // Billionaire tier always eligible — skip the network call
@@ -58,8 +59,10 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
             setFreeReadingEligible(true);
             return;
         }
-        checkIncludedReadingEligible().then((eligible) => {
-            if (!cancelled) setFreeReadingEligible(eligible);
+        fetchReadingQuota().then((q) => {
+            if (cancelled) return;
+            setQuota(q);
+            setFreeReadingEligible(q?.canStartReading ?? false);
         });
         return () => { cancelled = true; };
     }, [unlimitedReadings]);
@@ -90,7 +93,22 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
     // ── Handlers ──
 
     const handleSystemPress = (system: SystemInfo) => {
-        if (freeReadingEligible && actualReadingType === 'individual') {
+        // Check quota for synastry (needs 3 slots)
+        if (freeReadingEligible && actualReadingType === 'overlay' && quota && !quota.canStartSynastry) {
+            Alert.alert(
+                'Not enough free slots',
+                `A synastry reading uses 3 of your monthly reading slots. You have ${quota.remaining} remaining.`,
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Buy This Reading',
+                        onPress: () => navigateToExplainer(system.id),
+                    },
+                ]
+            );
+            return;
+        }
+        if (freeReadingEligible) {
             handleFreeReadingClaim(system);
         } else {
             navigateToExplainer(system.id);
@@ -194,7 +212,9 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
                 <Text style={styles.title}>{title}</Text>
                 <Text style={styles.subtitle}>
                     {freeReadingEligible
-                        ? 'Pick any system — one free reading is included!'
+                        ? quota
+                            ? `${quota.remaining} of ${quota.monthlyLimit} readings left this month`
+                            : 'Pick any system — reading included with your plan!'
                         : 'Choose a lens for the next deep reading.'}
                 </Text>
             </View>
@@ -218,7 +238,7 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
 
                         {freeReadingEligible ? (
                             <Animated.View style={[styles.freeBadge, { opacity: pulseAnim }]}>
-                                <Text style={styles.freeBadgeText}>FREE</Text>
+                                <Text style={styles.freeBadgeText}>{quota ? `${quota.remaining} LEFT` : 'FREE'}</Text>
                             </Animated.View>
                         ) : (
                             <Text style={styles.arrow}>→</Text>

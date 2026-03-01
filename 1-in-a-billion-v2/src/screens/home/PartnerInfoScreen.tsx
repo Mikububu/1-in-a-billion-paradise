@@ -67,8 +67,13 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // HARD LOCK: Only allow ONE free third person hook reading during onboarding
+  // Only count people added in the current onboarding session (last 30 min)
+  // to avoid false positives from synced data of previous accounts/sessions.
   // ═══════════════════════════════════════════════════════════════════════════
-  const existingFreePartner = people.find((p) => !p.isUser && p.hookReadings && p.hookReadings.length === 3);
+  const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+  const existingFreePartner = people.find(
+    (p) => !p.isUser && p.hookReadings && p.hookReadings.length === 3 && p.createdAt > thirtyMinAgo
+  );
 
   useEffect(() => {
     if (isPrepayOnboarding && existingFreePartner) {
@@ -212,7 +217,8 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
 
         // Default flow: go generate their 3 hook readings (Sun/Moon/Rising)
         console.log(`✅ Same person "${name}" detected - navigating to hook readings`);
-        navigation.navigate('PartnerCoreIdentities', {
+        const targetScreenDup = isPrepayOnboarding ? 'Onboarding_PartnerCoreIdentities' : 'PartnerCoreIdentities';
+        navigation.navigate(targetScreenDup as any, {
           partnerName: name,
           partnerBirthDate: birthDate ? toIsoDateLocal(birthDate) : undefined,
           partnerBirthTime: birthTime
@@ -298,12 +304,16 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
     }
 
     if (isAddPersonOnly) {
-      if (returnTo === 'ComparePeople') navigation.navigate('ComparePeople');
-      else navigation.goBack();
+      // Navigate to photo upload as a follow-up step (user can skip)
+      navigation.replace('PersonPhotoUpload', {
+        personId,
+        returnTo: returnTo === 'ComparePeople' ? 'ComparePeople' : 'PeopleList',
+      });
       return { personId, cityToUse };
     }
 
-    navigation.navigate('PartnerCoreIdentities', {
+    const targetScreen = isPrepayOnboarding ? 'Onboarding_PartnerCoreIdentities' : 'PartnerCoreIdentities';
+    navigation.navigate(targetScreen as any, {
       partnerName: name.trim(),
       partnerBirthDate: birthDate ? toIsoDateLocal(birthDate) : undefined,
       partnerBirthTime: birthTime

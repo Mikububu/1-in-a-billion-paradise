@@ -89,18 +89,23 @@ router.post('/v2/start', jwtAuth, async (c) => {
       return c.json({ success: false, error: 'Missing person1 birth data' }, 400);
     }
 
-    // Check if billionaire tier — they get unlimited readings without IAP
-    const { canUseIncludedReading, hasUnlimitedReadings } = await import('../services/subscriptionService');
+    // ── Monthly Quota Check ──────────────────────────────────────────────
+    const { canStartReading, getMonthlyQuotaStatus, hasUnlimitedReadings } = await import('../services/subscriptionService');
     const unlimited = await hasUnlimitedReadings(userId);
+    const isSynastry = type === 'synastry';
 
-    // If claiming the free included reading, verify eligibility server-side
-    // (Billionaire users are always eligible via canUseIncludedReading)
-    if (useIncludedReading && !unlimited) {
-      const eligible = await canUseIncludedReading(userId);
+    if (useIncludedReading) {
+      const eligible = await canStartReading(userId, isSynastry);
       if (!eligible) {
+        const quota = await getMonthlyQuotaStatus(userId);
+        const msg = quota
+          ? `Monthly reading limit reached (${quota.used}/${quota.monthlyLimit} used this period). ${isSynastry ? 'Synastry requires 3 reading slots.' : ''}`
+          : 'Not eligible for reading (no active subscription)';
         return c.json({
           success: false,
-          error: 'Not eligible for included reading (no active subscription or already used)',
+          error: msg,
+          quotaExceeded: true,
+          quota: quota ? { used: quota.used, limit: quota.monthlyLimit, remaining: quota.remaining } : undefined,
         }, 403);
       }
     }
@@ -128,15 +133,13 @@ router.post('/v2/start', jwtAuth, async (c) => {
       params,
     });
 
-    // If this was a free included reading, mark it as used (skip for billionaire — they're unlimited)
-    if (useIncludedReading && !unlimited) {
+    // Log reading against monthly quota
+    if (useIncludedReading) {
       const { markIncludedReadingUsed } = await import('../services/subscriptionService');
       const system = systems[0] || 'unknown';
       await markIncludedReadingUsed(userId, system, jobId);
-      console.log(`🎁 Free included reading claimed: user=${userId} system=${system} job=${jobId}`);
-    }
-    if (unlimited) {
-      console.log(`💎 Billionaire reading (no charge): user=${userId} job=${jobId}`);
+      const quota = await getMonthlyQuotaStatus(userId);
+      console.log(`📊 Reading counted: user=${userId} type=${isSynastry ? 'synastry(3)' : 'individual(1)'} quota=${quota?.used}/${quota?.monthlyLimit}`);
     }
 
     console.log(`🚀 Job started: ${jobId} type=${type} systems=${systems.join(',')} user=${userId}`);
@@ -520,7 +523,8 @@ router.get('/v2/user/:userId/jobs', jwtAuth, async (c) => {
   if (authUserId !== userId) {
     return c.json({ success: false, error: 'Forbidden' }, 403);
   }
-  const jobs = await jobQueueV2.getUserJobs(userId, 10);
+  const limit = Math.min(Number(c.req.query('limit')) || 50, 100);
+  const jobs = await jobQueueV2.getUserJobs(userId, limit);
   
   // Fetch tasks for each job to show detailed status
   const jobsWithDetails = await Promise.all(

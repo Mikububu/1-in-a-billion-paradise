@@ -118,7 +118,7 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
             onPress: () => {
               if (!partnerBirthTime) {
                 if (isPrepayOnboarding) {
-                  navigation.navigate('PartnerInfo', { mode: 'onboarding_hook' } as any);
+                  navigation.navigate('Onboarding_PartnerInfo', { mode: 'onboarding_hook' } as any);
                 } else if (partnerId) {
                   navigation.navigate('EditBirthData', { personId: partnerId } as any);
                 } else {
@@ -137,7 +137,8 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
     }
 
     setIsNavigatingToSynastry(true);
-    navigation.navigate('SynastryPreview', {
+    const synastryScreen = isPrepayOnboarding ? 'Onboarding_SynastryPreview' : 'SynastryPreview';
+    navigation.navigate(synastryScreen as any, {
       partnerName,
       partnerBirthDate,
       partnerBirthTime,
@@ -569,14 +570,14 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
                         <View style={styles.gatewayContainer}>
                           <View style={styles.gatewayTop}>
                             <Text style={styles.gatewayTitle}>
-                              <Text style={styles.nameRed}>{partnerName}</Text>'s Chart Complete
+                              <Text style={styles.nameRed}>{partnerName}</Text> & <Text style={styles.nameRed}>{user?.name || 'You'}</Text>
                             </Text>
                             <Text style={styles.gatewaySubtitle}>
                               Ready to explore your cosmic connection?
                             </Text>
 
                             <TouchableOpacity
-                              style={[styles.continueBtn, isNavigatingToSynastry && styles.continueBtnDisabled]}
+                              style={[styles.continueBtn, { marginTop: 20 }, isNavigatingToSynastry && styles.continueBtnDisabled]}
                               onPress={handleContinueToSynastry}
                               disabled={isNavigatingToSynastry}
                             >

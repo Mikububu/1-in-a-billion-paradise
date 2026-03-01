@@ -49,6 +49,8 @@ export type Reading = {
     docNum?: number;
     duration?: number;
     createdAt?: string;
+    readingType?: 'individual' | 'overlay';
+    partnerName?: string;
 };
 
 export type SavedAudio = {
@@ -147,7 +149,7 @@ type ProfileState = {
     deleteReading: (personId: string, readingId: string) => void;
     getReadings: (personId: string, system?: ReadingSystem) => Reading[];
     syncReadingArtifacts: (personId: string, readingId: string, artifacts: { pdfPath?: string; audioPath?: string; songPath?: string; duration?: number }) => void;
-    createPlaceholderReadings: (personId: string, jobId: string, systems: ReadingSystem[], createdAt: string) => void;
+    createPlaceholderReadings: (personId: string, jobId: string, systems: ReadingSystem[], createdAt: string, readingType?: 'individual' | 'overlay', partnerName?: string) => void;
     getReadingsByJobId: (personId: string, jobId: string) => Reading[];
     linkJobToPerson: (personId: string, jobId: string) => void;
     linkJobToPersonByName: (personName: string, jobId: string) => void;
@@ -392,7 +394,23 @@ export const useProfileStore = create<ProfileState>()(
                 return { mergedCount: users.length - 1 };
             },
 
-            replacePeople: (people) => set({ people }),
+            replacePeople: (incoming) => {
+                // Preserve local-only fields (readings, jobIds) that are NOT stored
+                // in Supabase. Without this, any replacePeople call using cloud data
+                // would wipe locally-generated reading placeholders and artifact paths.
+                const current = get().people;
+                const currentById = new Map(current.map((p) => [p.id, p]));
+                const merged = incoming.map((p) => {
+                    const existing = currentById.get(p.id);
+                    if (!existing) return p;
+                    return {
+                        ...p,
+                        readings: (p.readings && p.readings.length > 0) ? p.readings : (existing.readings || []),
+                        jobIds: (p.jobIds && p.jobIds.length > 0) ? p.jobIds : (existing.jobIds || []),
+                    };
+                });
+                set({ people: merged });
+            },
 
             setHookReadings: (personId, readings) => {
                 set((state) => ({
@@ -431,7 +449,7 @@ export const useProfileStore = create<ProfileState>()(
                 }));
             },
 
-            createPlaceholderReadings: (personId, jobId, systems, createdAt) => {
+            createPlaceholderReadings: (personId, jobId, systems, createdAt, readingType, partnerName) => {
                 const placeholderReadings: Reading[] = systems.map((system, index) => ({
                     id: generateId(),
                     system,
@@ -441,6 +459,8 @@ export const useProfileStore = create<ProfileState>()(
                     docNum: index + 1,
                     createdAt,
                     note: 'Processing...',
+                    ...(readingType ? { readingType } : {}),
+                    ...(partnerName ? { partnerName } : {}),
                 }));
                 set((state) => ({
                     people: state.people.map((p) => (p.id === personId ? { ...p, readings: [...p.readings, ...placeholderReadings], jobIds: Array.from(new Set([...(p.jobIds || []), jobId])), updatedAt: new Date().toISOString() } : p)),

@@ -239,8 +239,10 @@ function buildSpokenIntro(options: {
   const p2Name = String(p2.name || 'Person 2').trim();
   const p1Date = formatReadableDate(p1.birthDate);
   const p2Date = formatReadableDate(p2.birthDate);
-  const p1Place = String(p1.birthPlace || p1.timezone || '').trim();
-  const p2Place = String(p2.birthPlace || p2.timezone || '').trim();
+  // Use birthPlace (city name) only. Never fall back to timezone strings
+  // like "Europe/Vienna" which are misleading in spoken intros.
+  const p1Place = String(p1.birthPlace || '').trim();
+  const p2Place = String(p2.birthPlace || '').trim();
   const p1Time = String(p1.birthTime || '').trim();
   const p2Time = String(p2.birthTime || '').trim();
 
@@ -257,7 +259,7 @@ function buildSpokenIntro(options: {
   const subject = options.docType === 'person2' ? p2 : p1;
   const subjectName = String(subject.name || (options.docType === 'person2' ? p2Name : p1Name)).trim();
   const birthDate = formatReadableDate(subject.birthDate);
-  const birthPlace = String(subject.birthPlace || subject.timezone || '').trim();
+  const birthPlace = String(subject.birthPlace || '').trim();
   const birthTime = String(subject.birthTime || '').trim();
 
   return `This is a ${systemName} reading for ${subjectName}, born on ${birthDate || 'an unknown date'}${birthTime ? ` at ${birthTime}` : ''}${birthPlace ? ` in ${birthPlace}` : ''}. Generated on ${generatedOn} by 1 in a billion app, powered by forbidden-yoga dot com.`;

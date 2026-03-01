@@ -73,6 +73,29 @@ export class PdfWorker extends BaseWorker {
 
     const params: any = job.params || {};
     const userId = job.user_id;
+
+    // ─── Fetch chart reference page from source text task output ──────────────
+    let chartReferencePage: string | undefined;
+    let chartReferencePageRight: string | undefined;
+    const sourceTaskId = task.input?.sourceTaskId as string | undefined;
+    if (sourceTaskId) {
+      try {
+        const { data: srcTask, error: srcErr } = await supabase
+          .from('job_tasks')
+          .select('output')
+          .eq('id', sourceTaskId)
+          .single();
+        if (!srcErr && srcTask?.output) {
+          chartReferencePage = srcTask.output.chartReferencePage as string | undefined;
+          chartReferencePageRight = srcTask.output.chartReferencePageRight as string | undefined;
+          if (chartReferencePage) {
+            console.log(`   📋 Chart reference page loaded from text task (${chartReferencePage.length} chars)`);
+          }
+        }
+      } catch {
+        console.warn('   ⚠️ Could not load chart reference page from source text task');
+      }
+    }
     const person1 = params.person1 || { name: 'Person 1', birthDate: '' };
     const person2 = params.person2 || undefined;
     let person1Id: string | undefined = person1?.id;
@@ -318,7 +341,12 @@ export class PdfWorker extends BaseWorker {
         ,
         // CRITICAL: Only pass couple image for overlay/verdict readings
         // Single-person PDFs must show solo portrait, NOT couple image
-        isOverlayReading ? (coupleImageUrl || undefined) : undefined
+        isOverlayReading ? (coupleImageUrl || undefined) : undefined,
+        // Chart reference and compatibility data for PDF pages
+        {
+          chartReferencePage,
+          chartReferencePageRight,
+        }
       );
 
       // Read PDF file

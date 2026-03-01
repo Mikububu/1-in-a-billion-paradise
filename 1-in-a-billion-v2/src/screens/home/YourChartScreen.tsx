@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -7,6 +7,8 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { colors, spacing, typography } from '@/theme/tokens';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useProfileStore } from '@/store/profileStore';
+import { useAuthStore } from '@/store/authStore';
+import { syncPeopleToSupabase } from '@/services/peopleCloud';
 import { describeIntensity } from '@/utils/intensity';
 import { SimpleSlider } from '@/components/SimpleSlider';
 import { BackButton } from '@/components/BackButton';
@@ -40,6 +42,15 @@ export const YourChartScreen = ({ navigation }: Props) => {
         rising: user?.placements?.risingSign || hookReadings.rising?.sign || '?',
     };
 
+    const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const authUser = useAuthStore((s) => s.user);
+
+    const syncPreferenceToCloud = useCallback(() => {
+        if (!authUser?.id) return;
+        const people = useProfileStore.getState().people;
+        syncPeopleToSupabase(authUser.id, people as any).catch(() => {});
+    }, [authUser?.id]);
+
     const handleValueChange = (nextValue: number) => {
         const rounded = Math.round(nextValue);
         if (rounded !== lastValue.current) {
@@ -47,6 +58,11 @@ export const YourChartScreen = ({ navigation }: Props) => {
             lastValue.current = rounded;
         }
         setRelationshipPreferenceScale(rounded);
+
+        // Debounced sync to Supabase (spice level lives in onboardingStore,
+        // but syncPeopleToSupabase reads it when syncing the self-profile)
+        if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+        syncTimerRef.current = setTimeout(syncPreferenceToCloud, 2000);
     };
 
     return (

@@ -157,6 +157,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
                     name: targetPerson.name,
                     birthDate: targetPerson.birthData?.birthDate,
                     birthTime: targetPerson.birthData?.birthTime,
+                    birthPlace: targetPerson.birthData?.birthCity,
                     timezone: targetPerson.birthData?.timezone,
                     latitude: targetPerson.birthData?.latitude,
                     longitude: targetPerson.birthData?.longitude,
@@ -168,6 +169,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
                         name: self.name,
                         birthDate: self.birthData?.birthDate,
                         birthTime: self.birthData?.birthTime,
+                        birthPlace: self.birthData?.birthCity,
                         timezone: self.birthData?.timezone,
                         latitude: self.birthData?.latitude,
                         longitude: self.birthData?.longitude,
@@ -183,6 +185,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
                     name: partnerFromStore.name,
                     birthDate: partnerFromStore.birthData?.birthDate,
                     birthTime: partnerFromStore.birthData?.birthTime,
+                    birthPlace: partnerFromStore.birthData?.birthCity,
                     timezone: partnerFromStore.birthData?.timezone,
                     latitude: partnerFromStore.birthData?.latitude,
                     longitude: partnerFromStore.birthData?.longitude,
@@ -193,6 +196,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
                         name: restParams.partnerName,
                         birthDate: restParams.partnerBirthDate,
                         birthTime: restParams.partnerBirthTime,
+                        birthPlace: restParams.partnerBirthCity.name,
                         timezone: restParams.partnerBirthCity.timezone,
                         latitude: restParams.partnerBirthCity.latitude,
                         longitude: restParams.partnerBirthCity.longitude,
@@ -244,6 +248,52 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
 
         if (personalContext) {
             payload.personalContext = personalContext;
+        }
+
+        // ── Photo upload prompt ──────────────────────────────────────────
+        // Before generating a paid reading, check if the person(s) have photos.
+        // Photos improve the PDF (AI portrait on cover) — offer to upload.
+        const selfProfile = self;
+        const p1HasPhoto = !!(selfProfile?.portraitUrl || selfProfile?.originalPhotoUrl);
+        const p2Profile = partnerFromStore || (targetPerson?.id !== self?.id ? targetPerson : null);
+        const p2HasPhoto = !!(p2Profile?.portraitUrl || p2Profile?.originalPhotoUrl);
+
+        const missingPhotos: string[] = [];
+        if (!p1HasPhoto && selfProfile) missingPhotos.push(selfProfile.name || 'yourself');
+        if (readingType === 'overlay' && !p2HasPhoto && p2Profile) missingPhotos.push(p2Profile.name || 'the other person');
+        if (targetPerson && targetPerson.id !== self?.id && !targetPerson.portraitUrl && !targetPerson.originalPhotoUrl) {
+            if (!missingPhotos.includes(targetPerson.name)) missingPhotos.push(targetPerson.name || 'this person');
+        }
+
+        if (missingPhotos.length > 0) {
+            const whoMissing = missingPhotos.join(' and ');
+            const uploadId = !p1HasPhoto && selfProfile ? selfProfile.id
+                : p2Profile?.id || targetPerson?.id || null;
+
+            const proceed = await new Promise<boolean>((resolve) => {
+                Alert.alert(
+                    'Upload a photo?',
+                    `Your reading PDF includes a personalized AI portrait. No photo uploaded yet for ${whoMissing}. Upload now for the best experience.`,
+                    [
+                        {
+                            text: 'Upload Photo',
+                            onPress: () => {
+                                if (uploadId) {
+                                    navigation.navigate('PersonPhotoUpload', { personId: uploadId });
+                                }
+                                resolve(false); // Don't proceed, user navigated away
+                            },
+                        },
+                        {
+                            text: 'Skip & Generate',
+                            style: 'cancel',
+                            onPress: () => resolve(true),
+                        },
+                    ]
+                );
+            });
+
+            if (!proceed) return;
         }
 
         setIsLoading(true);
@@ -325,15 +375,10 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
                 </Text>
 
                 <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-                    {VOICE_OPTIONS.map((voice, index) => {
+                    {VOICE_OPTIONS.map((voice) => {
                         const selected = voice.id === selectedVoice;
-                        const prevVoice = index > 0 ? VOICE_OPTIONS[index - 1] : null;
-                        const showTurboHeader = voice.isTurbo && (!prevVoice || !prevVoice.isTurbo);
                         return (
                             <View key={voice.id}>
-                                {showTurboHeader && (
-                                    <Text style={styles.sectionHeader}>Turbo Voices</Text>
-                                )}
                                 <TouchableOpacity
                                     style={[styles.voiceCard, selected && styles.voiceCardSelected]}
                                     onPress={() => setSelectedVoice(voice.id)}
@@ -405,15 +450,6 @@ const styles = StyleSheet.create({
         gap: spacing.sm,
         paddingBottom: spacing.md,
     },
-    sectionHeader: {
-        fontFamily: typography.sansSemiBold,
-        fontSize: 11,
-        color: colors.primary,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        marginTop: spacing.md,
-        marginBottom: spacing.xs,
-    },
     voiceCard: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -426,7 +462,7 @@ const styles = StyleSheet.create({
     },
     voiceCardSelected: {
         borderColor: colors.primary,
-        backgroundColor: colors.primarySoft,
+        backgroundColor: colors.surface,
     },
     voiceInfo: {
         flex: 1,
@@ -455,7 +491,7 @@ const styles = StyleSheet.create({
     },
     previewButtonActive: {
         borderColor: colors.primary,
-        backgroundColor: colors.primarySoft,
+        backgroundColor: colors.surface,
     },
     previewButtonText: {
         fontFamily: typography.sansSemiBold,

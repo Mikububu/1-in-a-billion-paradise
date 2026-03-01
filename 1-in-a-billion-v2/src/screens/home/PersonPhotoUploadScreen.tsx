@@ -35,7 +35,7 @@ const loadImagePicker = async () => {
 };
 
 export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
-    const { personId } = route.params;
+    const { personId, returnTo } = route.params;
     const people = useProfileStore((s) => s.people);
     const updatePerson = useProfileStore((s) => s.updatePerson);
     const authUser = useAuthStore((s) => s.user);
@@ -44,6 +44,16 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
     const [previewUri, setPreviewUri] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const glowOpacity = useRef(new Animated.Value(0.35)).current;
+
+    const handleDone = () => {
+        if (returnTo === 'ComparePeople') {
+            navigation.navigate('ComparePeople');
+        } else if (returnTo === 'PeopleList') {
+            navigation.navigate('PeopleList');
+        } else {
+            navigation.goBack();
+        }
+    };
 
     const hasPortrait = Boolean(person?.portraitUrl || person?.originalPhotoUrl || previewUri);
     const showPulse = isUploading || !hasPortrait;
@@ -167,7 +177,7 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <BackButton onPress={() => navigation.goBack()} />
+            <BackButton onPress={returnTo ? handleDone : () => navigation.goBack()} />
             <View style={styles.topSpacer} />
 
             <View style={styles.content}>
@@ -198,6 +208,12 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
                         <ActivityIndicator color={colors.primary} />
                         <Text style={styles.uploadingText}>Transforming portrait...</Text>
                     </View>
+                ) : null}
+
+                {returnTo && !isUploading ? (
+                    <TouchableOpacity style={styles.skipButton} onPress={handleDone} activeOpacity={0.7}>
+                        <Text style={styles.skipText}>{hasPortrait ? 'Done' : 'Skip for now'}</Text>
+                    </TouchableOpacity>
                 ) : null}
             </View>
         </SafeAreaView>
@@ -309,5 +325,16 @@ const styles = StyleSheet.create({
         fontFamily: typography.sansSemiBold,
         fontSize: 13,
         color: colors.text,
+    },
+    skipButton: {
+        marginTop: spacing.lg,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.xl,
+    },
+    skipText: {
+        fontFamily: typography.sansSemiBold,
+        fontSize: 15,
+        color: colors.mutedText,
+        textAlign: 'center',
     },
 });

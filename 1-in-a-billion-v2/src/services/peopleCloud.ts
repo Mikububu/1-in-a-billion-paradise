@@ -7,6 +7,7 @@
 
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
 import type { Person } from '@/store/profileStore';
+import { useOnboardingStore } from '@/store/onboardingStore';
 import { normalizePlacements } from './placementsCalculator';
 
 const TABLE_PEOPLE = 'library_people';
@@ -65,6 +66,13 @@ function toRow(userId: string, p: Person, selfEmail?: string | null): Partial<Li
         updated_at: new Date().toISOString(),
     };
 
+    // For the self-profile, persist user-wide preferences from onboardingStore
+    if (p.isUser) {
+        const onboarding = useOnboardingStore.getState();
+        row.relationship_intensity = onboarding.relationshipPreferenceScale ?? null;
+        // NOTE: primary_language column needs migration before it can be saved here
+    }
+
     // IMPORTANT: Only include portrait URLs if they have actual values.
     if (p.portraitUrl) {
         row.portrait_url = p.portraitUrl;
@@ -82,6 +90,9 @@ function fromRow(r: LibraryPersonRow): Person {
     // Normalize placements to ensure consistent format
     const normalizedPlacements = normalizePlacements(r.placements) || r.placements;
 
+    // NOTE: Do NOT include `readings`, `savedAudios`, `savedPDFs`, or `jobIds`
+    // here. These fields live locally and are NOT stored in Supabase. If we
+    // set them to [] the upsert spread would overwrite real local data.
     return {
         id: r.client_person_id,
         name: r.name,
@@ -94,7 +105,6 @@ function fromRow(r: LibraryPersonRow): Person {
         hookAudioPaths: (r.hook_audio_paths || undefined) as any,
         originalPhotoUrl: r.original_photo_url || undefined,
         portraitUrl: r.portrait_url || undefined,
-        readings: [],
         createdAt: r.created_at || now,
         updatedAt: r.updated_at || now,
     } as any;

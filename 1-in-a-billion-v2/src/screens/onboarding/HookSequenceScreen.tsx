@@ -967,6 +967,19 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     const index = Math.round(contentOffset.x / layoutMeasurement.width);
     setPage(index);
     // Swipe-only handoff: the 4th page auto-navigates to the next module after a tiny delay.
+    // Save hook readings for ALL authenticated users (free or paid)
+    if (index === 3 && user?.id && isSupabaseConfigured && (sun || moon || rising)) {
+      const hookReadingsToSave = {
+        ...(sun ? { sun } : {}),
+        ...(moon ? { moon } : {}),
+        ...(rising ? { rising } : {}),
+      };
+      saveHookReadings(user.id, hookReadingsToSave).then((res) => {
+        if (res.success) console.log('✅ Hook readings saved to Supabase');
+        else console.warn('⚠️ Failed to save hook readings:', res.error);
+      }).catch((err) => console.warn('⚠️ Hook readings save error:', err));
+    }
+
     if (index === 3) {
       setTimeout(() => {
         // SMART LOGIC: Check if person 3 already exists with complete hook readings

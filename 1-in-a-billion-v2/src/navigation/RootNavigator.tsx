@@ -134,6 +134,7 @@ export type MainStackParamList = {
     };
     PersonPhotoUpload: {
         personId: string;
+        returnTo?: string;
     };
     EditBirthData: { personId?: string } | undefined;
     SystemExplainer: {
@@ -556,6 +557,17 @@ export const RootNavigator = () => {
                 setEntitlementStatus('active');
                 setEntitlementState('active');
 
+                // CRITICAL: Paid user → always route to dashboard.
+                // This protects against lost showDashboard flag (e.g. cleared storage,
+                // new device, or long inactivity). A paid user can NEVER land in the
+                // hook/onboarding sequence — they permanently live in the dashboard.
+                const onb = useOnboardingStore.getState();
+                if (!onb.showDashboard) {
+                    console.log('🛡️ Paid user detected with showDashboard=false — forcing dashboard access');
+                    onb.setShowDashboard(true);
+                    onb.setHasCompletedOnboarding(true);
+                }
+
                 // Fetch subscription tier (billionaire gets unlimited readings)
                 try {
                     const { supabase } = await import('@/services/supabase');
@@ -625,6 +637,12 @@ export const RootNavigator = () => {
             if (verification.success && verification.active) {
                 setEntitlementStatus('active');
                 setEntitlementState('active');
+                // Ensure paid user always has dashboard access
+                const onb = useOnboardingStore.getState();
+                if (!onb.showDashboard) {
+                    onb.setShowDashboard(true);
+                    onb.setHasCompletedOnboarding(true);
+                }
                 return;
             }
 

@@ -383,20 +383,37 @@ export async function createIncludedReading(
 }
 
 /**
- * Check if current user is eligible for the free included reading.
- * Returns true if they have an active subscription and haven't used their free reading yet.
+ * Monthly reading quota status.
+ */
+export type ReadingQuota = {
+    tier: string;
+    monthlyLimit: number;
+    used: number;
+    remaining: number;
+    canStartReading: boolean;
+    canStartSynastry: boolean;
+    periodStart: string;
+    periodEnd: string;
+};
+
+/**
+ * Check if current user is eligible to start a reading.
+ * Returns eligibility boolean and full quota details.
  */
 export async function checkIncludedReadingEligible(): Promise<boolean> {
+    const result = await fetchReadingQuota();
+    return result?.canStartReading ?? false;
+}
+
+export async function fetchReadingQuota(): Promise<ReadingQuota | null> {
     try {
         const accessToken = useAuthStore.getState().session?.access_token;
-        if (!accessToken) return false;
+        if (!accessToken) return null;
 
-        // Auth token is attached automatically by the coreClient request interceptor
         const response = await coreClient.get('/api/payments/included-reading-status');
-
-        return response.data?.eligible === true;
+        return response.data?.quota || null;
     } catch (error: any) {
-        console.warn('Failed to check included reading eligibility:', error?.message);
-        return false;
+        console.warn('Failed to fetch reading quota:', error?.message);
+        return null;
     }
 }

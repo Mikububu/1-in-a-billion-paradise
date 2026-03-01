@@ -258,6 +258,51 @@ router.put('/users/:userId', requirePermission('users', 'write'), async (c) => {
 });
 
 /**
+ * POST /api/admin/users/:userId/set-password
+ * Directly set a new password for any user.
+ * Useful when you need to assign credentials without sending an email.
+ */
+router.post('/users/:userId/set-password', requirePermission('users', 'write'), async (c) => {
+  const supabase = createSupabaseServiceClient();
+  if (!supabase) {
+    return c.json({ error: 'Database connection failed' }, 500);
+  }
+
+  const userId = c.req.param('userId');
+  const admin = getAdmin(c)!;
+
+  try {
+    const body = await c.req.json();
+    const { password } = body;
+
+    if (!password || typeof password !== 'string' || password.length < 6) {
+      return c.json({ error: 'Password must be at least 6 characters' }, 400);
+    }
+
+    const { data, error } = await supabase.auth.admin.updateUserById(userId, { password });
+
+    if (error) {
+      console.error('Error setting password:', error);
+      return c.json({ error: `Failed to set password: ${error.message}` }, 500);
+    }
+
+    await logAdminAction(
+      admin.id,
+      'password_set',
+      'user',
+      userId,
+      { note: 'Admin manually set user password' },
+      c.req.header('x-forwarded-for') || undefined,
+      c.req.header('user-agent') || undefined
+    );
+
+    return c.json({ success: true, message: 'Password updated successfully' });
+  } catch (err: any) {
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+/**
  * DELETE /api/admin/users/:userId
  * Permanently delete a user and ALL associated data.
  * Requires superadmin permission. This action is irreversible.

@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -53,19 +52,21 @@ const TIERS: TierDef[] = [
     priceLabel: '$21',
     period: '/month',
     bullets: [
+      '1 extended reading per month',
       'Daily compatibility matching',
       'Ongoing background resonance updates',
     ],
   },
   {
     id: 'yearly',
-    label: 'Yearly',
+    label: '108',
     priceLabel: '$108',
     period: '/year',
     bullets: [
+      '3 extended readings per month',
       'Daily compatibility matching',
-      '1 in-depth personal astrology reading',
-      '~40 minutes of narrated insight',
+      'Narrated readings with audio & PDF',
+      '1 synastry reading = 3 reading slots',
     ],
     highlight: true,
   },
@@ -75,9 +76,10 @@ const TIERS: TierDef[] = [
     priceLabel: '$10,008',
     period: '/year',
     bullets: [
+      '108 extended readings per month',
       'Daily compatibility matching',
-      'Unlimited long-form in-app compatibility readings between any two profiles',
-      'Fair use applies',
+      'Unlimited long-form compatibility readings',
+      '1 synastry reading = 3 reading slots',
     ],
   },
 ];
@@ -103,7 +105,6 @@ export const PricingScreen = ({ navigation }: Props) => {
   const [offerings, setOfferings] = useState<any>(null);
 
   // Coupon
-  const [showCoupon, setShowCoupon] = useState(false);
   const [couponCode, setCouponCode] = useState('');
   const [couponStatus, setCouponStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid' | 'redeeming'>('idle');
   const [couponMessage, setCouponMessage] = useState('');
@@ -277,10 +278,7 @@ export const PricingScreen = ({ navigation }: Props) => {
   /* ── Render ─────────────────────────────────────────────────────── */
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.container}>
         <Text style={styles.heading}>Choose Your Path</Text>
         <Text style={styles.subheading}>
           Unlock the stars. Pick the tier that resonates with you.
@@ -327,80 +325,63 @@ export const PricingScreen = ({ navigation }: Props) => {
           );
         })}
 
-        {/* ── In-App Purchases section ── */}
-        <View style={styles.iapSection}>
-          <Text style={styles.iapTitle}>In-App Purchases</Text>
-          {IAP_ITEMS.map((item, i) => (
-            <Text key={i} style={styles.bullet}>
-              {'  \u2022  '}{item}
-            </Text>
-          ))}
-          <Text style={styles.iapRange}>from {IAP_RANGE}</Text>
-        </View>
+        {/* ── In-App Purchases note ── */}
+        <Text style={styles.iapNote}>
+          In-App Purchases from {IAP_RANGE}
+        </Text>
 
-        {/* ── Coupon code ── */}
-        {!showCoupon ? (
-          <TouchableOpacity
-            onPress={() => setShowCoupon(true)}
-            style={styles.couponToggle}
-          >
-            <Text style={styles.couponToggleText}>Have a coupon code?</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.couponContainer}>
-            <View style={styles.couponInputRow}>
-              <TextInput
-                style={styles.couponInput}
-                placeholder="Enter code"
-                placeholderTextColor="#999"
-                value={couponCode}
-                onChangeText={(t) => {
-                  setCouponCode(t.toUpperCase());
-                  setCouponStatus('idle');
-                  setCouponMessage('');
-                }}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                returnKeyType="go"
-                onSubmitEditing={handleCouponValidate}
-              />
-              <TouchableOpacity
-                style={[
-                  styles.couponApplyBtn,
-                  couponStatus === 'valid' && styles.couponRedeemBtn,
-                ]}
-                onPress={couponStatus === 'valid' ? handleCouponRedeem : handleCouponValidate}
-                disabled={
-                  couponStatus === 'validating' ||
-                  couponStatus === 'redeeming' ||
-                  !couponCode.trim()
-                }
-              >
-                {couponStatus === 'validating' || couponStatus === 'redeeming' ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.couponApplyText}>
-                    {couponStatus === 'valid' ? 'Redeem' : 'Apply'}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-            {couponMessage ? (
-              <Text
-                style={[
-                  styles.couponMessage,
-                  couponStatus === 'valid' && styles.couponMessageValid,
-                  couponStatus === 'invalid' && styles.couponMessageInvalid,
-                ]}
-              >
-                {couponMessage}
-              </Text>
-            ) : null}
+        {/* ── Coupon code — always visible ── */}
+        <View style={styles.couponContainer}>
+          <View style={styles.couponInputRow}>
+            <TextInput
+              style={styles.couponInput}
+              placeholder="Coupon code"
+              placeholderTextColor="#999"
+              value={couponCode}
+              onChangeText={(t) => {
+                setCouponCode(t.toUpperCase());
+                setCouponStatus('idle');
+                setCouponMessage('');
+              }}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              returnKeyType="go"
+              onSubmitEditing={handleCouponValidate}
+            />
+            <TouchableOpacity
+              style={[
+                styles.couponApplyBtn,
+                couponStatus === 'valid' && styles.couponRedeemBtn,
+              ]}
+              onPress={couponStatus === 'valid' ? handleCouponRedeem : handleCouponValidate}
+              disabled={
+                couponStatus === 'validating' ||
+                couponStatus === 'redeeming' ||
+                !couponCode.trim()
+              }
+            >
+              {couponStatus === 'validating' || couponStatus === 'redeeming' ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.couponApplyText}>
+                  {couponStatus === 'valid' ? 'Redeem' : 'Apply'}
+                </Text>
+              )}
+            </TouchableOpacity>
           </View>
-        )}
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
+          {couponMessage ? (
+            <Text
+              style={[
+                styles.couponMessage,
+                couponStatus === 'valid' && styles.couponMessageValid,
+                couponStatus === 'invalid' && styles.couponMessageInvalid,
+              ]}
+            >
+              {couponMessage}
+            </Text>
+          ) : null}
+        </View>
+      </View>
     </SafeAreaView>
   );
 };
@@ -412,33 +393,35 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scroll: {
+  container: {
+    flex: 1,
     paddingHorizontal: spacing.page,
-    paddingTop: spacing.xxl,
-    paddingBottom: spacing.xl,
+    paddingTop: spacing.lg,
+    justifyContent: 'center',
   },
   heading: {
     fontFamily: typography.headline,
-    fontSize: 32,
+    fontSize: 28,
     color: colors.text,
     textAlign: 'center',
-    marginBottom: spacing.xs,
+    marginBottom: 2,
   },
   subheading: {
     fontFamily: typography.sansRegular,
-    fontSize: 15,
+    fontSize: 14,
     color: colors.textDim,
     textAlign: 'center',
-    marginBottom: spacing.xl,
-    lineHeight: 22,
+    marginBottom: spacing.md,
+    lineHeight: 20,
   },
 
-  /* ── Tier cards ── */
+  /* ── Tier cards — compact ── */
   card: {
     backgroundColor: colors.surface,
     borderRadius: radii.card,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    marginBottom: 6,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -450,11 +433,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'baseline',
-    marginBottom: spacing.sm,
+    marginBottom: 2,
   },
   tierLabel: {
     fontFamily: typography.serifBold,
-    fontSize: 22,
+    fontSize: 19,
     color: colors.text,
   },
   priceRow: {
@@ -463,62 +446,41 @@ const styles = StyleSheet.create({
   },
   priceText: {
     fontFamily: typography.sansBold,
-    fontSize: 20,
+    fontSize: 18,
     color: colors.text,
   },
   periodText: {
     fontFamily: typography.sansRegular,
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textDim,
     marginLeft: 2,
   },
   bulletList: {
-    marginTop: spacing.xs,
+    marginTop: 0,
   },
   bullet: {
     fontFamily: typography.sansRegular,
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textDim,
-    lineHeight: 22,
+    lineHeight: 19,
   },
   cardLoader: {
-    marginTop: spacing.sm,
+    marginTop: 4,
   },
 
-  /* ── IAP section ── */
-  iapSection: {
-    marginTop: spacing.md,
-    paddingVertical: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.divider,
-  },
-  iapTitle: {
-    fontFamily: typography.serifBold,
-    fontSize: 18,
-    color: colors.text,
+  /* ── IAP note — single line ── */
+  iapNote: {
+    fontFamily: typography.sansRegular,
+    fontSize: 13,
+    color: colors.textDim,
+    textAlign: 'center',
+    marginTop: spacing.sm,
     marginBottom: spacing.sm,
   },
-  iapRange: {
-    fontFamily: typography.sansMedium,
-    fontSize: 14,
-    color: colors.text,
-    marginTop: spacing.sm,
-  },
 
-  /* ── Coupon ── */
-  couponToggle: {
-    alignSelf: 'center',
-    marginTop: spacing.md,
-    paddingVertical: 6,
-  },
-  couponToggleText: {
-    fontFamily: typography.sansRegular,
-    fontSize: 14,
-    color: colors.textDim,
-    textDecorationLine: 'underline',
-  },
+  /* ── Coupon — always visible ── */
   couponContainer: {
-    marginTop: spacing.sm,
+    marginTop: 0,
   },
   couponInputRow: {
     flexDirection: 'row',
@@ -527,20 +489,20 @@ const styles = StyleSheet.create({
   },
   couponInput: {
     flex: 1,
-    height: 44,
+    height: 42,
     borderWidth: 1,
     borderColor: colors.inputStroke,
     borderRadius: radii.input,
     paddingHorizontal: 14,
     fontFamily: typography.sansRegular,
-    fontSize: 16,
+    fontSize: 15,
     color: colors.text,
     backgroundColor: colors.inputBg,
     letterSpacing: 2,
   },
   couponApplyBtn: {
-    height: 44,
-    paddingHorizontal: 20,
+    height: 42,
+    paddingHorizontal: 18,
     borderRadius: radii.input,
     backgroundColor: colors.primary,
     alignItems: 'center',
@@ -557,7 +519,7 @@ const styles = StyleSheet.create({
   couponMessage: {
     fontFamily: typography.sansRegular,
     fontSize: 13,
-    marginTop: 6,
+    marginTop: 4,
     textAlign: 'center',
   },
   couponMessageValid: {

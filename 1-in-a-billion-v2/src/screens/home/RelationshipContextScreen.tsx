@@ -43,8 +43,8 @@ export const RelationshipContextScreen = ({ navigation, route }: Props) => {
     };
 
     const maxChars = MAX_CHARS;
-    const headline = `What should this reading know about ${partnerName}?`;
-    const subline = 'Share any context in your own words. Example: "I miss this woman so much."';
+    const headline = 'Personal Context';
+    const subline = 'Would you like to infuse your reading with a question or some additional context?';
 
     return (
         <SafeAreaView style={styles.container}>
@@ -71,7 +71,7 @@ export const RelationshipContextScreen = ({ navigation, route }: Props) => {
                                 placeholder='I will speak the truth'
                                 placeholderTextColor={colors.mutedText}
                                 style={styles.input}
-                                textAlignVertical="top"
+                                textAlignVertical="center"
                             />
                             <Text style={styles.counter}>{context.length}/{maxChars}</Text>
                         </View>
@@ -133,6 +133,7 @@ const styles = StyleSheet.create({
         height: CIRCLE_SIZE,
         justifyContent: 'center',
         alignItems: 'center',
+        marginTop: 52,
     },
     outerRing: {
         position: 'absolute',
@@ -156,16 +157,19 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.text,
         backgroundColor: colors.surface,
-        paddingHorizontal: spacing.md,
-        paddingTop: spacing.md,
-        paddingBottom: spacing.sm,
+        paddingHorizontal: CIRCLE_SIZE * 0.15,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     input: {
-        flex: 1,
+        width: '100%',
+        maxHeight: CIRCLE_SIZE * 0.55,
         fontFamily: typography.sansRegular,
-        fontSize: 16,
-        lineHeight: 22,
+        fontSize: 12,
+        lineHeight: 18,
         color: colors.text,
+        textAlign: 'center',
+        textAlignVertical: 'center',
     },
     counter: {
         marginTop: spacing.xs,
