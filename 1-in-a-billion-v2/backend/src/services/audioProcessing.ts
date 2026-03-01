@@ -1,13 +1,19 @@
 /**
  * AUDIO PROCESSING UTILITIES - Shared audio chunking and concatenation logic
- * 
+ *
  * This module provides reusable functions for:
  * - Text chunking (sentence-aware, never cuts mid-sentence)
  * - WAV buffer concatenation with crossfade transitions
  * - WAV format detection and conversion (IEEE Float to PCM)
- * 
+ * - Per-chunk silence trimming (removes Chatterbox leading/trailing dead-air)
+ *
  * CONFIGURATION: All tunable parameters are at the top for easy adjustment
  */
+
+import { spawn } from 'child_process';
+import * as fs from 'fs/promises';
+import * as os from 'os';
+import * as path from 'path';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ⚠️  CRITICAL: DO NOT CHANGE THESE VALUES WITHOUT READING docs/AUDIO_OUTPUT_SPEC.md
@@ -22,11 +28,19 @@ export const AUDIO_CONFIG = {
   CHUNK_MAX_LENGTH: 300,
   CHUNK_OVERFLOW_TOLERANCE: 1.5,
   CHUNK_WORD_SPLIT_THRESHOLD: 2.0,
-  
+
   // Audio crossfade
   // ⚠️ DO NOT INCREASE CROSSFADE_DURATION_MS - 80ms caused stitching issues
   CROSSFADE_DURATION_MS: 0,        // ⚠️ CRITICAL: Keep at 0 (crossfade causes amplitude dips)
-  
+
+  // Silence trimming (per-chunk, before concatenation)
+  // Chatterbox Turbo generates variable-length silence at start/end of chunks.
+  // Trimming prevents 10-20s dead-air gaps when chunks are concatenated.
+  SILENCE_TRIM_ENABLED: true,
+  SILENCE_THRESHOLD_DB: -40,       // dB below which audio is considered silence
+  SILENCE_MIN_DURATION: 0.15,      // seconds of silence before trimming kicks in
+  INTER_CHUNK_GAP_MS: 350,         // controlled gap (ms) inserted between chunks after trimming
+
   // WAV format
   DEFAULT_SAMPLE_RATE: 24000,      // 24kHz sample rate
   DEFAULT_NUM_CHANNELS: 1,         // Mono audio
@@ -240,6 +254,116 @@ export function dedupeChunkBoundaryOverlap(chunks: string[]): { chunks: string[]
   }
 
   return { chunks: out, removed };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SILENCE TRIMMING - Remove leading/trailing silence from each WAV chunk
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Helper: run an ffmpeg command and return stdout/file result.
+ */
+function runFfmpegBuffer(args: string[]): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const proc = spawn('ffmpeg', ['-y', ...args], { stdio: ['ignore', 'ignore', 'pipe'] });
+    let stderr = '';
+    proc.stderr.on('data', (d: Buffer) => (stderr += d.toString()));
+    proc.on('error', (err) => reject(err));
+    proc.on('close', (code) => {
+      if (code === 0) return resolve();
+      reject(new Error(`ffmpeg silence-trim failed (code=${code}): ${stderr.slice(-400)}`));
+    });
+  });
+}
+
+/**
+ * Trim leading and trailing silence from a WAV buffer using FFmpeg's silenceremove filter.
+ *
+ * Strategy (two-pass):
+ *   1. silenceremove start_periods=1  → strips leading silence
+ *   2. reverse → silenceremove start_periods=1 → reverse  → strips trailing silence
+ *
+ * Conservative thresholds avoid clipping actual speech.
+ * Returns the trimmed WAV buffer (same sample rate / channels / bit depth).
+ */
+export async function trimSilenceFromWav(wavBuffer: Buffer): Promise<Buffer> {
+  if (!AUDIO_CONFIG.SILENCE_TRIM_ENABLED) return wavBuffer;
+
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'iab-trim-'));
+  const inPath = path.join(dir, 'in.wav');
+  const outPath = path.join(dir, 'out.wav');
+
+  try {
+    await fs.writeFile(inPath, wavBuffer);
+
+    const threshDb = AUDIO_CONFIG.SILENCE_THRESHOLD_DB;   // e.g. -40
+    const minDur = AUDIO_CONFIG.SILENCE_MIN_DURATION;      // e.g. 0.15
+
+    // Two-pass silenceremove:
+    //   Pass 1: remove leading silence (start_periods=1)
+    //   Pass 2: reverse → remove leading (which is actually trailing) → reverse back
+    const filterChain = [
+      `silenceremove=start_periods=1:start_duration=${minDur}:start_threshold=${threshDb}dB`,
+      `areverse`,
+      `silenceremove=start_periods=1:start_duration=${minDur}:start_threshold=${threshDb}dB`,
+      `areverse`,
+    ].join(',');
+
+    await runFfmpegBuffer([
+      '-i', inPath,
+      '-af', filterChain,
+      '-c:a', 'pcm_s16le',   // keep 16-bit PCM
+      outPath,
+    ]);
+
+    const trimmed = await fs.readFile(outPath);
+
+    // Sanity: if trimming removed everything (silence-only chunk), return original
+    if (trimmed.length < 100) {
+      console.warn(`⚠️ [trimSilence] Trimming produced near-empty output (${trimmed.length}B), keeping original (${wavBuffer.length}B)`);
+      return wavBuffer;
+    }
+
+    const pctReduced = (100 - (trimmed.length / wavBuffer.length) * 100).toFixed(1);
+    if (parseFloat(pctReduced) > 5) {
+      console.log(`✂️  [trimSilence] ${wavBuffer.length}B → ${trimmed.length}B (${pctReduced}% trimmed)`);
+    }
+
+    return trimmed;
+  } catch (err: any) {
+    console.warn(`⚠️ [trimSilence] FFmpeg trim failed, using untrimmed chunk: ${err.message}`);
+    return wavBuffer; // graceful fallback
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+/**
+ * Build a WAV buffer containing pure silence of the given duration.
+ * Used to insert controlled inter-chunk gaps after silence trimming.
+ */
+export function buildSilenceWav(
+  durationMs: number,
+  sampleRate = AUDIO_CONFIG.DEFAULT_SAMPLE_RATE,
+  numChannels = AUDIO_CONFIG.DEFAULT_NUM_CHANNELS,
+): Buffer {
+  const totalSamples = Math.max(1, Math.round((durationMs / 1000) * sampleRate));
+  const pcmData = Buffer.alloc(totalSamples * numChannels * 2); // 16-bit zeros = silence
+  const wavHeader = Buffer.alloc(44);
+  wavHeader.write('RIFF', 0);
+  wavHeader.writeUInt32LE(36 + pcmData.length, 4);
+  wavHeader.write('WAVE', 8);
+  wavHeader.write('fmt ', 12);
+  wavHeader.writeUInt32LE(16, 16);
+  wavHeader.writeUInt16LE(1, 20);
+  wavHeader.writeUInt16LE(numChannels, 22);
+  wavHeader.writeUInt32LE(sampleRate, 24);
+  wavHeader.writeUInt32LE(sampleRate * numChannels * 2, 28);
+  wavHeader.writeUInt16LE(numChannels * 2, 32);
+  wavHeader.writeUInt16LE(16, 34);
+  wavHeader.write('data', 36);
+  wavHeader.writeUInt32LE(pcmData.length, 40);
+  return Buffer.concat([wavHeader, pcmData]);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

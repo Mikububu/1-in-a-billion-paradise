@@ -33,6 +33,8 @@ import {
   AUDIO_CONFIG,
   dedupeAdjacentSentences,
   dedupeChunkBoundaryOverlap,
+  trimSilenceFromWav,
+  buildSilenceWav,
 } from '../services/audioProcessing';
 import {
   isReplicateRateLimitError,
@@ -146,27 +148,7 @@ function convertFloatWavToPcm(buffer: Buffer): Buffer {
   return buffer;
 }
 
-// NOTE: concatenateWavBuffers is now imported from shared audioProcessing module
-
-function buildSilenceWav(durationSec: number, sampleRate = 24000, numChannels = 1): Buffer {
-  const totalSamples = Math.max(1, Math.round(durationSec * sampleRate));
-  const pcmData = Buffer.alloc(totalSamples * numChannels * 2); // 16-bit PCM
-  const wavHeader = Buffer.alloc(44);
-  wavHeader.write('RIFF', 0);
-  wavHeader.writeUInt32LE(36 + pcmData.length, 4);
-  wavHeader.write('WAVE', 8);
-  wavHeader.write('fmt ', 12);
-  wavHeader.writeUInt32LE(16, 16);
-  wavHeader.writeUInt16LE(1, 20);
-  wavHeader.writeUInt16LE(numChannels, 22);
-  wavHeader.writeUInt32LE(sampleRate, 24);
-  wavHeader.writeUInt32LE(sampleRate * numChannels * 2, 28);
-  wavHeader.writeUInt16LE(numChannels * 2, 32);
-  wavHeader.writeUInt16LE(16, 34);
-  wavHeader.write('data', 36);
-  wavHeader.writeUInt32LE(pcmData.length, 40);
-  return Buffer.concat([wavHeader, pcmData]);
-}
+// NOTE: concatenateWavBuffers and buildSilenceWav are now imported from shared audioProcessing module
 
 type AudioPersonMeta = {
   name?: string;
@@ -667,6 +649,41 @@ export class AudioWorker extends BaseWorker {
       console.log(`     • Text length: ${text.length} chars`);
       console.log(`     • Provider: Replicate Chatterbox Turbo`);
       console.log('═'.repeat(70) + '\n');
+
+      // ─────────────────────────────────────────────────────────────────────
+      // SILENCE TRIMMING: Remove leading/trailing dead-air from each chunk
+      // Chatterbox Turbo generates variable silence at chunk boundaries.
+      // Without trimming, 10-20s gaps appear in the final audio.
+      // ─────────────────────────────────────────────────────────────────────
+      if (AUDIO_CONFIG.SILENCE_TRIM_ENABLED) {
+        console.log(`\n✂️  [AudioWorker] Trimming silence from ${audioBuffers.length} chunks...`);
+        const trimStart = Date.now();
+        for (let i = 0; i < audioBuffers.length; i++) {
+          const before = audioBuffers[i]!.length;
+          audioBuffers[i] = await trimSilenceFromWav(audioBuffers[i]!);
+          const after = audioBuffers[i]!.length;
+          if (before !== after) {
+            console.log(`  ✂️  Chunk ${i + 1}: ${Math.round(before / 1024)}KB → ${Math.round(after / 1024)}KB`);
+          }
+        }
+        const trimElapsed = ((Date.now() - trimStart) / 1000).toFixed(1);
+        console.log(`✂️  [AudioWorker] Silence trimming done in ${trimElapsed}s`);
+      }
+
+      // INSERT INTER-CHUNK GAPS: Add controlled silence between chunks for natural flow
+      const gapMs = AUDIO_CONFIG.INTER_CHUNK_GAP_MS;
+      if (gapMs > 0 && audioBuffers.length > 1) {
+        console.log(`🔇 [AudioWorker] Inserting ${gapMs}ms silence gaps between ${audioBuffers.length} chunks...`);
+        const gapWav = buildSilenceWav(gapMs);
+        const withGaps: Buffer[] = [];
+        for (let i = 0; i < audioBuffers.length; i++) {
+          withGaps.push(audioBuffers[i]!);
+          if (i < audioBuffers.length - 1) {
+            withGaps.push(gapWav);
+          }
+        }
+        audioBuffers = withGaps;
+      }
 
       // Concatenate and convert: MP3 only (QuickTime-safe default).
       const wavAudio = concatenateWavBuffers(audioBuffers);
