@@ -11,12 +11,22 @@ export const linking: LinkingOptions<any> = {
   prefixes: [prefix, 'oneinabillion://', 'https://1-in-a-billion.app'],
   config: {
     screens: {
-      Home: 'home',
-      Gallery: 'gallery',
-      MyLibrary: 'library',
-      ReadingDetail: 'reading/:readingId',
-      PersonDetail: 'person/:personId',
-      Settings: 'settings',
+      Onboarding: {
+        screens: {
+          ResetPassword: 'auth/reset-password',
+          SignIn: 'auth/callback',
+        },
+      },
+      Main: {
+        screens: {
+          Home: 'home',
+          Gallery: 'gallery',
+          MyLibrary: 'library',
+          ReadingDetail: 'reading/:readingId',
+          PersonDetail: 'person/:personId',
+          Settings: 'settings',
+        },
+      },
     },
   },
 };

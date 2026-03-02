@@ -20,7 +20,7 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
 
     const continueFlow = (personalContext?: string) => {
         if (productType && Array.isArray(systems) && systems.length > 0) {
-            navigation.navigate('VoiceSelection', {
+            navigation.navigate('ReadingLanguage', {
                 ...restParams,
                 productType,
                 systems,
@@ -44,8 +44,8 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
     };
 
     const maxChars = MAX_CHARS;
-    const headline = 'Personal Context';
-    const subline = 'Would you like to infuse your reading with a question or some additional context?'; // Note: These are UI titles not in i18n, keeping as-is per instructions
+    const headline = t('personalContext.title');
+    const subline = t('personalContext.subtitle');
 
     return (
         <SafeAreaView style={styles.container}>

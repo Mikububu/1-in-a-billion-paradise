@@ -2,6 +2,7 @@ import axios from 'axios';
 import { ReadingPayload, ReadingResponse, AudioGenerateResponse, BirthChart, EntitlementResponse, ProductInfo, SynastryResponse, CompatibilityScores } from '@/types/api';
 import { env } from '@/config/env';
 import { buildPromptLayerDirective } from '@/config/promptLayers';
+import { getLanguage } from '@/i18n';
 import { useAuthStore } from '@/store/authStore';
 import { generateLocalHookReading } from './localReadings';
 
@@ -366,6 +367,7 @@ export async function createIncludedReading(
             promptLayerDirective: buildPromptLayerDirective([system]),
             person1: birthData,
             relationshipPreferenceScale: Math.min(10, Math.max(1, Math.round(relationshipPreferenceScale))),
+            language: getLanguage(),
             useIncludedReading: true, // Flag: use the one included reading from subscription
         });
 

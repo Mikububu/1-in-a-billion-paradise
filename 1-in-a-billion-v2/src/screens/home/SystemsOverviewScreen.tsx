@@ -9,6 +9,7 @@ import { BackButton } from '@/components/BackButton';
 import { checkIncludedReadingEligible, fetchReadingQuota, type ReadingQuota } from '@/services/api';
 import { useProfileStore } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
+import { PRODUCTS } from '@/config/products';
 import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SystemsOverview'>;
@@ -60,6 +61,10 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
     } = route.params || {};
 
     const actualReadingType = readingType || (forPartner ? 'overlay' : 'individual');
+    const isOverlay = actualReadingType === 'overlay';
+    const singlePrice = isOverlay ? PRODUCTS.compatibility_overlay.priceUSD : PRODUCTS.single_system.priceUSD;
+    const bundlePrice = isOverlay ? PRODUCTS.nuclear_package.priceUSD : PRODUCTS.complete_reading.priceUSD;
+    const bundleFullPrice = isOverlay ? PRODUCTS.nuclear_package.fullPriceUSD : PRODUCTS.complete_reading.fullPriceUSD;
 
     // ── Reading quota state ──
     const [freeReadingEligible, setFreeReadingEligible] = useState(false);
@@ -221,7 +226,7 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
 
     const title = targetPersonName
         ? t('systemsOverview.exploreTarget', { name: targetPersonName })
-        : (forPartner ? t('systemsOverview.explorePartner', { name: partnerName || 'Partner' }) : t('systemsOverview.exploreSelf'));
+        : (forPartner ? t('systemsOverview.explorePartner', { name: partnerName || 'Partner' }) : t('systemsOverview.exploreMyself'));
 
     return (
         <SafeAreaView style={styles.container}>
@@ -261,15 +266,28 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
                                 <Text style={styles.freeBadgeText}>{quota ? quota.remaining + ' ' + t('systemsOverview.left') : t('systemsOverview.free')}</Text>
                             </Animated.View>
                         ) : (
-                            <Text style={styles.arrow}>→</Text>
+                            <View style={styles.priceGroup}>
+                                <Text style={styles.systemPrice}>${singlePrice}</Text>
+                                <Text style={styles.arrow}>→</Text>
+                            </View>
                         )}
                     </TouchableOpacity>
                 ))}
 
                 <TouchableOpacity style={styles.bestChoiceCard} onPress={handleComplete} activeOpacity={0.75}>
-                    <Text style={styles.bestBadge}>{t('systemsOverview.bestChoice')}</Text>
-                    <Text style={styles.bestTitle}>{t('systemsOverview.allSystems')}</Text>
-                    <Text style={styles.bestSubtitle}>{t('systemsOverview.completeBundle')}</Text>
+                    <View style={styles.bestCardRow}>
+                        <View style={styles.bestCardLeft}>
+                            <Text style={styles.bestBadge}>{t('systemsOverview.bestChoice')}</Text>
+                            <Text style={styles.bestTitle}>{t('systemsOverview.allSystems')}</Text>
+                            <Text style={styles.bestSubtitle}>{t('systemsOverview.completeBundle')}</Text>
+                        </View>
+                        {!freeReadingEligible && (
+                            <View style={styles.bundlePriceRight}>
+                                <Text style={styles.bundleOldPrice}>${bundleFullPrice}</Text>
+                                <Text style={styles.bundlePrice}>${bundlePrice}</Text>
+                            </View>
+                        )}
+                    </View>
                 </TouchableOpacity>
             </View>
         </SafeAreaView>
@@ -335,6 +353,16 @@ const styles = StyleSheet.create({
         color: colors.primary,
         marginTop: 2,
     },
+    priceGroup: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    systemPrice: {
+        fontFamily: typography.sansSemiBold,
+        fontSize: 14,
+        color: colors.primary,
+    },
     arrow: {
         fontFamily: typography.sansBold,
         fontSize: 18,
@@ -358,6 +386,14 @@ const styles = StyleSheet.create({
         padding: spacing.md,
         marginTop: spacing.sm,
     },
+    bestCardRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    bestCardLeft: {
+        flex: 1,
+    },
     bestBadge: {
         alignSelf: 'flex-start',
         backgroundColor: colors.background,
@@ -368,6 +404,7 @@ const styles = StyleSheet.create({
         fontSize: 10,
         color: colors.primary,
         marginBottom: spacing.xs,
+        overflow: 'hidden',
     },
     bestTitle: {
         fontFamily: typography.sansBold,
@@ -380,5 +417,20 @@ const styles = StyleSheet.create({
         color: colors.background,
         opacity: 0.9,
         marginTop: 2,
+    },
+    bundlePriceRight: {
+        alignItems: 'flex-end',
+        marginLeft: spacing.md,
+    },
+    bundleOldPrice: {
+        fontFamily: typography.sansRegular,
+        fontSize: 14,
+        color: 'rgba(255,255,255,0.5)',
+        textDecorationLine: 'line-through' as const,
+    },
+    bundlePrice: {
+        fontFamily: typography.sansBold,
+        fontSize: 22,
+        color: '#fff',
     },
 });

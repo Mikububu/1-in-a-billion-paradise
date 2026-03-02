@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { supabase } from '@/services/supabase';
+import { navigationRef } from '@/navigation/navigationRef';
 
 export const useSupabaseAuthBootstrap = () => {
     const setUser = useAuthStore((s) => s.setUser);
@@ -35,10 +36,26 @@ export const useSupabaseAuthBootstrap = () => {
             }
         })();
 
-        // Listen for changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        // Listen for changes — including PASSWORD_RECOVERY
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            console.log('🔒 Auth state change:', event);
             setSession(session);
             setUser(session?.user || null);
+
+            // When user clicks password reset link, navigate to ResetPassword screen
+            if (event === 'PASSWORD_RECOVERY') {
+                console.log('🔑 Password recovery detected, navigating to ResetPassword');
+                // Small delay to allow navigation to be ready
+                setTimeout(() => {
+                    try {
+                        navigationRef.current?.navigate('Onboarding' as any, {
+                            screen: 'ResetPassword',
+                        });
+                    } catch (e) {
+                        console.error('🔑 Could not navigate to ResetPassword:', e);
+                    }
+                }, 300);
+            }
         });
 
         return () => subscription.unsubscribe();

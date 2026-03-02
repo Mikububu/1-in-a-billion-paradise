@@ -101,12 +101,12 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
                 : null;
 
         if (!person1?.birthDate || !person1?.birthTime || !person1?.timezone) {
-            Alert.alert('Missing birth data', 'Person 1 must have complete birth data.');
+            Alert.alert(t('systemSelection.missingBirthData'), t('systemSelection.person1NeedsBirthData'));
             return;
         }
 
         if (isOverlay && (!person2?.birthDate || !person2?.birthTime || !person2?.timezone)) {
-            Alert.alert('Missing birth data', 'Person 2 must have complete birth data for compatibility readings.');
+            Alert.alert(t('systemSelection.missingBirthData'), t('systemSelection.person2NeedsBirthData'));
             return;
         }
 

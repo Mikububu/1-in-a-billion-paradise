@@ -71,9 +71,9 @@ export const PersonProfileScreen = ({ navigation, route }: Props) => {
             t('personProfile.cannotDelete'),
             t('personProfile.deleteFailedMessage', { name: person.name }),
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Delete',
+                    text: t('common.delete'),
                     style: 'destructive',
                     onPress: async () => {
                         if (authUser?.id) {

@@ -195,7 +195,7 @@ export const PricingScreen = ({ navigation }: Props) => {
 
       const ready = await initializeRevenueCat(userId);
       if (!ready) {
-        Alert.alert('Payment unavailable', 'RevenueCat is not available in this build.');
+        Alert.alert(t('pricing.paymentUnavailable.title'), t('pricing.paymentUnavailable.message'));
         return;
       }
 
@@ -225,7 +225,7 @@ export const PricingScreen = ({ navigation }: Props) => {
       }
 
       if (!pkg) {
-        Alert.alert('Subscription unavailable', 'Could not find this subscription package. Please try a different tier.');
+        Alert.alert(t('pricing.subscriptionUnavailable.title'), t('pricing.subscriptionUnavailable.message'));
         return;
       }
 
@@ -239,7 +239,7 @@ export const PricingScreen = ({ navigation }: Props) => {
             navigation.navigate('Account', { fromPayment: true });
             return;
           }
-          Alert.alert('Verification failed', 'Could not identify purchase account. Please try again.');
+          Alert.alert(t('pricing.verificationFailed.title'), t('pricing.verificationFailed.message'));
           return;
         }
 
@@ -261,14 +261,14 @@ export const PricingScreen = ({ navigation }: Props) => {
         }
 
         Alert.alert(
-          'Payment not verified yet',
-          verification.error || 'Your subscription is not active yet. Please try again in a few seconds.',
+          t('pricing.paymentNotVerified.title'),
+          verification.error || t('pricing.paymentNotVerified.message'),
         );
         return;
       }
 
       if (result.error && result.error !== 'cancelled') {
-        Alert.alert('Payment failed', result.error);
+        Alert.alert(t('pricing.paymentFailed.title'), result.error);
       }
     } finally {
       setIsPaying(false);

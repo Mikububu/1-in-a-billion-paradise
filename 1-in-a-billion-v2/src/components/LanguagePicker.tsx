@@ -29,6 +29,7 @@ import {
   getLanguage,
   setLanguage,
   onLanguageChange,
+  t,
   type LanguageCode,
 } from '@/i18n';
 
@@ -66,7 +67,7 @@ export function LanguagePicker({ visible, onClose }: LanguagePickerProps) {
         >
           <View style={styles.handle} />
 
-          <Text style={styles.title}>Language</Text>
+          <Text style={styles.title}>{t('languagePicker.title')}</Text>
 
           <View style={styles.options}>
             {SUPPORTED_LANGUAGES.map((code) => {

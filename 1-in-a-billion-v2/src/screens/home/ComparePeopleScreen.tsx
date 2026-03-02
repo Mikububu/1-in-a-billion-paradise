@@ -27,6 +27,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
     const [personBId, setPersonBId] = useState<string | null>(null);
     const [previewImageUri, setPreviewImageUri] = useState<string | null>(null);
     const [previewName, setPreviewName] = useState<string>('');
+    const [previewPersonId, setPreviewPersonId] = useState<string | null>(null);
 
     const personA = useMemo(() => candidates.find((p) => p.id === personAId), [candidates, personAId]);
     const personB = useMemo(() => candidates.find((p) => p.id === personBId), [candidates, personBId]);
@@ -137,9 +138,9 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
             t('comparePeople.cannotDelete'),
             t('comparePeople.missingBirthDataMessage', { name: person.name }),
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Delete',
+                    text: t('common.delete'),
                     style: 'destructive',
                     onPress: async () => {
                         if (personAId === person.id) {
@@ -162,11 +163,19 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
     const handleAvatarPress = useCallback((person: any) => {
         if (person?.portraitUrl) {
             setPreviewImageUri(person.portraitUrl);
-            setPreviewName(person.name || 'Portrait');
+            setPreviewName(person.name || t('myLibrary.preview.defaultTitle'));
+            setPreviewPersonId(person.id);
             return;
         }
         navigation.navigate('PersonPhotoUpload', { personId: person.id });
     }, [navigation]);
+
+    const handleChangePhoto = useCallback(() => {
+        if (previewPersonId) {
+            setPreviewImageUri(null);
+            navigation.navigate('PersonPhotoUpload', { personId: previewPersonId });
+        }
+    }, [navigation, previewPersonId]);
 
     return (
         <SafeAreaView style={styles.container}>
@@ -174,14 +183,14 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
             <View style={styles.topSpacer} />
 
             <View style={styles.content}>
-                <Text style={styles.title}>My Karmic Zoo</Text>
-                <Text style={styles.subtitle}>Choose one or two people for deeper readings.</Text>
-                <Text style={styles.helper}>Tap to select. Long press to delete.</Text>
+                <Text style={styles.title}>{t('peopleList.title')}</Text>
+                <Text style={styles.subtitle}>{t('comparePeople.title')}</Text>
+                <Text style={styles.helper}>{t('comparePeople.subtitle')}</Text>
 
                 {candidates.length === 0 ? (
                     <View style={styles.emptyState}>
-                        <Text style={styles.emptyTitle}>No people yet</Text>
-                        <Text style={styles.emptyText}>Add someone first to compare charts.</Text>
+                        <Text style={styles.emptyTitle}>{t('comparePeople.noPeopleTitle')}</Text>
+                        <Text style={styles.emptyText}>{t('comparePeople.noPeopleText')}</Text>
                         <Button
                             label={t('comparePeople.addPerson')}
                             variant="secondary"
@@ -237,7 +246,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                                     <View style={styles.personInfo}>
                                         <Text style={styles.rowName}>{p.name}</Text>
                                         <Text style={styles.rowMeta} numberOfLines={1}>
-                                            {p.birthData?.birthDate || 'No birth date'} · {p.birthData?.birthTime || 'No birth time'}
+                                            {p.birthData?.birthDate || t('comparePeople.noBirthDate')} · {p.birthData?.birthTime || t('comparePeople.noBirthTime')}
                                         </Text>
                                         {p.birthData?.birthCity && (
                                             <Text style={styles.rowMeta} numberOfLines={1}>{p.birthData.birthCity}</Text>
@@ -271,7 +280,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                             <View style={[styles.avatar, styles.addPersonAvatar]}>
                                 <Text style={styles.addPersonIcon}>+</Text>
                             </View>
-                            <Text style={styles.addPersonText}>Add another person</Text>
+                            <Text style={styles.addPersonText}>{t('comparePeople.addAnother')}</Text>
                         </TouchableOpacity>
                     </ScrollView>
                 )}
@@ -286,13 +295,16 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                 onRequestClose={() => setPreviewImageUri(null)}
             >
                 <Pressable style={styles.previewBackdrop} onPress={() => setPreviewImageUri(null)}>
-                    <View style={styles.previewCard}>
+                    <Pressable style={styles.previewCard} onPress={() => {}}>
                         <Text style={styles.previewTitle}>{previewName}</Text>
                         {previewImageUri ? (
                             <Image source={{ uri: previewImageUri }} style={styles.previewImage} resizeMode="contain" />
                         ) : null}
-                        <Text style={styles.previewHint}>Tap anywhere to close</Text>
-                    </View>
+                        <TouchableOpacity style={styles.changePhotoBtn} onPress={handleChangePhoto} activeOpacity={0.7}>
+                            <Text style={styles.changePhotoBtnText}>{t('common.changePhoto')}</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.previewHint}>{t('comparePeople.previewHint')}</Text>
+                    </Pressable>
                 </Pressable>
             </Modal>
         </SafeAreaView>
@@ -520,6 +532,21 @@ const styles = StyleSheet.create({
         height: 420,
         borderRadius: 14,
         backgroundColor: colors.background,
+    },
+    changePhotoBtn: {
+        marginTop: spacing.md,
+        paddingVertical: 10,
+        paddingHorizontal: 24,
+        borderRadius: radii.card,
+        borderWidth: 1,
+        borderColor: colors.primary,
+        backgroundColor: 'transparent',
+    },
+    changePhotoBtnText: {
+        fontFamily: typography.sansSemiBold,
+        fontSize: 14,
+        color: colors.primary,
+        textAlign: 'center',
     },
     previewHint: {
         marginTop: spacing.sm,

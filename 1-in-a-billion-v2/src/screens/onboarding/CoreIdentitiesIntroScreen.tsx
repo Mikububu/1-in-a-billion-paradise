@@ -5,6 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { useHookReadings } from '@/hooks/useHookReadings';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'CoreIdentitiesIntro'>;
 
@@ -63,11 +64,11 @@ export const CoreIdentitiesIntroScreen = ({ navigation }: Props) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Animated.Text style={[styles.yourText, { 
+        <Animated.Text style={[styles.yourText, {
           opacity: yourAnim,
           transform: [{ translateY: yourAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }]
         }]}>
-          Your
+          {t('coreIdentitiesIntro.your')}
         </Animated.Text>
         
         <Animated.Text style={[styles.bigNumber, { 
@@ -80,30 +81,30 @@ export const CoreIdentitiesIntroScreen = ({ navigation }: Props) => {
           3
         </Animated.Text>
         
-        <Animated.Text style={[styles.coreText, { 
+        <Animated.Text style={[styles.coreText, {
           opacity: coreAnim,
           transform: [{ translateX: coreAnim.interpolate({ inputRange: [0, 1], outputRange: [-30, 0] }) }]
         }]}>
-          Core
+          {t('coreIdentitiesIntro.core')}
         </Animated.Text>
         
-        <Animated.Text style={[styles.identitiesText, { 
+        <Animated.Text style={[styles.identitiesText, {
           opacity: identitiesAnim,
           transform: [{ translateX: identitiesAnim.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) }]
         }]}>
-          Identities
+          {t('coreIdentitiesIntro.identities')}
         </Animated.Text>
         
-        <Animated.Text style={[styles.inLoveText, { 
+        <Animated.Text style={[styles.inLoveText, {
           opacity: inLoveAnim,
           transform: [{ translateY: inLoveAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }]
         }]}>
-          in Love
+          {t('coreIdentitiesIntro.inLove')}
         </Animated.Text>
 
         {isLoading && (
           <Animated.Text style={[styles.loadingText, { opacity: pulseAnim }]}>
-            Analyzing your cosmic blueprint...
+            {t('coreIdentitiesIntro.analyzing')}
           </Animated.Text>
         )}
       </View>
@@ -112,7 +113,7 @@ export const CoreIdentitiesIntroScreen = ({ navigation }: Props) => {
         {readyToUnlock ? (
           <Animated.View style={{ opacity: buttonAnim, transform: [{ scale: buttonAnim }] }}>
             <TouchableOpacity style={styles.unlockBtn} onPress={handleUnlock}>
-              <Text style={styles.unlockBtnText}>Unlock</Text>
+              <Text style={styles.unlockBtnText}>{t('coreIdentitiesIntro.unlock')}</Text>
             </TouchableOpacity>
           </Animated.View>
         ) : (

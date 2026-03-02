@@ -14,7 +14,9 @@ import { useMusicStore } from '@/store/musicStore';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
 import { verifyEntitlementWithBackend } from '@/services/payments';
 import { env } from '@/config/env';
-import { t } from '@/i18n';
+import { t, getLanguage, setLanguage, onLanguageChange, LANGUAGE_META, type LanguageCode } from '@/i18n';
+import { LanguagePicker } from '@/components/LanguagePicker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Intro'>;
 
@@ -39,6 +41,45 @@ export const IntroScreen = ({ navigation }: Props) => {
   // 5-tap reset feature on the big "1"
   const [tapCount, setTapCount] = useState(0);
   const tapTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // Language selector state
+  const [currentLanguage, setCurrentLanguage] = useState<LanguageCode>(getLanguage());
+  const [langPickerVisible, setLangPickerVisible] = useState(false);
+  const insets = useSafeAreaInsets();
+
+  // Rotating language pill animation
+  const [displayLangIndex, setDisplayLangIndex] = useState(0);
+  const langFadeAnim = useRef(new Animated.Value(1)).current;
+  const LANG_NAMES = ['English', 'Deutsch', 'Español', 'Français', '中文'];
+
+  useEffect(() => {
+    return onLanguageChange(setCurrentLanguage);
+  }, []);
+
+  // Auto-rotate language names every 2.5s with fade transition
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Fade out
+      Animated.timing(langFadeAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: Platform.OS !== 'web',
+        easing: Easing.out(Easing.ease),
+      }).start(() => {
+        // Switch to next language
+        setDisplayLangIndex((prev) => (prev + 1) % LANG_NAMES.length);
+        // Fade in
+        Animated.timing(langFadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: Platform.OS !== 'web',
+          easing: Easing.in(Easing.ease),
+        }).start();
+      });
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [langFadeAnim]);
 
   const handleBigOneTap = () => {
     // Clear previous timeout
@@ -116,7 +157,7 @@ export const IntroScreen = ({ navigation }: Props) => {
 
   // Word highlight animation
   const [activeWordIndex, setActiveWordIndex] = useState(-1);
-  const words = "Find rare compatibility through deep matching across multiple spiritual systems.".split(' ');
+  const words = t('intro.tagline').split(' ');
 
   useEffect(() => {
     // Load music once
@@ -275,6 +316,19 @@ export const IntroScreen = ({ navigation }: Props) => {
         style={styles.backgroundImage}
         resizeMode="cover"
       />
+
+      {/* Language pill — top left, rotating through all languages */}
+      <TouchableOpacity
+        style={[styles.langPill, { top: insets.top + spacing.sm }]}
+        onPress={() => setLangPickerVisible(true)}
+        activeOpacity={0.7}
+      >
+        <Animated.Text style={[styles.langPillText, { opacity: langFadeAnim }]}>
+          {LANG_NAMES[displayLangIndex]}
+        </Animated.Text>
+      </TouchableOpacity>
+
+      <LanguagePicker visible={langPickerVisible} onClose={() => setLangPickerVisible(false)} />
 
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.wrapper}>
@@ -454,5 +508,25 @@ const styles = StyleSheet.create({
     fontFamily: typography.sansMedium,
     fontSize: 10,
     textTransform: 'uppercase',
+  },
+  langPill: {
+    position: 'absolute',
+    left: spacing.page,
+    zIndex: 50,
+    minWidth: 90,
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  langPillText: {
+    fontFamily: typography.sansSemiBold,
+    fontSize: 13,
+    color: colors.text,
+    letterSpacing: 0.5,
+    textAlign: 'center',
   },
 });

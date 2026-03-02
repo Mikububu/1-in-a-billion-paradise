@@ -146,7 +146,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
 
     if (!revenueCatAppUserId) {
       if (paymentBypassEnabled) return true;
-      Alert.alert('Payment verification failed', 'Missing purchase identity. Please return and purchase again.');
+      Alert.alert(t('account.paymentVerificationFailed'), t('account.missingPurchaseIdentity'));
       return false;
     }
 
@@ -158,8 +158,8 @@ export const AccountScreen = ({ navigation, route }: Props) => {
     }
 
     Alert.alert(
-      'Payment required',
-      verification.error || 'Subscription could not be verified. Please complete payment first.'
+      t('account.paymentRequired'),
+      verification.error || t('account.subscriptionNotVerified')
     );
     return false;
   }, [paymentBypassEnabled, revenueCatAppUserId]);
@@ -218,6 +218,10 @@ export const AccountScreen = ({ navigation, route }: Props) => {
         }
       }
 
+      // Clear persisted onboarding state to ensure fresh signup users complete their flow
+      setHasCompletedOnboarding(false);
+      setShowDashboard(false);
+
       navigation.reset({
         index: 0,
         routes: [{ name: 'CoreIdentities' }],
@@ -228,6 +232,8 @@ export const AccountScreen = ({ navigation, route }: Props) => {
       navigation,
       setDisplayName,
       setOnboardingName,
+      setHasCompletedOnboarding,
+      setShowDashboard,
     ]
   );
 
@@ -329,11 +335,11 @@ export const AccountScreen = ({ navigation, route }: Props) => {
         if (!hasBeenAsked) {
           await new Promise<void>((resolve) => {
             Alert.alert(
-              'Match Alerts',
-              'Allow push + email alerts when your first match appears?',
+              t('account.matchAlertsTitle'),
+              t('account.matchAlertsPrompt'),
               [
                 {
-                  text: 'Allow',
+                  text: t('account.allow'),
                   onPress: () => {
                     void updateMatchNotificationPreferences({
                       userId,
@@ -343,7 +349,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
                   },
                 },
                 {
-                  text: 'Not now',
+                  text: t('account.notNow'),
                   style: 'cancel',
                   onPress: () => {
                     void updateMatchNotificationPreferences({
@@ -363,7 +369,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
         completeOnboarding();
       } catch (e: any) {
         finalizeRef.current = false;
-        Alert.alert('Account setup failed', e?.message || 'Could not finish account setup.');
+        Alert.alert(t('account.setupFailed'), e?.message || t('account.couldNotFinishSetup'));
       }
     },
     [
@@ -382,25 +388,25 @@ export const AccountScreen = ({ navigation, route }: Props) => {
 
   const handleEmailSignUp = async () => {
     if (!name.trim()) {
-      Alert.alert('Name required', 'Please enter your first name.');
+      Alert.alert(t('account.nameRequired'), t('account.pleaseEnterFirstName'));
       return;
     }
 
     if (fromPayment && !(await assertEntitlementStillActive())) return;
 
     if (!isSupabaseConfigured) {
-      Alert.alert('Auth unavailable', 'Supabase is not configured in this build.');
+      Alert.alert(t('account.authUnavailable'), t('account.supabaseNotConfigured'));
       return;
     }
 
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Missing info', 'Please enter email and password.');
+      Alert.alert(t('account.missingInfo'), t('account.enterEmailAndPassword'));
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      Alert.alert('Invalid email', 'Please enter a valid email address.');
+      Alert.alert(t('account.invalidEmailTitle'), t('account.enterValidEmail'));
       return;
     }
 
@@ -423,6 +429,16 @@ export const AccountScreen = ({ navigation, route }: Props) => {
         throw new Error(payload?.error || 'Could not create account.');
       }
 
+      // CRITICAL: Reset onboarding flags BEFORE applying session tokens.
+      // applySessionTokens triggers onAuthStateChange → RootNavigator re-render.
+      // If hasCompletedOnboarding is still true from a previous account, the
+      // RootNavigator will immediately switch to Dashboard before
+      // finalizePrePaymentSignup has a chance to navigate to CoreIdentities.
+      if (!fromPayment) {
+        setHasCompletedOnboarding(false);
+        setShowDashboard(false);
+      }
+
       if (payload?.session?.access_token && payload?.session?.refresh_token) {
         await applySessionTokens(payload.session.access_token, payload.session.refresh_token);
       }
@@ -440,7 +456,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
         setOtpCode('');
       }
     } catch (e: any) {
-      Alert.alert('Sign-up failed', e?.message || 'Could not create account.');
+      Alert.alert(t('account.signUpFailed'), e?.message || t('account.couldNotCreate'));
     } finally {
       setIsLoading(false);
     }
@@ -448,7 +464,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
 
   const handleContinueFromName = () => {
     if (!name.trim()) {
-      Alert.alert('Name required', 'Please enter your first name.');
+      Alert.alert(t('account.nameRequired'), t('account.pleaseEnterFirstName'));
       return;
     }
     setSignupStep('method');
@@ -456,7 +472,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
 
   const handleVerifyOtp = async () => {
     if (otpCode.trim().length < 8) {
-      Alert.alert('Enter code', 'Please enter the 8-digit code from your email.');
+      Alert.alert(t('account.enterCode'), t('account.enter8DigitCode'));
       return;
     }
 
@@ -475,6 +491,12 @@ export const AccountScreen = ({ navigation, route }: Props) => {
         throw new Error(payload?.error || 'Invalid code. Please try again.');
       }
 
+      // Reset flags BEFORE session to prevent RootNavigator race condition
+      if (!fromPayment) {
+        setHasCompletedOnboarding(false);
+        setShowDashboard(false);
+      }
+
       if (payload?.session?.access_token && payload?.session?.refresh_token) {
         await applySessionTokens(payload.session.access_token, payload.session.refresh_token);
       }
@@ -489,7 +511,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
         await finalizePrePaymentSignup(userId);
       }
     } catch (e: any) {
-      Alert.alert('Verification failed', e?.message || 'Invalid code. Please try again.');
+      Alert.alert(t('account.verificationFailed'), e?.message || t('account.invalidCode'));
     } finally {
       setIsLoading(false);
     }
@@ -509,9 +531,9 @@ export const AccountScreen = ({ navigation, route }: Props) => {
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || 'Could not resend code.');
       }
-      Alert.alert('Code resent', 'A new code has been sent to your email.');
+      Alert.alert(t('account.codeResent'), t('account.codeSentToEmail'));
     } catch (e: any) {
-      Alert.alert('Resend failed', e?.message || 'Could not resend code.');
+      Alert.alert(t('account.resendFailed'), e?.message || t('account.couldNotResend'));
     } finally {
       setIsLoading(false);
     }
@@ -548,6 +570,12 @@ export const AccountScreen = ({ navigation, route }: Props) => {
       const accessToken = params.get('access_token');
       const refreshToken = params.get('refresh_token');
       const code = params.get('code');
+
+      // Reset flags BEFORE any session creation to prevent RootNavigator race
+      if (!fromPayment) {
+        useOnboardingStore.getState().setHasCompletedOnboarding(false);
+        useOnboardingStore.getState().setShowDashboard(false);
+      }
 
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -586,14 +614,14 @@ export const AccountScreen = ({ navigation, route }: Props) => {
 
   const handleGoogleSignUp = async () => {
     if (!name.trim()) {
-      Alert.alert('Name required', 'Please enter your first name.');
+      Alert.alert(t('account.nameRequired'), t('account.pleaseEnterFirstName'));
       return;
     }
 
     if (fromPayment && !(await assertEntitlementStillActive())) return;
 
     if (!isSupabaseConfigured) {
-      Alert.alert('Auth unavailable', 'Supabase is not configured in this build.');
+      Alert.alert(t('account.authUnavailable'), t('account.supabaseNotConfigured'));
       return;
     }
 
@@ -618,7 +646,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
         await processOAuthResult(result.url);
       }
     } catch (e: any) {
-      Alert.alert('Google sign-up failed', e?.message || 'Could not authenticate with Google.');
+      Alert.alert(t('account.googleSignUpFailed'), e?.message || t('account.couldNotAuthGoogle'));
     } finally {
       setIsLoading(false);
     }
@@ -626,14 +654,14 @@ export const AccountScreen = ({ navigation, route }: Props) => {
 
   const handleAppleSignUp = async () => {
     if (!name.trim()) {
-      Alert.alert('Name required', 'Please enter your first name.');
+      Alert.alert(t('account.nameRequired'), t('account.pleaseEnterFirstName'));
       return;
     }
 
     if (fromPayment && !(await assertEntitlementStillActive())) return;
 
     if (!isSupabaseConfigured) {
-      Alert.alert('Auth unavailable', 'Supabase is not configured in this build.');
+      Alert.alert(t('account.authUnavailable'), t('account.supabaseNotConfigured'));
       return;
     }
 
@@ -666,7 +694,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
       }
     } catch (e: any) {
       if (e?.code !== 'ERR_REQUEST_CANCELED') {
-        Alert.alert('Apple sign-up failed', e?.message || 'Could not authenticate with Apple.');
+        Alert.alert(t('account.appleSignUpFailed'), e?.message || t('account.couldNotAuthApple'));
       }
     } finally {
       setIsLoading(false);

@@ -23,6 +23,7 @@ import { TexturedBackground } from '@/components/TexturedBackground';
 import { AudioProvider } from '@/contexts/AudioContext';
 import { SignInScreen } from '@/screens/auth/SignInScreen';
 // Onboarding screens
+import { ResetPasswordScreen } from '@/screens/auth/ResetPasswordScreen';
 import { IntroScreen } from '@/screens/onboarding/IntroScreen';
 import { RelationshipScreen } from '@/screens/onboarding/RelationshipScreen';
 import { BirthInfoScreen } from '@/screens/onboarding/BirthInfoScreen';
@@ -50,6 +51,7 @@ import { EditBirthDataScreen } from '@/screens/home/EditBirthDataScreen';
 import { SystemSelectionScreen } from '@/screens/home/SystemSelectionScreen';
 import { PersonalContextScreen } from '@/screens/home/PersonalContextScreen';
 import { RelationshipContextScreen } from '@/screens/home/RelationshipContextScreen';
+import { ReadingLanguageScreen } from '@/screens/home/ReadingLanguageScreen';
 import { VoiceSelectionScreen } from '@/screens/home/VoiceSelectionScreen';
 import { TreeOfLifeVideoScreen } from '@/screens/home/TreeOfLifeVideoScreen';
 import { GeneratingReadingScreen } from '@/screens/home/GeneratingReadingScreen';
@@ -77,6 +79,7 @@ import {
 export type OnboardingStackParamList = {
     Intro: undefined;
     SignIn: undefined;
+    ResetPassword: undefined;
     Relationship: undefined;
     BirthInfo: undefined;
     Languages: undefined;
@@ -244,6 +247,14 @@ export type MainStackParamList = {
         productType?: string;
         systems?: string[];
     } | undefined;
+    ReadingLanguage: {
+        productType: string;
+        systems: string[];
+        readingType?: 'individual' | 'overlay';
+        personalContext?: string;
+        relationshipContext?: string;
+        [key: string]: any;
+    };
     SystemSelection: {
         readingType?: 'individual' | 'overlay';
         forPartner?: boolean;
@@ -381,6 +392,7 @@ const OnboardingNavigator = ({ initialRouteName = "Intro" }: { initialRouteName?
         >
             <OnboardingStack.Screen name="Intro" component={IntroScreen} />
             <OnboardingStack.Screen name="SignIn" component={SignInScreen} />
+            <OnboardingStack.Screen name="ResetPassword" component={ResetPasswordScreen} />
             <OnboardingStack.Screen name="Relationship" component={RelationshipScreen} />
             <OnboardingStack.Screen name="BirthInfo" component={BirthInfoScreen} />
             <OnboardingStack.Screen name="Languages" component={LanguagesScreen} />
@@ -428,6 +440,7 @@ const MainNavigator = () => {
             <MainStack.Screen name="PersonalContext" component={PersonalContextScreen} />
             <MainStack.Screen name="RelationshipContext" component={RelationshipContextScreen} />
             <MainStack.Screen name="SystemSelection" component={SystemSelectionScreen} />
+            <MainStack.Screen name="ReadingLanguage" component={ReadingLanguageScreen} />
             <MainStack.Screen name="VoiceSelection" component={VoiceSelectionScreen} />
             <MainStack.Screen name="TreeOfLifeVideo" component={TreeOfLifeVideoScreen} />
             <MainStack.Screen name="GeneratingReading" component={GeneratingReadingScreen} />
@@ -567,9 +580,16 @@ export const RootNavigator = () => {
                 // hook/onboarding sequence — they permanently live in the dashboard.
                 const onb = useOnboardingStore.getState();
                 if (!onb.showDashboard) {
-                    console.log('🛡️ Paid user detected with showDashboard=false — forcing dashboard access');
-                    onb.setShowDashboard(true);
-                    onb.setHasCompletedOnboarding(true);
+                    // Only force dashboard recovery for users who have evidence of prior onboarding.
+                    // Fresh signup users must complete their onboarding flow first.
+                    const hasOnboardingEvidence = Boolean(
+                        onb.hookReadings?.sun || onb.hookReadings?.moon || onb.hookReadings?.rising
+                    );
+                    if (hasOnboardingEvidence) {
+                        console.log('🛡️ Paid user with prior onboarding — restoring dashboard access');
+                        onb.setShowDashboard(true);
+                        onb.setHasCompletedOnboarding(true);
+                    }
                 }
 
                 // Fetch subscription tier (billionaire gets unlimited readings)
@@ -644,8 +664,16 @@ export const RootNavigator = () => {
                 // Ensure paid user always has dashboard access
                 const onb = useOnboardingStore.getState();
                 if (!onb.showDashboard) {
-                    onb.setShowDashboard(true);
-                    onb.setHasCompletedOnboarding(true);
+                    // Only force dashboard recovery for users who have evidence of prior onboarding.
+                    // Fresh signup users must complete their onboarding flow first.
+                    const hasOnboardingEvidence = Boolean(
+                        onb.hookReadings?.sun || onb.hookReadings?.moon || onb.hookReadings?.rising
+                    );
+                    if (hasOnboardingEvidence) {
+                        console.log('🛡️ Paid user with prior onboarding — restoring dashboard access');
+                        onb.setShowDashboard(true);
+                        onb.setHasCompletedOnboarding(true);
+                    }
                 }
                 return;
             }

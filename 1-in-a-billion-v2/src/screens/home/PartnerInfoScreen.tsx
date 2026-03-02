@@ -80,10 +80,10 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
     if (isPrepayOnboarding && existingFreePartner) {
       // Already have a free partner hook reading - block creating another
       Alert.alert(
-        'Already Created',
-        'You already have a free third person reading. You can view it in Your Readings.',
+        t('partnerInfo.alreadyCreated'),
+        t('partnerInfo.alreadyCreatedMessage'),
         [{
-          text: 'OK',
+          text: t('common.ok'),
           onPress: () => {
             if (navigation.canGoBack()) {
               navigation.goBack();
@@ -180,8 +180,8 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
 
     if (!cityToUse) {
       Alert.alert(
-        'Birth city required',
-        'Please select a birth city from the suggestions so we can calculate accurate placements.'
+        t('partnerInfo.cityRequired'),
+        t('partnerInfo.cityRequiredMessage')
       );
       return {};
     }
@@ -233,9 +233,9 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
       } else {
         // Different person with same name - show error
         Alert.alert(
-          'Name Already Taken',
-          `A person named "${name}" already exists in your library with different birth data. Please use a different name to avoid confusion.`,
-          [{ text: 'OK' }]
+          t('partnerInfo.nameAlreadyTaken'),
+          t('partnerInfo.nameAlreadyTakenMessage', { name }),
+          [{ text: t('common.ok') }]
         );
         return {};
       }

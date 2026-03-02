@@ -20,7 +20,7 @@ export const RelationshipContextScreen = ({ navigation, route }: Props) => {
 
     const continueFlow = (relationshipContext?: string) => {
         if (productType && Array.isArray(systems) && systems.length > 0) {
-            navigation.navigate('VoiceSelection', {
+            navigation.navigate('ReadingLanguage', {
                 ...restParams,
                 productType,
                 systems,
@@ -44,8 +44,8 @@ export const RelationshipContextScreen = ({ navigation, route }: Props) => {
     };
 
     const maxChars = MAX_CHARS;
-    const headline = 'Personal Context';
-    const subline = 'Would you like to infuse your reading with a question or some additional context?';
+    const headline = t('relationshipContext.title');
+    const subline = t('relationshipContext.subtitle');
 
     return (
         <SafeAreaView style={styles.container}>

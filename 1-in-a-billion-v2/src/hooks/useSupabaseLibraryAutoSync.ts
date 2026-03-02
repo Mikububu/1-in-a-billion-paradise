@@ -51,6 +51,7 @@ export const useSupabaseLibraryAutoSync = () => {
     const people = useProfileStore((s) => s.people);
     const compatibilityReadings = useProfileStore((s) => s.compatibilityReadings);
     const upsertPersonById = useProfileStore((s) => s.upsertPersonById);
+    const deletePerson = useProfileStore((s) => s.deletePerson);
     const replaceCompatibilityReadings = useProfileStore((s) => s.replaceCompatibilityReadings);
 
     const userId = authUser?.id || null;
@@ -170,6 +171,16 @@ export const useSupabaseLibraryAutoSync = () => {
 
                 for (const person of result.people) {
                     upsertPersonById(person);
+                }
+
+                // Remove local people that were deleted server-side
+                const cloudPersonIds = new Set(result.people.map((p: any) => p.id));
+                const localPeople = useProfileStore.getState().people;
+                for (const localPerson of localPeople) {
+                    if (!localPerson.isUser && !cloudPersonIds.has(localPerson.id)) {
+                        console.log(`☁️ Removing locally-cached person deleted from server: ${localPerson.name}`);
+                        deletePerson(localPerson.id);
+                    }
                 }
 
                 const compatibilityResult = await syncCompatibilityReadingsToSupabase(

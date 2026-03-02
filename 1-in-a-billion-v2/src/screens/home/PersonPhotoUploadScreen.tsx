@@ -19,6 +19,7 @@ import { useProfileStore } from '@/store/profileStore';
 import { uploadPersonPhoto } from '@/services/personPhotoService';
 import { useAuthStore } from '@/store/authStore';
 import { insertPersonToSupabase } from '@/services/peopleService';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonPhotoUpload'>;
 
@@ -85,7 +86,7 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
         return () => animation.stop();
     }, [glowOpacity, showPulse]);
 
-    const personLabel = useMemo(() => person?.name || 'Person', [person?.name]);
+    const personLabel = useMemo(() => person?.name || t('photoUpload.defaultName'), [person?.name]);
 
     const runUpload = async (photoBase64: string, localUri: string) => {
         if (!person) return;
@@ -110,7 +111,7 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
             }
             setPreviewUri(null);
         } catch (error: any) {
-            Alert.alert('Upload failed', error?.message || 'Could not upload photo.');
+            Alert.alert(t('photoUpload.uploadFailed'), error?.message || t('photoUpload.couldNotUpload'));
         } finally {
             setIsUploading(false);
         }
@@ -119,13 +120,13 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
     const pickPhoto = async () => {
         const picker = await loadImagePicker();
         if (!picker) {
-            Alert.alert('Unavailable', 'Photo upload requires a native build with image picker support.');
+            Alert.alert(t('photoUpload.unavailable'), t('photoUpload.requiresNativeBuild'));
             return;
         }
 
         const { status } = await picker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-            Alert.alert('Permission required', 'Please allow photo library access.');
+            Alert.alert(t('photoUpload.permissionRequired'), t('photoUpload.allowPhotoLibrary'));
             return;
         }
 
@@ -140,7 +141,7 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
         if (result.canceled || !result.assets?.[0]) return;
         const asset = result.assets[0];
         if (!asset.base64 || !asset.uri) {
-            Alert.alert('Upload failed', 'Could not read selected photo.');
+            Alert.alert(t('photoUpload.uploadFailed'), t('photoUpload.couldNotRead'));
             return;
         }
         await runUpload(asset.base64, asset.uri);
@@ -150,11 +151,11 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
         if (isUploading) return;
         if (person?.portraitUrl) {
             Alert.alert(
-                'Update portrait?',
-                'Choose a new photo to regenerate this stylized portrait.',
+                t('photoUpload.updatePortrait'),
+                t('photoUpload.regeneratePrompt'),
                 [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Regenerate', style: 'destructive', onPress: () => { void pickPhoto(); } },
+                    { text: t('common.cancel'), style: 'cancel' },
+                    { text: t('photoUpload.regenerate'), style: 'destructive', onPress: () => { void pickPhoto(); } },
                 ]
             );
             return;
@@ -168,8 +169,8 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
                 <BackButton onPress={() => navigation.goBack()} />
                 <View style={styles.topSpacer} />
                 <View style={styles.centerState}>
-                    <Text style={styles.title}>Person Not Found</Text>
-                    <Text style={styles.subtitle}>This profile no longer exists.</Text>
+                    <Text style={styles.title}>{t('photoUpload.personNotFound')}</Text>
+                    <Text style={styles.subtitle}>{t('photoUpload.profileGone')}</Text>
                 </View>
             </SafeAreaView>
         );
@@ -181,7 +182,7 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
             <View style={styles.topSpacer} />
 
             <View style={styles.content}>
-                <Text style={styles.title}>Upload Portrait</Text>
+                <Text style={styles.title}>{t('photoUpload.title')}</Text>
                 <Text style={styles.subtitle}>{personLabel}</Text>
 
                 <TouchableOpacity style={styles.square} onPress={onTapSquare} disabled={isUploading} activeOpacity={0.85}>
@@ -190,7 +191,7 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
                     ) : (
                         <View style={styles.placeholder}>
                             <Text style={styles.placeholderInitial}>{personLabel.charAt(0).toUpperCase()}</Text>
-                            <Text style={styles.placeholderHint}>Tap inside the square</Text>
+                            <Text style={styles.placeholderHint}>{t('photoUpload.tapHint')}</Text>
                         </View>
                     )}
 
@@ -198,21 +199,19 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
                 </TouchableOpacity>
 
                 <View style={styles.noteCard}>
-                    <Text style={styles.noteText}>
-                        Your photo is transformed into a stylized portrait for visual consistency and privacy.
-                    </Text>
+                    <Text style={styles.noteText}>{t('photoUpload.noteText')}</Text>
                 </View>
 
                 {isUploading ? (
                     <View style={styles.uploading}>
                         <ActivityIndicator color={colors.primary} />
-                        <Text style={styles.uploadingText}>Transforming portrait...</Text>
+                        <Text style={styles.uploadingText}>{t('photoUpload.transforming')}</Text>
                     </View>
                 ) : null}
 
                 {returnTo && !isUploading ? (
                     <TouchableOpacity style={styles.skipButton} onPress={handleDone} activeOpacity={0.7}>
-                        <Text style={styles.skipText}>{hasPortrait ? 'Done' : 'Skip for now'}</Text>
+                        <Text style={styles.skipText}>{hasPortrait ? t('common.done') : t('common.skipForNow')}</Text>
                     </TouchableOpacity>
                 ) : null}
             </View>

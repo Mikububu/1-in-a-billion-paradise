@@ -401,7 +401,7 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                     ? narrationArtifact
                     : songArtifact;
         if (!artifact?.storage_path) {
-            const label = target === 'pdf' ? 'PDF' : target === 'narration' ? 'narration audio' : 'song audio';
+            const label = target === 'pdf' ? 'PDF' : target === 'narration' ? t('readingContent.narrationAudio') : t('readingContent.songAudio');
             Alert.alert(t('readingContent.notReady'), t('readingContent.notReadyMessage', { label }));
             return;
         }
@@ -472,10 +472,10 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                                     <Text style={[styles.playerButtonText, !narrationArtifact && styles.playerButtonTextDisabled]}>
                                         {narrationArtifact &&
                                             isAudioPlayingByKind.narration
-                                            ? 'Pause'
+                                            ? t('common.pause')
                                             : isAudioLoadingByKind.narration && preparingAudioPathRef.current.narration === narrationArtifact?.storage_path
                                                 ? '...'
-                                                : 'Play'}
+                                                : t('common.play')}
                                     </Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
@@ -501,10 +501,10 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                                     <Text style={[styles.playerButtonText, !songArtifact && styles.playerButtonTextDisabled]}>
                                         {songArtifact &&
                                             isAudioPlayingByKind.song
-                                            ? 'Pause'
+                                            ? t('common.pause')
                                             : isAudioLoadingByKind.song && preparingAudioPathRef.current.song === songArtifact?.storage_path
                                                 ? '...'
-                                                : 'Play'}
+                                                : t('common.play')}
                                     </Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity

@@ -36,6 +36,7 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
     const [generationComplete, setGenerationComplete] = useState(false);
     const [generationError, setGenerationError] = useState<string | null>(null);
     const [progressPercent, setProgressPercent] = useState(0);
+    const [libraryLineIndex, setLibraryLineIndex] = useState(0);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const linkedJobsRef = useRef<Set<string>>(new Set());
 
@@ -47,6 +48,13 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
     useEffect(() => {
         if (jobId) setActiveJobId(jobId);
     }, [jobId]);
+
+    // Alternate library button text every 3s while generating
+    useEffect(() => {
+        if (generationComplete) return;
+        const id = setInterval(() => setLibraryLineIndex((i) => (i + 1) % 2), 3000);
+        return () => clearInterval(id);
+    }, [generationComplete]);
 
     useEffect(() => {
         if (!activeJobId || linkedJobsRef.current.has(activeJobId)) {
@@ -242,7 +250,7 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
 
                 <TouchableOpacity style={styles.libraryButton} onPress={() => navigation.navigate('MyLibrary')}>
                     <Text style={styles.libraryButtonText}>
-                        {generationComplete ? t('generatingReading.button.openLibrary') : t('generatingReading.button.libraryBackground')}
+                        {generationComplete ? t('generatingReading.button.openLibrary') : (libraryLineIndex === 0 ? t('generatingReading.button.libraryLine1') : t('generatingReading.button.libraryLine2'))}
                     </Text>
                 </TouchableOpacity>
 

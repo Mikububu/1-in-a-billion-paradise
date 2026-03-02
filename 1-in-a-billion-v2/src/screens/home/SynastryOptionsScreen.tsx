@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { BackButton } from '@/components/BackButton';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SynastryOptions'>;
 
@@ -21,9 +22,9 @@ export const SynastryOptionsScreen = ({ navigation, route }: Props) => {
             <View style={styles.topSpacer} />
 
             <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-                <Text style={styles.title}>Choose Your Deep Reading</Text>
+                <Text style={styles.title}>{t('synastryOptions.title')}</Text>
                 <Text style={styles.subtitle}>
-                    Continue with yourself, {partnerName}, or your compatibility overlay.
+                    {t('synastryOptions.subtitle', { name: partnerName })}
                 </Text>
 
                 <TouchableOpacity
@@ -37,8 +38,8 @@ export const SynastryOptionsScreen = ({ navigation, route }: Props) => {
                         })
                     }
                 >
-                    <Text style={styles.optionTitle}>Your Reading</Text>
-                    <Text style={styles.optionMeta}>5-system deep reading for your own chart.</Text>
+                    <Text style={styles.optionTitle}>{t('synastryOptions.yourReading')}</Text>
+                    <Text style={styles.optionMeta}>{t('synastryOptions.yourReadingDesc')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -64,8 +65,8 @@ export const SynastryOptionsScreen = ({ navigation, route }: Props) => {
                         })
                     }
                 >
-                    <Text style={styles.optionTitle}>{partnerName}'s Reading</Text>
-                    <Text style={styles.optionMeta}>5-system deep reading for {partnerName}.</Text>
+                    <Text style={styles.optionTitle}>{t('synastryOptions.partnerReading', { name: partnerName })}</Text>
+                    <Text style={styles.optionMeta}>{t('synastryOptions.partnerReadingDesc', { name: partnerName })}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -82,15 +83,15 @@ export const SynastryOptionsScreen = ({ navigation, route }: Props) => {
                         })
                     }
                 >
-                    <Text style={styles.optionTitle}>Overlay Reading</Text>
-                    <Text style={styles.optionMeta}>Compatibility and relational dynamics.</Text>
+                    <Text style={styles.optionTitle}>{t('synastryOptions.overlayReading')}</Text>
+                    <Text style={styles.optionMeta}>{t('synastryOptions.overlayReadingDesc')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                     style={styles.addPerson}
                     onPress={() => navigation.navigate('PartnerInfo', { mode: 'add_person_only' })}
                 >
-                    <Text style={styles.addPersonText}>Add Another Person</Text>
+                    <Text style={styles.addPersonText}>{t('synastryOptions.addPerson')}</Text>
                 </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>

@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { Animated, Alert, Easing, Platform, TextInput } from 'react-native';
+import { t } from '@/i18n';
 import {
   Dimensions,
   FlatList,
@@ -125,10 +126,10 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     const next = resetTapCount + 1;
     setResetTapCount(next);
     if (next >= 5) {
-      Alert.alert('Reset App', 'Delete ALL data and start from screen 1?', [
-        { text: 'Cancel', style: 'cancel', onPress: () => setResetTapCount(0) },
+      Alert.alert(t('hookSequence.resetAlert.title'), t('hookSequence.resetAlert.message'), [
+        { text: t('common.cancel'), style: 'cancel', onPress: () => setResetTapCount(0) },
         {
-          text: 'Reset Everything', style: 'destructive', onPress: async () => {
+          text: t('hookSequence.resetAlert.button'), style: 'destructive', onPress: async () => {
             try {
               resetOnboarding();
               resetProfile();
@@ -698,7 +699,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
         detail: error?.message,
         context: 'HookSequenceScreen:handleGoogleSignIn:catch',
       });
-      Alert.alert('Sign In Error', error.message || 'Failed to open Google Sign-In');
+      Alert.alert(t('hookSequence.signInError.title'), error.message || t('hookSequence.signInError.message'));
       setIsSigningIn(false);
     }
   };
@@ -707,9 +708,9 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     if (!isSupabaseConfigured) {
       logAuthIssue({ provider: 'apple', outcome: 'error', detail: 'supabase_not_configured', context: 'HookSequenceScreen:handleAppleSignIn' });
       Alert.alert(
-        'Not Configured',
-        'Apple Sign-In requires Supabase configuration.\n\nUse Dev Mode for simulator testing.',
-        [{ text: 'Use Dev Mode', onPress: () => setShowDevMode(true) }]
+        t('hookSequence.notConfigured.title'),
+        t('hookSequence.notConfigured.message'),
+        [{ text: t('hookSequence.notConfigured.devMode'), onPress: () => setShowDevMode(true) }]
       );
       return;
     }
@@ -751,7 +752,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
 
   const handleDevSignIn = async () => {
     if (!devName.trim()) {
-      Alert.alert('Name Required', 'Please enter your name');
+      Alert.alert(t('hookSequence.nameRequired.title'), t('hookSequence.nameRequired.message'));
       return;
     }
 

@@ -332,13 +332,18 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                 onRequestClose={() => setPreviewImageUri(null)}
             >
                 <Pressable style={styles.previewBackdrop} onPress={() => setPreviewImageUri(null)}>
-                    <View style={styles.previewCard}>
+                    <Pressable style={styles.previewCard} onPress={() => {}}>
                         <Text style={styles.previewTitle}>{previewTitle}</Text>
                         {previewImageUri ? (
                             <Image source={{ uri: previewImageUri }} style={styles.previewImage} resizeMode="contain" />
                         ) : null}
+                        {user?.id && (
+                            <TouchableOpacity style={styles.changePhotoBtn} onPress={() => { setPreviewImageUri(null); navigation.navigate('PersonPhotoUpload', { personId: user.id }); }} activeOpacity={0.7}>
+                                <Text style={styles.changePhotoBtnText}>{t('common.changePhoto')}</Text>
+                            </TouchableOpacity>
+                        )}
                         <Text style={styles.previewHint}>{t('myLibrary.preview.closeHint')}</Text>
-                    </View>
+                    </Pressable>
                 </Pressable>
             </Modal>
         </SafeAreaView>
@@ -587,6 +592,21 @@ const styles = StyleSheet.create({
         height: 420,
         borderRadius: 14,
         backgroundColor: colors.background,
+    },
+    changePhotoBtn: {
+        marginTop: spacing.md,
+        paddingVertical: 10,
+        paddingHorizontal: 24,
+        borderRadius: radii.card,
+        borderWidth: 1,
+        borderColor: colors.primary,
+        backgroundColor: 'transparent',
+    },
+    changePhotoBtnText: {
+        fontFamily: typography.sansSemiBold,
+        fontSize: 14,
+        color: colors.primary,
+        textAlign: 'center',
     },
     previewHint: {
         marginTop: spacing.sm,

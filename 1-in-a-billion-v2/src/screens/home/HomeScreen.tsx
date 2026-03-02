@@ -22,7 +22,7 @@ import { useAudio } from '@/contexts/AudioContext';
 import { CHAT_RENEW_WARNING_TEXT } from '@/utils/chatAccess';
 import { getJobReceipts, type JobReceipt } from '@/services/jobBuffer';
 import { fetchJobSnapshot } from '@/services/jobStatus';
-import { getLanguage, onLanguageChange, type LanguageCode, t } from '@/i18n';
+import { getLanguage, onLanguageChange, LANGUAGE_META, type LanguageCode, t } from '@/i18n';
 import { LanguagePicker } from '@/components/LanguagePicker';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Home'>;
@@ -151,7 +151,7 @@ export const HomeScreen = ({ navigation }: Props) => {
       const alreadyShown = await AsyncStorage.getItem(key);
       if (cancelled || alreadyShown === '1') return;
 
-      Alert.alert('Match found', 'We found a match for you. Tap the big number to open Soul Gallery.');
+      Alert.alert(t('home.matchAlert.title'), t('home.matchAlert.message'));
       await AsyncStorage.setItem(key, '1');
     };
 
@@ -202,7 +202,7 @@ export const HomeScreen = ({ navigation }: Props) => {
       const ImagePicker = await import('expo-image-picker');
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please allow access to your photo library to upload a photo.');
+        Alert.alert(t('home.photo.permission.title'), t('home.photo.permission.message'));
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -216,7 +216,7 @@ export const HomeScreen = ({ navigation }: Props) => {
       setUploadingPhoto(true);
       const userId = useAuthStore.getState().session?.user?.id || useAuthStore.getState().user?.id;
       if (!userId) {
-        Alert.alert('Error', 'You must be signed in to upload a photo.');
+        Alert.alert(t('common.error'), t('home.photo.error.notSignedIn'));
         setUploadingPhoto(false);
         return;
       }
@@ -228,13 +228,13 @@ export const HomeScreen = ({ navigation }: Props) => {
       const data = await response.json();
       if (data.success && data.imageUrl) {
         setPortraitPhotoUrl(data.imageUrl);
-        Alert.alert('Success', 'Your stylized portrait is ready!');
+        Alert.alert(t('common.success'), t('home.photo.success.message'));
       } else {
-        Alert.alert('Error', data.error || 'Failed to generate stylized portrait');
+        Alert.alert(t('common.error'), data.error || t('home.photo.error.failedGenerate'));
       }
       setUploadingPhoto(false);
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to upload photo.');
+      Alert.alert(t('common.error'), error.message || t('home.photo.error.failedUpload'));
       setUploadingPhoto(false);
     }
   };
@@ -474,7 +474,7 @@ export const HomeScreen = ({ navigation }: Props) => {
     if (!selectedReading) return;
     const myToken = ++playRequestTokenRef.current;
     const reading = modalReadings?.[selectedReading];
-    if (!reading) { Alert.alert('Error', 'Reading not found.'); return; }
+    if (!reading) { Alert.alert(t('common.error'), t('home.reading.error.notFound')); return; }
     
     let audioSource =
       currentPerson?.person?.hookAudioPaths?.[selectedReading] ||
@@ -552,7 +552,7 @@ export const HomeScreen = ({ navigation }: Props) => {
   const shimmerColor3 = shimmerAnim.interpolate({ inputRange: [0, 0.5, 0.7, 0.9, 1], outputRange: [colors.border, colors.border, colors.primary, colors.primary, colors.border] });
 
   // Match Handlers
-  const handleMatchYes = () => Alert.alert('Registered!', 'Match feature coming soon!', [{ text: 'Got it' }]);
+  const handleMatchYes = () => Alert.alert(t('home.matching.registered.title'), t('home.matching.registered.message'), [{ text: t('home.gotIt') }]);
   const handleMatchNo = () => clearCompatibilityReadings?.();
   const matchingPaused = entitlementState === 'inactive';
 
@@ -565,12 +565,12 @@ export const HomeScreen = ({ navigation }: Props) => {
     if (secretTapCountRef.current >= 5) {
       secretTapCountRef.current = 0;
       Alert.alert(
-        'Full Reset',
-        'This will clear ALL local data (AsyncStorage, stores, caches) and sign you out. Continue?',
+        t('home.fullReset.title'),
+        t('home.fullReset.message'),
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: t('common.cancel'), style: 'cancel' },
           {
-            text: 'Reset Everything',
+            text: t('home.fullReset.confirm'),
             style: 'destructive',
             onPress: async () => {
               try {
@@ -586,9 +586,9 @@ export const HomeScreen = ({ navigation }: Props) => {
                 await AsyncStorage.clear();
                 console.log('✅ Full reset complete: signout → store reset → AsyncStorage.clear()');
 
-                Alert.alert('Done', 'All local data has been cleared. The app will restart.');
+                Alert.alert(t('common.done'), t('home.dataCleared'));
               } catch (e: any) {
-                Alert.alert('Error', e.message || 'Failed to reset');
+                Alert.alert(t('common.error'), e.message || t('home.failedToReset'));
               }
             },
           },
@@ -608,7 +608,7 @@ export const HomeScreen = ({ navigation }: Props) => {
         accessibilityRole="button"
         accessibilityLabel="Change language"
       >
-        <Text style={styles.langPillText}>{currentLang.toUpperCase()}</Text>
+        <Text style={styles.langPillText}>{LANGUAGE_META[currentLang]?.nativeName || currentLang.toUpperCase()}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={[styles.settingsButton, { top: insets.top + spacing.sm }]} onPress={() => navigation.navigate('Settings')} accessibilityRole="button" accessibilityLabel="Settings">
@@ -623,8 +623,8 @@ export const HomeScreen = ({ navigation }: Props) => {
             <Text style={styles.headlineTop} numberOfLines={2} ellipsizeMode="tail">
               {(() => {
                 const name = currentPerson?.person?.name || t('common.unknown');
-                if (!currentPerson) return 'My';
-                if (currentPerson.person.isUser) return 'My';
+                if (!currentPerson) return t('home.headline.possessive');
+                if (currentPerson.person.isUser) return t('home.headline.possessive');
                 return /s$/i.test(name) ? `${name}'` : `${name}'s`;
               })()}
             </Text>
@@ -742,13 +742,18 @@ export const HomeScreen = ({ navigation }: Props) => {
         onRequestClose={() => setPortraitPreviewVisible(false)}
       >
         <Pressable style={styles.previewBackdrop} onPress={() => setPortraitPreviewVisible(false)}>
-          <View style={styles.previewCard}>
+          <Pressable style={styles.previewCard} onPress={() => {}}>
             <Text style={styles.previewTitle}>{userName || 'Your'} portrait</Text>
             {portraitPhotoUrl ? (
               <Image source={{ uri: portraitPhotoUrl }} style={styles.previewImage} resizeMode="contain" />
             ) : null}
+            {currentPerson?.person?.id && (
+              <TouchableOpacity style={styles.changePhotoBtn} onPress={() => { setPortraitPreviewVisible(false); navigation.navigate('PersonPhotoUpload', { personId: currentPerson.person.id }); }} activeOpacity={0.7}>
+                <Text style={styles.changePhotoBtnText}>{t('common.changePhoto')}</Text>
+              </TouchableOpacity>
+            )}
             <Text style={styles.previewHint}>{t('myLibrary.preview.closeHint')}</Text>
-          </View>
+          </Pressable>
         </Pressable>
       </Modal>
 
@@ -769,16 +774,13 @@ export const HomeScreen = ({ navigation }: Props) => {
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.howMatchingContent}>
               <Text style={styles.howMatchingParagraph}>
-                We compare your birth signature across five spiritual systems:
-                Astrology, Numerology, Human Design, Gene Keys, and Kabbalah.
+                {t('home.matching.modal.paragraph1')}
               </Text>
               <Text style={styles.howMatchingParagraph}>
-                Your number shows people with strong algorithmic resonance to your profile.
-                The system does this automatically in the background.
+                {t('home.matching.modal.paragraph2')}
               </Text>
               <Text style={styles.howMatchingParagraph}>
-                There is no swiping. You can open Soul Gallery anytime and see your current matches.
-                When a new resonance appears, your match number updates.
+                {t('home.matching.modal.paragraph3')}
               </Text>
             </ScrollView>
           </Pressable>
@@ -926,6 +928,8 @@ const styles = StyleSheet.create({
   previewCard: { width: '100%', maxWidth: 420, backgroundColor: colors.surface, borderRadius: radii.card, borderWidth: 1, borderColor: colors.border, padding: spacing.md, alignItems: 'center' },
   previewTitle: { fontFamily: typography.sansSemiBold, fontSize: 18, color: colors.text, marginBottom: spacing.sm },
   previewImage: { width: '100%', height: 420, borderRadius: 14, backgroundColor: colors.background },
+  changePhotoBtn: { marginTop: spacing.md, paddingVertical: 10, paddingHorizontal: 24, borderRadius: radii.card, borderWidth: 1, borderColor: colors.primary, backgroundColor: 'transparent' },
+  changePhotoBtnText: { fontFamily: typography.sansSemiBold, fontSize: 14, color: colors.primary, textAlign: 'center' as const },
   previewHint: { marginTop: spacing.sm, fontFamily: typography.sansRegular, fontSize: 12, color: colors.mutedText },
   howMatchingBackdrop: {
     flex: 1,

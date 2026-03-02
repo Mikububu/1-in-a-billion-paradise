@@ -209,7 +209,7 @@ export const BirthInfoScreen = () => {
                     >
                         <Text style={styles.iconArt}>✧</Text>
                         <Text style={[styles.inputText, !storedDate && styles.placeholder]}>
-                            {storedDate ? formatDateDisplay(dateValue) : 'mm/dd/yyyy'}
+                            {storedDate ? formatDateDisplay(dateValue) : t('birthInfo.datePlaceholder')}
                         </Text>
                     </Pressable>
 
@@ -242,7 +242,7 @@ export const BirthInfoScreen = () => {
                     >
                         <Text style={styles.iconArt}>◐</Text>
                         <Text style={[styles.inputText, !storedTime && styles.placeholder]}>
-                            {storedTime || '--:--'}
+                            {storedTime || t('birthInfo.timePlaceholder')}
                         </Text>
                     </Pressable>
 

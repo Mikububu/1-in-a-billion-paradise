@@ -33,7 +33,7 @@ export const signInWithGoogle = async () => {
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            redirectTo: 'oneinabillionv2://auth/callback',
+            redirectTo: 'oneinabillion://auth/callback',
             queryParams: {
                 access_type: 'offline',
                 prompt: 'consent',

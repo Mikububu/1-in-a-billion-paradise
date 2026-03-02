@@ -18,6 +18,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { logger } from '@/utils/logger';
 import { initGlobalErrorHandler } from '@/utils/globalErrorHandler';
 import { initLanguage } from '@/i18n';
+import { linking } from '@/navigation/linking';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -85,6 +86,7 @@ export default function App() {
                         <NavigationContainer
                             ref={navigationRef}
                             theme={navigationTheme}
+                            linking={linking}
                         >
                             <StatusBar style="dark" />
                             <RootNavigator />

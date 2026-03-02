@@ -169,11 +169,11 @@ export const SignInScreen = () => {
         const url = event.url;
         console.log('🔗 Deep link received:', url);
 
-        // Handle password reset confirmation
+        // Handle password reset confirmation — navigate to ResetPassword screen
         if (url.includes('auth/reset-password') || url.includes('type=recovery')) {
-            // ... (Reset password logic to be refined/migrated fully when ResetPasswordScreen exists)
-            // For now, simple alert or navigation home
-            console.log('✅ Password reset link detected');
+            console.log('✅ Password reset link detected, navigating to ResetPassword');
+            navigation.navigate('ResetPassword' as any);
+            return;
         }
 
         // Handle OAuth callbacks (Google, Apple)
@@ -197,7 +197,7 @@ export const SignInScreen = () => {
                 if (errorCode) {
                     setIsLoading(false);
                     // navigation.navigate('Intro'); // Stay on screen to show error?
-                    Alert.alert('Auth Error', errorDescription || 'Failed to sign in');
+                    Alert.alert(t('signIn.error'), errorDescription || t('signIn.failedToSignIn'));
                     return;
                 }
 
@@ -223,7 +223,7 @@ export const SignInScreen = () => {
             } catch (error: any) {
                 console.error('❌ Deep link error:', error.message);
                 setIsLoading(false);
-                Alert.alert('Auth Error', 'Failed to process authentication');
+                Alert.alert(t('signIn.error'), t('signIn.errorGeneric'));
             } finally {
                 oauthInFlightRef.current = false;
             }
@@ -249,7 +249,7 @@ export const SignInScreen = () => {
         } catch (error: any) {
             console.error(`❌ ${provider.toUpperCase()} EXCHANGE ERROR:`, error.message);
             setIsLoading(false);
-            Alert.alert('Sign In Error', error.message);
+            Alert.alert(t('signIn.error'), error.message);
         }
     };
 
@@ -283,14 +283,14 @@ export const SignInScreen = () => {
                     console.log('❌ GOOGLE AUTH: Flow interrupted');
                     setIsLoading(false);
                     if (result.type !== 'cancel') {
-                        Alert.alert('Sign In Error', 'Authentication was interrupted. Please try again.');
+                        Alert.alert(t('signIn.error'), t('signIn.interrupted'));
                     }
                 }
             }
         } catch (error: any) {
             console.error('❌ GOOGLE AUTH: Error:', error.message);
             setIsLoading(false);
-            Alert.alert('Sign In Error', error.message || 'Failed to open Google Sign-In');
+            Alert.alert(t('signIn.error'), error.message || t('signIn.failedToSignIn'));
         }
     };
 
@@ -309,7 +309,7 @@ export const SignInScreen = () => {
             }
         } catch (e: any) {
             if (e.code !== 'ERR_REQUEST_CANCELED') {
-                Alert.alert('Sign In Error', e.message);
+                Alert.alert(t('signIn.error'), e.message);
             }
             setIsLoading(false);
         }
@@ -354,8 +354,8 @@ export const SignInScreen = () => {
             console.error('❌ SIGNIN ERROR:', error.message);
             setEmailAuthState('error');
             Alert.alert(
-                'Sign In Error',
-                error.message || 'Failed to sign in'
+                t('signIn.error'),
+                error.message || t('signIn.failedToSignIn')
             );
             setTimeout(() => setEmailAuthState('idle'), 2000);
         }
@@ -363,7 +363,7 @@ export const SignInScreen = () => {
 
     const handleForgotPassword = async () => {
         if (!email.trim()) {
-            Alert.alert('Error', 'Please enter your email address');
+            Alert.alert(t('common.error'), t('signIn.enterEmail'));
             return;
         }
 
@@ -376,14 +376,14 @@ export const SignInScreen = () => {
             if (error) throw error;
 
             Alert.alert(
-                'Email Sent',
-                'If an account exists with this email, a password reset link has been sent.',
-                [{ text: 'OK', onPress: () => { setShowForgotPassword(false); setEmailAuthState('idle'); } }]
+                t('signIn.resetSent'),
+                t('signIn.resetSentMessage'),
+                [{ text: t('common.ok'), onPress: () => { setShowForgotPassword(false); setEmailAuthState('idle'); } }]
             );
         } catch (error: any) {
             console.error('❌ Forgot password error:', error.message);
             setEmailAuthState('error');
-            Alert.alert('Error', error.message);
+            Alert.alert(t('common.error'), error.message);
             setTimeout(() => setEmailAuthState('idle'), 2000);
         }
     };
@@ -421,7 +421,7 @@ export const SignInScreen = () => {
                                 onPress={() => setShowEmailInput(true)}
                                 disabled={isLoading}
                             >
-                                <Text style={styles.emailButtonText}>Login with Email</Text>
+                                <Text style={styles.emailButtonText}>{t('signIn.loginWithEmail')}</Text>
                             </TouchableOpacity>
 
                             {Platform.OS === 'ios' && (
@@ -430,7 +430,7 @@ export const SignInScreen = () => {
                                     onPress={handleAppleSignIn}
                                     disabled={isLoading}
                                 >
-                                    <Text style={styles.appleText}>Login with Apple</Text>
+                                    <Text style={styles.appleText}>{t('signIn.loginWithApple')}</Text>
                                 </TouchableOpacity>
                             )}
 
@@ -442,20 +442,18 @@ export const SignInScreen = () => {
                                 {isLoading ? (
                                     <ActivityIndicator color="#000" />
                                 ) : (
-                                    <Text style={styles.googleText}>Login with Google</Text>
+                                    <Text style={styles.googleText}>{t('signIn.loginWithGoogle')}</Text>
                                 )}
                             </TouchableOpacity>
                         </>
                     ) : showForgotPassword ? (
                         <>
-                            <Text style={styles.forgotPasswordTitle}>Reset Password</Text>
-                            <Text style={styles.forgotPasswordSubtitle}>
-                                Enter your email address and we'll send you a link to reset your password.
-                            </Text>
+                            <Text style={styles.forgotPasswordTitle}>{t('signIn.resetPasswordTitle')}</Text>
+                            <Text style={styles.forgotPasswordSubtitle}>{t('signIn.resetPasswordSubtitle')}</Text>
 
                             <TextInput
                                 style={styles.emailInput}
-                                placeholder="Email"
+                                placeholder={t('signIn.emailPlaceholder')}
                                 placeholderTextColor={colors.mutedText}
                                 value={email}
                                 onChangeText={setEmail}
@@ -475,7 +473,7 @@ export const SignInScreen = () => {
                                     {emailAuthState === 'loading' ? (
                                         <ActivityIndicator color="#fff" />
                                     ) : (
-                                        <Text style={styles.emailSubmitText}>Send Reset Link</Text>
+                                        <Text style={styles.emailSubmitText}>{t('signIn.sendResetLink')}</Text>
                                     )}
                                 </TouchableOpacity>
 
@@ -487,7 +485,7 @@ export const SignInScreen = () => {
                                     }}
                                     disabled={emailAuthState === 'loading'}
                                 >
-                                    <Text style={styles.cancelButtonText}>Back to Sign In</Text>
+                                    <Text style={styles.cancelButtonText}>{t('signIn.backToSignIn')}</Text>
                                 </TouchableOpacity>
                             </View>
                         </>
@@ -495,7 +493,7 @@ export const SignInScreen = () => {
                         <>
                             <TextInput
                                 style={styles.emailInput}
-                                placeholder="Email"
+                                placeholder={t('signIn.emailPlaceholder')}
                                 placeholderTextColor={colors.mutedText}
                                 value={email}
                                 onChangeText={setEmail}
@@ -507,7 +505,7 @@ export const SignInScreen = () => {
 
                             <TextInput
                                 style={styles.emailInput}
-                                placeholder="Password"
+                                placeholder={t('signIn.passwordPlaceholder')}
                                 placeholderTextColor={colors.mutedText}
                                 value={password}
                                 onChangeText={setPassword}
@@ -527,7 +525,7 @@ export const SignInScreen = () => {
                                         <ActivityIndicator color="#fff" />
                                     ) : (
                                         <Text style={styles.emailSubmitText}>
-                                            Sign In
+                                            {t('auth.signIn')}
                                         </Text>
                                     )}
                                 </TouchableOpacity>
@@ -537,7 +535,7 @@ export const SignInScreen = () => {
                                     onPress={() => setShowForgotPassword(true)}
                                     disabled={emailAuthState === 'loading'}
                                 >
-                                    <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                                    <Text style={styles.forgotPasswordText}>{t('auth.forgotPassword')}</Text>
                                 </TouchableOpacity>
                             </View>
                         </>

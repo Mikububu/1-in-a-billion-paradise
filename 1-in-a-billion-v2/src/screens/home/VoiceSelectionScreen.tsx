@@ -15,7 +15,7 @@ import { getReadingOutputContract } from '@/config/readingOutputContracts';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useProfileStore } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
-import { t } from '@/i18n';
+import { t, getLanguage } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'VoiceSelection'>;
 
@@ -35,6 +35,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
         preselectedVoice,
         personalContext,
         relationshipContext,
+        readingLanguage,
         ...restParams
     } = (route.params || {}) as any;
 
@@ -236,6 +237,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
             person1,
             relationshipPreferenceScale: relationshipPreferenceScale ?? 5,
             voiceId: selectedVoice,
+            language: readingLanguage || getLanguage(),
             ...(shouldUseIncluded && { useIncludedReading: true }),
         };
 
@@ -394,7 +396,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
                                 >
                                     <View style={styles.voiceInfo}>
                                         <Text style={styles.voiceLabel}>{voice.label}</Text>
-                                        <Text style={styles.voiceDescription}>{voice.description}</Text>
+                                        <Text style={styles.voiceDescription}>{t(`voice.${voice.id}.description`)}</Text>
                                     </View>
                                     <TouchableOpacity
                                         style={[styles.previewButton, playingVoice === voice.id && styles.previewButtonActive]}

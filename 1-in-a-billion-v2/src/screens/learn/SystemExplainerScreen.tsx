@@ -26,6 +26,7 @@ import { SINGLE_SYSTEM, SYSTEM_PRICES, PRODUCT_STRINGS, PRODUCTS, NUCLEAR_PACKAG
 import { initiatePurchaseFlow } from '@/utils/purchaseFlow';
 import { validateCouponCode, redeemCouponCode } from '@/services/payments';
 import { BackButton } from '@/components/BackButton';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SystemExplainer'>;
 
@@ -34,8 +35,42 @@ const ALL_SYSTEMS = ['western', 'vedic', 'human_design', 'gene_keys', 'kabbalah'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+// ── System Icons ────────────────────────────────────────────────────────
+
+const SYSTEM_ICONS: Record<SystemType, string> = {
+    western: '☉',
+    vedic: 'ॐ',
+    human_design: '◬',
+    gene_keys: '❋',
+    kabbalah: '✧',
+    all: '★',
+};
+
 // ── Individual content for each system ──────────────────────────────────
 
+const getSystemContent = (systemType: SystemType) => {
+    const prefix = `systemExplainer.individual.${systemType}`;
+    const discoverItems = [
+        t(`${prefix}.discover1`),
+        t(`${prefix}.discover2`),
+        t(`${prefix}.discover3`),
+        t(`${prefix}.discover4`),
+    ];
+    if (systemType === 'all') discoverItems.push(t(`${prefix}.discover5`));
+
+    return {
+        name: t(`${prefix}.name`),
+        tagline: t(`${prefix}.tagline`),
+        origin: t(`${prefix}.origin`),
+        intro: t(`${prefix}.intro`),
+        howItHelpsYou: t(`${prefix}.howItHelpsYou`),
+        whatYouDiscover: discoverItems,
+        personalNote: t(`${prefix}.personalNote`),
+        icon: SYSTEM_ICONS[systemType],
+    };
+};
+
+// Keeping the old SYSTEM_CONTENT for reference during migration
 const SYSTEM_CONTENT: Record<SystemType, {
     name: string;
     tagline: string;
@@ -146,6 +181,31 @@ const SYSTEM_CONTENT: Record<SystemType, {
 
 // ── Overlay / compatibility content ─────────────────────────────────────
 
+const getOverlayContent = (systemType: SystemType) => {
+    const prefix = `systemExplainer.overlay.${systemType}`;
+    const discoverItems = [
+        t(`${prefix}.discover1`),
+        t(`${prefix}.discover2`),
+        t(`${prefix}.discover3`),
+        t(`${prefix}.discover4`),
+    ];
+    if (systemType === 'all') discoverItems.push(t(`${prefix}.discover5`));
+
+    return {
+        name: t(`${prefix}.name`),
+        tagline: t(`${prefix}.tagline`),
+        origin: t(`${prefix}.origin`),
+        intro: t(`${prefix}.intro`),
+        howItHelpsYou: systemType === 'all'
+            ? t(`${prefix}.howItHelpsYou`, { apiCalls: NUCLEAR_PACKAGE.apiCalls, pagesMax: PRODUCTS.nuclear_package.pagesMax, audioDuration: formatAudioDuration(PRODUCTS.nuclear_package.audioMinutes) })
+            : t(`${prefix}.howItHelpsYou`),
+        whatYouDiscover: discoverItems,
+        personalNote: t(`${prefix}.personalNote`),
+        icon: SYSTEM_ICONS[systemType],
+    };
+};
+
+// Keeping the old OVERLAY_CONTENT for reference during migration
 const OVERLAY_CONTENT: Record<SystemType, {
     name: string;
     tagline: string;
@@ -275,8 +335,8 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
 
     const isOverlay = readingType === 'overlay';
     const content = isOverlay
-        ? (OVERLAY_CONTENT[system as SystemType] || OVERLAY_CONTENT.western)
-        : (SYSTEM_CONTENT[system as SystemType] || SYSTEM_CONTENT.western);
+        ? getOverlayContent((system as SystemType) || 'western')
+        : getSystemContent((system as SystemType) || 'western');
 
     // Price: bundle vs single, overlay vs individual
     const price = system === 'all'
@@ -299,10 +359,10 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
         const result = await validateCouponCode(code);
         if (result.valid) {
             setCouponStatus('valid');
-            setCouponMessage(result.message || 'Valid code!');
+            setCouponMessage(result.message || t('systemExplainer.couponValid'));
         } else {
             setCouponStatus('invalid');
-            setCouponMessage(result.message || result.error || 'Invalid code');
+            setCouponMessage(result.message || result.error || t('systemExplainer.couponInvalid'));
         }
     }, [couponCode]);
 
@@ -314,11 +374,11 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
         if (result.success) {
             setCouponStatus('valid');
             setCouponMessage(result.discount_percent
-                ? `${result.discount_percent}% discount applied!`
-                : 'Code redeemed successfully!');
+                ? t('systemExplainer.couponDiscountApplied', { percent: result.discount_percent })
+                : t('systemExplainer.couponRedeemed'));
         } else {
             setCouponStatus('invalid');
-            setCouponMessage(result.error || 'Could not redeem code');
+            setCouponMessage(result.error || t('systemExplainer.couponCouldNotRedeem'));
         }
     }, [couponCode]);
 
@@ -380,12 +440,12 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
             </View>
 
             <View style={styles.section}>
-                <Text style={styles.sectionTitle}>{isOverlay ? 'How it helps your relationship' : 'How it helps you'}</Text>
+                <Text style={styles.sectionTitle}>{isOverlay ? t('systemExplainer.howItHelpsRelationship') : t('systemExplainer.howItHelpsYou')}</Text>
                 <Text style={styles.sectionText} selectable>{content.howItHelpsYou}</Text>
             </View>
 
             <View style={styles.insightBox}>
-                <Text style={styles.insightLabel}>{isOverlay ? 'A note for you both' : 'A note for you'}</Text>
+                <Text style={styles.insightLabel}>{isOverlay ? t('systemExplainer.personalNoteLabel.forBoth') : t('systemExplainer.personalNoteLabel.forYou')}</Text>
                 <Text style={styles.insightText} selectable>{content.personalNote}</Text>
             </View>
         </ScrollView>,
@@ -393,7 +453,7 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
         // ── Page 2: What You'll Discover + CTA ──
         <ScrollView key="page2" style={[styles.page, { width: SCREEN_WIDTH }]} contentContainerStyle={styles.pageContent} showsVerticalScrollIndicator={false}>
             <View style={styles.discoverSection}>
-                <Text style={styles.discoverTitle}>What You'll Discover</Text>
+                <Text style={styles.discoverTitle}>{t('systemExplainer.whatYouDiscover')}</Text>
                 {content.whatYouDiscover.map((item, idx) => {
                     const symbols = ['\u2609', '\u263D', '\u2727', '\u25CE'];
                     return (
@@ -407,15 +467,15 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
 
             {/* CTA button with price */}
             <TouchableOpacity style={styles.bigCta} onPress={handleGetReading} activeOpacity={0.8}>
-                <Text style={styles.bigCtaTitle}>Get {content.name}</Text>
+                <Text style={styles.bigCtaTitle}>{t('systemExplainer.getReading', { name: content.name })}</Text>
                 <Text style={styles.bigCtaDetails}>
                     {system === 'all'
                         ? (isOverlay
-                            ? `${PRODUCTS.nuclear_package.pagesMax} pages \u00B7 ${formatAudioDuration(PRODUCTS.nuclear_package.audioMinutes)} audio`
-                            : `${PRODUCTS.complete_reading.pagesMax} pages \u00B7 ${formatAudioDuration(PRODUCTS.complete_reading.audioMinutes)} audio`)
+                            ? t('systemExplainer.ctaDetails', { pages: PRODUCTS.nuclear_package.pagesMax, audio: formatAudioDuration(PRODUCTS.nuclear_package.audioMinutes) })
+                            : t('systemExplainer.ctaDetails', { pages: PRODUCTS.complete_reading.pagesMax, audio: formatAudioDuration(PRODUCTS.complete_reading.audioMinutes) }))
                         : (isOverlay
-                            ? `${PRODUCTS.compatibility_overlay.pagesMax} pages \u00B7 ${formatAudioDuration(PRODUCTS.compatibility_overlay.audioMinutes)} audio`
-                            : PRODUCT_STRINGS.singleSystem.summary)}
+                            ? t('systemExplainer.ctaDetails', { pages: PRODUCTS.compatibility_overlay.pagesMax, audio: formatAudioDuration(PRODUCTS.compatibility_overlay.audioMinutes) })
+                            : t('systemExplainer.ctaDetailsSingleSystem', { pages: PRODUCTS.single_system.pagesMax, audio: formatAudioDuration(PRODUCTS.single_system.audioMinutes) }))}
                 </Text>
                 <Text style={styles.bigCtaPrice}>${price}</Text>
             </TouchableOpacity>
@@ -425,11 +485,11 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
                 <View style={styles.couponInputRow}>
                     <TextInput
                         style={styles.couponInput}
-                        placeholder="Coupon code"
+                        placeholder={t('systemExplainer.couponPlaceholder')}
                         placeholderTextColor="#999"
                         value={couponCode}
-                        onChangeText={(t) => {
-                            setCouponCode(t.toUpperCase());
+                        onChangeText={(text) => {
+                            setCouponCode(text.toUpperCase());
                             setCouponStatus('idle');
                             setCouponMessage('');
                         }}
@@ -454,7 +514,7 @@ export const SystemExplainerScreen = ({ navigation, route }: Props) => {
                             <ActivityIndicator color="#fff" size="small" />
                         ) : (
                             <Text style={styles.couponApplyText}>
-                                {couponStatus === 'valid' ? 'Redeem' : 'Apply'}
+                                {couponStatus === 'valid' ? t('systemExplainer.couponRedeem') : t('systemExplainer.couponApply')}
                             </Text>
                         )}
                     </TouchableOpacity>
