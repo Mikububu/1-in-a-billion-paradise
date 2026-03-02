@@ -8,6 +8,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { BackButton } from '@/components/BackButton';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ContactSupport'>;
 
@@ -15,8 +16,8 @@ const SUPPORT_EMAIL = 'contact@1-in-a-billion.app';
 
 export const ContactSupportScreen = ({ navigation }: Props) => {
     const handleEmailSupport = () => {
-        Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=Support Request`).catch(() => {
-            Alert.alert('Error', 'Could not open mail app.');
+        Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(t('contact.emailSubject'))}`).catch(() => {
+            Alert.alert(t('common.error'), t('contact.mailError'));
         });
     };
 
@@ -29,33 +30,33 @@ export const ContactSupportScreen = ({ navigation }: Props) => {
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                <Text style={styles.title}>Support</Text>
+                <Text style={styles.title}>{t('contact.title')}</Text>
 
                 <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Need help?</Text>
+                    <Text style={styles.cardTitle}>{t('contact.needHelp')}</Text>
                     <Text style={styles.cardText}>
-                        Our team is here to assist you with any questions or issues you may have while exploring the laboratory.
+                        {t('contact.helpText')}
                     </Text>
 
                     <TouchableOpacity style={styles.button} onPress={handleEmailSupport}>
-                        <Text style={styles.buttonText}>Email Support</Text>
+                        <Text style={styles.buttonText}>{t('contact.emailButton')}</Text>
                     </TouchableOpacity>
                 </View>
 
                 <View style={styles.faqSection}>
-                    <Text style={styles.sectionTitle}>Frequently Asked Questions</Text>
+                    <Text style={styles.sectionTitle}>{t('contact.faqTitle')}</Text>
 
                     <View style={styles.faqItem}>
-                        <Text style={styles.faqQuestion}>How long does a reading take?</Text>
+                        <Text style={styles.faqQuestion}>{t('contact.faq1Question')}</Text>
                         <Text style={styles.faqAnswer}>
-                            Most readings are generated within 30-60 seconds. Complete readings may take slightly longer.
+                            {t('contact.faq1Answer')}
                         </Text>
                     </View>
 
                     <View style={styles.faqItem}>
-                        <Text style={styles.faqQuestion}>Can I access my readings offline?</Text>
+                        <Text style={styles.faqQuestion}>{t('contact.faq2Question')}</Text>
                         <Text style={styles.faqAnswer}>
-                            Yes, once a reading is generated, it is saved to your device for offline access in My Library.
+                            {t('contact.faq2Answer')}
                         </Text>
                     </View>
                 </View>

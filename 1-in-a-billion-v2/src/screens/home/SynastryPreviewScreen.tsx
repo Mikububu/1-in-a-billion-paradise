@@ -34,6 +34,7 @@ import { env } from '@/config/env';
 import { BackButton } from '@/components/BackButton';
 import { Video, ResizeMode } from 'expo-av';
 import { getCoupleImage } from '@/services/coupleImageService';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SynastryPreview'>;
 
@@ -44,7 +45,6 @@ const fontScale = isSmallScreen ? 0.9 : 1;
 const screenId = '20';
 
 type PageType = 'score' | 'insights' | 'gateway';
-const COMPATIBILITY_UNAVAILABLE_MESSAGE = 'Compatibility unavailable. Retry or edit birth data.';
 
 const toHookReadingRecord = (hookReadings: Person['hookReadings']) => {
   if (!hookReadings) return null;
@@ -95,8 +95,8 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
   const addCompatibilityReading = useProfileStore((s) => s.addCompatibilityReading);
   const getCompatibilityReadings = useProfileStore((s) => s.getCompatibilityReadings);
 
-  const userName = 'You';
-  const partner = partnerName || 'Them';
+  const userName = t('synastryPreview.you');
+  const partner = partnerName || t('synastryPreview.them');
 
   const [page, setPage] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -148,7 +148,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
       // We require birth date + city for both, and birth time for both (rising sign + houses).
       if (!userBirthDate || !userBirthCity || !partnerBirthDate || !partnerBirthCity) {
         console.log('❌ Missing birth date/city for compatibility calculation');
-        setScoreError(COMPATIBILITY_UNAVAILABLE_MESSAGE);
+        setScoreError(t('synastryPreview.unavailableRetry'));
         setLoadingScores(false);
         setSpicyScore(null);
         setSafeStableScore(null);
@@ -157,7 +157,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
 
       if (!userBirthTime || !partnerBirthTime) {
         console.log('❌ Missing birth time for compatibility calculation');
-        setScoreError(COMPATIBILITY_UNAVAILABLE_MESSAGE);
+        setScoreError(t('synastryPreview.unavailableRetry'));
         setLoadingScores(false);
         setSpicyScore(null);
         setSafeStableScore(null);
@@ -239,20 +239,20 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
             }
             setSpicyScore(null);
             setSafeStableScore(null);
-            setScoreError(COMPATIBILITY_UNAVAILABLE_MESSAGE);
+            setScoreError(t('synastryPreview.unavailableRetry'));
           }
         } else {
           const errorText = await response.text();
           console.error('❌ Failed to calculate scores:', response.status, errorText);
           setSpicyScore(null);
           setSafeStableScore(null);
-          setScoreError(COMPATIBILITY_UNAVAILABLE_MESSAGE);
+          setScoreError(t('synastryPreview.unavailableRetry'));
         }
       } catch (error) {
         console.error('❌ Error calculating compatibility:', error);
         setSpicyScore(null);
         setSafeStableScore(null);
-        setScoreError(COMPATIBILITY_UNAVAILABLE_MESSAGE);
+        setScoreError(t('synastryPreview.unavailableRetry'));
       } finally {
         setLoadingScores(false);
       }
@@ -311,7 +311,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
   }, [partnerPerson?.id, partnerPerson?.portraitUrl, profileUser?.id, profileUser?.portraitUrl]);
 
   const canContinue = !loadingScores && spicyScore != null && safeStableScore != null;
-  const displaySign = (value: string | null | undefined) => value || 'Unknown';
+  const displaySign = (value: string | null | undefined) => value || t('common.unknown');
 
   // Reset transition state when screen regains focus (prevents loop when coming back)
   useEffect(() => {
@@ -344,15 +344,15 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
   // Basic insights
   const insights = [
     {
-      title: 'Sun-Moon Connection',
+      title: t('synastryPreview.insightSunMoonTitle'),
       content: `Your ${displaySign(userSigns.sun)} Sun meets ${partner}'s ${displaySign(partnerSigns.moon)} Moon. This creates a dynamic where your core identity resonates with ${partner}'s emotional nature. You see the world through logic and service, while ${partner} feels it through nurturing intuition.`,
     },
     {
-      title: 'Rising Sign Chemistry',
+      title: t('synastryPreview.insightRisingTitle'),
       content: `Your ${displaySign(userSigns.rising)} Rising meets ${partner}'s ${displaySign(partnerSigns.rising)} Rising. First impressions matter - you appear adventurous and philosophical, while ${partner} projects mystery and intensity. This creates magnetic attraction or curious tension.`,
     },
     {
-      title: 'Element Balance',
+      title: t('synastryPreview.insightElementTitle'),
       content: `Your chart emphasizes Earth and Fire, while ${partner}'s flows with Water and Water. This creates a complementary dynamic - you ground ${partner}'s emotions, ${partner} deepens your feelings.`,
     },
   ];
@@ -391,13 +391,13 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
                 {userName} & {partner}
               </Text>
               <Text style={styles.subtitle}>
-                BASIC COMPATIBILITY OVERVIEW
+                {t('synastryPreview.basicOverview')}
               </Text>
 
               {loadingCoupleImage ? (
                 <View style={styles.coupleImageLoadingWrap}>
                   <ActivityIndicator size="small" color={colors.primary} />
-                  <Text style={styles.coupleImageHint}>Preparing your synastry image...</Text>
+                  <Text style={styles.coupleImageHint}>{t('synastryPreview.preparingImage')}</Text>
                 </View>
               ) : coupleImageUrl ? (
                 <TouchableOpacity
@@ -406,19 +406,19 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
                   onPress={() => setCoupleImagePreviewVisible(true)}
                 >
                   <Image source={{ uri: coupleImageUrl }} style={styles.coupleImage} resizeMode="cover" />
-                  <Text style={styles.coupleImageHint}>Tap to expand</Text>
+                  <Text style={styles.coupleImageHint}>{t('synastryPreview.tapExpand')}</Text>
                 </TouchableOpacity>
               ) : null}
 
               {/* Dual Score */}
               <View style={styles.scoreSection}>
-                <Text style={styles.scoreLabel}>DUAL COMPATIBILITY</Text>
+                <Text style={styles.scoreLabel}>{t('synastryPreview.dualCompatibility')}</Text>
 
                 {/* Two scores side-by-side, equal weight */}
                 {loadingScores ? (
                   <View style={{ paddingVertical: spacing.xl }}>
                     <ActivityIndicator size="large" color={colors.primary} />
-                    <Text style={[styles.scoreHint, { marginTop: spacing.sm }]}>Calculating compatibility...</Text>
+                    <Text style={[styles.scoreHint, { marginTop: spacing.sm }]}>{t('synastryPreview.calculating')}</Text>
                   </View>
                 ) : (
                   <View style={styles.dualScoresRow}>
@@ -426,18 +426,18 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
                       <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
                         <Text style={styles.scoreNumberSmall}>{spicyScore == null ? '—' : spicyScore.toFixed(1)}</Text>
                       </Animated.View>
-                      <Text style={styles.scoreColumnLabel}>Spicy /10</Text>
+                      <Text style={styles.scoreColumnLabel}>{t('synastryPreview.spicy')}</Text>
                     </View>
 
                     <View style={styles.scoreColumn}>
                       <Text style={styles.scoreNumberSmall}>{safeStableScore == null ? '—' : safeStableScore.toFixed(1)}</Text>
-                      <Text style={styles.scoreColumnLabel}>Safe & Stable /10</Text>
+                      <Text style={styles.scoreColumnLabel}>{t('synastryPreview.safeStable')}</Text>
                     </View>
                   </View>
                 )}
 
                 <Text style={styles.scoreHint}>
-                  Based on Sun, Moon & Rising alignment
+                  {t('synastryPreview.basedOnAlignment')}
                 </Text>
                 {!!scoreError && (
                   <Text style={[styles.scoreHint, { marginTop: spacing.sm }]}>
@@ -491,7 +491,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
               contentContainerStyle={styles.insightsScrollContent}
               showsVerticalScrollIndicator={false}
             >
-              <Text style={styles.insightsTitle}>BASIC OVERLAY</Text>
+              <Text style={styles.insightsTitle}>{t('synastryPreview.basicOverlayTitle')}</Text>
 
               {insights.map((insight, idx) => (
                 <View key={idx} style={styles.insightCard}>
@@ -510,10 +510,10 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
               {/* Text card — off-white bg behind headline + subtitle only */}
               <View style={styles.gatewayCard}>
                 <Text style={styles.gatewayTitle} selectable>
-                  Want the full picture?
+                  {t('synastryPreview.gatewayTitle')}
                 </Text>
                 <Text style={styles.gatewaySubtitle} selectable>
-                  Come with us on a journey into the space between you and another.
+                  {t('synastryPreview.gatewaySubtitle')}
                 </Text>
               </View>
 
@@ -523,7 +523,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
                 disabled={!canContinue}
                 onPress={() => {
                   if (!canContinue) {
-                    Alert.alert('Compatibility unavailable', COMPATIBILITY_UNAVAILABLE_MESSAGE);
+                    Alert.alert(t('synastryPreview.unavailable'), t('synastryPreview.unavailableRetry'));
                     return;
                   }
                   if (onboardingNext) {
@@ -539,7 +539,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
                   });
                 }}
               >
-                <Text style={styles.continueBtnText}>Continue</Text>
+                <Text style={styles.continueBtnText}>{t('synastryPreview.continue')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -604,7 +604,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
             {coupleImageUrl ? (
               <Image source={{ uri: coupleImageUrl }} style={styles.couplePreviewImage} resizeMode="contain" />
             ) : null}
-            <Text style={styles.couplePreviewHint}>Tap anywhere to close</Text>
+            <Text style={styles.couplePreviewHint}>{t('synastryPreview.tapClose')}</Text>
           </View>
         </Pressable>
       </Modal>

@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 import { deletePersonFromSupabase } from '@/services/peopleService';
 import { colors, spacing, typography } from '@/theme/tokens';
 import { BackButton } from '@/components/BackButton';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PeopleList'>;
 
@@ -23,17 +24,17 @@ export const PeopleListScreen = ({ navigation }: Props) => {
 
     const handleDeletePerson = (person: Person) => {
         if (person.isUser) {
-            Alert.alert('Cannot delete', 'You cannot delete your own profile.');
+            Alert.alert(t('peopleList.delete.error.cannotDelete'), t('peopleList.delete.error.cannotDeleteSelf'));
             return;
         }
 
         Alert.alert(
-            'Delete person',
-            `Delete ${person.name} and related local readings?`,
+            t('peopleList.delete.title'),
+            t('peopleList.delete.message', { name: person.name }),
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Delete',
+                    text: t('common.delete'),
                     style: 'destructive',
                     onPress: async () => {
                         if (authUser?.id) {
@@ -48,23 +49,23 @@ export const PeopleListScreen = ({ navigation }: Props) => {
 
     const handleClearAll = () => {
         Alert.alert(
-            'Clear all data',
-            'This deletes local people, readings, audios, and PDFs from the device.',
+            t('peopleList.clearAll.title'),
+            t('peopleList.clearAll.message'),
             [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Clear All', style: 'destructive', onPress: reset },
+                { text: t('common.cancel'), style: 'cancel' },
+                { text: t('peopleList.clearAll.button'), style: 'destructive', onPress: reset },
             ]
         );
     };
 
     const formatPlacements = (placements: any) => {
         if (!placements || !placements.sunSign) {
-            return 'Birth data saved (signs calculating...)';
+            return t('peopleList.placements.calculating');
         }
         const sun = placements.sunSign || '?';
         const moon = placements.moonSign || '?';
         const rising = placements.risingSign || '?';
-        return `${sun} Sun | ${moon} Moon | ${rising} Rising`;
+        return `${sun} ${t('readings.sun')} | ${moon} ${t('readings.moon')} | ${rising} ${t('readings.rising')}`;
     };
 
     return (
@@ -72,29 +73,29 @@ export const PeopleListScreen = ({ navigation }: Props) => {
             <BackButton onPress={() => navigation.goBack()} />
             <View style={styles.headerActions}>
                 <TouchableOpacity onPress={handleClearAll}>
-                    <Text style={styles.clearText}>Clear All</Text>
+                    <Text style={styles.clearText}>{t('peopleList.headerAction.clearAll')}</Text>
                 </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-                <Text style={styles.title}>My Karmic Zoo</Text>
+                <Text style={styles.title}>{t('peopleList.title')}</Text>
                 <Text style={styles.subtitle}>
                     {people.length === 0
-                        ? 'No people saved yet. Generate a reading to save profiles.'
-                        : `${people.length} ${people.length === 1 ? 'person' : 'people'} saved`}
+                        ? t('peopleList.empty.message')
+                        : t(people.length === 1 ? 'peopleList.count_one' : 'peopleList.count', { count: people.length })}
                 </Text>
 
                 {people.length === 0 ? (
                     <View style={styles.emptyState}>
                         <Text style={styles.emptyIcon}>♡</Text>
                         <Text style={styles.emptyText}>
-                            When you generate compatibility readings, people and their data will be saved here.
+                            {t('peopleList.empty.description')}
                         </Text>
                         <TouchableOpacity
                             style={styles.addButton}
                             onPress={() => navigation.navigate('PartnerInfo', { mode: 'add_person_only' })}
                         >
-                            <Text style={styles.addButtonText}>Add Someone New</Text>
+                            <Text style={styles.addButtonText}>{t('peopleList.empty.button')}</Text>
                         </TouchableOpacity>
                     </View>
                 ) : (
@@ -111,13 +112,13 @@ export const PeopleListScreen = ({ navigation }: Props) => {
                                 </View>
                                 <View style={styles.info}>
                                     <Text style={styles.name}>
-                                        {person.name}{person.isUser ? ' (You)' : ''}
+                                        {person.name}{person.isUser ? ` ${t('peopleList.yourProfile')}` : ''}
                                     </Text>
                                     <Text style={styles.meta}>
                                         {formatPlacements(person.placements)}
                                     </Text>
                                     <Text style={styles.readingCount}>
-                                        {person.readings.length} {person.readings.length === 1 ? 'reading' : 'readings'} saved
+                                        {t(person.readings.length === 1 ? 'peopleList.readingCount_one' : 'peopleList.readingCount', { count: person.readings.length })}
                                     </Text>
                                 </View>
                             </TouchableOpacity>
@@ -128,7 +129,7 @@ export const PeopleListScreen = ({ navigation }: Props) => {
                             onPress={() => navigation.navigate('PartnerInfo', { mode: 'add_person_only' })}
                         >
                             <Text style={styles.addPersonIcon}>+</Text>
-                            <Text style={styles.addPersonText}>Add Another Person</Text>
+                            <Text style={styles.addPersonText}>{t('peopleList.addButton.text')}</Text>
                         </TouchableOpacity>
                     </View>
                 )}

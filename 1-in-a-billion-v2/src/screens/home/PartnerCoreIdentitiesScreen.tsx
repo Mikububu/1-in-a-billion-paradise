@@ -28,6 +28,7 @@ import { audioApi } from '@/services/api';
 import { uploadHookAudioBase64 } from '@/services/hookAudioCloud';
 import { AUDIO_CONFIG } from '@/config/readingConfig';
 import { CityOption } from '@/types/forms';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PartnerCoreIdentities'>;
 
@@ -54,9 +55,9 @@ const getScreens = (name: string): Record<ScreenKey, ScreenConfig> => ({
   intro: {
     line1: `${name}'s`,
     line2: '3',
-    line3: 'Core',
-    line4: 'Identities',
-    line5: 'in Love',
+    line3: t('coreIdentities.core'),
+    line4: t('coreIdentities.identities'),
+    line5: t('coreIdentities.inLove'),
     colors: {
       line1: '#d10000', // Name always RED
       line2: '#1A1A1A',
@@ -68,9 +69,9 @@ const getScreens = (name: string): Record<ScreenKey, ScreenConfig> => ({
   sun: {
     line1: `${name}'s`,
     line2: '☉',
-    line3: 'Sun',
-    line4: 'Reveals',
-    line5: `${name}'s Ego`,
+    line3: t('coreIdentities.sun'),
+    line4: t('partnerCore.sunReveals'),
+    line5: t('partnerCore.ego', { name }),
     colors: {
       line1: '#d10000', // Name always RED
       line2: '#d10000', // Red sun
@@ -82,9 +83,9 @@ const getScreens = (name: string): Record<ScreenKey, ScreenConfig> => ({
   moon: {
     line1: `${name}'s`,
     line2: '☽',
-    line3: 'Moon',
-    line4: 'Reveals',
-    line5: `${name}'s Soul`,
+    line3: t('coreIdentities.moon'),
+    line4: t('coreIdentities.reveals'),
+    line5: t('partnerCore.soul', { name }),
     colors: {
       line1: '#d10000', // Name always RED
       line2: '#3A3A5A', // Cool moon grey
@@ -96,9 +97,9 @@ const getScreens = (name: string): Record<ScreenKey, ScreenConfig> => ({
   rising: {
     line1: `${name}'s`,
     line2: '↑',
-    line3: 'Rising',
-    line4: 'Reveals',
-    line5: `${name}'s Mask`,
+    line3: t('coreIdentities.rising'),
+    line4: t('coreIdentities.reveals'),
+    line5: t('partnerCore.mask', { name }),
     colors: {
       line1: '#d10000', // Name always RED
       line2: '#1A1A1A', // Strong black
@@ -221,7 +222,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
       // So we only use the cached fast-path in non-onboarding flows.
       if (!isPrepayOnboarding) {
         setProgress(100);
-        setStatusText('Loading existing readings...');
+        setStatusText(t('partnerCore.loadingExisting'));
         await delay(500);
         navigation.replace('PartnerReadings', {
           partnerName: name,
@@ -243,7 +244,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
 
     // Never silently fall back to fake birth data in onboarding.
     if (!partnerBirthDate || !partnerBirthCity) {
-      Alert.alert('Missing birth data', 'Please add birth date + city for this person.');
+      Alert.alert(t('partnerCore.missingBirthData'), t('partnerCore.addBirthData'));
       navigation.goBack();
       return;
     }
@@ -256,8 +257,8 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
     ) {
       console.error('❌ Invalid partner birth location:', partnerBirthCity);
       Alert.alert(
-        'Invalid Birth Location',
-        `${name}'s birth city is missing coordinates. Please go back and select a valid city from the list.`
+        t('partnerCore.invalidLocation'),
+        t('partnerCore.invalidLocationMsg', { name })
       );
       navigation.goBack();
       return;
@@ -310,7 +311,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
       // SCREEN 1: Intro - show for 10 seconds
       // Start fetching Sun reading in parallel (same as 1st person readings)
       setCurrentScreen('intro');
-      setStatusText(`Preparing ${name}'s chart...`);
+      setStatusText(t('partnerCore.preparingChart', { name }));
       setProgress(5);
 
       const nocacheParam = __DEV__ ? '&nocache=true' : ''; // Always bypass cache in dev
@@ -379,7 +380,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
 
       // SCREEN 2: Sun - wait for Sun audio to be ready
       setCurrentScreen('sun');
-      setStatusText(`Calculating ${name}'s Sun sign...`);
+      setStatusText(t('partnerCore.calculatingSun', { name }));
       setProgress(15);
 
       // Wait for Sun audio to complete before proceeding
@@ -390,7 +391,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
 
       // SCREEN 3: Moon calculation + start Moon audio
       setCurrentScreen('moon');
-      setStatusText(`Calculating ${name}'s Moon sign...`);
+      setStatusText(t('partnerCore.calculatingMoon', { name }));
       setProgress(40);
 
       const moonRes = await fetch(`${env.CORE_API_URL}/api/reading/moon?provider=deepseek${nocacheParam}`, {
@@ -457,7 +458,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
 
       // SCREEN 4: Rising calculation + start Rising audio
       setCurrentScreen('rising');
-      setStatusText(`Calculating ${name}'s Rising sign...`);
+      setStatusText(t('partnerCore.calculatingRising', { name }));
       setProgress(70);
 
       const risingRes = await fetch(`${env.CORE_API_URL}/api/reading/rising?provider=deepseek${nocacheParam}`, {
@@ -521,7 +522,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
       setProgress(85);
 
       // ========== WAIT FOR ALL AUDIO BEFORE NAVIGATING ==========
-      setStatusText(`Giving ${name}'s reading a voice…`);
+      setStatusText(t('partnerCore.givingVoice', { name }));
 
       // Wait for Moon and Rising audio (Sun was already awaited earlier)
       console.log(`🎵 Waiting for ${name}'s Moon and Rising audio...`);
@@ -532,12 +533,12 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
       console.log(`✅ All ${name}'s audio ready!`);
 
       setProgress(95);
-      setStatusText('All readings ready!');
+      setStatusText(t('partnerCore.allReady'));
       await delay(1500);
 
       // SCREEN 5: Back to intro briefly
       setCurrentScreen('intro');
-      setStatusText('Chart complete!');
+      setStatusText(t('partnerCore.chartComplete'));
       setProgress(100);
       await delay(1000);
 

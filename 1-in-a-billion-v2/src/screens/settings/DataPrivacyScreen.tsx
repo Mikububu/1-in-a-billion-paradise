@@ -8,6 +8,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { BackButton } from '@/components/BackButton';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'DataPrivacy'>;
 
@@ -21,25 +22,25 @@ export const DataPrivacyScreen = ({ navigation }: Props) => {
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                <Text style={styles.title}>AI & Data Usage</Text>
+                <Text style={styles.title}>{t('dataPrivacy.title')}</Text>
 
                 <View style={styles.section}>
                     <Text style={styles.sectionContent}>
-                        1 In A Billion uses advanced artificial intelligence to generate your personalized astrological readings and compatibility reports.
+                        {t('dataPrivacy.intro')}
                     </Text>
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>What data do we share with AI?</Text>
+                    <Text style={styles.sectionTitle}>{t('dataPrivacy.shareTitle')}</Text>
                     <Text style={styles.sectionContent}>
-                        We share birth data (date, time, location) and calculated planetary positions with our AI providers. We do NOT share your name, email, or any identifying information.
+                        {t('dataPrivacy.shareText')}
                     </Text>
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Privacy First</Text>
+                    <Text style={styles.sectionTitle}>{t('dataPrivacy.privacyTitle')}</Text>
                     <Text style={styles.sectionContent}>
-                        Your privacy is our priority. All AI processing is done securely, and we do not use your data to train public models.
+                        {t('dataPrivacy.privacyText')}
                     </Text>
                 </View>
             </ScrollView>

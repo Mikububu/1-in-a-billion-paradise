@@ -9,23 +9,43 @@ import { BackButton } from '@/components/BackButton';
 import { checkIncludedReadingEligible, fetchReadingQuota, type ReadingQuota } from '@/services/api';
 import { useProfileStore } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SystemsOverview'>;
 
 type SystemInfo = {
     id: 'western' | 'vedic' | 'human_design' | 'gene_keys' | 'kabbalah';
-    name: string;
     icon: string;
-    tagline: string;
 };
 
-const SYSTEMS: SystemInfo[] = [
-    { id: 'western', name: 'Western Astrology', icon: '☉', tagline: 'Psychological map' },
-    { id: 'vedic', name: 'Jyotish (Vedic)', icon: 'ॐ', tagline: 'Karmic timing' },
-    { id: 'human_design', name: 'Human Design', icon: '◬', tagline: 'Energy strategy' },
-    { id: 'gene_keys', name: 'Gene Keys', icon: '❋', tagline: 'Shadow to gift' },
-    { id: 'kabbalah', name: 'Kabbalah', icon: '✧', tagline: 'Soul correction' },
+const SYSTEMS_CONFIG: SystemInfo[] = [
+    { id: 'western', icon: '☉' },
+    { id: 'vedic', icon: 'ॐ' },
+    { id: 'human_design', icon: '◬' },
+    { id: 'gene_keys', icon: '❋' },
+    { id: 'kabbalah', icon: '✧' },
 ];
+
+// Helper to get system name and tagline using t()
+const getSystemName = (id: SystemInfo['id']) => {
+    switch (id) {
+        case 'western': return t('systemsOverview.western');
+        case 'vedic': return t('systemsOverview.vedic');
+        case 'human_design': return t('systemsOverview.humanDesign');
+        case 'gene_keys': return t('systemsOverview.geneKeys');
+        case 'kabbalah': return t('systemsOverview.kabbalah');
+    }
+};
+
+const getSystemTagline = (id: SystemInfo['id']) => {
+    switch (id) {
+        case 'western': return t('systemsOverview.westernTagline');
+        case 'vedic': return t('systemsOverview.vedicTagline');
+        case 'human_design': return t('systemsOverview.humanDesignTagline');
+        case 'gene_keys': return t('systemsOverview.geneKeysTagline');
+        case 'kabbalah': return t('systemsOverview.kabbalahTagline');
+    }
+};
 
 export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
     const {
@@ -96,12 +116,12 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
         // Check quota for synastry (needs 3 slots)
         if (freeReadingEligible && actualReadingType === 'overlay' && quota && !quota.canStartSynastry) {
             Alert.alert(
-                'Not enough free slots',
-                `A synastry reading uses 3 of your monthly reading slots. You have ${quota.remaining} remaining.`,
+                t('systemsOverview.notEnoughSlots'),
+                t('systemsOverview.slotsMessage', { remaining: quota.remaining }),
                 [
-                    { text: 'Cancel', style: 'cancel' },
+                    { text: t('common.cancel'), style: 'cancel' },
                     {
-                        text: 'Buy This Reading',
+                        text: t('systemsOverview.buyReading'),
                         onPress: () => navigateToExplainer(system.id),
                     },
                 ]
@@ -123,17 +143,17 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
 
         if (!hasPhoto && targetPerson) {
             Alert.alert(
-                'Upload a photo first?',
-                'Your reading includes a personalized AI portrait. Upload a photo for the best experience.',
+                t('systemsOverview.uploadPhotoFirst'),
+                t('systemsOverview.uploadPhotoMessage'),
                 [
                     {
-                        text: 'Upload Photo',
+                        text: t('systemsOverview.uploadPhoto'),
                         onPress: () => {
                             navigation.navigate('PersonPhotoUpload', { personId: targetPerson.id });
                         },
                     },
                     {
-                        text: 'Skip',
+                        text: t('systemsOverview.skip'),
                         style: 'cancel',
                         onPress: () => showFreeReadingConfirmation(system),
                     },
@@ -152,12 +172,12 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
         }
 
         Alert.alert(
-            'Claim your free reading',
-            `Your subscription includes one free personal reading. Claim "${system.name}" now?`,
+            t('systemsOverview.claimFree'),
+            t('systemsOverview.claimMessage', { system: getSystemName(system.id) }),
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Claim',
+                    text: t('systemsOverview.claim'),
                     onPress: () => {
                         // Navigate into the normal flow with useIncludedReading flag
                         navigateToExplainer(system.id, true);
@@ -200,8 +220,8 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
     };
 
     const title = targetPersonName
-        ? `Explore ${targetPersonName}`
-        : (forPartner ? `Explore ${partnerName || 'Partner'}` : 'Explore Myself');
+        ? t('systemsOverview.exploreTarget', { name: targetPersonName })
+        : (forPartner ? t('systemsOverview.explorePartner', { name: partnerName || 'Partner' }) : t('systemsOverview.exploreSelf'));
 
     return (
         <SafeAreaView style={styles.container}>
@@ -213,14 +233,14 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
                 <Text style={styles.subtitle}>
                     {freeReadingEligible
                         ? quota
-                            ? `${quota.remaining} of ${quota.monthlyLimit} readings left this month`
-                            : 'Pick any system — reading included with your plan!'
-                        : 'Choose a lens for the next deep reading.'}
+                            ? t('systemsOverview.readingsLeft', { remaining: quota.remaining, limit: quota.monthlyLimit })
+                            : t('systemsOverview.pickAny')
+                        : t('systemsOverview.chooseLens')}
                 </Text>
             </View>
 
             <View style={styles.list}>
-                {SYSTEMS.map((system) => (
+                {SYSTEMS_CONFIG.map((system) => (
                     <TouchableOpacity
                         key={system.id}
                         style={[
@@ -232,13 +252,13 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
                     >
                         <AnimatedSystemIcon icon={system.icon} size={28} />
                         <View style={styles.systemInfo}>
-                            <Text style={styles.systemName}>{system.name}</Text>
-                            <Text style={styles.systemTagline}>{system.tagline}</Text>
+                            <Text style={styles.systemName}>{getSystemName(system.id)}</Text>
+                            <Text style={styles.systemTagline}>{getSystemTagline(system.id)}</Text>
                         </View>
 
                         {freeReadingEligible ? (
                             <Animated.View style={[styles.freeBadge, { opacity: pulseAnim }]}>
-                                <Text style={styles.freeBadgeText}>{quota ? `${quota.remaining} LEFT` : 'FREE'}</Text>
+                                <Text style={styles.freeBadgeText}>{quota ? quota.remaining + ' ' + t('systemsOverview.left') : t('systemsOverview.free')}</Text>
                             </Animated.View>
                         ) : (
                             <Text style={styles.arrow}>→</Text>
@@ -247,9 +267,9 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
                 ))}
 
                 <TouchableOpacity style={styles.bestChoiceCard} onPress={handleComplete} activeOpacity={0.75}>
-                    <Text style={styles.bestBadge}>★ BEST CHOICE</Text>
-                    <Text style={styles.bestTitle}>All 5 Systems</Text>
-                    <Text style={styles.bestSubtitle}>Complete reading bundle</Text>
+                    <Text style={styles.bestBadge}>{t('systemsOverview.bestChoice')}</Text>
+                    <Text style={styles.bestTitle}>{t('systemsOverview.allSystems')}</Text>
+                    <Text style={styles.bestSubtitle}>{t('systemsOverview.completeBundle')}</Text>
                 </TouchableOpacity>
             </View>
         </SafeAreaView>

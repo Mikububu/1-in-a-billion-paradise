@@ -136,6 +136,7 @@ import { AUDIO_CONFIG } from '@/config/readingConfig';
 import { AmbientMusic } from '@/services/ambientMusic';
 import { uploadHookAudioBase64 } from '@/services/hookAudioCloud';
 import { Audio } from 'expo-av';
+import { t } from '@/i18n';
 // Audio stored in memory (base64) - no file system needed
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'CoreIdentities'>;
@@ -174,11 +175,11 @@ type ScreenConfig = {
 
 const SCREENS: Record<string, ScreenConfig> = {
   intro: {
-    line1: 'Your',
+    line1: t('coreIdentities.your'),
     line2: '3',
-    line3: 'Core',
-    line4: 'Identities',
-    line5: 'in Love',
+    line3: t('coreIdentities.core'),
+    line4: t('coreIdentities.identities'),
+    line5: t('coreIdentities.inLove'),
     colors: {
       line1: '#1A1A1A',
       line2: '#1A1A1A',
@@ -188,11 +189,11 @@ const SCREENS: Record<string, ScreenConfig> = {
     },
   },
   sun: {
-    line1: 'Your',
+    line1: t('coreIdentities.your'),
     line2: '☉',
-    line3: 'Sun',
-    line4: 'Reveals',
-    line5: 'Your Ego',
+    line3: t('coreIdentities.sun'),
+    line4: t('coreIdentities.reveals'),
+    line5: t('coreIdentities.yourEgo'),
     colors: {
       line1: '#4A4A4A',
       line2: '#d10000', // Red sun
@@ -202,11 +203,11 @@ const SCREENS: Record<string, ScreenConfig> = {
     },
   },
   moon: {
-    line1: 'Your',
+    line1: t('coreIdentities.your'),
     line2: '☽',
-    line3: 'Moon',
-    line4: 'Reveals',
-    line5: 'Your Soul',
+    line3: t('coreIdentities.moon'),
+    line4: t('coreIdentities.reveals'),
+    line5: t('coreIdentities.yourSoul'),
     colors: {
       line1: '#5A5A6A',
       line2: '#3A3A5A', // Cool moon grey
@@ -216,11 +217,11 @@ const SCREENS: Record<string, ScreenConfig> = {
     },
   },
   rising: {
-    line1: 'Your',
+    line1: t('coreIdentities.your'),
     line2: '↑',
-    line3: 'Rising',
-    line4: 'Reveals',
-    line5: 'Your Mask',
+    line3: t('coreIdentities.rising'),
+    line4: t('coreIdentities.reveals'),
+    line5: t('coreIdentities.yourMask'),
     colors: {
       line1: '#3A3A3A',
       line2: '#1A1A1A', // Strong black
@@ -233,7 +234,7 @@ const SCREENS: Record<string, ScreenConfig> = {
 
 export const CoreIdentitiesScreen = ({ navigation }: Props) => {
   const [currentScreen, setCurrentScreen] = useState<'intro' | 'sun' | 'moon' | 'rising'>('intro');
-  const [statusText, setStatusText] = useState('Initializing...');
+  const [statusText, setStatusText] = useState(t('coreIdentities.initializing'));
   const [progress, setProgress] = useState(0); // 0 to 100
   const [isInitializing, setIsInitializing] = useState(true); // Show overlay immediately on mount
 
@@ -314,7 +315,7 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
 
     // Never silently fallback to fake birth data.
     if (!birthDate || !birthCity) {
-      Alert.alert('Missing birth data', 'Please add birth date + city first.');
+      Alert.alert(t('coreIdentities.missingBirthData'), t('coreIdentities.addBirthDataMsg'));
       navigation.goBack();
       return;
     }
@@ -328,8 +329,8 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
     ) {
       console.error('❌ Invalid birth location:', birthCity);
       Alert.alert(
-        'Invalid Birth Location',
-        'Your birth city is missing coordinates. Please go back and select a valid city from the list.'
+        t('coreIdentities.invalidLocation'),
+        t('coreIdentities.invalidLocationMsg')
       );
       navigation.goBack();
       return;
@@ -482,7 +483,7 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
 
       // ========== SCREEN 1: INTRO ==========
       setCurrentScreen('intro');
-      setStatusText('Preparing your chart...');
+      setStatusText(t('coreIdentities.preparingChart'));
       setProgress(5);
 
       // Fetch SUN reading (parallel with intro delay)
@@ -536,7 +537,7 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
 
       // ========== SCREEN 2: SUN ==========
       setCurrentScreen('sun');
-      setStatusText('Analyzing Sun sign...');
+      setStatusText(t('coreIdentities.analyzingSun'));
       setProgress(25);
 
       // Fetch MOON reading in parallel with display delay
@@ -574,7 +575,7 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
 
       // ========== SCREEN 3: MOON ==========
       setCurrentScreen('moon');
-      setStatusText('Calculating Moon sign...');
+      setStatusText(t('coreIdentities.calculatingMoon'));
       setProgress(45);
 
       // Fetch RISING reading in parallel with display delay
@@ -612,7 +613,7 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
 
       // ========== SCREEN 4: RISING ==========
       setCurrentScreen('rising');
-      setStatusText('Calculating Rising sign...');
+      setStatusText(t('coreIdentities.calculatingRising'));
       setProgress(70);
       await delay(useFastPath ? 1000 : 3000);
       setProgress(80);
@@ -622,12 +623,12 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
         // Backend unreachable — skip audio, navigate immediately with fallback readings
         console.log('⚡ Fast path: backend unreachable, skipping audio, using fallback readings');
         setProgress(100);
-        setStatusText('Ready!');
+        setStatusText(t('coreIdentities.ready'));
         await delay(500);
       } else {
         // Backend responded — try audio but don't block forever
         setProgress(85);
-        setStatusText('Giving your reading a voice…');
+        setStatusText(t('coreIdentities.givingVoice'));
 
         // Race each audio promise against a timeout so we never hang
         const AUDIO_TIMEOUT_MS = 120000; // 120s max per type — TTS takes ~30-60s for full readings
@@ -656,11 +657,11 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
         console.log(`🎵 Audio results: ${audioCount}/3 ready`);
 
         setProgress(95);
-        setStatusText(audioCount === 3 ? 'All readings ready!' : 'Continuing…');
+        setStatusText(audioCount === 3 ? t('coreIdentities.allReady') : t('coreIdentities.continuing'));
         await delay(1000);
 
         setProgress(100);
-        setStatusText('Ready!');
+        setStatusText(t('coreIdentities.ready'));
         await delay(500);
       }
 
@@ -787,7 +788,7 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
       {isInitializing && (
         <View style={styles.initOverlay}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.initText}>Loading your experience...</Text>
+          <Text style={styles.initText}>{t('coreIdentities.loadingExperience')}</Text>
         </View>
       )}
     </SafeAreaView>

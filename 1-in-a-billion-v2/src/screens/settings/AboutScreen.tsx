@@ -8,6 +8,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { BackButton } from '@/components/BackButton';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'About'>;
 
@@ -21,27 +22,27 @@ export const AboutScreen = ({ navigation }: Props) => {
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                <Text style={styles.title}>About</Text>
+                <Text style={styles.title}>{t('about.title')}</Text>
 
                 <View style={styles.content}>
                     <Text style={styles.description}>
-                        1 In A Billion is a spiritual laboratory designed to help you explore the deep patterns of your soul.
+                        {t('about.description')}
                     </Text>
 
-                    <Text style={styles.sectionTitle}>Our Mission</Text>
+                    <Text style={styles.sectionTitle}>{t('about.missionTitle')}</Text>
                     <Text style={styles.description}>
-                        We combine ancient wisdom with modern technology to provide profound insights into your personality, relationships, and life path.
+                        {t('about.missionText')}
                     </Text>
 
-                    <Text style={styles.sectionTitle}>The Technology</Text>
+                    <Text style={styles.sectionTitle}>{t('about.technologyTitle')}</Text>
                     <Text style={styles.description}>
-                        Our system uses precise astronomical data from the Swiss Ephemeris and advanced AI to interpret complex astrological placements across multiple systems: Western Astrology, Vedic Astrology, Human Design, Gene Keys, and Kabbalah.
+                        {t('about.technologyText')}
                     </Text>
                 </View>
 
                 <View style={styles.footer}>
-                    <Text style={styles.version}>Version 2.0.0</Text>
-                    <Text style={styles.copyright}>© 2024 One In A Billion Ltd.</Text>
+                    <Text style={styles.version}>{t('app.version')}</Text>
+                    <Text style={styles.copyright}>{t('app.copyright')}</Text>
                 </View>
             </ScrollView>
         </SafeAreaView>

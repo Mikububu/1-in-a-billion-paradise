@@ -8,27 +8,28 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { BackButton } from '@/components/BackButton';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'TermsOfService'>;
 
 const LAST_UPDATED = 'January 11, 2026';
 
-const SECTIONS = [
-    {
-        title: 'Agreement to Terms',
-        content: `By downloading, installing, or using the 1 in a Billion application, you agree to be bound by these Terms of Service. If you do not agree to these Terms, do not use the App.`,
-    },
-    {
-        title: 'Description of Service',
-        content: `1 In A Billion provides personalized astrological readings and compatibility analyses. The App is intended for entertainment and self-reflection purposes. Astrological readings should not be used as the sole basis for important life decisions.`,
-    },
-    {
-        title: 'Payments',
-        content: `All purchases are processed through the App Store. Due to the personalized nature of our digital content, all purchases are final and non-refundable.`,
-    },
-];
-
 export const TermsOfServiceScreen = ({ navigation }: Props) => {
+    const SECTIONS = [
+        {
+            title: t('terms.agreementTitle'),
+            content: t('terms.agreementText'),
+        },
+        {
+            title: t('terms.serviceTitle'),
+            content: t('terms.serviceText'),
+        },
+        {
+            title: t('terms.paymentsTitle'),
+            content: t('terms.paymentsText'),
+        },
+    ];
+
     return (
         <SafeAreaView style={styles.container}>
             <BackButton onPress={() => navigation.goBack()} />
@@ -38,8 +39,8 @@ export const TermsOfServiceScreen = ({ navigation }: Props) => {
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                <Text style={styles.title}>Terms of Service</Text>
-                <Text style={styles.lastUpdated}>Last updated: {LAST_UPDATED}</Text>
+                <Text style={styles.title}>{t('terms.title')}</Text>
+                <Text style={styles.lastUpdated}>{t('terms.lastUpdated')}: {LAST_UPDATED}</Text>
 
                 {SECTIONS.map((section, index) => (
                     <View key={index} style={styles.section}>
@@ -50,7 +51,7 @@ export const TermsOfServiceScreen = ({ navigation }: Props) => {
 
                 <View style={styles.footer}>
                     <Text style={styles.footerText}>
-                        By using 1 In A Billion, you agree to be bound by these Terms of Service.
+                        {t('terms.footer')}
                     </Text>
                 </View>
             </ScrollView>

@@ -30,6 +30,7 @@ import { useAuthStore } from '@/store/authStore';
 import { AUDIO_CONFIG } from '@/config/readingConfig';
 import { BackButton } from '@/components/BackButton';
 import { useAudio } from '@/contexts/AudioContext';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PartnerReadings'>;
 
@@ -43,9 +44,9 @@ const fontScale = isSmallScreen ? 0.9 : 1;
 const getSignLabel = (name: string, type: HookReading['type']) => {
   const upperName = name.toUpperCase();
   switch (type) {
-    case 'sun': return { name: upperName, suffix: "'S SUN SIGN" };
-    case 'moon': return { name: upperName, suffix: "'S MOON SIGN" };
-    case 'rising': return { name: upperName, suffix: "'S RISING SIGN" };
+    case 'sun': return { name: upperName, suffix: t('partnerReadings.sunSuffix') };
+    case 'moon': return { name: upperName, suffix: t('partnerReadings.moonSuffix') };
+    case 'rising': return { name: upperName, suffix: t('partnerReadings.risingSuffix') };
   }
 };
 
@@ -107,14 +108,14 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
 
     const userBirthTime = user?.birthData?.birthTime || onboardingBirthTime;
     if (!userBirthTime || !partnerBirthTime) {
-      const missingLabel = !userBirthTime ? 'your birth time' : `${partnerName || 'partner'}'s birth time`;
+      const missingLabel = !userBirthTime ? t('partnerReadings.yourBirthTime') : t('partnerReadings.partnerBirthTime', { name: partnerName || 'partner' });
       Alert.alert(
-        'Birth time required',
-        `Compatibility requires birth time for BOTH people (Rising sign). Please add ${missingLabel} first.`,
+        t('partnerReadings.birthTimeRequired'),
+        t('partnerReadings.birthTimeMessage', { missing: missingLabel }),
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: t('common.cancel'), style: 'cancel' },
           {
-            text: 'Edit Birth Data',
+            text: t('partnerReadings.editBirthData'),
             onPress: () => {
               if (!partnerBirthTime) {
                 if (isPrepayOnboarding) {
@@ -539,16 +540,16 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={colors.primary} />
               <Text style={styles.loadingText}>
-                Generating <Text style={styles.nameRed}>{partnerName}</Text>'s readings...
+                {t('partnerReadings.generating', { name: partnerName })}
               </Text>
             </View>
           ) : readings.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>
-                <Text style={styles.nameRed}>{partnerName}</Text>'s readings
+                <Text style={styles.nameRed}>{partnerName}</Text> {t('partnerReadings.readings')}
               </Text>
               <Text style={styles.emptySubtext}>
-                {isPrepayOnboarding ? 'Loading…' : 'Tap a provider above to generate'}
+                {isPrepayOnboarding ? t('partnerReadings.loading') : t('partnerReadings.tapProvider')}
               </Text>
             </View>
           ) : (
@@ -573,7 +574,7 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
                               <Text style={styles.nameRed}>{partnerName}</Text> & <Text style={styles.nameRed}>{user?.name || 'You'}</Text>
                             </Text>
                             <Text style={styles.gatewaySubtitle}>
-                              Ready to explore your cosmic connection?
+                              {t('partnerReadings.cosmicConnection')}
                             </Text>
 
                             <TouchableOpacity
@@ -582,7 +583,7 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
                               disabled={isNavigatingToSynastry}
                             >
                               <Text style={styles.continueBtnText}>
-                                {isNavigatingToSynastry ? 'Opening…' : 'Compare Charts →'}
+                                {isNavigatingToSynastry ? t('partnerReadings.opening') : t('partnerReadings.compareCharts')}
                               </Text>
                             </TouchableOpacity>
                           </View>

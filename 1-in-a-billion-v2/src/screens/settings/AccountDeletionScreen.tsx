@@ -12,6 +12,7 @@ import { useOnboardingStore } from '@/store/onboardingStore';
 import { useProfileStore } from '@/store/profileStore';
 import { deleteAccount } from '@/services/accountDeletion';
 import { BackButton } from '@/components/BackButton';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'AccountDeletion'>;
 
@@ -23,12 +24,12 @@ export const AccountDeletionScreen = ({ navigation }: Props) => {
 
     const handleDeleteAccount = async () => {
         Alert.alert(
-            'Delete Account?',
-            'This will PERMANENTLY delete your account and ALL data. This action CANNOT be undone.',
+            t('accountDeletion.confirmTitle'),
+            t('accountDeletion.confirmMessage'),
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Delete Forever',
+                    text: t('accountDeletion.deleteForever'),
                     style: 'destructive',
                     onPress: async () => {
                         setIsDeleting(true);
@@ -38,11 +39,11 @@ export const AccountDeletionScreen = ({ navigation }: Props) => {
                             resetProfile();
 
                             Alert.alert(
-                                'Account Deleted',
-                                'Your account has been permanently deleted.',
+                                t('accountDeletion.deletedTitle'),
+                                t('accountDeletion.deletedMessage'),
                                 [
                                     {
-                                        text: 'OK',
+                                        text: t('common.ok'),
                                         onPress: () => {
                                             navigation.reset({
                                                 index: 0,
@@ -53,7 +54,7 @@ export const AccountDeletionScreen = ({ navigation }: Props) => {
                                 ]
                             );
                         } catch (error: any) {
-                            Alert.alert('Error', error.message || 'Failed to delete account.');
+                            Alert.alert(t('common.error'), error.message || t('accountDeletion.deleteFailed'));
                         } finally {
                             setIsDeleting(false);
                         }
@@ -72,16 +73,16 @@ export const AccountDeletionScreen = ({ navigation }: Props) => {
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                <Text style={styles.title}>Delete Account</Text>
+                <Text style={styles.title}>{t('accountDeletion.title')}</Text>
                 <Text style={styles.subtitle}>
-                    We're sad to see you go. Deleting your account will permanently remove all your data.
+                    {t('accountDeletion.subtitle')}
                 </Text>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>What Will Be Deleted</Text>
-                    <View style={styles.dataItem}><Text>◉ Your Profile & Birth Data</Text></View>
-                    <View style={styles.dataItem}><Text>≡ All Astrological Readings</Text></View>
-                    <View style={styles.dataItem}><Text>♪ Saved Audio Files</Text></View>
+                    <Text style={styles.sectionTitle}>{t('accountDeletion.whatDeleted')}</Text>
+                    <View style={styles.dataItem}><Text>◉ {t('accountDeletion.profileData')}</Text></View>
+                    <View style={styles.dataItem}><Text>≡ {t('accountDeletion.readings')}</Text></View>
+                    <View style={styles.dataItem}><Text>♪ {t('accountDeletion.audioFiles')}</Text></View>
                 </View>
 
                 <TouchableOpacity
@@ -90,7 +91,7 @@ export const AccountDeletionScreen = ({ navigation }: Props) => {
                     disabled={isDeleting}
                 >
                     <Text style={styles.deleteButtonText}>
-                        {isDeleting ? 'Deleting...' : 'Delete My Account'}
+                        {isDeleting ? t('accountDeletion.deleting') : t('accountDeletion.deleteMyAccount')}
                     </Text>
                 </TouchableOpacity>
             </ScrollView>

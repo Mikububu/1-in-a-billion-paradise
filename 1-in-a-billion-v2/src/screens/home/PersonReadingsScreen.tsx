@@ -7,6 +7,7 @@ import { useProfileStore } from '@/store/profileStore';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { BackButton } from '@/components/BackButton';
 import { fetchJobSnapshot, type JobSnapshot } from '@/services/jobStatus';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonReadings'>;
 
@@ -129,35 +130,35 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
 
             <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
                 <Text style={styles.title}>{person?.name || personName}</Text>
-                <Text style={styles.subtitle}>Reading receipts and generation status</Text>
+                <Text style={styles.subtitle}>{t('personReadings.subtitle')}</Text>
                 <View style={styles.refreshRow}>
                     <TouchableOpacity
                         style={styles.refreshButton}
                         onPress={() => setRefreshKey((v) => v + 1)}
                     >
-                        <Text style={styles.refreshText}>Refresh</Text>
+                        <Text style={styles.refreshText}>{t('personReadings.refresh')}</Text>
                     </TouchableOpacity>
                 </View>
 
                 <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Snapshot</Text>
-                    <Text style={styles.cardMeta}>Person type: {personType}</Text>
-                    <Text style={styles.cardMeta}>Stored readings: {readingCount}</Text>
-                    <Text style={styles.cardMeta}>Tracked jobs: {jobs.length}</Text>
+                    <Text style={styles.cardTitle}>{t('personReadings.snapshot')}</Text>
+                    <Text style={styles.cardMeta}>{t('personReadings.personType') + ': ' + personType}</Text>
+                    <Text style={styles.cardMeta}>{t('personReadings.storedReadings') + ': ' + readingCount}</Text>
+                    <Text style={styles.cardMeta}>{t('personReadings.trackedJobs') + ': ' + jobs.length}</Text>
                 </View>
 
                 {isLoading ? (
                     <View style={styles.loadingWrap}>
                         <ActivityIndicator color={colors.primary} />
-                        <Text style={styles.loadingText}>Refreshing jobs...</Text>
+                        <Text style={styles.loadingText}>{t('personReadings.refreshing')}</Text>
                     </View>
                 ) : null}
 
                 {jobs.length === 0 ? (
                     <View style={styles.card}>
-                        <Text style={styles.emptyTitle}>No Jobs Yet</Text>
+                        <Text style={styles.emptyTitle}>{t('personReadings.noJobs')}</Text>
                         <Text style={styles.cardMeta}>
-                            This person has no tracked job receipts yet. Start a new reading flow to generate one.
+                            {t('personReadings.noJobsText')}
                         </Text>
                         <TouchableOpacity
                             style={styles.actionButton}
@@ -184,7 +185,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                                 } as any)
                             }
                         >
-                            <Text style={styles.actionText}>Start New Reading</Text>
+                            <Text style={styles.actionText}>{t('personReadings.startNew')}</Text>
                         </TouchableOpacity>
                     </View>
                 ) : (
@@ -193,12 +194,12 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                             const snapshot = snapshotByJobId[readingJob.jobId];
                             const status = snapshot
                                 ? `${snapshot.status.toUpperCase()} · ${snapshot.percent}%`
-                                : 'Status unavailable';
+                                : t('personReadings.statusUnavailable');
                             const isComplete = String(snapshot?.status || '').toLowerCase() === 'complete' || String(snapshot?.status || '').toLowerCase() === 'completed';
                             const systems =
-                                readingJob.systems.length > 0 ? readingJob.systems.join(', ') : 'Systems pending';
+                                readingJob.systems.length > 0 ? readingJob.systems.join(', ') : t('personReadings.systemsPending');
                             const updatedAt = snapshot?.updatedAt || (readingJob.timestamp ? new Date(readingJob.timestamp).toISOString() : '');
-                            const readingLabel = `Reading ${readingJob.jobId.slice(0, 8)}`;
+                            const readingLabel = t('personReadings.readingPrefix') + ' ' + readingJob.jobId.slice(0, 8);
                             const readingDate = readingJob.timestamp ? new Date(readingJob.timestamp).toLocaleString() : '';
 
                             return (
@@ -217,14 +218,14 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                                         </View>
                                         <View style={styles.jobMain}>
                                             <Text style={styles.jobTitle} numberOfLines={1}>{readingLabel}</Text>
-                                            {readingDate ? <Text style={styles.jobDate} numberOfLines={1}>Reading from {readingDate}</Text> : null}
+                                            {readingDate ? <Text style={styles.jobDate} numberOfLines={1}>{t('personReadings.readingFrom') + ' ' + readingDate}</Text> : null}
                                             <Text style={styles.jobMeta} numberOfLines={1}>{systems}</Text>
                                             <Text style={styles.jobMeta}>{status}</Text>
                                             {snapshot?.message ? <Text style={styles.jobMeta} numberOfLines={1}>{snapshot.message}</Text> : null}
-                                            <Text style={styles.jobMeta}>{isComplete ? 'Open Reading' : 'Open Status'}</Text>
+                                            <Text style={styles.jobMeta}>{isComplete ? t('personReadings.openReading') : t('personReadings.openStatus')}</Text>
                                             {updatedAt ? (
                                                 <Text style={styles.jobTimestamp}>
-                                                    Updated {new Date(updatedAt).toLocaleString()}
+                                                    {t('personReadings.updated') + ' ' + new Date(updatedAt).toLocaleString()}
                                                 </Text>
                                             ) : null}
                                         </View>
@@ -246,7 +247,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                         navigation.navigate('PeopleList');
                     }}
                 >
-                    <Text style={styles.actionText}>Back To Profile</Text>
+                    <Text style={styles.actionText}>{t('personReadings.backToProfile')}</Text>
                 </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>

@@ -200,7 +200,7 @@ export const BirthInfoScreen = () => {
                     keyboardShouldPersistTaps="always"
                     showsVerticalScrollIndicator={false}
                 >
-                    <Text style={styles.title} selectable>When & where{'\n'}were you born?</Text>
+                    <Text style={styles.title} selectable>{t('birthInfo.title')}</Text>
 
                     {/* Date Input */}
                     <Pressable
@@ -230,7 +230,7 @@ export const BirthInfoScreen = () => {
                                 style={styles.pickerDone}
                                 onPress={() => setShowDatePicker(false)}
                             >
-                                <Text style={styles.pickerDoneText}>Done</Text>
+                                <Text style={styles.pickerDoneText}>{t('birthInfo.done')}</Text>
                             </TouchableOpacity>
                         </View>
                     )}
@@ -264,7 +264,7 @@ export const BirthInfoScreen = () => {
                                 style={styles.pickerDone}
                                 onPress={() => setShowTimePicker(false)}
                             >
-                                <Text style={styles.pickerDoneText}>Done</Text>
+                                <Text style={styles.pickerDoneText}>{t('birthInfo.done')}</Text>
                             </TouchableOpacity>
                         </View>
                     )}
@@ -308,7 +308,7 @@ export const BirthInfoScreen = () => {
                     )}
 
                     <Text style={styles.helper} selectable>
-                        Enter your birthtime as exact as possible.
+                        {t('birthInfo.helper')}
                     </Text>
                 </ScrollView>
 
@@ -324,7 +324,7 @@ export const BirthInfoScreen = () => {
                 {/* Button at very bottom */}
                 <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
                     <Button
-                        label="Continue"
+                        label={t('birthInfo.continue')}
                         onPress={handleContinue}
                         disabled={!canContinue}
                     />

@@ -280,11 +280,11 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
 
             const proceed = await new Promise<boolean>((resolve) => {
                 Alert.alert(
-                    'Upload a photo?',
-                    `Your reading PDF includes a personalized AI portrait. No photo uploaded yet for ${whoMissing}. Upload now for the best experience.`,
+                    t('voiceSelection.uploadPhotoTitle'),
+                    t('voiceSelection.uploadPhotoMessage', { who: whoMissing }),
                     [
                         {
-                            text: 'Upload Photo',
+                            text: t('voiceSelection.uploadPhotoButton'),
                             onPress: () => {
                                 if (uploadId) {
                                     navigation.navigate('PersonPhotoUpload', { personId: uploadId });
@@ -293,7 +293,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
                             },
                         },
                         {
-                            text: 'Skip & Generate',
+                            text: t('voiceSelection.skipGenerate'),
                             style: 'cancel',
                             onPress: () => resolve(true),
                         },
@@ -377,9 +377,9 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
             <View style={styles.topSpacer} />
 
             <View style={styles.content}>
-                <Text style={styles.title}>Choose Your Speaker</Text>
+                <Text style={styles.title}>{t('voiceSelection.title')}</Text>
                 <Text style={styles.subtitle}>
-                    The reading will be narrated by {selectedVoiceLabel}.
+                    {t('voiceSelection.subtitle', { voice: selectedVoiceLabel })}
                 </Text>
 
                 <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
@@ -415,7 +415,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
                 </ScrollView>
 
                 <Button
-                    label={isLoading ? 'Starting...' : 'Continue to Tree of Life'}
+                    label={isLoading ? t('voiceSelection.starting') : t('voiceSelection.continue')}
                     onPress={handleStart}
                     disabled={isLoading}
                 />

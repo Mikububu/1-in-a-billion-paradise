@@ -189,14 +189,14 @@ export const EditBirthDataScreen = ({ navigation, route }: Props) => {
             <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                 <View style={styles.header}>
                     <View style={{ width: 60 }} />
-                    <Text style={styles.headerTitle}>Edit Birth Data</Text>
+                    <Text style={styles.headerTitle}>{t('editBirthData.title')}</Text>
                     <View style={{ width: 60 }} />
                 </View>
 
                 <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-                    <Text style={styles.title}>{person?.name || 'Profile'}</Text>
+                    <Text style={styles.title}>{person?.name || t('editBirthData.defaultName')}</Text>
                     <Text style={styles.subtitle}>
-                        This updates date, time, city, timezone, and placements for this person.
+                        {t('editBirthData.subtitle')}
                     </Text>
 
                     <Pressable style={styles.inputRow} onPress={() => setShowDatePicker(!showDatePicker)}>
@@ -214,7 +214,7 @@ export const EditBirthDataScreen = ({ navigation, route }: Props) => {
                                 }}
                             />
                             <TouchableOpacity style={styles.pickerDone} onPress={() => setShowDatePicker(false)}>
-                                <Text style={styles.pickerDoneText}>Done</Text>
+                                <Text style={styles.pickerDoneText}>{t('editBirthData.done')}</Text>
                             </TouchableOpacity>
                         </View>
                     )}
@@ -235,7 +235,7 @@ export const EditBirthDataScreen = ({ navigation, route }: Props) => {
                                 }}
                             />
                             <TouchableOpacity style={styles.pickerDone} onPress={() => setShowTimePicker(false)}>
-                                <Text style={styles.pickerDoneText}>Done</Text>
+                                <Text style={styles.pickerDoneText}>{t('editBirthData.done')}</Text>
                             </TouchableOpacity>
                         </View>
                     )}
@@ -270,7 +270,7 @@ export const EditBirthDataScreen = ({ navigation, route }: Props) => {
                     )}
 
                     <View style={{ height: spacing.xl }} />
-                    <Button label={saving ? 'Saving...' : 'Save'} onPress={handleSave} disabled={!canSave || saving} />
+                    <Button label={saving ? t('editBirthData.saving') : t('editBirthData.save')} onPress={handleSave} disabled={!canSave || saving} />
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>

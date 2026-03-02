@@ -13,11 +13,11 @@ import { t } from '@/i18n';
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonProfile'>;
 
 const SYSTEM_LABELS: Record<string, string> = {
-    western: 'Western',
-    vedic: 'Vedic',
-    human_design: 'Human Design',
-    gene_keys: 'Gene Keys',
-    kabbalah: 'Kabbalah',
+    western: t('systems.western'),
+    vedic: t('systems.vedic'),
+    human_design: t('systems.humanDesign'),
+    gene_keys: t('systems.geneKeys'),
+    kabbalah: t('systems.kabbalah'),
 };
 
 export const PersonProfileScreen = ({ navigation, route }: Props) => {
@@ -96,8 +96,8 @@ export const PersonProfileScreen = ({ navigation, route }: Props) => {
             <SafeAreaView style={styles.container}>
                 <BackButton onPress={() => navigation.goBack()} />
                 <View style={styles.notFoundWrap}>
-                    <Text style={styles.notFoundTitle}>Person Not Found</Text>
-                    <Text style={styles.notFoundText}>This profile no longer exists in local data.</Text>
+                    <Text style={styles.notFoundTitle}>{t('personProfile.notFound.title')}</Text>
+                    <Text style={styles.notFoundText}>{t('personProfile.notFound.message')}</Text>
                 </View>
             </SafeAreaView>
         );
@@ -112,56 +112,56 @@ export const PersonProfileScreen = ({ navigation, route }: Props) => {
                         style={styles.headerActionBtn}
                         onPress={() => navigation.navigate('EditBirthData', { personId: person.id })}
                     >
-                        <Text style={styles.headerActionText}>Edit</Text>
+                        <Text style={styles.headerActionText}>{t('personProfile.edit')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={styles.headerActionBtn}
                         onPress={handleDeletePerson}
                     >
-                        <Text style={[styles.headerActionText, styles.headerDangerText]}>Delete</Text>
+                        <Text style={[styles.headerActionText, styles.headerDangerText]}>{t('personProfile.delete')}</Text>
                     </TouchableOpacity>
                 </View>
             </View>
 
             <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-                <Text style={styles.title}>{person.name}{person.isUser ? ' (You)' : ''}</Text>
-                <Text style={styles.subtitle}>Profile, readings, and job history</Text>
+                <Text style={styles.title}>{person.name}{person.isUser ? ` ${t('personProfile.you')}` : ''}</Text>
+                <Text style={styles.subtitle}>{t('personProfile.subtitle')}</Text>
 
                 <View style={styles.card}>
                     <View style={styles.birthHeaderRow}>
-                        <Text style={styles.cardTitle}>Birth Data</Text>
+                        <Text style={styles.cardTitle}>{t('personProfile.birthData')}</Text>
                         {missingBirthProfile ? (
                             <TouchableOpacity
                                 style={styles.completeProfileButton}
                                 onPress={() => navigation.navigate('EditBirthData', { personId: person.id })}
                             >
-                                <Text style={styles.completeProfileButtonText}>Complete Profile</Text>
+                                <Text style={styles.completeProfileButtonText}>{t('personProfile.completeProfile')}</Text>
                             </TouchableOpacity>
                         ) : null}
                     </View>
-                    <Text style={styles.cardMeta}>Date: {person.birthData?.birthDate || 'Not set'}</Text>
-                    <Text style={styles.cardMeta}>Time: {person.birthData?.birthTime || 'Not set'}</Text>
-                    <Text style={styles.cardMeta}>City: {person.birthData?.birthCity || 'Not set'}</Text>
+                    <Text style={styles.cardMeta}>{t('personProfile.date')}: {person.birthData?.birthDate || t('personProfile.notSet')}</Text>
+                    <Text style={styles.cardMeta}>{t('personProfile.time')}: {person.birthData?.birthTime || t('personProfile.notSet')}</Text>
+                    <Text style={styles.cardMeta}>{t('personProfile.city')}: {person.birthData?.birthCity || t('personProfile.notSet')}</Text>
                     <TouchableOpacity
                         style={styles.secondaryAction}
                         onPress={() => navigation.navigate('EditBirthData', { personId: person.id })}
                     >
-                        <Text style={styles.secondaryActionText}>Edit Birth Data</Text>
+                        <Text style={styles.secondaryActionText}>{t('personProfile.editBirthData')}</Text>
                     </TouchableOpacity>
                 </View>
 
                 <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Core Placements</Text>
-                    <Text style={styles.cardMeta}>Sun: {person.placements?.sunSign || '?'}</Text>
-                    <Text style={styles.cardMeta}>Moon: {person.placements?.moonSign || '?'}</Text>
-                    <Text style={styles.cardMeta}>Rising: {person.placements?.risingSign || '?'}</Text>
+                    <Text style={styles.cardTitle}>{t('personProfile.corePlacements')}</Text>
+                    <Text style={styles.cardMeta}>{t('readings.sun')}: {person.placements?.sunSign || '?'}</Text>
+                    <Text style={styles.cardMeta}>{t('readings.moon')}: {person.placements?.moonSign || '?'}</Text>
+                    <Text style={styles.cardMeta}>{t('readings.rising')}: {person.placements?.risingSign || '?'}</Text>
                 </View>
 
                 <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Readings Summary</Text>
-                    <Text style={styles.cardMeta}>Individual readings: {person.readings.length}</Text>
-                    <Text style={styles.cardMeta}>Compatibility readings: {compatibilityCount}</Text>
-                    <Text style={styles.cardMeta}>Tracked jobs: {linkedJobIds.length}</Text>
+                    <Text style={styles.cardTitle}>{t('personProfile.readingsSummary')}</Text>
+                    <Text style={styles.cardMeta}>{t('personProfile.individualReadings')}: {person.readings.length}</Text>
+                    <Text style={styles.cardMeta}>{t('personProfile.compatibilityReadings')}: {compatibilityCount}</Text>
+                    <Text style={styles.cardMeta}>{t('personProfile.trackedJobs')}: {linkedJobIds.length}</Text>
 
                     {readingsBySystem.length > 0 ? (
                         <View style={styles.tagWrap}>
@@ -172,7 +172,7 @@ export const PersonProfileScreen = ({ navigation, route }: Props) => {
                             ))}
                         </View>
                     ) : (
-                        <Text style={styles.cardMeta}>No stored reading blocks yet.</Text>
+                        <Text style={styles.cardMeta}>{t('personProfile.noReadings')}</Text>
                     )}
                 </View>
 
@@ -180,7 +180,7 @@ export const PersonProfileScreen = ({ navigation, route }: Props) => {
                     style={styles.primaryAction}
                     onPress={() => navigation.navigate('PersonPhotoUpload', { personId: person.id })}
                 >
-                    <Text style={styles.primaryActionText}>Upload Portrait</Text>
+                    <Text style={styles.primaryActionText}>{t('personProfile.uploadPortrait')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -193,7 +193,7 @@ export const PersonProfileScreen = ({ navigation, route }: Props) => {
                         })
                     }
                 >
-                    <Text style={styles.primaryActionText}>Open Person Readings</Text>
+                    <Text style={styles.primaryActionText}>{t('personProfile.openReadings')}</Text>
                 </TouchableOpacity>
 
                 {!person.isUser ? (
@@ -217,7 +217,7 @@ export const PersonProfileScreen = ({ navigation, route }: Props) => {
                             })
                         }
                     >
-                        <Text style={styles.primaryActionText}>Generate Deep Readings</Text>
+                        <Text style={styles.primaryActionText}>{t('personProfile.generateDeepReadings')}</Text>
                     </TouchableOpacity>
                 ) : null}
 
@@ -227,8 +227,8 @@ export const PersonProfileScreen = ({ navigation, route }: Props) => {
                         onPress={() => {
                             if (!canOpenSynastry) {
                                 Alert.alert(
-                                    'Birth time required',
-                                    'Compatibility requires complete birth data (date + time) for both people.'
+                                    t('personProfile.birthTimeRequired'),
+                                    t('personProfile.birthTimeRequiredMsg')
                                 );
                                 return;
                             }
@@ -248,16 +248,16 @@ export const PersonProfileScreen = ({ navigation, route }: Props) => {
                             } as any);
                         }}
                     >
-                        <Text style={styles.primaryActionText}>Open Compatibility Preview</Text>
+                        <Text style={styles.primaryActionText}>{t('personProfile.openCompatibility')}</Text>
                     </TouchableOpacity>
                 ) : null}
 
                 <TouchableOpacity style={styles.dangerAction} onPress={handleDeletePerson}>
-                    <Text style={styles.dangerActionText}>Delete Person</Text>
+                    <Text style={styles.dangerActionText}>{t('personProfile.deletePerson')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.secondaryActionWide} onPress={() => navigation.navigate('PeopleList')}>
-                    <Text style={styles.secondaryActionText}>Back To People List</Text>
+                    <Text style={styles.secondaryActionText}>{t('personProfile.backToPeopleList')}</Text>
                 </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>

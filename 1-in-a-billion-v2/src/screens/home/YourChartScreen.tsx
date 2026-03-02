@@ -12,6 +12,7 @@ import { syncPeopleToSupabase } from '@/services/peopleCloud';
 import { describeIntensity } from '@/utils/intensity';
 import { SimpleSlider } from '@/components/SimpleSlider';
 import { BackButton } from '@/components/BackButton';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'YourChart'>;
 
@@ -34,7 +35,7 @@ export const YourChartScreen = ({ navigation }: Props) => {
     const birthTime = user?.birthData?.birthTime?.trim() ? user.birthData.birthTime : onboardingBirthTime;
     const birthCity = user?.birthData?.birthCity?.trim()
         ? user.birthData.birthCity
-        : (onboardingBirthCity?.name || 'Location unknown');
+        : (onboardingBirthCity?.name || t('yourChart.locationUnknown'));
 
     const corePlacements = {
         sun: user?.placements?.sunSign || hookReadings.sun?.sign || '?',
@@ -76,41 +77,41 @@ export const YourChartScreen = ({ navigation }: Props) => {
                 ]}
                 showsVerticalScrollIndicator={false}
             >
-                <Text style={styles.title}>{userName}'s Chart</Text>
+                <Text style={styles.title}>{t('yourChart.title', { name: userName })}</Text>
 
                 <View style={styles.birthCard}>
-                    <Text style={styles.birthLabel}>Born</Text>
-                    <Text style={styles.birthDate}>{birthDate || 'Not set'}</Text>
-                    <Text style={styles.birthMeta}>{birthTime || 'Time unknown'} in {birthCity}</Text>
+                    <Text style={styles.birthLabel}>{t('yourChart.born')}</Text>
+                    <Text style={styles.birthDate}>{birthDate || t('yourChart.notSet')}</Text>
+                    <Text style={styles.birthMeta}>{birthTime || t('yourChart.timeUnknown')} in {birthCity}</Text>
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>The Big Three</Text>
+                    <Text style={styles.sectionTitle}>{t('yourChart.bigThree')}</Text>
                     <View style={styles.coreRow}>
                         <View style={styles.coreCard}>
                             <Text style={styles.coreIcon}>☉</Text>
-                            <Text style={styles.coreLabel}>Sun</Text>
+                            <Text style={styles.coreLabel}>{t('readings.sun')}</Text>
                             <Text style={styles.coreSign}>{corePlacements.sun}</Text>
                         </View>
                         <View style={styles.coreCard}>
                             <Text style={styles.coreIcon}>☽</Text>
-                            <Text style={styles.coreLabel}>Moon</Text>
+                            <Text style={styles.coreLabel}>{t('readings.moon')}</Text>
                             <Text style={styles.coreSign}>{corePlacements.moon}</Text>
                         </View>
                         <View style={styles.coreCard}>
                             <Text style={styles.coreIcon}>↑</Text>
-                            <Text style={styles.coreLabel}>Rising</Text>
+                            <Text style={styles.coreLabel}>{t('readings.rising')}</Text>
                             <Text style={styles.coreSign}>{corePlacements.rising}</Text>
                         </View>
                     </View>
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Safe ↔ Spicy</Text>
+                    <Text style={styles.sectionTitle}>{t('yourChart.safeSpicy')}</Text>
                     <View style={styles.sliderCard}>
                         <View style={styles.legend}>
-                            <Text style={styles.legendLabel}>Safe</Text>
-                            <Text style={styles.legendLabel}>Spicy</Text>
+                            <Text style={styles.legendLabel}>{t('yourChart.safe')}</Text>
+                            <Text style={styles.legendLabel}>{t('yourChart.spicy')}</Text>
                         </View>
                         <SimpleSlider
                             minimumValue={0}
@@ -127,13 +128,13 @@ export const YourChartScreen = ({ navigation }: Props) => {
                         style={styles.action}
                         onPress={() => navigation.navigate('EditBirthData', { personId: user?.id })}
                     >
-                        <Text style={styles.actionText}>Edit Birth Data</Text>
+                        <Text style={styles.actionText}>{t('yourChart.editBirthData')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={styles.action}
                         onPress={() => navigation.navigate('PeopleList')}
                     >
-                        <Text style={styles.actionText}>View All Saved People</Text>
+                        <Text style={styles.actionText}>{t('yourChart.viewAllPeople')}</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>

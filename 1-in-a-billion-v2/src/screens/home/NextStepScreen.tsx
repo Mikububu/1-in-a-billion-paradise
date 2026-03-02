@@ -5,6 +5,7 @@ import { Video, ResizeMode } from 'expo-av';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { typography, colors } from '@/theme/tokens';
 import { useIsFocused } from '@react-navigation/native';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'NextStep'>;
 
@@ -37,19 +38,19 @@ export const NextStepScreen = ({ navigation }: Props) => {
 
     const buttons = [
         {
-            label: 'MY SOULS LIBRARY',
+            label: t('nextStep.soulsLibrary'),
             onPress: () => navigation.navigate('MyLibrary'),
         },
         {
-            label: 'MY KARMIC ZOO',
+            label: t('nextStep.karmicZoo'),
             onPress: () => navigation.navigate('ComparePeople'),
         },
         {
-            label: 'EXPLORE MYSELF',
+            label: t('nextStep.exploreMyself'),
             onPress: () => navigation.navigate('SystemsOverview'),
         },
         {
-            label: 'BACK TO MY SECRET LIFE',
+            label: t('nextStep.backToSecretLife'),
             onPress: () => navigation.navigate('Home'),
         },
     ];
@@ -57,7 +58,7 @@ export const NextStepScreen = ({ navigation }: Props) => {
     return (
         <View style={styles.container}>
             {/* Headline */}
-            <Text style={styles.headline}>Soul Laboratory</Text>
+            <Text style={styles.headline}>{t('nextStep.title')}</Text>
 
             {/* Buttons overlay */}
             <View style={styles.buttonsContainer}>
