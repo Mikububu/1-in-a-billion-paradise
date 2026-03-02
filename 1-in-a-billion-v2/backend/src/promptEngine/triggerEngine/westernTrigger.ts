@@ -116,9 +116,11 @@ export function stripWesternChartData(raw: string): string {
 export function buildWesternTriggerPrompt(params: {
   personName: string;
   strippedChartData: string;
+  spiceLevel?: number;
 }): string {
-  const { personName, strippedChartData } = params;
+  const { personName, strippedChartData, spiceLevel = 7 } = params;
   const trigger = NARRATIVE_TRIGGER_LABEL;
+  const spice = Math.max(1, Math.min(10, spiceLevel));
 
   return [
     `You are reading ${personName}'s Western natal chart to find the central ${trigger}.`,
@@ -127,6 +129,8 @@ export function buildWesternTriggerPrompt(params: {
     'running from or toward for their entire life without being fully able to name it.',
     'The gap between who they project and what they actually need.',
     'The defense that became a personality.',
+    '',
+    `Shadow depth: ${spice}/10.${spice >= 7 ? ' Lean into taboo, addiction patterns, sexual shadow, compulsive behaviors.' : spice >= 5 ? ' Include shadow honestly but without shock value.' : ' Keep shadow present but measured.'}`,
     '',
     'Write one paragraph. 80-120 words exactly.',
     'Third person. No jargon. No repair instructions. No softening.',

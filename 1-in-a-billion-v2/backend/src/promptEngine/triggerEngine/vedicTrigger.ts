@@ -104,9 +104,11 @@ export function stripVedicChartData(raw: string): string {
 export function buildVedicTriggerPrompt(params: {
   personName: string;
   strippedChartData: string;
+  spiceLevel?: number;
 }): string {
-  const { personName, strippedChartData } = params;
+  const { personName, strippedChartData, spiceLevel = 7 } = params;
   const trigger = NARRATIVE_TRIGGER_LABEL;
+  const spice = Math.max(1, Math.min(10, spiceLevel));
 
   return [
     `You are a Jyotish reader analyzing ${personName}'s Vedic natal chart through the left-handed Vamachara perspective to find the central ${trigger}.`,
@@ -119,6 +121,10 @@ export function buildVedicTriggerPrompt(params: {
     'NAME the Nakshatra and its ruling deity.',
     'NAME the Rashi and Bhava positions that form this pattern.',
     `The ${trigger} is the lived behavior pattern these placements produce — the gap between Lagna and Rahu, the discipline Shani demands that they cannot sustain.`,
+    '',
+    `Shadow depth: ${spice}/10.${spice >= 7 ? ' Lean into taboo, addiction patterns, sexual shadow, karmic debt.' : spice >= 5 ? ' Include shadow honestly but without shock value.' : ' Keep shadow present but measured.'}`,
+    '',
+    'TERMINOLOGY: Use ONLY Vedic/Jyotish terms. Grahas: Surya, Chandra, Mangal, Budha, Guru, Shukra, Shani, Rahu, Ketu. NEVER "Mars", "Saturn", "Mercury", etc. Say Bhava not house, Rashi not sign, Lagna not Ascendant.',
     '',
     'Write one paragraph. 80-120 words exactly.',
     'Third person. Use Vedic/Jyotish terminology and explain each term naturally on first use like a grandfather telling a fairy tale to a child.',

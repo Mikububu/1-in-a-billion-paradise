@@ -109,9 +109,11 @@ export function stripKabbalahChartData(raw: string): string {
 export function buildKabbalahTriggerPrompt(params: {
   personName: string;
   strippedChartData: string;
+  spiceLevel?: number;
 }): string {
-  const { personName, strippedChartData } = params;
+  const { personName, strippedChartData, spiceLevel = 7 } = params;
   const trigger = NARRATIVE_TRIGGER_LABEL;
+  const spice = Math.max(1, Math.min(10, spiceLevel));
 
   return [
     `You are a Kabbalistic reader analyzing ${personName}'s Tree of Life profile to find the central ${trigger}.`,
@@ -126,6 +128,8 @@ export function buildKabbalahTriggerPrompt(params: {
     'NAME the Sephiroth involved — both dominant and void.',
     'NAME the Klipothic shadow pattern.',
     `The ${trigger} is the lived experience of being caught in the Tikkun\'s trap: the behavior they repeat, the relationship pattern they cannot break, the Sephirotic strength that covers what they cannot access.`,
+    '',
+    `Shadow depth: ${spice}/10.${spice >= 7 ? ' Lean into klipothic possession, the trap the soul keeps falling into, spiritual bypassing.' : spice >= 5 ? ' Include shadow honestly but without shock value.' : ' Keep shadow present but measured.'}`,
     '',
     'Write one paragraph. 80-120 words exactly.',
     'Third person. Use Kabbalistic terminology and explain each term naturally on first use — like a patient grandfather explaining something sacred.',

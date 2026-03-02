@@ -20,8 +20,11 @@ import { buildHumanDesignSection } from '../../prompts/systems/human-design';
 /**
  * Reduces HD chart data to highest-signal lines.
  * Keeps: Type, Strategy, Authority, Profile, Definition, Incarnation Cross,
- *        Defined Centers, Open Centers, Active Channels.
- * Drops: All gate activations (personality/design lines), full active gates list.
+ *        Defined Centers, Open Centers, Active Channels,
+ *        Key planetary activations (Sun, Earth, Moon, Nodes, Mercury, Venus, Mars),
+ *        Compressed active gates list (gate numbers only, for channel completion detection).
+ * Drops: Outer planet activations (Jupiter, Saturn, Uranus, Neptune, Pluto) from
+ *        personality/design sections — these contribute gates but rarely drive the narrative.
  */
 export function stripHDChartData(raw: string): string {
   const lines = raw.split('\n');
@@ -31,17 +34,25 @@ export function stripHDChartData(raw: string): string {
   let inDesign = false;
   let inGates = false;
 
+  // Personal planets + Nodes — these drive the HD narrative.
+  // Outer planets (Jupiter, Saturn, Uranus, Neptune, Pluto) are dropped from
+  // activation detail but their gates still appear in the compressed gates list.
+  const KEEP_PLANETS = new Set(['sun', 'earth', 'moon', 'north node', 'south node', 'mercury', 'venus', 'mars']);
+
   for (const line of lines) {
     const t = line.trim();
 
-    if (/^ALL ACTIVE GATES:/.test(t)) { inGates = true; continue; }
+    if (/^ALL ACTIVE GATES:/.test(t)) {
+      inGates = true;
+      // Keep gates list but compress: extract just gate numbers for channel detection
+      out.push('ACTIVE GATES (compressed): ' + extractGateNumbers(raw));
+      continue;
+    }
     if (/^PERSONALITY ACTIVATIONS/.test(t)) { inPersonality = true; inDesign = false; inGates = false; out.push(line); continue; }
     if (/^DESIGN ACTIVATIONS/.test(t)) { inDesign = true; inPersonality = false; inGates = false; out.push(line); continue; }
 
     if (inGates) { continue; }
 
-    // In personality/design sections: keep only top 3 activations (most important planets)
-    const KEEP_PLANETS = new Set(['sun', 'earth', 'moon']);
     if (inPersonality || inDesign) {
       if (/^- /.test(t)) {
         const lc = t.toLowerCase();
@@ -51,7 +62,6 @@ export function stripHDChartData(raw: string): string {
       } else if (t === '') {
         out.push(line);
       } else if (/^[A-Z][A-Z0-9\s()\-—]+:$/.test(t)) {
-        // Leave activation mode only when the next section actually starts.
         inPersonality = false;
         inDesign = false;
         out.push(line);
@@ -65,14 +75,32 @@ export function stripHDChartData(raw: string): string {
   return out.filter(Boolean).join('\n').trim();
 }
 
+/** Extract just gate numbers from the ALL ACTIVE GATES section for compact inclusion. */
+function extractGateNumbers(raw: string): string {
+  const gateNumbers: number[] = [];
+  let inGates = false;
+  for (const line of raw.split('\n')) {
+    const t = line.trim();
+    if (/^ALL ACTIVE GATES:/.test(t)) { inGates = true; continue; }
+    if (inGates) {
+      if (/^[A-Z]/.test(t) && !/^- /.test(t)) break; // next section
+      const match = t.match(/Gate\s+(\d+)/i);
+      if (match) gateNumbers.push(parseInt(match[1]));
+    }
+  }
+  return gateNumbers.length > 0 ? gateNumbers.join(', ') : 'none found';
+}
+
 // ─── 2. TRIGGER PROMPT ───────────────────────────────────────────────────────
 
 export function buildHDTriggerPrompt(params: {
   personName: string;
   strippedChartData: string;
+  spiceLevel?: number;
 }): string {
-  const { personName, strippedChartData } = params;
+  const { personName, strippedChartData, spiceLevel = 7 } = params;
   const trigger = NARRATIVE_TRIGGER_LABEL;
+  const spice = Math.max(1, Math.min(10, spiceLevel));
 
   return [
     `You are a Human Design reader analyzing ${personName}'s bodygraph to find the central ${trigger}.`,
@@ -88,6 +116,8 @@ export function buildHDTriggerPrompt(params: {
     `The Incarnation Cross is the pressure the ${trigger} organizes itself around.`,
     '',
     `The ${trigger} is the specific behavior pattern that emerges from the collision of what this person absorbs (open centers) and how they try to be loved (profile).`,
+    '',
+    `Shadow depth: ${spice}/10.${spice >= 7 ? ' Lean into the Not-Self trap, conditioning damage, the body performing the wrong role.' : spice >= 5 ? ' Include shadow honestly but without shock value.' : ' Keep shadow present but measured.'}`,
     '',
     'Write one paragraph. 80-120 words exactly.',
     'Third person. Use Human Design terminology and explain each term naturally on first use — like a patient guide explaining energy mechanics.',

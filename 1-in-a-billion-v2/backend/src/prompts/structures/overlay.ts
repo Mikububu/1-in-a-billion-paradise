@@ -1,59 +1,20 @@
 /**
- * SINGLE OVERLAY READING STRUCTURE
- * 
- * 12,000 words | 2 people | 1 system | ~90 min audio
- * 
- * Source: PROMPT_PRODUCTION_SingleOverlay.txt
+ * OVERLAY READING STRUCTURE
+ *
+ * Word count: Controlled SOLELY by src/prompts/config/wordCounts.ts (STANDARD_READING).
+ * Do NOT hardcode word counts here — getWordTarget() in builder.ts is the single source of truth.
+ * Section breakdowns below are proportional guides that sum to STANDARD_READING.target (7000).
+ *
+ * CANONICAL PATH: builder.ts → buildOverlayStructure() → getWordTarget()
+ * The trigger engine overlay prompts (overlayTrigger.ts) handle strip + trigger + writing
+ * but word counts come from the centralized config.
  */
 
-export const OVERLAY_STRUCTURE = {
-  name: 'Single System Overlay',
-  totalWords: 12000,
-  audioMinutes: 90,
-  
-  sections: [
-    {
-      name: 'Opening',
-      words: 500,
-      description: 'Set the scene, introduce both people briefly, establish what this system reveals',
-    },
-    {
-      name: 'Person A Profile',
-      words: 2500,
-      description: 'Complete analysis through this system, key patterns and themes, shadow and gift states, independence before relationship',
-    },
-    {
-      name: 'Person B Profile',
-      words: 2500,
-      description: 'Same depth as Person A, not yet comparing, independent analysis',
-    },
-    {
-      name: 'The Dynamic',
-      words: 4000,
-      description: 'How they interact, attraction factors, friction points, sexual/intimate interplay, communication patterns, power dynamics',
-    },
-    {
-      name: 'Shadow Work',
-      words: 2000,
-      description: 'What goes wrong when unconscious, manipulation patterns, triggers and projections, worst case scenarios, the damage they could do',
-      isShadow: true,
-    },
-    {
-      name: 'Gift Potential',
-      words: 1500,
-      description: 'What\'s possible if conscious, how they activate each other\'s gifts, growth opportunities, what they could create together',
-    },
-    {
-      name: 'Closing',
-      words: 500,
-      description: 'Synthesis, is it worth it?, final truth, practical guidance specific to their dynamic',
-    },
-  ],
-};
-
 /**
- * Build structure instructions for Overlay reading
- * Matches "b4 Cowork" version with personName interpolation
+ * Build structure instructions for Overlay reading.
+ *
+ * IMPORTANT: Do NOT include a word count here — getWordTarget() in builder.ts
+ * is the single source of truth and is injected separately.
  */
 export function buildOverlayStructure(person1Name: string, person2Name: string): string {
   return `
@@ -61,16 +22,14 @@ export function buildOverlayStructure(person1Name: string, person2Name: string):
 OUTPUT REQUIREMENTS
 ═══════════════════════════════════════════════════════════════════════════════
 
-**WORD COUNT: 3000 WORDS. This becomes 18-20 minutes of audio.**
-
 CRITICAL: These two people may or may not know each other. NEVER assume they have met, are together, or share a history. This is a chart reading of what WOULD happen if their energies collided.
 
 STRUCTURE (for your guidance only - do NOT include headers in output):
-1. The Attraction - what could draw ${person1Name} and ${person2Name} together magnetically (700 words)
-2. The Friction - where they would clash and what would drive them crazy (600 words)
-3. Sexual Chemistry and Power - according to the charts, who would dominate, who would surrender, the bedroom as potential battlefield and sanctuary (700 words)
-4. The Shadow Dance - how they could wound each other, destruction potential (700 words)
-5. The Gift - what they could become together if conscious (300 words)
+1. The Attraction - what could draw ${person1Name} and ${person2Name} together magnetically (1600 words)
+2. The Friction - where they would clash and what would drive them crazy (1200 words)
+3. Sexual Chemistry and Power - according to the charts, who would dominate, who would surrender, the bedroom as potential battlefield and sanctuary (1600 words)
+4. The Shadow Dance - how they could wound each other, destruction potential (1600 words)
+5. The Gift - what they could become together if conscious (1000 words)
 
 FORMAT RULES (THIS IS SPOKEN AUDIO):
 - OPENING: Begin like a mystery theater of what could be - an invocation that draws two energies into focus (up to 20 words)

@@ -273,7 +273,7 @@ export function buildVedicOverlayTriggerPrompt(params: {
   return buildOverlayTriggerPromptBase({
     ...params,
     systemInstruction:
-      'Use Rahu/Ketu axis contact, Dasha timing overlap, Nakshatra friction, and the Ashtakoot Kundali Milan scores (if provided) to identify karmic debt and relational compulsion. Low Nadi or Bhakoot scores signal specific friction points; high Guna total signals deep compatibility.',
+      'Use Rahu/Ketu axis contact, Dasha timing overlap, Nakshatra friction, and the Ashtakoot Kundali Milan scores (if provided) to identify karmic debt and relational compulsion. Low Nadi or Bhakoot scores signal specific friction points; high Guna total signals deep compatibility. If Ashtakoot data is not provided, acknowledge that Kundali Milan requires precise Moon placement data and focus on Nakshatra compatibility, Rahu-Ketu axis interplay, and Dasha timing instead.',
   });
 }
 
@@ -348,7 +348,7 @@ export function buildVedicOverlayWritingPrompt(params: {
       'You are a storyteller who understands karma as physics and cycles as structure, exploring what unfinished karmic business these charts suggest would surface if these souls met. You think in Vedic terms only — Grahas, Bhavas, Nakshatras, Dashas. Explain every Vedic term immediately like a grandfather telling a fairy tale.',
     overlayGuidance: [
       'You have TWO Vedic charts plus Ashtakoot Kundali Milan scores (if present). Layer them like chapters of a karmic story.',
-      'PRIORITY 1 — Ashtakoot (if provided): The TOTAL score is the headline. Weave the LOW-scoring kootas into the narrative as specific friction points (e.g., Nadi 0/8 = health/progeny shadow; Bhakoot 0/7 = financial/emotional drag; Yoni mismatch = physical incompatibility). High kootas = where the pull is strongest. Do NOT list all 8 as a scorecard — pick the 3-4 that matter most for this specific trigger and make them visceral.',
+      'PRIORITY 1 — Ashtakoot (if provided): The TOTAL score is the headline. Weave the LOW-scoring kootas into the narrative as specific friction points (e.g., Nadi 0/8 = health/progeny shadow; Bhakoot 0/7 = financial/emotional drag; Yoni mismatch = physical incompatibility). High kootas = where the pull is strongest. Do NOT list all 8 as a scorecard — pick the 3-4 that matter most for this specific trigger and make them visceral. IF ASHTAKOOT DATA IS NOT PROVIDED: Do not invent scores. Instead, acknowledge that Kundali Milan requires precise Moon nakshatra data, and focus analysis on Nakshatra lord compatibility, Rahu-Ketu axis interplay, and Dasha timing overlap.',
       'PRIORITY 2 — Rahu-Ketu axis interaction: Where one person\'s Rahu meets the other\'s planets = obsessive pull. Rahu-Ketu contacts between charts = past life karma surfacing.',
       'PRIORITY 3 — 7th Bhava cross-analysis: Each person\'s partnership house (sign, lord, occupants) — what kind of partner their chart demands vs what the other person IS.',
       'PRIORITY 4 — Dasha overlap: Are their cosmic seasons aligned or conflicting? One in Shani Mahadasha while the other is in Rahu?',

@@ -41,9 +41,11 @@ export function stripGeneKeysChartData(raw: string): string {
 export function buildGeneKeysTriggerPrompt(params: {
   personName: string;
   strippedChartData: string;
+  spiceLevel?: number;
 }): string {
-  const { personName, strippedChartData } = params;
+  const { personName, strippedChartData, spiceLevel = 7 } = params;
   const trigger = NARRATIVE_TRIGGER_LABEL;
+  const spice = Math.max(1, Math.min(10, spiceLevel));
 
   return [
     `You are a Gene Keys reader analyzing ${personName}'s hologenetic profile to find the central ${trigger}.`,
@@ -57,6 +59,8 @@ export function buildGeneKeysTriggerPrompt(params: {
     'NAME the Shadow frequency names from their chart.',
     `The ${trigger} is the lived behavior pattern that these specific shadow frequencies produce in this person.`,
     'The thing they apologize for, perform around, or cannot see in themselves.',
+    '',
+    `Shadow depth: ${spice}/10.${spice >= 7 ? ' Stay deep in the Shadow frequency. Name compulsions, self-sabotage loops, the darkness they cannot see.' : spice >= 5 ? ' Include shadow honestly but without shock value.' : ' Keep shadow present but measured.'}`,
     '',
     'Write one paragraph. 80-120 words exactly.',
     'Third person. Reference Gene Key numbers and Shadow names explicitly.',

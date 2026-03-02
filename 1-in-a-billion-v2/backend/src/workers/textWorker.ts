@@ -805,7 +805,7 @@ export class TextWorker extends BaseWorker {
 	        if (!subject?.name) throw new Error(`Missing subject name for western ${docType}`);
 
           const stripped = stripWesternChartData(chartData);
-	        const triggerPrompt = buildWesternTriggerPrompt({ personName: subject.name, strippedChartData: stripped });
+	        const triggerPrompt = buildWesternTriggerPrompt({ personName: subject.name, strippedChartData: stripped, spiceLevel });
 	        console.log(`🩸 [TextWorker] Western narrativeTrigger call for ${subject.name}...`);
 	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
 	          maxTokens: 300,
@@ -861,7 +861,7 @@ export class TextWorker extends BaseWorker {
 	        if (!subject?.name) throw new Error(`Missing subject name for vedic ${docType}`);
 
           const stripped = stripVedicChartData(chartData);
-	        const triggerPrompt = buildVedicTriggerPrompt({ personName: subject.name, strippedChartData: stripped });
+	        const triggerPrompt = buildVedicTriggerPrompt({ personName: subject.name, strippedChartData: stripped, spiceLevel });
 	        console.log(`🩸 [TextWorker] Vedic narrativeTrigger call for ${subject.name}...`);
 	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
 	          maxTokens: 300, temperature: 0.7, maxRetries: 3,
@@ -905,7 +905,7 @@ export class TextWorker extends BaseWorker {
 	        if (!subject?.name) throw new Error(`Missing subject name for human_design ${docType}`);
 
           const stripped = stripHDChartData(chartData);
-	        const triggerPrompt = buildHDTriggerPrompt({ personName: subject.name, strippedChartData: stripped });
+	        const triggerPrompt = buildHDTriggerPrompt({ personName: subject.name, strippedChartData: stripped, spiceLevel });
 	        console.log(`🩸 [TextWorker] HD narrativeTrigger call for ${subject.name}...`);
 	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
 	          maxTokens: 300, temperature: 0.7, maxRetries: 3,
@@ -949,7 +949,7 @@ export class TextWorker extends BaseWorker {
 	        if (!subject?.name) throw new Error(`Missing subject name for gene_keys ${docType}`);
 
           const stripped = stripGeneKeysChartData(chartData);
-	        const triggerPrompt = buildGeneKeysTriggerPrompt({ personName: subject.name, strippedChartData: stripped });
+	        const triggerPrompt = buildGeneKeysTriggerPrompt({ personName: subject.name, strippedChartData: stripped, spiceLevel });
 	        console.log(`🩸 [TextWorker] Gene Keys narrativeTrigger call for ${subject.name}...`);
 	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
 	          maxTokens: 300, temperature: 0.7, maxRetries: 3,
@@ -993,7 +993,7 @@ export class TextWorker extends BaseWorker {
 	        if (!subject?.name) throw new Error(`Missing subject name for kabbalah ${docType}`);
 
           const stripped = stripKabbalahChartData(chartData);
-	        const triggerPrompt = buildKabbalahTriggerPrompt({ personName: subject.name, strippedChartData: stripped });
+	        const triggerPrompt = buildKabbalahTriggerPrompt({ personName: subject.name, strippedChartData: stripped, spiceLevel });
 	        console.log(`🩸 [TextWorker] Kabbalah narrativeTrigger call for ${subject.name}...`);
 	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
 	          maxTokens: 300, temperature: 0.7, maxRetries: 3,

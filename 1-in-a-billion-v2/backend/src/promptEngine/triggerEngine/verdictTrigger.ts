@@ -10,11 +10,12 @@ import {
  * scripts/shared/generateReading.ts). The worker path intentionally uses
  * accumulated prior narrativeTrigger outputs + buildVerdictPrompt() instead.
  *
- * Two-call architecture for script verdict generation.
+ * CANONICAL PRODUCTION PATH: textWorker.ts → paidReadingPrompts.buildVerdictPrompt()
+ * This file is a LEGACY FALLBACK for scripts only. Do not add new verdict logic here.
  *
- * 1) stripVerdictChartData()   -> deterministic compression of multi-system chart data
- * 2) buildVerdictTriggerPrompt() -> one focused relational trigger paragraph
- * 3) buildVerdictWritingPrompt() -> long-form synthesis + score block
+ * 1) stripVerdictChartData()       → deterministic compression (used by both paths)
+ * 2) buildVerdictTriggerPrompt()   → one focused relational trigger paragraph
+ * 3) buildVerdictWritingPrompt()   → @deprecated — script-path fallback only
  */
 
 function isSystemHeader(line: string): boolean {
@@ -84,6 +85,13 @@ export function buildVerdictTriggerPrompt(params: {
   ].join('\n');
 }
 
+/**
+ * @deprecated Script-path-only fallback. The production worker uses
+ * paidReadingPrompts.buildVerdictPrompt() which has richer structure,
+ * compatibility scores, system guidance, and full style/spice/forbidden sections.
+ * Kept for backward compatibility with v2_generate_* scripts only.
+ * Do NOT route new verdict logic here.
+ */
 export function buildVerdictWritingPrompt(params: {
   person1Name: string;
   person2Name: string;

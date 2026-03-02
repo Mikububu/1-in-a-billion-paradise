@@ -536,6 +536,18 @@ Not as a couple. Not as a category. As two fields of energy whose mathematics ha
 These two may or may not know each other. You are synthesizing what the charts suggest WOULD happen if these energies met.
 Now deliver the synthesis.
 
+SYSTEM REFERENCE (compressed guidance for verdict scoring accuracy):
+
+WESTERN ASTROLOGY: Tropical zodiac. Key vocabulary: aspects (conjunction, opposition, trine, square, sextile), houses, signs, planets, orbs, Ascendant/MC/IC/DC, Nodes. Synastry = cross-chart aspects. Focus on Venus/Mars contacts (desire), Moon contacts (emotional current), Saturn/Pluto contacts (transformation/pressure), Jupiter contacts (expansion). Angular overlays = visceral impact.
+
+VEDIC JYOTISH (Sidereal): Uses Lahiri ayanamsa. Key vocabulary: Grahas (Surya, Chandra, Mangal, Budha, Guru, Shukra, Shani, Rahu, Ketu), Rashis, Bhavas, Nakshatras, Dashas. NEVER use Western planet names in Vedic scores. Ashtakoot Kundali Milan = 8 Kootas totaling 36 Gunas (Nadi, Bhakoot, Gana, Maitri, Yoni, Tara, Vasya, Varna). Rahu-Ketu axis = karmic obsession. Dasha timing = cosmic seasons.
+
+HUMAN DESIGN: Key vocabulary: Type (Generator, Projector, Manifestor, Reflector, MG), Strategy, Authority, Centers (defined/undefined), Channels, Gates, Profile, Incarnation Cross, Not-Self theme. Channel completion = electromagnetic attraction. Defined center broadcasts to undefined = conditioning dynamic. Authority mismatch = decision-making friction.
+
+GENE KEYS: Key vocabulary: Shadow, Gift, Siddhi, frequency, Activation Sequence (Life's Work, Evolution, Radiance, Purpose), Venus Sequence (attraction, EQ, SQ), Pearl Sequence (prosperity). Shadow resonance = mutual triggering. Gift activation = growth catalyst. Programming Partners = deep frequency locks.
+
+KABBALAH: Key vocabulary: Sephiroth (10 emanations on Tree of Life), Tikkun (soul correction), Klipoth (shadow shells/broken vessels), Four Worlds (Atziluth, Beriah, Yetzirah, Assiyah), Pillar of Mercy/Severity/Middle. Tikkun alignment = correction synergy or obstruction. Void Sephiroth = shared blind spots. Klipothic interference = shadow possession.
+
 PRIMARY SIGNAL INPUT (NARRATIVE TRIGGERS):
 ${formatTriggerSection(`PERSON1 TRIGGERS (${person1Name})`, person1Triggers)}
 
@@ -554,30 +566,30 @@ ${tragicRealismBlock()}
 OUTPUT REQUIREMENTS
 ═══════════════════════════════════════════════════════════════════════════════
 
-**WORD COUNT: 4500 WORDS MINIMUM. This becomes 28-32 minutes of audio. DO NOT STOP EARLY.**
+**WORD COUNT: ${STANDARD_READING.min}-${STANDARD_READING.max} WORDS (target ${STANDARD_READING.target}). This becomes ${STANDARD_READING.audioMinutes} minutes of audio. DO NOT STOP EARLY.**
 
 STRUCTURE (internal guidance only — NO headers in output):
 
-PART 1 — THE SYNTHESIS (1200 words)
+PART 1 — THE SYNTHESIS (2000 words)
 What all five systems agree on. The undeniable pattern that appears in every lens.
 Name the nature of this connection precisely: is it a mirror, a catalyst, an anchor, a crucible, an echo, or something rarer?
 Name what each person carries that the other cannot carry alone.
 Name where they accelerate each other and where they stall each other.
 This is not a summary of the five readings. It is what emerges when all five readings are held simultaneously.
 
-PART 2 — THE FIELD BETWEEN THEM (900 words)
+PART 2 — THE FIELD BETWEEN THEM (1800 words)
 Describe the energy field created by these two specific humans in proximity.
 What becomes possible in this field that is impossible outside it?
 What becomes impossible in this field that is possible outside it?
 What does this field ask of each person to sustain it?
 Honesty level: ${intensity.honestyLevel}. Shadow percentage: ${intensity.shadowPercentage}%.
 
-PART 3 — THE MATHEMATICS (600 words)
+PART 3 — THE MATHEMATICS (1200 words)
 Name the specific convergences across systems — where Western, Vedic, Gene Keys, Human Design, and Kabbalah all point at the same truth about this connection.
 Name the specific divergences — where systems contradict and what that contradiction reveals.
 Be precise. Name which systems, which placements, which patterns.
 
-PART 4 — WHAT THIS IS FOR (500 words)
+PART 4 — WHAT THIS IS FOR (1000 words)
 Every connection has a purpose beyond the people inside it. Name this one's.
 Not romantically. Not spiritually in a vague way. Precisely.
 What does the universe appear to be doing by placing these two fields in proximity?
