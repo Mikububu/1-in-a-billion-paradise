@@ -489,6 +489,10 @@
 
   "chat.messagePlaceholder": "Type a message...",
 
+  "home.activeJob.title": "Reading in progress",
+  "home.activeJob.sub": "{{name}} · {{percent}}% complete",
+  "home.activeJob.defaultName": "Your reading",
+  "home.producedBy": "produced by",
   "home.checkingAudio": "Checking cloud audio...",
   "home.missingBirthData": "Missing birth data.",
   "home.failedToGenerate": "Failed to generate.",

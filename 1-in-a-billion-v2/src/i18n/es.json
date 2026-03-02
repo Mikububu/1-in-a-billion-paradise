@@ -66,11 +66,11 @@
   "home.matchAlert.title": "Resonancia encontrada",
   "home.matchAlert.message": "Encontramos una resonancia para ti. Toca el número grande para abrir la Galería de Almas.",
   "home.matchStatus.label": "Estado de resonancia",
-  "home.howMatching.button": "Cómo funciona la resonancia",
+  "home.howMatching.button": "Cómo funciona",
   "home.matching.found.singular": "ENCONTRAMOS UNA RESONANCIA PARA TI",
   "home.matching.found.plural": "ENCONTRAMOS {{count}} RESONANCIAS PARA TI",
   "home.matching.found.hint": "Toca para ver",
-  "home.matching.notFound": "PERO EL 1 IN A BILLION SIGUE AHÍ AFUERA",
+  "home.matching.notFound": "PERO TU ALMA GEMELA SIGUE AHÍ AFUERA",
   "home.matching.registered.title": "¡Registrado!",
   "home.matching.registered.message": "¡La función de resonancia pronto!",
   "home.matching.modal.title": "Cómo funciona la resonancia",
@@ -333,7 +333,7 @@
   "intro.authAlert.message": "Al cerrar sesión eliminarías todos tus datos de usuario e historial. ¿Estás seguro?",
   "intro.authAlert.button": "Cerrar sesión",
   "intro.entitlement.title": "Continuar incorporación",
-  "intro.entitlement.message": "Completa la incorporación y suscripción para desbloquear el acceso al panel.",
+  "intro.entitlement.message": "Completa el registro y la suscripción para acceder al panel.",
   "intro.access.failed.title": "Verificación de acceso fallida",
   "intro.access.failed.message": "No se pudo verificar tu suscripción en este momento.",
 
@@ -489,6 +489,10 @@
 
   "chat.messagePlaceholder": "Escribe un mensaje…",
 
+  "home.activeJob.title": "Lectura en curso",
+  "home.activeJob.sub": "{{name}} · {{percent}}% listo",
+  "home.activeJob.defaultName": "Tu lectura",
+  "home.producedBy": "producido por",
   "home.checkingAudio": "Verificando audio en la nube…",
   "home.missingBirthData": "Datos de nacimiento faltantes.",
   "home.failedToGenerate": "Fallo al generar.",

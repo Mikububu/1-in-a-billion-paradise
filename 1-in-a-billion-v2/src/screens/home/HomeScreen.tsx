@@ -681,7 +681,7 @@ export const HomeScreen = ({ navigation }: Props) => {
         </View>
 
         <TouchableOpacity style={styles.libraryCard} onPress={() => navigation.navigate('NextStep' as any)}>
-          <View style={styles.libraryHeader}><Text style={styles.libraryTitle}>My Souls Laboratory</Text></View>
+          <View style={styles.libraryHeader}><Text style={styles.libraryTitle}>{t('home.laboratory.title')}</Text></View>
         </TouchableOpacity>
 
         {activeJob && (
@@ -700,9 +700,9 @@ export const HomeScreen = ({ navigation }: Props) => {
             <Animated.View style={{ opacity: activeJobPulse, flexDirection: 'row', alignItems: 'center' }}>
               <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: spacing.sm }} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.activeJobTitle}>Reading in progress</Text>
+                <Text style={styles.activeJobTitle}>{t('home.activeJob.title')}</Text>
                 <Text style={styles.activeJobSub}>
-                  {activeJob.receipt.personName || 'Your reading'} · {activeJob.percent}% complete
+                  {t('home.activeJob.sub', { name: activeJob.receipt.personName || t('home.activeJob.defaultName'), percent: activeJob.percent })}
                 </Text>
               </View>
               <Text style={styles.activeJobArrow}>→</Text>
@@ -715,7 +715,7 @@ export const HomeScreen = ({ navigation }: Props) => {
             <TouchableOpacity style={styles.uploadPhotoButton} onPress={handleUploadPhoto} disabled={uploadingPhoto}>
               <Animated.View style={{ opacity: blinkAnim, alignItems: 'center' }}>
                 <View style={styles.uploadPhotoPlaceholder}><Text style={styles.uploadPhotoIcon}>⊕</Text></View>
-                <Text style={styles.uploadPhotoLabel}>{uploadingPhoto ? 'Creating...' : 'Upload photo'}</Text>
+                <Text style={styles.uploadPhotoLabel}>{uploadingPhoto ? t('home.photo.uploading') : t('home.photo.upload')}</Text>
               </Animated.View>
             </TouchableOpacity>
           ) : (
@@ -726,7 +726,7 @@ export const HomeScreen = ({ navigation }: Props) => {
         </View>
 
         <View style={styles.producedBySection}>
-          <Text style={styles.producedByText}>produced by</Text>
+          <Text style={styles.producedByText}>{t('home.producedBy')}</Text>
           <Image
             source={require('../../../assets/images/forbidden-yoga-logo-white.png')}
             style={styles.forbiddenYogaLogo}
@@ -747,7 +747,7 @@ export const HomeScreen = ({ navigation }: Props) => {
             {portraitPhotoUrl ? (
               <Image source={{ uri: portraitPhotoUrl }} style={styles.previewImage} resizeMode="contain" />
             ) : null}
-            <Text style={styles.previewHint}>Tap anywhere to close</Text>
+            <Text style={styles.previewHint}>{t('myLibrary.preview.closeHint')}</Text>
           </View>
         </Pressable>
       </Modal>
@@ -761,7 +761,7 @@ export const HomeScreen = ({ navigation }: Props) => {
         <Pressable style={styles.howMatchingBackdrop} onPress={() => setHowMatchingVisible(false)}>
           <Pressable style={styles.howMatchingCard} onPress={() => {}}>
             <View style={styles.howMatchingHeader}>
-              <Text style={styles.howMatchingTitle}>How Matching Works</Text>
+              <Text style={styles.howMatchingTitle}>{t('home.matching.modal.title')}</Text>
               <Pressable style={styles.howMatchingCloseButton} onPress={() => setHowMatchingVisible(false)}>
                 <Text style={styles.howMatchingCloseText}>✕</Text>
               </Pressable>

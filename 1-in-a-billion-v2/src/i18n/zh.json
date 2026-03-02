@@ -332,8 +332,8 @@
   "intro.authAlert.title": "退出登录",
   "intro.authAlert.message": "通过退出登录，你将删除所有用户数据和历史记录。你确定吗？",
   "intro.authAlert.button": "退出登录",
-  "intro.entitlement.title": "继续入职",
-  "intro.entitlement.message": "完成入职和订阅以解锁仪表板访问权限。",
+  "intro.entitlement.title": "继续设置",
+  "intro.entitlement.message": "完成设置和订阅以解锁控制台。",
   "intro.access.failed.title": "访问检查失败",
   "intro.access.failed.message": "目前无法验证你的订阅。",
 
@@ -489,6 +489,10 @@
 
   "chat.messagePlaceholder": "输入消息…",
 
+  "home.activeJob.title": "正在生成解读",
+  "home.activeJob.sub": "{{name}} · {{percent}}% 完成",
+  "home.activeJob.defaultName": "你的解读",
+  "home.producedBy": "出品",
   "home.checkingAudio": "正在检查云音频…",
   "home.missingBirthData": "出生数据缺失。",
   "home.failedToGenerate": "生成失败。",
