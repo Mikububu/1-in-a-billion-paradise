@@ -12,7 +12,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { AmbientMusic } from '@/services/ambientMusic';
 import { useMusicStore } from '@/store/musicStore';
 import { BackButton } from '@/components/BackButton';
-import { t } from '@/i18n';
+import { t, setLanguage } from '@/i18n';
 
 export const LanguagesScreen = () => {
     const navigation = useNavigation<any>();
@@ -83,7 +83,12 @@ export const LanguagesScreen = () => {
                         label={t('languages.primary')}
                         placeholder={t('languages.primaryPlaceholder')}
                         options={options}
-                        onSelect={(lang) => lang && setPrimaryLanguage(lang)}
+                        onSelect={(lang) => {
+                            if (lang) {
+                                setPrimaryLanguage(lang);
+                                setLanguage(lang.code);
+                            }
+                        }}
                         selectedLabel={primaryLanguage?.label}
                     />
 

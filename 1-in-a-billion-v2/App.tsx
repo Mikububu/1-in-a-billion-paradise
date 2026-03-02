@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavigationContainer, DefaultTheme as NavigationDefaultTheme } from '@react-navigation/native';
 import { navigationRef } from '@/navigation/navigationRef';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -20,20 +20,22 @@ import { initGlobalErrorHandler } from '@/utils/globalErrorHandler';
 import { initLanguage } from '@/i18n';
 
 const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 2,
-      staleTime: 5 * 60_000,
-      gcTime: 10 * 60_000,
+    defaultOptions: {
+        queries: {
+            retry: 2,
+            staleTime: 5 * 60_000,
+            gcTime: 10 * 60_000,
+        },
     },
-  },
 });
 
 export default function App() {
+    const [isLangReady, setIsLangReady] = useState(false);
+
     // Initialize global error handler + language preference on mount
     useEffect(() => {
         initGlobalErrorHandler();
-        initLanguage();
+        initLanguage().finally(() => setIsLangReady(true));
     }, []);
 
     logger.info('APP RENDER CYCLE START');
@@ -65,9 +67,9 @@ export default function App() {
         };
     }, []);
 
-    logger.info('APP STATE:', { fontsLoaded, isAuthReady, hasSession, userId: user?.id });
+    logger.info('APP STATE:', { fontsLoaded, isAuthReady, hasSession, userId: user?.id, isLangReady });
 
-    if (!fontsLoaded) {
+    if (!fontsLoaded || !isLangReady) {
         return (
             <View style={{ flex: 1, backgroundColor: '#0a0a0a', justifyContent: 'center', alignItems: 'center' }}>
                 <Text style={{ color: '#999', fontSize: 16 }}>Loading...</Text>
