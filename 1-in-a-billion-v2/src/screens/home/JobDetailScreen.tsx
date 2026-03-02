@@ -173,13 +173,10 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
         const p1 = params.person1?.name || params.person?.name;
         const p2 = params.person2?.name;
 
-        // For multi-person jobs (synastry/bundle_verdict), always show both names
-        // even when personName is provided — the route param only carries person1's name.
-        const jobType = String(job?.type || '').toLowerCase();
-        const isMultiPerson = jobType === 'synastry' || jobType === 'bundle_verdict';
-
-        if (isMultiPerson && p1 && p2) {
-            // If docNum is available, infer which person this reading is for
+        // If both persons exist in job params, always show both names.
+        // This covers synastry, nuclear, nuclear_v2 — any job with two people.
+        // The route param `personName` only carries one name, so job params take priority.
+        if (p1 && p2) {
             if (typeof docNum === 'number') {
                 const mod = ((docNum - 1) % 3);
                 if (mod === 0) return p1;       // person1
@@ -189,9 +186,10 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
             return `${p1} & ${p2}`;
         }
 
+        // Fallback: job hasn't loaded yet or single-person job
+        if (p1) return p1;
         if (personName) return personName;
-        if (p1 && p2) return `${p1} & ${p2}`;
-        return p1 || 'Reading';
+        return 'Reading';
     }, [job, personName, docNum]);
 
     const systemsLabel = useMemo(() => {
