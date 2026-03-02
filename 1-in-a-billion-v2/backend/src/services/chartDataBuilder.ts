@@ -498,10 +498,111 @@ export function buildChartDataForSystem(
         return buildVedicBlock(person1Name, p1Placements, p1BirthData);
       }
 
+      // ── Ashtakoot (Kundali Milan) scoring for synastry ──────────────
+      let ashtakootBlock = '';
+      try {
+        const p1Sid = p1Placements?.sidereal;
+        const p2Sid = p2Placements?.sidereal;
+        if (p1Sid?.janmaNakshatra && p2Sid?.janmaNakshatra && p1Sid?.chandraRashi && p2Sid?.chandraRashi) {
+          const { computeVedicMatch } = require('./vedic/vedic_matchmaking.engine');
+          const { PersonChart } = require('./vedic/vedic_matchmaking.types');
+
+          // Build PersonChart objects from sidereal data
+          const moonGraha1 = (p1Sid.grahas || []).find((g: any) => g.key === 'moon');
+          const moonGraha2 = (p2Sid.grahas || []).find((g: any) => g.key === 'moon');
+          const marsGraha1 = (p1Sid.grahas || []).find((g: any) => g.key === 'mars');
+          const marsGraha2 = (p2Sid.grahas || []).find((g: any) => g.key === 'mars');
+
+          const chart1 = {
+            id: 'person1',
+            birth_data: { date: p1BirthData.birthDate, time: p1BirthData.birthTime, location: { latitude: 0, longitude: 0, timezone: p1BirthData.timezone || 'UTC' } },
+            moon_nakshatra: p1Sid.janmaNakshatra,
+            moon_sign: p1Sid.chandraRashi,
+            moon_rashi_lord: vedicRuler[p1Sid.chandraRashi] || '',
+            gana: '', // Will be derived by scoring functions from nakshatra
+            yoni: '',
+            nadi: '',
+            varna: '',
+            vashya: '',
+            pada: p1Sid.janmaPada || 1,
+            mars_placement_house: marsGraha1?.bhava || 1,
+          };
+          const chart2 = {
+            id: 'person2',
+            birth_data: { date: p2BirthData!.birthDate, time: p2BirthData!.birthTime, location: { latitude: 0, longitude: 0, timezone: p2BirthData!.timezone || 'UTC' } },
+            moon_nakshatra: p2Sid.janmaNakshatra,
+            moon_sign: p2Sid.chandraRashi,
+            moon_rashi_lord: vedicRuler[p2Sid.chandraRashi] || '',
+            gana: '',
+            yoni: '',
+            nadi: '',
+            varna: '',
+            vashya: '',
+            pada: p2Sid.janmaPada || 1,
+            mars_placement_house: marsGraha2?.bhava || 1,
+          };
+
+          const result = computeVedicMatch(chart1, chart2);
+          const a = result.ashtakoota;
+          const total = a.total_points;
+          const maxTotal = 36;
+
+          // Compatibility tier
+          let tier = 'Poor (below 18 — not recommended)';
+          if (total >= 28) tier = 'Excellent (28+ — highly auspicious)';
+          else if (total >= 24) tier = 'Very Good (24-27 — strongly recommended)';
+          else if (total >= 18) tier = 'Good (18-23 — acceptable)';
+
+          // Dosha flags
+          const doshaLines: string[] = [];
+          if (a.nadi.dosha_present) doshaLines.push('⚠ NADI DOSHA: Same Nadi — traditionally considered a serious obstruction (health/progeny concerns). Score: 0/8');
+          if (a.bhakoot.score === 0) doshaLines.push('⚠ BHAKOOT DOSHA: Inauspicious Moon sign combination — may indicate financial or emotional friction. Score: 0/7');
+          const manglik1 = marsGraha1 && [1, 2, 4, 7, 8, 12].includes(marsGraha1.bhava);
+          const manglik2 = marsGraha2 && [1, 2, 4, 7, 8, 12].includes(marsGraha2.bhava);
+          if (manglik1 || manglik2) {
+            const who = manglik1 && manglik2 ? 'Both persons' : manglik1 ? person1Name : person2Name;
+            doshaLines.push(`⚠ MANGLIK DOSHA: ${who} — Mars in sensitive bhava. Affects marriage timing and temperament.`);
+          }
+
+          ashtakootBlock = [
+            '',
+            '═══════════════════════════════════════════════════════',
+            'ASHTAKOOT KUNDALI MILAN (NAKSHATRA MATCHING):',
+            '═══════════════════════════════════════════════════════',
+            `${person1Name}: Chandra in ${p1Sid.chandraRashi}, Nakshatra ${p1Sid.janmaNakshatra} pada ${p1Sid.janmaPada}`,
+            `${person2Name}: Chandra in ${p2Sid.chandraRashi}, Nakshatra ${p2Sid.janmaNakshatra} pada ${p2Sid.janmaPada}`,
+            '',
+            'EIGHT KOOTAS (GUNA MATCHING):',
+            `  1. Varna (spiritual compatibility):     ${a.varna.score}/${a.varna.max_score}`,
+            `  2. Vashya (mutual attraction/control):  ${a.vashya.score}/${a.vashya.max_score}`,
+            `  3. Tara (destiny/health compatibility): ${a.tara.score}/${a.tara.max_score}`,
+            `  4. Yoni (physical/sexual compatibility):${a.yoni.score}/${a.yoni.max_score}`,
+            `  5. Graha Maitri (mental wavelength):    ${a.graha_maitri.score}/${a.graha_maitri.max_score}`,
+            `  6. Gana (temperament match):            ${a.gana.score}/${a.gana.max_score}`,
+            `  7. Bhakoot (emotional/financial):       ${a.bhakoot.score}/${a.bhakoot.max_score}`,
+            `  8. Nadi (health/genetic compatibility): ${a.nadi.score}/${a.nadi.max_score}`,
+            '',
+            `TOTAL GUNA SCORE: ${total}/${maxTotal}`,
+            `COMPATIBILITY TIER: ${tier}`,
+            doshaLines.length > 0 ? `\nDOSHA ALERTS:\n${doshaLines.join('\n')}` : 'DOSHA ALERTS: None detected',
+            '',
+            'INTERPRETATION GUIDE:',
+            '- 28+/36: Highly auspicious — deep karmic harmony',
+            '- 24-27/36: Very good — strong foundation with minor friction areas',
+            '- 18-23/36: Acceptable — workable with awareness of weak kootas',
+            '- Below 18/36: Challenging — significant mismatch in core areas',
+          ].join('\n');
+        }
+      } catch (err: any) {
+        console.warn('⚠️ Ashtakoot scoring failed (non-fatal):', err?.message);
+        ashtakootBlock = '\nASHTAKOOT KUNDALI MILAN: Could not compute (data missing).';
+      }
+
       return [
         buildVedicBlock(person1Name, p1Placements, p1BirthData),
         '',
         buildVedicBlock(person2Name!, p2Placements!, p2BirthData!),
+        ashtakootBlock,
       ].join('\n');
     }
 
