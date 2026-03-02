@@ -14,6 +14,7 @@ import { useMusicStore } from '@/store/musicStore';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
 import { verifyEntitlementWithBackend } from '@/services/payments';
 import { env } from '@/config/env';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Intro'>;
 
@@ -51,12 +52,12 @@ export const IntroScreen = ({ navigation }: Props) => {
     if (newCount >= 5) {
       // Reset everything - full purge like Sign Out
       Alert.alert(
-        'Reset App',
-        'This will delete ALL your data (readings, people, account) and reset the app. Continue?',
+        t('intro.resetAlert.title'),
+        t('intro.resetAlert.message'),
         [
-          { text: 'Cancel', style: 'cancel', onPress: () => setTapCount(0) },
+          { text: t('common.cancel'), style: 'cancel', onPress: () => setTapCount(0) },
           {
-            text: 'Reset Everything',
+            text: t('intro.resetAlert.button'),
             style: 'destructive',
             onPress: async () => {
               try {
@@ -95,11 +96,11 @@ export const IntroScreen = ({ navigation }: Props) => {
                 await signOut();
 
                 setTapCount(0);
-                Alert.alert('Done', 'All data has been deleted and app reset.');
+                Alert.alert(t('common.done'), t('intro.resetAlert.success'));
               } catch (error: any) {
                 console.error('Error resetting app:', error);
                 setTapCount(0);
-                Alert.alert('Error', error.message || 'Failed to reset. Please try again.');
+                Alert.alert(t('common.error'), error.message || t('error.generic'));
               }
             },
           },
@@ -173,12 +174,12 @@ export const IntroScreen = ({ navigation }: Props) => {
   const handleAuthButton = async () => {
     if (isLoggedIn) {
       Alert.alert(
-        'Sign Out',
-        'By signing out you would delete all your user data and history. Are you sure?',
+        t('intro.authAlert.title'),
+        t('intro.authAlert.message'),
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: t('common.cancel'), style: 'cancel' },
           {
-            text: 'Sign Out',
+            text: t('intro.authAlert.button'),
             style: 'destructive',
             onPress: async () => {
               try {
@@ -219,7 +220,7 @@ export const IntroScreen = ({ navigation }: Props) => {
                 await signOut();
               } catch (error: any) {
                 console.error('Error deleting account:', error);
-                Alert.alert('Error', error.message || 'Failed to delete account. Please try again.');
+                Alert.alert(t('common.error'), error.message || t('error.generic'));
               }
             }
           },
@@ -254,15 +255,15 @@ export const IntroScreen = ({ navigation }: Props) => {
         return true;
       }
       Alert.alert(
-        'Continue onboarding',
-        'Finish onboarding and subscription to unlock dashboard access.',
-        [{ text: 'OK', onPress: () => navigation.navigate('CoreIdentities' as any) }]
+        t('intro.entitlement.title'),
+        t('intro.entitlement.message'),
+        [{ text: t('common.ok'), onPress: () => navigation.navigate('CoreIdentities' as any) }]
       );
       return false;
     }
 
     setEntitlementState('unknown');
-    Alert.alert('Access check failed', 'Could not verify your subscription right now.');
+    Alert.alert(t('intro.access.failed.title'), t('intro.access.failed.message'));
     return false;
   }, [hasCompletedOnboarding, setEntitlementState, user?.id]);
 
@@ -280,7 +281,7 @@ export const IntroScreen = ({ navigation }: Props) => {
           {/* Audio Control - Floating */}
           <View style={styles.headerControls}>
             <TouchableOpacity onPress={toggleSound} style={styles.pauseButton}>
-              <Text style={styles.pauseText}>{isPlaying ? 'Pause Music' : 'Play Music'}</Text>
+              <Text style={styles.pauseText}>{isPlaying ? t('intro.music.pause') : t('intro.music.play')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -326,12 +327,12 @@ export const IntroScreen = ({ navigation }: Props) => {
           {/* MIDDLE: Primary Actions */}
           <View style={styles.middleButtons}>
             <Button
-              label={isLoggedIn ? "Sign Out" : "Log In"}
+              label={isLoggedIn ? t('intro.button.signOut') : t('intro.button.logIn')}
               variant="secondary"
               onPress={handleAuthButton}
             />
             <Button
-              label={isLoggedIn ? "My Secret Life" : "Get Started"}
+              label={isLoggedIn ? t('intro.button.dashboard') : t('intro.button.getStarted')}
               onPress={async () => {
                 if (isLoggedIn) {
                   // Fade out music when going to Dashboard

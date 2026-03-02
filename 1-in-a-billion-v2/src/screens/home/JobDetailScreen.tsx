@@ -9,11 +9,12 @@ import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { fetchJobArtifacts, type JobArtifact } from '@/services/jobArtifacts';
 import { prewarmArtifactSignedUrls } from '@/services/artifactSignedUrlCache';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'JobDetail'>;
 
 export const JobDetailScreen = ({ navigation, route }: Props) => {
-    const { jobId, docNum, personName, system } = route.params;
+    const { jobId, docNum, personName, partnerName, system } = route.params;
     const [job, setJob] = useState<any>(null);
     const [artifacts, setArtifacts] = useState<JobArtifact[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -188,15 +189,17 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
 
         // Fallback: job hasn't loaded yet or single-person job
         if (p1) return p1;
+        // Use route params as last resort (includes partnerName for synastry)
+        if (personName && partnerName) return `${personName} & ${partnerName}`;
         if (personName) return personName;
         return 'Reading';
-    }, [job, personName, docNum]);
+    }, [job, personName, partnerName, docNum]);
 
     const systemsLabel = useMemo(() => {
         if (system) return system.charAt(0).toUpperCase() + system.slice(1);
         const params = job?.params || job?.input || {};
         const systems = Array.isArray(params.systems) ? params.systems : [];
-        if (systems.length === 0) return 'No systems listed';
+        if (systems.length === 0) return t('jobDetail.systems.empty');
         return systems.join(', ');
     }, [job, system]);
 
@@ -227,7 +230,7 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
             <View style={styles.topSpacer} />
 
             <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-                <Text style={styles.title}>Preparing Your Reading</Text>
+                <Text style={styles.title}>{t('jobDetail.title')}</Text>
                 <Text style={styles.jobId}>Job ID: {jobId}</Text>
 
                 <View style={styles.card}>
@@ -243,10 +246,10 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
                     </View>
                     <Text style={styles.progressText}>{progressPercent == null ? '—' : `${progressPercent}%`}</Text>
                     {taskProgress == null ? (
-                        <Text style={styles.progressHint}>Waiting for backend task counts...</Text>
+                        <Text style={styles.progressHint}>{t('jobDetail.progress.waitingForTasks')}</Text>
                     ) : null}
                     <Text style={styles.statusText}>{statusLine}</Text>
-                    <Text style={styles.readinessTitle}>Readiness: {readinessSummary}</Text>
+                    <Text style={styles.readinessTitle}>{t('jobDetail.readiness.label', { summary: readinessSummary })}</Text>
 
                     <View style={styles.readinessRow}>
                         <Text style={styles.readinessItemRow}>
@@ -269,26 +272,26 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
                 {isLoading ? (
                     <View style={styles.loadingWrap}>
                         <ActivityIndicator color={colors.primary} />
-                        <Text style={styles.loadingText}>Loading status...</Text>
+                        <Text style={styles.loadingText}>{t('jobDetail.loading.text')}</Text>
                     </View>
                 ) : null}
 
                 <TouchableOpacity
                     style={[styles.actionButton, !isStrictReady && styles.actionButtonDisabled]}
-                    onPress={() => navigation.navigate('ReadingContent', { jobId, docNum, personName, system })}
+                    onPress={() => navigation.navigate('ReadingContent', { jobId, docNum, personName, partnerName, system })}
                     disabled={!isStrictReady}
                 >
                     <Text style={[styles.actionButtonText, !isStrictReady && styles.actionButtonTextDisabled]}>
-                        {isStrictReady ? 'Open Reading Content' : 'Waiting for Text + Audio + Song + PDF'}
+                        {isStrictReady ? t('jobDetail.button.openReading') : t('jobDetail.button.waitingForAssets')}
                     </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('MyLibrary')}>
-                    <Text style={styles.actionButtonText}>Open My Library</Text>
+                    <Text style={styles.actionButtonText}>{t('jobDetail.button.library')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('Home')}>
-                    <Text style={styles.actionButtonText}>My Secret Life Dashboard</Text>
+                    <Text style={styles.actionButtonText}>{t('jobDetail.button.dashboard')}</Text>
                 </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>

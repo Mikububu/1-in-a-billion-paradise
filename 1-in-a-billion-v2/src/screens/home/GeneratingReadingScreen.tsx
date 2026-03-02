@@ -14,6 +14,7 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { addJobToBuffer } from '@/services/jobBuffer';
 import { useProfileStore, type ReadingSystem } from '@/store/profileStore';
 import { fetchJobSnapshot } from '@/services/jobStatus';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'GeneratingReading'>;
 
@@ -31,7 +32,7 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
     } = route.params || {};
 
     const [activeJobId, setActiveJobId] = useState<string | null>(jobId || null);
-    const [currentStep, setCurrentStep] = useState('Initializing...');
+    const [currentStep, setCurrentStep] = useState(t('generatingReading.status.initializing'));
     const [generationComplete, setGenerationComplete] = useState(false);
     const [generationError, setGenerationError] = useState<string | null>(null);
     const [progressPercent, setProgressPercent] = useState(0);
@@ -172,7 +173,7 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
                 const isDone = status === 'complete' || status === 'completed';
                 if (isDone) {
                     setGenerationComplete(true);
-                    setCurrentStep('Complete - view it in My Library');
+                    setCurrentStep(t('generatingReading.status.complete'));
                     if (intervalRef.current) {
                         clearInterval(intervalRef.current);
                         intervalRef.current = null;
@@ -186,8 +187,8 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
         };
 
         if (!activeJobId) {
-            setGenerationError('Missing jobId.');
-            setCurrentStep('Missing job receipt. Please start the reading again.');
+            setGenerationError(t('generatingReading.error.missingJobId'));
+            setCurrentStep(t('generatingReading.error.missingJobMessage'));
             return;
         }
 
@@ -214,14 +215,14 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
     return (
         <SafeAreaView style={styles.container}>
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-                <Text style={styles.productTitle}>The Soul Journey of</Text>
+                <Text style={styles.productTitle}>{t('generatingReading.title.prefix')}</Text>
                 <Text style={styles.subjectNames}>{readingSubject}</Text>
                 <Text style={styles.systemSubheadline}>{systemLabel}</Text>
 
                 <View style={styles.messageBox}>
-                    <Text style={styles.messageTitle}>Deep Dive Readings Take Time</Text>
+                    <Text style={styles.messageTitle}>{t('generatingReading.message.title')}</Text>
                     <Text style={styles.messageText}>
-                        You can leave this screen. Your job keeps running in the background.
+                        {t('generatingReading.message.text')}
                     </Text>
                 </View>
 
@@ -233,7 +234,7 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
                 </View>
 
                 <View style={styles.statusCard}>
-                    <Text style={styles.statusLabel}>Status</Text>
+                    <Text style={styles.statusLabel}>{t('generatingReading.status.label')}</Text>
                     <Text style={styles.statusText}>{currentStep}</Text>
                     <Text style={styles.jobIdText}>Job ID: {activeJobId || 'N/A'}</Text>
                     {generationError ? <Text style={styles.errorText}>{generationError}</Text> : null}
@@ -241,22 +242,22 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
 
                 <TouchableOpacity style={styles.libraryButton} onPress={() => navigation.navigate('MyLibrary')}>
                     <Text style={styles.libraryButtonText}>
-                        {generationComplete ? 'Open My Library' : 'My Library (Generating in Background)'}
+                        {generationComplete ? t('generatingReading.button.openLibrary') : t('generatingReading.button.libraryBackground')}
                     </Text>
                 </TouchableOpacity>
 
                 {activeJobId ? (
                     <TouchableOpacity style={styles.libraryButton} onPress={() => navigation.navigate('JobDetail', { jobId: activeJobId })}>
-                        <Text style={styles.libraryButtonText}>Open Live Job Status</Text>
+                        <Text style={styles.libraryButtonText}>{t('generatingReading.button.jobStatus')}</Text>
                     </TouchableOpacity>
                 ) : null}
 
                 <TouchableOpacity style={styles.libraryButton} onPress={() => navigation.navigate('ComparePeople')}>
-                    <Text style={styles.libraryButtonText}>My People's Zoo</Text>
+                    <Text style={styles.libraryButtonText}>{t('generatingReading.button.peopleList')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.libraryButton} onPress={() => navigation.navigate('Home')}>
-                    <Text style={styles.libraryButtonText}>My Secret Life Dashboard</Text>
+                    <Text style={styles.libraryButtonText}>{t('generatingReading.button.dashboard')}</Text>
                 </TouchableOpacity>
             </ScrollView>
 

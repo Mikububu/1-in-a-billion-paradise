@@ -108,6 +108,16 @@ if (process.env.ENABLE_TEXT_WORKER !== 'false') {
   });
 }
 
+// Start watchdog in background (reclaims stale tasks + sends notifications)
+if (process.env.ENABLE_TEXT_WORKER !== 'false') {
+  import('./workers/watchdogWorker').then(({ startWatchdog }) => {
+    startWatchdog();
+    console.log('👁️  Watchdog worker started in background');
+  }).catch(err => {
+    console.warn('Watchdog worker not started:', err.message);
+  });
+}
+
 // NOTE: Song generation runs in the Fly `song-worker` process group.
 // We intentionally do NOT run it in the API process to avoid double-claiming tasks.
 

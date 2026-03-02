@@ -9,6 +9,7 @@ import {
     PromptLayerDirective,
     SystemId,
 } from './types';
+import { getLanguageInstruction, isValidLanguage, type OutputLanguage } from '../config/languages';
 
 const LAYER_BUDGET = {
     globalStyle: 12000,
@@ -20,7 +21,7 @@ const LAYER_BUDGET = {
     outputLength: 700,
     context: 2800,
     chartData: 30000,
-    outputLanguage: 250,
+    outputLanguage: 1200,  // Increased for rich language instructions (zodiac terms, tone notes)
 } as const;
 
 const INCARNATION_SYSTEM_PROMPTS: Record<string, string> = {
@@ -442,9 +443,18 @@ export function composePrompt(input: ComposePromptInput): ComposePromptResult {
 
     const chartLayer = capLayer('chart-data', input.chartData, LAYER_BUDGET.chartData, stats);
 
+    // Build rich language instruction if non-English
+    let outputLanguageContent = '';
+    if (input.outputLanguage && isValidLanguage(input.outputLanguage)) {
+        outputLanguageContent = getLanguageInstruction(input.outputLanguage as OutputLanguage);
+        // Fallback to basic label if no rich instruction (e.g. English)
+        if (!outputLanguageContent && input.outputLanguage !== 'en') {
+            outputLanguageContent = `OUTPUT LANGUAGE: ${input.outputLanguage}`;
+        }
+    }
     const outputLanguageLayer = capLayer(
         'output-language',
-        input.outputLanguage ? `OUTPUT LANGUAGE: ${input.outputLanguage}` : '',
+        outputLanguageContent,
         LAYER_BUDGET.outputLanguage,
         stats
     );

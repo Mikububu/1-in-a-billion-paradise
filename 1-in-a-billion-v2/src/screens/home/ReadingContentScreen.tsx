@@ -10,6 +10,7 @@ import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { downloadTextContent, fetchJobArtifacts, type JobArtifact } from '@/services/jobArtifacts';
 import { getCachedArtifactSignedUrl, prewarmArtifactSignedUrls } from '@/services/artifactSignedUrlCache';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ReadingContent'>;
 
@@ -41,7 +42,7 @@ const formatClock = (seconds: number) => {
 };
 
 export const ReadingContentScreen = ({ navigation, route }: Props) => {
-    const { jobId, docNum, personName, system } = route.params;
+    const { jobId, docNum, personName, partnerName, system } = route.params;
 
     const [job, setJob] = useState<any>(null);
     const [artifacts, setArtifacts] = useState<JobArtifact[]>([]);
@@ -94,7 +95,7 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
     const pdfArtifact = useMemo(() => getFirstPdfArtifact(relevantArtifacts), [relevantArtifacts]);
 
     const title = useMemo(() => {
-        if (personName) return personName;
+        // Try job params first — they have both person names for synastry
         const params = job?.params || job?.input || {};
         const p1 = params.person1?.name || params.person?.name;
         const p2 = params.person2?.name;
@@ -105,11 +106,15 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
         if (docType === 'overlay' || docType === 'verdict') {
             if (p1 && p2) return `${p1} & ${p2}`;
         }
-        if (docType === 'person1' || docType === 'individual') return p1 || 'Reading';
+        if (docType === 'person1' || docType === 'individual') return p1 || personName || 'Reading';
         // Fallback: show combined if both people exist
         if (p1 && p2) return `${p1} & ${p2}`;
-        return p1 || 'Reading';
-    }, [job, personName, relevantArtifacts]);
+        if (p1) return p1;
+        // Route params as last resort (includes partnerName for synastry)
+        if (personName && partnerName) return `${personName} & ${partnerName}`;
+        if (personName) return personName;
+        return 'Reading';
+    }, [job, personName, partnerName, relevantArtifacts]);
 
     const readingTypeSubheadline = useMemo(() => {
         if (system) {
@@ -397,7 +402,7 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                     : songArtifact;
         if (!artifact?.storage_path) {
             const label = target === 'pdf' ? 'PDF' : target === 'narration' ? 'narration audio' : 'song audio';
-            Alert.alert('Not Ready', `This ${label} is not ready yet.`);
+            Alert.alert(t('readingContent.notReady'), t('readingContent.notReadyMessage', { label }));
             return;
         }
 
@@ -405,7 +410,7 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
             setDownloadingTarget(target);
             const signedUrl = await getCachedArtifactSignedUrl(artifact.storage_path, 60 * 60);
             if (!signedUrl) {
-                Alert.alert('Error', 'Could not prepare download link.');
+                Alert.alert(t('common.error'), t('readingContent.downloadError'));
                 return;
             }
             await Linking.openURL(signedUrl);
@@ -441,7 +446,7 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
 
                 <View style={styles.actionsRow}>
                     <TouchableOpacity style={styles.actionButton} onPress={load}>
-                        <Text style={styles.actionText}>Refresh</Text>
+                        <Text style={styles.actionText}>{t('readingContent.refresh')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={styles.actionButton}
@@ -449,7 +454,7 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                         disabled={!pdfArtifact || downloadingTarget !== null}
                     >
                         <Text style={styles.actionText}>
-                            {!pdfArtifact ? 'PDF unavailable' : downloadingTarget === 'pdf' ? 'Opening...' : 'Download PDF'}
+                            {!pdfArtifact ? t('readingContent.pdfUnavailable') : downloadingTarget === 'pdf' ? t('readingContent.opening') : t('readingContent.downloadPdf')}
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -457,7 +462,7 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                 {(narrationArtifact || songArtifact) ? (
                     <View style={styles.playerCard}>
                         <View style={styles.trackRow}>
-                            <Text style={styles.trackLabel}>Narration</Text>
+                            <Text style={styles.trackLabel}>{t('readingContent.narration')}</Text>
                             <View style={styles.trackActions}>
                                 <TouchableOpacity
                                     style={[styles.playerButton, !narrationArtifact && styles.playerButtonDisabled]}
@@ -486,7 +491,7 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                         </View>
 
                         <View style={styles.trackRow}>
-                            <Text style={styles.trackLabel}>Song</Text>
+                            <Text style={styles.trackLabel}>{t('readingContent.song')}</Text>
                             <View style={styles.trackActions}>
                                 <TouchableOpacity
                                     style={[styles.playerButton, !songArtifact && styles.playerButtonDisabled]}
@@ -551,10 +556,10 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
                         </View>
                         <Text style={styles.playerMeta}>
                             {activeLoading
-                                ? `Preparing ${activeAudioKind === 'song' ? 'song' : 'narration'}...`
+                                ? t('readingContent.preparing', { type: activeAudioKind === 'song' ? t('readingContent.song') : t('readingContent.narration') })
                                 : activeSignedUrl
-                                    ? `${activeAudioKind === 'song' ? 'Song' : 'Narration'} ready`
-                                    : 'Select narration or song'}
+                                    ? t('readingContent.ready', { type: activeAudioKind === 'song' ? t('readingContent.song') : t('readingContent.narration') })
+                                    : t('readingContent.selectAudio')}
                         </Text>
                     </View>
                 ) : null}
@@ -564,7 +569,7 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
 
                 {textBody ? (
                     <>
-                        <Text style={styles.cardTitle}>Reading Text</Text>
+                        <Text style={styles.cardTitle}>{t('readingContent.readingText')}</Text>
                         <Text style={styles.readingText} selectable>
                             {textBody}
                         </Text>

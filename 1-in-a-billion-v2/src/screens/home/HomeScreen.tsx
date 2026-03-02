@@ -20,6 +20,10 @@ import { AntChase } from '@/components/AntChase';
 import { AntChaseV2 } from '@/components/AntChaseV2';
 import { useAudio } from '@/contexts/AudioContext';
 import { CHAT_RENEW_WARNING_TEXT } from '@/utils/chatAccess';
+import { getJobReceipts, type JobReceipt } from '@/services/jobBuffer';
+import { fetchJobSnapshot } from '@/services/jobStatus';
+import { getLanguage, onLanguageChange, type LanguageCode, t } from '@/i18n';
+import { LanguagePicker } from '@/components/LanguagePicker';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Home'>;
 
@@ -81,6 +85,10 @@ export const HomeScreen = ({ navigation }: Props) => {
   const [howMatchingVisible, setHowMatchingVisible] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [matchCount, setMatchCount] = useState(0);
+  const [activeJob, setActiveJob] = useState<{ receipt: JobReceipt; percent: number } | null>(null);
+  const [langPickerVisible, setLangPickerVisible] = useState(false);
+  const [currentLang, setCurrentLang] = useState<LanguageCode>(getLanguage());
+  const activeJobPulse = useRef(new Animated.Value(1)).current;
   const blinkAnim = useRef(new Animated.Value(1)).current;
   const secretTapCountRef = useRef(0);
   const secretTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -106,6 +114,32 @@ export const HomeScreen = ({ navigation }: Props) => {
   useFocusEffect(useCallback(() => {
     loadUserData();
   }, [loadUserData]));
+
+  // Check for in-progress jobs on focus so users don't have to hunt in My Library
+  useFocusEffect(useCallback(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const receipts = await getJobReceipts();
+        if (cancelled || receipts.length === 0) { setActiveJob(null); return; }
+        // Check the most recent job (already sorted newest-first)
+        const recent = receipts[0]!;
+        // Skip if older than 24 hours — probably already seen
+        const age = Date.now() - Date.parse(recent.createdAt);
+        if (age > 24 * 60 * 60 * 1000) { setActiveJob(null); return; }
+        const snapshot = await fetchJobSnapshot(recent.jobId);
+        if (cancelled) return;
+        if (snapshot && (snapshot.status === 'processing' || snapshot.status === 'queued')) {
+          setActiveJob({ receipt: recent, percent: snapshot.percent ?? 0 });
+        } else {
+          setActiveJob(null);
+        }
+      } catch {
+        if (!cancelled) setActiveJob(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []));
 
   useEffect(() => {
     if (!authUserId || matchCount <= 0) return;
@@ -144,6 +178,24 @@ export const HomeScreen = ({ navigation }: Props) => {
     // Photo loaded — ensure full opacity
     blinkAnim.setValue(1);
   }, [portraitPhotoUrl, blinkAnim]);
+
+  // Keep language pill label in sync
+  useEffect(() => {
+    return onLanguageChange(setCurrentLang);
+  }, []);
+
+  // Pulse animation for active job banner
+  useEffect(() => {
+    if (!activeJob) return;
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(activeJobPulse, { toValue: 0.7, duration: 1000, useNativeDriver: true }),
+        Animated.timing(activeJobPulse, { toValue: 1, duration: 1000, useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [activeJob, activeJobPulse]);
 
   const handleUploadPhoto = async () => {
     try {
@@ -548,30 +600,43 @@ export const HomeScreen = ({ navigation }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Language pill — top left */}
+      <TouchableOpacity
+        style={[styles.langPill, { top: insets.top + spacing.sm }]}
+        onPress={() => setLangPickerVisible(true)}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel="Change language"
+      >
+        <Text style={styles.langPillText}>{currentLang.toUpperCase()}</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity style={[styles.settingsButton, { top: insets.top + spacing.sm }]} onPress={() => navigation.navigate('Settings')} accessibilityRole="button" accessibilityLabel="Settings">
         <Text style={styles.settingsIcon}>⚙</Text>
       </TouchableOpacity>
+
+      <LanguagePicker visible={langPickerVisible} onClose={() => setLangPickerVisible(false)} />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={[styles.content, { gap: spacing.md * compactV, paddingTop: spacing.lg + 10 }]} bounces={false} showsVerticalScrollIndicator={false}>
         <Animated.View style={{ opacity: fadeAnim }}>
           <View style={styles.headlineWrap}>
             <Text style={styles.headlineTop} numberOfLines={2} ellipsizeMode="tail">
               {(() => {
-                const name = currentPerson?.person?.name || 'Someone';
+                const name = currentPerson?.person?.name || t('common.unknown');
                 if (!currentPerson) return 'My';
                 if (currentPerson.person.isUser) return 'My';
                 return /s$/i.test(name) ? `${name}'` : `${name}'s`;
               })()}
             </Text>
-            <Text style={styles.headlineBottom}>Secret Life</Text>
+            <Text style={styles.headlineBottom}>{t('home.headline.bottom')}</Text>
           </View>
         </Animated.View>
 
         <Animated.View style={[styles.signsCardRow, { opacity: fadeAnim }]}>
-          {([['SUN', '☉', 'sun', shimmerColor1], ['MOON', '☽', 'moon', shimmerColor2], ['RISING', '↑', 'rising', shimmerColor3]] as const).map(([label, icon, type, color]) => (
-            <TouchableOpacity key={type} onPress={() => coreSigns[type] ? setSelectedReading(type) : Alert.alert('No data')} activeOpacity={0.7} disabled={!coreSigns[type]} accessibilityRole="button" accessibilityLabel={`${label} sign: ${coreSigns[type] || 'no data'}`}>
+          {([['☉', 'sun', shimmerColor1] as [string, ReadingType, any], ['☽', 'moon', shimmerColor2] as [string, ReadingType, any], ['↑', 'rising', shimmerColor3] as [string, ReadingType, any]]).map(([icon, type, color]) => (
+            <TouchableOpacity key={type} onPress={() => coreSigns[type] ? setSelectedReading(type) : Alert.alert(t('common.noResults'))} activeOpacity={0.7} disabled={!coreSigns[type]} accessibilityRole="button" accessibilityLabel={`${t(`readings.${type}`).toUpperCase()} sign: ${coreSigns[type] || 'no data'}`}>
               <Animated.View style={[styles.signCard, { borderColor: coreSigns[type] ? color : colors.border }]}>
-                <Text style={styles.signCardLabel}>{label}</Text>
+                <Text style={styles.signCardLabel}>{t(`readings.${type}`).toUpperCase()}</Text>
                 <Text style={styles.signCardIcon}>{icon}</Text>
                 <Text style={styles.signCardSign}>{coreSigns[type] || '—'}</Text>
               </Animated.View>
@@ -580,7 +645,7 @@ export const HomeScreen = ({ navigation }: Props) => {
         </Animated.View>
 
         <View style={styles.statusSection}>
-          <Text style={styles.sectionLabel}>Match status</Text>
+          <Text style={styles.sectionLabel}>{t('home.matchStatus.label')}</Text>
           <View style={styles.matchCountRow}>
             <TouchableOpacity
               style={styles.matchCountWrapper}
@@ -595,19 +660,19 @@ export const HomeScreen = ({ navigation }: Props) => {
               onPress={() => setHowMatchingVisible(true)}
               activeOpacity={0.85}
             >
-              <Text style={styles.howMatchingButtonText}>How matching works</Text>
+              <Text style={styles.howMatchingButtonText}>{t('home.howMatching.button')}</Text>
             </TouchableOpacity>
           </View>
           {displayedMatchCount > 0 ? (
             <TouchableOpacity onPress={() => navigation.navigate('Gallery' as any)} activeOpacity={0.7}>
               <Animated.Text style={[styles.statusSubMatch, { transform: [{ scale: pulseAnim }] }]}>
-                WE FOUND {displayedMatchCount === 1 ? 'A MATCH' : `${displayedMatchCount} MATCHES`} FOR YOU
+                {displayedMatchCount === 1 ? t('home.matching.found.singular') : t('home.matching.found.plural', { count: displayedMatchCount })}
               </Animated.Text>
-              <Text style={styles.statusSubMatchHint}>Tap to view</Text>
+              <Text style={styles.statusSubMatchHint}>{t('home.matching.found.hint')}</Text>
             </TouchableOpacity>
           ) : (
             <Animated.Text style={[styles.statusSub, { transform: [{ scale: pulseAnim }] }]}>
-              BUT THE <Text style={styles.statusOne} onPress={handleSecretTap}>1</Text> IN A BILLION IS STILL OUT THERE
+              {t('home.matching.notFound')}
             </Animated.Text>
           )}
           {matchingPaused ? (
@@ -618,6 +683,32 @@ export const HomeScreen = ({ navigation }: Props) => {
         <TouchableOpacity style={styles.libraryCard} onPress={() => navigation.navigate('NextStep' as any)}>
           <View style={styles.libraryHeader}><Text style={styles.libraryTitle}>My Souls Laboratory</Text></View>
         </TouchableOpacity>
+
+        {activeJob && (
+          <TouchableOpacity
+            style={styles.activeJobBanner}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('GeneratingReading', {
+              jobId: activeJob.receipt.jobId,
+              productType: activeJob.receipt.productType || 'reading',
+              productName: activeJob.receipt.productName || 'Reading',
+              personName: activeJob.receipt.personName,
+              partnerName: activeJob.receipt.partnerName,
+              readingType: activeJob.receipt.readingType as any,
+            })}
+          >
+            <Animated.View style={{ opacity: activeJobPulse, flexDirection: 'row', alignItems: 'center' }}>
+              <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: spacing.sm }} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.activeJobTitle}>Reading in progress</Text>
+                <Text style={styles.activeJobSub}>
+                  {activeJob.receipt.personName || 'Your reading'} · {activeJob.percent}% complete
+                </Text>
+              </View>
+              <Text style={styles.activeJobArrow}>→</Text>
+            </Animated.View>
+          </TouchableOpacity>
+        )}
 
         <View style={styles.profilePhotoSection}>
           {!portraitPhotoUrl ? (
@@ -728,9 +819,30 @@ const styles = StyleSheet.create({
   headlineWrap: { alignItems: 'center' },
   headlineTop: { fontFamily: typography.headline, fontSize: 32, color: colors.text, textAlign: 'center' },
   headlineBottom: { fontFamily: typography.headline, fontSize: 32, color: colors.text, textAlign: 'center', marginTop: -2 },
+  langPill: {
+    position: 'absolute',
+    left: spacing.page,
+    zIndex: 50,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  langPillText: {
+    fontFamily: typography.sansSemiBold,
+    fontSize: 13,
+    color: colors.text,
+    letterSpacing: 0.5,
+  },
   settingsButton: { position: 'absolute', right: spacing.page, zIndex: 50, padding: spacing.sm },
   settingsIcon: { fontSize: 24, color: colors.text },
   libraryCard: { backgroundColor: colors.surface, borderRadius: radii.card, padding: spacing.md, borderWidth: 1, borderColor: colors.primary, borderStyle: 'dashed', marginTop: spacing.xs },
+  activeJobBanner: { backgroundColor: colors.surface, borderRadius: radii.card, padding: spacing.md, marginTop: spacing.sm, borderWidth: 1, borderColor: colors.primary },
+  activeJobTitle: { fontFamily: typography.serifBold, fontSize: 14, color: colors.text },
+  activeJobSub: { fontFamily: typography.sansRegular, fontSize: 12, color: colors.textDim, marginTop: 2 },
+  activeJobArrow: { fontFamily: typography.serifBold, fontSize: 20, color: colors.primary, marginLeft: spacing.sm },
   libraryHeader: { alignItems: 'center' },
   libraryTitle: { fontFamily: typography.serifBold, fontSize: 20, color: colors.text },
   statusSection: { alignItems: 'center', paddingTop: spacing.md, paddingBottom: spacing.md },

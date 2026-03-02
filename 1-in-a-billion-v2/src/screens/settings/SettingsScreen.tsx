@@ -19,6 +19,7 @@ import {
     getMatchNotificationPreferences,
     updateMatchNotificationPreferences,
 } from '@/services/matchNotifications';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Settings'>;
 
@@ -78,17 +79,17 @@ export const SettingsScreen = ({ navigation }: Props) => {
 
     const handleForceSync = async () => {
         if (!authUser?.id || !isSupabaseConfigured) {
-            Alert.alert('Cannot Sync', 'You must be signed in to sync from cloud.');
+            Alert.alert(t('settings.sync.error.cannotSync'), t('settings.sync.error.notSignedIn'));
             return;
         }
 
         Alert.alert(
-            'Force Sync from Cloud',
-            'This will download your data from the cloud and overwrite any local changes. Continue?',
+            t('settings.sync.title'),
+            t('settings.sync.description'),
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Sync Now',
+                    text: t('settings.sync.button'),
                     onPress: async () => {
                         setIsSyncing(true);
                         try {
@@ -98,14 +99,14 @@ export const SettingsScreen = ({ navigation }: Props) => {
                                 for (const person of result.people) {
                                     upsertPersonById(person);
                                 }
-                                Alert.alert('Sync Complete', `Downloaded ${result.people.length} profiles from cloud.`);
+                                Alert.alert(t('settings.sync.success.title'), t('settings.sync.success.message', { count: result.people.length }));
                             } else if (result.success && result.people.length === 0) {
-                                Alert.alert('No Data Found', 'No profiles found in cloud.');
+                                Alert.alert(t('settings.sync.empty.title'), t('settings.sync.empty.message'));
                             } else {
-                                Alert.alert('Sync Failed', (result as any).error || 'Could not fetch data from cloud.');
+                                Alert.alert(t('settings.sync.failed.title'), (result as any).error || 'Could not fetch data from cloud.');
                             }
                         } catch (error: any) {
-                            Alert.alert('Sync Error', error.message || 'An error occurred.');
+                            Alert.alert(t('settings.sync.error.title'), error.message || 'An error occurred.');
                         } finally {
                             setIsSyncing(false);
                         }
@@ -117,12 +118,12 @@ export const SettingsScreen = ({ navigation }: Props) => {
 
     const handleLogout = () => {
         Alert.alert(
-            'Log Out',
-            'Are you sure you want to log out? Your data will be saved locally.',
+            t('settings.logout.title'),
+            t('settings.logout.message'),
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Log Out',
+                    text: t('settings.accountActions.logout'),
                     style: 'destructive',
                     onPress: async () => {
                         await signOut();
@@ -134,12 +135,12 @@ export const SettingsScreen = ({ navigation }: Props) => {
 
     const handleStartOver = () => {
         Alert.alert(
-            'Start Over',
-            'This will log you out and clear all local data. Continue?',
+            t('settings.startOver.title'),
+            t('settings.startOver.message'),
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Start Over',
+                    text: t('settings.accountActions.startOver'),
                     style: 'destructive',
                     onPress: async () => {
                         await signOut();
@@ -159,22 +160,22 @@ export const SettingsScreen = ({ navigation }: Props) => {
 
     const handleMatchAlerts = () => {
         if (!authUser?.id) {
-            Alert.alert('Sign in required', 'Please sign in to manage notification preferences.');
+            Alert.alert(t('settings.matchAlerts.error.signInRequired'), t('settings.matchAlerts.error.signInMessage'));
             return;
         }
 
         if (!matchAlertsLoaded || isMatchAlertsSaving) return;
 
         const nextEnabled = !matchAlertsEnabled;
-        const title = nextEnabled ? 'Enable Match Alerts' : 'Disable Match Alerts';
+        const title = nextEnabled ? t('settings.matchAlerts.enable.title') : t('settings.matchAlerts.disable.title');
         const message = nextEnabled
-            ? 'Allow push + email alerts when your first match appears?'
-            : 'Stop first-match alerts by push + email?';
+            ? t('settings.matchAlerts.enable.message')
+            : t('settings.matchAlerts.disable.message');
 
         Alert.alert(title, message, [
-            { text: 'Cancel', style: 'cancel' },
+            { text: t('common.cancel'), style: 'cancel' },
             {
-                text: nextEnabled ? 'Enable' : 'Disable',
+                text: nextEnabled ? t('settings.matchAlerts.enable.button') : t('settings.matchAlerts.disable.button'),
                 style: nextEnabled ? 'default' : 'destructive',
                 onPress: async () => {
                     setIsMatchAlertsSaving(true);
@@ -186,7 +187,7 @@ export const SettingsScreen = ({ navigation }: Props) => {
                     if (updated) {
                         setMatchAlertsEnabled(updated.matchAlertsEnabled);
                     } else {
-                        Alert.alert('Update failed', 'Could not save notification preference.');
+                        Alert.alert(t('settings.matchAlerts.error.updateFailed'), t('settings.matchAlerts.error.saveFailed'));
                     }
                     setIsMatchAlertsSaving(false);
                 },
@@ -196,102 +197,102 @@ export const SettingsScreen = ({ navigation }: Props) => {
 
     const sections: SettingsSection[] = [
         {
-            title: 'Account',
+            title: t('settings.section.account'),
             items: [
                 {
                     id: 'profile',
                     icon: '◉',
-                    title: 'Your Profile',
-                    subtitle: isVerified ? 'Verified ✓' : 'Not verified',
+                    title: t('settings.account.profile'),
+                    subtitle: isVerified ? t('settings.account.profile.verified') : t('settings.account.profile.notVerified'),
                     onPress: () => navigation.navigate('YourChart'),
                 },
                 {
                     id: 'library',
                     icon: '☰',
-                    title: 'My Library',
-                    subtitle: 'Readings, audio & saved content',
+                    title: t('settings.account.library'),
+                    subtitle: t('settings.account.library.subtitle'),
                     onPress: () => navigation.navigate('MyLibrary'),
                 },
                 {
                     id: 'sync',
                     icon: '↓',
-                    title: isSyncing ? 'Syncing...' : 'Sync from Cloud',
-                    subtitle: 'Download latest data from server',
+                    title: isSyncing ? t('settings.account.sync.syncing') : t('settings.account.sync'),
+                    subtitle: t('settings.account.sync.subtitle'),
                     onPress: handleForceSync,
                 },
                 {
                     id: 'match_alerts',
                     icon: '○',
-                    title: isMatchAlertsSaving ? 'Saving...' : 'Match Alerts',
+                    title: isMatchAlertsSaving ? t('common.loading') : t('settings.account.matchAlerts'),
                     subtitle: matchAlertsLoaded
                         ? matchAlertsEnabled
-                            ? 'On (first match)'
-                            : 'Off'
-                        : 'Loading...',
+                            ? t('settings.account.matchAlerts.on')
+                            : t('settings.account.matchAlerts.off')
+                        : t('settings.account.matchAlerts.loading'),
                     onPress: handleMatchAlerts,
                 },
             ],
         },
         {
-            title: 'Privacy & Data',
+            title: t('settings.section.privacyData'),
             items: [
                 {
                     id: 'ai_disclosure',
                     icon: '◎',
-                    title: 'AI & Data Usage',
+                    title: t('settings.privacyData.aiUsage'),
                     onPress: () => navigation.navigate('DataPrivacy'),
                 },
                 {
                     id: 'privacy',
                     icon: '▣',
-                    title: 'Privacy Policy',
+                    title: t('settings.privacyData.privacy'),
                     onPress: () => navigation.navigate('PrivacyPolicy'),
                 },
                 {
                     id: 'terms',
                     icon: '≡',
-                    title: 'Terms of Service',
+                    title: t('settings.privacyData.terms'),
                     onPress: () => navigation.navigate('TermsOfService'),
                 },
             ],
         },
         {
-            title: 'Support',
+            title: t('settings.section.support'),
             items: [
                 {
                     id: 'help',
                     icon: '?',
-                    title: 'Help & FAQ',
+                    title: t('settings.support.helpFaq'),
                     onPress: () => navigation.navigate('ContactSupport'),
                 },
                 {
                     id: 'about',
                     icon: 'i',
-                    title: 'About',
+                    title: t('settings.support.about'),
                     onPress: () => navigation.navigate('About'),
                 },
             ],
         },
         {
-            title: 'Account Actions',
+            title: t('settings.section.accountActions'),
             items: [
                 {
                     id: 'logout',
                     icon: '←',
-                    title: 'Log Out',
+                    title: t('settings.accountActions.logout'),
                     onPress: handleLogout,
                 },
                 {
                     id: 'start_over',
                     icon: '↺',
-                    title: 'Start Over',
+                    title: t('settings.accountActions.startOver'),
                     onPress: handleStartOver,
                     danger: true,
                 },
                 {
                     id: 'delete',
                     icon: '×',
-                    title: 'Delete Account',
+                    title: t('settings.accountActions.deleteAccount'),
                     onPress: () => navigation.navigate('AccountDeletion'),
                     danger: true,
                 },
@@ -303,7 +304,7 @@ export const SettingsScreen = ({ navigation }: Props) => {
         <SafeAreaView style={styles.container}>
             <BackButton onPress={() => navigation.goBack()} />
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Settings</Text>
+                <Text style={styles.headerTitle}>{t('settings.title')}</Text>
             </View>
 
             <ScrollView
@@ -342,9 +343,9 @@ export const SettingsScreen = ({ navigation }: Props) => {
                 ))}
 
                 <View style={styles.footer}>
-                    <Text style={styles.footerText}>1 In A Billion</Text>
-                    <Text style={styles.footerVersion}>Version 2.0.0</Text>
-                    <Text style={styles.footerCopy}>© 2024 One In A Billion Ltd.</Text>
+                    <Text style={styles.footerText}>{t('app.name')}</Text>
+                    <Text style={styles.footerVersion}>{t('app.version')}</Text>
+                    <Text style={styles.footerCopy}>{t('app.copyright')}</Text>
                 </View>
             </ScrollView>
         </SafeAreaView>

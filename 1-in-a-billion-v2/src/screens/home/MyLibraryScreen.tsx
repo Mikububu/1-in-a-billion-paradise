@@ -9,6 +9,7 @@ import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { BackButton } from '@/components/BackButton';
 import { fetchJobSnapshot, type JobSnapshot } from '@/services/jobStatus';
 import { recoverReadingsFromCloud } from '@/services/libraryRecovery';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'MyLibrary'>;
 
@@ -42,7 +43,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
     const [jobSnapshotById, setJobSnapshotById] = useState<Record<string, JobSnapshot>>({});
     const [isJobsLoading, setIsJobsLoading] = useState(false);
     const [previewImageUri, setPreviewImageUri] = useState<string | null>(null);
-    const [previewTitle, setPreviewTitle] = useState<string>('Portrait');
+    const [previewTitle, setPreviewTitle] = useState<string>(t('myLibrary.preview.defaultTitle'));
     const [isRecovering, setIsRecovering] = useState(false);
 
     const user = useMemo(() => people.find((p) => p.isUser), [people]);
@@ -120,7 +121,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
     const handleOpenPortrait = useCallback(() => {
         if (user?.portraitUrl || user?.originalPhotoUrl) {
             setPreviewImageUri(user.portraitUrl || user.originalPhotoUrl || null);
-            setPreviewTitle(`${user.name || 'Your'} portrait`);
+            setPreviewTitle(t('myLibrary.preview.defaultTitle'));
             return;
         }
 
@@ -198,38 +199,38 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             </View>
 
             <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-                <Text style={styles.title}>My Souls Library</Text>
-                <Text style={styles.subtitle}>Your people, readings, and next actions.</Text>
+                <Text style={styles.title}>{t('myLibrary.title')}</Text>
+                <Text style={styles.subtitle}>{t('myLibrary.subtitle')}</Text>
 
 
 
                 <View style={styles.statsRow}>
                     <View style={styles.statCard}>
                         <Text style={styles.statValue}>{people.length}</Text>
-                        <Text style={styles.statLabel}>Souls</Text>
+                        <Text style={styles.statLabel}>{t('myLibrary.stats.souls')}</Text>
                     </View>
                     <View style={styles.statCard}>
                         <Text style={styles.statValue}>{individualReadingsCount}</Text>
-                        <Text style={styles.statLabel}>Readings</Text>
+                        <Text style={styles.statLabel}>{t('myLibrary.stats.readings')}</Text>
                     </View>
                     <View style={styles.statCard}>
                         <Text style={styles.statValue}>{overlayReadingsCount}</Text>
-                        <Text style={styles.statLabel}>Compatibility</Text>
+                        <Text style={styles.statLabel}>{t('myLibrary.stats.compatibility')}</Text>
                     </View>
                 </View>
 
                 <View style={styles.statsRow}>
                     <View style={styles.statCard}>
                         <Text style={styles.statValue}>{savedAudios.length}</Text>
-                        <Text style={styles.statLabel}>Audio</Text>
+                        <Text style={styles.statLabel}>{t('myLibrary.stats.audio')}</Text>
                     </View>
                     <View style={styles.statCard}>
                         <Text style={styles.statValue}>{savedPDFs.length}</Text>
-                        <Text style={styles.statLabel}>PDF</Text>
+                        <Text style={styles.statLabel}>{t('myLibrary.stats.pdf')}</Text>
                     </View>
                     <View style={styles.statCard}>
                         <Text style={styles.statValue}>{people.length}</Text>
-                        <Text style={styles.statLabel}>Profiles</Text>
+                        <Text style={styles.statLabel}>{t('myLibrary.stats.profiles')}</Text>
                     </View>
                 </View>
 
@@ -237,7 +238,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
 
                 {trackedReadings.length === 0 && !isRecovering ? (
                     <View style={styles.emptyJobCard}>
-                        <Text style={styles.emptyJobText}>No tracked readings yet. Start a deep reading to see live status here.</Text>
+                        <Text style={styles.emptyJobText}>{t('myLibrary.empty.message')}</Text>
                     </View>
                 ) : (
                     <View style={styles.jobsList}>
@@ -247,7 +248,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                                 ? new Date(reading.lastTimestamp).toLocaleString()
                                 : '';
                             const systemName = reading.readingType === 'verdict'
-                                ? 'Final Verdict'
+                                ? t('myLibrary.reading.verdictType')
                                 : reading.system
                                     ? reading.system.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
                                     : 'Reading';
@@ -270,6 +271,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                                         jobId: reading.jobId,
                                         docNum: reading.docNum,
                                         personName: reading.personName,
+                                        partnerName: reading.partnerName,
                                         system: reading.system
                                     })}
                                 >
@@ -303,7 +305,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                                         <Text style={styles.jobTitle} numberOfLines={1}>{displayTitle}</Text>
                                         {readingDate ? (
                                             <Text style={styles.jobDate} numberOfLines={1}>
-                                                From {readingDate}
+                                                {t('myLibrary.reading.dateLabel', { date: readingDate })}
                                             </Text>
                                         ) : null}
                                         <Text style={styles.jobMeta} numberOfLines={1}>
@@ -312,7 +314,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                                     </View>
                                     <View style={styles.jobStatusWrap}>
                                         <Text style={styles.jobStatus}>{status}</Text>
-                                        <Text style={styles.jobOpen}>{isComplete ? 'Open Reading' : 'Open Status'}</Text>
+                                        <Text style={styles.jobOpen}>{isComplete ? t('myLibrary.reading.openReading') : t('myLibrary.reading.openStatus')}</Text>
                                     </View>
                                 </TouchableOpacity>
                             );
@@ -335,7 +337,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                         {previewImageUri ? (
                             <Image source={{ uri: previewImageUri }} style={styles.previewImage} resizeMode="contain" />
                         ) : null}
-                        <Text style={styles.previewHint}>Tap anywhere to close</Text>
+                        <Text style={styles.previewHint}>{t('myLibrary.preview.closeHint')}</Text>
                     </View>
                 </Pressable>
             </Modal>

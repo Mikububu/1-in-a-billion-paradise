@@ -36,6 +36,9 @@ import {
   trimSilenceFromWav,
   buildSilenceWav,
 } from '../services/audioProcessing';
+import { getVoiceConfig, hasVoiceSupport } from '../i18n/voiceRegistry';
+import { getChunkConfig } from '../i18n/chunkRules';
+import { parseLanguage, type OutputLanguage } from '../config/languages';
 import {
   isReplicateRateLimitError,
   runReplicateWithRateLimit,
@@ -353,6 +356,8 @@ export class AudioWorker extends BaseWorker {
           const params = jobRow?.params || {};
           person1Meta = params.person1 || undefined;
           person2Meta = params.person2 || undefined;
+          // Read output language from job params for voice/chunk selection
+          (this as any)._jobOutputLanguage = parseLanguage(params.outputLanguage);
         } catch (metaErr: any) {
           console.warn(`⚠️ [AudioWorker] Could not load job metadata for spoken intro: ${metaErr?.message || String(metaErr)}`);
         }
@@ -377,10 +382,11 @@ export class AudioWorker extends BaseWorker {
       });
       text = `${intro}\n\n${cleanedText}`.trim();
 
-      // Chunk size (Turbo supports 500 chars, Original supports 300)
-      // Using config default or env override
-      const configuredChunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || String(AUDIO_CONFIG.CHUNK_MAX_LENGTH), 10);
-      const chunkSize = Math.max(120, Math.min(300, Number.isFinite(configuredChunkSize) ? configuredChunkSize : AUDIO_CONFIG.CHUNK_MAX_LENGTH));
+      // Chunk size — language-aware (Chinese needs shorter chunks, etc.)
+      const jobLang: OutputLanguage = (this as any)._jobOutputLanguage || 'en';
+      const langChunkConfig = getChunkConfig(jobLang);
+      const configuredChunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || String(langChunkConfig.maxChars), 10);
+      const chunkSize = Math.max(langChunkConfig.minChars, Math.min(langChunkConfig.maxChars, Number.isFinite(configuredChunkSize) ? configuredChunkSize : langChunkConfig.maxChars));
       if (chunkSize !== configuredChunkSize) {
         console.warn(`⚠️ [AudioWorker] Clamped CHATTERBOX_CHUNK_SIZE ${configuredChunkSize} -> ${chunkSize} for stability.`);
       }
@@ -397,9 +403,24 @@ export class AudioWorker extends BaseWorker {
       console.log(`📦 [AudioWorker] Chunking ${text.length} chars -> ${chunks.length} chunks (max ${chunkSize} chars)`);
 
       // ─────────────────────────────────────────────────────────────────────
-      // ALL VOICES NOW USE REPLICATE CHATTERBOX TURBO
-      // - Turbo presets: Use `voice` parameter (Aaron, Abigail, etc.)
-      // - Custom voices: Use `reference_audio` parameter (David, Elisabeth, etc.)
+      // VOICE PROVIDER ROUTING
+      // English -> Chatterbox Turbo (existing pipeline, fastest)
+      // DE/ES/FR/ZH -> Chatterbox Multilingual (language_id param)
+      // ─────────────────────────────────────────────────────────────────────
+      const voiceConfig = getVoiceConfig(jobLang);
+      if (!hasVoiceSupport(jobLang)) {
+        console.warn(`⚠️ [AudioWorker] No TTS voice configured for ${jobLang} — skipping audio generation.`);
+        return { success: true, output: { skippedAudio: true, reason: `no_voice_for_${jobLang}` } };
+      }
+      const useMultilingual = voiceConfig.provider === 'chatterbox-multilingual';
+      if (useMultilingual) {
+        console.log(`🌍 [AudioWorker] Using Chatterbox Multilingual for ${jobLang} (language_id: ${voiceConfig.languageId})`);
+      }
+
+      // ─────────────────────────────────────────────────────────────────────
+      // CHATTERBOX TTS GENERATION
+      // - Turbo (English): `voice` param or `reference_audio` for cloning
+      // - Multilingual (DE/ES/FR/ZH): `language_id` + `reference_audio`
       // ─────────────────────────────────────────────────────────────────────
       console.log('\n' + '═'.repeat(70));
       console.log('🎵 REPLICATE AUDIO GENERATION STARTING');
@@ -459,18 +480,31 @@ export class AudioWorker extends BaseWorker {
               top_p,
               repetition_penalty, // Reduces duplicate sentences
             };
-            
-            // TURBO PRESET: Use voice parameter
-            if (isTurboPreset) {
+
+            // Determine which Replicate model to call
+            const replicateModel = useMultilingual
+              ? 'resemble-ai/chatterbox-multilingual'
+              : 'resemble-ai/chatterbox-turbo';
+
+            if (useMultilingual) {
+              // MULTILINGUAL: Pass language_id + reference_audio for cloning
+              input.language_id = voiceConfig.languageId;
+              input.text_to_synthesize = chunk;
+              const refAudio = voice?.sampleAudioUrl || task.input.audioUrl || this.voiceSampleUrl;
+              if (refAudio) {
+                input.reference_audio = refAudio;
+                console.log(`  [Replicate] Multilingual voice cloning (${voiceConfig.languageId}) with reference: ${refAudio.substring(0, 80)}...`);
+              }
+            } else if (isTurboPreset) {
+              // TURBO PRESET: Use voice parameter
               input.voice = voice?.turboVoiceId || 'alloy';
-            }
-            // CUSTOM VOICE: Use reference_audio parameter for voice cloning
-            else {
+            } else {
+              // CUSTOM VOICE: Use reference_audio parameter for voice cloning
               input.reference_audio = voice?.sampleAudioUrl || task.input.audioUrl || this.voiceSampleUrl;
               console.log(`  [Replicate] Custom voice cloning with reference_audio: ${input.reference_audio.substring(0, 80)}...`);
             }
-            
-            console.log(`  🎯 [Replicate] Calling API with model: resemble-ai/chatterbox-turbo`);
+
+            console.log(`  🎯 [Replicate] Calling API with model: ${replicateModel}`);
             console.log(`  📝 [Replicate] Input:`, JSON.stringify({
               ...input,
               text: `${input.text.substring(0, 50)}...`,
@@ -485,7 +519,7 @@ export class AudioWorker extends BaseWorker {
               `audioWorker:chunk:${index + 1}`,
               () =>
                 withTimeout(
-                  replicate.run('resemble-ai/chatterbox-turbo', { input }),
+                  replicate.run(replicateModel as `${string}/${string}`, { input }),
                   chunkTimeoutMs,
                   `Replicate chunk ${index + 1}`
                 )

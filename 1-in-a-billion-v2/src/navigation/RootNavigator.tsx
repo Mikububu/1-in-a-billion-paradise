@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { AppState } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
+import { CommonActions } from '@react-navigation/native';
+import { navigationRef } from '@/navigation/navigationRef';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { CityOption } from '@/types/forms';
@@ -342,12 +344,14 @@ export type MainStackParamList = {
         jobId: string;
         docNum?: number;
         personName?: string;
+        partnerName?: string;
         system?: string;
     };
     ReadingContent: {
         jobId: string;
         docNum?: number;
         personName?: string;
+        partnerName?: string;
         system?: string;
     };
     PartnerInfo: { mode?: 'add_person_only' | 'onboarding_hook'; returnTo?: 'ComparePeople' } | undefined;
@@ -674,6 +678,43 @@ export const RootNavigator = () => {
         setEntitlementState,
         user,
     ]);
+
+    // ─────────────────────────────────────────────────────────────────────
+    // 30-MINUTE IDLE RESET → Intro screen (still logged in)
+    // When user backgrounds the app for 30+ minutes, navigate back to
+    // the Intro screen so they see screen 1 and can tap to dashboard.
+    // Language-independent — this is pure navigation logic.
+    // ─────────────────────────────────────────────────────────────────────
+    const backgroundedAtRef = useRef<number | null>(null);
+    const IDLE_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
+
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+            if (nextState === 'background' || nextState === 'inactive') {
+                // User is leaving — record timestamp
+                backgroundedAtRef.current = Date.now();
+            } else if (nextState === 'active' && backgroundedAtRef.current) {
+                // User is returning — check how long they were gone
+                const elapsed = Date.now() - backgroundedAtRef.current;
+                backgroundedAtRef.current = null;
+
+                if (elapsed >= IDLE_THRESHOLD_MS && hasSession) {
+                    console.log(`🔄 Idle reset: user was away ${Math.round(elapsed / 60000)} min → navigating to Intro`);
+                    // Reset to Intro screen (screen 1) — user stays logged in
+                    if (navigationRef.isReady()) {
+                        navigationRef.dispatch(
+                            CommonActions.reset({
+                                index: 0,
+                                routes: [{ name: 'Intro' }],
+                            })
+                        );
+                    }
+                }
+            }
+        });
+
+        return () => subscription.remove();
+    }, [hasSession]);
 
     // Wait for dev reset to finish before rendering anything
     if (!devResetDone) {

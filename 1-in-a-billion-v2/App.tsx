@@ -17,6 +17,7 @@ import { colors } from '@/theme/tokens';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { logger } from '@/utils/logger';
 import { initGlobalErrorHandler } from '@/utils/globalErrorHandler';
+import { initLanguage } from '@/i18n';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -29,9 +30,10 @@ const queryClient = new QueryClient({
 });
 
 export default function App() {
-    // Initialize global error handler once on mount
+    // Initialize global error handler + language preference on mount
     useEffect(() => {
         initGlobalErrorHandler();
+        initLanguage();
     }, []);
 
     logger.info('APP RENDER CYCLE START');

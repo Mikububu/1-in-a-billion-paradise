@@ -1,5 +1,5 @@
 export const AUDIO_CONFIG = {
-    // ElevenLabs Voice IDs
+    // Voice IDs (legacy config)
     voices: {
         david: 'CyPUt5r578x3aQ7qJq01', // Onyx (Deep, masculine)
         elisabeth: 'EXAVITQu4vr4xnSDxMaL', // Bella (Soft, feminine)
