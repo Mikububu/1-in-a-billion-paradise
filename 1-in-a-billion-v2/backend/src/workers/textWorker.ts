@@ -1077,7 +1077,61 @@ export class TextWorker extends BaseWorker {
         // ── VEDIC OVERLAY narrativeTrigger engine ──────────────────────────────────────
         if (!generationComplete && system === 'vedic' && docType === 'overlay') {
           const { person1Raw, person2Raw } = buildOverlayChartParts('vedic');
-          const combinedChartData = stripVedicOverlayData(person1Raw, person2Raw);
+          let combinedChartData = stripVedicOverlayData(person1Raw, person2Raw);
+
+          // ── Inject compact Ashtakoot (Kundali Milan) scores ──────────────────────
+          try {
+            const p1Sid = p1Placements?.sidereal;
+            const p2Sid = p2Placements?.sidereal;
+            if (p1Sid?.janmaNakshatra && p2Sid?.janmaNakshatra && p1Sid?.chandraRashi && p2Sid?.chandraRashi) {
+              const { computeVedicMatch } = require('../services/vedic/vedic_matchmaking.engine');
+              const vedicRuler: Record<string, string> = {
+                Aries: 'mars', Taurus: 'venus', Gemini: 'mercury', Cancer: 'moon',
+                Leo: 'sun', Virgo: 'mercury', Libra: 'venus', Scorpio: 'mars',
+                Sagittarius: 'jupiter', Capricorn: 'saturn', Aquarius: 'saturn', Pisces: 'jupiter',
+              };
+              const marsG1 = (p1Sid.grahas || []).find((g: any) => g.key === 'mars');
+              const marsG2 = (p2Sid.grahas || []).find((g: any) => g.key === 'mars');
+              const chart1 = {
+                id: 'person1', birth_data: { date: '', time: '', location: { latitude: 0, longitude: 0, timezone: 'UTC' } },
+                moon_nakshatra: p1Sid.janmaNakshatra, moon_sign: p1Sid.chandraRashi,
+                moon_rashi_lord: vedicRuler[p1Sid.chandraRashi] || '',
+                gana: '', yoni: '', nadi: '', varna: '', vashya: '',
+                pada: p1Sid.janmaPada || 1, mars_placement_house: marsG1?.bhava || 1,
+              };
+              const chart2 = {
+                id: 'person2', birth_data: { date: '', time: '', location: { latitude: 0, longitude: 0, timezone: 'UTC' } },
+                moon_nakshatra: p2Sid.janmaNakshatra, moon_sign: p2Sid.chandraRashi,
+                moon_rashi_lord: vedicRuler[p2Sid.chandraRashi] || '',
+                gana: '', yoni: '', nadi: '', varna: '', vashya: '',
+                pada: p2Sid.janmaPada || 1, mars_placement_house: marsG2?.bhava || 1,
+              };
+              const result = computeVedicMatch(chart1, chart2);
+              const a = result.ashtakoota;
+              const total = a.total_points;
+              let tier = 'Poor (<18)';
+              if (total >= 28) tier = 'Excellent (28+)';
+              else if (total >= 24) tier = 'Very Good (24-27)';
+              else if (total >= 18) tier = 'Good (18-23)';
+
+              const doshas: string[] = [];
+              if (a.nadi.dosha_present) doshas.push('Nadi Dosha (same nadi — health/progeny concern)');
+              if (a.bhakoot.score === 0) doshas.push('Bhakoot Dosha (inauspicious moon-sign pair)');
+              const m1 = marsG1 && [1, 2, 4, 7, 8, 12].includes(marsG1.bhava);
+              const m2 = marsG2 && [1, 2, 4, 7, 8, 12].includes(marsG2.bhava);
+              if (m1 || m2) doshas.push(`Manglik Dosha (${m1 && m2 ? 'both' : m1 ? 'person1' : 'person2'})`);
+
+              combinedChartData += '\n\nASHTAKOOT KUNDALI MILAN:\n' +
+                `Varna ${a.varna.score}/1 | Vashya ${a.vashya.score}/2 | Tara ${a.tara.score}/3 | Yoni ${a.yoni.score}/4 | ` +
+                `Graha Maitri ${a.graha_maitri.score}/5 | Gana ${a.gana.score}/6 | Bhakoot ${a.bhakoot.score}/7 | Nadi ${a.nadi.score}/8\n` +
+                `TOTAL: ${total}/36 — ${tier}` +
+                (doshas.length > 0 ? `\nDOSHA: ${doshas.join('; ')}` : '');
+
+              console.log(`🔢 [TextWorker] Ashtakoot scores injected for Vedic overlay: ${total}/36 (${tier})`);
+            }
+          } catch (err: any) {
+            console.warn(`⚠️ [TextWorker] Ashtakoot scoring failed for overlay, continuing without: ${err?.message}`);
+          }
 
           const triggerPrompt = buildVedicOverlayTriggerPrompt({
             person1Name: person1.name,
