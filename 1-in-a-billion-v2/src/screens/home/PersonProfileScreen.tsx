@@ -8,6 +8,7 @@ import { useProfileStore } from '@/store/profileStore';
 import { deletePersonFromSupabase } from '@/services/peopleService';
 import { BackButton } from '@/components/BackButton';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonProfile'>;
 
@@ -62,13 +63,13 @@ export const PersonProfileScreen = ({ navigation, route }: Props) => {
     const handleDeletePerson = () => {
         if (!person) return;
         if (person.isUser) {
-            Alert.alert('Cannot delete', 'You cannot delete your own profile.');
+            Alert.alert(t('personProfile.cannotDelete'), t('personProfile.cannotDeleteSelf'));
             return;
         }
 
         Alert.alert(
-            'Delete person',
-            `Delete ${person.name} and related local readings?`,
+            t('personProfile.cannotDelete'),
+            t('personProfile.deleteFailedMessage', { name: person.name }),
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
@@ -78,7 +79,7 @@ export const PersonProfileScreen = ({ navigation, route }: Props) => {
                         if (authUser?.id) {
                             const result = await deletePersonFromSupabase(authUser.id, person.id);
                             if (!result.success) {
-                                Alert.alert('Delete failed', result.error || 'Could not delete person.');
+                                Alert.alert(t('personProfile.deleteFailed'), result.error || t('personProfile.deleteFailedMessage', { name: person.name }));
                                 return;
                             }
                         }

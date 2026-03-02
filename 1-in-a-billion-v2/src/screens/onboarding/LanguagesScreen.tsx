@@ -12,6 +12,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { AmbientMusic } from '@/services/ambientMusic';
 import { useMusicStore } from '@/store/musicStore';
 import { BackButton } from '@/components/BackButton';
+import { t } from '@/i18n';
 
 export const LanguagesScreen = () => {
     const navigation = useNavigation<any>();
@@ -72,23 +73,23 @@ export const LanguagesScreen = () => {
                 contentContainerStyle={styles.content}
                 showsVerticalScrollIndicator={false}
             >
-                <Text style={styles.title}>Languages</Text>
+                <Text style={styles.title}>{t('languages.title')}</Text>
                 <Text style={styles.subtitle}>
-                    Which languages do you feel most comfortable with? Secondary is optional.
+                    {t('languages.subtitle')}
                 </Text>
 
                 <View style={styles.body}>
                     <AutocompleteInput
-                        label="Primary language"
-                        placeholder="English"
+                        label={t('languages.primary')}
+                        placeholder={t('languages.primaryPlaceholder')}
                         options={options}
                         onSelect={(lang) => lang && setPrimaryLanguage(lang)}
                         selectedLabel={primaryLanguage?.label}
                     />
 
                     <AutocompleteInput
-                        label="Secondary language"
-                        placeholder="Add another"
+                        label={t('languages.secondary')}
+                        placeholder={t('languages.secondaryPlaceholder')}
                         options={options}
                         onSelect={(lang) => lang && setSecondaryLanguage(lang)}
                         selectedLabel={secondaryLanguage?.label}
@@ -97,7 +98,7 @@ export const LanguagesScreen = () => {
 
                     <View style={styles.sliderCard}>
                         <View style={styles.sliderHeader}>
-                            <Text style={styles.sliderTitle} selectable>Language importance</Text>
+                            <Text style={styles.sliderTitle} selectable>{t('languages.importance')}</Text>
                             <Text style={styles.sliderValue} selectable>{Math.round(languageImportance)}/10</Text>
                         </View>
                         <SimpleSlider
@@ -112,7 +113,7 @@ export const LanguagesScreen = () => {
                 {/* Footer (Button) Moved Inside ScrollView */}
                 <View style={styles.footer}>
                     <Button
-                        label="Continue"
+                        label={t('languages.continue')}
                         onPress={() => {
                             setHasPassedLanguages(true);
                             navigation.navigate('Account', { captureOnly: true } as any);

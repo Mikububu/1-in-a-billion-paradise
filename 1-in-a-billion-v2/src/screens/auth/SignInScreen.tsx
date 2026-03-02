@@ -28,6 +28,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 const AppleAuthentication = { signInAsync: async () => ({}), AppleAuthenticationScope: { FULL_NAME: 1, EMAIL: 2 } } as any;
 import * as WebBrowser from 'expo-web-browser';
 import * as ExpoLinking from 'expo-linking';
+import { t } from '@/i18n';
 import { Video, ResizeMode } from 'expo-av';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { useAuthStore } from '@/store/authStore';
@@ -69,7 +70,7 @@ export const SignInScreen = () => {
 
     const finalizeSignInAccess = useCallback(async () => {
         if (!isSupabaseConfigured) {
-            Alert.alert('Auth unavailable', 'Supabase is not configured in this build.');
+            Alert.alert(t('signIn.authUnavailable'), t('signIn.authUnavailableMessage'));
             return false;
         }
 
@@ -316,14 +317,14 @@ export const SignInScreen = () => {
 
     const handleEmailAuth = async () => {
         if (!email.trim() || !password.trim()) {
-            Alert.alert('Error', 'Please enter both email and password');
+            Alert.alert(t('common.error'), t('signIn.emailPasswordRequired'));
             return;
         }
 
         // Basic email format check
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email.trim())) {
-            Alert.alert('Error', 'Please enter a valid email address');
+            Alert.alert(t('common.error'), t('signIn.invalidEmail'));
             return;
         }
 

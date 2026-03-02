@@ -9,6 +9,7 @@ import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { useProfileStore } from '@/store/profileStore';
 import { CityOption } from '@/types/forms';
 import { useIsFocused } from '@react-navigation/native';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'AddThirdPersonPrompt'>;
 
@@ -101,10 +102,10 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
       <View style={styles.content}>
         <View style={styles.textCard}>
           <Text style={styles.title} selectable>
-            Would you like to do a free reading for another person?
+            {t('addThirdPerson.title')}
           </Text>
           <Text style={styles.subtitle} selectable>
-            You can add one person and receive their Sun, Moon, and Rising previews, plus the compatibility preview between you both.
+            {t('addThirdPerson.subtitle')}
           </Text>
         </View>
 
@@ -112,7 +113,7 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
 
         <View style={styles.buttonContainer}>
           <Button
-            label="YES, ADD A PERSON"
+            label={t('addThirdPerson.yes')}
             onPress={() => {
               if (existingPartner && existingPartnerCity) {
                 // Reuse existing free partner hook reading; do not create a new one.
@@ -135,7 +136,7 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
           />
 
           <Button
-            label="NO, CONTINUE"
+            label={t('addThirdPerson.no')}
             onPress={() => navigation.navigate('Pricing')}
             variant="secondary"
             style={styles.button}

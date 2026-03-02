@@ -385,7 +385,7 @@ export const HomeScreen = ({ navigation }: Props) => {
         }
         const bd = currentPerson.person.birthData;
         if (!bd?.birthDate || !bd?.birthTime || !bd?.timezone || !bd?.latitude || !bd?.longitude) {
-          setHookPreviewError('Missing birth data.');
+          setHookPreviewError(t('home.missingBirthData'));
           setHookPreviewLoading(false);
           return;
         }
@@ -393,7 +393,7 @@ export const HomeScreen = ({ navigation }: Props) => {
         if (isCancelled()) return;
         const generated = apiRes?.reading;
         if (!generated?.type || !generated?.intro || !generated?.main) {
-          setHookPreviewError('Failed to generate.');
+          setHookPreviewError(t('home.failedToGenerate'));
           setHookPreviewLoading(false);
           return;
         }
@@ -487,7 +487,7 @@ export const HomeScreen = ({ navigation }: Props) => {
     }
 
     if (!audioSource && authUserId && personId) {
-      setAudioLoading(true); setAudioLoadingText('Checking cloud audio...');
+      setAudioLoading(true); setAudioLoadingText(t('home.checkingAudio'));
       try {
         const storagePath = `hook-audio/${authUserId}/${personId}/${selectedReading}.mp3`;
         const signed = await getHookAudioSignedUrl(storagePath, 60);

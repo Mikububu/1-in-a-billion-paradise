@@ -6,6 +6,7 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'RelationshipContext'>;
 
@@ -68,7 +69,7 @@ export const RelationshipContextScreen = ({ navigation, route }: Props) => {
                                 onChangeText={setContext}
                                 multiline
                                 maxLength={maxChars}
-                                placeholder='I will speak the truth'
+                                placeholder={t('relationshipContext.placeholder')}
                                 placeholderTextColor={colors.mutedText}
                                 style={styles.input}
                                 textAlignVertical="center"
@@ -80,13 +81,13 @@ export const RelationshipContextScreen = ({ navigation, route }: Props) => {
 
                 <View style={styles.actions}>
                     <Button
-                        label="Skip"
+                        label={t('relationshipContext.skip')}
                         variant="secondary"
                         onPress={handleSkip}
                         style={styles.actionButton}
                     />
                     <Button
-                        label="Continue"
+                        label={t('relationshipContext.continue')}
                         onPress={handleContinue}
                         style={styles.actionButton}
                     />

@@ -13,6 +13,7 @@ import { useProfileStore } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
 import { calculatePlacements } from '@/services/placementsCalculator';
 import { insertPersonToSupabase } from '@/services/peopleService';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PartnerInfo'>;
 
@@ -147,7 +148,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
     // for a user to reach this screen twice during pre-pay onboarding
 
     if (!birthTime) {
-      Alert.alert('Birth time required', 'Please add a birth time. Compatibility requires Rising sign accuracy.');
+      Alert.alert(t('partnerInfo.birthTimeRequired'), t('partnerInfo.birthTimeRequiredMessage'));
       return {};
     }
 
@@ -390,7 +391,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
                 <Text style={styles.iconArt}>♡</Text>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Name"
+                  placeholder={t('partnerInfo.namePlaceholder')}
                   placeholderTextColor={colors.mutedText}
                   value={name}
                   onChangeText={setName}
@@ -452,7 +453,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
                 <Text style={styles.iconArt}>✶</Text>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Birth city"
+                  placeholder={t('partnerInfo.cityPlaceholder')}
                   placeholderTextColor={colors.mutedText}
                   value={cityQuery}
                   onChangeText={(text) => {

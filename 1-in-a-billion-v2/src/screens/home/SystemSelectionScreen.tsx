@@ -7,15 +7,16 @@ import { AnimatedSystemIcon } from '@/components/AnimatedSystemIcon';
 import { BackButton } from '@/components/BackButton';
 import { useProfileStore } from '@/store/profileStore';
 import { PRODUCTS } from '@/config/products';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SystemSelection'>;
 
 const SYSTEMS: Array<{ id: 'western' | 'vedic' | 'human_design' | 'gene_keys' | 'kabbalah'; label: string; icon: string }> = [
-    { id: 'western', label: 'Western Astrology', icon: '☉' },
-    { id: 'vedic', label: 'Vedic (Jyotish)', icon: 'ॐ' },
-    { id: 'human_design', label: 'Human Design', icon: '◬' },
-    { id: 'gene_keys', label: 'Gene Keys', icon: '❋' },
-    { id: 'kabbalah', label: 'Kabbalah', icon: '✧' },
+    { id: 'western', label: t('systems.western'), icon: '☉' },
+    { id: 'vedic', label: t('systems.vedic'), icon: 'ॐ' },
+    { id: 'human_design', label: t('systems.humanDesign'), icon: '◬' },
+    { id: 'gene_keys', label: t('systems.geneKeys'), icon: '❋' },
+    { id: 'kabbalah', label: t('systems.kabbalah'), icon: '✧' },
 ];
 
 export const SystemSelectionScreen = ({ navigation, route }: Props) => {
@@ -38,7 +39,7 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
     const getUser = useProfileStore((s) => s.getUser);
 
     const isOverlay = readingType === 'overlay';
-    const title = isOverlay ? 'Choose Compatibility Systems' : 'Choose Reading Systems';
+    const title = isOverlay ? t('systemSelection.title.compatibility') : t('systemSelection.title.reading');
     const singlePrice = isOverlay ? PRODUCTS.compatibility_overlay.priceUSD : PRODUCTS.single_system.priceUSD;
     const bundlePrice = isOverlay ? PRODUCTS.nuclear_package.priceUSD : PRODUCTS.complete_reading.priceUSD;
     const bundleFullPrice = isOverlay ? PRODUCTS.nuclear_package.fullPriceUSD : PRODUCTS.complete_reading.fullPriceUSD;
@@ -156,11 +157,11 @@ export const SystemSelectionScreen = ({ navigation, route }: Props) => {
                     activeOpacity={0.75}
                 >
                     <View style={styles.bundleBadge}>
-                        <Text style={styles.bundleBadgeText}>★ BEST VALUE</Text>
+                        <Text style={styles.bundleBadgeText}>{t('systemSelection.bestValue')}</Text>
                     </View>
-                    <Text style={styles.bundleTitle}>All 5 Systems + Final Verdict</Text>
+                    <Text style={styles.bundleTitle}>{t('systemSelection.bundleTitle')}</Text>
                     <Text style={styles.bundleDesc}>
-                        16 in-depth readings across every system{'\n'}with a comprehensive final verdict
+                        {t('systemSelection.bundleDescription')}
                     </Text>
                     <View style={styles.bundlePriceRow}>
                         <Text style={styles.bundleOldPrice}>${bundleFullPrice}</Text>

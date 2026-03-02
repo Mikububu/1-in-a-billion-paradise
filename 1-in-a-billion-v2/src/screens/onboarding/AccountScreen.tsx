@@ -38,6 +38,7 @@ import {
   getMatchNotificationPreferences,
   updateMatchNotificationPreferences,
 } from '@/services/matchNotifications';
+import { t } from '@/i18n';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -748,19 +749,19 @@ export const AccountScreen = ({ navigation, route }: Props) => {
       <View style={styles.contentContainer}>
         <View style={styles.authSection}>
           <View style={styles.headlineCard}>
-            <Text style={styles.title}>{showOtpInput ? 'Verify Email' : 'Create Account'}</Text>
+            <Text style={styles.title}>{showOtpInput ? t('account.verifyEmail') : t('account.createAccount')}</Text>
             <Text style={styles.subtitle}>
               {showOtpInput
-                ? 'Enter the 6-digit code we sent to your email.'
+                ? t('account.verifySubtitle')
                 : fromPayment
-                  ? 'Payment complete. Create your account to enter your dashboard.'
-                  : 'Create your account to save your readings while you continue onboarding.'}
+                  ? t('account.paymentSubtitle')
+                  : t('account.onboardingSubtitle')}
             </Text>
           </View>
 
           {fromPayment && authUser?.id ? (
             <View style={styles.input}>
-              <Text style={styles.subtitle}>Finalizing your subscription and syncing your data...</Text>
+              <Text style={styles.subtitle}>{t('account.finalizing')}</Text>
             </View>
           ) : showOtpInput ? (
             <>
@@ -782,7 +783,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
                 onPress={handleVerifyOtp}
                 disabled={isLoading || otpCode.length < 8}
               >
-                {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Verify & Continue</Text>}
+                {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>{t('account.verifyButton')}</Text>}
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -790,7 +791,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
                 onPress={handleResendOtp}
                 disabled={isLoading}
               >
-                <Text style={styles.resendText}>Didn't get the code? Resend</Text>
+                <Text style={styles.resendText}>{t('account.resend')}</Text>
               </TouchableOpacity>
 
             </>
@@ -798,7 +799,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
             <>
               <TextInput
                 style={styles.input}
-                placeholder="First Name"
+                placeholder={t('account.firstNamePlaceholder')}
                 placeholderTextColor={colors.mutedText}
                 value={name}
                 onChangeText={(text) => {
@@ -816,30 +817,30 @@ export const AccountScreen = ({ navigation, route }: Props) => {
                   onPress={handleContinueFromName}
                   disabled={isLoading || !hasName}
                 >
-                  <Text style={styles.primaryText}>Continue</Text>
+                  <Text style={styles.primaryText}>{t('account.continue')}</Text>
                 </TouchableOpacity>
               )}
 
               {signupStep === 'method' && (
                 <>
-                  <Text style={styles.methodHint}>Choose how to create your account</Text>
+                  <Text style={styles.methodHint}>{t('account.chooseMethod')}</Text>
 
                   <TouchableOpacity
                     style={[styles.authButton, styles.primaryBtn]}
                     onPress={() => setSignupStep('email')}
                     disabled={isLoading}
                   >
-                    <Text style={styles.primaryText}>Continue with Email</Text>
+                    <Text style={styles.primaryText}>{t('account.continueWithEmail')}</Text>
                   </TouchableOpacity>
 
                   {Platform.OS === 'ios' && (
                     <TouchableOpacity style={[styles.authButton, styles.appleBtn]} onPress={handleAppleSignUp} disabled={isLoading}>
-                      <Text style={styles.appleText}>Continue with Apple</Text>
+                      <Text style={styles.appleText}>{t('auth.continueWithApple')}</Text>
                     </TouchableOpacity>
                   )}
 
                   <TouchableOpacity style={[styles.authButton, styles.googleBtn]} onPress={handleGoogleSignUp} disabled={isLoading}>
-                    <Text style={styles.googleText}>Continue with Google</Text>
+                    <Text style={styles.googleText}>{t('auth.continueWithGoogle')}</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -848,7 +849,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
                 <>
                   <TextInput
                     style={styles.input}
-                    placeholder="Email"
+                    placeholder={t('auth.email')}
                     placeholderTextColor={colors.mutedText}
                     value={email}
                     onChangeText={setEmail}
@@ -860,7 +861,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
                   <View style={styles.passwordContainer}>
                     <TextInput
                       style={[styles.input, styles.passwordInput]}
-                      placeholder="Password"
+                      placeholder={t('auth.password')}
                       placeholderTextColor={colors.mutedText}
                       value={password}
                       onChangeText={setPassword}
@@ -882,7 +883,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
                     onPress={handleGeneratePassword}
                     disabled={isLoading}
                   >
-                    <Text style={styles.passwordGeneratorText}>Generate strong password</Text>
+                    <Text style={styles.passwordGeneratorText}>{t('account.generatePassword')}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -890,11 +891,11 @@ export const AccountScreen = ({ navigation, route }: Props) => {
                     onPress={handleEmailSignUp}
                     disabled={isLoading || !isEmailFormValid}
                   >
-                    {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Create with Email</Text>}
+                    {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>{t('account.createWithEmail')}</Text>}
                   </TouchableOpacity>
 
                   <TouchableOpacity style={styles.resendBtn} onPress={() => setSignupStep('method')} disabled={isLoading}>
-                    <Text style={styles.resendText}>← Back to options</Text>
+                    <Text style={styles.resendText}>{t('account.backToOptions')}</Text>
                   </TouchableOpacity>
                 </>
               )}

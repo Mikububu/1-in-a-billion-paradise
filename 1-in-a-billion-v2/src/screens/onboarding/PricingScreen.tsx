@@ -13,6 +13,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, radii, spacing, typography } from '@/theme/tokens';
 import { useAuthStore } from '@/store/authStore';
 import { env } from '@/config/env';
+import { t } from '@/i18n';
 import {
   findYearlySubscriptionPackage,
   getAvailableRevenueCatPackages,
@@ -279,9 +280,9 @@ export const PricingScreen = ({ navigation }: Props) => {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
-        <Text style={styles.heading}>Choose Your Path</Text>
+        <Text style={styles.heading}>{t('pricing.title')}</Text>
         <Text style={styles.subheading}>
-          Unlock the stars. Pick the tier that resonates with you.
+          {t('pricing.subtitle')}
         </Text>
 
         {/* ── Subscription tiers ── */}
@@ -327,7 +328,7 @@ export const PricingScreen = ({ navigation }: Props) => {
 
         {/* ── In-App Purchases note ── */}
         <Text style={styles.iapNote}>
-          In-App Purchases from {IAP_RANGE}
+          {t('pricing.iapNote')} {IAP_RANGE}
         </Text>
 
         {/* ── Coupon code — always visible ── */}
@@ -335,11 +336,11 @@ export const PricingScreen = ({ navigation }: Props) => {
           <View style={styles.couponInputRow}>
             <TextInput
               style={styles.couponInput}
-              placeholder="Coupon code"
+              placeholder={t('pricing.couponPlaceholder')}
               placeholderTextColor="#999"
               value={couponCode}
-              onChangeText={(t) => {
-                setCouponCode(t.toUpperCase());
+              onChangeText={(text) => {
+                setCouponCode(text.toUpperCase());
                 setCouponStatus('idle');
                 setCouponMessage('');
               }}
@@ -364,7 +365,7 @@ export const PricingScreen = ({ navigation }: Props) => {
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
                 <Text style={styles.couponApplyText}>
-                  {couponStatus === 'valid' ? 'Redeem' : 'Apply'}
+                  {couponStatus === 'valid' ? t('pricing.couponRedeem') : t('pricing.couponApply')}
                 </Text>
               )}
             </TouchableOpacity>

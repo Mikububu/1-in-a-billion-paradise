@@ -15,6 +15,7 @@ import { getReadingOutputContract } from '@/config/readingOutputContracts';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useProfileStore } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'VoiceSelection'>;
 
@@ -98,7 +99,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
 
         const voice = VOICE_OPTIONS.find((v) => v.id === voiceId);
         if (!voice?.sampleUrl) {
-            Alert.alert('Voice sample unavailable', 'No preview audio found for this voice.');
+            Alert.alert(t('voiceSelection.sampleUnavailable'), t('voiceSelection.sampleUnavailableMessage'));
             return;
         }
 
@@ -133,7 +134,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
             });
         } catch {
             setPlayingVoice(null);
-            Alert.alert('Playback failed', 'Could not play voice sample.');
+            Alert.alert(t('voiceSelection.playbackFailed'), t('voiceSelection.playbackFailedMessage'));
         } finally {
             isLoadingPreviewRef.current = false;
         }
@@ -143,12 +144,12 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
         if (isLoading) return;
 
         if (!productType) {
-            Alert.alert('Missing product', 'No product type was provided for this reading.');
+            Alert.alert(t('voiceSelection.missingProduct'), t('voiceSelection.missingProductMessage'));
             return;
         }
 
         if (!Array.isArray(systems) || systems.length === 0) {
-            Alert.alert('Missing systems', 'No system was selected for this reading.');
+            Alert.alert(t('voiceSelection.missingSystems'), t('voiceSelection.missingSystemsMessage'));
             return;
         }
 
@@ -211,12 +212,12 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
                     : null;
 
         if (!person1?.birthDate || !person1?.birthTime || !person1?.timezone) {
-            Alert.alert('Missing birth data', 'Person 1 must have complete birth data.');
+            Alert.alert(t('voiceSelection.missingBirthData'), t('voiceSelection.missingBirthData1'));
             return;
         }
 
         if (readingType === 'overlay' && (!person2?.birthDate || !person2?.birthTime || !person2?.timezone)) {
-            Alert.alert('Missing birth data', 'Person 2 must have complete birth data for compatibility readings.');
+            Alert.alert(t('voiceSelection.missingBirthData'), t('voiceSelection.missingBirthData2'));
             return;
         }
 
@@ -364,7 +365,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
                 partnerId: person2?.id,
             });
         } catch (error: any) {
-            Alert.alert('Could not start job', error?.message || 'Unknown error');
+            Alert.alert(t('voiceSelection.couldNotStart'), error?.message || t('common.unknown'));
         } finally {
             setIsLoading(false);
         }

@@ -26,6 +26,7 @@ import { CityOption } from '@/types/forms';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { AmbientMusic } from '@/services/ambientMusic';
 import { useMusicStore } from '@/store/musicStore';
+import { t } from '@/i18n';
 
 // City images
 const CITY_IMAGES: ImageSourcePropType[] = [
@@ -279,7 +280,7 @@ export const BirthInfoScreen = () => {
                                 setSelectedCity(undefined);
                                 setShowCitySuggestions(true);
                             }}
-                            placeholder="Search any city..."
+                            placeholder={t('birthInfo.cityPlaceholder')}
                             placeholderTextColor={colors.mutedText}
                             onFocus={() => setShowCitySuggestions(true)}
                         />

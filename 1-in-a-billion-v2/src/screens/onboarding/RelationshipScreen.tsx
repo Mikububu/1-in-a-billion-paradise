@@ -12,6 +12,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { AmbientMusic } from '@/services/ambientMusic';
 import { useMusicStore } from '@/store/musicStore';
 import { BackButton } from '@/components/BackButton';
+import { t } from '@/i18n';
 
 export const RelationshipScreen = () => {
     const navigation = useNavigation<any>();
@@ -70,12 +71,12 @@ export const RelationshipScreen = () => {
 
             {/* Content at top */}
             <View style={styles.content}>
-                <Text style={styles.title}>What kind of relationship dynamic do you desire?</Text>
+                <Text style={styles.title}>{t('relationship.title')}</Text>
 
                 <View style={styles.sliderCard}>
                     <View style={styles.legend}>
-                        <Text style={styles.legendLabel}>Safe</Text>
-                        <Text style={styles.legendLabel}>Spicy</Text>
+                        <Text style={styles.legendLabel}>{t('relationship.safe')}</Text>
+                        <Text style={styles.legendLabel}>{t('relationship.spicy')}</Text>
                     </View>
 
                     {/* Custom SimpleSlider */}
@@ -89,13 +90,13 @@ export const RelationshipScreen = () => {
                     <Text style={styles.caption}>{descriptor.caption}</Text>
 
                     <Text style={styles.helper}>
-                        This helps us calibrate which compatibility signals matter most to you. You can adjust this anytime in settings.
+                        {t('relationship.helper')}
                     </Text>
                 </View>
 
                 {/* Button - positioned right after helper text */}
                 <View style={styles.footer}>
-                    <Button label="Continue" onPress={() => navigation.navigate('BirthInfo')} />
+                    <Button label={t('relationship.continue')} onPress={() => navigation.navigate('BirthInfo')} />
                 </View>
             </View>
 

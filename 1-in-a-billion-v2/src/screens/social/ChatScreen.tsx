@@ -22,6 +22,7 @@ import { colors, spacing, typography } from '@/theme/tokens';
 import { ChatAccessRenewModal } from '@/components/ChatAccessRenewModal';
 import { useChatAccessGate } from '@/hooks/useChatAccessGate';
 import { CHAT_RENEW_WARNING_TEXT } from '@/utils/chatAccess';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Chat'>;
 
@@ -242,7 +243,7 @@ export const ChatScreen = ({ navigation, route }: Props) => {
             style={[styles.input, chatBlocked && styles.inputDisabled]}
             value={newMessage}
             onChangeText={setNewMessage}
-            placeholder="Type a message..."
+            placeholder={t('chat.messagePlaceholder')}
             placeholderTextColor={colors.mutedText}
             multiline
             maxLength={1000}

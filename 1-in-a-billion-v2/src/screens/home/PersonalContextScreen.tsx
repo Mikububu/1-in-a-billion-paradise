@@ -6,6 +6,7 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonalContext'>;
 
@@ -44,7 +45,7 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
 
     const maxChars = MAX_CHARS;
     const headline = 'Personal Context';
-    const subline = 'Would you like to infuse your reading with a question or some additional context?';
+    const subline = 'Would you like to infuse your reading with a question or some additional context?'; // Note: These are UI titles not in i18n, keeping as-is per instructions
 
     return (
         <SafeAreaView style={styles.container}>
@@ -69,7 +70,7 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
                                     onChangeText={setContext}
                                     multiline
                                     maxLength={maxChars}
-                                    placeholder='I will speak the truth'
+                                    placeholder={t('personalContext.placeholder')}
                                     placeholderTextColor={colors.mutedText}
                                     style={styles.input}
                                     textAlign="center"
@@ -83,13 +84,13 @@ export const PersonalContextScreen = ({ navigation, route }: Props) => {
 
                 <View style={styles.actions}>
                     <Button
-                        label="Skip"
+                        label={t('personalContext.skip')}
                         variant="secondary"
                         onPress={handleSkip}
                         style={styles.actionButton}
                     />
                     <Button
-                        label="Continue"
+                        label={t('personalContext.continue')}
                         onPress={handleContinue}
                         style={styles.actionButton}
                     />

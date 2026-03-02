@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
+import { t } from '@/i18n';
 import type { CityOption } from '@/types/forms';
 import { searchCities } from '@/services/geonames';
 import { calculatePlacements } from '@/services/placementsCalculator';
@@ -137,7 +138,7 @@ export const EditBirthDataScreen = ({ navigation, route }: Props) => {
     const handleSave = useCallback(async () => {
         if (!canSave || !selectedCity) return;
         if (!person) {
-            Alert.alert('Profile not found', 'Could not find this person profile.');
+            Alert.alert(t('editBirthData.profileNotFound'), t('editBirthData.profileNotFoundMessage'));
             return;
         }
 
@@ -176,7 +177,7 @@ export const EditBirthDataScreen = ({ navigation, route }: Props) => {
             navigation.goBack();
         } catch (error) {
             console.error('Failed to save birth data:', error);
-            Alert.alert('Save failed', 'Could not save birth data. Please try again.');
+            Alert.alert(t('editBirthData.saveFailed'), t('editBirthData.saveFailedMessage'));
         } finally {
             setSaving(false);
         }
@@ -249,7 +250,7 @@ export const EditBirthDataScreen = ({ navigation, route }: Props) => {
                                 setSelectedCity(null);
                                 setShowCitySuggestions(true);
                             }}
-                            placeholder="Search any city..."
+                            placeholder={t('editBirthData.cityPlaceholder')}
                             placeholderTextColor={colors.mutedText}
                             onFocus={() => setShowCitySuggestions(true)}
                         />

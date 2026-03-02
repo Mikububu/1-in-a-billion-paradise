@@ -9,6 +9,7 @@ import { deletePersonFromSupabase } from '@/services/peopleService';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
+import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ComparePeople'>;
 
@@ -68,7 +69,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
         if (!personA) return;
 
         if (!personA.birthData?.birthDate || !personA.birthData?.birthTime || !personA.birthData?.timezone) {
-            Alert.alert('Missing birth data', `Please complete ${personA.name}'s birth data first.`);
+            Alert.alert(t('comparePeople.missingBirthData'), t('comparePeople.missingBirthDataMessage', { name: personA.name }));
             navigation.navigate('EditBirthData', { personId: personA.id });
             return;
         }
@@ -83,7 +84,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
         }
 
         if (!personB.birthData?.birthDate || !personB.birthData?.birthTime || !personB.birthData?.timezone) {
-            Alert.alert('Missing birth data', `Please complete ${personB.name}'s birth data first.`);
+            Alert.alert(t('comparePeople.missingBirthData'), t('comparePeople.missingBirthDataMessage', { name: personB.name }));
             navigation.navigate('EditBirthData', { personId: personB.id });
             return;
         }
@@ -128,13 +129,13 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
 
     const handleDeletePerson = useCallback((person: any) => {
         if (person.isUser) {
-            Alert.alert('Cannot delete', 'You cannot delete your own profile.');
+            Alert.alert(t('comparePeople.cannotDelete'), t('comparePeople.cannotDeleteSelf'));
             return;
         }
 
         Alert.alert(
-            'Delete person',
-            `Delete ${person.name} and all local readings for this person?`,
+            t('comparePeople.cannotDelete'),
+            t('comparePeople.missingBirthDataMessage', { name: person.name }),
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
@@ -182,7 +183,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                         <Text style={styles.emptyTitle}>No people yet</Text>
                         <Text style={styles.emptyText}>Add someone first to compare charts.</Text>
                         <Button
-                            label="Add a Person"
+                            label={t('comparePeople.addPerson')}
                             variant="secondary"
                             fitContent
                             onPress={() => navigation.navigate('PartnerInfo', { mode: 'add_person_only', returnTo: 'ComparePeople' })}
@@ -275,7 +276,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                     </ScrollView>
                 )}
 
-                <Button label="Continue" onPress={handleContinue} disabled={!canContinue} />
+                <Button label={t('comparePeople.continue')} onPress={handleContinue} disabled={!canContinue} />
             </View>
 
             <Modal
