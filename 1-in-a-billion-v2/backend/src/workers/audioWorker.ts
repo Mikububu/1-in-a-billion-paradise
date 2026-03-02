@@ -473,41 +473,59 @@ export class AudioWorker extends BaseWorker {
           try {
             console.log(`  [Replicate] Chunk ${index + 1}/${chunks.length} (${chunk.length} chars) attempt ${attempt}`);
             
-            // Build input with voice-specific settings
-            const input: any = {
-              text: chunk,
-              temperature,
-              top_p,
-              repetition_penalty, // Reduces duplicate sentences
-            };
-
             // Determine which Replicate model to call
             const replicateModel = useMultilingual
               ? 'resemble-ai/chatterbox-multilingual'
               : 'resemble-ai/chatterbox-turbo';
 
+            // Build input — completely separate param sets for each model
+            let input: any;
+
             if (useMultilingual) {
-              // MULTILINGUAL: Pass language_id + reference_audio for cloning
-              input.language_id = voiceConfig.languageId;
-              input.text_to_synthesize = chunk;
+              // MULTILINGUAL MODEL: different API schema from Turbo
+              // Params: text_to_synthesize (max 300 chars), language_id, reference_audio,
+              //         exaggeration (0.25-2.0), cfg_weight (0.2-1.0, use 0.0 for cross-lang), temperature
+              // Does NOT accept: text, top_p, repetition_penalty, voice
               const refAudio = voice?.sampleAudioUrl || task.input.audioUrl || this.voiceSampleUrl;
+              input = {
+                text_to_synthesize: chunk,
+                language_id: voiceConfig.languageId,
+                exaggeration: 0.5,
+                cfg_weight: 0.0,   // 0.0 = best for cross-language voice transfer
+                temperature: temperature,
+              };
               if (refAudio) {
                 input.reference_audio = refAudio;
                 console.log(`  [Replicate] Multilingual voice cloning (${voiceConfig.languageId}) with reference: ${refAudio.substring(0, 80)}...`);
               }
             } else if (isTurboPreset) {
-              // TURBO PRESET: Use voice parameter
-              input.voice = voice?.turboVoiceId || 'alloy';
+              // TURBO PRESET: Use voice parameter (English only)
+              input = {
+                text: chunk,
+                temperature,
+                top_p,
+                repetition_penalty,
+                voice: voice?.turboVoiceId || 'alloy',
+              };
             } else {
-              // CUSTOM VOICE: Use reference_audio parameter for voice cloning
-              input.reference_audio = voice?.sampleAudioUrl || task.input.audioUrl || this.voiceSampleUrl;
-              console.log(`  [Replicate] Custom voice cloning with reference_audio: ${input.reference_audio.substring(0, 80)}...`);
+              // CUSTOM VOICE (Turbo with cloning): Use reference_audio
+              const refAudio = voice?.sampleAudioUrl || task.input.audioUrl || this.voiceSampleUrl;
+              input = {
+                text: chunk,
+                temperature,
+                top_p,
+                repetition_penalty,
+                reference_audio: refAudio,
+              };
+              console.log(`  [Replicate] Custom voice cloning with reference_audio: ${refAudio?.substring(0, 80)}...`);
             }
 
             console.log(`  🎯 [Replicate] Calling API with model: ${replicateModel}`);
+            const textPreview = (input.text || input.text_to_synthesize || '').substring(0, 50);
             console.log(`  📝 [Replicate] Input:`, JSON.stringify({
               ...input,
-              text: `${input.text.substring(0, 50)}...`,
+              text: input.text ? `${textPreview}...` : undefined,
+              text_to_synthesize: input.text_to_synthesize ? `${textPreview}...` : undefined,
               reference_audio: input.reference_audio ? `${input.reference_audio.substring(0, 40)}...` : undefined
             }));
             
