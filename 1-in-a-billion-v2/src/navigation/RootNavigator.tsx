@@ -759,7 +759,12 @@ export const RootNavigator = () => {
         return null;
     }
 
-    const shouldShowMainNavigator = hasSession && (showDashboard || hasCompletedOnboarding);
+    // ONLY use showDashboard — not hasCompletedOnboarding.
+    // hasCompletedOnboarding persists across account sessions and causes a race
+    // condition where fresh signups are routed to Dashboard because the flag is
+    // still true from the previous account. completeOnboarding() already sets
+    // showDashboard=true, so checking showDashboard alone is sufficient.
+    const shouldShowMainNavigator = hasSession && showDashboard;
 
     // Always start onboarding from Intro. Each screen navigates forward explicitly.
     const onboardingInitialRoute: keyof OnboardingStackParamList = 'Intro';
