@@ -168,7 +168,7 @@ export async function syncPeopleToSupabase(userId: string, people: Person[]) {
         if (!updatedRows || updatedRows.length === 0) {
             const { error: insertError } = await supabase
                 .from(TABLE_PEOPLE)
-                .insert(bestSelf);
+                .upsert(bestSelf, { onConflict: 'user_id,client_person_id' });
 
             if (insertError) {
                 console.error(`❌ Self profile insert failed:`, insertError.message);
@@ -192,9 +192,11 @@ export async function syncPeopleToSupabase(userId: string, people: Person[]) {
             }
 
             if (!updatedRows || updatedRows.length === 0) {
+                // Use upsert to handle race conditions where another sync
+                // already inserted this partner between the update and insert.
                 const { error: insertError } = await supabase
                     .from(TABLE_PEOPLE)
-                    .insert(partnerRow);
+                    .upsert(partnerRow, { onConflict: 'user_id,client_person_id' });
 
                 if (insertError) {
                     console.error(`❌ Partner profile insert failed:`, insertError.message);

@@ -52,6 +52,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
     const [isLoading, setIsLoading] = useState(false);
     const [playingVoice, setPlayingVoice] = useState<string | null>(null);
     const previewSoundRef = useRef<Audio.Sound | null>(null);
+    const isLoadingPreviewRef = useRef(false);
 
     const productName = useMemo(() => {
         if (productType === 'complete_reading') return 'All 5 Systems';
@@ -92,6 +93,9 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
     }, []);
 
     const playVoiceSample = async (voiceId: string) => {
+        // Guard against rapid double-taps that cause overlapping audio
+        if (isLoadingPreviewRef.current) return;
+
         const voice = VOICE_OPTIONS.find((v) => v.id === voiceId);
         if (!voice?.sampleUrl) {
             Alert.alert('Voice sample unavailable', 'No preview audio found for this voice.');
@@ -103,6 +107,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
             return;
         }
 
+        isLoadingPreviewRef.current = true;
         try {
             await stopVoicePreview();
             await Audio.setAudioModeAsync({
@@ -129,6 +134,8 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
         } catch {
             setPlayingVoice(null);
             Alert.alert('Playback failed', 'Could not play voice sample.');
+        } finally {
+            isLoadingPreviewRef.current = false;
         }
     };
 

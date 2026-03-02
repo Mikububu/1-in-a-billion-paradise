@@ -169,18 +169,27 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
     }, [job, taskProgress]);
 
     const subjects = useMemo(() => {
-        if (personName) return personName;
         const params = job?.params || job?.input || {};
         const p1 = params.person1?.name || params.person?.name;
         const p2 = params.person2?.name;
-        // If docNum is available, infer which person this is for
-        // Backend interleaves: person1=1,4,7... person2=2,5,8... overlay=3,6,9...
-        if (typeof docNum === 'number' && p1 && p2) {
-            const mod = ((docNum - 1) % 3);
-            if (mod === 0) return p1;       // person1
-            if (mod === 1) return p2;       // person2
-            return `${p1} & ${p2}`;         // overlay
+
+        // For multi-person jobs (synastry/bundle_verdict), always show both names
+        // even when personName is provided — the route param only carries person1's name.
+        const jobType = String(job?.type || '').toLowerCase();
+        const isMultiPerson = jobType === 'synastry' || jobType === 'bundle_verdict';
+
+        if (isMultiPerson && p1 && p2) {
+            // If docNum is available, infer which person this reading is for
+            if (typeof docNum === 'number') {
+                const mod = ((docNum - 1) % 3);
+                if (mod === 0) return p1;       // person1
+                if (mod === 1) return p2;       // person2
+                return `${p1} & ${p2}`;         // overlay
+            }
+            return `${p1} & ${p2}`;
         }
+
+        if (personName) return personName;
         if (p1 && p2) return `${p1} & ${p2}`;
         return p1 || 'Reading';
     }, [job, personName, docNum]);

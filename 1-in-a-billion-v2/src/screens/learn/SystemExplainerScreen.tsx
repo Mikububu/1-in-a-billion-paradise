@@ -22,7 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
-import { SINGLE_SYSTEM, SYSTEM_PRICES, PRODUCT_STRINGS, PRODUCTS, formatAudioDuration } from '@/config/products';
+import { SINGLE_SYSTEM, SYSTEM_PRICES, PRODUCT_STRINGS, PRODUCTS, NUCLEAR_PACKAGE, formatAudioDuration } from '@/config/products';
 import { initiatePurchaseFlow } from '@/utils/purchaseFlow';
 import { validateCouponCode, redeemCouponCode } from '@/services/payments';
 import { BackButton } from '@/components/BackButton';
@@ -242,7 +242,7 @@ const OVERLAY_CONTENT: Record<SystemType, {
         origin: 'Two souls \u00B7 Five systems \u00B7 Complete truth',
         icon: '\u2605',
         intro: `This is everything. Both of your complete readings across all 5 systems. Every compatibility overlay. And the final verdict - what your connection truly means and where it's headed.`,
-        howItHelpsYou: `16 documents. 100 pages. 3+ hours of audio. We analyze both of you individually, then layer your charts together in every system. Nothing is left unexplored. No question unanswered.`,
+        howItHelpsYou: `${NUCLEAR_PACKAGE.apiCalls} documents. ${PRODUCTS.nuclear_package.pagesMax} pages. ${formatAudioDuration(PRODUCTS.nuclear_package.audioMinutes)} of audio. We analyze both of you individually, then layer your charts together in every system. Nothing is left unexplored. No question unanswered.`,
         whatYouDiscover: [
             'Both complete individual readings (5 systems each)',
             'All 5 compatibility overlays combined',

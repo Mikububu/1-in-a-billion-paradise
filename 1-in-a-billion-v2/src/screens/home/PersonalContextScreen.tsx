@@ -9,7 +9,7 @@ import { colors, spacing, typography, radii } from '@/theme/tokens';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonalContext'>;
 
-const MAX_CHARS = 600;
+const MAX_CHARS = 300;
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CIRCLE_SIZE = Math.min(SCREEN_WIDTH * 0.72, SCREEN_HEIGHT * 0.36);
 

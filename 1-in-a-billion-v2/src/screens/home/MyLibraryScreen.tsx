@@ -45,6 +45,13 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
     const [previewTitle, setPreviewTitle] = useState<string>('Portrait');
     const [isRecovering, setIsRecovering] = useState(false);
 
+    const user = useMemo(() => people.find((p) => p.isUser), [people]);
+    const partners = useMemo(() => people.filter((p) => !p.isUser), [people]);
+    const totalReadings = useMemo(
+        () => people.reduce((acc, p) => acc + (p.readings?.length || 0), 0),
+        [people]
+    );
+
     // AUTO-RECOVERY: If user has 0 readings but might have cloud jobs,
     // attempt to rebuild reading placeholders from backend data.
     const recoveryAttemptedRef = useRef(false);
@@ -66,13 +73,6 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             }
         })();
     }, [userId, totalReadings]);
-
-    const user = useMemo(() => people.find((p) => p.isUser), [people]);
-    const partners = useMemo(() => people.filter((p) => !p.isUser), [people]);
-    const totalReadings = useMemo(
-        () => people.reduce((acc, p) => acc + (p.readings?.length || 0), 0),
-        [people]
-    );
     // Count individual vs overlay readings from actual placeholder data
     const individualReadingsCount = useMemo(
         () => people.reduce((acc, p) => acc + (p.readings?.filter((r: any) => r.readingType !== 'overlay').length || 0), 0),

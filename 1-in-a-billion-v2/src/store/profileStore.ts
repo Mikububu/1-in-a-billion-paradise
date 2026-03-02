@@ -346,8 +346,16 @@ export const useProfileStore = create<ProfileState>()(
                         const now = new Date().toISOString();
                         return { people: [...state.people, { ...incoming, createdAt: incoming.createdAt || now, updatedAt: incoming.updatedAt || now }] };
                     }
+                    const existing = state.people[idx];
                     const next = [...state.people];
-                    next[idx] = { ...next[idx], ...incoming, updatedAt: new Date().toISOString() };
+                    // Preserve local-only fields that cloud data never carries.
+                    // Without this, a cloud-sourced upsert could wipe readings/jobIds.
+                    const merged = { ...existing, ...incoming, updatedAt: new Date().toISOString() };
+                    if (!incoming.readings && existing.readings?.length) merged.readings = existing.readings;
+                    if (!incoming.jobIds && existing.jobIds?.length) merged.jobIds = existing.jobIds;
+                    if (!(incoming as any).savedAudios && (existing as any).savedAudios?.length) (merged as any).savedAudios = (existing as any).savedAudios;
+                    if (!(incoming as any).savedPDFs && (existing as any).savedPDFs?.length) (merged as any).savedPDFs = (existing as any).savedPDFs;
+                    next[idx] = merged;
                     return { people: next };
                 });
             },

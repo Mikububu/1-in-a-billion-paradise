@@ -507,7 +507,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
         return (
           <View style={styles.page}>
             <View style={styles.gatewayContainer}>
-              {/* Card content */}
+              {/* Text card — off-white bg behind headline + subtitle only */}
               <View style={styles.gatewayCard}>
                 <Text style={styles.gatewayTitle} selectable>
                   Want the full picture?
@@ -515,31 +515,32 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
                 <Text style={styles.gatewaySubtitle} selectable>
                   Come with us on a journey into the space between you and another.
                 </Text>
-
-                <TouchableOpacity
-                  style={[styles.continueBtn, !canContinue && styles.continueBtnDisabled]}
-                  disabled={!canContinue}
-                  onPress={() => {
-                    if (!canContinue) {
-                      Alert.alert('Compatibility unavailable', COMPATIBILITY_UNAVAILABLE_MESSAGE);
-                      return;
-                    }
-                    if (onboardingNext) {
-                      navigation.navigate(onboardingNext as any);
-                      return;
-                    }
-                    navigation.navigate('SynastryOptions' as any, {
-                      partnerName: partner,
-                      partnerBirthDate,
-                      partnerBirthTime,
-                      partnerBirthCity,
-                      partnerId: partnerIdFromRoute,
-                    });
-                  }}
-                >
-                  <Text style={styles.continueBtnText}>Continue</Text>
-                </TouchableOpacity>
               </View>
+
+              {/* Button sits outside the card — no background */}
+              <TouchableOpacity
+                style={[styles.continueBtn, !canContinue && styles.continueBtnDisabled]}
+                disabled={!canContinue}
+                onPress={() => {
+                  if (!canContinue) {
+                    Alert.alert('Compatibility unavailable', COMPATIBILITY_UNAVAILABLE_MESSAGE);
+                    return;
+                  }
+                  if (onboardingNext) {
+                    navigation.navigate(onboardingNext as any);
+                    return;
+                  }
+                  navigation.navigate('SynastryOptions' as any, {
+                    partnerName: partner,
+                    partnerBirthDate,
+                    partnerBirthTime,
+                    partnerBirthCity,
+                    partnerId: partnerIdFromRoute,
+                  });
+                }}
+              >
+                <Text style={styles.continueBtnText}>Continue</Text>
+              </TouchableOpacity>
             </View>
           </View>
         );
@@ -876,12 +877,11 @@ const styles = StyleSheet.create({
   gatewayCard: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: 'rgba(255,255,255,0.82)', // off-white card (not full white)
+    backgroundColor: 'rgba(245,242,237,0.85)', // off-white matching app texture
     borderRadius: radii.card,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
+    // No border — blends with background
   },
   gatewayTitle: {
     fontFamily: typography.headline,
@@ -897,7 +897,6 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     textAlign: 'center',
     lineHeight: 24 * fontScale,
-    marginBottom: spacing.xl * 2,
     paddingHorizontal: spacing.lg,
   },
   continueBtn: {
@@ -905,6 +904,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xl * 2,
     borderRadius: 30,
+    marginTop: spacing.lg,
     marginBottom: spacing.md,
     minWidth: 250,
     alignItems: 'center',
