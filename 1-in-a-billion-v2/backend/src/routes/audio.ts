@@ -12,6 +12,7 @@ import { cleanupTextForTTS } from '../utils/textCleanup';
 import {
   splitIntoChunks,
   concatenateWavBuffers,
+  getWavFormat,
   AUDIO_CONFIG,
   dedupeAdjacentSentences,
   dedupeChunkBoundaryOverlap,
@@ -97,6 +98,22 @@ async function getGoogleAccessToken(): Promise<string> {
   return tokenResponse.data.access_token;
 }
 
+// Validate voice sample URLs: must be HTTPS and from trusted domains only.
+// Prevents SSRF (e.g. someone passing http://169.254.169.254/... as audioUrl).
+const ALLOWED_AUDIO_HOSTS = [
+  'qdfikbgwuauertfmkmzk.supabase.co',  // Our Supabase storage
+  'replicate.delivery',                  // Replicate CDN
+];
+function validateAudioUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') return false;
+    return ALLOWED_AUDIO_HOSTS.some(h => parsed.hostname === h || parsed.hostname.endsWith(`.${h}`));
+  } catch {
+    return false;
+  }
+}
+
 // TTS generation endpoint - Chatterbox Turbo via Replicate (voice cloning)
 const ttsPayloadSchema = z.object({
   text: z.string().min(1).max(50000),
@@ -105,7 +122,10 @@ const ttsPayloadSchema = z.object({
   title: z.string().optional(),
   // Chatterbox-specific options
   exaggeration: z.number().min(0).max(1).optional().default(0.3), // Emotion intensity (0.3 = natural voice)
-  audioUrl: z.string().optional(), // URL to voice sample for cloning
+  audioUrl: z.string().optional()  // URL to voice sample for cloning (validated below)
+    .refine(val => !val || validateAudioUrl(val), {
+      message: 'audioUrl must be HTTPS from a trusted domain',
+    }),
   spokenIntro: z.string().optional(),
   includeIntro: z.boolean().optional().default(true),
 });
@@ -349,8 +369,15 @@ router.post('/generate-tts', async (c) => {
 
       console.log(`Final audio: ${Math.round(compressedAudio.length / 1024)}KB ${format.toUpperCase()} from ${audioBuffers.length} chunks`);
 
-      // Estimate duration from original WAV (24000Hz, 16-bit mono = 48000 bytes/sec)
-      const estimatedDuration = Math.ceil((wavAudio.length - 44) / 48000);
+      // Calculate duration from actual WAV header (sample rate may vary)
+      let estimatedDuration: number;
+      try {
+        const fmt = getWavFormat(wavAudio);
+        const bytesPerSec = fmt.sampleRate * fmt.numChannels * (fmt.bitsPerSample / 8);
+        estimatedDuration = Math.ceil((wavAudio.length - 44) / bytesPerSec);
+      } catch {
+        estimatedDuration = Math.ceil((wavAudio.length - 44) / 48000); // fallback: 24kHz mono 16-bit
+      }
 
       return c.json({
         success: true,
@@ -542,6 +569,7 @@ router.post('/generate-tts-stream', async (c) => {
 
       // Track completed chunks and send in order
       const completed = new Map<number, string>();
+      const failed = new Set<number>();
       let nextToSend = 0;
 
       // Process as they complete
@@ -549,9 +577,25 @@ router.post('/generate-tts-stream', async (c) => {
         const result = await promise;
         if (result) {
           completed.set(result.index, result.audio);
+        } else {
+          // Find the index of the failed chunk (first pending one not in completed or failed)
+          for (let i = 0; i < chunks.length; i++) {
+            if (!completed.has(i) && !failed.has(i)) {
+              failed.add(i);
+              console.error(`❌ Streaming TTS: Chunk ${i + 1}/${chunks.length} failed after all retries`);
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                type: 'error',
+                index: i,
+                message: `Chunk ${i + 1} failed after 3 retries`,
+              })}\n\n`));
+              break;
+            }
+          }
+        }
 
-          // Send any consecutive completed chunks
-          while (completed.has(nextToSend)) {
+        // Send any consecutive completed chunks (skip failed ones)
+        while (completed.has(nextToSend) || failed.has(nextToSend)) {
+          if (completed.has(nextToSend)) {
             const audio = completed.get(nextToSend)!;
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({
               type: 'chunk',
@@ -560,15 +604,17 @@ router.post('/generate-tts-stream', async (c) => {
               progress: Math.round(((nextToSend + 1) / chunks.length) * 100)
             })}\n\n`));
             completed.delete(nextToSend);
-            nextToSend++;
           }
+          nextToSend++;
         }
       }
 
-      // Send completion
+      // Send completion with failure summary
       controller.enqueue(encoder.encode(`data: ${JSON.stringify({
         type: 'complete',
-        totalChunks: chunks.length
+        totalChunks: chunks.length,
+        failedChunks: failed.size,
+        success: failed.size === 0,
       })}\n\n`));
 
       controller.close();
@@ -590,7 +636,10 @@ const hookAudioSchema = z.object({
   userId: z.string().uuid(),
   type: z.enum(['sun', 'moon', 'rising']),
   exaggeration: z.number().min(0).max(1).optional().default(0.3),
-  audioUrl: z.string().optional(), // Voice sample URL
+  audioUrl: z.string().optional()  // Voice sample URL (validated for SSRF)
+    .refine(val => !val || validateAudioUrl(val), {
+      message: 'audioUrl must be HTTPS from a trusted domain',
+    }),
 });
 
 router.post('/hook-audio/generate', async (c) => {
@@ -706,11 +755,18 @@ router.post('/hook-audio/generate', async (c) => {
     // Concatenate and compress
     const wavAudio = concatenateWavBuffers(audioBuffers);
     const { buffer: compressedAudio, format, mime } = wavToCompressed(wavAudio);
-    const estimatedDuration = Math.ceil((wavAudio.length - 44) / 48000);
+    let estimatedDuration: number;
+    try {
+      const fmt = getWavFormat(wavAudio);
+      const bytesPerSec = fmt.sampleRate * fmt.numChannels * (fmt.bitsPerSample / 8);
+      estimatedDuration = Math.ceil((wavAudio.length - 44) / bytesPerSec);
+    } catch {
+      estimatedDuration = Math.ceil((wavAudio.length - 44) / 48000);
+    }
 
     // Store in Supabase Storage (library bucket, same as hookAudioCloud.ts)
     const storagePath = `hook-audio/${parsed.userId}/${parsed.type}.${format}`;
-    const contentType = 'audio/mp4';
+    const contentType = mime || 'audio/mpeg';
 
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('library')

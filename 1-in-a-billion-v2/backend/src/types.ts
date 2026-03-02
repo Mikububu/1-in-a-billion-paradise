@@ -87,6 +87,7 @@ export type JobParams = {
     name: string;
     birthDate: string;
     birthTime: string;
+    birthPlace?: string;   // City name for prompts & audio intros (e.g. "Villach, Austria")
     timezone?: string;
     latitude?: number;
     longitude?: number;
@@ -96,6 +97,7 @@ export type JobParams = {
     name: string;
     birthDate: string;
     birthTime: string;
+    birthPlace?: string;   // City name for prompts & audio intros
     timezone?: string;
     latitude?: number;
     longitude?: number;

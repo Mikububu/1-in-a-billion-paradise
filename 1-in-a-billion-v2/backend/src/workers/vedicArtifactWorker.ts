@@ -100,18 +100,21 @@ async function processNextArtifact() {
 
         if (!profileA || !profileB) throw new Error('Profiles not found in library_people');
 
-        // Prepare info
+        // Prepare info — birth data lives inside the `birth_data` JSONB column,
+        // NOT as separate top-level columns.  Extract city from birthCity field.
+        const bdA = profileA.birth_data || {};
+        const bdB = profileB.birth_data || {};
         const infoA = {
             name: profileA.name,
-            birthDate: profileA.birth_date, // YYYY-MM-DD
-            birthTime: profileA.birth_time, // HH:mm:ss
-            birthPlace: 'Unknown' // Library people might not have string place? Check schema.
+            birthDate: bdA.birthDate || '',
+            birthTime: bdA.birthTime || '',
+            birthPlace: bdA.birthCity || '',
         };
         const infoB = {
             name: profileB.name,
-            birthDate: profileB.birth_date,
-            birthTime: profileB.birth_time,
-            birthPlace: 'Unknown'
+            birthDate: bdB.birthDate || '',
+            birthTime: bdB.birthTime || '',
+            birthPlace: bdB.birthCity || '',
         };
 
         // 4. Generate Audio

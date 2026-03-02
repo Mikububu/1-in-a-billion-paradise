@@ -568,14 +568,16 @@ export class TextWorker extends BaseWorker {
     const p1BirthData = {
       birthDate: person1.birthDate,
       birthTime: person1.birthTime,
-      birthPlace: person1.birthPlace || `${Number(person1.latitude).toFixed(2)}°N, ${Number(person1.longitude).toFixed(2)}°E`,
+      // Use city name only. Never fall back to raw coordinates — they sound
+      // terrible in both LLM prompts and audio intros.  Omit gracefully instead.
+      birthPlace: person1.birthPlace || '',
       timezone: person1.timezone,
     };
 
     const p2BirthData = person2 ? {
       birthDate: person2.birthDate,
       birthTime: person2.birthTime,
-      birthPlace: person2.birthPlace || `${Number(person2.latitude).toFixed(2)}°N, ${Number(person2.longitude).toFixed(2)}°E`,
+      birthPlace: person2.birthPlace || '',
       timezone: person2.timezone,
     } : null;
 
