@@ -229,10 +229,10 @@ export class AudioWorker extends BaseWorker {
   constructor() {
     super({
       taskTypes: ['audio_generation'],
-      maxConcurrentTasks: 3, // Allow pulling all 3 audio tasks for a reading at the same time
+      maxConcurrentTasks: 1, // ⚠️ MUST be 1: each task holds ~60-100MB in WAV buffers + ffmpeg subprocesses. Concurrency > 1 causes OOM on 1GB Fly VMs.
     });
 
-    console.log(`🤖 AudioWorker PARALLEL initialized at ${new Date().toISOString()}`);
+    console.log(`🤖 AudioWorker initialized (sequential) at ${new Date().toISOString()}`);
 
     // API keys will be fetched from Supabase on first use
     // Fallback to env vars if Supabase unavailable
@@ -546,6 +546,9 @@ export class AudioWorker extends BaseWorker {
       const elapsedMs = Date.now() - startTime;
       const elapsed = (elapsedMs / 1000).toFixed(1);
 
+      const memAfterChunks = process.memoryUsage();
+      console.log(`📊 [AudioWorker] Memory after chunks: RSS=${Math.round(memAfterChunks.rss / 1024 / 1024)}MB, Heap=${Math.round(memAfterChunks.heapUsed / 1024 / 1024)}MB`);
+
       console.log('\n' + '═'.repeat(70));
       console.log('✅ REPLICATE AUDIO GENERATION COMPLETE');
       console.log('═'.repeat(70));
@@ -594,6 +597,11 @@ export class AudioWorker extends BaseWorker {
 
       // Concatenate and convert: MP3 only (QuickTime-safe default).
       const wavAudio = concatenateWavBuffers(audioBuffers);
+
+      // ⚠️ MEMORY: Release chunk buffers immediately after concat — they're
+      // no longer needed and can be 20-40MB for a long reading.
+      audioBuffers.length = 0;
+
       const mp3 = await convertWavToMp3(wavAudio);
       // Calculate duration from WAV header (sample rate, channels, bits per sample)
       const wavHeader = parseWavHeader(wavAudio);
@@ -602,6 +610,9 @@ export class AudioWorker extends BaseWorker {
         : 48000; // fallback: 24kHz mono 16-bit
       const dataSize = wavHeader ? wavHeader.dataSize : (wavAudio.length - 44);
       const duration = Math.ceil(dataSize / bytesPerSecond);
+
+      const memAfterStitch = process.memoryUsage();
+      console.log(`📊 [AudioWorker] Memory after stitch+encode: RSS=${Math.round(memAfterStitch.rss / 1024 / 1024)}MB, Heap=${Math.round(memAfterStitch.heapUsed / 1024 / 1024)}MB`);
 
       console.log(
         `🎵 [AudioWorker] Final: ${Math.round(mp3.length / 1024)}KB MP3, ~${duration}s from ${chunks.length} chunks (Replicate)`

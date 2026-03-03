@@ -19,7 +19,7 @@ case "$PROCESS_GROUP" in
     ;;
   audio-worker)
     echo "[entrypoint] Starting audio worker..."
-    exec node dist/workers/audioWorker.js
+    exec node --max-old-space-size=1792 dist/workers/audioWorker.js
     ;;
   pdf-worker)
     echo "[entrypoint] Starting PDF worker..."

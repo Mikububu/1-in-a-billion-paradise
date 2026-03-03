@@ -71,9 +71,10 @@ primary_region = "sin"
   cpus = 2
 
 [[vm]]
-  # Audio generation can spike memory during stitching/compression.
+  # Audio generation: WAV stitching + ffmpeg loudnorm can spike 1-1.5GB on long readings.
+  # concurrency capped to 1 in audioWorker.ts to keep peak memory predictable.
   processes = ["audio-worker"]
-  memory = "1024mb"
+  memory = "2048mb"
   cpu_kind = "shared"
   cpus = 1
 

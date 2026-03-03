@@ -132,99 +132,106 @@ export async function waitForAllChunks(
   const queueEvents = getQueueEvents();
   const queue = getQueue();
 
-  const results: (Buffer | null)[] = new Array(jobIds.length).fill(null);
-  let completed = 0;
-
   const startTime = Date.now();
 
-  // Wait for each job to complete
-  const promises = jobIds.map(async (jobId, arrayIndex) => {
-    try {
-      // Get the job instance, then use job.waitUntilFinished(queueEvents)
+  // ─────────────────────────────────────────────────────────────────────
+  // PHASE 1: Wait for ALL Replicate jobs to finish (parallel — cheap,
+  //          only stores completion metadata, no audio buffers yet)
+  // ─────────────────────────────────────────────────────────────────────
+  const chunkResults: ChunkJobResult[] = new Array(jobIds.length);
+
+  await Promise.all(
+    jobIds.map(async (jobId, arrayIndex) => {
       const job = await Job.fromId<ChunkJobData, ChunkJobResult>(queue, jobId);
       if (!job) {
         throw new Error(`Chunk job ${jobId} not found in queue`);
       }
 
-      const result = await Promise.race([
-        job.waitUntilFinished(queueEvents, timeoutMs),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error(`Chunk job ${jobId} timed out after ${timeoutMs}ms`)), timeoutMs)
-        ),
-      ]) as ChunkJobResult;
+      try {
+        const result = await Promise.race([
+          job.waitUntilFinished(queueEvents, timeoutMs),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`Chunk job ${jobId} timed out after ${timeoutMs}ms`)), timeoutMs)
+          ),
+        ]) as ChunkJobResult;
 
-      // Download audio from Supabase temp storage with retry (not stored in Redis)
-      if (!supabase) throw new Error('Supabase not configured — cannot download audio chunks');
-      let audioBuffer: Buffer = Buffer.alloc(0);
-      for (let dlAttempt = 1; dlAttempt <= 3; dlAttempt++) {
-        const { data: blob, error: dlErr } = await supabase.storage
-          .from('audio')
-          .download(result.storagePath);
-        if (dlErr || !blob) {
-          console.warn(
-            `[ReplicateQueue] Download attempt ${dlAttempt}/3 failed for ${result.storagePath}: ${dlErr?.message || 'no data'}`
-          );
-          if (dlAttempt < 3) {
-            await new Promise((r) => setTimeout(r, 1000 * dlAttempt));
-            continue;
+        chunkResults[arrayIndex] = result;
+      } catch (error: any) {
+        const failedJob = await queue.getJob(jobId);
+        const failReason = failedJob?.failedReason || error.message;
+        if (supabase) {
+          const taskId = failedJob?.data?.taskId;
+          if (taskId) {
+            supabase.storage.from('audio').remove([`temp-chunks/${taskId}/${arrayIndex}.wav`]).catch(() => {});
           }
-          throw new Error(`Failed to download chunk audio from ${result.storagePath} after 3 attempts: ${dlErr?.message || 'no data'}`);
         }
-        audioBuffer = Buffer.from(await blob.arrayBuffer());
-        if (audioBuffer.length < 100) {
-          console.warn(`[ReplicateQueue] Downloaded buffer suspiciously small (${audioBuffer.length} bytes) for ${result.storagePath}`);
-          if (dlAttempt < 3) {
-            await new Promise((r) => setTimeout(r, 1000 * dlAttempt));
-            continue;
-          }
-          throw new Error(`Downloaded audio buffer too small (${audioBuffer.length} bytes) for ${result.storagePath}`);
-        }
-        break;
+        throw new Error(
+          `Chunk job ${jobId} (index ${arrayIndex}) failed: ${failReason}`
+        );
       }
-      results[arrayIndex] = audioBuffer;
-      completed++;
+    }),
+  );
 
-      // Clean up temp file after successful download (await to avoid race)
-      await supabase.storage.from('audio').remove([result.storagePath]).catch((e: any) =>
-        console.warn(`[ReplicateQueue] Cleanup warning for ${result.storagePath}: ${e.message}`)
-      );
+  const waitElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+  console.log(`[ReplicateQueue] All ${jobIds.length} Replicate jobs finished in ${waitElapsed}s — downloading audio...`);
 
-      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-      console.log(
-        `[ReplicateQueue] Chunk ${result.chunkIndex + 1}/${jobIds.length} complete ` +
-        `(${audioBuffer.length} bytes) [${completed}/${jobIds.length} done, ${elapsed}s elapsed]`
-      );
-    } catch (error: any) {
-      // Check if the job failed (vs timed out)
-      const failedJob = await queue.getJob(jobId);
-      const failReason = failedJob?.failedReason || error.message;
-      // Clean up any temp chunk that was uploaded before failure
-      if (supabase) {
-        const taskId = failedJob?.data?.taskId;
-        if (taskId) {
-          supabase.storage.from('audio').remove([`temp-chunks/${taskId}/${arrayIndex}.wav`]).catch(() => {});
+  // ─────────────────────────────────────────────────────────────────────
+  // PHASE 2: Download audio buffers SEQUENTIALLY to cap peak memory.
+  //          Each chunk is ~0.5-2MB WAV; downloading all at once on a
+  //          20+ chunk reading can spike memory by 40MB+ unnecessarily.
+  // ─────────────────────────────────────────────────────────────────────
+  if (!supabase) throw new Error('Supabase not configured — cannot download audio chunks');
+
+  const audioBuffers: Buffer[] = new Array(jobIds.length);
+
+  for (let i = 0; i < chunkResults.length; i++) {
+    const result = chunkResults[i]!;
+    let audioBuffer: Buffer = Buffer.alloc(0);
+
+    for (let dlAttempt = 1; dlAttempt <= 3; dlAttempt++) {
+      const { data: blob, error: dlErr } = await supabase.storage
+        .from('audio')
+        .download(result.storagePath);
+      if (dlErr || !blob) {
+        console.warn(
+          `[ReplicateQueue] Download attempt ${dlAttempt}/3 failed for ${result.storagePath}: ${dlErr?.message || 'no data'}`
+        );
+        if (dlAttempt < 3) {
+          await new Promise((r) => setTimeout(r, 1000 * dlAttempt));
+          continue;
         }
+        throw new Error(`Failed to download chunk audio from ${result.storagePath} after 3 attempts: ${dlErr?.message || 'no data'}`);
       }
-      throw new Error(
-        `Chunk job ${jobId} (index ${arrayIndex}) failed: ${failReason}`
-      );
+      audioBuffer = Buffer.from(await blob.arrayBuffer());
+      if (audioBuffer.length < 100) {
+        console.warn(`[ReplicateQueue] Downloaded buffer suspiciously small (${audioBuffer.length} bytes) for ${result.storagePath}`);
+        if (dlAttempt < 3) {
+          await new Promise((r) => setTimeout(r, 1000 * dlAttempt));
+          continue;
+        }
+        throw new Error(`Downloaded audio buffer too small (${audioBuffer.length} bytes) for ${result.storagePath}`);
+      }
+      break;
     }
-  });
 
-  await Promise.all(promises);
+    audioBuffers[i] = audioBuffer;
 
-  // Verify all buffers are present
-  const finalBuffers = results.filter((b): b is Buffer => b !== null);
-  if (finalBuffers.length !== jobIds.length) {
-    throw new Error(
-      `Only ${finalBuffers.length}/${jobIds.length} chunks completed successfully`
+    // Clean up temp file immediately after download
+    await supabase.storage.from('audio').remove([result.storagePath]).catch((e: any) =>
+      console.warn(`[ReplicateQueue] Cleanup warning for ${result.storagePath}: ${e.message}`)
+    );
+
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(
+      `[ReplicateQueue] Chunk ${result.chunkIndex + 1}/${jobIds.length} downloaded ` +
+      `(${audioBuffer.length} bytes) [${i + 1}/${jobIds.length} done, ${elapsed}s elapsed]`
     );
   }
 
   console.log(
-    `[ReplicateQueue] All ${jobIds.length} chunks complete in ${((Date.now() - startTime) / 1000).toFixed(1)}s`
+    `[ReplicateQueue] All ${jobIds.length} chunks downloaded in ${((Date.now() - startTime) / 1000).toFixed(1)}s`
   );
-  return finalBuffers;
+  return audioBuffers;
 }
 
 /* ── Cleanup ────────────────────────────────────────────────────────── */
