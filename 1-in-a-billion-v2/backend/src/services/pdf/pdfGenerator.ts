@@ -800,12 +800,12 @@ function renderCompatibilitySnapshotPage(
     doc.moveDown(1.0);
     doc.save();
 
-    doc.font(hasPlayfairBold ? 'PlayfairBold' : 'GaramondBold').fontSize(18).fillColor('#7a4a12')
+    doc.font(hasPlayfairBold ? 'PlayfairBold' : 'GaramondBold').fontSize(24).fillColor('#b91c1c')
       .text(`FINAL VERDICT: ${finalVerdict.score}/10`, { width: contentWidth, align: 'center' });
 
     doc.moveDown(0.3);
 
-    doc.font('Garamond').fontSize(13).fillColor('#111111')
+    doc.font('Garamond').fontSize(16).fillColor('#b91c1c')
       .text(finalVerdict.text, { width: contentWidth, align: 'center' });
 
     doc.restore();

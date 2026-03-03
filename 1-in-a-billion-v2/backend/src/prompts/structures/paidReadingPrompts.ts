@@ -649,6 +649,7 @@ LONG-TERM SUSTAINABILITY: [0-100]
 [4 sentences: can this field sustain itself over time without consuming both people? What the charts say about endurance versus burnout. Whether the initial intensity would deepen into something lasting or collapse under its own weight. The structural truth about whether this is built to last.]
 
 FINAL VERDICT: [0-10]/10 - [Short ironic, brutal, or punchy recommendation]
+CREATE A HIGHLY UNIQUE, SHOCKING, OR POETIC PUNCHLINE tailored specifically to these charts. DO NOT reuse the examples below. We want an infinite variety of different possibilities covering the full spectrum of outcomes.
 [Example 1: "FINAL VERDICT: 2/10 - Run away very fast."]
 [Example 2: "FINAL VERDICT: 9/10 - Marry them yesterday."]
 [Example 3: "FINAL VERDICT: 5/10 - Two spiders in a web."]
