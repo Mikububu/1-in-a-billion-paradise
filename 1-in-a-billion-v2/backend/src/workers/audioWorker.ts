@@ -153,102 +153,7 @@ function convertFloatWavToPcm(buffer: Buffer): Buffer {
 
 // NOTE: concatenateWavBuffers and buildSilenceWav are now imported from shared audioProcessing module
 
-type AudioPersonMeta = {
-  name?: string;
-  birthDate?: string;
-  birthTime?: string;
-  birthPlace?: string;
-  timezone?: string;
-};
-
-function formatReadableDate(input?: string): string {
-  const raw = String(input || '').trim();
-  if (!raw) return '';
-
-  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (m) {
-    const y = Number(m[1]);
-    const mo = Number(m[2]) - 1;
-    const d = Number(m[3]);
-    const dt = new Date(Date.UTC(y, mo, d));
-    return dt.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-      timeZone: 'UTC',
-    });
-  }
-
-  const dt = new Date(raw);
-  if (!Number.isNaN(dt.getTime())) {
-    return dt.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-    });
-  }
-
-  return raw;
-}
-
-function inferDocType(task: JobTask): 'person1' | 'person2' | 'overlay' | 'verdict' {
-  const inputDocType = String(task.input?.docType || '').toLowerCase();
-  if (inputDocType === 'person2') return 'person2';
-  if (inputDocType === 'overlay') return 'overlay';
-  if (inputDocType === 'verdict') return 'verdict';
-  if (inputDocType === 'person1' || inputDocType === 'individual') return 'person1';
-
-  const title = String(task.input?.title || '').toLowerCase();
-  if (title.includes('verdict')) return 'verdict';
-  if (title.includes('&') || title.includes('synastry') || title.includes('overlay')) return 'overlay';
-  return 'person1';
-}
-
-function buildSpokenIntro(options: {
-  system?: string;
-  docType: 'person1' | 'person2' | 'overlay' | 'verdict';
-  person1?: AudioPersonMeta;
-  person2?: AudioPersonMeta;
-}): string {
-  const system = String(options.system || 'western').toLowerCase();
-  const systemName = getSystemDisplayName(system);
-  const generatedOn = new Date().toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
-
-  const p1 = options.person1 || {};
-  const p2 = options.person2 || {};
-  const p1Name = String(p1.name || 'Person 1').trim();
-  const p2Name = String(p2.name || 'Person 2').trim();
-  const p1Date = formatReadableDate(p1.birthDate);
-  const p2Date = formatReadableDate(p2.birthDate);
-  // Use birthPlace (city name) only. Never fall back to timezone strings
-  // like "Europe/Vienna" which are misleading in spoken intros.
-  const p1Place = String(p1.birthPlace || '').trim();
-  const p2Place = String(p2.birthPlace || '').trim();
-  const p1Time = String(p1.birthTime || '').trim();
-  const p2Time = String(p2.birthTime || '').trim();
-
-  if (options.docType === 'verdict') {
-    return `This is the final verdict reading for ${p1Name} and ${p2Name}, synthesizing all five systems. Generated on ${generatedOn} by 1 in a billion app, powered by forbidden-yoga dot com.`;
-  }
-
-  if (options.docType === 'overlay') {
-    const p1Line = `${p1Name} was born on ${p1Date || 'an unknown date'}${p1Time ? ` at ${p1Time}` : ''}${p1Place ? ` in ${p1Place}` : ''}.`;
-    const p2Line = `${p2Name} was born on ${p2Date || 'an unknown date'}${p2Time ? ` at ${p2Time}` : ''}${p2Place ? ` in ${p2Place}` : ''}.`;
-    return `This is a ${systemName} compatibility reading for ${p1Name} and ${p2Name}. ${p1Line} ${p2Line} Generated on ${generatedOn} by 1 in a billion app, powered by forbidden-yoga dot com.`;
-  }
-
-  const subject = options.docType === 'person2' ? p2 : p1;
-  const subjectName = String(subject.name || (options.docType === 'person2' ? p2Name : p1Name)).trim();
-  const birthDate = formatReadableDate(subject.birthDate);
-  const birthPlace = String(subject.birthPlace || '').trim();
-  const birthTime = String(subject.birthTime || '').trim();
-
-  return `This is a ${systemName} reading for ${subjectName}, born on ${birthDate || 'an unknown date'}${birthTime ? ` at ${birthTime}` : ''}${birthPlace ? ` in ${birthPlace}` : ''}. Generated on ${generatedOn} by 1 in a billion app, powered by forbidden-yoga dot com.`;
-}
+import { buildLocalizedSpokenIntro } from '../i18n/spokenIntro';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FFmpeg Conversion
@@ -374,16 +279,18 @@ export class AudioWorker extends BaseWorker {
 
       // Build spoken intro and prepend to narration.
       const resolvedDocType = inferDocType(task);
-      const intro = buildSpokenIntro({
+      const jobLang: OutputLanguage = (this as any)._jobOutputLanguage || 'en';
+
+      const intro = buildLocalizedSpokenIntro({
         system: task.input?.system,
         docType: resolvedDocType,
         person1: person1Meta,
         person2: person2Meta,
+        language: jobLang
       });
       text = `${intro}\n\n${cleanedText}`.trim();
 
       // Chunk size — language-aware (Chinese needs shorter chunks, etc.)
-      const jobLang: OutputLanguage = (this as any)._jobOutputLanguage || 'en';
       const langChunkConfig = getChunkConfig(jobLang);
       const configuredChunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || String(langChunkConfig.maxChars), 10);
       const chunkSize = Math.max(langChunkConfig.minChars, Math.min(langChunkConfig.maxChars, Number.isFinite(configuredChunkSize) ? configuredChunkSize : langChunkConfig.maxChars));

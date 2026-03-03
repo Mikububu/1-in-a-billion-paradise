@@ -80,6 +80,7 @@ router.post('/v2/start', jwtAuth, async (c) => {
       relationshipContext,
       personalContext,
       useIncludedReading,
+      language,
     } = body;
 
     if (!systems || !Array.isArray(systems) || systems.length === 0) {
@@ -121,6 +122,7 @@ router.post('/v2/start', jwtAuth, async (c) => {
     if (person2) params.person2 = person2;
     if (voiceId) params.voiceId = voiceId;
     if (bundleComposition) params.bundleComposition = bundleComposition;
+    if (language) params.outputLanguage = language;
     // Sanitize user-provided text fields before they reach the LLM
     if (relationshipContext) params.relationshipContext = sanitizeContext(relationshipContext);
     if (personalContext) params.personalContext = sanitizeContext(personalContext);
@@ -539,7 +541,7 @@ router.get('/v2/user/:userId/jobs', jwtAuth, async (c) => {
   }
   const limit = Math.min(Number(c.req.query('limit')) || 50, 100);
   const jobs = await jobQueueV2.getUserJobs(userId, limit);
-  
+
   // Fetch tasks for each job to show detailed status
   const jobsWithDetails = await Promise.all(
     jobs.map(async (j) => {
@@ -550,7 +552,7 @@ router.get('/v2/user/:userId/jobs', jwtAuth, async (c) => {
         complete: tasks.filter(t => t.status === 'complete').length,
         failed: tasks.filter(t => t.status === 'failed').length,
       };
-      
+
       return {
         id: j.id,
         status: j.status,
@@ -564,20 +566,20 @@ router.get('/v2/user/:userId/jobs', jwtAuth, async (c) => {
         systems: (j.params as any)?.systems || [],
         // CRITICAL: Include person IDs AND names so frontend can link jobs to people cards
         params: {
-          person1: (j.params as any)?.person1 ? { 
+          person1: (j.params as any)?.person1 ? {
             id: (j.params as any).person1.id,
-            name: (j.params as any).person1.name 
+            name: (j.params as any).person1.name
           } : undefined,
-          person2: (j.params as any)?.person2 ? { 
+          person2: (j.params as any)?.person2 ? {
             id: (j.params as any).person2.id,
-            name: (j.params as any).person2.name 
+            name: (j.params as any).person2.name
           } : undefined,
           systems: (j.params as any)?.systems || [],
         },
       };
     })
   );
-  
+
   return c.json({
     success: true,
     totalJobs: jobs.length,
@@ -591,9 +593,9 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
   const jobId = c.req.param('jobId');
   const docNum = parseInt(c.req.param('docNum'), 10);
   const rangeHeader = c.req.header('range') || c.req.header('Range') || null;
-  
+
   appendAgentDebug('jobs.ts:465', 'Audio endpoint called', { jobId: jobId.substring(0, 8), docNum }, 'C');
-  
+
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return c.json({ success: false, error: 'Supabase not configured' }, 500);
   }
@@ -605,14 +607,14 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
   try {
     const { jobQueueV2 } = await import('../services/jobQueueV2');
     const job = await jobQueueV2.getJob(jobId);
-    
+
     if (!job) {
       return c.json({ success: false, error: 'Job not found' }, 404);
     }
 
     // Get all artifacts for this job
     const supabase = supabaseService;
-    
+
     const { data: artifacts, error } = await supabase
       .from('job_artifacts')
       .select('*')
@@ -631,7 +633,7 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
 
     // Find artifact matching docNum (from metadata or derive from task sequence)
     let audioArtifact = artifacts.find((a: any) => a.metadata?.docNum === docNum);
-    
+
     appendAgentDebug(
       'jobs.ts:507',
       'Audio artifact search',
@@ -649,7 +651,7 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
       },
       'C'
     );
-    
+
     // If not found by metadata, try to match by task sequence
     if (!audioArtifact) {
       const tasks = await jobQueueV2.getJobTasks(jobId);
@@ -657,7 +659,7 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
       for (const task of tasks) {
         taskIdToSequence[task.id] = task.sequence;
       }
-      
+
       // Audio tasks typically have sequence 200+ (docNum = sequence - 199)
       for (const artifact of artifacts) {
         if (artifact.task_id) {
@@ -687,7 +689,7 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
 
     // Get signed URL (valid for 1 hour)
     const signedUrl = await getSignedArtifactUrl(audioArtifact.storage_path, 3600);
-    
+
     if (!signedUrl) {
       return c.json({ success: false, error: 'Failed to generate signed URL' }, 500);
     }
@@ -700,7 +702,7 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
     const audioResponse = await fetch(signedUrl, {
       headers: rangeHeader ? { Range: rangeHeader } : undefined,
     });
-    
+
     if (!audioResponse.ok) {
       console.error(`❌ Failed to fetch audio: ${audioResponse.status} ${audioResponse.statusText}`);
       return c.json({ success: false, error: 'Failed to fetch audio from storage' }, 500);
@@ -729,9 +731,9 @@ router.get('/v2/:jobId/song/:docNum', async (c) => {
   const jobId = c.req.param('jobId');
   const docNum = parseInt(c.req.param('docNum'), 10);
   const rangeHeader = c.req.header('range') || c.req.header('Range') || null;
-  
+
   appendAgentDebug('jobs.ts:580', 'Song endpoint called', { jobId: jobId.substring(0, 8), docNum }, 'D');
-  
+
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return c.json({ success: false, error: 'Supabase not configured' }, 500);
   }
@@ -743,14 +745,14 @@ router.get('/v2/:jobId/song/:docNum', async (c) => {
   try {
     const { jobQueueV2 } = await import('../services/jobQueueV2');
     const job = await jobQueueV2.getJob(jobId);
-    
+
     if (!job) {
       return c.json({ success: false, error: 'Job not found' }, 404);
     }
 
     // Get all song artifacts for this job
     const supabase = supabaseService;
-    
+
     const { data: artifacts, error } = await supabase
       .from('job_artifacts')
       .select('*')
@@ -807,7 +809,7 @@ router.get('/v2/:jobId/song/:docNum', async (c) => {
     if (!fetchUrl) {
       fetchUrl = await getSignedArtifactUrl(songArtifact.storage_path, 3600);
     }
-    
+
     if (!fetchUrl) {
       return c.json({ success: false, error: 'Failed to generate URL' }, 500);
     }
@@ -820,7 +822,7 @@ router.get('/v2/:jobId/song/:docNum', async (c) => {
     const songResponse = await fetch(fetchUrl, {
       headers: rangeHeader ? { Range: rangeHeader } : undefined,
     });
-    
+
     if (!songResponse.ok) {
       console.error(`❌ Failed to fetch song: ${songResponse.status} ${songResponse.statusText}`);
       return c.json({ success: false, error: 'Failed to fetch song from storage' }, 500);
@@ -848,7 +850,7 @@ router.get('/v2/:jobId/song/:docNum', async (c) => {
 router.get('/v2/:jobId/song/:docNum/metadata', async (c) => {
   const jobId = c.req.param('jobId');
   const docNum = parseInt(c.req.param('docNum'), 10);
-  
+
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return c.json({ success: false, error: 'Supabase not configured' }, 500);
   }
@@ -860,14 +862,14 @@ router.get('/v2/:jobId/song/:docNum/metadata', async (c) => {
   try {
     const { jobQueueV2 } = await import('../services/jobQueueV2');
     const job = await jobQueueV2.getJob(jobId);
-    
+
     if (!job) {
       return c.json({ success: false, error: 'Job not found' }, 404);
     }
 
     // Get song artifact metadata for this job
     const supabase = supabaseService;
-    
+
     const { data: artifacts, error } = await supabase
       .from('job_artifacts')
       .select('*')
@@ -886,7 +888,7 @@ router.get('/v2/:jobId/song/:docNum/metadata', async (c) => {
 
     // Find artifact matching docNum
     let songArtifact = artifacts.find((a: any) => a.metadata?.docNum === docNum);
-    
+
     // If not found by metadata, try to match by task sequence
     if (!songArtifact) {
       const tasks = await jobQueueV2.getJobTasks(jobId);
@@ -894,7 +896,7 @@ router.get('/v2/:jobId/song/:docNum/metadata', async (c) => {
       for (const task of tasks) {
         taskIdToSequence[task.id] = task.sequence;
       }
-      
+
       for (const artifact of artifacts) {
         if (artifact.task_id) {
           const seq = taskIdToSequence[artifact.task_id];
@@ -933,7 +935,7 @@ router.get('/v2/:jobId/song/:docNum/metadata', async (c) => {
 router.get('/v2/:jobId/pdf/:docNum', async (c) => {
   const jobId = c.req.param('jobId');
   const docNum = parseInt(c.req.param('docNum'), 10);
-  
+
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return c.json({ success: false, error: 'Supabase not configured' }, 500);
   }
@@ -945,14 +947,14 @@ router.get('/v2/:jobId/pdf/:docNum', async (c) => {
   try {
     const { jobQueueV2 } = await import('../services/jobQueueV2');
     const job = await jobQueueV2.getJob(jobId);
-    
+
     if (!job) {
       return c.json({ success: false, error: 'Job not found' }, 404);
     }
 
     // Get all PDF artifacts for this job
     const supabase = supabaseService;
-    
+
     const { data: artifacts, error } = await supabase
       .from('job_artifacts')
       .select('*')
@@ -971,7 +973,7 @@ router.get('/v2/:jobId/pdf/:docNum', async (c) => {
 
     // Find artifact matching docNum exactly (from metadata or derive from task sequence)
     let pdfArtifact = artifacts.find((a: any) => a.metadata?.docNum === docNum);
-    
+
     // If not found by metadata, try to match by task sequence
     if (!pdfArtifact) {
       const tasks = await jobQueueV2.getJobTasks(jobId);
@@ -979,7 +981,7 @@ router.get('/v2/:jobId/pdf/:docNum', async (c) => {
       for (const task of tasks) {
         taskIdToSequence[task.id] = task.sequence;
       }
-      
+
       // PDF tasks typically have sequence 100+ (docNum = sequence - 99)
       for (const artifact of artifacts) {
         if (artifact.task_id) {
@@ -1007,7 +1009,7 @@ router.get('/v2/:jobId/pdf/:docNum', async (c) => {
     if (!fetchUrl) {
       fetchUrl = await getSignedArtifactUrl(pdfArtifact.storage_path, 3600);
     }
-    
+
     if (!fetchUrl) {
       return c.json({ success: false, error: 'Failed to generate URL' }, 500);
     }
@@ -1015,7 +1017,7 @@ router.get('/v2/:jobId/pdf/:docNum', async (c) => {
     // Stream the PDF bytes directly
     console.log(`📄 Streaming PDF from: ${fetchUrl.substring(0, 80)}...`);
     const pdfResponse = await fetch(fetchUrl);
-    
+
     if (!pdfResponse.ok) {
       console.error(`❌ Failed to fetch PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
       return c.json({ success: false, error: 'Failed to fetch PDF from storage' }, 500);

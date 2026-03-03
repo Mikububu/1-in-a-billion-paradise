@@ -65,7 +65,7 @@ STRUCTURE (for your guidance only - do NOT include headers in output):
 5. How to love ${personName} - and what destroys them (1000 words)
 
 FORMAT RULES (THIS IS SPOKEN AUDIO):
-- OPENING: Begin like a fairytale for adults - an invocation that makes the listener pause (up to 20 words)
+- OPENING: Begin like a fairytale for adults - an invocation that makes the listener pause (up to 20 words). CRITICAL: DO NOT use literal cliché phrases like "Once upon a time" or "In a land far away". Create the mythic feeling through unique imagery instead.
   Think: García Márquez, Anaïs Nin, Rumi, David Lynch. Draw them into the mystery.
 - Then ONE CONTINUOUS ESSAY - no section headers, let the story unfold
 - 3rd person with ${personName}'s name (never "you/your")
