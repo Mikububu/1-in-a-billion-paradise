@@ -121,6 +121,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                     if (isOverlay) {
                         jobsMap.set(reading.jobId, {
                             ...existing,
+                            docNum: reading.docNum,
                             personName: person.name,
                             partnerName: reading.partnerName || existing.partnerName,
                             readingType: reading.readingType,
