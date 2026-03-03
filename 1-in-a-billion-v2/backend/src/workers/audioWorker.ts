@@ -475,9 +475,9 @@ export class AudioWorker extends BaseWorker {
 
         console.log(`📤 [AudioWorker] All ${chunks.length} chunks enqueued — waiting for rate-limiter-worker...`);
 
-        // Wait for all chunks to be processed (up to 10 min for large readings)
-        const queueTimeoutMs = parseInt(process.env.QUEUE_WAIT_TIMEOUT_MS || '600000', 10);
-        audioBuffers = await waitForAllChunks(jobIds, queueTimeoutMs);
+        // Wait for all chunks to be processed (up to 45 min for large readings on slow lane)
+        const queueTimeoutMs = parseInt(process.env.QUEUE_WAIT_TIMEOUT_MS || '2700000', 10);
+        audioBuffers = await waitForAllChunks(jobIds, replicateModel, queueTimeoutMs);
 
       } else {
         // ═══════════════════════════════════════════════════════════════════

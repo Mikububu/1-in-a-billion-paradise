@@ -85,37 +85,57 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
     );
 
     const trackedReadings = useMemo<TrackedReading[]>(() => {
-        const readings: TrackedReading[] = [];
+        const jobsMap = new Map<string, TrackedReading>();
+
+        const findPartnerImage = (partnerName?: string) => {
+            if (!partnerName) return undefined;
+            const partner = people.find((p) => p.name === partnerName);
+            return partner?.portraitUrl || partner?.originalPhotoUrl || undefined;
+        };
 
         for (const person of people) {
-            // Find partner image if this person has overlay readings
-            const findPartnerImage = (partnerName?: string) => {
-                if (!partnerName) return undefined;
-                const partner = people.find((p) => p.name === partnerName);
-                return partner?.portraitUrl || partner?.originalPhotoUrl || undefined;
-            };
-
             for (const reading of person.readings || []) {
                 if (!reading.jobId) continue;
 
                 const ts = Math.max(toEpoch(reading.createdAt), toEpoch(reading.generatedAt));
+                const currentTs = ts > 0 ? ts : Math.max(toEpoch(person.updatedAt), toEpoch(person.createdAt));
 
-                readings.push({
-                    id: reading.id,
-                    jobId: reading.jobId,
-                    docNum: reading.docNum,
-                    personName: person.name,
-                    system: reading.system,
-                    lastTimestamp: ts > 0 ? ts : Math.max(toEpoch(person.updatedAt), toEpoch(person.createdAt)),
-                    readingType: reading.readingType,
-                    partnerName: reading.partnerName,
-                    personImageUrl: person.portraitUrl || person.originalPhotoUrl || undefined,
-                    partnerImageUrl: findPartnerImage(reading.partnerName),
-                });
+                const existing = jobsMap.get(reading.jobId);
+                const isOverlay = reading.readingType === 'overlay' || reading.readingType === 'verdict' || !!reading.partnerName;
+
+                if (!existing) {
+                    jobsMap.set(reading.jobId, {
+                        id: reading.id,
+                        jobId: reading.jobId,
+                        docNum: reading.docNum,
+                        personName: person.name,
+                        system: reading.system,
+                        lastTimestamp: currentTs,
+                        readingType: reading.readingType,
+                        partnerName: reading.partnerName,
+                        personImageUrl: person.portraitUrl || person.originalPhotoUrl || undefined,
+                        partnerImageUrl: findPartnerImage(reading.partnerName),
+                    });
+                } else {
+                    // Update existing if this reading is more "descriptive" of the overall job (i.e. it's the overlay)
+                    if (isOverlay) {
+                        jobsMap.set(reading.jobId, {
+                            ...existing,
+                            personName: person.name,
+                            partnerName: reading.partnerName || existing.partnerName,
+                            readingType: reading.readingType,
+                            personImageUrl: person.portraitUrl || person.originalPhotoUrl || existing.personImageUrl,
+                            partnerImageUrl: findPartnerImage(reading.partnerName) || existing.partnerImageUrl,
+                            lastTimestamp: Math.max(existing.lastTimestamp, currentTs),
+                        });
+                    } else {
+                        existing.lastTimestamp = Math.max(existing.lastTimestamp, currentTs);
+                    }
+                }
             }
         }
 
-        return readings.sort((a, b) => b.lastTimestamp - a.lastTimestamp);
+        return Array.from(jobsMap.values()).sort((a, b) => b.lastTimestamp - a.lastTimestamp);
     }, [people]);
 
     const handleOpenPortrait = useCallback(() => {

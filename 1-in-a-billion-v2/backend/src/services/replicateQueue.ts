@@ -14,34 +14,65 @@ import { Queue, QueueEvents, Job } from 'bullmq';
 import { createRedisConnection } from './redisClient';
 import { supabase } from './supabaseClient';
 
-const QUEUE_NAME = 'replicate-chunks';
+const QUEUE_NAME_FAST = 'replicate-chunks'; // chatterbox-turbo
+const QUEUE_NAME_SLOW = 'replicate-multilingual-chunks'; // chatterbox-multilingual
 
 // Lazy-init to avoid connecting to Redis at import time
-let _queue: Queue | null = null;
-let _queueEvents: QueueEvents | null = null;
+let _queueFast: Queue | null = null;
+let _queueFastEvents: QueueEvents | null = null;
+let _queueSlow: Queue | null = null;
+let _queueSlowEvents: QueueEvents | null = null;
 
-function getQueue(): Queue {
-  if (!_queue) {
-    _queue = new Queue(QUEUE_NAME, {
-      connection: createRedisConnection(),
-      defaultJobOptions: {
-        attempts: 6,
-        backoff: { type: 'exponential', delay: 3000 },
-        removeOnComplete: { age: 300 },   // Keep completed jobs 5 min (audio is in Supabase; must survive slow downloads)
-        removeOnFail: { age: 600 },      // Keep failed jobs for 10 min for debugging
-      },
-    });
+function getQueue(replicateModel: string): Queue {
+  const isMultilingual = replicateModel.includes('multilingual');
+
+  if (isMultilingual) {
+    if (!_queueSlow) {
+      _queueSlow = new Queue(QUEUE_NAME_SLOW, {
+        connection: createRedisConnection(),
+        defaultJobOptions: {
+          attempts: 6,
+          backoff: { type: 'exponential', delay: 10000 }, // Slower backoff for multilingual
+          removeOnComplete: { age: 3600 },   // Keep longer since it's slow
+          removeOnFail: { age: 3600 },
+        },
+      });
+    }
+    return _queueSlow;
+  } else {
+    if (!_queueFast) {
+      _queueFast = new Queue(QUEUE_NAME_FAST, {
+        connection: createRedisConnection(),
+        defaultJobOptions: {
+          attempts: 6,
+          backoff: { type: 'exponential', delay: 3000 },
+          removeOnComplete: { age: 300 },   // Keep completed jobs 5 min
+          removeOnFail: { age: 600 },      // Keep failed jobs for 10 min
+        },
+      });
+    }
+    return _queueFast;
   }
-  return _queue;
 }
 
-function getQueueEvents(): QueueEvents {
-  if (!_queueEvents) {
-    _queueEvents = new QueueEvents(QUEUE_NAME, {
-      connection: createRedisConnection(),
-    });
+function getQueueEvents(replicateModel: string): QueueEvents {
+  const isMultilingual = replicateModel.includes('multilingual');
+
+  if (isMultilingual) {
+    if (!_queueSlowEvents) {
+      _queueSlowEvents = new QueueEvents(QUEUE_NAME_SLOW, {
+        connection: createRedisConnection(),
+      });
+    }
+    return _queueSlowEvents;
+  } else {
+    if (!_queueFastEvents) {
+      _queueFastEvents = new QueueEvents(QUEUE_NAME_FAST, {
+        connection: createRedisConnection(),
+      });
+    }
+    return _queueFastEvents;
   }
-  return _queueEvents;
 }
 
 /* ── Types ──────────────────────────────────────────────────────────── */
@@ -81,7 +112,7 @@ export interface ChunkJobResult {
  * Returns the BullMQ job ID.
  */
 export async function enqueueChunk(data: ChunkJobData): Promise<string> {
-  const queue = getQueue();
+  const queue = getQueue(data.replicateModel);
   const job = await queue.add(`chunk-${data.taskId}-${data.chunkIndex}`, data, {
     // Priority: earlier chunks get processed first (lower = higher priority)
     priority: data.chunkIndex,
@@ -127,10 +158,11 @@ export async function enqueueAllChunks(
  */
 export async function waitForAllChunks(
   jobIds: string[],
-  timeoutMs: number = 600_000,
+  replicateModel: string,
+  timeoutMs: number = 2_700_000, // 45 minutes by default to handle slow lane
 ): Promise<Buffer[]> {
-  const queueEvents = getQueueEvents();
-  const queue = getQueue();
+  const queueEvents = getQueueEvents(replicateModel);
+  const queue = getQueue(replicateModel);
 
   const startTime = Date.now();
 
@@ -162,7 +194,7 @@ export async function waitForAllChunks(
         if (supabase) {
           const taskId = failedJob?.data?.taskId;
           if (taskId) {
-            supabase.storage.from('audio').remove([`temp-chunks/${taskId}/${arrayIndex}.wav`]).catch(() => {});
+            supabase.storage.from('audio').remove([`temp-chunks/${taskId}/${arrayIndex}.wav`]).catch(() => { });
           }
         }
         throw new Error(
@@ -237,14 +269,10 @@ export async function waitForAllChunks(
 /* ── Cleanup ────────────────────────────────────────────────────────── */
 
 export async function closeQueue(): Promise<void> {
-  if (_queueEvents) {
-    await _queueEvents.close();
-    _queueEvents = null;
-  }
-  if (_queue) {
-    await _queue.close();
-    _queue = null;
-  }
+  if (_queueFastEvents) { await _queueFastEvents.close(); _queueFastEvents = null; }
+  if (_queueSlowEvents) { await _queueSlowEvents.close(); _queueSlowEvents = null; }
+  if (_queueFast) { await _queueFast.close(); _queueFast = null; }
+  if (_queueSlow) { await _queueSlow.close(); _queueSlow = null; }
 }
 
-export { QUEUE_NAME };
+export { QUEUE_NAME_FAST, QUEUE_NAME_SLOW };

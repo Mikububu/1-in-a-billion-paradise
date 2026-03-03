@@ -18,7 +18,8 @@ import axios from 'axios';
 import Replicate from 'replicate';
 import { createRedisConnection } from '../services/redisClient';
 import {
-  QUEUE_NAME,
+  QUEUE_NAME_FAST,
+  QUEUE_NAME_SLOW,
   type ChunkJobData,
   type ChunkJobResult,
 } from '../services/replicateQueue';
@@ -160,19 +161,18 @@ async function processChunk(
 
 /* ── Worker setup ──────────────────────────────────────────────────── */
 
-export function startRateLimiterWorker(): Worker<ChunkJobData, ChunkJobResult> {
+export function startRateLimiterWorker() {
   const replicate = createReplicateClient();
 
-  const worker = new Worker<ChunkJobData, ChunkJobResult>(
-    QUEUE_NAME,
+  // 1. FAST WORKER (English / chatterbox-turbo)
+  const fastWorker = new Worker<ChunkJobData, ChunkJobResult>(
+    QUEUE_NAME_FAST,
     async (job) => {
       return processChunk(replicate, job);
     },
     {
       connection: createRedisConnection(),
-      // Allow multiple in-flight Replicate calls — the rate limiter
-      // inside runReplicateWithRateLimit serializes their STARTS,
-      // but we want overlapping wait-for-completion.
+      // Allow multiple in-flight Replicate calls
       concurrency: parseInt(process.env.RATE_LIMITER_CONCURRENCY || '8', 10),
       // BullMQ global rate limit: 10 jobs per second = 600/min
       limiter: {
@@ -182,34 +182,52 @@ export function startRateLimiterWorker(): Worker<ChunkJobData, ChunkJobResult> {
     },
   );
 
-  worker.on('completed', (job) => {
-    if (job) {
-      console.log(
-        `[RateLimiterWorker] Job ${job.id} completed (chunk ${job.data.chunkIndex + 1})`,
-      );
-    }
-  });
-
-  worker.on('failed', (job, error) => {
-    if (job) {
-      const is429 = isReplicateRateLimitError(error);
-      console.error(
-        `[RateLimiterWorker] Job ${job.id} failed (chunk ${job.data.chunkIndex + 1}, ` +
-        `attempt ${job.attemptsMade}/${job.opts.attempts || 6})` +
-        `${is429 ? ' [RATE LIMITED]' : ''}: ${error.message}`,
-      );
-    }
-  });
-
-  worker.on('error', (error) => {
-    console.error('[RateLimiterWorker] Worker error:', error.message);
-  });
-
-  console.log(`[RateLimiterWorker] Started — processing queue "${QUEUE_NAME}"`);
-  console.log(
-    `[RateLimiterWorker] Concurrency: ${worker.opts.concurrency}, ` +
-    `Rate limit: ${worker.opts.limiter?.max}/${worker.opts.limiter?.duration}ms`,
+  // 2. SLOW WORKER (Multilingual / chatterbox-multilingual)
+  const slowWorker = new Worker<ChunkJobData, ChunkJobResult>(
+    QUEUE_NAME_SLOW,
+    async (job) => {
+      return processChunk(replicate, job);
+    },
+    {
+      connection: createRedisConnection(),
+      // Extremely strict concurrency to prevent crashing heavy models
+      concurrency: 1,
+      limiter: {
+        max: 20, // 20 requests per minute
+        duration: 60000, // 60 seconds
+      },
+    },
   );
 
-  return worker;
+  // Attach standard logging handlers to both workers
+  const attachHandlers = (worker: Worker, prefix: string) => {
+    worker.on('completed', (job) => {
+      if (job) {
+        console.log(
+          `[${prefix}] Job ${job.id} completed (chunk ${job.data.chunkIndex + 1})`,
+        );
+      }
+    });
+
+    worker.on('failed', (job, error) => {
+      if (job) {
+        const is429 = isReplicateRateLimitError(error);
+        console.error(
+          `[${prefix}] Job ${job.id} failed (chunk ${job.data.chunkIndex + 1}, ` +
+          `attempt ${job.attemptsMade}/${job.opts.attempts || 6})` +
+          `${is429 ? ' [RATE LIMITED]' : ''}: ${error.message}`,
+        );
+      }
+    });
+
+    worker.on('error', (err) => {
+      console.error(`[${prefix}] Critical error:`, err);
+    });
+  };
+
+  attachHandlers(fastWorker, 'RateLimiterWorker:Fast');
+  attachHandlers(slowWorker, 'RateLimiterWorker:Slow');
+
+  return { fastWorker, slowWorker };
 }
+

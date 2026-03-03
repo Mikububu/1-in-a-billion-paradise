@@ -16,12 +16,12 @@ console.log('══════════════════════�
 console.log('🚀 RATE LIMITER WORKER — Starting');
 console.log('═══════════════════════════════════════════════════════════');
 
-const worker = startRateLimiterWorker();
+const { fastWorker, slowWorker } = startRateLimiterWorker();
 
 // Graceful shutdown
 async function shutdown(signal: string) {
   console.log(`\n[RateLimiterWorker] ${signal} received — shutting down gracefully...`);
-  await worker.close();
+  await Promise.all([fastWorker.close(), slowWorker.close()]);
   await closeQueue();
   await closeRedisConnections();
   console.log('[RateLimiterWorker] Shutdown complete.');
