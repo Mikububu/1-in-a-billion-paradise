@@ -2,6 +2,7 @@ import { env } from '../../config/env';
 import { HookReading, ReadingPayload } from '../../types';
 import { SYSTEM_PROMPT, buildReadingPrompt, PromptContext } from './prompts';
 import { llm, llmWithFallback } from '../llm'; // Centralized LLM service with fallback
+import { buildChartDataForSystem } from '../chartDataBuilder';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // READINGS CLIENT - Uses centralized LLM service (provider via LLM_PROVIDER env)
@@ -19,7 +20,7 @@ import { llm, llmWithFallback } from '../llm'; // Centralized LLM service with f
  */
 function cleanText(text: string): string {
   if (!text) return text;
-  
+
   return text
     // Replace em-dashes with commas
     .replace(/—/g, ',')
@@ -57,14 +58,8 @@ type HookRequest = {
 
 type ExtendedRequest = {
   system: string;
-  placements: {
-    sunSign: string;
-    moonSign: string;
-    risingSign: string;
-    sunDegree?: { sign: string; degree: number; minute: number };
-    moonDegree?: { sign: string; degree: number; minute: number };
-    ascendantDegree?: { sign: string; degree: number; minute: number };
-  };
+  placements: any;
+  birthData: { birthDate: string; birthTime: string; timezone?: string; birthPlace?: string };
   subjectName: string;
   longForm: boolean;
 };
@@ -77,11 +72,10 @@ const SYSTEM_NAMES: Record<string, string> = {
   kabbalah: 'Kabbalah',
 };
 
-// NOTE: Named "deepSeekClient" for legacy reasons, but now uses centralized LLM service
-export const deepSeekClient = {
+export const readingsClient = {
   async generateHookReading(request: HookRequest): Promise<{ reading: HookReading; source: 'deepseek' | 'fallback' }> {
     const { type, sign, payload, placements } = request;
-    
+
     // Build the prompt context WITH placements for exact degrees
     const ctx: PromptContext = {
       type,
@@ -110,8 +104,8 @@ export const deepSeekClient = {
       // If DeepSeek fails or refuses, automatically tries Claude, then OpenAI
       const fullPrompt = `${SYSTEM_PROMPT}\n\n${buildReadingPrompt(ctx)}`;
       const { text: rawContent, provider, usedFallback } = await llmWithFallback.generateWithFallback(
-        fullPrompt, 
-        `hook-${type}`, 
+        fullPrompt,
+        `hook-${type}`,
         {
           maxTokens: 500,
           temperature: 0.7,
@@ -124,7 +118,7 @@ export const deepSeekClient = {
       }
 
       const normalized = rawContent.replace(/```json|```/g, '').trim();
-      
+
       try {
         const parsed = JSON.parse(normalized);
         const reading: HookReading = {
@@ -152,9 +146,9 @@ export const deepSeekClient = {
   },
 
   async generateExtendedReading(request: ExtendedRequest): Promise<{ reading: { content: string }; source: 'deepseek' }> {
-    const { system, placements, subjectName, longForm } = request;
+    const { system, placements, subjectName, longForm, birthData } = request;
     const systemName = SYSTEM_NAMES[system] || 'Western Astrology';
-    
+
     const formatDegree = (pos?: { sign: string; degree: number; minute: number }) => {
       if (!pos) return 'unknown';
       return `${pos.degree} degrees ${pos.minute} minutes ${pos.sign}`;
@@ -258,9 +252,7 @@ Not a feel-good reading. A TRUTH reading.
 
 SUBJECT: ${subjectName}
 CHART DATA:
-- Sun: ${placements.sunSign} (${formatDegree(placements.sunDegree)})
-- Moon: ${placements.moonSign} (${formatDegree(placements.moonDegree)})
-- Rising/Ascendant: ${placements.risingSign} (${formatDegree(placements.ascendantDegree)})
+${buildChartDataForSystem(system, subjectName, placements, null, null, birthData, null)}
 
 **CRITICAL: WRITE EXACTLY 3000 WORDS. THIS IS NON-NEGOTIABLE.**
 
@@ -311,14 +303,14 @@ Start directly with the reading content, opening with ${subjectName}'s name.
 
     // Use modular LLM service with STREAMING for 3000-word readings
     const { llm } = await import('../llm');
-    
+
     try {
       console.log(`📝 Starting extended ${systemName} reading for ${subjectName} (3000 words) via ${llm.getProvider()} STREAMING...`);
       const startTime = Date.now();
-      
+
       const systemPromptText = 'You are an expert astrologer and depth psychologist specializing in shadow work. Write comprehensive, insightful analyses. You MUST write exactly 3000 words. This is a premium reading.';
       const fullPrompt = `${systemPromptText}\n\n${prompt}`;
-      
+
       // 🚀 USE STREAMING to prevent timeout on long-form content
       const content = await llm.generateStreaming(fullPrompt, `extended-${system}`, {
         maxTokens: 8000, // Allow up to 8000 tokens for 3000+ words
@@ -328,12 +320,12 @@ Start directly with the reading content, opening with ${subjectName}'s name.
       const duration = ((Date.now() - startTime) / 1000).toFixed(1);
       const wordCount = content.split(/\s+/).length;
       console.log(`✅ Extended reading complete: ${wordCount} words in ${duration}s via ${llm.getProvider()} STREAMING`);
-      
+
       return { reading: { content: cleanText(content) }, source: 'deepseek' as const };
     } catch (error: any) {
       const errorMsg = error?.message || String(error);
       console.error(`❌ Extended reading error (${llm.getProvider()}): ${errorMsg}`);
-      
+
       return {
         reading: { content: cleanText(`Error generating ${systemName} reading: ${errorMsg}`) },
         source: 'deepseek' as const,
@@ -343,8 +335,8 @@ Start directly with the reading content, opening with ${subjectName}'s name.
 
   async generateSynastryReading(request: {
     system: string;
-    person1: { name: string; placements: any };
-    person2: { name: string; placements: any };
+    person1: { name: string; placements: any; birthData: { birthDate: string; birthTime: string; timezone?: string; birthPlace?: string } };
+    person2: { name: string; placements: any; birthData: { birthDate: string; birthTime: string; timezone?: string; birthPlace?: string } };
   }): Promise<{ reading: any; source: 'deepseek' }> {
     const { system, person1, person2 } = request;
     const systemName = SYSTEM_NAMES[system] || 'Western Astrology';
@@ -380,14 +372,10 @@ TRAGIC REALISM LENS (LEVEL ${env.TRAGIC_REALISM_LEVEL}) - REQUIRED:
 ` : ''}
 
 PERSON 1: ${person1.name}
-- Sun: ${person1.placements.sunSign} (${formatDegree(person1.placements.sunDegree)})
-- Moon: ${person1.placements.moonSign} (${formatDegree(person1.placements.moonDegree)})
-- Rising: ${person1.placements.risingSign} (${formatDegree(person1.placements.ascendantDegree)})
-
 PERSON 2: ${person2.name}
-- Sun: ${person2.placements.sunSign} (${formatDegree(person2.placements.sunDegree)})
-- Moon: ${person2.placements.moonSign} (${formatDegree(person2.placements.moonDegree)})
-- Rising: ${person2.placements.risingSign} (${formatDegree(person2.placements.ascendantDegree)})
+
+CHART DATA:
+${buildChartDataForSystem(system, person1.name, person1.placements, person2.name, person2.placements, person1.birthData, person2.birthData)}
 
 Write a comprehensive 800-1200 word synastry reading that includes:
 
@@ -414,11 +402,11 @@ Be BRUTALLY HONEST. NO em dashes. No comfort. Only truth.
     try {
       console.log(`📝 Starting synastry reading for ${person1.name} & ${person2.name}...`);
       const startTime = Date.now();
-      
+
       // Use centralized LLM service (provider set by LLM_PROVIDER env)
       const systemPrompt = 'You are a brutally honest astrologer specializing in the DARK side of relationship compatibility. Output valid JSON only. No comfort, only truth.';
       const fullPrompt = `${systemPrompt}\n\n${prompt}`;
-      
+
       const rawContent = await llm.generate(fullPrompt, `synastry-${system}`, {
         maxTokens: 3000,
         temperature: 0.8,
@@ -427,7 +415,7 @@ Be BRUTALLY HONEST. NO em dashes. No comfort. Only truth.
       const normalized = rawContent.replace(/```json|```/g, '').trim();
       const duration = ((Date.now() - startTime) / 1000).toFixed(1);
       console.log(`✅ Synastry reading complete in ${duration}s`);
-      
+
       try {
         const parsed = JSON.parse(normalized);
         return { reading: parsed, source: 'deepseek' };

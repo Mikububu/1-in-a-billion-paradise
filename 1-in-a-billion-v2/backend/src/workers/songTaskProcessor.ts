@@ -38,22 +38,22 @@ export async function processSongTask(task: { id: string; job_id: string; input:
       .select('params')
       .eq('id', job_id)
       .single();
-    
+
     const params = jobData?.params as any;
     if (params) {
       if (docType === 'person1' || docType === 'individual') {
-        personName = params.person1?.name || params.person?.name || personName;
+        personName = params?.person1?.name || params?.person?.name || personName;
       } else if (docType === 'person2') {
-        personName = params.person2?.name || personName;
+        personName = params?.person2?.name || personName;
       } else if (docType === 'overlay') {
         // For overlay, use both names combined
-        const p1 = params.person1?.name || params.person?.name;
-        const p2 = params.person2?.name;
+        const p1 = params?.person1?.name || params?.person?.name;
+        const p2 = params?.person2?.name;
         personName = p2 ? `${p1} and ${p2}` : p1 || personName;
       } else if (docType === 'verdict') {
         // For verdict, use both names combined
-        const p1 = params.person1?.name || params.person?.name;
-        const p2 = params.person2?.name;
+        const p1 = params?.person1?.name || params?.person?.name;
+        const p2 = params?.person2?.name;
         personName = p2 ? `${p1} and ${p2}` : p1 || personName;
       }
       console.log(`🎵 Resolved personName from job params: "${personName}" (docType: ${docType})`);
@@ -204,7 +204,7 @@ export async function processSongTask(task: { id: string; job_id: string; input:
     } else {
       throw new Error('No audio data available from MiniMax');
     }
-    
+
     // 💰 LOG MINIMAX COST for this song generation
     await logCost({
       jobId: job_id,
@@ -321,12 +321,12 @@ export async function processSongTask(task: { id: string; job_id: string; input:
     // for the song component.
     // ========================================================================
     console.error(`❌ Song task ${task.id} (doc ${docNum}) failed:`, error);
-    
+
     const errorMessage = error.message?.slice(0, 200) || 'Unknown error';
-    const isMinimaxError = errorMessage.includes('MiniMax') || 
-                          errorMessage.includes('song') ||
-                          errorMessage.includes('audio');
-    
+    const isMinimaxError = errorMessage.includes('MiniMax') ||
+      errorMessage.includes('song') ||
+      errorMessage.includes('audio');
+
     // Create a "failed" artifact so frontend knows this song failed
     // but can still display the rest of the reading
     // NOTE: storage_path has a NOT NULL constraint, so use a sentinel value
@@ -363,7 +363,7 @@ export async function processSongTask(task: { id: string; job_id: string; input:
     } catch (fallbackError) {
       console.error('Failed to create fallback artifact:', fallbackError);
     }
-    
+
     // Don't throw - the task "succeeds" with an error artifact
     // This prevents the job from being stuck in "processing" state
     console.log(`⚠️ Song task ${task.id} (doc ${docNum}) completed with error artifact`);

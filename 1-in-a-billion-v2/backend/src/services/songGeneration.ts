@@ -101,7 +101,7 @@ export async function generateSong(input: SongGenerationInput): Promise<SongGene
           format: 'mp3',
         },
       },
-      timeout: 300000, // 5 minutes timeout (song generation can take time)
+      timeout: 600000, // 10 minutes timeout (song generation can take time)
     });
 
     if (response.status !== 200) {

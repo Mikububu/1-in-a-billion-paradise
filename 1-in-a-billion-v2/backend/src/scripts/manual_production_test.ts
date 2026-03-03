@@ -4,7 +4,8 @@ import path from 'path';
 import fs from 'fs';
 import axios from 'axios';
 import { swissEngine } from '../services/swissEphemeris';
-import { deepSeekClient } from '../services/text/deepseekClient';
+import { readingsClient } from '../services/text/readingsClient';
+import { env } from '../config/env';
 import { generateReadingPDF } from '../services/pdf/pdfGenerator';
 
 // Load environment variables
@@ -52,10 +53,11 @@ async function runTest() {
 
     // 3. Generate Text (Western)
     console.log('\n📝 Generating Text (Western)...');
-    const { reading, source } = await deepSeekClient.generateExtendedReading({
+    const { reading, source } = await readingsClient.generateExtendedReading({
       system: 'western',
       placements,
-      subjectName: michael.name,
+      birthData: { birthDate: '2000-01-01', birthTime: '12:00', timezone: 'UTC' },
+      subjectName: 'TestUser',
       longForm: true,
     });
 

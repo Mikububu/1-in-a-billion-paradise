@@ -2,11 +2,10 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { ReadingResponse } from '../types';
 import { swissEngine } from '../services/swissEphemeris';
-import { deepSeekClient } from '../services/text/deepseekClient';
+import { readingsClient } from '../services/text/readingsClient';
 import type { AppEnv } from '../types/hono';
 import { llm } from '../services/llm';
 import { ResponseCache } from '../services/cache';
-// Prompts are built inline in deepseekClient.ts
 
 const payloadSchema = z.object({
   birthDate: z.string(),
@@ -146,7 +145,7 @@ router.post('/placements', async (c) => {
 router.post('/sun', async (c) => {
   const parsed = payloadSchema.parse(await c.req.json());
   const nocache = c.req.query('nocache') === 'true';
-  
+
   // DEBUG: Log incoming data
   console.log('☉ [Sun] Incoming request:', {
     birthDate: parsed.birthDate,
@@ -156,13 +155,13 @@ router.post('/sun', async (c) => {
     lng: parsed.longitude,
     nocache,
   });
-  
+
   // VALIDATION: Reject invalid coordinates
   if (parsed.latitude === 0 && parsed.longitude === 0) {
     console.error('❌ [Sun] Invalid coordinates (0,0) - birth location missing!');
     return c.json({ error: 'Invalid birth location - coordinates are 0,0' }, 400);
   }
-  
+
   // Auto-correct timezone if needed
   const correctedTimezone = await correctTimezoneIfNeeded(parsed.timezone, parsed.latitude, parsed.longitude, 'Sun');
   const correctedParsed = correctedTimezone !== parsed.timezone ? { ...parsed, timezone: correctedTimezone } : parsed;
@@ -179,9 +178,9 @@ router.post('/sun', async (c) => {
   }
 
   const placements = await swissEngine.computePlacements(correctedParsed);
-  const { reading, source } = await deepSeekClient.generateHookReading({ 
-    type: 'sun', 
-    sign: placements.sunSign, 
+  const { reading, source } = await readingsClient.generateHookReading({
+    type: 'sun',
+    sign: placements.sunSign,
     payload: parsed,
     placements, // Pass full placements with degrees!
   });
@@ -193,7 +192,7 @@ router.post('/sun', async (c) => {
 router.post('/moon', async (c) => {
   const parsed = payloadSchema.parse(await c.req.json());
   const nocache = c.req.query('nocache') === 'true';
-  
+
   // DEBUG: Log incoming data
   console.log('☽ [Moon] Incoming request:', {
     birthDate: parsed.birthDate,
@@ -203,13 +202,13 @@ router.post('/moon', async (c) => {
     lng: parsed.longitude,
     nocache,
   });
-  
+
   // VALIDATION: Reject invalid coordinates
   if (parsed.latitude === 0 && parsed.longitude === 0) {
     console.error('❌ [Moon] Invalid coordinates (0,0) - birth location missing!');
     return c.json({ error: 'Invalid birth location - coordinates are 0,0' }, 400);
   }
-  
+
   // Auto-correct timezone if needed
   const correctedTimezone = await correctTimezoneIfNeeded(parsed.timezone, parsed.latitude, parsed.longitude, 'Moon');
   const correctedParsed = correctedTimezone !== parsed.timezone ? { ...parsed, timezone: correctedTimezone } : parsed;
@@ -226,9 +225,9 @@ router.post('/moon', async (c) => {
   }
 
   const placements = await swissEngine.computePlacements(correctedParsed);
-  const { reading, source } = await deepSeekClient.generateHookReading({ 
-    type: 'moon', 
-    sign: placements.moonSign, 
+  const { reading, source } = await readingsClient.generateHookReading({
+    type: 'moon',
+    sign: placements.moonSign,
     payload: parsed,
     placements, // Pass full placements with degrees!
   });
@@ -240,7 +239,7 @@ router.post('/moon', async (c) => {
 router.post('/rising', async (c) => {
   const parsed = payloadSchema.parse(await c.req.json());
   const nocache = c.req.query('nocache') === 'true';
-  
+
   // DEBUG: Log incoming data
   console.log('↑ [Rising] Incoming request:', {
     birthDate: parsed.birthDate,
@@ -250,13 +249,13 @@ router.post('/rising', async (c) => {
     lng: parsed.longitude,
     nocache,
   });
-  
+
   // VALIDATION: Reject invalid coordinates
   if (parsed.latitude === 0 && parsed.longitude === 0) {
     console.error('❌ [Rising] Invalid coordinates (0,0) - birth location missing!');
     return c.json({ error: 'Invalid birth location - coordinates are 0,0' }, 400);
   }
-  
+
   // Auto-correct timezone if needed
   const correctedTimezone = await correctTimezoneIfNeeded(parsed.timezone, parsed.latitude, parsed.longitude, 'Rising');
   const correctedParsed = correctedTimezone !== parsed.timezone ? { ...parsed, timezone: correctedTimezone } : parsed;
@@ -273,9 +272,9 @@ router.post('/rising', async (c) => {
   }
 
   const placements = await swissEngine.computePlacements(correctedParsed);
-  const { reading, source } = await deepSeekClient.generateHookReading({ 
-    type: 'rising', 
-    sign: placements.risingSign, 
+  const { reading, source } = await readingsClient.generateHookReading({
+    type: 'rising',
+    sign: placements.risingSign,
     payload: parsed,
     placements, // Pass full placements with degrees!
   });
@@ -323,9 +322,14 @@ router.post('/extended', async (c) => {
   });
 
   // Generate extended reading
-  const { reading, source } = await deepSeekClient.generateExtendedReading({
+  const { reading, source } = await readingsClient.generateExtendedReading({
     system: parsed.system,
     placements,
+    birthData: {
+      birthDate: parsed.birthDate,
+      birthTime: parsed.birthTime,
+      timezone: parsed.timezone,
+    },
     subjectName: parsed.subjectName || 'You',
     longForm: parsed.longForm || false,
   });
@@ -334,7 +338,7 @@ router.post('/extended', async (c) => {
     reading: { content: reading.content },
     metadata: { source, generatedAt: new Date().toISOString() },
   };
-  
+
   extendedCache.set(cacheKey, response);
   return c.json(response);
 });
@@ -394,17 +398,33 @@ router.post('/synastry', async (c) => {
   });
 
   // Generate synastry reading
-  const { reading, source } = await deepSeekClient.generateSynastryReading({
+  const { reading, source } = await readingsClient.generateSynastryReading({
     system: parsed.system,
-    person1: { name: parsed.person1.name, placements: placements1 },
-    person2: { name: parsed.person2.name, placements: placements2 },
+    person1: {
+      name: parsed.person1.name,
+      placements: placements1,
+      birthData: {
+        birthDate: parsed.person1.birthDate,
+        birthTime: parsed.person1.birthTime,
+        timezone: parsed.person1.timezone,
+      }
+    },
+    person2: {
+      name: parsed.person2.name,
+      placements: placements2,
+      birthData: {
+        birthDate: parsed.person2.birthDate,
+        birthTime: parsed.person2.birthTime,
+        timezone: parsed.person2.timezone,
+      }
+    },
   });
 
   const response = {
     reading,
     metadata: { source, generatedAt: new Date().toISOString() },
   };
-  
+
   synastryCache.set(cacheKey, response);
   return c.json(response);
 });
