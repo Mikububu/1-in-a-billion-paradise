@@ -173,12 +173,24 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
             if (cancelled) return;
 
             const next: Record<string, JobSnapshot> = {};
+            let deletionsOccurred = false;
+
             for (const [jobId, snapshot] of results) {
-                if (snapshot) next[jobId] = snapshot;
+                if (snapshot) {
+                    if (snapshot.deleted) {
+                        // The server explicitly said this job is gone (404), so wipe it locally to save cache space and render space
+                        useProfileStore.getState().deleteReadingByJobId(jobId);
+                        deletionsOccurred = true;
+                    } else {
+                        next[jobId] = snapshot;
+                    }
+                }
             }
 
-            setJobSnapshotById(next);
-            setIsJobsLoading(false);
+            if (!cancelled) {
+                setJobSnapshotById(next);
+                setIsJobsLoading(false);
+            }
         };
 
         const startPolling = () => {

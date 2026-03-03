@@ -7,6 +7,7 @@ export type JobSnapshot = {
   message: string;
   type: string;
   updatedAt?: string;
+  deleted?: boolean;
 };
 
 /**
@@ -35,6 +36,10 @@ export async function fetchJobSnapshot(jobId: string): Promise<JobSnapshot | nul
 
     if (response.status === 401 || response.status === 403) {
       response = await fetch(url);
+    }
+
+    if (response.status === 404) {
+      return { status: 'deleted', percent: 0, message: 'Job strictly not found in cloud', type: 'unknown', deleted: true };
     }
 
     if (!response.ok) return null;

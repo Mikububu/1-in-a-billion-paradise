@@ -173,10 +173,10 @@ export function startRateLimiterWorker() {
     {
       connection: createRedisConnection(),
       // Allow multiple in-flight Replicate calls
-      concurrency: parseInt(process.env.RATE_LIMITER_CONCURRENCY || '8', 10),
-      // BullMQ global rate limit: 10 jobs per second = 600/min
+      concurrency: parseInt(process.env.RATE_LIMITER_CONCURRENCY || '20', 10),
+      // BullMQ global rate limit: 20 jobs per second = 1200/min (Turbo handles this easily)
       limiter: {
-        max: parseInt(process.env.RATE_LIMITER_MAX_PER_SECOND || '10', 10),
+        max: parseInt(process.env.RATE_LIMITER_MAX_PER_SECOND || '20', 10),
         duration: 1000,
       },
     },

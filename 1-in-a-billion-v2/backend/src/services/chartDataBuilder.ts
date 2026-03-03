@@ -269,7 +269,7 @@ export function buildChartDataForSystem(
     return [
       `${name.toUpperCase()} WESTERN (TROPICAL) CHART (SWISS EPHEMERIS):`,
       `- Ascendant: ${asc}`,
-      `- MC: ${mc}`,
+      `- Midheaven (MC): ${mc}`,
       sect ? `- Sect: ${sect}` : null,
       '',
       'PLANETS (tropical):',
