@@ -410,21 +410,23 @@ export class AudioWorker extends BaseWorker {
       const chunkTimeoutMs = parseInt(process.env.REPLICATE_CHUNK_TIMEOUT_MS || '120000', 10);
 
       // Determine which Replicate model to call
+      // Use version-pinned identifier for multilingual to avoid 404 on model endpoint
       const replicateModel = useMultilingual
-        ? 'resemble-ai/chatterbox-multilingual'
+        ? 'resemble-ai/chatterbox-multilingual:9cfba4c265e685f840612be835424f8c33bdee685d7466ece7684b0d9d4c0b1c'
         : 'resemble-ai/chatterbox-turbo';
 
       // Build base input params (without per-chunk text field)
+      // NOTE: chatterbox-multilingual uses 'text' (not 'text_to_synthesize') and 'language' (not 'language_id')
       let baseInput: Record<string, any>;
-      let textField: 'text' | 'text_to_synthesize';
+      // Both models use 'text' as the input field
+      let textField: 'text' = 'text';
 
       if (useMultilingual) {
-        textField = 'text_to_synthesize';
         const refAudio = voice?.sampleAudioUrl || task.input.audioUrl || this.voiceSampleUrl;
         baseInput = {
-          language_id: voiceConfig.languageId,
+          language: voiceConfig.languageId,
           exaggeration: 0.5,
-          cfg_weight: 0.0,
+          cfg_weight: 0.5,
           temperature: temperature,
         };
         if (refAudio) {

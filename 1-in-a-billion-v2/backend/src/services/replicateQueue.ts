@@ -96,8 +96,8 @@ export async function enqueueAllChunks(
   taskId: string,
   chunks: string[],
   replicateModel: string,
-  replicateInput: Omit<Record<string, any>, 'text' | 'text_to_synthesize'>,
-  textField: 'text' | 'text_to_synthesize',
+  replicateInput: Omit<Record<string, any>, 'text'>,
+  textField: 'text',
   chunkTimeoutMs: number,
 ): Promise<string[]> {
   const jobIds: string[] = [];

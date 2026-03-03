@@ -6,6 +6,7 @@
 
 import { PRODUCTION_STYLE, buildProductionStyleSection } from './production';
 import { SPICY_SURREAL_STYLE, buildSpicySurrealStyleSection } from './spicy-surreal';
+import { getLanguageInstruction, isValidLanguage, type OutputLanguage } from '../../config/languages';
 
 export { PRODUCTION_STYLE, buildProductionStyleSection } from './production';
 export { SPICY_SURREAL_STYLE, buildSpicySurrealStyleSection } from './spicy-surreal';
@@ -51,13 +52,28 @@ export function getShadowEmphasis(style: StyleName): number {
 /**
  * Get the LLM system prompt for a given style, doc type, and optionally system.
  * This is the "system" message sent to the LLM API, not the user prompt.
+ *
+ * When outputLanguage is provided and is non-English, the language instruction
+ * is appended to the system prompt so ALL code paths (including fast-path
+ * per-system engines that bypass the v2 prompt engine) generate natively
+ * in the target language.
  */
 export function getSystemPromptForStyle(
   style: StyleName,
   docType: 'individual' | 'overlay' | 'verdict' = 'individual',
   system?: string,
+  outputLanguage?: string,
 ): string {
   const config = getStyleConfig(style);
+
+  // Build language suffix for non-English output
+  let langSuffix = '';
+  if (outputLanguage && outputLanguage !== 'en' && isValidLanguage(outputLanguage)) {
+    const instruction = getLanguageInstruction(outputLanguage as OutputLanguage);
+    if (instruction) {
+      langSuffix = '\n\n' + instruction;
+    }
+  }
 
   if (docType === 'overlay') {
     // Overlay readings explore what WOULD happen if two energies collided — never assume they know each other
@@ -68,13 +84,13 @@ This is a dark fairytale for adults. A mystery theater of what could be.
 Intimate, penetrating, unforgettable. The beautiful and the unsettling intertwined.
 
 Write like a novelist who has seen charts like these before, in different bodies across different centuries.
-Every chart overlay is a map of potential — the collision that the stars describe, not one that has necessarily occurred.`;
+Every chart overlay is a map of potential — the collision that the stars describe, not one that has necessarily occurred.` + langSuffix;
     }
     return `You are reading the energetic blueprint of two souls. You describe what their charts suggest would happen if these two fields of energy met.
 
 This is a fairytale for adults. A mystery theater of what could be.
 Every chart overlay is a map of potential — what the stars describe, not what has happened.
-Write as a storyteller who reads the invisible architecture of a possible connection.`;
+Write as a storyteller who reads the invisible architecture of a possible connection.` + langSuffix;
   }
 
   // Each system gets a system-specific prompt that centers its unique identity and terminology
@@ -86,7 +102,7 @@ This is a Gene Keys reading told as a fairytale for adults. Every Gene Key numbe
 
 You think in codon sequences, frequency shifts, and the Spectrum of Consciousness.
 You write with the intimacy of someone who has contemplated these Keys themselves.
-Name the Keys. Name the Shadows. Name the Gifts. Ground everything in the chart.`;
+Name the Keys. Name the Shadows. Name the Gifts. Ground everything in the chart.` + langSuffix;
   }
 
   if (system === 'vedic') {
@@ -96,7 +112,7 @@ This is a Jyotish reading for adults. Every Graha is a living force. Every Naksh
 
 You look through Rahu's eyes first — the hungry, headless demon who shows what this soul craves.
 You use ONLY Vedic terminology: Lagna, Rashi, Bhava, Graha, Nakshatra, Dasha. Never Western terms.
-You explain every term immediately — like a fairy tale for a curious child.`;
+You explain every term immediately — like a fairy tale for a curious child.` + langSuffix;
   }
 
   if (system === 'kabbalah') {
@@ -106,7 +122,7 @@ This is a Kabbalistic reading told as sacred wisdom for adults. Every Sephirah i
 
 You think in light and vessel, concealment and revelation.
 You use ONLY Kabbalistic concepts: Sephiroth, Tikkun, Klipoth, Gilgul, the Four Worlds, the 22 Paths.
-You explain every term naturally — like a patient grandfather sharing something sacred.`;
+You explain every term naturally — like a patient grandfather sharing something sacred.` + langSuffix;
   }
 
   if (system === 'human_design') {
@@ -116,9 +132,9 @@ This is a Human Design reading told as a fairytale for adults. Every Center is a
 
 You think in bodies, in waiting, in the slow damage of performing the wrong role.
 The body is the center of the story — what it feels, what it absorbs, what it performs.
-Name the Type. Name the Authority. Name the open Centers. Ground everything in the bodygraph.`;
+Name the Type. Name the Authority. Name the open Centers. Ground everything in the bodygraph.` + langSuffix;
   }
 
   // Individual and verdict use the style's core system prompt
-  return config.systemPrompt;
+  return config.systemPrompt + langSuffix;
 }
