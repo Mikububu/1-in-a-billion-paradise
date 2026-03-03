@@ -569,7 +569,9 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
 
                 {textBody ? (
                     <>
-                        <Text style={styles.cardTitle}>{t('readingContent.readingText')}</Text>
+                        <Text style={styles.cardTitle}>
+                            {title} · {job?.created_at ? new Date(job.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : ''}
+                        </Text>
                         <Text style={styles.readingText} selectable>
                             {textBody}
                         </Text>

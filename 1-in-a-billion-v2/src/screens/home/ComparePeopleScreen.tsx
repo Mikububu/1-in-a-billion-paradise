@@ -135,8 +135,8 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
         }
 
         Alert.alert(
-            t('comparePeople.cannotDelete'),
-            t('comparePeople.missingBirthDataMessage', { name: person.name }),
+            t('comparePeople.deleteConfirm', { name: person.name }),
+            t('comparePeople.deleteMessage', { name: person.name }),
             [
                 { text: t('common.cancel'), style: 'cancel' },
                 {
@@ -295,7 +295,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                 onRequestClose={() => setPreviewImageUri(null)}
             >
                 <Pressable style={styles.previewBackdrop} onPress={() => setPreviewImageUri(null)}>
-                    <Pressable style={styles.previewCard} onPress={() => {}}>
+                    <Pressable style={styles.previewCard} onPress={() => { }}>
                         <Text style={styles.previewTitle}>{previewName}</Text>
                         {previewImageUri ? (
                             <Image source={{ uri: previewImageUri }} style={styles.previewImage} resizeMode="contain" />
