@@ -12,6 +12,7 @@
 
 import { Queue, QueueEvents, Job } from 'bullmq';
 import { createRedisConnection } from './redisClient';
+import { supabase } from './supabaseClient';
 
 const QUEUE_NAME = 'replicate-chunks';
 
@@ -26,8 +27,8 @@ function getQueue(): Queue {
       defaultJobOptions: {
         attempts: 6,
         backoff: { type: 'exponential', delay: 3000 },
-        removeOnComplete: { age: 600 },   // Keep completed jobs for 10 min
-        removeOnFail: { age: 3600 },       // Keep failed jobs for 1 hour
+        removeOnComplete: { age: 60 },    // Clean up completed jobs after 1 min (audio is in Supabase now)
+        removeOnFail: { age: 600 },      // Keep failed jobs for 10 min for debugging
       },
     });
   }
@@ -65,8 +66,8 @@ export interface ChunkJobData {
 }
 
 export interface ChunkJobResult {
-  /** Base64-encoded audio buffer */
-  audioBase64: string;
+  /** Supabase storage path where the audio chunk was uploaded */
+  storagePath: string;
   /** Size in bytes */
   audioBytes: number;
   /** Chunk index (echoed back for verification) */
@@ -152,9 +153,20 @@ export async function waitForAllChunks(
         ),
       ]) as ChunkJobResult;
 
-      const audioBuffer = Buffer.from(result.audioBase64, 'base64');
+      // Download audio from Supabase temp storage (not stored in Redis)
+      if (!supabase) throw new Error('Supabase not configured — cannot download audio chunks');
+      const { data: blob, error: dlErr } = await supabase.storage
+        .from('audio')
+        .download(result.storagePath);
+      if (dlErr || !blob) {
+        throw new Error(`Failed to download chunk audio from ${result.storagePath}: ${dlErr?.message || 'no data'}`);
+      }
+      const audioBuffer = Buffer.from(await blob.arrayBuffer());
       results[arrayIndex] = audioBuffer;
       completed++;
+
+      // Clean up temp file immediately after download
+      supabase.storage.from('audio').remove([result.storagePath]).catch(() => {});
 
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
       console.log(
