@@ -115,15 +115,34 @@ async function processChunk(
   // Upload to Supabase temp storage instead of returning base64 through Redis
   // This prevents Redis from filling up with large audio buffers
   if (!supabase) throw new Error('Supabase not configured — cannot upload audio chunks');
+  if (audioBuffer.length < 100) {
+    throw new Error(`Chunk ${chunkIndex + 1} audio buffer suspiciously small (${audioBuffer.length} bytes) — likely corrupted`);
+  }
   const storagePath = `temp-chunks/${taskId}/${chunkIndex}.wav`;
-  const { error: uploadErr } = await supabase.storage
-    .from('audio')
-    .upload(storagePath, audioBuffer, {
-      contentType: 'audio/wav',
-      upsert: true,
-    });
+
+  // Retry upload up to 3 times with exponential backoff
+  let uploadErr: any = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const { error } = await supabase.storage
+      .from('audio')
+      .upload(storagePath, audioBuffer, {
+        contentType: 'audio/wav',
+        upsert: true,
+      });
+    if (!error) {
+      uploadErr = null;
+      break;
+    }
+    uploadErr = error;
+    console.warn(
+      `[RateLimiterWorker] Supabase upload attempt ${attempt}/3 failed for ${storagePath}: ${error.message}`,
+    );
+    if (attempt < 3) {
+      await new Promise((r) => setTimeout(r, 1000 * attempt)); // 1s, 2s backoff
+    }
+  }
   if (uploadErr) {
-    throw new Error(`Failed to upload chunk audio to ${storagePath}: ${uploadErr.message}`);
+    throw new Error(`Failed to upload chunk audio to ${storagePath} after 3 attempts: ${uploadErr.message}`);
   }
 
   console.log(
