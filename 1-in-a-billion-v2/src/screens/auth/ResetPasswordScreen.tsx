@@ -90,7 +90,7 @@ export const ResetPasswordScreen = ({ navigation }: Props) => {
                     <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.lg }} />
                 ) : (
                     <Button
-                        title={t('resetPassword.setNewPassword')}
+                        label={t('resetPassword.setNewPassword')}
                         onPress={handleResetPassword}
                         style={styles.button}
                     />

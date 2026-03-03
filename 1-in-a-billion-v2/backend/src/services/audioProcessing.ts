@@ -26,7 +26,7 @@ export const AUDIO_CONFIG = {
   // Stable defaults tuned for Chatterbox Turbo in production.
   // Keep sentence continuity first; avoid aggressive over-splitting.
   CHUNK_MAX_LENGTH: 300,
-  CHUNK_OVERFLOW_TOLERANCE: 1.5,
+  CHUNK_OVERFLOW_TOLERANCE: 1.2,   // Reduced from 1.5. A 450-char chunk risks TTS model cutoff. 1.2 keeps it <= 360.
   CHUNK_WORD_SPLIT_THRESHOLD: 2.0,
 
   // Audio crossfade
@@ -37,7 +37,7 @@ export const AUDIO_CONFIG = {
   // Chatterbox Turbo generates variable-length silence at start/end of chunks.
   // Trimming prevents 10-20s dead-air gaps when chunks are concatenated.
   SILENCE_TRIM_ENABLED: true,
-  SILENCE_THRESHOLD_DB: -40,       // dB below which audio is considered silence
+  SILENCE_THRESHOLD_DB: -55,       // Reduced from -40 to -55 to avoid cutting off soft consonants at the end of sentences.
   SILENCE_MIN_DURATION: 0.15,      // seconds of silence before trimming kicks in
   INTER_CHUNK_GAP_MS: 350,         // controlled gap (ms) inserted between chunks after trimming
 

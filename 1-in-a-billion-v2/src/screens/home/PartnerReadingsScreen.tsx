@@ -119,7 +119,7 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
             onPress: () => {
               if (!partnerBirthTime) {
                 if (isPrepayOnboarding) {
-                  navigation.navigate('Onboarding_PartnerInfo', { mode: 'onboarding_hook' } as any);
+                  (navigation as any).navigate('Onboarding_PartnerInfo', { mode: 'onboarding_hook' } as any);
                 } else if (partnerId) {
                   navigation.navigate('EditBirthData', { personId: partnerId } as any);
                 } else {

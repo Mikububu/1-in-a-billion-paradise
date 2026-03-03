@@ -48,7 +48,7 @@ export const useSupabaseAuthBootstrap = () => {
                 // Small delay to allow navigation to be ready
                 setTimeout(() => {
                     try {
-                        navigationRef.current?.navigate('Onboarding' as any, {
+                        (navigationRef.current as any)?.navigate('Onboarding' as any, {
                             screen: 'ResetPassword',
                         });
                     } catch (e) {

@@ -11,6 +11,7 @@
  */
 
 import { Queue, QueueEvents, Job } from 'bullmq';
+import pLimit from 'p-limit';
 import { createRedisConnection } from './redisClient';
 import { supabase } from './supabaseClient';
 
@@ -204,61 +205,62 @@ export async function waitForAllChunks(
     }),
   );
 
-  const waitElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-  console.log(`[ReplicateQueue] All ${jobIds.length} Replicate jobs finished in ${waitElapsed}s — downloading audio...`);
-
   // ─────────────────────────────────────────────────────────────────────
-  // PHASE 2: Download audio buffers SEQUENTIALLY to cap peak memory.
-  //          Each chunk is ~0.5-2MB WAV; downloading all at once on a
-  //          20+ chunk reading can spike memory by 40MB+ unnecessarily.
+  // PHASE 2: Download audio buffers batch-sequentially to cap peak memory.
+  //          Each chunk is ~0.5-2MB WAV; we limit to 5 concurrent downloads
+  //          Memory overhead per batch: ~10MB (extremely safe on 1GB RAM)
   // ─────────────────────────────────────────────────────────────────────
   if (!supabase) throw new Error('Supabase not configured — cannot download audio chunks');
 
   const audioBuffers: Buffer[] = new Array(jobIds.length);
+  const downloadLimit = pLimit(5); // 5 concurrent downloads max
 
-  for (let i = 0; i < chunkResults.length; i++) {
-    const result = chunkResults[i]!;
-    let audioBuffer: Buffer = Buffer.alloc(0);
+  const downloadTasks = chunkResults.map((result, i) => {
+    return downloadLimit(async () => {
+      let audioBuffer: Buffer = Buffer.alloc(0);
 
-    for (let dlAttempt = 1; dlAttempt <= 3; dlAttempt++) {
-      const { data: blob, error: dlErr } = await supabase.storage
-        .from('audio')
-        .download(result.storagePath);
-      if (dlErr || !blob) {
-        console.warn(
-          `[ReplicateQueue] Download attempt ${dlAttempt}/3 failed for ${result.storagePath}: ${dlErr?.message || 'no data'}`
-        );
-        if (dlAttempt < 3) {
-          await new Promise((r) => setTimeout(r, 1000 * dlAttempt));
-          continue;
+      for (let dlAttempt = 1; dlAttempt <= 3; dlAttempt++) {
+        const { data: blob, error: dlErr } = await supabase!.storage
+          .from('audio')
+          .download(result.storagePath);
+        if (dlErr || !blob) {
+          console.warn(
+            `[ReplicateQueue] Download attempt ${dlAttempt}/3 failed for ${result.storagePath}: ${dlErr?.message || 'no data'}`
+          );
+          if (dlAttempt < 3) {
+            await new Promise((r) => setTimeout(r, 1000 * dlAttempt));
+            continue;
+          }
+          throw new Error(`Failed to download chunk audio from ${result.storagePath} after 3 attempts: ${dlErr?.message || 'no data'}`);
         }
-        throw new Error(`Failed to download chunk audio from ${result.storagePath} after 3 attempts: ${dlErr?.message || 'no data'}`);
-      }
-      audioBuffer = Buffer.from(await blob.arrayBuffer());
-      if (audioBuffer.length < 100) {
-        console.warn(`[ReplicateQueue] Downloaded buffer suspiciously small (${audioBuffer.length} bytes) for ${result.storagePath}`);
-        if (dlAttempt < 3) {
-          await new Promise((r) => setTimeout(r, 1000 * dlAttempt));
-          continue;
+        audioBuffer = Buffer.from(await blob.arrayBuffer());
+        if (audioBuffer.length < 100) {
+          console.warn(`[ReplicateQueue] Downloaded buffer suspiciously small (${audioBuffer.length} bytes) for ${result.storagePath}`);
+          if (dlAttempt < 3) {
+            await new Promise((r) => setTimeout(r, 1000 * dlAttempt));
+            continue;
+          }
+          throw new Error(`Downloaded audio buffer too small (${audioBuffer.length} bytes) for ${result.storagePath}`);
         }
-        throw new Error(`Downloaded audio buffer too small (${audioBuffer.length} bytes) for ${result.storagePath}`);
+        break;
       }
-      break;
-    }
 
-    audioBuffers[i] = audioBuffer;
+      audioBuffers[i] = audioBuffer;
 
-    // Clean up temp file immediately after download
-    await supabase.storage.from('audio').remove([result.storagePath]).catch((e: any) =>
-      console.warn(`[ReplicateQueue] Cleanup warning for ${result.storagePath}: ${e.message}`)
-    );
+      // Clean up temp file immediately after download
+      await supabase!.storage.from('audio').remove([result.storagePath]).catch((e: any) =>
+        console.warn(`[ReplicateQueue] Cleanup warning for ${result.storagePath}: ${e.message}`)
+      );
 
-    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(
-      `[ReplicateQueue] Chunk ${result.chunkIndex + 1}/${jobIds.length} downloaded ` +
-      `(${audioBuffer.length} bytes) [${i + 1}/${jobIds.length} done, ${elapsed}s elapsed]`
-    );
-  }
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.log(
+        `[ReplicateQueue] Chunk ${result.chunkIndex + 1}/${jobIds.length} downloaded ` +
+        `(${audioBuffer.length} bytes) [${elapsed}s elapsed]`
+      );
+    });
+  });
+
+  await Promise.all(downloadTasks);
 
   console.log(
     `[ReplicateQueue] All ${jobIds.length} chunks downloaded in ${((Date.now() - startTime) / 1000).toFixed(1)}s`

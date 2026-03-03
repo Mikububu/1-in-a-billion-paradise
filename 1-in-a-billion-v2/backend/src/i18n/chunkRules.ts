@@ -32,27 +32,27 @@ export interface ChunkConfig {
  */
 const CHUNK_RULES: Record<OutputLanguage, ChunkConfig> = {
   en: {
-    maxChars: 300,            // Current English value (intentional, don't change)
+    maxChars: 300,            // Output length is robust for Turbo
     splitPattern: /[.!?]\s+/,
     minChars: 80,
   },
   de: {
-    maxChars: 280,            // German compound words = longer tokens
+    maxChars: 220,            // Reduced from 280 (Multilingual model is stricter)
     splitPattern: /[.!?]\s+/,
     minChars: 80,
   },
   es: {
-    maxChars: 300,            // Similar structure to English
+    maxChars: 250,            // Reduced from 300 (Multilingual model is stricter)
     splitPattern: /[.!?]\s+/,
     minChars: 80,
   },
   fr: {
-    maxChars: 300,            // Similar structure to English
+    maxChars: 250,            // Reduced from 300 (Multilingual model is stricter)
     splitPattern: /[.!?]\s+/,
     minChars: 80,
   },
   zh: {
-    maxChars: 200,            // Chinese characters pack more meaning
+    maxChars: 180,            // Reduced from 200
     splitPattern: /[。！？]\s*/,
     minChars: 50,
   },

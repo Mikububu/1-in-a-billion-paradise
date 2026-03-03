@@ -18,6 +18,7 @@ import { spawn } from 'child_process';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
+import pLimit from 'p-limit';
 import Replicate from 'replicate';
 import { BaseWorker, TaskResult } from './baseWorker';
 import { JobTask, supabase } from '../services/supabaseClient';
@@ -568,14 +569,23 @@ export class AudioWorker extends BaseWorker {
       if (AUDIO_CONFIG.SILENCE_TRIM_ENABLED) {
         console.log(`\n✂️  [AudioWorker] Trimming silence from ${audioBuffers.length} chunks...`);
         const trimStart = Date.now();
-        for (let i = 0; i < audioBuffers.length; i++) {
-          const before = audioBuffers[i]!.length;
-          audioBuffers[i] = await trimSilenceFromWav(audioBuffers[i]!);
-          const after = audioBuffers[i]!.length;
-          if (before !== after) {
-            console.log(`  ✂️  Chunk ${i + 1}: ${Math.round(before / 1024)}KB → ${Math.round(after / 1024)}KB`);
-          }
-        }
+
+        // Parallelize FFmpeg trimming to speed up processing
+        // Limit to 3 concurrent trims so we don't blow memory (safe on 1GB VM) 
+        const trimLimit = pLimit(3);
+        const trimTasks = audioBuffers.map((buffer, i) => {
+          return trimLimit(async () => {
+            const before = buffer.length;
+            audioBuffers[i] = await trimSilenceFromWav(buffer);
+            const after = audioBuffers[i]!.length;
+            if (before !== after) {
+              console.log(`  ✂️  Chunk ${i + 1}: ${Math.round(before / 1024)}KB → ${Math.round(after / 1024)}KB`);
+            }
+          });
+        });
+
+        await Promise.all(trimTasks);
+
         const trimElapsed = ((Date.now() - trimStart) / 1000).toFixed(1);
         console.log(`✂️  [AudioWorker] Silence trimming done in ${trimElapsed}s`);
       }
