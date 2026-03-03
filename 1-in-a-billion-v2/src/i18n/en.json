@@ -3,7 +3,6 @@
   "app.version": "Version 2.0.0",
   "app.copyright": "© 2024 One In A Billion Ltd.",
   "app.tagline": "Find rare compatibility through deep matching across multiple spiritual systems.",
-
   "common.loading": "Loading...",
   "common.error": "Something went wrong",
   "common.retry": "Try Again",
@@ -27,7 +26,6 @@
   "common.pause": "Pause",
   "common.play": "Play",
   "languagePicker.title": "Language",
-
   "auth.signIn": "Sign In",
   "auth.signUp": "Sign Up",
   "auth.signOut": "Sign Out",
@@ -39,7 +37,6 @@
   "auth.sessionExpired": "Your session has expired. Please sign in again.",
   "auth.sessionExpiredTitle": "Session Expired",
   "auth.accountExists": "Account already exists. Please sign in.",
-
   "onboarding.welcome": "Welcome",
   "onboarding.birthDate": "Birth Date",
   "onboarding.birthTime": "Birth Time",
@@ -50,7 +47,6 @@
   "onboarding.addPartner": "Add Partner",
   "onboarding.skip": "Skip",
   "onboarding.getStarted": "Get Started",
-
   "home.myReadings": "My Readings",
   "home.myLibrary": "My Library",
   "home.people": "People",
@@ -94,21 +90,18 @@
   "home.fullReset.title": "Full Reset",
   "home.fullReset.message": "This will clear ALL local data and sign you out. Continue?",
   "home.fullReset.confirm": "Reset Everything",
-
   "readings.sun": "Sun",
   "readings.moon": "Moon",
   "readings.rising": "Rising",
   "readings.generating": "Generating your reading...",
   "readings.complete": "Reading complete",
   "readings.error": "Failed to generate reading. Please try again.",
-
   "empty.noReadings": "No readings yet",
   "empty.noReadingsMessage": "Generate your first reading to see it here.",
   "empty.noPeople": "No people added yet",
   "empty.noPeopleMessage": "Add someone to start exploring compatibility.",
   "empty.noConversations": "No conversations yet",
   "empty.noConversationsMessage": "Start a conversation with a match.",
-
   "error.title": "Something went wrong",
   "error.message": "We hit an unexpected issue. You can try again or go back to the home screen.",
   "error.tryAgain": "Try Again",
@@ -116,12 +109,10 @@
   "error.network": "No internet connection",
   "error.timeout": "Request timed out. Please try again.",
   "error.generic": "An unexpected error occurred",
-
   "payment.subscribe": "Subscribe",
   "payment.restore": "Restore Purchases",
   "payment.subscriptionActive": "Your subscription is active",
   "payment.subscriptionExpired": "Your subscription has expired",
-
   "settings.title": "Settings",
   "settings.account": "Account",
   "settings.language": "Language",
@@ -182,7 +173,6 @@
   "settings.matchAlerts.disable.button": "Disable",
   "settings.matchAlerts.error.updateFailed": "Update failed",
   "settings.matchAlerts.error.saveFailed": "Could not save notification preference.",
-
   "validation.nameRequired": "Name is required",
   "validation.nameMinLength": "Name must be at least 2 characters",
   "validation.nameMaxLength": "Name must be 50 characters or less",
@@ -193,7 +183,6 @@
   "validation.emailInvalid": "Please enter a valid email address",
   "validation.passwordRequired": "Password is required",
   "validation.passwordMinLength": "Password must be at least 8 characters",
-
   "accountDeletion.title": "Delete Account",
   "accountDeletion.subtitle": "We're sad to see you go. Deleting your account will permanently remove all your data.",
   "accountDeletion.section.title": "What Will Be Deleted",
@@ -207,7 +196,6 @@
   "accountDeletion.success.message": "Your account has been permanently deleted.",
   "accountDeletion.button.deleting": "Deleting...",
   "accountDeletion.button.delete": "Delete My Account",
-
   "peopleList.title": "My Karmic Zoo",
   "peopleList.empty.message": "No people saved yet. Generate a reading to save profiles.",
   "peopleList.empty.description": "When you generate compatibility readings, people and their data will be saved here.",
@@ -227,7 +215,6 @@
   "peopleList.clearAll.button": "Clear All",
   "peopleList.headerAction.clearAll": "Clear All",
   "peopleList.placements.calculating": "Birth data saved (signs calculating...)",
-
   "coreIdentities.screen.intro.line1": "Your",
   "coreIdentities.screen.intro.line2": "3",
   "coreIdentities.screen.intro.line3": "Core",
@@ -256,7 +243,6 @@
   "coreIdentities.error.missingBirthDataMessage": "Please add birth date + city first.",
   "coreIdentities.error.invalidLocation": "Invalid Birth Location",
   "coreIdentities.error.invalidLocationMessage": "Your birth city is missing coordinates. Please go back and select a valid city from the list.",
-
   "contactSupport.title": "Support",
   "contactSupport.card.title": "Need help?",
   "contactSupport.card.text": "Our team is here to assist you with any questions or issues you may have while exploring the laboratory.",
@@ -267,7 +253,6 @@
   "contactSupport.faq.q1.answer": "Most readings are generated within 30-60 seconds. Complete readings may take slightly longer.",
   "contactSupport.faq.q2.question": "Can I access my readings offline?",
   "contactSupport.faq.q2.answer": "Yes, once a reading is generated, it is saved to your device for offline access in My Library.",
-
   "myLibrary.title": "My Souls Library",
   "myLibrary.subtitle": "Your people, readings, and next actions.",
   "myLibrary.stats.souls": "Souls",
@@ -281,9 +266,9 @@
   "myLibrary.reading.dateLabel": "From {{date}}",
   "myLibrary.reading.openReading": "Open Reading",
   "myLibrary.reading.openStatus": "Open Status",
+  "myLibrary.reading.deletePrompt": "Do you want to delete this reading?",
   "myLibrary.preview.defaultTitle": "Portrait",
   "myLibrary.preview.closeHint": "Tap anywhere to close",
-
   "generatingReading.status.initializing": "Initializing...",
   "generatingReading.error.notFound": "Person Not Found",
   "generatingReading.error.missingJobId": "Missing jobId.",
@@ -298,7 +283,6 @@
   "generatingReading.button.jobStatus": "Open Live Job Status",
   "generatingReading.button.peopleList": "My People's Zoo",
   "generatingReading.button.dashboard": "My Secret Life Dashboard",
-
   "jobDetail.title": "Preparing Your Reading",
   "jobDetail.systems.empty": "No systems listed",
   "jobDetail.progress.waitingForTasks": "Waiting for backend task counts...",
@@ -312,7 +296,6 @@
   "jobDetail.button.waitingForAssets": "Waiting for Text + Audio + Song + PDF",
   "jobDetail.button.library": "Open My Library",
   "jobDetail.button.dashboard": "My Secret Life Dashboard",
-
   "intro.brand": "In A Billion",
   "intro.tagline": "Find rare compatibility through deep matching across multiple spiritual systems.",
   "intro.button.signOut": "Sign Out",
@@ -332,33 +315,28 @@
   "intro.entitlement.message": "Finish onboarding and subscription to unlock dashboard access.",
   "intro.access.failed.title": "Access check failed",
   "intro.access.failed.message": "Could not verify your subscription right now.",
-
   "about.title": "About",
   "about.description.intro": "1 In A Billion is a spiritual laboratory designed to help you explore the deep patterns of your soul.",
   "about.section.mission.title": "Our Mission",
   "about.section.mission.text": "We combine ancient wisdom with modern technology to provide profound insights into your personality, relationships, and life path.",
   "about.section.technology.title": "The Technology",
   "about.section.technology.text": "Our system uses precise astronomical data from the Swiss Ephemeris and advanced AI to interpret complex astrological placements across multiple systems: Western Astrology, Vedic Astrology, Human Design, Gene Keys, and Kabbalah.",
-
   "dataPrivacy.title": "AI & Data Usage",
   "dataPrivacy.intro": "1 In A Billion uses advanced artificial intelligence to generate your personalized astrological readings and compatibility reports.",
   "dataPrivacy.section.sharing.title": "What data do we share with AI?",
   "dataPrivacy.section.sharing.text": "We share birth data (date, time, location) and calculated planetary positions with our AI providers. We do NOT share your name, email, or any identifying information.",
   "dataPrivacy.section.privacy.title": "Privacy First",
   "dataPrivacy.section.privacy.text": "Your privacy is our priority. All AI processing is done securely, and we do not use your data to train public models.",
-
   "systems.western": "Western Astrology",
   "systems.vedic": "Vedic Astrology",
   "systems.humanDesign": "Human Design",
   "systems.geneKeys": "Gene Keys",
   "systems.kabbalah": "Kabbalah",
   "systems.numerology": "Numerology",
-
   "pdf.header.brand": "1 in a Billion",
   "pdf.footer.publisher": "SwiftBuy Solutions LLC",
   "pdf.footer.copyright": "© 1 in a Billion",
   "pdf.generatedOn": "Generated on {{date}}",
-
   "readingContent.refresh": "Refresh",
   "readingContent.pdfUnavailable": "PDF unavailable",
   "readingContent.opening": "Opening...",
@@ -374,9 +352,7 @@
   "readingContent.downloadError": "Could not prepare download link.",
   "readingContent.narrationAudio": "narration audio",
   "readingContent.songAudio": "song audio",
-
   "generatingReading.status.complete": "Complete - view it in My Library",
-
   "systemSelection.title.compatibility": "Choose Compatibility Systems",
   "systemSelection.title.reading": "Choose Reading Systems",
   "systemSelection.bestValue": "★ BEST VALUE",
@@ -387,7 +363,6 @@
   "systemSelection.missingBirthData": "Missing birth data",
   "systemSelection.person1NeedsBirthData": "Complete birth data is needed to generate a reading.",
   "systemSelection.person2NeedsBirthData": "Both people need complete birth data for compatibility readings.",
-
   "synastryOptions.title": "Choose Your Deep Reading",
   "synastryOptions.subtitle": "Continue with yourself, {{name}}, or your compatibility overlay.",
   "synastryOptions.yourReading": "Your Reading",
@@ -397,21 +372,18 @@
   "synastryOptions.overlayReading": "Overlay Reading",
   "synastryOptions.overlayReadingDesc": "Compatibility and relational dynamics.",
   "synastryOptions.addPerson": "Add Another Person",
-
   "coreIdentitiesIntro.your": "Your",
   "coreIdentitiesIntro.core": "Core",
   "coreIdentitiesIntro.identities": "Identities",
   "coreIdentitiesIntro.inLove": "in Love",
   "coreIdentitiesIntro.analyzing": "Analyzing your cosmic blueprint...",
   "coreIdentitiesIntro.unlock": "Unlock",
-
   "pricing.title": "Choose Your Path",
   "pricing.subtitle": "Unlock the stars. Pick the tier that resonates with you.",
   "pricing.iapNote": "In-App Purchases from",
   "pricing.couponPlaceholder": "Coupon code",
   "pricing.couponRedeem": "Redeem",
   "pricing.couponApply": "Apply",
-
   "account.verifyEmail": "Verify Email",
   "account.createAccount": "Create Account",
   "account.verifySubtitle": "Enter the 6-digit code we sent to your email.",
@@ -462,7 +434,6 @@
   "account.couldNotAuthGoogle": "Could not authenticate with Google.",
   "account.appleSignUpFailed": "Apple sign-up failed",
   "account.couldNotAuthApple": "Could not authenticate with Apple.",
-
   "signIn.authUnavailable": "Auth unavailable",
   "signIn.authUnavailableMessage": "Authentication is not configured in this build.",
   "signIn.error": "Sign In Error",
@@ -483,7 +454,6 @@
   "signIn.failedToSignIn": "Failed to sign in",
   "signIn.emailPlaceholder": "Email",
   "signIn.passwordPlaceholder": "Password",
-
   "resetPassword.title": "Set New Password",
   "resetPassword.subtitle": "Enter your new password below. Make it at least 8 characters.",
   "resetPassword.enterNewPassword": "Please enter a new password.",
@@ -495,7 +465,6 @@
   "resetPassword.success": "Password Updated",
   "resetPassword.successMessage": "Your password has been updated. You can now sign in with your new password.",
   "resetPassword.failed": "Could not update password. Please try again.",
-
   "photoUpload.title": "Upload Portrait",
   "photoUpload.defaultName": "Person",
   "photoUpload.personNotFound": "Person Not Found",
@@ -513,7 +482,6 @@
   "photoUpload.updatePortrait": "Update portrait?",
   "photoUpload.regeneratePrompt": "Choose a new photo to regenerate this stylized portrait.",
   "photoUpload.regenerate": "Regenerate",
-
   "languages.title": "Languages",
   "languages.subtitle": "Which languages do you feel most comfortable with? Secondary is optional.",
   "languages.primary": "Primary language",
@@ -522,20 +490,16 @@
   "languages.secondaryPlaceholder": "Add another",
   "languages.importance": "Language importance",
   "languages.continue": "Continue",
-
   "relationship.title": "What kind of relationship dynamic do you desire?",
   "relationship.safe": "Safe",
   "relationship.spicy": "Spicy",
   "relationship.helper": "This helps us calibrate which compatibility signals matter most to you. You can adjust this anytime in settings.",
   "relationship.continue": "Continue",
-
   "addThirdPerson.title": "Would you like to do a free reading for another person?",
   "addThirdPerson.subtitle": "You can add one person and receive their Sun, Moon, and Rising previews, plus the compatibility preview between you both.",
   "addThirdPerson.yes": "YES, ADD A PERSON",
   "addThirdPerson.no": "NO, CONTINUE",
-
   "birthInfo.cityPlaceholder": "Search any city...",
-
   "comparePeople.title": "Choose one or two people for deeper readings.",
   "comparePeople.subtitle": "Tap to select. Long press to delete.",
   "comparePeople.missingBirthData": "Missing birth data",
@@ -552,19 +516,16 @@
   "comparePeople.previewHint": "Tap anywhere to close",
   "comparePeople.deleteConfirm": "Delete {{name}}?",
   "comparePeople.deleteMessage": "This will permanently remove {{name}} from your karmic zoo.",
-
   "personalContext.title": "Personal Context",
   "personalContext.subtitle": "Would you like to infuse your reading with a question or some additional context?",
   "personalContext.placeholder": "I will speak the truth",
   "personalContext.skip": "Skip",
   "personalContext.continue": "Continue",
-
   "relationshipContext.title": "Relationship Context",
   "relationshipContext.subtitle": "Share anything about your connection — a question, a feeling, or what you'd like the reading to explore.",
   "relationshipContext.placeholder": "I will speak the truth",
   "relationshipContext.skip": "Skip",
   "relationshipContext.continue": "Continue",
-
   "voiceSelection.sampleUnavailable": "Voice sample unavailable",
   "voiceSelection.sampleUnavailableMessage": "No preview audio found for this voice.",
   "voiceSelection.playbackFailed": "Playback failed",
@@ -577,7 +538,6 @@
   "voiceSelection.missingBirthData1": "Person 1 must have complete birth data.",
   "voiceSelection.missingBirthData2": "Person 2 must have complete birth data for compatibility readings.",
   "voiceSelection.couldNotStart": "Could not start job",
-
   "partnerInfo.namePlaceholder": "Name",
   "partnerInfo.cityPlaceholder": "Birth city",
   "partnerInfo.birthTimeRequired": "Birth time required",
@@ -588,15 +548,12 @@
   "partnerInfo.cityRequiredMessage": "Please select a birth city from the suggestions so we can calculate accurate placements.",
   "partnerInfo.nameAlreadyTaken": "Name Already Taken",
   "partnerInfo.nameAlreadyTakenMessage": "A person named \"{{name}}\" already exists in your library with different birth data. Please use a different name to avoid confusion.",
-
   "editBirthData.profileNotFound": "Profile not found",
   "editBirthData.profileNotFoundMessage": "Could not find this person profile.",
   "editBirthData.saveFailed": "Save failed",
   "editBirthData.saveFailedMessage": "Could not save birth data. Please try again.",
   "editBirthData.cityPlaceholder": "Search any city...",
-
   "chat.messagePlaceholder": "Type a message...",
-
   "home.activeJob.title": "Reading in progress",
   "home.activeJob.sub": "{{name}} · {{percent}}% complete",
   "home.activeJob.defaultName": "Your reading",
@@ -604,7 +561,6 @@
   "home.checkingAudio": "Checking cloud audio...",
   "home.missingBirthData": "Missing birth data.",
   "home.failedToGenerate": "Failed to generate.",
-
   "personProfile.cannotDelete": "Cannot delete",
   "personProfile.cannotDeleteSelf": "You cannot delete your own profile.",
   "personProfile.deleteFailed": "Delete failed",
@@ -636,13 +592,11 @@
   "personProfile.edit": "Edit",
   "personProfile.delete": "Delete",
   "personProfile.you": "(You)",
-
   "nextStep.title": "Soul Laboratory",
   "nextStep.soulsLibrary": "MY SOULS LIBRARY",
   "nextStep.karmicZoo": "MY KARMIC ZOO",
   "nextStep.exploreMyself": "EXPLORE MYSELF",
   "nextStep.backToSecretLife": "BACK TO MY SECRET LIFE",
-
   "yourChart.title": "{{name}}'s Chart",
   "yourChart.born": "Born",
   "yourChart.notSet": "Not set",
@@ -654,7 +608,6 @@
   "yourChart.spicy": "Spicy",
   "yourChart.editBirthData": "Edit Birth Data",
   "yourChart.viewAllPeople": "View All Saved People",
-
   "voiceSelection.title": "Choose Your Speaker",
   "voiceSelection.subtitle": "The reading will be narrated by {{voice}}.",
   "voiceSelection.uploadPhotoTitle": "Upload a photo?",
@@ -663,7 +616,6 @@
   "voiceSelection.skipGenerate": "Skip & Generate",
   "voiceSelection.starting": "Starting...",
   "voiceSelection.continue": "Continue to Tree of Life",
-
   "voice.david.description": "Warm and engaging narrator",
   "voice.elisabeth.description": "Elegant and gentle guide",
   "voice.michael.description": "Confident and grounded tone",
@@ -681,21 +633,18 @@
   "voice.turbo-laura.description": "Professional, clear voice",
   "voice.turbo-lucy.description": "Bright, cheerful voice",
   "voice.turbo-walter.description": "Distinguished, wise voice",
-
   "birthInfo.title": "When & where\nwere you born?",
   "birthInfo.done": "Done",
   "birthInfo.helper": "Enter your birthtime as exact as possible.",
   "birthInfo.continue": "Continue",
   "birthInfo.datePlaceholder": "mm/dd/yyyy",
   "birthInfo.timePlaceholder": "--:--",
-
   "editBirthData.title": "Edit Birth Data",
   "editBirthData.subtitle": "This updates date, time, city, timezone, and placements for this person.",
   "editBirthData.done": "Done",
   "editBirthData.saving": "Saving...",
   "editBirthData.save": "Save",
   "editBirthData.defaultName": "Profile",
-
   "synastryPreview.unavailable": "Compatibility unavailable",
   "synastryPreview.unavailableRetry": "Compatibility unavailable. Retry or edit birth data.",
   "synastryPreview.basicOverview": "BASIC COMPATIBILITY OVERVIEW",
@@ -719,14 +668,12 @@
   "synastryPreview.tapClose": "Tap anywhere to close",
   "synastryPreview.you": "You",
   "synastryPreview.them": "Them",
-
   "about.title": "About",
   "about.description": "1 In A Billion is a spiritual laboratory designed to help you explore the deep patterns of your soul.",
   "about.missionTitle": "Our Mission",
   "about.missionText": "We combine ancient wisdom with modern technology to provide profound insights into your personality, relationships, and life path.",
   "about.technologyTitle": "The Technology",
   "about.technologyText": "Our system uses precise astronomical data from the Swiss Ephemeris and advanced AI to interpret complex astrological placements across multiple systems: Western Astrology, Vedic Astrology, Human Design, Gene Keys, and Kabbalah.",
-
   "contact.title": "Support",
   "contact.emailSubject": "Support Request",
   "contact.mailError": "Could not open mail app.",
@@ -738,14 +685,12 @@
   "contact.faq1Answer": "Most readings are generated within 30–60 seconds. Complete readings may take slightly longer.",
   "contact.faq2Question": "Can I access my readings offline?",
   "contact.faq2Answer": "Yes, once a reading is generated, it is saved to your device for offline access in My Library.",
-
   "dataPrivacy.title": "AI & Data Usage",
   "dataPrivacy.intro": "1 In A Billion uses advanced artificial intelligence to generate your personalized astrological readings and compatibility reports.",
   "dataPrivacy.shareTitle": "What data do we share with AI?",
   "dataPrivacy.shareText": "We share birth data (date, time, location) and calculated planetary positions with our AI providers. We do NOT share your name, email, or any identifying information.",
   "dataPrivacy.privacyTitle": "Privacy First",
   "dataPrivacy.privacyText": "Your privacy is our priority. All AI processing is done securely, and we do not use your data to train public models.",
-
   "accountDeletion.title": "Delete Account",
   "accountDeletion.subtitle": "We're sad to see you go. Deleting your account will permanently remove all your data.",
   "accountDeletion.confirmTitle": "Delete Account?",
@@ -760,7 +705,6 @@
   "accountDeletion.deleting": "Deleting...",
   "accountDeletion.deleteMyAccount": "Delete My Account",
   "accountDeletion.deleteFailed": "Failed to delete account.",
-
   "personReadings.subtitle": "Reading receipts and generation status",
   "personReadings.refresh": "Refresh",
   "personReadings.snapshot": "Snapshot",
@@ -779,7 +723,6 @@
   "personReadings.openStatus": "Open Status",
   "personReadings.updated": "Updated",
   "personReadings.backToProfile": "Back To Profile",
-
   "systemsOverview.western": "Western Astrology",
   "systemsOverview.westernTagline": "Psychological map",
   "systemsOverview.vedic": "Jyotish (Vedic)",
@@ -811,7 +754,6 @@
   "systemsOverview.completeBundle": "Complete reading bundle",
   "systemsOverview.left": "LEFT",
   "systemsOverview.free": "FREE",
-
   "partnerReadings.generating": "Generating {{name}}'s readings...",
   "partnerReadings.readings": "{{name}}'s readings",
   "partnerReadings.tapProvider": "Tap a provider above to generate",
@@ -825,7 +767,6 @@
   "partnerReadings.sunSuffix": "'S SUN SIGN",
   "partnerReadings.moonSuffix": "'S MOON SIGN",
   "partnerReadings.risingSuffix": "'S RISING SIGN",
-
   "partnerCore.coreIdentities": "Core Identities in Love",
   "partnerCore.sunReveals": "Reveals",
   "partnerCore.ego": "{{name}}'s Ego",
@@ -843,7 +784,6 @@
   "partnerCore.givingVoice": "Giving {{name}}'s reading a voice…",
   "partnerCore.allReady": "All readings ready!",
   "partnerCore.chartComplete": "Chart complete!",
-
   "coreIdentities.your": "Your",
   "coreIdentities.core": "Core",
   "coreIdentities.identities": "Identities",
@@ -869,7 +809,6 @@
   "coreIdentities.allReady": "All readings ready!",
   "coreIdentities.continuing": "Continuing…",
   "coreIdentities.loadingExperience": "Loading your experience...",
-
   "privacy.title": "Privacy Policy",
   "privacy.lastUpdated": "Last updated",
   "privacy.introTitle": "Introduction",
@@ -881,7 +820,6 @@
   "privacy.aiTitle": "AI Services & Third-Party Data Sharing",
   "privacy.aiText": "Important: To generate your personalized readings, we share certain data with third-party AI services:\n• Birth date, time, and location\n• Calculated planetary positions\n• Relationship preferences\n• Language preferences\n\nWe do NOT share your name or email address.",
   "privacy.footer": "By using 1 In A Billion, you acknowledge that you have read and understood this Privacy Policy.",
-
   "terms.title": "Terms of Service",
   "terms.lastUpdated": "Last updated",
   "terms.agreementTitle": "Agreement to Terms",
@@ -891,7 +829,6 @@
   "terms.paymentsTitle": "Payments",
   "terms.paymentsText": "All purchases are processed through the App Store. Due to the personalized nature of our digital content, all purchases are final and non-refundable.",
   "terms.footer": "By using 1 In A Billion, you agree to be bound by these Terms of Service.",
-
   "systemExplainer.whatYouDiscover": "What You'll Discover",
   "systemExplainer.howItHelpsYou": "How it helps you",
   "systemExplainer.howItHelpsRelationship": "How it helps your relationship",
@@ -911,7 +848,6 @@
   "systemExplainer.ctaDetailsSingleSystem": "{{pages}} pages · {{audio}} audio",
   "systemExplainer.personalNoteLabel.forYou": "A note, just for you",
   "systemExplainer.personalNoteLabel.forBoth": "A note for both of you",
-
   "systemExplainer.individual.western.name": "Western Astrology",
   "systemExplainer.individual.western.tagline": "The poetry of who you are",
   "systemExplainer.individual.western.origin": "Ancient Greece & Babylon",
@@ -922,7 +858,6 @@
   "systemExplainer.individual.western.discover3": "What you actually need vs what you think you want",
   "systemExplainer.individual.western.discover4": "Your unique gifts - the ones you probably undervalue",
   "systemExplainer.individual.western.personalNote": "\"Sweetheart, with your Venus in the 8th house, you've probably been told you're 'too intense.' But here's the truth: you're not too much. You're designed for the kind of love most people are too afraid to ask for.\"",
-
   "systemExplainer.individual.vedic.name": "Jyotish (Vedic)",
   "systemExplainer.individual.vedic.tagline": "Where your soul has been, where it's going",
   "systemExplainer.individual.vedic.origin": "5,000 years of Indian wisdom",
@@ -933,7 +868,6 @@
   "systemExplainer.individual.vedic.discover3": "The karma you came here to work through",
   "systemExplainer.individual.vedic.discover4": "Timing for big decisions and relationships",
   "systemExplainer.individual.vedic.personalNote": "\"Darling, you've been in a Saturn period, and I know it's felt relentless. But Saturn isn't punishing you - Saturn is preparing you. Whatever you're building right now, it's creating something that will last.\"",
-
   "systemExplainer.individual.human_design.name": "Human Design",
   "systemExplainer.individual.human_design.tagline": "Permission to be yourself",
   "systemExplainer.individual.human_design.origin": "A synthesis of ancient wisdom",
@@ -944,7 +878,6 @@
   "systemExplainer.individual.human_design.discover3": "Your Authority - how YOUR body makes decisions",
   "systemExplainer.individual.human_design.discover4": "Why certain environments drain you",
   "systemExplainer.individual.human_design.personalNote": "\"Beautiful soul, you're a Projector, which means you were never supposed to hustle like everyone else. Your gift is seeing what others miss. But you have to wait to be invited. The right recognition will find you.\"",
-
   "systemExplainer.individual.gene_keys.name": "Gene Keys",
   "systemExplainer.individual.gene_keys.tagline": "Your shadows hold your gifts",
   "systemExplainer.individual.gene_keys.origin": "Ancient wisdom meets modern genetics",
@@ -955,7 +888,6 @@
   "systemExplainer.individual.gene_keys.discover3": "Your Venus Sequence - how you open to love",
   "systemExplainer.individual.gene_keys.discover4": "The highest version of what you can become",
   "systemExplainer.individual.gene_keys.personalNote": "\"Precious one, your Gene Key 36 shadow is Crisis - you create drama unconsciously because stillness feels dangerous. But your gift is Humanity - you feel everything, and that feeling is how you connect the world.\"",
-
   "systemExplainer.individual.kabbalah.name": "Kabbalah",
   "systemExplainer.individual.kabbalah.tagline": "The repair only you can make",
   "systemExplainer.individual.kabbalah.origin": "Jewish mystical tradition",
@@ -966,7 +898,6 @@
   "systemExplainer.individual.kabbalah.discover3": "The blocks (Klipot) hiding your light",
   "systemExplainer.individual.kabbalah.discover4": "Practices to accelerate your transformation",
   "systemExplainer.individual.kabbalah.personalNote": "\"Dear heart, your Tikkun is in Hod - the sphere of the mind. You overthink because you're trying to feel safe through understanding. Your correction isn't to think less - it's to let your brilliant mind serve your heart.\"",
-
   "systemExplainer.individual.all.name": "Complete Reading",
   "systemExplainer.individual.all.tagline": "The complete picture of your soul",
   "systemExplainer.individual.all.origin": "Five ancient wisdom traditions united",
@@ -978,7 +909,6 @@
   "systemExplainer.individual.all.discover4": "The shadows hiding your greatest gifts",
   "systemExplainer.individual.all.discover5": "Your soul's purpose and the repair only you can make",
   "systemExplainer.individual.all.personalNote": "\"Beautiful soul, when we look at you through all five systems, patterns emerge that none could show alone. The struggle you've been facing? It appears in every system - which means it's central to why you're here. And so is the breakthrough waiting for you.\"",
-
   "systemExplainer.overlay.western.name": "Western Compatibility",
   "systemExplainer.overlay.western.tagline": "How your charts dance together",
   "systemExplainer.overlay.western.origin": "Synastry & Composite Analysis",
@@ -989,7 +919,6 @@
   "systemExplainer.overlay.western.discover3": "Your communication patterns and blind spots",
   "systemExplainer.overlay.western.discover4": "The growth each of you triggers in the other",
   "systemExplainer.overlay.western.personalNote": "\"Your Venus on their 8th house? That's not casual attraction - that's soul-deep magnetism. This connection was never meant to be simple.\"",
-
   "systemExplainer.overlay.vedic.name": "Vedic Compatibility",
   "systemExplainer.overlay.vedic.tagline": "The karmic threads between you",
   "systemExplainer.overlay.vedic.origin": "Kundali Milan · Nakshatra Matching",
@@ -1000,7 +929,6 @@
   "systemExplainer.overlay.vedic.discover3": "The karmic lessons you're learning together",
   "systemExplainer.overlay.vedic.discover4": "Timing for major relationship milestones",
   "systemExplainer.overlay.vedic.personalNote": "\"Your Nakshatras share the same Nadi - you've known each other before. This isn't your first dance together, and the universe made sure you'd find each other again.\"",
-
   "systemExplainer.overlay.human_design.name": "Human Design Compatibility",
   "systemExplainer.overlay.human_design.tagline": "How your energies merge",
   "systemExplainer.overlay.human_design.origin": "Composite Bodygraph Analysis",
@@ -1011,7 +939,6 @@
   "systemExplainer.overlay.human_design.discover3": "Potential friction points in your design",
   "systemExplainer.overlay.human_design.discover4": "How to make decisions as a couple",
   "systemExplainer.overlay.human_design.personalNote": "\"Together you complete the Channel of Discovery. Apart, you both search. Together, you find. This partnership was designed to explore.\"",
-
   "systemExplainer.overlay.gene_keys.name": "Gene Keys Compatibility",
   "systemExplainer.overlay.gene_keys.tagline": "Shadows that heal, gifts that multiply",
   "systemExplainer.overlay.gene_keys.origin": "Venus Sequence Compatibility",
@@ -1022,7 +949,6 @@
   "systemExplainer.overlay.gene_keys.discover3": "Your shared pathway to intimacy",
   "systemExplainer.overlay.gene_keys.discover4": "The Siddhi potential of your union",
   "systemExplainer.overlay.gene_keys.personalNote": "\"Your Gene Key 25 meets their 46 - Innocence meets Delight. Together, you remind each other that life is meant to be enjoyed, not survived.\"",
-
   "systemExplainer.overlay.kabbalah.name": "Kabbalistic Compatibility",
   "systemExplainer.overlay.kabbalah.tagline": "Two souls, one Tree of Life",
   "systemExplainer.overlay.kabbalah.origin": "Shared Tikkun Analysis",
@@ -1033,7 +959,6 @@
   "systemExplainer.overlay.kabbalah.discover3": "Where you help each other grow",
   "systemExplainer.overlay.kabbalah.discover4": "The spiritual purpose of your union",
   "systemExplainer.overlay.kabbalah.personalNote": "\"Your Tikkunim are mirror images - what you struggle with, they've mastered, and vice versa. You're each other's teachers, dressed as lovers.\"",
-
   "systemExplainer.overlay.all.name": "Nuclear Package",
   "systemExplainer.overlay.all.tagline": "The ultimate relationship analysis",
   "systemExplainer.overlay.all.origin": "Two souls · Five systems · Complete truth",
@@ -1045,11 +970,9 @@
   "systemExplainer.overlay.all.discover4": "The karmic purpose of your connection",
   "systemExplainer.overlay.all.discover5": "The final verdict on your relationship",
   "systemExplainer.overlay.all.personalNote": "\"This is for couples who want the complete truth. Not just surface compatibility - the deep patterns, the shadow dynamics, the soul contracts. Everything that makes your connection what it is.\"",
-
   "readingLanguage.title": "Choose Your Reading Language",
   "readingLanguage.subtitle": "Select the language your reading will be written and narrated in.",
   "readingLanguage.continue": "Continue",
-
   "pricing.paymentUnavailable.title": "Payment unavailable",
   "pricing.paymentUnavailable.message": "RevenueCat is not available in this build.",
   "pricing.subscriptionUnavailable.title": "Subscription unavailable",
@@ -1059,7 +982,6 @@
   "pricing.paymentNotVerified.title": "Payment not verified yet",
   "pricing.paymentNotVerified.message": "Your subscription is not active yet. Please try again in a few seconds.",
   "pricing.paymentFailed.title": "Payment failed",
-
   "hookSequence.resetAlert.title": "Reset App",
   "hookSequence.resetAlert.message": "Delete ALL data and start from screen 1?",
   "hookSequence.resetAlert.button": "Reset Everything",

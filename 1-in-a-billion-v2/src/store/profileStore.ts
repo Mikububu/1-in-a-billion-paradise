@@ -147,6 +147,7 @@ type ProfileState = {
     getAllPeopleWithHookReadings: () => Person[];
     addReading: (personId: string, reading: Omit<Reading, 'id'>) => string;
     deleteReading: (personId: string, readingId: string) => void;
+    deleteReadingByJobId: (jobId: string) => void;
     getReadings: (personId: string, system?: ReadingSystem) => Reading[];
     syncReadingArtifacts: (personId: string, readingId: string, artifacts: { pdfPath?: string; audioPath?: string; songPath?: string; duration?: number }) => void;
     createPlaceholderReadings: (personId: string, jobId: string, systems: ReadingSystem[], createdAt: string, readingType?: 'individual' | 'overlay' | 'verdict', partnerName?: string, docNums?: number[]) => void;
@@ -442,6 +443,17 @@ export const useProfileStore = create<ProfileState>()(
             deleteReading: (personId, readingId) => {
                 set((state) => ({
                     people: state.people.map((p) => (p.id === personId ? { ...p, readings: p.readings.filter((r) => r.id !== readingId), updatedAt: new Date().toISOString() } : p)),
+                }));
+            },
+
+            deleteReadingByJobId: (jobId) => {
+                set((state) => ({
+                    people: state.people.map((p) => ({
+                        ...p,
+                        readings: p.readings.filter((r) => r.jobId !== jobId),
+                        jobIds: (p.jobIds || []).filter((id) => id !== jobId),
+                        updatedAt: new Date().toISOString(),
+                    }))
                 }));
             },
 

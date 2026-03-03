@@ -58,6 +58,58 @@ function getBearerToken(c: any): string | null {
 // All endpoints now use jwtAuth middleware from ../middleware/requireAuth.
 
 // ═══════════════════════════════════════════════════════════════════════════
+
+router.delete('/:jobId', jwtAuth, async (c) => {
+  const userId = getAuthUserId(c);
+  if (!userId) return c.json({ success: false, error: 'Unauthorized' }, 401);
+
+  const jobId = c.req.param('jobId');
+  if (!jobId) return c.json({ success: false, error: 'Missing job ID' }, 400);
+
+  try {
+    // 1. Verify ownership
+    const { data: job, error: fetchError } = await supabaseService
+      .from('jobs')
+      .select('user_id')
+      .eq('id', jobId)
+      .single();
+
+    if (fetchError || !job) {
+      return c.json({ success: false, error: 'Job not found' }, 404);
+    }
+
+    if (job.user_id !== userId) {
+      return c.json({ success: false, error: 'Unauthorized to delete this job' }, 403);
+    }
+
+    // 2. Delete tasks
+    const { error: tasksError } = await supabaseService
+      .from('job_tasks')
+      .delete()
+      .eq('job_id', jobId);
+
+    if (tasksError) {
+      console.error('[DELETE JOB] Failed to delete tasks:', tasksError);
+      return c.json({ success: false, error: 'Failed to delete job tasks' }, 500);
+    }
+
+    // 3. Delete job
+    const { error: jobError } = await supabaseService
+      .from('jobs')
+      .delete()
+      .eq('id', jobId);
+
+    if (jobError) {
+      console.error('[DELETE JOB] Failed to delete job:', jobError);
+      return c.json({ success: false, error: 'Failed to delete job' }, 500);
+    }
+
+    return c.json({ success: true });
+  } catch (err: any) {
+    console.error('[DELETE JOB] Error:', err);
+    return c.json({ success: false, error: 'Internal server error' }, 500);
+  }
+});
 // POST /api/jobs/v2/start — Create a new reading job
 // ═══════════════════════════════════════════════════════════════════════════
 router.post('/v2/start', jwtAuth, async (c) => {

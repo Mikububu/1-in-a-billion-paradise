@@ -272,6 +272,7 @@
   "myLibrary.reading.dateLabel": "Vom {{date}}",
   "myLibrary.reading.openReading": "Lesung öffnen",
   "myLibrary.reading.openStatus": "Status öffnen",
+  "myLibrary.reading.deletePrompt": "Möchtest du diese Lesung löschen?",
   "myLibrary.preview.defaultTitle": "Porträt",
   "myLibrary.preview.closeHint": "Tippe irgendwo hin zum Schließen",
   "generatingReading.status.initializing": "Initialisierung…",

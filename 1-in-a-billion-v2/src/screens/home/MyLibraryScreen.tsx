@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, Modal, Pressable } from 'react-native';
+import { ActivityIndicator, AppState, StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, Modal, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainStackParamList } from '@/navigation/RootNavigator';
@@ -7,7 +7,7 @@ import { useProfileStore } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { BackButton } from '@/components/BackButton';
-import { fetchJobSnapshot, type JobSnapshot } from '@/services/jobStatus';
+import { fetchJobSnapshot, deleteJob, type JobSnapshot } from '@/services/jobStatus';
 import { recoverReadingsFromCloud } from '@/services/libraryRecovery';
 import { t } from '@/i18n';
 
@@ -274,6 +274,27 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                                         partnerName: reading.partnerName,
                                         system: reading.system
                                     })}
+                                    onLongPress={() => {
+                                        Alert.alert(
+                                            t('common.delete'),
+                                            t('myLibrary.reading.deletePrompt', { defaultValue: 'Do you want to delete this reading?' }),
+                                            [
+                                                { text: t('common.cancel'), style: 'cancel' },
+                                                {
+                                                    text: t('common.delete'),
+                                                    style: 'destructive',
+                                                    onPress: async () => {
+                                                        const success = await deleteJob(reading.jobId);
+                                                        if (success) {
+                                                            useProfileStore.getState().deleteReadingByJobId(reading.jobId);
+                                                        } else {
+                                                            Alert.alert('Error', 'Failed to delete reading from cloud.');
+                                                        }
+                                                    }
+                                                }
+                                            ]
+                                        );
+                                    }}
                                 >
                                     {isOverlayReading ? (
                                         <View style={styles.dualBadgeWrap}>
@@ -332,7 +353,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                 onRequestClose={() => setPreviewImageUri(null)}
             >
                 <Pressable style={styles.previewBackdrop} onPress={() => setPreviewImageUri(null)}>
-                    <Pressable style={styles.previewCard} onPress={() => {}}>
+                    <Pressable style={styles.previewCard} onPress={() => { }}>
                         <Text style={styles.previewTitle}>{previewTitle}</Text>
                         {previewImageUri ? (
                             <Image source={{ uri: previewImageUri }} style={styles.previewImage} resizeMode="contain" />

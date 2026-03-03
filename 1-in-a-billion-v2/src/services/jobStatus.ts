@@ -64,3 +64,29 @@ export async function fetchJobSnapshot(jobId: string): Promise<JobSnapshot | nul
     return null;
   }
 }
+
+/**
+ * Perform a secure job deletion using the backend API.
+ * This ensures Tasks and Job records are safely removed.
+ */
+export async function deleteJob(jobId: string): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
+    if (!accessToken) return false;
+
+    const url = `${env.CORE_API_URL}/api/jobs/v2/${jobId}`;
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    return response.ok;
+  } catch (err) {
+    console.error('Frontend failed to call deleteJob API:', err);
+    return false;
+  }
+}
