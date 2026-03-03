@@ -164,7 +164,7 @@ async function nuclearCleanup() {
   /* ── Step 2: Wipe Storage ────────────────────────────────────── */
 
   // Buckets that must NOT be wiped (used live by the app)
-  const PROTECTED_BUCKETS = new Set(['voice-samples']);
+  const PROTECTED_BUCKETS = new Set(['voice-samples', 'audio', 'voices']);
 
   if (!dbOnly) {
     console.log('🗑️  STEP 2 — Wiping storage buckets\n');

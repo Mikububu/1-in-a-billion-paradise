@@ -1,6 +1,6 @@
 import { OutputLanguage } from '../config/languages';
 
-type AudioPersonMeta = {
+export type AudioPersonMeta = {
     name?: string;
     birthDate?: string;
     birthTime?: string;

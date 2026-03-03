@@ -157,7 +157,25 @@ function convertFloatWavToPcm(buffer: Buffer): Buffer {
 
 // NOTE: concatenateWavBuffers and buildSilenceWav are now imported from shared audioProcessing module
 
-import { buildLocalizedSpokenIntro } from '../i18n/spokenIntro';
+import { buildLocalizedSpokenIntro, type AudioPersonMeta } from '../i18n/spokenIntro';
+
+/**
+ * Infer doc type from task input for spoken intro routing.
+ * Gemini's code referenced this but never defined it.
+ */
+function inferDocType(task: any): 'person1' | 'person2' | 'overlay' | 'verdict' {
+  const explicit = task?.input?.docType;
+  if (explicit && ['person1', 'person2', 'overlay', 'verdict'].includes(explicit)) {
+    return explicit;
+  }
+  // Fallback heuristics based on docNum or task type
+  const docNum = task?.input?.docNum;
+  if (docNum === 'verdict' || docNum === 5) return 'verdict';
+  if (docNum === 1) return 'person1';
+  if (docNum === 2) return 'person2';
+  if (docNum && docNum >= 3) return 'overlay';
+  return 'person1'; // safe default
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FFmpeg Conversion
