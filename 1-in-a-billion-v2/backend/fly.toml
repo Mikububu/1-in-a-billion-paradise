@@ -6,7 +6,7 @@ primary_region = "sin"
 
 [env]
   PORT = "8787"
-  AUDIO_PARALLEL_MODE = "false"
+  AUDIO_PARALLEL_MODE = "true"
   REPLICATE_CHUNK_DELAY_MS = "0"
 
 [http_service]
