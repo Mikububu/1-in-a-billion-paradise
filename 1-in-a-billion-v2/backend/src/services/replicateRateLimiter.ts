@@ -66,12 +66,13 @@ class ReplicateRateLimiter {
 
   constructor() {
     // Production default keeps throughput reasonable while still being overrideable via env.
-    const envAccountRpm = Number(process.env.REPLICATE_ACCOUNT_RPM || 24);
+    // Fixed: Paid accounts have 600 RPM limit, so defaulting to 24 needlessly cripples audio generation.
+    const envAccountRpm = Number(process.env.REPLICATE_ACCOUNT_RPM || 600);
     const envExpectedProcesses = Number(process.env.REPLICATE_EXPECTED_PROCESSES || 1);
     const envDefaultCooldownMs = Number(process.env.REPLICATE_DEFAULT_COOLDOWN_MS || 12000);
     const envMaxCooldownMs = Number(process.env.REPLICATE_MAX_COOLDOWN_MS || 90000);
 
-    this.accountRpm = Number.isFinite(envAccountRpm) ? Math.max(1, envAccountRpm) : 60;
+    this.accountRpm = Number.isFinite(envAccountRpm) ? Math.max(1, envAccountRpm) : 600;
     this.expectedProcesses = Number.isFinite(envExpectedProcesses)
       ? Math.max(1, envExpectedProcesses)
       : 2;
@@ -126,7 +127,7 @@ class ReplicateRateLimiter {
   }
 
   private async acquireStartPermit(label: string): Promise<void> {
-    let release: () => void = () => {};
+    let release: () => void = () => { };
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
