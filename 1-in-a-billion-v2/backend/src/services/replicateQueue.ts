@@ -155,7 +155,7 @@ export async function waitForAllChunks(
 
       // Download audio from Supabase temp storage with retry (not stored in Redis)
       if (!supabase) throw new Error('Supabase not configured — cannot download audio chunks');
-      let audioBuffer: Buffer | null = null;
+      let audioBuffer: Buffer = Buffer.alloc(0);
       for (let dlAttempt = 1; dlAttempt <= 3; dlAttempt++) {
         const { data: blob, error: dlErr } = await supabase.storage
           .from('audio')
