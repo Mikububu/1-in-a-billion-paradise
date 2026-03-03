@@ -13,7 +13,7 @@ if (!supabaseUrl || !supabaseKey) {
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function main() {
-    const jobId = '23df59a5-7b31-4451-9708-03fc0169af06';
+    const jobId = 'a140c430-270f-46f0-96d0-9023f5bd5a4d';
 
     const { data: tasks, error: taskErr } = await supabase
         .from('job_tasks')
