@@ -40,6 +40,7 @@ primary_region = "sin"
   song-worker = "node dist/workers/songWorker.js"
   people-scaling-worker = "node dist/workers/peopleScalingWorker.js"
   watchdog = "node dist/workers/watchdogWorker.js"
+  rate-limiter = "node dist/workers/rateLimiterWorker.entrypoint.js"
 
 [[vm]]
   # Default VM settings (used if a process group
@@ -93,6 +94,14 @@ primary_region = "sin"
 [[vm]]
   # People scaling is CPU-ish but safe on shared.
   processes = ["people-scaling-worker"]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[[vm]]
+  # Rate limiter worker — processes BullMQ queue, calls Replicate API.
+  # Lightweight: just HTTP calls + Redis I/O, no audio processing.
+  processes = ["rate-limiter"]
   memory = "512mb"
   cpu_kind = "shared"
   cpus = 1

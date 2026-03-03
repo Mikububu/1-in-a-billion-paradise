@@ -43,6 +43,10 @@ import {
   isReplicateRateLimitError,
   runReplicateWithRateLimit,
 } from '../services/replicateRateLimiter';
+import {
+  enqueueAllChunks,
+  waitForAllChunks,
+} from '../services/replicateQueue';
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
   let timeoutHandle: NodeJS.Timeout | null = null;
@@ -373,225 +377,149 @@ export class AudioWorker extends BaseWorker {
 
       console.log(`🎤 [AudioWorker] Voice settings:`, { temperature, top_p, repetition_penalty, isTurboPreset });
 
-      // Replicate chunk generator (works for both preset + custom voices)
-      const generateChunkReplicate = async (chunk: string, index: number): Promise<Buffer> => {
-        const maxRetries = Math.max(1, parseInt(process.env.REPLICATE_CHUNK_MAX_RETRIES || '6', 10));
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-          try {
-            console.log(`  [Replicate] Chunk ${index + 1}/${chunks.length} (${chunk.length} chars) attempt ${attempt}`);
+      // ─────────────────────────────────────────────────────────────────────
+      // REPLICATE CHUNK GENERATION — via global BullMQ queue
+      //
+      // Instead of calling Replicate directly, we enqueue all chunks into
+      // a Redis-backed BullMQ queue. A dedicated rate-limiter-worker
+      // processes the queue at the global 600 RPM limit across ALL workers.
+      //
+      // Fallback: If REDIS_URL is not set, use direct Replicate calls
+      // (original behavior) for local dev without Redis.
+      // ─────────────────────────────────────────────────────────────────────
 
-            // Determine which Replicate model to call
-            const replicateModel = useMultilingual
-              ? 'resemble-ai/chatterbox-multilingual'
-              : 'resemble-ai/chatterbox-turbo';
+      const useGlobalQueue = !!process.env.REDIS_URL;
+      const chunkTimeoutMs = parseInt(process.env.REPLICATE_CHUNK_TIMEOUT_MS || '120000', 10);
 
-            // Build input — completely separate param sets for each model
-            let input: any;
+      // Determine which Replicate model to call
+      const replicateModel = useMultilingual
+        ? 'resemble-ai/chatterbox-multilingual'
+        : 'resemble-ai/chatterbox-turbo';
 
-            if (useMultilingual) {
-              // MULTILINGUAL MODEL: different API schema from Turbo
-              // Params: text_to_synthesize (max 300 chars), language_id, reference_audio,
-              //         exaggeration (0.25-2.0), cfg_weight (0.2-1.0, use 0.0 for cross-lang), temperature
-              // Does NOT accept: text, top_p, repetition_penalty, voice
-              const refAudio = voice?.sampleAudioUrl || task.input.audioUrl || this.voiceSampleUrl;
-              input = {
-                text_to_synthesize: chunk,
-                language_id: voiceConfig.languageId,
-                exaggeration: 0.5,
-                cfg_weight: 0.0,   // 0.0 = best for cross-language voice transfer
-                temperature: temperature,
-              };
-              if (refAudio) {
-                input.reference_audio = refAudio;
-                console.log(`  [Replicate] Multilingual voice cloning (${voiceConfig.languageId}) with reference: ${refAudio.substring(0, 80)}...`);
-              }
-            } else if (isTurboPreset) {
-              // TURBO PRESET: Use voice parameter (English only)
-              input = {
-                text: chunk,
-                temperature,
-                top_p,
-                repetition_penalty,
-                voice: voice?.turboVoiceId || 'alloy',
-              };
-            } else {
-              // CUSTOM VOICE (Turbo with cloning): Use reference_audio
-              const refAudio = voice?.sampleAudioUrl || task.input.audioUrl || this.voiceSampleUrl;
-              input = {
-                text: chunk,
-                temperature,
-                top_p,
-                repetition_penalty,
-                reference_audio: refAudio,
-              };
-              console.log(`  [Replicate] Custom voice cloning with reference_audio: ${refAudio?.substring(0, 80)}...`);
-            }
+      // Build base input params (without per-chunk text field)
+      let baseInput: Record<string, any>;
+      let textField: 'text' | 'text_to_synthesize';
 
-            console.log(`  🎯 [Replicate] Calling API with model: ${replicateModel}`);
-            const textPreview = (input.text || input.text_to_synthesize || '').substring(0, 50);
-            console.log(`  📝 [Replicate] Input:`, JSON.stringify({
-              ...input,
-              text: input.text ? `${textPreview}...` : undefined,
-              text_to_synthesize: input.text_to_synthesize ? `${textPreview}...` : undefined,
-              reference_audio: input.reference_audio ? `${input.reference_audio.substring(0, 40)}...` : undefined
-            }));
-
-            const startTime = Date.now();
-
-            // Call Replicate API with hard timeout to avoid hung chunks.
-            const chunkTimeoutMs = parseInt(process.env.REPLICATE_CHUNK_TIMEOUT_MS || '120000', 10);
-            const output = await runReplicateWithRateLimit(
-              `audioWorker:chunk:${index + 1}`,
-              () =>
-                withTimeout(
-                  replicate.run(replicateModel as `${string}/${string}`, { input }),
-                  chunkTimeoutMs,
-                  `Replicate chunk ${index + 1}`
-                )
-            );
-
-            const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
-            console.log(`  ⏱️  [Replicate] API call completed in ${elapsed}s`);
-
-
-            console.log(`  📦 [Replicate] Response type: ${typeof output}, isStream: ${output instanceof ReadableStream}, isBuffer: ${Buffer.isBuffer(output)}, isString: ${typeof output === 'string'}`);
-
-            // Output is a ReadableStream or URL - handle both
-            let audioBuffer: Buffer;
-            if (output instanceof ReadableStream || (output as any).getReader) {
-              console.log(`  🌊 [Replicate] Processing as ReadableStream...`);
-              // It's a stream
-              const reader = (output as ReadableStream).getReader();
-              const chunks: Uint8Array[] = [];
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                chunks.push(value);
-              }
-              audioBuffer = Buffer.concat(chunks);
-              console.log(`  ✅ [Replicate] Stream processed: ${chunks.length} chunks, ${audioBuffer.length} bytes`);
-            } else if (typeof output === 'string') {
-              // It's a URL - fetch it
-              console.log(`  🔗 [Replicate] Processing as URL: ${(output as string).substring(0, 60)}...`);
-              const response = await axios.get(output, { responseType: 'arraybuffer' });
-              audioBuffer = Buffer.from(response.data);
-              console.log(`  ✅ [Replicate] URL fetched: ${audioBuffer.length} bytes`);
-            } else if (Buffer.isBuffer(output)) {
-              console.log(`  📦 [Replicate] Direct buffer received: ${output.length} bytes`);
-              audioBuffer = output;
-            } else {
-              // Try to read as stream-like object
-              console.log(`  ⚠️  [Replicate] Unknown output type, attempting arrayBuffer conversion...`);
-              const data = await (output as any).arrayBuffer?.() || output;
-              audioBuffer = Buffer.from(data);
-              console.log(`  ✅ [Replicate] Converted to buffer: ${audioBuffer.length} bytes`);
-            }
-
-            console.log(`  ✅ [Replicate] Chunk ${index + 1} completed: ${audioBuffer.length} bytes`);
-            return audioBuffer;
-
-          } catch (error: any) {
-            const is429 = isReplicateRateLimitError(error);
-            const isAuthError = error.message?.includes('401') || error.message?.includes('authentication') || error.message?.includes('Unauthorized');
-            const isBadRequest = error.message?.includes('400') || error.message?.includes('422') || error.message?.includes('invalid');
-
-            // Parse retry_after from error message if present
-            let retryAfter = attempt * 3; // default exponential backoff
-            if (is429) {
-              const retryMatch = error.message.match(/"retry_after":(\d+)/);
-              if (retryMatch) {
-                retryAfter = Math.max(parseInt(retryMatch[1]) + 1, retryAfter);
-              } else {
-                // Replicate rate limit: 6 req/min with <$5 credit = ~10s between requests
-                retryAfter = 12;
-              }
-            }
-
-            console.error(`  ❌ [Replicate] Chunk ${index + 1} attempt ${attempt} failed: ${error.message}`);
-
-            // ABORT IMMEDIATELY on auth or bad request errors (no retry)
-            if (isAuthError || isBadRequest) {
-              console.error(`\n${'═'.repeat(70)}`);
-              console.error(`🚨 CRITICAL REPLICATE ERROR - ABORTING ENTIRE JOB`);
-              console.error(`${'═'.repeat(70)}`);
-              console.error(`Error Type: ${isAuthError ? 'Authentication' : 'Bad Request'}`);
-              console.error(`Message: ${error.message}`);
-              console.error(`Chunk: ${index + 1}/${chunks.length}`);
-              console.error(`${'═'.repeat(70)}\n`);
-              throw new Error(`REPLICATE ABORT: ${error.message}`);
-            }
-
-            if (attempt < maxRetries) {
-              console.log(`  ⏳ Retrying in ${retryAfter}s...${is429 ? ' (rate limited)' : ''}`);
-              await this.sleep(retryAfter * 1000);
-            } else {
-              console.error(`\n${'═'.repeat(70)}`);
-              console.error(`🚨 REPLICATE FAILED AFTER ${maxRetries} ATTEMPTS - ABORTING JOB`);
-              console.error(`${'═'.repeat(70)}`);
-              console.error(`Chunk: ${index + 1}/${chunks.length}`);
-              console.error(`Error: ${error.message}`);
-              console.error(`${'═'.repeat(70)}\n`);
-              throw new Error(`REPLICATE ABORT: Chunk ${index + 1} failed after ${maxRetries} attempts: ${error.message}`);
-            }
-          }
+      if (useMultilingual) {
+        textField = 'text_to_synthesize';
+        const refAudio = voice?.sampleAudioUrl || task.input.audioUrl || this.voiceSampleUrl;
+        baseInput = {
+          language_id: voiceConfig.languageId,
+          exaggeration: 0.5,
+          cfg_weight: 0.0,
+          temperature: temperature,
+        };
+        if (refAudio) {
+          baseInput.reference_audio = refAudio;
+          console.log(`  [Replicate] Multilingual voice cloning (${voiceConfig.languageId}) with reference: ${refAudio.substring(0, 80)}...`);
         }
-        throw new Error(`Chunk ${index + 1} exhausted retries`);
-      };
+      } else if (isTurboPreset) {
+        textField = 'text';
+        baseInput = {
+          temperature,
+          top_p,
+          repetition_penalty,
+          voice: voice?.turboVoiceId || 'alloy',
+        };
+      } else {
+        textField = 'text';
+        const refAudio = voice?.sampleAudioUrl || task.input.audioUrl || this.voiceSampleUrl;
+        baseInput = {
+          temperature,
+          top_p,
+          repetition_penalty,
+          reference_audio: refAudio,
+        };
+        console.log(`  [Replicate] Custom voice cloning with reference_audio: ${refAudio?.substring(0, 80)}...`);
+      }
 
-      // Spoken intro is prepended above via buildSpokenIntro.
-
-      // Generate all chunks with Replicate
       const startTime = Date.now();
-      // Default to SEQUENTIAL mode for rate limit safety
-      const useParallelMode = process.env.AUDIO_PARALLEL_MODE === 'true';
-      const concurrentLimit = parseInt(process.env.AUDIO_CONCURRENT_LIMIT || '2', 10);
-      // Optional extra spacing (shared limiter already enforces pacing).
-      const chunkDelayMs = parseInt(process.env.REPLICATE_CHUNK_DELAY_MS || '0', 10);
-
       let audioBuffers: Buffer[] = [];
 
-      if (useParallelMode) {
-        console.log(`🚀 [AudioWorker] Starting PARALLEL Replicate generation of ${chunks.length} chunks (limit: ${concurrentLimit})...`);
-        console.warn(`⚠️  PARALLEL mode enabled; shared Replicate limiter will serialize API calls per process.`);
-        const pLimit = (await import('p-limit')).default;
-        const limit = pLimit(concurrentLimit);
+      if (useGlobalQueue) {
+        // ═══════════════════════════════════════════════════════════════════
+        // GLOBAL QUEUE MODE — enqueue to Redis, rate-limiter-worker processes
+        // ═══════════════════════════════════════════════════════════════════
+        console.log(`🚀 [AudioWorker] Enqueuing ${chunks.length} chunks to global BullMQ queue...`);
+        console.log(`   Model: ${replicateModel}, Timeout: ${chunkTimeoutMs}ms`);
 
-        const promises = chunks.map((chunk, index) =>
-          limit(async () => {
-            const buffer = await generateChunkReplicate(chunk, index);
-            // Add delay between parallel batches
-            if (chunkDelayMs > 0) await this.sleep(chunkDelayMs);
-            return { index, buffer };
-          })
+        const taskId = task.id || 'unknown';
+        const jobIds = await enqueueAllChunks(
+          taskId,
+          chunks,
+          replicateModel,
+          baseInput,
+          textField,
+          chunkTimeoutMs,
         );
 
-        const results = await Promise.all(promises);
-        results.sort((a, b) => a.index - b.index);
-        audioBuffers = results.map(r => r.buffer);
+        console.log(`📤 [AudioWorker] All ${chunks.length} chunks enqueued — waiting for rate-limiter-worker...`);
+
+        // Wait for all chunks to be processed (up to 10 min for large readings)
+        const queueTimeoutMs = parseInt(process.env.QUEUE_WAIT_TIMEOUT_MS || '600000', 10);
+        audioBuffers = await waitForAllChunks(jobIds, queueTimeoutMs);
+
       } else {
-        console.log(`🚀 [AudioWorker] Starting SEQUENTIAL Replicate generation of ${chunks.length} chunks (${chunkDelayMs}ms delay)...`);
-        const generationStartTime = Date.now();
+        // ═══════════════════════════════════════════════════════════════════
+        // LOCAL FALLBACK — direct Replicate calls (no Redis needed)
+        // ═══════════════════════════════════════════════════════════════════
+        console.log(`🚀 [AudioWorker] No REDIS_URL — using direct Replicate calls (local dev mode)`);
+        console.log(`   Generating ${chunks.length} chunks sequentially...`);
+
         for (let i = 0; i < chunks.length; i++) {
-          const chunkStartTime = Date.now();
-          console.log(`\n${'═'.repeat(70)}`);
-          console.log(`🎵 [AudioWorker] Chunk ${i + 1}/${chunks.length} (${chunks[i]!.length} chars)`);
-          console.log(`   Preview: ${chunks[i]!.substring(0, 80)}...`);
-          console.log(`${'═'.repeat(70)}\n`);
+          const maxRetries = Math.max(1, parseInt(process.env.REPLICATE_CHUNK_MAX_RETRIES || '6', 10));
+          let buffer: Buffer | null = null;
 
-          const buffer = await generateChunkReplicate(chunks[i]!, i);
-          audioBuffers.push(buffer);
+          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+              console.log(`  [Replicate] Chunk ${i + 1}/${chunks.length} (${chunks[i]!.length} chars) attempt ${attempt}`);
+              const input = { ...baseInput, [textField]: chunks[i] };
 
-          const chunkElapsed = ((Date.now() - chunkStartTime) / 1000).toFixed(1);
-          const totalElapsed = ((Date.now() - generationStartTime) / 1000 / 60).toFixed(1);
-          const avgTimePerChunk = ((Date.now() - generationStartTime) / 1000 / (i + 1)).toFixed(1);
-          const estimatedRemaining = ((chunks.length - i - 1) * parseFloat(avgTimePerChunk) / 60).toFixed(1);
-          console.log(`✅ [AudioWorker] Chunk ${i + 1}/${chunks.length} done in ${chunkElapsed}s | Total: ${totalElapsed}m | Est. remaining: ${estimatedRemaining}m`);
+              const output = await runReplicateWithRateLimit(
+                `audioWorker:chunk:${i + 1}`,
+                () => withTimeout(
+                  replicate.run(replicateModel as `${string}/${string}`, { input }),
+                  chunkTimeoutMs,
+                  `Replicate chunk ${i + 1}`
+                )
+              );
 
-          // Add delay between chunks (except after last chunk)
-          if (i < chunks.length - 1 && chunkDelayMs > 0) {
-            console.log(`  ⏱️  Waiting ${chunkDelayMs}ms before next chunk (rate limit pacing)...`);
-            await this.sleep(chunkDelayMs);
+              // Convert output to Buffer
+              if (output instanceof ReadableStream || (output as any).getReader) {
+                const reader = (output as ReadableStream).getReader();
+                const parts: Uint8Array[] = [];
+                while (true) {
+                  const { done, value } = await reader.read();
+                  if (done) break;
+                  parts.push(value);
+                }
+                buffer = Buffer.concat(parts);
+              } else if (typeof output === 'string') {
+                const response = await axios.get(output, { responseType: 'arraybuffer' });
+                buffer = Buffer.from(response.data);
+              } else if (Buffer.isBuffer(output)) {
+                buffer = output;
+              } else {
+                const data = await (output as any).arrayBuffer?.() || output;
+                buffer = Buffer.from(data);
+              }
+
+              console.log(`  ✅ [Replicate] Chunk ${i + 1} completed: ${buffer.length} bytes`);
+              break; // Success — exit retry loop
+            } catch (error: any) {
+              const is429 = isReplicateRateLimitError(error);
+              console.error(`  ❌ [Replicate] Chunk ${i + 1} attempt ${attempt} failed: ${error.message}`);
+              if (attempt < maxRetries) {
+                const retryAfter = is429 ? 12 : attempt * 3;
+                console.log(`  ⏳ Retrying in ${retryAfter}s...`);
+                await this.sleep(retryAfter * 1000);
+              } else {
+                throw new Error(`REPLICATE ABORT: Chunk ${i + 1} failed after ${maxRetries} attempts: ${error.message}`);
+              }
+            }
           }
+
+          audioBuffers.push(buffer!);
         }
       }
 
