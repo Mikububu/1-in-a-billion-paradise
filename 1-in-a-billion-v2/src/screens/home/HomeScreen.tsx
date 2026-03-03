@@ -23,6 +23,7 @@ import { CHAT_RENEW_WARNING_TEXT } from '@/utils/chatAccess';
 import { getJobReceipts, type JobReceipt } from '@/services/jobBuffer';
 import { fetchJobSnapshot } from '@/services/jobStatus';
 import { getLanguage, onLanguageChange, LANGUAGE_META, type LanguageCode, t } from '@/i18n';
+import * as ImagePicker from 'expo-image-picker';
 import { LanguagePicker } from '@/components/LanguagePicker';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Home'>;
@@ -199,7 +200,6 @@ export const HomeScreen = ({ navigation }: Props) => {
 
   const handleUploadPhoto = async () => {
     try {
-      const ImagePicker = await import('expo-image-picker');
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(t('home.photo.permission.title'), t('home.photo.permission.message'));

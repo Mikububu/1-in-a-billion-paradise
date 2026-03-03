@@ -20,20 +20,9 @@ import { uploadPersonPhoto } from '@/services/personPhotoService';
 import { useAuthStore } from '@/store/authStore';
 import { insertPersonToSupabase } from '@/services/peopleService';
 import { t } from '@/i18n';
+import * as ImagePicker from 'expo-image-picker';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonPhotoUpload'>;
-
-let ImagePicker: any = null;
-const loadImagePicker = async () => {
-    if (!ImagePicker) {
-        try {
-            ImagePicker = await import('expo-image-picker');
-        } catch {
-            ImagePicker = null;
-        }
-    }
-    return ImagePicker;
-};
 
 export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
     const { personId, returnTo } = route.params;
@@ -118,20 +107,14 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
     };
 
     const pickPhoto = async () => {
-        const picker = await loadImagePicker();
-        if (!picker) {
-            Alert.alert(t('photoUpload.unavailable'), t('photoUpload.requiresNativeBuild'));
-            return;
-        }
-
-        const { status } = await picker.requestMediaLibraryPermissionsAsync();
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
             Alert.alert(t('photoUpload.permissionRequired'), t('photoUpload.allowPhotoLibrary'));
             return;
         }
 
-        const result = await picker.launchImageLibraryAsync({
-            mediaTypes: picker.MediaTypeOptions.Images,
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
             aspect: [1, 1],
             quality: 0.8,

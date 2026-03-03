@@ -60,7 +60,7 @@ const TIERS: TierDef[] = [
   },
   {
     id: 'yearly',
-    label: '108',
+    label: 'Yogi',
     priceLabel: '$108',
     period: '/year',
     bullets: [

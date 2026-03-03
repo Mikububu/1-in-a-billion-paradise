@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Image, Dimensions, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainStackParamList } from '@/navigation/RootNavigator';
@@ -9,17 +9,6 @@ import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { t, getLanguage, LANGUAGE_META, SUPPORTED_LANGUAGES, type LanguageCode } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ReadingLanguage'>;
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const IMAGE_WIDTH = SCREEN_WIDTH * 0.55;
-
-const FLAG_EMOJIS: Record<LanguageCode, string> = {
-    en: '🇬🇧',
-    de: '🇩🇪',
-    es: '🇪🇸',
-    fr: '🇫🇷',
-    zh: '🇨🇳',
-};
 
 export const ReadingLanguageScreen = ({ navigation, route }: Props) => {
     const { ...restParams } = (route.params || {}) as any;
@@ -36,14 +25,6 @@ export const ReadingLanguageScreen = ({ navigation, route }: Props) => {
         <SafeAreaView style={styles.container}>
             <BackButton onPress={() => navigation.goBack()} />
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                <View style={styles.imageContainer}>
-                    <Image
-                        source={require('../../../assets/images/looking at phone.jpg')}
-                        style={styles.image}
-                        resizeMode="cover"
-                    />
-                </View>
-
                 <Text style={styles.title}>{t('readingLanguage.title')}</Text>
                 <Text style={styles.subtitle}>{t('readingLanguage.subtitle')}</Text>
 
@@ -58,7 +39,6 @@ export const ReadingLanguageScreen = ({ navigation, route }: Props) => {
                                 onPress={() => setSelectedLanguage(lang)}
                                 activeOpacity={0.7}
                             >
-                                <Text style={styles.flag}>{FLAG_EMOJIS[lang]}</Text>
                                 <View style={styles.languageTextGroup}>
                                     <Text style={[styles.languageNative, isSelected && styles.languageNativeSelected]}>
                                         {meta.nativeName}
@@ -98,17 +78,6 @@ const styles = StyleSheet.create({
         paddingBottom: 100,
         alignItems: 'center',
     },
-    imageContainer: {
-        width: IMAGE_WIDTH,
-        height: IMAGE_WIDTH * 1.3,
-        borderRadius: radii.card,
-        overflow: 'hidden',
-        marginBottom: spacing.lg,
-    },
-    image: {
-        width: '100%',
-        height: '100%',
-    },
     title: {
         fontFamily: typography.headline,
         fontSize: 26,
@@ -123,7 +92,7 @@ const styles = StyleSheet.create({
         lineHeight: 20,
         color: colors.mutedText,
         textAlign: 'center',
-        marginBottom: spacing.lg,
+        marginBottom: spacing.xl,
         paddingHorizontal: spacing.md,
     },
     languageList: {
@@ -142,11 +111,7 @@ const styles = StyleSheet.create({
     },
     languageCardSelected: {
         borderColor: colors.primary,
-        backgroundColor: 'rgba(255, 79, 163, 0.06)',
-    },
-    flag: {
-        fontSize: 24,
-        marginRight: spacing.md,
+        backgroundColor: colors.surface,
     },
     languageTextGroup: {
         flex: 1,
