@@ -85,7 +85,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
     );
 
     const trackedReadings = useMemo<TrackedReading[]>(() => {
-        const jobsMap = new Map<string, TrackedReading>();
+        const readingsList: TrackedReading[] = [];
 
         const findPartnerImage = (partnerName?: string) => {
             if (!partnerName) return undefined;
@@ -100,43 +100,23 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                 const ts = Math.max(toEpoch(reading.createdAt), toEpoch(reading.generatedAt));
                 const currentTs = ts > 0 ? ts : Math.max(toEpoch(person.updatedAt), toEpoch(person.createdAt));
 
-                const existing = jobsMap.get(reading.jobId);
-                const isOverlay = reading.readingType === 'overlay' || reading.readingType === 'verdict' || !!reading.partnerName;
-
-                if (!existing) {
-                    jobsMap.set(reading.jobId, {
-                        id: reading.id,
-                        jobId: reading.jobId,
-                        docNum: reading.docNum,
-                        personName: person.name,
-                        system: reading.system,
-                        lastTimestamp: currentTs,
-                        readingType: reading.readingType,
-                        partnerName: reading.partnerName,
-                        personImageUrl: person.portraitUrl || person.originalPhotoUrl || undefined,
-                        partnerImageUrl: findPartnerImage(reading.partnerName),
-                    });
-                } else {
-                    // Update existing if this reading is more "descriptive" of the overall job (i.e. it's the overlay)
-                    if (isOverlay) {
-                        jobsMap.set(reading.jobId, {
-                            ...existing,
-                            docNum: reading.docNum,
-                            personName: person.name,
-                            partnerName: reading.partnerName || existing.partnerName,
-                            readingType: reading.readingType,
-                            personImageUrl: person.portraitUrl || person.originalPhotoUrl || existing.personImageUrl,
-                            partnerImageUrl: findPartnerImage(reading.partnerName) || existing.partnerImageUrl,
-                            lastTimestamp: Math.max(existing.lastTimestamp, currentTs),
-                        });
-                    } else {
-                        existing.lastTimestamp = Math.max(existing.lastTimestamp, currentTs);
-                    }
-                }
+                readingsList.push({
+                    id: reading.id,
+                    jobId: reading.jobId,
+                    docNum: reading.docNum,
+                    personName: person.name,
+                    system: reading.system,
+                    lastTimestamp: currentTs,
+                    readingType: reading.readingType,
+                    partnerName: reading.partnerName,
+                    personImageUrl: person.portraitUrl || person.originalPhotoUrl || undefined,
+                    partnerImageUrl: findPartnerImage(reading.partnerName),
+                });
             }
         }
 
-        return Array.from(jobsMap.values()).sort((a, b) => b.lastTimestamp - a.lastTimestamp);
+        // We sort by most recently generated first
+        return readingsList.sort((a, b) => b.lastTimestamp - a.lastTimestamp);
     }, [people]);
 
     const handleOpenPortrait = useCallback(() => {
