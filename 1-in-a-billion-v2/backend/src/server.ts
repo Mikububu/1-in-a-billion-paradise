@@ -25,7 +25,7 @@ import couplesRouter from './routes/couples';
 import chatRouter from './routes/chat';
 import couponsRouter from './routes/coupons';
 import { preloadApiKeys } from './services/apiKeys';
-import { globalLimiter, authLimiter, llmLimiter, webhookLimiter } from './middleware/rateLimiter';
+import { globalLimiter, authLimiter, llmLimiter, jobPollingLimiter, webhookLimiter } from './middleware/rateLimiter';
 import { errorHandler } from './middleware/errorHandler';
 import './services/jobHealthCheck'; // Auto-starts job health check service
 
@@ -61,7 +61,9 @@ app.use('*', async (c, next) => {
 // Rate limiting - applied globally, tighter on auth & AI endpoints
 app.use('*', globalLimiter);
 app.use('/api/auth/*', authLimiter);
-app.use('/api/jobs/*', llmLimiter);
+app.use('/api/jobs/v2/start', llmLimiter);
+app.use('/api/jobs/v2/:jobId', jobPollingLimiter);
+app.use('/api/jobs/v2/user/:userId/jobs', jobPollingLimiter);
 app.use('/api/payments/webhook', webhookLimiter);
 
 app.get('/health', (c) => c.json({ status: 'ok', time: new Date().toISOString() }));

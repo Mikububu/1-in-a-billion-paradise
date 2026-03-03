@@ -134,6 +134,14 @@ export const llmLimiter = createRateLimiter('llm', {
   message: 'Rate limit reached for AI generation. Please wait before trying again.',
 });
 
+/** Polling endpoints: 30 requests per minute per user */
+export const jobPollingLimiter = createRateLimiter('job_polling', {
+  windowMs: 60_000,
+  maxRequests: 30,
+  keyGenerator: (c: Context) => c.get('userId') || getClientIp(c),
+  message: 'Please slow down your requests.',
+});
+
 /** Webhook endpoints: 30 requests per minute per IP (RevenueCat) */
 export const webhookLimiter = createRateLimiter('webhook', {
   windowMs: 60_000,

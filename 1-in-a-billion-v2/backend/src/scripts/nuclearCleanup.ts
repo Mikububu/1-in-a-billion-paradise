@@ -163,11 +163,19 @@ async function nuclearCleanup() {
 
   /* ── Step 2: Wipe Storage ────────────────────────────────────── */
 
+  // Buckets that must NOT be wiped (used live by the app)
+  const PROTECTED_BUCKETS = new Set(['voice-samples']);
+
   if (!dbOnly) {
     console.log('🗑️  STEP 2 — Wiping storage buckets\n');
+    console.log(`   🛡️  Protected (skipped): ${[...PROTECTED_BUCKETS].join(', ')}\n`);
     let storageDeleted = 0;
     if (buckets?.length) {
       for (const b of buckets) {
+        if (PROTECTED_BUCKETS.has(b.name)) {
+          console.log(`   ⏭️  ${b.name}: PROTECTED — skipping`);
+          continue;
+        }
         if (bucketStats[b.name] === 0) continue;
         storageDeleted += await deleteBucketFiles(supabase, b.name);
       }

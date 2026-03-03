@@ -74,7 +74,7 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
         };
 
         run();
-        const timer = setInterval(run, 10000);
+        const timer = setInterval(run, 15000);
 
         return () => {
             cancelled = true;
