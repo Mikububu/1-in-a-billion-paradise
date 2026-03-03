@@ -33,6 +33,10 @@ case "$PROCESS_GROUP" in
     echo "[entrypoint] Starting audiobook worker..."
     exec node dist/workers/audiobookQueueWorker.js
     ;;
+  rate-limiter)
+    echo "[entrypoint] Starting rate-limiter worker (BullMQ → Replicate)..."
+    exec node dist/workers/rateLimiterWorker.entrypoint.js
+    ;;
   
   # ═══════════════════════════════════════════════════════════════════════════
   # COMBINED WORKER (runs text + PDF + audio in one container)
