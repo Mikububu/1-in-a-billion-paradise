@@ -83,7 +83,7 @@ const PROVIDER_CONFIG = {
     emoji: '🧠',
     url: 'https://api.anthropic.com/v1/messages',
     model: env.CLAUDE_MODEL || DEFAULT_CLAUDE_MODEL,
-    maxTokens: 8192,
+    maxTokens: 16384,
     getHeaders: async () => {
       const key = await getApiKey('claude', env.CLAUDE_API_KEY);
       if (!key) throw new Error('Claude API key not found (check Supabase api_keys table or CLAUDE_API_KEY env var)');
