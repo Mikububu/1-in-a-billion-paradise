@@ -48,7 +48,7 @@ type SignatureBlock = {
   dataLine?: string;
 };
 
-interface PDFGenerationOptions {
+export interface PDFGenerationOptions {
   type: 'single' | 'overlay' | 'nuclear';
   title: string;
   subtitle?: string;
@@ -633,6 +633,27 @@ function renderChartReferenceText(doc: any, chartReferencePage: string, hasPlayf
 }
 
 type CompatibilityRow = { label: string; score: number; note?: string };
+type FinalIronyVerdict = { score: number; text: string };
+
+/**
+ * Extract the punchy X/10 final verdict line added to the master verdict block.
+ * Example format: "FINAL VERDICT: 2/10 - Run away very fast."
+ */
+function extractFinalIronyVerdict(reading: string): FinalIronyVerdict | null {
+  const text = String(reading || '');
+  const verdictRe = /^FINAL VERDICT:\s*(\d{1,2}(?:\.\d+)?)\s*\/\s*10\s*[-—–]+\s*(.+)$/gmi;
+  const match = verdictRe.exec(text);
+  if (!match) return null;
+
+  const score = Number(match[1]);
+  const verdictText = (match[2] || '').trim();
+
+  if (!Number.isFinite(score) || !verdictText) return null;
+  return {
+    score: Math.max(0, Math.min(10, score)),
+    text: verdictText
+  };
+}
 
 /**
  * Extract compatibility scores from LLM-generated reading text.
@@ -710,8 +731,13 @@ function toTitleCase(str: string): string {
     .join(' ');
 }
 
-function renderCompatibilitySnapshotPage(doc: any, rows: CompatibilityRow[], hasPlayfairBold: boolean): void {
-  if (!rows.length) return;
+function renderCompatibilitySnapshotPage(
+  doc: any,
+  rows: CompatibilityRow[],
+  hasPlayfairBold: boolean,
+  finalVerdict?: FinalIronyVerdict | null
+): void {
+  if (!rows.length && !finalVerdict) return;
   doc.addPage();
 
   const left = doc.page.margins.left;
@@ -763,6 +789,26 @@ function renderCompatibilitySnapshotPage(doc: any, rows: CompatibilityRow[], has
 
     // Generous spacing between rows
     doc.moveDown(1.0);
+  }
+
+  // ── Render the bold ironic 1-to-10 Final Verdict at the bottom
+  if (finalVerdict) {
+    if (doc.y + 80 > pageBottom) {
+      doc.addPage();
+    }
+
+    doc.moveDown(1.0);
+    doc.save();
+
+    doc.font(hasPlayfairBold ? 'PlayfairBold' : 'GaramondBold').fontSize(18).fillColor('#7a4a12')
+      .text(`FINAL VERDICT: ${finalVerdict.score}/10`, { width: contentWidth, align: 'center' });
+
+    doc.moveDown(0.3);
+
+    doc.font('Garamond').fontSize(13).fillColor('#111111')
+      .text(finalVerdict.text, { width: contentWidth, align: 'center' });
+
+    doc.restore();
   }
 }
 
@@ -951,7 +997,7 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
         const imgY = doc.y + 20;
         const imgHeight = imgWidth;
         const radius = 20;
-        
+
         try {
           doc.save();
           doc.roundedRect(imgX, imgY, imgWidth, imgHeight, radius).clip();
@@ -1005,7 +1051,7 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
 
       // Body text
       for (const chapter of cleanedChapters) {
-      if (chapter.person1Reading) {
+        if (chapter.person1Reading) {
           renderReadingText(doc, chapter.person1Reading, hasPlayfairBold, options.allowInferredHeadlines ?? false);
         }
         if (chapter.person2Reading) {
@@ -1020,6 +1066,10 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
       }
 
       if (options.type === 'overlay') {
+        const allReadingText = cleanedChapters
+          .map((c) => [c.overlayReading, c.verdict].filter(Boolean).join('\n\n'))
+          .join('\n\n');
+
         // Priority 1: Use pre-computed scores from separate scoring call
         if (options.compatibilityScores && options.compatibilityScores.length > 0) {
           const rows: CompatibilityRow[] = options.compatibilityScores.map((s) => ({
@@ -1027,15 +1077,14 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
             score: s.scoreTen,
             note: s.note || undefined,
           }));
-          renderCompatibilitySnapshotPage(doc, rows, hasPlayfairBold);
+          const finalVerdictStr = extractFinalIronyVerdict(allReadingText);
+          renderCompatibilitySnapshotPage(doc, rows, hasPlayfairBold, finalVerdictStr);
         } else {
           // Fallback: try to extract from reading text (legacy/worker path)
-          const allReadingText = cleanedChapters
-            .map((c) => [c.overlayReading, c.verdict].filter(Boolean).join('\n\n'))
-            .join('\n\n');
           const compatibilityRows = extractCompatibilityRows(allReadingText);
-          if (compatibilityRows.length > 0) {
-            renderCompatibilitySnapshotPage(doc, compatibilityRows, hasPlayfairBold);
+          const finalVerdictStr = extractFinalIronyVerdict(allReadingText);
+          if (compatibilityRows.length > 0 || finalVerdictStr) {
+            renderCompatibilitySnapshotPage(doc, compatibilityRows, hasPlayfairBold, finalVerdictStr);
           }
         }
       }
@@ -1079,8 +1128,8 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
         // Draw page number at bottom - use absolute positioning
         doc.font('Garamond').fontSize(10);
         doc.page.margins.bottom = 0;
-        doc.text(String(i + 1), 100, doc.page.height - 60, { 
-          width: doc.page.width - 200, 
+        doc.text(String(i + 1), 100, doc.page.height - 60, {
+          width: doc.page.width - 200,
           align: 'center',
           lineBreak: false,
           continued: false
@@ -1123,28 +1172,28 @@ export async function generateChapterPDF(
     chapter.overlayReading,
     chapter.verdict,
   ].filter(Boolean);
-  
+
   if (contentFields.length === 0) {
     throw new Error('CRITICAL PDF ERROR: No reading content provided in chapter');
   }
-  
+
   if (contentFields.length > 1) {
     throw new Error(
       `CRITICAL PDF ERROR: Multiple reading fields have content (${contentFields.length} fields). ` +
       `Only ONE should have content per PDF. This prevents the bug where same content is used for all PDFs.`
     );
   }
-  
+
   // Validate person2 readings have person2 data
   if (chapter.person2Reading && !person2) {
     throw new Error('CRITICAL PDF ERROR: person2Reading provided but no person2 data');
   }
-  
+
   // Validate overlay readings have person2 data
   if (chapter.overlayReading && !person2) {
     throw new Error('CRITICAL PDF ERROR: overlayReading provided but no person2 data');
   }
-  
+
   return generateReadingPDF({
     type: person2 ? 'overlay' : 'single',
     title: chapter.title,

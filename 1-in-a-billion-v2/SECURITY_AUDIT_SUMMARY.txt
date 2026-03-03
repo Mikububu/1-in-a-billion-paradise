@@ -1,0 +1,178 @@
+================================================================================
+SECURITY AUDIT SUMMARY - 1-in-a-billion-v2
+================================================================================
+
+AUDIT SCOPE:
+- React Native + Expo frontend
+- Node.js/Hono backend
+- Supabase (database + auth)
+- RevenueCat (payments)
+- Claude/Replicate APIs
+
+TOTAL FINDINGS: 14 (1 Critical, 5 High, 5 Medium, 3 Low)
+
+================================================================================
+CRITICAL ISSUES (MUST FIX BEFORE PRODUCTION)
+================================================================================
+
+1. PAYMENT BYPASS ENABLED
+   File: .env (Line 21)
+   Issue: EXPO_PUBLIC_ALLOW_PAYMENT_BYPASS=true allows all users to skip payments
+   Risk: Revenue loss, users get premium features without paying
+   Fix: Set to false, implement server-side verification
+
+2. SUPABASE ANON KEY EXPOSED
+   File: .env (Line 3)
+   Issue: JWT anon key hardcoded and exposed, valid until 2080
+   Risk: If repo is compromised, entire database is at risk
+   Fix: Rotate immediately, clean git history, use config management
+
+================================================================================
+HIGH PRIORITY ISSUES (FIX BEFORE PRODUCTION)
+================================================================================
+
+3. ADMIN ENDPOINTS LEAK PII
+   File: backend/src/routes/admin.ts (Line 56)
+   Issue: Returns raw_user_meta_data with sensitive info, no filtering
+   Risk: If admin account compromised, attacker gets all user data
+   Fix: Filter to safe fields only (id, email, created_at, last_sign_in_at)
+
+4. DEV DASHBOARD NOT ADMIN-ONLY
+   File: backend/src/routes/devDashboard.ts (Line 30)
+   Issue: Any authenticated user can view ALL jobs, not just their own
+   Risk: Users can see other users' data, progress, errors
+   Fix: Add requireAdminAuth or filter to user's own jobs
+
+5. CORS ORIGINS HAVE LOCALHOST
+   File: backend/src/server.ts (Lines 35-46)
+   Issue: localhost:8081 and localhost:19006 hardcoded, may be in production
+   Risk: Any local app can make requests to backend
+   Fix: Remove localhost, make configurable via env vars
+
+6. RATE LIMITER FAILS OPEN
+   File: backend/src/middleware/rateLimiter.ts (Lines 107-110)
+   Issue: On failure, requests bypass rate limits entirely
+   Risk: DoS attacks if rate limiter crashes
+   Fix: Fail closed, log failures, consider Redis backing
+
+7. REVENUECAT KEY IN .env (MEDIUM-HIGH)
+   File: .env (Line 9)
+   Issue: EXPO_PUBLIC_REVENUECAT_API_KEY_IOS is hardcoded
+   Note: Public keys are meant to be public, but still not ideal
+   Fix: Fine as-is, but ensure REVENUECAT_SECRET_KEY stays in backend only
+
+================================================================================
+MEDIUM PRIORITY ISSUES (SHOULD FIX)
+================================================================================
+
+8. ADMIN SECRET NOT CONSISTENTLY ENFORCED
+   Files: backend/src/routes/coupons.ts, internalPeopleScaling.ts
+   Issue: Timing-safe comparison exists but only on 2 routes
+   Fix: Create reusable middleware, apply everywhere needed
+
+9. INPUT VALIDATION INCOMPLETE
+   Various routes
+   Issue: Not all endpoints validate inputs with Zod
+   Fix: Add schema validation to all POST/PUT endpoints
+
+10. RLS POLICIES NOT AUDITED
+    File: supabase_storage_policies.sql
+    Issue: Only storage policies defined, table-level RLS unknown
+    Fix: Audit all table policies, document, test for cross-user access
+
+11. REVENUECAT WEBHOOK NO BODY SIGNATURE
+    File: backend/src/services/revenuecatService.ts (Lines 66-79)
+    Issue: Only checks Bearer token, not HMAC-SHA256 of body
+    Risk: If secret leaked, attacker can forge webhooks
+    Fix: Add body signature verification
+
+12. BETA KEY NOT IMPLEMENTED
+    File: backend/src/config/env.ts (Line 34)
+    Issue: Beta key config exists but not enforced anywhere
+    Fix: Either implement properly or remove from codebase
+
+13. ERROR MESSAGE HEURISTICS WEAK
+    File: backend/src/utils/safeError.ts
+    Issue: Heuristic (length < 200) might not catch all internal errors
+    Fix: Whitelist safe messages instead of blacklist
+
+================================================================================
+LOW PRIORITY ISSUES (BEST PRACTICE)
+================================================================================
+
+14. PII LOGGED IN NOTIFICATIONS
+    File: backend/src/services/notificationService.ts
+    Issue: Email addresses logged to stdout
+    Fix: Sanitize email in logs (user@*** domain)
+
+================================================================================
+POSITIVE FINDINGS (SECURITY STRENGTHS)
+================================================================================
+
+✅ .env and backend/.env properly in .gitignore
+✅ Supabase JWT auth correctly implemented
+✅ Admin middleware with role-based permissions (requireAdminAuth, requirePermission)
+✅ Timing-safe comparison used (timingSafeEqual)
+✅ Error messages sanitized before returning to client
+✅ Input sanitization for LLM prompts (prevents injection)
+✅ Security headers set (HSTS, X-Frame-Options, X-Content-Type-Options, etc.)
+✅ Rate limiting implemented
+✅ Storage RLS policies defined
+✅ Admin actions logged
+
+================================================================================
+IMMEDIATE ACTIONS (BEFORE PRODUCTION)
+================================================================================
+
+Priority 1 (Do First):
+  [ ] Set EXPO_PUBLIC_ALLOW_PAYMENT_BYPASS=false
+  [ ] Rotate Supabase anon key
+  [ ] Clean git history of exposed keys
+
+Priority 2 (Do Next):
+  [ ] Filter PII from admin endpoints
+  [ ] Add admin check to dev dashboard
+  [ ] Remove localhost from CORS
+
+Priority 3 (Before Launch):
+  [ ] Add body signature to RevenueCat webhooks
+  [ ] Audit and document RLS policies
+  [ ] Improve rate limiter error handling
+
+================================================================================
+DEPLOYMENT CHECKLIST
+================================================================================
+
+Before Production Release:
+  [ ] CRITICAL issues fixed
+  [ ] HIGH issues fixed
+  [ ] Code reviewed by security expert
+  [ ] Penetration testing completed
+  [ ] RLS policies documented and tested
+  [ ] Admin endpoints tested for data leakage
+  [ ] Error handling tested (no internal details)
+  [ ] Logging audit completed (no PII)
+  [ ] Rate limiter tested for failures
+  [ ] CORS configured for production domains only
+
+Production Settings:
+  [ ] EXPO_PUBLIC_ALLOW_PAYMENT_BYPASS=false
+  [ ] Secrets in secure environment variables
+  [ ] Supabase RLS enabled on all tables
+  [ ] Rate limiter using Redis (not in-memory)
+  [ ] Structured logging with PII redaction
+  [ ] Monitoring and alerting configured
+  [ ] Secrets rotation schedule established
+
+================================================================================
+DETAILED REPORT
+================================================================================
+
+Full details available in: SECURITY_AUDIT_REPORT.md
+
+This file contains:
+- Detailed analysis of each finding
+- Code examples
+- Risk assessment
+- Recommendations
+- Evidence and file locations

@@ -482,8 +482,11 @@ MAGNETIC PULL: [0-100]
 SHADOW RISK: [0-100]
 [2 sentences: destruction potential if both remain unconscious. What this looks like at its worst.]
 
-SCORING RULES:
-- Use the full 0-100 range. Do not cluster around 70-80.
+SCORING RULES (PREVENT AI INFLATION):
+- DO NOT default to high scores (70-90) out of generic "AI positivity."
+- Anchor scores in strict mathematical friction. If there are squares, oppositions, or a lack of major connective tissue in THIS specific system's chart data, the score MUST drop to the 30-50 range.
+- A score of 90+ requires rare, exceptionally tight alignments (e.g., exact conjunctions, full channel completions).
+- Use the full 0-100 spectrum. A 25 is just as likely as a 75 if the charts clash.
 - These scores are derived from THIS system's chart data only — not a guess across all systems.
 `.trim();
 }
@@ -645,15 +648,24 @@ MAGNETIC PULL: [0-100]
 LONG-TERM SUSTAINABILITY: [0-100]
 [4 sentences: can this field sustain itself over time without consuming both people? What the charts say about endurance versus burnout. Whether the initial intensity would deepen into something lasting or collapse under its own weight. The structural truth about whether this is built to last.]
 
-SCORING RULES:
-- Do not cluster scores around 70-80. Use the full range.
-- A score of 95+ means genuinely rare — use it only if the mathematics justify it.
+FINAL VERDICT: [0-10]/10 - [Short ironic, brutal, or punchy recommendation]
+[Example 1: "FINAL VERDICT: 2/10 - Run away very fast."]
+[Example 2: "FINAL VERDICT: 9/10 - Marry them yesterday."]
+[Example 3: "FINAL VERDICT: 5/10 - Two spiders in a web."]
+[Must be a single line exactly following this format.]
+
+SCORING RULES (PREVENT AI INFLATION):
+- DO NOT default to high scores (70-90) out of generic "AI positivity" or politeness. Do not try to make them feel good.
+- Use the full 0-100 spectrum. A 25 is just as likely as a 75 if the charts clash mathematically.
+- Anchor scores in strict mathematical friction from the 5 systems. If there are squares, oppositions, Authority mismatches, or Klipothic interference, the score MUST drop to the 30-50 range.
+- A score of 90+ requires rare, exceptionally tight alignments across multiple systems.
+- Average synastry with normal friction should score between 40-60.
 - A score below 30 means significant structural incompatibility — do not soften it.
 - Shadow Risk scoring: 90+ means this connection has genuine destructive potential. Name it.
 - Past Life Connection: 90+ means overwhelming karmic indicators across multiple systems.
 - World-Changing Potential: score the external impact, not the internal relationship quality.
 - Karmic Verdict: high score = genuine crucible of growth; low score = comfort trap or repetition.
-- Overall Alignment is NOT an average. It is a synthesis judgment.
+- Overall Alignment is NOT an average. It is a synthesis judgment factoring in all friction.
 
 FORMAT RULES (THIS IS SPOKEN AUDIO):
 - The prose sections (Parts 1-4) are ONE CONTINUOUS ESSAY — no section headers, no breaks
