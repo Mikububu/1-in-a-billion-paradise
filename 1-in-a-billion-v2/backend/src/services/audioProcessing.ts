@@ -334,7 +334,7 @@ export async function trimSilenceFromWav(wavBuffer: Buffer): Promise<Buffer> {
     console.warn(`⚠️ [trimSilence] FFmpeg trim failed, using untrimmed chunk: ${err.message}`);
     return wavBuffer; // graceful fallback
   } finally {
-    await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+    await fs.rm(dir, { recursive: true, force: true }).catch(() => { });
   }
 }
 
@@ -397,10 +397,10 @@ export function findWavDataChunk(buffer: Buffer): { dataOffset: number; dataSize
 /**
  * Detect WAV format (16-bit PCM vs IEEE Float)
  */
-export function getWavFormat(buffer: Buffer): { 
-  audioFormat: number; 
-  numChannels: number; 
-  sampleRate: number; 
+export function getWavFormat(buffer: Buffer): {
+  audioFormat: number;
+  numChannels: number;
+  sampleRate: number;
   bitsPerSample: number;
 } {
   // Find fmt chunk
