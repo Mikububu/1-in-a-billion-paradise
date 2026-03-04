@@ -1,5 +1,5 @@
 /**
- * RATE LIMITER WORKER — Fly.io Process Entrypoint
+ * RATE LIMITER WORKER - Fly.io Process Entrypoint
  *
  * Starts the BullMQ worker that processes Replicate API calls
  * at the global rate limit (600 RPM).
@@ -13,14 +13,14 @@ import { closeRedisConnections } from '../services/redisClient';
 import { closeQueue } from '../services/replicateQueue';
 
 console.log('═══════════════════════════════════════════════════════════');
-console.log('🚀 RATE LIMITER WORKER — Starting');
+console.log('🚀 RATE LIMITER WORKER - Starting');
 console.log('═══════════════════════════════════════════════════════════');
 
 const { fastWorker, slowWorker } = startRateLimiterWorker();
 
 // Graceful shutdown
 async function shutdown(signal: string) {
-  console.log(`\n[RateLimiterWorker] ${signal} received — shutting down gracefully...`);
+  console.log(`\n[RateLimiterWorker] ${signal} received - shutting down gracefully...`);
   await Promise.all([fastWorker.close(), slowWorker.close()]);
   await closeQueue();
   await closeRedisConnections();

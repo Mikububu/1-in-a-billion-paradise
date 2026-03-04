@@ -124,7 +124,7 @@ export const HomeScreen = ({ navigation }: Props) => {
         if (cancelled || receipts.length === 0) { setActiveJob(null); return; }
         // Check the most recent job (already sorted newest-first)
         const recent = receipts[0]!;
-        // Skip if older than 24 hours — probably already seen
+        // Skip if older than 24 hours - probably already seen
         const age = Date.now() - Date.parse(recent.createdAt);
         if (age > 24 * 60 * 60 * 1000) { setActiveJob(null); return; }
         const snapshot = await fetchJobSnapshot(recent.jobId);
@@ -175,7 +175,7 @@ export const HomeScreen = ({ navigation }: Props) => {
         blinkAnim.setValue(1); // Reset opacity on cleanup
       };
     }
-    // Photo loaded — ensure full opacity
+    // Photo loaded - ensure full opacity
     blinkAnim.setValue(1);
   }, [portraitPhotoUrl, blinkAnim]);
 
@@ -573,7 +573,7 @@ export const HomeScreen = ({ navigation }: Props) => {
             style: 'destructive',
             onPress: async () => {
               try {
-                // 1. Sign out from Supabase FIRST — kills session so auto-sync stops
+                // 1. Sign out from Supabase FIRST - kills session so auto-sync stops
                 try { await supabase.auth.signOut(); } catch { }
 
                 // 2. Reset Zustand stores immediately (before async clear)
@@ -599,7 +599,7 @@ export const HomeScreen = ({ navigation }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Language pill — top left */}
+      {/* Language pill - top left */}
       <TouchableOpacity
         style={[styles.langPill, { top: insets.top + spacing.sm }]}
         onPress={() => setLangPickerVisible(true)}
@@ -637,7 +637,7 @@ export const HomeScreen = ({ navigation }: Props) => {
               <Animated.View style={[styles.signCard, { borderColor: coreSigns[type] ? color : colors.border }]}>
                 <Text style={styles.signCardLabel}>{t(`readings.${type}`).toUpperCase()}</Text>
                 <Text style={styles.signCardIcon}>{icon}</Text>
-                <Text style={styles.signCardSign}>{coreSigns[type] || '—'}</Text>
+                <Text style={styles.signCardSign}>{coreSigns[type] || '-'}</Text>
               </Animated.View>
             </TouchableOpacity>
           ))}

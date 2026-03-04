@@ -90,7 +90,7 @@ const IAP_ITEMS = [
   'Compare any two people',
   'Deep narrative compatibility overlays',
 ];
-const IAP_RANGE = '$14 – $108';
+const IAP_RANGE = '$14 - $108';
 
 /* ── Component ────────────────────────────────────────────────────── */
 
@@ -331,7 +331,7 @@ export const PricingScreen = ({ navigation }: Props) => {
           {t('pricing.iapNote')} {IAP_RANGE}
         </Text>
 
-        {/* ── Coupon code — always visible ── */}
+        {/* ── Coupon code - always visible ── */}
         <View style={styles.couponContainer}>
           <View style={styles.couponInputRow}>
             <TextInput
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  /* ── Tier cards — compact ── */
+  /* ── Tier cards - compact ── */
   card: {
     backgroundColor: colors.surface,
     borderRadius: radii.card,
@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  /* ── IAP note — single line ── */
+  /* ── IAP note - single line ── */
   iapNote: {
     fontFamily: typography.sansRegular,
     fontSize: 13,
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
 
-  /* ── Coupon — always visible ── */
+  /* ── Coupon - always visible ── */
   couponContainer: {
     marginTop: 0,
   },

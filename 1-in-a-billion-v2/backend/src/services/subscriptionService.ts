@@ -96,7 +96,7 @@ export async function getUserSubscriptionTier(userId: string): Promise<Subscript
 }
 
 export async function hasUnlimitedReadings(userId: string): Promise<boolean> {
-  // Kept for backward compat — now billionaire just has a very high quota (108/mo)
+  // Kept for backward compat - now billionaire just has a very high quota (108/mo)
   // but we still treat them as "unlimited" in the sense that no per-reading IAP is required.
   const sub = await checkUserSubscription(userId);
   if (!sub) return false;

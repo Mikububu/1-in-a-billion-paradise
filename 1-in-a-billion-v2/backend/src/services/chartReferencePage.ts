@@ -89,7 +89,7 @@ function header(personName: string, birth: BirthReference, system: string, gener
   const computedAge = computeAgeFromBirthDate(birth.birthDate, generatedAt || new Date());
   const lines = [
     divider(),
-    `${system.toUpperCase()} — ${personName}`,
+    `${system.toUpperCase()} - ${personName}`,
   ];
   if (bornLine) lines.push(`Born: ${bornLine}`);
   if (typeof computedAge === 'number') lines.push(`Age: ${computedAge}`);
@@ -455,7 +455,7 @@ function buildKabbalahReferencePage(input: {
   const moonLetter = findVal(/Moon Letter\s*:/i);
   const risingLetter = findVal(/Rising Letter\s*:/i);
 
-  // Sefirot — collect strong ones
+  // Sefirot - collect strong ones
   const strongSefirot: string[] = raw
     .filter((l) => /strength=strong/i.test(l))
     .map((l) => {

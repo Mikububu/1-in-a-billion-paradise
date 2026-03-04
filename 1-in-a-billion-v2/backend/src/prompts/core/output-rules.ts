@@ -30,7 +30,7 @@ PROSE STYLE:
 
 PUNCTUATION:
 - Standard punctuation only: . , ; : ' " ? !
-- NO em-dashes (—) - use commas or semicolons instead
+- NO em-dashes (-) - use commas or semicolons instead
 - NO special symbols or unicode characters
 
 AUDIO-READY FORMATTING (CRITICAL FOR TTS):
@@ -43,7 +43,7 @@ AUDIO-READY FORMATTING (CRITICAL FOR TTS):
 TEXT CLEANUP REQUIREMENTS (MUST BE FLAWLESS FOR AUDIO):
 - Remove ALL weird symbols, unicode characters, or garbage text
 - Remove ALL markdown syntax that TTS can't interpret (#, ##, **, __, -, etc.)
-- NO special characters: ♈, ♉, °, ', ", —, –, etc.
+- NO special characters: ♈, ♉, °, ', ", -, -, etc.
 - NO emojis or symbols
 - NO HTML tags or entities
 - NO broken words or unreadable text

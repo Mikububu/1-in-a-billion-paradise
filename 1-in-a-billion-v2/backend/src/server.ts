@@ -45,7 +45,7 @@ app.use('*', cors({
   maxAge: 86400,
 }));
 
-// Global error handler — must be first middleware
+// Global error handler - must be first middleware
 app.use('*', errorHandler);
 
 // Security headers

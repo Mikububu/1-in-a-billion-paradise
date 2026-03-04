@@ -373,14 +373,14 @@ router.delete('/users/:userId', requirePermission('users', 'delete'), async (c) 
     for (const table of tablesToDelete) {
       const { error } = await supabase.from(table as any).delete().eq('user_id', userId);
       if (error) {
-        // Log but continue — some tables may not have user_id or row may not exist
+        // Log but continue - some tables may not have user_id or row may not exist
         console.warn(`⚠️  Could not delete from ${table} for user ${userId}: ${error.message}`);
         errors.push(`${table}: ${error.message}`);
       }
     }
 
     // ── 2. Delete Supabase Storage files for this user ──
-    // Try common bucket paths — ignore errors if buckets don't exist or are empty
+    // Try common bucket paths - ignore errors if buckets don't exist or are empty
     const storageBuckets = ['avatars', 'audio', 'pdfs', 'portraits', 'videos'];
     for (const bucket of storageBuckets) {
       try {
@@ -390,7 +390,7 @@ router.delete('/users/:userId', requirePermission('users', 'delete'), async (c) 
           await supabase.storage.from(bucket).remove(paths);
         }
       } catch {
-        // Bucket may not exist or user has no files — fine
+        // Bucket may not exist or user has no files - fine
       }
     }
 

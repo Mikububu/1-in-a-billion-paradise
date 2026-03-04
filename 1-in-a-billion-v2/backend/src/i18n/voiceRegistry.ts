@@ -1,5 +1,5 @@
 /**
- * VOICE REGISTRY — Language Boundary #2
+ * VOICE REGISTRY - Language Boundary #2
  *
  * Maps language -> TTS provider + voice configuration.
  *
@@ -38,7 +38,7 @@ export interface VoiceConfig {
  * To add a new language:
  *   1. Check it's in Chatterbox Multilingual's 23-language list
  *   2. Add the entry here with the correct languageId
- *   3. Done — the audio worker routes automatically
+ *   3. Done - the audio worker routes automatically
  */
 const VOICE_REGISTRY: Record<OutputLanguage, VoiceConfig> = {
   en: {

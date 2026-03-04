@@ -115,7 +115,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     customReadingsFromRoute || null
   );
 
-  // 5-tap reset (same as IntroScreen) — allows resetting even when stuck on HookSequence
+  // 5-tap reset (same as IntroScreen) - allows resetting even when stuck on HookSequence
   const resetOnboarding = useOnboardingStore((state) => state.reset);
   const resetProfile = useProfileStore((state: any) => state.reset);
   const signOut = useAuthStore((state) => state.signOut);
@@ -381,7 +381,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
       if (existing) return existing;
 
       const textToSpeak = `${reading.intro}\n\n${reading.main}`;
-      // SUN may hit Replicate cold start — use longer timeout
+      // SUN may hit Replicate cold start - use longer timeout
       const timeout = type === 'sun' ? 180000 : 90000;
       const p = audioApi
         .generateTTS(textToSpeak, {
@@ -1050,12 +1050,12 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     }
   };
 
-  // No explicit "continue" button in this screen — it's swipe-only.
+  // No explicit "continue" button in this screen - it's swipe-only.
 
   const addSavedPDF = useProfileStore((state) => state.addSavedPDF);
   const displayName = useAuthStore((state) => state.displayName);
 
-  // handleNext removed — swipe-only navigation
+  // handleNext removed - swipe-only navigation
 
   // Generate a beautiful PDF from the 3 hook readings
 

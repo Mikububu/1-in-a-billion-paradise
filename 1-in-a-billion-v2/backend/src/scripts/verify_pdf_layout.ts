@@ -21,7 +21,7 @@ async function runTest() {
   
   Chapter 1: The Basics
   Here is some standard text followed by a hyphen - and another one.
-  We want to ensure no em-dashes appear, but if they did, we want to see how Garamond handles them: — (em-dash) – (en-dash).
+  We want to ensure no em-dashes appear, but if they did, we want to see how Garamond handles them: - (em-dash) - (en-dash).
   
   Section 2: Typography Check
   This paragraph should be justified and set in Garamond.

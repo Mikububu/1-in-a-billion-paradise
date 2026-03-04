@@ -1,18 +1,18 @@
 /**
- * NUCLEAR CLEANUP — All-in-one Supabase storage reclaimer
+ * NUCLEAR CLEANUP - All-in-one Supabase storage reclaimer
  *
  * Combines: analyzeDatabaseSize + wipeAllStorageFiles + wipeAppDataKeepUsers
  *
  * Steps:
- *   1. Analyze — show table row counts & storage bucket file counts
- *   2. Wipe storage — delete ALL files from ALL buckets
- *   3. Wipe database — delete jobs, job_tasks, job_artifacts, library_people
+ *   1. Analyze - show table row counts & storage bucket file counts
+ *   2. Wipe storage - delete ALL files from ALL buckets
+ *   3. Wipe database - delete jobs, job_tasks, job_artifacts, library_people
  *   4. Print VACUUM reminder (must be run manually in SQL Editor)
  *
  * Auth users are ALWAYS preserved.
  *
  * Usage:
- *   # Dry run (safe — only shows what would be deleted):
+ *   # Dry run (safe - only shows what would be deleted):
  *   npx ts-node src/scripts/nuclearCleanup.ts --dry-run
  *
  *   # Actually delete everything:
@@ -106,13 +106,13 @@ async function nuclearCleanup() {
   }
 
   console.log(dryRun
-    ? '🔍 DRY RUN — NUCLEAR CLEANUP'
+    ? '🔍 DRY RUN - NUCLEAR CLEANUP'
     : '☢️  EXECUTING NUCLEAR CLEANUP');
   console.log('═══════════════════════════════════════════════════════════\n');
 
   /* ── Step 1: Analyze ─────────────────────────────────────────── */
 
-  console.log('📊 STEP 1 — Analyze current usage\n');
+  console.log('📊 STEP 1 - Analyze current usage\n');
 
   // Table row counts
   const tables = ['jobs', 'job_tasks', 'job_artifacts', 'library_people',
@@ -156,7 +156,7 @@ async function nuclearCleanup() {
 
   if (dryRun) {
     console.log('═══════════════════════════════════════════════════════════');
-    console.log('🔍 DRY RUN COMPLETE — nothing was deleted.');
+    console.log('🔍 DRY RUN COMPLETE - nothing was deleted.');
     console.log('   Run with CONFIRM=NUKE --confirm to execute.\n');
     return;
   }
@@ -167,13 +167,13 @@ async function nuclearCleanup() {
   const PROTECTED_BUCKETS = new Set(['voice-samples', 'audio', 'voices']);
 
   if (!dbOnly) {
-    console.log('🗑️  STEP 2 — Wiping storage buckets\n');
+    console.log('🗑️  STEP 2 - Wiping storage buckets\n');
     console.log(`   🛡️  Protected (skipped): ${[...PROTECTED_BUCKETS].join(', ')}\n`);
     let storageDeleted = 0;
     if (buckets?.length) {
       for (const b of buckets) {
         if (PROTECTED_BUCKETS.has(b.name)) {
-          console.log(`   ⏭️  ${b.name}: PROTECTED — skipping`);
+          console.log(`   ⏭️  ${b.name}: PROTECTED - skipping`);
           continue;
         }
         if (bucketStats[b.name] === 0) continue;
@@ -186,7 +186,7 @@ async function nuclearCleanup() {
   /* ── Step 3: Wipe Database ───────────────────────────────────── */
 
   if (!storageOnly) {
-    console.log('🗑️  STEP 3 — Wiping database tables\n');
+    console.log('🗑️  STEP 3 - Wiping database tables\n');
 
     const delOrder = ['job_artifacts', 'job_tasks', 'jobs', 'library_people'];
     for (const table of delOrder) {
@@ -216,7 +216,7 @@ async function nuclearCleanup() {
   console.log('☢️  NUCLEAR CLEANUP COMPLETE!');
   console.log('═══════════════════════════════════════════════════════════');
   console.log('');
-  console.log('⚠️  IMPORTANT — To fully reclaim disk space, run this in');
+  console.log('⚠️  IMPORTANT - To fully reclaim disk space, run this in');
   console.log('   Supabase Dashboard → SQL Editor:');
   console.log('');
   console.log('   VACUUM FULL;');

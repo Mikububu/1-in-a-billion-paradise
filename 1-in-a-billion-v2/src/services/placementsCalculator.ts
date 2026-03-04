@@ -77,7 +77,7 @@ export async function calculatePlacements(
     system: 'western' | 'vedic' = 'western'
 ): Promise<Placements | null> {
     try {
-        // IMPORTANT: Placements must come from Swiss Ephemeris (backend) — never from LLM endpoints.
+        // IMPORTANT: Placements must come from Swiss Ephemeris (backend) - never from LLM endpoints.
         // In dev on iOS Simulator, `localhost` should work, so we try it automatically if the primary
         // CORE_API_URL (often Fly) is missing the endpoint / not reachable.
         if (__DEV__) {

@@ -6,8 +6,8 @@ STYLE: Numeric, vectorized, backend-only
 
 /* =====================================================
    YONI
-   Nakshatra index 0–26
-   Yoni index 0–13
+   Nakshatra index 0-26
+   Yoni index 0-13
 ===================================================== */
 
 export const NAKSHATRA_TO_YONI: number[] = [
@@ -65,8 +65,8 @@ export const YONI_MATRIX: number[][] = [
 
 /* =====================================================
    GANA
-   Nakshatra index 0–26
-   Gana index 0–2
+   Nakshatra index 0-26
+   Gana index 0-2
    0 Deva  1 Manushya  2 Rakshasa
 ===================================================== */
 
@@ -83,7 +83,7 @@ export const GANA_MATRIX: number[][] = [
 
 /* =====================================================
    DASHA SYNCHRONIZATION
-   Mahadasha Lord index 0–8
+   Mahadasha Lord index 0-8
    0 Sun 1 Moon 2 Mars 3 Mercury 4 Jupiter
    5 Venus 6 Saturn 7 Rahu 8 Ketu
 ===================================================== */

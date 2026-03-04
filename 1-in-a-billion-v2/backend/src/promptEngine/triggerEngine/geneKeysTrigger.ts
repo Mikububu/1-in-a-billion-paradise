@@ -10,9 +10,9 @@ import { buildGeneKeysSection } from '../../prompts/systems/gene-keys';
  *
  * Two-call architecture for individual Gene Keys readings.
  *
- * 1. stripGeneKeysChartData()        — light cleanup, keeps ALL sequences
- * 2. buildGeneKeysTriggerPrompt()    — trigger call → 80-120 word paragraph
- * 3. buildGeneKeysWritingPrompt()    — writing call → configurable word target
+ * 1. stripGeneKeysChartData()        - light cleanup, keeps ALL sequences
+ * 2. buildGeneKeysTriggerPrompt()    - trigger call → 80-120 word paragraph
+ * 3. buildGeneKeysWritingPrompt()    - writing call → configurable word target
  */
 
 // ─── 1. STRIP ────────────────────────────────────────────────────────────────
@@ -20,7 +20,7 @@ import { buildGeneKeysSection } from '../../prompts/systems/gene-keys';
 /**
  * Gene Keys chart data is already concise.
  * Keeps: Activation Sequence, Venus Sequence, AND Pearl Sequence.
- * Only trims blank/duplicate lines — the LLM needs all three sequences
+ * Only trims blank/duplicate lines - the LLM needs all three sequences
  * to produce a reading that covers the full spectrum of consciousness.
  */
 export function stripGeneKeysChartData(raw: string): string {
@@ -50,7 +50,7 @@ export function buildGeneKeysTriggerPrompt(params: {
   return [
     `You are a Gene Keys reader analyzing ${personName}'s hologenetic profile to find the central ${trigger}.`,
     '',
-    `In Gene Keys, the ${trigger} lives in the Shadow frequency — the fear-based, contracted expression of a Gene Key.`,
+    `In Gene Keys, the ${trigger} lives in the Shadow frequency - the fear-based, contracted expression of a Gene Key.`,
     'Look at the Shadow of Life\'s Work (Personality Sun): this is what the person compulsively does instead of their purpose.',
     'Look at the Shadow of Evolution (Personality Earth): this is the developmental trap they keep falling into.',
     'Together they form the specific flavor of unconscious self-sabotage.',
@@ -64,7 +64,7 @@ export function buildGeneKeysTriggerPrompt(params: {
     '',
     'Write one paragraph. 80-120 words exactly.',
     'Third person. Reference Gene Key numbers and Shadow names explicitly.',
-    'Explain Gene Keys terms naturally on first use (e.g., "the Shadow — the fear-based expression — of Gene Key 44").',
+    'Explain Gene Keys terms naturally on first use (e.g., "the Shadow - the fear-based expression - of Gene Key 44").',
     'No repair instructions. No Gift or Siddhi consolation. No softening.',
     'Specific enough that no other profile produces this exact sentence.',
     'It must cost something to read.',
@@ -99,13 +99,13 @@ export function buildGeneKeysWritingPrompt(params: {
     'You have read Richard Rudd, Carlos Castaneda, Rainer Maria Rilke, and Ursula Le Guin.',
     CORE_FAIRYTALE_SEED,
     '',
-    'You are telling the story of a consciousness learning to inhabit itself — through the lens of their Gene Keys profile.',
+    'You are telling the story of a consciousness learning to inhabit itself - through the lens of their Gene Keys profile.',
     'This is NOT a generic spiritual essay. It is a Gene Keys reading: grounded in specific Key numbers, Shadow names, Gift potentials, and the architecture of their hologenetic profile.',
     '',
     geneKeysGuidance,
     '',
     '══════════════════════════════════════════════════════════',
-    `${triggerTitle} — THIS IS THE SPINE OF EVERYTHING YOU WRITE:`,
+    `${triggerTitle} - THIS IS THE SPINE OF EVERYTHING YOU WRITE:`,
     narrativeTrigger,
     `Every paragraph must connect to this ${trigger} or deepen it.`,
     `If a paragraph does not serve the ${trigger}, it does not belong here.`,
@@ -113,7 +113,7 @@ export function buildGeneKeysWritingPrompt(params: {
     '',
     'NARRATOR:',
     '- Third person only. Never "you" or "your". Use the name.',
-    `- Shadow frequencies are not villains — they are the form the ${trigger} takes in daily life.`,
+    `- Shadow frequencies are not villains - they are the form the ${trigger} takes in daily life.`,
     '- The body carries the frequency. The nervous system is the site of the story.',
     '- Name Gene Key numbers explicitly (e.g., "Gene Key 22", "the Shadow of Dishonour in Key 10").',
     '- Walk through the Shadow → Gift → Siddhi journey for each key sphere you cover.',
@@ -128,14 +128,14 @@ export function buildGeneKeysWritingPrompt(params: {
     '',
     'GENE KEYS VOICE:',
     '- USE Gene Keys terminology throughout: Shadow, Gift, Siddhi, frequency, contemplation, Activation Sequence, Venus Sequence, Pearl Sequence.',
-    '- Reference specific Gene Key numbers from the chart data — these are the evidence for everything you write.',
+    '- Reference specific Gene Key numbers from the chart data - these are the evidence for everything you write.',
     '- Every paragraph must add new consequence or evidence rooted in their specific keys.',
     '- Do not be generic. Ground every insight in a specific Key number and its Shadow/Gift/Siddhi spectrum.',
     '',
     `LENGTH: ${targetWords.toLocaleString('en-US')} words. Write until the ${trigger} is fully present. Then stop.`,
     'Do not pad. Do not repeat. Do not add a hopeful ending.',
     '',
-    'CHART DATA (authoritative — do not invent or contradict):',
+    'CHART DATA (authoritative - do not invent or contradict):',
     strippedChartData,
     '',
     `Write ${personName}'s Gene Keys reading now:`,

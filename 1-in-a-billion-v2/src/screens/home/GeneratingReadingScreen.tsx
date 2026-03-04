@@ -107,7 +107,7 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
                 createPlaceholderReadings(personId, activeJobId, normalizedSystems, now, 'overlay', partnerName || 'Partner', overlayDocNums);
             }
 
-            // Final Verdict (last reading — only for bundle_verdict / nuclear jobs)
+            // Final Verdict (last reading - only for bundle_verdict / nuclear jobs)
             if (productType === 'nuclear_package' || productType === 'bundle_verdict') {
                 const refreshedReadings = getReadingsByJobId(personId, activeJobId);
                 const hasVerdictPlaceholder = refreshedReadings.some((r: any) => r.readingType === 'verdict');
@@ -269,7 +269,7 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
                 </TouchableOpacity>
             </ScrollView>
 
-            {/* Video removed — screen uses textured background only */}
+            {/* Video removed - screen uses textured background only */}
         </SafeAreaView>
     );
 };

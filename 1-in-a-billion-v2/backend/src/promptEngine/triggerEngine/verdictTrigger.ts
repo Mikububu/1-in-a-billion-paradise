@@ -15,7 +15,7 @@ import {
  *
  * 1) stripVerdictChartData()       → deterministic compression (used by both paths)
  * 2) buildVerdictTriggerPrompt()   → one focused relational trigger paragraph
- * 3) buildVerdictWritingPrompt()   → @deprecated — script-path fallback only
+ * 3) buildVerdictWritingPrompt()   → @deprecated - script-path fallback only
  */
 
 function isSystemHeader(line: string): boolean {

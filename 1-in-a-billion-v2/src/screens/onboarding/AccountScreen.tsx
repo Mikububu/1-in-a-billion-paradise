@@ -141,7 +141,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
   }, [fromPayment, hasPassedLanguages, navigation]);
 
   const assertEntitlementStillActive = useCallback(async () => {
-    // Coupon signups already have an active subscription — skip RevenueCat check
+    // Coupon signups already have an active subscription - skip RevenueCat check
     if (isCouponSignup) return true;
 
     if (!revenueCatAppUserId) {
@@ -746,7 +746,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
             return;
           }
           if (hasPassedLanguages && !authUser?.id) {
-            // User hasn't signed up yet — let them go back freely
+            // User hasn't signed up yet - let them go back freely
             navigation.reset({
               index: 0,
               routes: [{ name: 'Intro' }],

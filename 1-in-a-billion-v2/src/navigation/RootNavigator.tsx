@@ -9,7 +9,7 @@ import { useOnboardingStore } from '@/store/onboardingStore';
 import { useAuthStore } from '@/store/authStore';
 
 // ╔══════════════════════════════════════════════════════════════╗
-// ║  DEV RESET — set to true to wipe all data on next reload   ║
+// ║  DEV RESET - set to true to wipe all data on next reload   ║
 // ║  Set back to false after confirming the reset worked.      ║
 // ╚══════════════════════════════════════════════════════════════╝
 const DEV_FORCE_RESET = false;
@@ -481,7 +481,7 @@ export const RootNavigator = () => {
             // Also call store resets so in-memory state matches
             useOnboardingStore.getState().reset();
             useAuthStore.getState().signOut();
-            console.log('✅ DEV_FORCE_RESET complete — app will start fresh');
+            console.log('✅ DEV_FORCE_RESET complete - app will start fresh');
             setDevResetDone(true);
         })();
     }, []);
@@ -577,7 +577,7 @@ export const RootNavigator = () => {
                 // CRITICAL: Paid user → always route to dashboard.
                 // This protects against lost showDashboard flag (e.g. cleared storage,
                 // new device, or long inactivity). A paid user can NEVER land in the
-                // hook/onboarding sequence — they permanently live in the dashboard.
+                // hook/onboarding sequence - they permanently live in the dashboard.
                 const onb = useOnboardingStore.getState();
                 if (!onb.showDashboard) {
                     // Only force dashboard recovery for users who have evidence of prior onboarding.
@@ -586,7 +586,7 @@ export const RootNavigator = () => {
                         onb.hookReadings?.sun || onb.hookReadings?.moon || onb.hookReadings?.rising
                     );
                     if (hasOnboardingEvidence) {
-                        console.log('🛡️ Paid user with prior onboarding — restoring dashboard access');
+                        console.log('🛡️ Paid user with prior onboarding - restoring dashboard access');
                         onb.setShowDashboard(true);
                         onb.setHasCompletedOnboarding(true);
                     }
@@ -670,7 +670,7 @@ export const RootNavigator = () => {
                         onb.hookReadings?.sun || onb.hookReadings?.moon || onb.hookReadings?.rising
                     );
                     if (hasOnboardingEvidence) {
-                        console.log('🛡️ Paid user with prior onboarding — restoring dashboard access');
+                        console.log('🛡️ Paid user with prior onboarding - restoring dashboard access');
                         onb.setShowDashboard(true);
                         onb.setHasCompletedOnboarding(true);
                     }
@@ -711,7 +711,7 @@ export const RootNavigator = () => {
     // 30-MINUTE IDLE RESET → Intro screen (still logged in)
     // When user backgrounds the app for 30+ minutes, navigate back to
     // the Intro screen so they see screen 1 and can tap to dashboard.
-    // Language-independent — this is pure navigation logic.
+    // Language-independent - this is pure navigation logic.
     // ─────────────────────────────────────────────────────────────────────
     const backgroundedAtRef = useRef<number | null>(null);
     const IDLE_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
@@ -719,16 +719,16 @@ export const RootNavigator = () => {
     useEffect(() => {
         const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
             if (nextState === 'background' || nextState === 'inactive') {
-                // User is leaving — record timestamp
+                // User is leaving - record timestamp
                 backgroundedAtRef.current = Date.now();
             } else if (nextState === 'active' && backgroundedAtRef.current) {
-                // User is returning — check how long they were gone
+                // User is returning - check how long they were gone
                 const elapsed = Date.now() - backgroundedAtRef.current;
                 backgroundedAtRef.current = null;
 
                 if (elapsed >= IDLE_THRESHOLD_MS && hasSession) {
                     console.log(`🔄 Idle reset: user was away ${Math.round(elapsed / 60000)} min → navigating to Intro`);
-                    // Reset to Intro screen (screen 1) — user stays logged in
+                    // Reset to Intro screen (screen 1) - user stays logged in
                     if (navigationRef.isReady()) {
                         navigationRef.dispatch(
                             CommonActions.reset({
@@ -759,7 +759,7 @@ export const RootNavigator = () => {
         return null;
     }
 
-    // ONLY use showDashboard — not hasCompletedOnboarding.
+    // ONLY use showDashboard - not hasCompletedOnboarding.
     // hasCompletedOnboarding persists across account sessions and causes a race
     // condition where fresh signups are routed to Dashboard because the flag is
     // still true from the previous account. completeOnboarding() already sets

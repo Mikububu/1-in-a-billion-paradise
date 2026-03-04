@@ -5,7 +5,7 @@
  * nothing is stored in the app or shown in the app.
  *
  * Regenerates Michael Gene Keys (last rendered reading) in its totality, using Elisabeth's
- * voice — same reading, same voice as original — so you can verify if bad stitching is fixed
+ * voice - same reading, same voice as original - so you can verify if bad stitching is fixed
  * by comparing the new MP3 to the original.
  *
  * 1. Finds Michael's last rendered reading (Michael Gene Keys)
@@ -185,10 +185,10 @@ async function main() {
     process.exit(1);
   }
 
-  // 3. Regenerate audio via local TTS API (RunPod Chatterbox, 30ms fade) — Elisabeth, same as original
+  // 3. Regenerate audio via local TTS API (RunPod Chatterbox, 30ms fade) - Elisabeth, same as original
   console.log('🎙️  Regenerating Michael Gene Keys (full text) with Elisabeth voice...');
   console.log(`   Text length: ${text.length} chars`);
-  console.log('   (RunPod Chatterbox, 30ms fade — can take several minutes)\n');
+  console.log('   (RunPod Chatterbox, 30ms fade - can take several minutes)\n');
 
   try {
     const res = await axios.post(

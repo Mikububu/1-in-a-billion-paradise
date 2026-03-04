@@ -355,7 +355,7 @@ export const SYSTEM_PRICES: Record<SystemType, number> = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SUMMARY (for reference) — prices are display fallbacks, RevenueCat overrides
+// SUMMARY (for reference) - prices are display fallbacks, RevenueCat overrides
 // ═══════════════════════════════════════════════════════════════════════════
 //
 // Per reading: ~40 min audio, ~10 pages, ~4000 words

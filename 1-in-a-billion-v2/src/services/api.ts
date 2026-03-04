@@ -10,7 +10,7 @@ const CORE_API_URL = process.env.EXPO_PUBLIC_CORE_API_URL || process.env.EXPO_PU
 const SUPABASE_FUNCTION_URL = process.env.EXPO_PUBLIC_SUPABASE_FUNCTION_URL || CORE_API_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-// Supabase Edge Function path — change this in ONE place if the function ID changes on redeploy
+// Supabase Edge Function path - change this in ONE place if the function ID changes on redeploy
 const EDGE_FN = '/make-server-02a2a601';
 
 // Session expiry handler

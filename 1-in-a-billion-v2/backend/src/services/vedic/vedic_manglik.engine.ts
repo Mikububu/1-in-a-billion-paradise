@@ -2,7 +2,7 @@
 FILE: vedic_manglik.engine.ts
 SCOPE: Manglik (Kuja) Dosha detection + cancellation
 STYLE: Backend, numeric, rule-based
-HOUSES: 1–12 (normalized to 0–11 internally)
+HOUSES: 1-12 (normalized to 0-11 internally)
 PLANET INDEX: Mars only
 */
 
@@ -20,9 +20,9 @@ export const MANGLIK_HOUSES = new Set<number>([
 ===================================================== */
 
 export interface ManglikInput {
-    marsHouse: number;          // 1–12
-    lagnaSign: number;          // 0–11
-    moonSign: number;           // 0–11
+    marsHouse: number;          // 1-12
+    lagnaSign: number;          // 0-11
+    moonSign: number;           // 0-11
     venusSign?: number;         // optional, for cancellation rules
 }
 

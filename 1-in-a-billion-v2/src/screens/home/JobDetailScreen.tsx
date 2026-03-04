@@ -175,7 +175,7 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
         const p2 = params.person2?.name;
 
         // If both persons exist in job params, always show both names.
-        // This covers synastry, nuclear, nuclear_v2 — any job with two people.
+        // This covers synastry, nuclear, nuclear_v2 - any job with two people.
         // The route param `personName` only carries one name, so job params take priority.
         if (p1 && p2) {
             if (typeof docNum === 'number') {
@@ -244,7 +244,7 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
                     <View style={styles.progressTrack}>
                         <View style={[styles.progressFill, { width: `${progressPercent ?? 0}%` }]} />
                     </View>
-                    <Text style={styles.progressText}>{progressPercent == null ? '—' : `${progressPercent}%`}</Text>
+                    <Text style={styles.progressText}>{progressPercent == null ? '-' : `${progressPercent}%`}</Text>
                     {taskProgress == null ? (
                         <Text style={styles.progressHint}>{t('jobDetail.progress.waitingForTasks')}</Text>
                     ) : null}

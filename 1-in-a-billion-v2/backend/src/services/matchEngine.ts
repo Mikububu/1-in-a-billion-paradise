@@ -62,7 +62,7 @@ const baseMatches: MatchDetail[] = [
     watchouts: [
       'She senses withholding instantly; finish the uncomfortable sentence.',
       'Both of you can over analyze; set limits on state-of-the-union talks.',
-      'Different sleep cycles—negotiate windows now.',
+      'Different sleep cycles-negotiate windows now.',
     ],
     firstMove: 'Share a photo of a still moment and ask for her version.',
     audio: { id: 'aud-003', status: 'ready', url: 'https://cdn.oneinabillion.app/audio/sample-003.mp3', durationSeconds: 142 },

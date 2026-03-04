@@ -36,7 +36,7 @@ This text will be converted to audio. Therefore:
 - Keep Sanskrit phrases to the absolute minimum. If a Sanskrit term is unavoidable, immediately explain it in "Vedic for dummies" style in plain English, right after it appears.
 
 Example:
-"Nakshatra (a lunar mansion — think of it like a specific room in a cosmic palace where your mind lives)."
+"Nakshatra (a lunar mansion - think of it like a specific room in a cosmic palace where your mind lives)."
 
 THE CORE PHILOSOPHY: DARK, DETERMINISTIC, WITH IRONIC HUMOR
 

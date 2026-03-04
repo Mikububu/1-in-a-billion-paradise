@@ -100,7 +100,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
 
   const [page, setPage] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  // Scores are nullable: if missing inputs or API fails, show "—" (never fake numbers).
+  // Scores are nullable: if missing inputs or API fails, show "-" (never fake numbers).
   const [spicyScore, setSpicyScore] = useState<number | null>(null);
   const [safeStableScore, setSafeStableScore] = useState<number | null>(null);
   const [scoreError, setScoreError] = useState<string | null>(null);
@@ -424,13 +424,13 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
                   <View style={styles.dualScoresRow}>
                     <View style={styles.scoreColumn}>
                       <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-                        <Text style={styles.scoreNumberSmall}>{spicyScore == null ? '—' : spicyScore.toFixed(1)}</Text>
+                        <Text style={styles.scoreNumberSmall}>{spicyScore == null ? '-' : spicyScore.toFixed(1)}</Text>
                       </Animated.View>
                       <Text style={styles.scoreColumnLabel}>{t('synastryPreview.spicy')}</Text>
                     </View>
 
                     <View style={styles.scoreColumn}>
-                      <Text style={styles.scoreNumberSmall}>{safeStableScore == null ? '—' : safeStableScore.toFixed(1)}</Text>
+                      <Text style={styles.scoreNumberSmall}>{safeStableScore == null ? '-' : safeStableScore.toFixed(1)}</Text>
                       <Text style={styles.scoreColumnLabel}>{t('synastryPreview.safeStable')}</Text>
                     </View>
                   </View>
@@ -507,7 +507,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
         return (
           <View style={styles.page}>
             <View style={styles.gatewayContainer}>
-              {/* Text card — off-white bg behind headline + subtitle only */}
+              {/* Text card - off-white bg behind headline + subtitle only */}
               <View style={styles.gatewayCard}>
                 <Text style={styles.gatewayTitle} selectable>
                   {t('synastryPreview.gatewayTitle')}
@@ -517,7 +517,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
                 </Text>
               </View>
 
-              {/* Button sits outside the card — no background */}
+              {/* Button sits outside the card - no background */}
               <TouchableOpacity
                 style={[styles.continueBtn, !canContinue && styles.continueBtnDisabled]}
                 disabled={!canContinue}
@@ -881,7 +881,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xl,
-    // No border — blends with background
+    // No border - blends with background
   },
   gatewayTitle: {
     fontFamily: typography.headline,

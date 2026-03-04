@@ -144,7 +144,7 @@ function normalizePipeTables(text: string): string {
       const left = cells[0] || '';
       const right = cells[1] || '';
       const rest = cells.slice(2).join(' | ');
-      converted.push(rest ? `${left}: ${right} — ${rest}` : `${left}: ${right}`);
+      converted.push(rest ? `${left}: ${right} - ${rest}` : `${left}: ${right}`);
     }
     if (converted.length > 0) out.push(...converted);
   }
@@ -155,7 +155,7 @@ function cleanReadingText(raw: string, options?: { preserveSurrealHeadlines?: bo
   let out = String(raw || '')
     .replace(/^\s*\|---.*\|\s*$/gim, '')
     // Remove em-dashes and en-dashes
-    .replace(/—/g, ', ').replace(/–/g, '-')
+    .replace(/-/g, ', ').replace(/-/g, '-')
     // Remove markdown bold/italic asterisks
     .replace(/\*\*\*/g, '').replace(/\*\*/g, '').replace(/\*/g, '')
     // Remove markdown headers (# ## ### etc)
@@ -568,7 +568,7 @@ export class TextWorker extends BaseWorker {
     const p1BirthData = {
       birthDate: person1.birthDate,
       birthTime: person1.birthTime,
-      // Use city name only. Never fall back to raw coordinates — they sound
+      // Use city name only. Never fall back to raw coordinates - they sound
       // terrible in both LLM prompts and audio intros.  Omit gracefully instead.
       birthPlace: person1.birthPlace || '',
       timezone: person1.timezone,
@@ -826,7 +826,7 @@ export class TextWorker extends BaseWorker {
           narrativeTriggerForOutput = narrativeTrigger;
 	        console.log(`✅ [TextWorker] Western narrativeTrigger: ${narrativeTrigger.slice(0, 80)}...`);
 
-	        // Call 2: writing — bypass composePrompt entirely, use custom prompt
+	        // Call 2: writing - bypass composePrompt entirely, use custom prompt
 	        const chartProvocations = buildChartAwareProvocations(subject.name, 'western', chartData, spiceLevel);
 	        const baseWritingPrompt = buildWesternWritingPrompt({
             personName: subject.name,
@@ -849,7 +849,7 @@ export class TextWorker extends BaseWorker {
 	          await logLLMCost(jobId, task.id, { provider: writingUsage.provider, inputTokens: writingUsage.usage.inputTokens, outputTokens: writingUsage.usage.outputTokens }, `text_western_writing_${docType}`);
 	        }
 
-	        // Clean and return — expansion passes handled downstream if needed
+	        // Clean and return - expansion passes handled downstream if needed
 	        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
 	        const westernFooter = extractChartSignatureFooter(text);
 	        text = westernFooter.body;
@@ -1118,7 +1118,7 @@ export class TextWorker extends BaseWorker {
               else if (total >= 18) tier = 'Good (18-23)';
 
               const doshas: string[] = [];
-              if (a.nadi.dosha_present) doshas.push('Nadi Dosha (same nadi — health/progeny concern)');
+              if (a.nadi.dosha_present) doshas.push('Nadi Dosha (same nadi - health/progeny concern)');
               if (a.bhakoot.score === 0) doshas.push('Bhakoot Dosha (inauspicious moon-sign pair)');
               const m1 = marsG1 && [1, 2, 4, 7, 8, 12].includes(marsG1.bhava);
               const m2 = marsG2 && [1, 2, 4, 7, 8, 12].includes(marsG2.bhava);
@@ -1127,7 +1127,7 @@ export class TextWorker extends BaseWorker {
               combinedChartData += '\n\nASHTAKOOT KUNDALI MILAN:\n' +
                 `Varna ${a.varna.score}/1 | Vashya ${a.vashya.score}/2 | Tara ${a.tara.score}/3 | Yoni ${a.yoni.score}/4 | ` +
                 `Graha Maitri ${a.graha_maitri.score}/5 | Gana ${a.gana.score}/6 | Bhakoot ${a.bhakoot.score}/7 | Nadi ${a.nadi.score}/8\n` +
-                `TOTAL: ${total}/36 — ${tier}` +
+                `TOTAL: ${total}/36 - ${tier}` +
                 (doshas.length > 0 ? `\nDOSHA: ${doshas.join('; ')}` : '');
 
               console.log(`🔢 [TextWorker] Ashtakoot scores injected for Vedic overlay: ${total}/36 (${tier})`);
@@ -1511,7 +1511,7 @@ export class TextWorker extends BaseWorker {
     }
 
     if (wordCount < HARD_FLOOR_WORDS) {
-      console.log(`📏 [TextWorker] Word count ${wordCount} below floor ${HARD_FLOOR_WORDS} for ${system} — running expansion loop...`);
+      console.log(`📏 [TextWorker] Word count ${wordCount} below floor ${HARD_FLOOR_WORDS} for ${system} - running expansion loop...`);
       text = await expandToHardFloor(text);
       wordCount = countWords(text);
     }

@@ -31,7 +31,7 @@ export const DEFAULT_OUTPUT_LANGUAGE: OutputLanguage = 'en';
 const NATIVE_GENERATION_PREAMBLE = `
 CRITICAL: Generate NATIVELY in the target language specified below.
 - Internalize the voice, style, and psychological depth from the English examples above
-- Do NOT translate English phrases — CREATE content from scratch in the target language
+- Do NOT translate English phrases - CREATE content from scratch in the target language
 - Apply the same shadow percentages, forbidden pattern concepts, and quality standards
 - The output must feel NATIVE to a speaker of this language, not translated
 - Avoid filler phrases and clichés equivalent to the English forbidden phrases

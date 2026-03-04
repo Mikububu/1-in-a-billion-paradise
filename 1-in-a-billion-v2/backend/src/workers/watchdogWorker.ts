@@ -91,14 +91,14 @@ async function finalizeStuckJobs() {
       if (terminal < total) continue; // Shouldn't happen, but guard
 
       if (failed === 0) {
-        // All tasks complete — job is fully done
+        // All tasks complete - job is fully done
         await supabase
           .from('jobs')
           .update({ status: 'complete', updated_at: new Date().toISOString() })
           .eq('id', job.id);
         console.log(`✅ Finalized job ${job.id}: complete (${complete}/${total} tasks)`);
       } else {
-        // Some tasks failed — mark as complete_with_errors so user can still
+        // Some tasks failed - mark as complete_with_errors so user can still
         // access the readings that DID complete (PDFs, audio, text)
         await supabase
           .from('jobs')

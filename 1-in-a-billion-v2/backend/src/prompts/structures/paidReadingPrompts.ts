@@ -198,21 +198,21 @@ function buildVerdictProvocations(person1Name: string, person2Name: string, spic
   const base = `
 THE FINAL QUESTIONS:
 
-You have seen ${person1Name} and ${person2Name} through every lens — five systems, every angle, nothing hidden.
+You have seen ${person1Name} and ${person2Name} through every lens - five systems, every angle, nothing hidden.
 Now synthesize. Do not summarize. Synthesize.
 
 ALIGNMENT:
 1. Where do all five systems agree about this connection? What truth keeps appearing regardless of which lens you use?
-2. What does this field — the space between these two human souls — want to become?
+2. What does this field - the space between these two human souls - want to become?
 3. What does each person carry that the other cannot carry alone?
 4. Where do they accelerate each other? Where do they stall each other?
-5. What is the nature of this connection — mirror, catalyst, anchor, crucible, echo?
+5. What is the nature of this connection - mirror, catalyst, anchor, crucible, echo?
 `;
 
   const shadow = spiceLevel >= 4 ? `
 THE COST:
 6. What would each person have to surrender to make this connection conscious?
-7. What wound in one fits perfectly into the wound of the other — and why is that both the gift and the danger?
+7. What wound in one fits perfectly into the wound of the other - and why is that both the gift and the danger?
 8. What loop will repeat if they remain unconscious?
 9. What is the one truth about this connection that neither wants to hear?
 ` : `
@@ -224,13 +224,13 @@ THE COST:
 
   const dark = spiceLevel >= 7 ? `
 THE SHADOW:
-10. How could these two fields destroy each other — specifically, not generically?
+10. How could these two fields destroy each other - specifically, not generically?
 11. What does each person's darkness do to the other's darkness?
 12. Is this a connection that liberates or a connection that consumes?
 13. What does this look like in ten years if both stay unconscious?
 ` : spiceLevel >= 5 ? `
 THE SHADOW:
-10. Where is the destruction potential — what pattern could unravel this?
+10. Where is the destruction potential - what pattern could unravel this?
 11. What does each person need to face in themselves for this connection to survive its own depth?
 ` : '';
 
@@ -239,7 +239,7 @@ YOUR VERDICT:
 Tell the truth. Not the comfortable truth. The complete truth.
 If the mathematics are extraordinary, say so with precision.
 If the mathematics are difficult, say so with precision.
-If both are true simultaneously — and they usually are — hold both without collapsing either.
+If both are true simultaneously - and they usually are - hold both without collapsing either.
 The worst thing you can do is be vague. Vague is a lie dressed as kindness.
 `;
 
@@ -367,7 +367,7 @@ FORMAT RULES (THIS IS SPOKEN AUDIO):
 - 3rd person with ${personName}'s name (never "you/your")
 - Pure prose - NO asterisks, NO markdown, NO bullets
 - Spell out numbers ("twenty-three degrees")
-- NO em-dashes (—), use commas or periods
+- NO em-dashes (-), use commas or periods
 - NO AI phrases ("This is not just...", "Here's the thing...")
 
 ${languageInstruction}
@@ -460,7 +460,7 @@ ${languageInstruction}
 Tell the story of what these charts reveal could unfold between these two souls.
 
 THEN, after the prose ends, append a MINI COMPATIBILITY SNAPSHOT for this system only.
-Format it EXACTLY like this — no markdown, no asterisks, clean plain text, each score with 2 sentences.
+Format it EXACTLY like this - no markdown, no asterisks, clean plain text, each score with 2 sentences.
 CRITICAL: The all-caps labels (e.g. "SEXUAL CHEMISTRY:") MUST remain in EXACT ENGLISH so our system can parse them. ONLY translate the description text beneath them into the target language.
 
 COMPATIBILITY SNAPSHOT: ${person1Name} & ${person2Name}
@@ -488,7 +488,7 @@ SCORING RULES (PREVENT AI INFLATION):
 - Anchor scores in strict mathematical friction. If there are squares, oppositions, or a lack of major connective tissue in THIS specific system's chart data, the score MUST drop to the 30-50 range.
 - A score of 90+ requires rare, exceptionally tight alignments (e.g., exact conjunctions, full channel completions).
 - Use the full 0-100 spectrum. A 25 is just as likely as a 75 if the charts clash.
-- These scores are derived from THIS system's chart data only — not a guess across all systems.
+- These scores are derived from THIS system's chart data only - not a guess across all systems.
 `.trim();
 }
 
@@ -572,38 +572,38 @@ OUTPUT REQUIREMENTS
 
 **WORD COUNT: ${STANDARD_READING.min}-${STANDARD_READING.max} WORDS (target ${STANDARD_READING.target}). This becomes ${STANDARD_READING.audioMinutes} minutes of audio. DO NOT STOP EARLY.**
 
-STRUCTURE (internal guidance only — NO headers in output):
+STRUCTURE (internal guidance only - NO headers in output):
 
-PART 1 — THE SYNTHESIS (2000 words)
+PART 1 - THE SYNTHESIS (2000 words)
 What all five systems agree on. The undeniable pattern that appears in every lens.
 Name the nature of this connection precisely: is it a mirror, a catalyst, an anchor, a crucible, an echo, or something rarer?
 Name what each person carries that the other cannot carry alone.
 Name where they accelerate each other and where they stall each other.
 This is not a summary of the five readings. It is what emerges when all five readings are held simultaneously.
 
-PART 2 — THE FIELD BETWEEN THEM (1800 words)
+PART 2 - THE FIELD BETWEEN THEM (1800 words)
 Describe the energy field created by these two specific humans in proximity.
 What becomes possible in this field that is impossible outside it?
 What becomes impossible in this field that is possible outside it?
 What does this field ask of each person to sustain it?
 Honesty level: ${intensity.honestyLevel}. Shadow percentage: ${intensity.shadowPercentage}%.
 
-PART 3 — THE MATHEMATICS (1200 words)
-Name the specific convergences across systems — where Western, Vedic, Gene Keys, Human Design, and Kabbalah all point at the same truth about this connection.
-Name the specific divergences — where systems contradict and what that contradiction reveals.
+PART 3 - THE MATHEMATICS (1200 words)
+Name the specific convergences across systems - where Western, Vedic, Gene Keys, Human Design, and Kabbalah all point at the same truth about this connection.
+Name the specific divergences - where systems contradict and what that contradiction reveals.
 Be precise. Name which systems, which placements, which patterns.
 
-PART 4 — WHAT THIS IS FOR (1000 words)
+PART 4 - WHAT THIS IS FOR (1000 words)
 Every connection has a purpose beyond the people inside it. Name this one's.
 Not romantically. Not spiritually in a vague way. Precisely.
 What does the universe appear to be doing by placing these two fields in proximity?
 
-PART 5 — COMPATIBILITY SCORES (final section — structured)
+PART 5 - COMPATIBILITY SCORES (final section - structured)
 After the prose ends, output the following score block exactly as formatted below.
 These scores are derived from the five system readings. They are not opinions. They are mathematical conclusions.
-Each score is a number from 0 to 100. Each score has a 4-sentence verdict beneath it — specific, chart-anchored, and unflinching.
+Each score is a number from 0 to 100. Each score has a 4-sentence verdict beneath it - specific, chart-anchored, and unflinching.
 
-Format the score block EXACTLY like this — no markdown, no asterisks, clean plain text.
+Format the score block EXACTLY like this - no markdown, no asterisks, clean plain text.
 CRITICAL: ALL all-caps labels ("OVERALL ALIGNMENT:", "WESTERN ASTROLOGY:", "FINAL VERDICT:", etc.) MUST remain EXACTLY as written in ENGLISH for our system parser. DO NOT translate these labels. Only translate the 4 sentences of your analysis/prose beneath each score into the target language.
 
 COMPATIBILITY SCORES: ${person1Name} & ${person2Name}
@@ -636,13 +636,13 @@ WORLD-CHANGING POTENTIAL: [0-100]
 [4 sentences: what these two could build, create, or ignite in the world if they combined forces. Whether this is a private connection or one with a larger purpose beyond the two people inside it. What the charts say about the creative, professional, or spiritual impact of this collision. Whether the world would notice if these two worked together.]
 
 KARMIC VERDICT: [0-100]
-[4 sentences: is this a comfort trap or a genuine crucible of transformation? Would this connection make both people grow or would it keep them safely asleep? What is the cost of entering it and the cost of avoiding it? The final karmic truth — does this collision serve evolution or does it serve repetition?]
+[4 sentences: is this a comfort trap or a genuine crucible of transformation? Would this connection make both people grow or would it keep them safely asleep? What is the cost of entering it and the cost of avoiding it? The final karmic truth - does this collision serve evolution or does it serve repetition?]
 
 GROWTH POTENTIAL: [0-100]
 [4 sentences: what they could become together if both are conscious. What specific gifts each person's chart offers the other. What inner work would be required from each person to access the highest octave of this connection. What the ceiling looks like if both people rise to it.]
 
 SHADOW RISK: [0-100]
-[4 sentences: the destruction potential if both remain unconscious — higher score means higher risk. Name the specific patterns that would emerge in the dark. How they could use each other's wounds as weapons. What this connection looks like at its worst.]
+[4 sentences: the destruction potential if both remain unconscious - higher score means higher risk. Name the specific patterns that would emerge in the dark. How they could use each other's wounds as weapons. What this connection looks like at its worst.]
 
 MAGNETIC PULL: [0-100]
 [4 sentences: the raw gravitational force of the connection regardless of its wisdom. What makes the pull so strong or so faint. Whether the magnetism is rooted in genuine resonance or in wound-matching. How hard it would be to walk away even if walking away were wise.]
@@ -663,7 +663,7 @@ SCORING RULES (PREVENT AI INFLATION):
 - Anchor scores in strict mathematical friction from the 5 systems. If there are squares, oppositions, Authority mismatches, or Klipothic interference, the score MUST drop to the 30-50 range.
 - A score of 90+ requires rare, exceptionally tight alignments across multiple systems.
 - Average synastry with normal friction should score between 40-60.
-- A score below 30 means significant structural incompatibility — do not soften it.
+- A score below 30 means significant structural incompatibility - do not soften it.
 - Shadow Risk scoring: 90+ means this connection has genuine destructive potential. Name it.
 - Past Life Connection: 90+ means overwhelming karmic indicators across multiple systems.
 - World-Changing Potential: score the external impact, not the internal relationship quality.
@@ -671,13 +671,13 @@ SCORING RULES (PREVENT AI INFLATION):
 - Overall Alignment is NOT an average. It is a synthesis judgment factoring in all friction.
 
 FORMAT RULES (THIS IS SPOKEN AUDIO):
-- The prose sections (Parts 1-4) are ONE CONTINUOUS ESSAY — no section headers, no breaks
+- The prose sections (Parts 1-4) are ONE CONTINUOUS ESSAY - no section headers, no breaks
 - Begin like a naturalist making a final field report after years of observation
-- Use both names throughout — never "you/your"
-- Pure prose — NO asterisks, NO markdown, NO bullets in the prose sections
+- Use both names throughout - never "you/your"
+- Pure prose - NO asterisks, NO markdown, NO bullets in the prose sections
 - Spell out all numbers in the prose sections
 - NO em-dashes, NO AI phrases
-- The score block at the end is the ONE exception to the no-structure rule — format it exactly as shown
+- The score block at the end is the ONE exception to the no-structure rule - format it exactly as shown
 
 ${languageInstruction}
 Deliver the verdict now:

@@ -1,10 +1,10 @@
 /**
  * COUPON CODE ROUTES
  *
- * GET  /api/coupons/validate?code=XXX  — Check if a code is valid (public, no auth needed before signup)
- * POST /api/coupons/redeem              — Redeem a code and grant subscription (no auth — used pre-signup)
- * POST /api/coupons/admin/create        — Create a new coupon (admin only, requires auth)
- * GET  /api/coupons/admin/list          — List all coupons (admin only)
+ * GET  /api/coupons/validate?code=XXX  - Check if a code is valid (public, no auth needed before signup)
+ * POST /api/coupons/redeem              - Redeem a code and grant subscription (no auth - used pre-signup)
+ * POST /api/coupons/admin/create        - Create a new coupon (admin only, requires auth)
+ * GET  /api/coupons/admin/list          - List all coupons (admin only)
  */
 
 import { Hono } from 'hono';
@@ -19,12 +19,12 @@ const coupons = new Hono<AppEnv>();
 function requireAdminSecret(c: any): Response | null {
   const secret = c.req.header('x-admin-secret');
   if (!env.ADMIN_PANEL_SECRET || !secret) {
-    return c.json({ error: 'Unauthorized — missing admin secret' }, 401);
+    return c.json({ error: 'Unauthorized - missing admin secret' }, 401);
   }
   const expected = Buffer.from(env.ADMIN_PANEL_SECRET, 'utf8');
   const received = Buffer.from(secret, 'utf8');
   if (expected.length !== received.length || !timingSafeEqual(expected, received)) {
-    return c.json({ error: 'Unauthorized — invalid admin secret' }, 401);
+    return c.json({ error: 'Unauthorized - invalid admin secret' }, 401);
   }
   return null; // authorized
 }
@@ -37,7 +37,7 @@ function getServiceClient() {
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/coupons/validate?code=XXX
-// Public endpoint — user types a code and we tell them if it's valid.
+// Public endpoint - user types a code and we tell them if it's valid.
 // ─────────────────────────────────────────────────────────────
 coupons.get('/validate', async (c) => {
   const code = (c.req.query('code') || '').trim().toUpperCase();
@@ -84,7 +84,7 @@ coupons.get('/validate', async (c) => {
 // ─────────────────────────────────────────────────────────────
 // POST /api/coupons/redeem
 // Body: { code: string, deviceId?: string }
-// No auth required — this happens before the user has an account.
+// No auth required - this happens before the user has an account.
 // If 100% discount: creates a subscription row so the user gets full access.
 // Returns a coupon_redemption_id that the frontend passes to AccountScreen.
 // ─────────────────────────────────────────────────────────────
@@ -262,7 +262,7 @@ coupons.post('/link-user', requireAuth, async (c) => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// ADMIN ROUTES — require auth + admin check
+// ADMIN ROUTES - require auth + admin check
 // ─────────────────────────────────────────────────────────────
 
 // POST /api/coupons/admin/create

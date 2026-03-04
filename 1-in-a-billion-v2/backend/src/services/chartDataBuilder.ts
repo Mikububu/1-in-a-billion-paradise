@@ -471,8 +471,8 @@ export function buildChartDataForSystem(
               .join('\n');
             return [
               `VIMSHOTTARI DASHA:`,
-              `- Current Mahadasha: ${maha.lord} (${maha.years} years) — ${maha.startDate} to ${maha.endDate}`,
-              `- Current Antardasha: ${maha.lord} / ${antar.lord} — ${antar.startDate} to ${antar.endDate}`,
+              `- Current Mahadasha: ${maha.lord} (${maha.years} years) - ${maha.startDate} to ${maha.endDate}`,
+              `- Current Antardasha: ${maha.lord} / ${antar.lord} - ${antar.startDate} to ${antar.endDate}`,
               ``,
               `FULL DASHA SEQUENCE:`,
               sequence,
@@ -486,7 +486,7 @@ export function buildChartDataForSystem(
               .map((g: any) => `- ${grahaDisplayName[g.key] || g.key}: ${g.navamshaSign}`)
               .join('\n');
             return [
-              `NAVAMSHA (D-9) — Hidden partnership self:`,
+              `NAVAMSHA (D-9) - Hidden partnership self:`,
               `- Navamsha Lagna: ${nav.lagnaSign}`,
               grahaLines,
             ].join('\n');
@@ -548,20 +548,20 @@ export function buildChartDataForSystem(
           const maxTotal = 36;
 
           // Compatibility tier
-          let tier = 'Poor (below 18 — not recommended)';
-          if (total >= 28) tier = 'Excellent (28+ — highly auspicious)';
-          else if (total >= 24) tier = 'Very Good (24-27 — strongly recommended)';
-          else if (total >= 18) tier = 'Good (18-23 — acceptable)';
+          let tier = 'Poor (below 18 - not recommended)';
+          if (total >= 28) tier = 'Excellent (28+ - highly auspicious)';
+          else if (total >= 24) tier = 'Very Good (24-27 - strongly recommended)';
+          else if (total >= 18) tier = 'Good (18-23 - acceptable)';
 
           // Dosha flags
           const doshaLines: string[] = [];
-          if (a.nadi.dosha_present) doshaLines.push('⚠ NADI DOSHA: Same Nadi — traditionally considered a serious obstruction (health/progeny concerns). Score: 0/8');
-          if (a.bhakoot.score === 0) doshaLines.push('⚠ BHAKOOT DOSHA: Inauspicious Moon sign combination — may indicate financial or emotional friction. Score: 0/7');
+          if (a.nadi.dosha_present) doshaLines.push('⚠ NADI DOSHA: Same Nadi - traditionally considered a serious obstruction (health/progeny concerns). Score: 0/8');
+          if (a.bhakoot.score === 0) doshaLines.push('⚠ BHAKOOT DOSHA: Inauspicious Moon sign combination - may indicate financial or emotional friction. Score: 0/7');
           const manglik1 = marsGraha1 && [1, 2, 4, 7, 8, 12].includes(marsGraha1.bhava);
           const manglik2 = marsGraha2 && [1, 2, 4, 7, 8, 12].includes(marsGraha2.bhava);
           if (manglik1 || manglik2) {
             const who = manglik1 && manglik2 ? 'Both persons' : manglik1 ? person1Name : person2Name;
-            doshaLines.push(`⚠ MANGLIK DOSHA: ${who} — Mars in sensitive bhava. Affects marriage timing and temperament.`);
+            doshaLines.push(`⚠ MANGLIK DOSHA: ${who} - Mars in sensitive bhava. Affects marriage timing and temperament.`);
           }
 
           ashtakootBlock = [
@@ -587,10 +587,10 @@ export function buildChartDataForSystem(
             doshaLines.length > 0 ? `\nDOSHA ALERTS:\n${doshaLines.join('\n')}` : 'DOSHA ALERTS: None detected',
             '',
             'INTERPRETATION GUIDE:',
-            '- 28+/36: Highly auspicious — deep karmic harmony',
-            '- 24-27/36: Very good — strong foundation with minor friction areas',
-            '- 18-23/36: Acceptable — workable with awareness of weak kootas',
-            '- Below 18/36: Challenging — significant mismatch in core areas',
+            '- 28+/36: Highly auspicious - deep karmic harmony',
+            '- 24-27/36: Very good - strong foundation with minor friction areas',
+            '- 18-23/36: Acceptable - workable with awareness of weak kootas',
+            '- Below 18/36: Challenging - significant mismatch in core areas',
           ].join('\n');
         }
       } catch (err: any) {
@@ -671,10 +671,10 @@ export function buildChartDataForSystem(
           '',
           `ALL ACTIVE GATES: ${(hd.activeGates || []).sort((a: number, b: number) => a - b).join(', ') || 'Unknown'}`,
           '',
-          'PERSONALITY ACTIVATIONS (Conscious — black):',
+          'PERSONALITY ACTIVATIONS (Conscious - black):',
           personalityLines,
           '',
-          'DESIGN ACTIVATIONS (Unconscious — red):',
+          'DESIGN ACTIVATIONS (Unconscious - red):',
           designLines,
         ].join('\n');
       };

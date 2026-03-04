@@ -4,7 +4,7 @@
  * Handles RevenueCat webhooks and syncs subscription state to user_subscriptions.
  * Uses same table as legacy Stripe; RevenueCat rows use stripe_subscription_id = 'rc_' + transaction_id.
  *
- * Env: REVENUECAT_SECRET_KEY (test secret key from RevenueCat dashboard – used to verify webhook Authorization header).
+ * Env: REVENUECAT_SECRET_KEY (test secret key from RevenueCat dashboard - used to verify webhook Authorization header).
  */
 
 import { createSupabaseServiceClient } from './supabaseClient';
@@ -79,7 +79,7 @@ export async function verifyRevenueCatWebhookAuth(authHeader: string | undefined
 }
 
 /**
- * Subscription tier — derived from RevenueCat product_id.
+ * Subscription tier - derived from RevenueCat product_id.
  * basic  = monthly plan
  * yearly = yearly plan (default)
  * billionaire = billionaire plan (unlimited readings, no IAP)
@@ -217,7 +217,7 @@ export async function handleRevenueCatEvent(event: RevenueCatWebhookEvent): Prom
       return;
 
     case 'NON_RENEWING_PURCHASE':
-      // One-time purchase – still grant active for entitlement period
+      // One-time purchase - still grant active for entitlement period
       await upsertRevenueCatSubscriptionToSupabase({
         appUserId,
         transactionId,

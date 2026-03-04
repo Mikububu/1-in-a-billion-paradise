@@ -1,5 +1,5 @@
 /**
- * CHUNK RULES — Language Boundary #3
+ * CHUNK RULES - Language Boundary #3
  *
  * Language-specific text chunking rules for TTS.
  * Different languages have different optimal chunk sizes

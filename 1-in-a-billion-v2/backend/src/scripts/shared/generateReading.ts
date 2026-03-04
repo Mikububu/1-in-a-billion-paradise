@@ -166,11 +166,11 @@ function splitInlineRomanHeadings(text: string): string {
   // Example we see in bad outputs:
   // "--- I. The Boy Who Learned to Count There is a particular ..."
   return src
-    .replace(/(?:^|\s)[-–—]{2,}\s*[IVXLC]+\.\s+/g, '\n\n')
+    .replace(/(?:^|\s)[---]{2,}\s*[IVXLC]+\.\s+/g, '\n\n')
     // Also split bare dashed section breaks before title-like phrases.
-    .replace(/(?:^|\s)[-–—]{2,}\s+(?=(?:THE|The|A|An)\s+[A-Za-z])/g, '\n\n')
+    .replace(/(?:^|\s)[---]{2,}\s+(?=(?:THE|The|A|An)\s+[A-Za-z])/g, '\n\n')
     // Remove standalone separators that should never render in final prose.
-    .replace(/^\s*[-–—]{3,}\s*$/gm, '')
+    .replace(/^\s*[---]{3,}\s*$/gm, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -273,7 +273,7 @@ function normalizePipeTables(text: string): string {
       const left = cells[0] || '';
       const right = cells[1] || '';
       const rest = cells.slice(2).join(' | ');
-      converted.push(rest ? `${left}: ${right} — ${rest}` : `${left}: ${right}`);
+      converted.push(rest ? `${left}: ${right} - ${rest}` : `${left}: ${right}`);
     }
 
     if (converted.length > 0) {
@@ -287,15 +287,15 @@ function normalizePipeTables(text: string): string {
 function cleanForPdf(raw: string): string {
   let out = String(raw || '')
     .replace(/^\s*\|---.*\|\s*$/gim, '')
-    .replace(/—/g, ', ')
-    .replace(/–/g, '-')
+    .replace(/-/g, ', ')
+    .replace(/-/g, '-')
     .replace(/\*\*\*/g, '')
     .replace(/\*\*/g, '')
     .replace(/\*/g, '')
     .replace(/^#{1,6}\s+/gm, '')
-    .replace(/^\s*[-–—]{2,}\s*[IVXLC]+\.\s*/gim, '')
-    .replace(/^\s*[-–—]{3,}\s*$/gm, '')
-    .replace(/(?:^|\s)[-–—]{2,}\s+(?=(?:THE|The|A|An)\s+[A-Za-z])/g, '\n\n')
+    .replace(/^\s*[---]{2,}\s*[IVXLC]+\.\s*/gim, '')
+    .replace(/^\s*[---]{3,}\s*$/gm, '')
+    .replace(/(?:^|\s)[---]{2,}\s+(?=(?:THE|The|A|An)\s+[A-Za-z])/g, '\n\n')
     .replace(/___/g, '')
     .replace(/__/g, '')
     .replace(/(?<!\w)_(?!\w)/g, '')
@@ -906,7 +906,7 @@ function countHeadlineLines(text: string): number {
       count += 1;
       continue;
     }
-    if (/^(?:[-–—]{2,}\s*)?[IVXLC]+\.\s+/i.test(p)) {
+    if (/^(?:[---]{2,}\s*)?[IVXLC]+\.\s+/i.test(p)) {
       count += 1;
       continue;
     }
@@ -1138,13 +1138,13 @@ export async function generateSingleReading(options: GenerateSingleReadingOption
     temperature: 0.45,
     maxRetries: 5,
   });
-  // Light cleanup only — do NOT apply stripControlTextLeaks here because the trigger
+  // Light cleanup only - do NOT apply stripControlTextLeaks here because the trigger
   // paragraph legitimately contains trigger-title phrases ("RELATIONAL CORE FRACTURE" etc.)
   // that the strip function would kill.
   const narrativeTrigger = String(triggerRaw || '').replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ').trim();
   if (!narrativeTrigger) throw new Error(`Trigger call returned empty text for ${fileBase}`);
 
-  // FIX 3: Chart-aware provocations — anchor LLM to specific placements
+  // FIX 3: Chart-aware provocations - anchor LLM to specific placements
   const spiceLevel = Number(payloadBase?.relationshipPreferenceScale || 7);
   const chartProvocations = docType === 'individual'
     ? buildChartAwareProvocations(personName, system, chartData, spiceLevel)
@@ -1214,7 +1214,7 @@ export async function generateSingleReading(options: GenerateSingleReadingOption
     const hasControlLeak = controlLeakRe.test(candidate);
 
     if (!pronounIssue && !hasControlLeak) {
-      // Candidate is clean — accept or expand to meet word floor
+      // Candidate is clean - accept or expand to meet word floor
       if (words >= hardFloorWords) {
         finalReading = extracted.footer ? `${candidate}\n\n${extracted.footer}`.trim() : candidate;
         if (hasSecond) {
@@ -1222,7 +1222,7 @@ export async function generateSingleReading(options: GenerateSingleReadingOption
         }
         break;
       }
-      // Under word floor but otherwise clean — expand instead of discarding
+      // Under word floor but otherwise clean - expand instead of discarding
       console.log(`📏 Trigger-pipeline attempt ${attempt}: ${words}/${hardFloorWords} words (clean). Expanding...`);
       const expanded = await expandToHardFloor({
         system,

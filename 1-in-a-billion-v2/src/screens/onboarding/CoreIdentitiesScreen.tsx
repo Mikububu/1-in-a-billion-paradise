@@ -519,11 +519,11 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
       await Promise.all([introDelay, sunFetchPromise]);
 
       // If we got a real backend response, show the full animated experience
-      // Otherwise we're using fallbacks — move quickly
+      // Otherwise we're using fallbacks - move quickly
       const useFastPath = !gotRealBackendResponse;
       console.log(`🔍 CoreIdentities: gotRealBackendResponse=${gotRealBackendResponse}, useFastPath=${useFastPath}, sunReading=${!!sunReading}`);
       if (!useFastPath) {
-        // Backend is responding — give the full cinematic delay
+        // Backend is responding - give the full cinematic delay
         await delay(12000); // remaining 12s of the 15s intro
       }
       setProgress(15);
@@ -620,18 +620,18 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
 
       // ========== WAIT FOR AUDIO (only if backend responded) ==========
       if (useFastPath) {
-        // Backend unreachable — skip audio, navigate immediately with fallback readings
+        // Backend unreachable - skip audio, navigate immediately with fallback readings
         console.log('⚡ Fast path: backend unreachable, skipping audio, using fallback readings');
         setProgress(100);
         setStatusText(t('coreIdentities.ready'));
         await delay(500);
       } else {
-        // Backend responded — try audio but don't block forever
+        // Backend responded - try audio but don't block forever
         setProgress(85);
         setStatusText(t('coreIdentities.givingVoice'));
 
         // Race each audio promise against a timeout so we never hang
-        const AUDIO_TIMEOUT_MS = 120000; // 120s max per type — TTS takes ~30-60s for full readings
+        const AUDIO_TIMEOUT_MS = 120000; // 120s max per type - TTS takes ~30-60s for full readings
         const audioWithTimeout = (promise: Promise<void> | null): Promise<void> => {
           if (!promise) return Promise.resolve();
           return Promise.race([
@@ -649,7 +649,7 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
             risingAudioPromise ? audioWithTimeout(risingAudioPromise) : Promise.resolve(),
           ]);
         } catch (e) {
-          // swallow — allSettled shouldn't throw but just in case
+          // swallow - allSettled shouldn't throw but just in case
         }
 
         const hookAudioState = useOnboardingStore.getState().hookAudio;

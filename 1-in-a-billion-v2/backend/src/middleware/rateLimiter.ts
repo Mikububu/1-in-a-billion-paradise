@@ -73,7 +73,7 @@ export function createRateLimiter(name: string, config: RateLimitConfig) {
   }
 
   return async (c: Context, next: Next) => {
-    // Wrap everything — if rate limiting fails for any reason, fail open
+    // Wrap everything - if rate limiting fails for any reason, fail open
     try {
       const key = keyGenerator(c);
       const store = stores.get(name);
@@ -105,7 +105,7 @@ export function createRateLimiter(name: string, config: RateLimitConfig) {
 
       await next();
     } catch {
-      // Rate limiter error — fail open so the request still goes through
+      // Rate limiter error - fail open so the request still goes through
       await next();
     }
   };

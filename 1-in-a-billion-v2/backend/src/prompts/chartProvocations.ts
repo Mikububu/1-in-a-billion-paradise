@@ -125,7 +125,7 @@ ${h.venus && h.venusHouse ? `7. Venus in ${h.venus} in the ${ordinal(h.venusHous
     : `8. What placement creates a pressure ${name} can never fully escape?`;
 
   return `
-CHART-ANCHORED PROVOCATIONS — THINK BEFORE YOU WRITE:
+CHART-ANCHORED PROVOCATIONS - THINK BEFORE YOU WRITE:
 
 FEAR & SHADOW:
 ${saturnQ}
@@ -141,7 +141,7 @@ TRUTH:
 ${tightQ}
 9. What would ${name} sacrifice to stop repeating their oldest pattern?
 
-YOUR TASK: Tell ${name}'s story through these specific chart signatures. Not the chart — the PERSON trapped inside these mathematics.
+YOUR TASK: Tell ${name}'s story through these specific chart signatures. Not the chart - the PERSON trapped inside these mathematics.
 `.trim();
 }
 
@@ -235,7 +235,7 @@ function buildVedicProvocations(name: string, chartData: string, spice: number):
     : '';
 
   return `
-CHART-ANCHORED PROVOCATIONS (VEDIC) — THINK BEFORE YOU WRITE:
+CHART-ANCHORED PROVOCATIONS (VEDIC) - THINK BEFORE YOU WRITE:
 
 KARMA & SHADOW:
 ${lagnaQ}
@@ -251,7 +251,7 @@ ${sexBlock}
 TRUTH:
 9. What would ${name} sacrifice to break the karmic loop this chart describes?
 
-YOUR TASK: Tell ${name}'s story through these Vedic signatures. Not the chart — the soul carrying this karma.
+YOUR TASK: Tell ${name}'s story through these Vedic signatures. Not the chart - the soul carrying this karma.
 `.trim();
 }
 
@@ -334,7 +334,7 @@ function buildHDProvocations(name: string, chartData: string, spice: number): st
     : '';
 
   return `
-CHART-ANCHORED PROVOCATIONS (HUMAN DESIGN) — THINK BEFORE YOU WRITE:
+CHART-ANCHORED PROVOCATIONS (HUMAN DESIGN) - THINK BEFORE YOU WRITE:
 
 TYPE & STRATEGY:
 ${typeQ}
@@ -352,7 +352,7 @@ ${sexBlock}
 TRUTH:
 9. What would ${name} become if they actually followed their ${h.authority || 'body'} authority for one year without override?
 
-YOUR TASK: Tell ${name}'s story through this body graph. Not the mechanics — the human trapped inside the design.
+YOUR TASK: Tell ${name}'s story through this body graph. Not the mechanics - the human trapped inside the design.
 `.trim();
 }
 
@@ -435,7 +435,7 @@ function buildGeneKeysProvocations(name: string, chartData: string, spice: numbe
     : `8. What stands between ${name} and their highest realization?`;
 
   return `
-CHART-ANCHORED PROVOCATIONS (GENE KEYS) — THINK BEFORE YOU WRITE:
+CHART-ANCHORED PROVOCATIONS (GENE KEYS) - THINK BEFORE YOU WRITE:
 
 SHADOW FREQUENCY:
 ${lwQ}
@@ -453,7 +453,7 @@ TRANSFORMATION:
 ${siddhiQ}
 9. What would ${name} sacrifice to move from Shadow to Gift permanently?
 
-YOUR TASK: Tell ${name}'s story through these Gene Key frequencies. Not the system — the person oscillating between shadow and gift.
+YOUR TASK: Tell ${name}'s story through these Gene Key frequencies. Not the system - the person oscillating between shadow and gift.
 `.trim();
 }
 
@@ -569,7 +569,7 @@ function buildKabbalahProvocations(name: string, chartData: string, spice: numbe
     : `9. What must ${name} surrender to complete their soul correction?`;
 
   return `
-CHART-ANCHORED PROVOCATIONS (KABBALAH) — THINK BEFORE YOU WRITE:
+CHART-ANCHORED PROVOCATIONS (KABBALAH) - THINK BEFORE YOU WRITE:
 
 SOUL CORRECTION:
 ${tikkunQ}
@@ -587,7 +587,7 @@ ${sexBlock}
 TRANSFORMATION:
 ${giftQ}
 
-YOUR TASK: Tell ${name}'s story through this Kabbalistic architecture. Not the system — the soul attempting its correction.
+YOUR TASK: Tell ${name}'s story through this Kabbalistic architecture. Not the system - the soul attempting its correction.
 `.trim();
 }
 
@@ -641,7 +641,7 @@ function getSunDrive(sign: string): string {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// FALLBACK (Generic provocations — same as original buildPersonProvocations)
+// FALLBACK (Generic provocations - same as original buildPersonProvocations)
 // ═══════════════════════════════════════════════════════════════════════════
 
 function buildFallbackProvocations(personName: string, spiceLevel: number): string {
@@ -649,7 +649,7 @@ function buildFallbackProvocations(personName: string, spiceLevel: number): stri
 BEFORE YOU WRITE, CONTEMPLATE THESE ABOUT ${personName.toUpperCase()}:
 
 FEAR & SHADOW:
-1. What is ${personName} actually terrified of — the fear they have never admitted?
+1. What is ${personName} actually terrified of - the fear they have never admitted?
 2. What do they do to avoid feeling that terror? What patterns numb it?
 3. What loop have they repeated in every relationship, and why can they not stop?
 `;
@@ -657,7 +657,7 @@ FEAR & SHADOW:
   const sex = spiceLevel >= 4 ? `
 SEX & DESIRE:
 4. What does ${personName} need sexually that they have never asked for?
-5. What hunger lives in them that they hide — maybe even from themselves?
+5. What hunger lives in them that they hide - maybe even from themselves?
 6. Does their sexuality lead toward liberation or destruction?
 7. What would their sex life reveal about their psychology?
 ` : `
@@ -671,7 +671,7 @@ TRUTH & SACRIFICE:
 8. What truth about ${personName} would make them weep if spoken aloud?
 9. What must they sacrifice to become who they were born to be?
 
-YOUR TASK: Tell ${personName}'s story. Not the chart — the PERSON inside the chart.
+YOUR TASK: Tell ${personName}'s story. Not the chart - the PERSON inside the chart.
 `;
 
   return `${base}${sex}${truth}`.trim();

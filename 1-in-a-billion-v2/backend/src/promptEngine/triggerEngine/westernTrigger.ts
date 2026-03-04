@@ -10,9 +10,9 @@ import { buildWesternSection } from '../../prompts/systems/western';
  *
  * Two-call architecture for individual Western readings.
  *
- * 1. stripWesternChartData()  — pure code, no LLM, ~40 lines out
- * 2. buildWesternTriggerPrompt() — 20-line trigger call → 80-120 word trigger paragraph
- * 3. buildWesternWritingPrompt() — 60-line writing call → configurable word target
+ * 1. stripWesternChartData()  - pure code, no LLM, ~40 lines out
+ * 2. buildWesternTriggerPrompt() - 20-line trigger call → 80-120 word trigger paragraph
+ * 3. buildWesternWritingPrompt() - 60-line writing call → configurable word target
  *
  * No digest. No expansion passes. No compliance rewrites.
  */
@@ -56,26 +56,26 @@ export function stripWesternChartData(raw: string): string {
     if (/^CURRENT TRANSITS/.test(t)) { inProfection = false; inTransitPlanets = true; continue; } // drop header + planet list
     if (/^TRANSIT ASPECTS TO NATAL/.test(t)) { inTransitPlanets = false; inTransitAspects = true; transitAspectCount = 0; out.push('TRANSIT ASPECTS TO NATAL (top 6, tightest orb):'); continue; }
 
-    // Ascendant, MC, Sect — always keep
+    // Ascendant, MC, Sect - always keep
     if (/^- (Ascendant|MC|Sect):/.test(t)) { out.push(line); continue; }
 
-    // Planets — keep only selected
+    // Planets - keep only selected
     if (inPlanets) {
       const match = t.match(/^- ([A-Z]+):/);
       if (match && KEEP_PLANETS.has(match[1])) { out.push(line); }
       continue;
     }
 
-    // Nodes — keep both
+    // Nodes - keep both
     if (/^- (North|South) Node:/.test(t)) { out.push(line); continue; }
 
-    // House cusps — keep only angular
+    // House cusps - keep only angular
     if (inCusps) {
       if (ANGULAR_CUSPS.has(t.slice(0, 4))) { out.push(line); }
       continue;
     }
 
-    // Aspects — keep only orb ≤ 3°
+    // Aspects - keep only orb ≤ 3°
     if (inAspects) {
       if (!t || /^- /.test(t)) {
         const orbMatch = t.match(/orb ([\d.]+)°/);
@@ -84,13 +84,13 @@ export function stripWesternChartData(raw: string): string {
       continue;
     }
 
-    // Profection — keep all
+    // Profection - keep all
     if (inProfection) { out.push(line); continue; }
 
-    // Transit planets — drop entirely
+    // Transit planets - drop entirely
     if (inTransitPlanets) { continue; }
 
-    // Transit aspects — keep top 6 by appearance (already sorted by orb in builder)
+    // Transit aspects - keep top 6 by appearance (already sorted by orb in builder)
     if (inTransitAspects) {
       if (/^- /.test(t) && transitAspectCount < 6) {
         out.push(line);
@@ -167,7 +167,7 @@ export function buildWesternWritingPrompt(params: {
   const trigger = NARRATIVE_TRIGGER_LABEL;
   const triggerTitle = NARRATIVE_TRIGGER_TITLE;
 
-  // Inject the Western system guidance — coverage requirements, emphasis, avoids
+  // Inject the Western system guidance - coverage requirements, emphasis, avoids
   const westernGuidance = buildWesternSection(false);
 
   return [
@@ -176,13 +176,13 @@ export function buildWesternWritingPrompt(params: {
     'You have read Anais Nin, Henry Miller, and Ernest Hemingway.',
     CORE_FAIRYTALE_SEED,
     '',
-    'You are telling the story of a soul — through the lens of their natal chart.',
+    'You are telling the story of a soul - through the lens of their natal chart.',
     'This is NOT a generic horoscope. It is a Western astrological reading: grounded in specific planetary placements, aspects, house positions, and chart patterns.',
     '',
     westernGuidance,
     '',
     '══════════════════════════════════════════════════════════',
-    `${triggerTitle} — THIS IS THE SPINE OF EVERYTHING YOU WRITE:`,
+    `${triggerTitle} - THIS IS THE SPINE OF EVERYTHING YOU WRITE:`,
     narrativeTrigger,
     `Every paragraph must connect to this ${trigger} or deepen it.`,
     `If a paragraph does not serve the ${trigger}, it does not belong here.`,
@@ -201,7 +201,7 @@ export function buildWesternWritingPrompt(params: {
     '- The ending does not resolve. It names the pressure and leaves it present.',
     '',
     'ASTROLOGICAL VOICE:',
-    '- Reference specific planets, signs, houses, and aspects from the chart data — these are the evidence.',
+    '- Reference specific planets, signs, houses, and aspects from the chart data - these are the evidence.',
     '- Name chart patterns (T-square, Grand Trine, Yod, stelliums) when present.',
     '- Every paragraph must add new consequence or evidence rooted in their specific chart.',
     '- Do not be generic. Ground every insight in specific placements.',
@@ -210,7 +210,7 @@ export function buildWesternWritingPrompt(params: {
     `LENGTH: ${targetWords.toLocaleString('en-US')} words. Write until the ${trigger} is fully present. Then stop.`,
     'Do not pad. Do not repeat. Do not add a hopeful ending.',
     '',
-    'CHART DATA (authoritative — do not invent or contradict):',
+    'CHART DATA (authoritative - do not invent or contradict):',
     strippedChartData,
     '',
     `Write ${personName}'s astrological reading now:`,

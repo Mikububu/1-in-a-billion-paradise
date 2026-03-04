@@ -2,7 +2,7 @@
  * INDIVIDUAL READING STRUCTURE
  *
  * Word count: Controlled SOLELY by src/prompts/config/wordCounts.ts (STANDARD_READING).
- * Do NOT hardcode word counts here — getWordTarget() is the single source of truth.
+ * Do NOT hardcode word counts here - getWordTarget() is the single source of truth.
  * Section breakdowns below are proportional guides that sum to the STANDARD_READING.target (7000).
  *
  * Source: PROMPT_PRODUCTION_Individual.txt
@@ -48,7 +48,7 @@ export const INDIVIDUAL_STRUCTURE = {
 /**
  * Build structure instructions for Individual reading.
  *
- * IMPORTANT: Do NOT include a word count here — getWordTarget() in builder.ts
+ * IMPORTANT: Do NOT include a word count here - getWordTarget() in builder.ts
  * is the single source of truth and is injected separately.
  */
 export function buildIndividualStructure(personName: string): string {
@@ -71,7 +71,7 @@ FORMAT RULES (THIS IS SPOKEN AUDIO):
 - 3rd person with ${personName}'s name (never "you/your")
 - Pure prose - NO asterisks, NO markdown, NO bullets
 - Spell out numbers ("twenty-three degrees")
-- NO em-dashes (—), use commas or periods
+- NO em-dashes (-), use commas or periods
 - NO AI phrases ("This is not just...", "Here's the thing...")
 
 Tell ${personName}'s story now:

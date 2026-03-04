@@ -19,7 +19,7 @@ export type CompatibilityScore = {
 };
 
 const OVERLAY_CATEGORIES = [
-  { key: 'SEXUAL CHEMISTRY', instruction: 'Raw erotic/physical charge. What the bedroom would become — liberation or consumption.' },
+  { key: 'SEXUAL CHEMISTRY', instruction: 'Raw erotic/physical charge. What the bedroom would become - liberation or consumption.' },
   { key: 'MAGNETIC PULL', instruction: 'How hard it would be to walk away. The raw gravitational force regardless of wisdom.' },
   { key: 'KARMIC RESONANCE', instruction: 'Past life / soul familiarity. Whether this feels like recognition or repetition.' },
   { key: 'SHADOW RISK', instruction: 'Destruction potential if both remain unconscious. What this looks like at its worst.' },
@@ -34,7 +34,7 @@ const OVERLAY_CATEGORIES = [
 const VERDICT_CATEGORIES = [
   ...OVERLAY_CATEGORIES,
   { key: 'OVERALL ALIGNMENT', instruction: 'The headline truth about this connection synthesized across all five systems.' },
-  { key: 'WESTERN ASTROLOGY', instruction: 'Tropical chart synastry — specific cross-aspects that drive this score.' },
+  { key: 'WESTERN ASTROLOGY', instruction: 'Tropical chart synastry - specific cross-aspects that drive this score.' },
   { key: 'VEDIC JYOTISH', instruction: 'Sidereal synastry, Nakshatra compatibility, Dasha alignment.' },
   { key: 'HUMAN DESIGN', instruction: 'Circuit compatibility, channel completion, authority interplay.' },
   { key: 'GENE KEYS', instruction: 'Shadow/gift resonance, frequency dynamic between profiles.' },
@@ -68,7 +68,7 @@ function buildScoringPrompt(params: {
     '',
     'Based on the reading above and the chart data, score each category below.',
     '',
-    'OUTPUT FORMAT — follow EXACTLY, no markdown, no asterisks, clean plain text:',
+    'OUTPUT FORMAT - follow EXACTLY, no markdown, no asterisks, clean plain text:',
     '',
     categoryBlock,
     '',
@@ -79,7 +79,7 @@ function buildScoringPrompt(params: {
     `- ALTERNATE which person you mention first. Do NOT always lead with ${person1Name}. This is about the PAIR, not about one person.`,
     '- Be honest and unflinching. No therapy language. No fake positivity.',
     isVerdict
-      ? '- OVERALL ALIGNMENT is NOT an average — it is a synthesis judgment across all five systems.'
+      ? '- OVERALL ALIGNMENT is NOT an average - it is a synthesis judgment across all five systems.'
       : `- These scores are derived from THIS system's chart data only.`,
     '',
     'Output the scores now:',
@@ -105,7 +105,7 @@ function parseScores(raw: string): CompatibilityScore[] {
   for (let i = 0; i < matches.length; i++) {
     const current = matches[i];
     const nextIndex = i + 1 < matches.length
-      ? matches[i + 1].startIndex  // Start of next label line — no more guessing offsets
+      ? matches[i + 1].startIndex  // Start of next label line - no more guessing offsets
       : text.length;
     const noteText = text.slice(current.endIndex, nextIndex).trim();
     const sentences = noteText

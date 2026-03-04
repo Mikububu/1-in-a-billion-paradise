@@ -156,9 +156,9 @@ async function wipeAppDataKeepUsers() {
 
   console.log('\n═══════════════════════════════════════════════════════════');
   if (dryRun) {
-    console.log(`🔍 DRY RUN COMPLETE — would remove ${totalFound} file(s).`);
+    console.log(`🔍 DRY RUN COMPLETE - would remove ${totalFound} file(s).`);
   } else {
-    console.log(`🎉 WIPE COMPLETE — removed ${totalDeleted}/${totalFound} file(s) (errors: ${totalErrors}).`);
+    console.log(`🎉 WIPE COMPLETE - removed ${totalDeleted}/${totalFound} file(s) (errors: ${totalErrors}).`);
   }
   console.log('═══════════════════════════════════════════════════════════\n');
 }

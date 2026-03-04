@@ -13,7 +13,7 @@
  * 
  * Removes:
  * - All markdown syntax (#, ##, **, __, -, etc.)
- * - Special characters and unicode (♈, ♉, °, ', ", —, –, etc.)
+ * - Special characters and unicode (♈, ♉, °, ', ", -, -, etc.)
  * - Emojis and symbols
  * - HTML tags and entities
  * - Broken words or unreadable text
@@ -43,8 +43,8 @@ export function cleanupTextForTTS(text: string): string {
   cleaned = cleaned.replace(/^\d+\.\s+/gm, ''); // Numbered lists
 
   // Replace em-dashes and en-dashes with commas or semicolons
-  cleaned = cleaned.replace(/—/g, ', ');
-  cleaned = cleaned.replace(/–/g, ', ');
+  cleaned = cleaned.replace(/-/g, ', ');
+  cleaned = cleaned.replace(/-/g, ', ');
 
   // Remove special characters and unicode symbols
   // Keep standard punctuation: . , ; : ' " ? !
@@ -98,7 +98,7 @@ export function validateTextForTTS(text: string): {
   const issues: string[] = [];
 
   // Check for problematic characters
-  if (/[♈♉♊♋♌♍♎♏♐♑♒♓°—–]/.test(text)) {
+  if (/[♈♉♊♋♌♍♎♏♐♑♒♓°--]/.test(text)) {
     issues.push('Contains zodiac symbols, degree symbols, or em-dashes');
   }
 

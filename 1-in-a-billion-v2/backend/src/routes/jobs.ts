@@ -110,7 +110,7 @@ router.delete('/:jobId', jwtAuth, async (c) => {
     return c.json({ success: false, error: 'Internal server error' }, 500);
   }
 });
-// POST /api/jobs/v2/start — Create a new reading job
+// POST /api/jobs/v2/start - Create a new reading job
 // ═══════════════════════════════════════════════════════════════════════════
 router.post('/v2/start', jwtAuth, async (c) => {
   try {
@@ -205,7 +205,7 @@ router.post('/v2/start', jwtAuth, async (c) => {
 });
 
 // V2: Supabase-backed job read (RLS enforced).
-// Requires authentication — uses user's token for RLS-safe queries.
+// Requires authentication - uses user's token for RLS-safe queries.
 const getJobHandler = async (c: any) => {
   const accessToken = getBearerToken(c);
   if (!accessToken) {

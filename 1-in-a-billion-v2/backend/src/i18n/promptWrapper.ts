@@ -1,5 +1,5 @@
 /**
- * PROMPT WRAPPER — Language Boundary #1
+ * PROMPT WRAPPER - Language Boundary #1
  *
  * Wraps any English prompt with language-specific output instructions.
  * For English, returns the prompt unchanged (zero overhead).
@@ -7,7 +7,7 @@
  * OVERLAY PRINCIPLE:
  *   The core app writes prompts in English. This wrapper appends
  *   a language directive. If you change the English prompt, the
- *   wrapper still works — it just appends to whatever the prompt is.
+ *   wrapper still works - it just appends to whatever the prompt is.
  *   The LLM receives full English creative direction + language output.
  */
 

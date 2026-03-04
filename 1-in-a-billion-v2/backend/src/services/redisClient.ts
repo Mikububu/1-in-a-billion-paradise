@@ -1,5 +1,5 @@
 /**
- * REDIS CLIENT — Singleton connection for BullMQ
+ * REDIS CLIENT - Singleton connection for BullMQ
  *
  * Reads REDIS_URL from env (Fly.io auto-populates this when you provision Redis).
  * Falls back to localhost:6379 for local dev.

@@ -23,9 +23,9 @@ function cleanText(text: string): string {
 
   return text
     // Replace em-dashes with commas
-    .replace(/—/g, ',')
+    .replace(/-/g, ',')
     // Replace en-dashes with hyphens
-    .replace(/–/g, '-')
+    .replace(/-/g, '-')
     // Remove any other unicode dashes
     .replace(/[\u2013\u2014\u2015]/g, ',')
     // SAFETY NET: Remove Hebrew characters (U+0590 to U+05FF)
@@ -293,7 +293,7 @@ Write a comprehensive reading that includes ALL of the following sections:
 - Example: "${subjectName} craves..." NOT "You crave..."
 
 Be psychologically precise. Literary voice like David Attenborough narrating a human soul.
-NO em dashes (—). NO generic platitudes. NO AI phrases like "here's the thing" or "let me show you".
+NO em dashes (-). NO generic platitudes. NO AI phrases like "here's the thing" or "let me show you".
 Each section should flow naturally without numbered headers.
 
 **WORD COUNT REQUIREMENT: 3000 WORDS MINIMUM. COUNT THEM.**

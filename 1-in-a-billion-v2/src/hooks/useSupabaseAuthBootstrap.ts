@@ -36,7 +36,7 @@ export const useSupabaseAuthBootstrap = () => {
             }
         })();
 
-        // Listen for changes — including PASSWORD_RECOVERY
+        // Listen for changes - including PASSWORD_RECOVERY
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             console.log('🔒 Auth state change:', event);
             setSession(session);

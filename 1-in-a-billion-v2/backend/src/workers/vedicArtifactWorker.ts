@@ -100,7 +100,7 @@ async function processNextArtifact() {
 
         if (!profileA || !profileB) throw new Error('Profiles not found in library_people');
 
-        // Prepare info — birth data lives inside the `birth_data` JSONB column,
+        // Prepare info - birth data lives inside the `birth_data` JSONB column,
         // NOT as separate top-level columns.  Extract city from birthCity field.
         const bdA = profileA.birth_data || {};
         const bdB = profileB.birth_data || {};

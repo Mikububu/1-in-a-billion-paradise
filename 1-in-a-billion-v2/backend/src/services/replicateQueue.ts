@@ -1,5 +1,5 @@
 /**
- * REPLICATE QUEUE — BullMQ queue for global audio chunk processing
+ * REPLICATE QUEUE - BullMQ queue for global audio chunk processing
  *
  * Instead of each audio-worker calling Replicate directly, chunks are
  * enqueued here and processed by a dedicated rate-limiter-worker that
@@ -168,7 +168,7 @@ export async function waitForAllChunks(
   const startTime = Date.now();
 
   // ─────────────────────────────────────────────────────────────────────
-  // PHASE 1: Wait for ALL Replicate jobs to finish (parallel — cheap,
+  // PHASE 1: Wait for ALL Replicate jobs to finish (parallel - cheap,
   //          only stores completion metadata, no audio buffers yet)
   // ─────────────────────────────────────────────────────────────────────
   const chunkResults: ChunkJobResult[] = new Array(jobIds.length);
@@ -210,7 +210,7 @@ export async function waitForAllChunks(
   //          Each chunk is ~0.5-2MB WAV; we limit to 5 concurrent downloads
   //          Memory overhead per batch: ~10MB (extremely safe on 1GB RAM)
   // ─────────────────────────────────────────────────────────────────────
-  if (!supabase) throw new Error('Supabase not configured — cannot download audio chunks');
+  if (!supabase) throw new Error('Supabase not configured - cannot download audio chunks');
 
   const audioBuffers: Buffer[] = new Array(jobIds.length);
   const downloadLimit = pLimit(5); // 5 concurrent downloads max

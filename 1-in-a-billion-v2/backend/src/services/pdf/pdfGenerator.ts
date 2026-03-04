@@ -115,7 +115,7 @@ function buildOverlayCoverTitle(title: string): string {
 function formatPersonCoverLine(person: PDFGenerationOptions['person1']): string {
   const birthDate = formatBirthDate(person.birthDate);
   const time = String(person.birthTime || '').trim();
-  // Never fall back to timezone (e.g. "Europe/Vienna") — it's misleading as a location name
+  // Never fall back to timezone (e.g. "Europe/Vienna") - it's misleading as a location name
   const place = String(person.birthPlace || '').trim();
   return [
     birthDate ? `birthday: ${birthDate}` : '',
@@ -226,10 +226,10 @@ function splitEmbeddedHeadline(paragraph: string): { headline?: string; body: st
   if (!text) return { body: '' };
   const stripped = text
     .replace(/^\s*#{1,6}\s*/, '')
-    .replace(/^\s*[-–—]{2,}\s*/, '')
+    .replace(/^\s*[---]{2,}\s*/, '')
     .replace(/^\s*(?:\d+[.)]|[IVXLC]+\.)\s*/i, '')
     .trim();
-  if (/^[-–—]{3,}\s*$/.test(stripped)) return { body: '' };
+  if (/^[---]{3,}\s*$/.test(stripped)) return { body: '' };
   const mUpper = stripped.match(/^((?:THE|A|AN|WHAT|WHEN|HOW|WHY|WHO)\s+[A-Z0-9'’\-]+(?:\s+[A-Z0-9'’\-]+){2,})\s+([A-Z][a-z].+)$/);
   if (mUpper) {
     const body = mUpper[2].trim();
@@ -262,7 +262,7 @@ function isOrphanLeadLine(paragraph: string): boolean {
   const text = String(paragraph || '').trim();
   if (!text) return false;
   if (isLikelySubheadline(text)) return false;
-  if (/^[#\-–—]/.test(text)) return false;
+  if (/^[#\---]/.test(text)) return false;
   if (/[.!?;:]$/.test(text)) return false;
   if (/[,:;]/.test(text)) return false;
   const words = text.split(/\s+/).filter(Boolean);
@@ -675,7 +675,7 @@ type FinalIronyVerdict = { score: number; text: string };
  */
 function extractFinalIronyVerdict(reading: string): FinalIronyVerdict | null {
   const text = String(reading || '');
-  const verdictRe = /^FINAL VERDICT:\s*(\d{1,2}(?:\.\d+)?)\s*\/\s*10\s*[-—–]+\s*(.+)$/gmi;
+  const verdictRe = /^FINAL VERDICT:\s*(\d{1,2}(?:\.\d+)?)\s*\/\s*10\s*[---]+\s*(.+)$/gmi;
   const match = verdictRe.exec(text);
   if (!match) return null;
 
@@ -743,7 +743,7 @@ function extractCompatibilityRows(reading: string, _appendix?: string): Compatib
   }
 
   // ── Strategy 2: Legacy /10 format (backward compat) ────────────────────
-  const legacyRe = /^-?\s*([^:]{3,60}):\s*(\d{1,2}(?:\.\d+)?)\s*\/\s*10\s*(?:[—-]\s*(.+))?$/gmi;
+  const legacyRe = /^-?\s*([^:]{3,60}):\s*(\d{1,2}(?:\.\d+)?)\s*\/\s*10\s*(?:[--]\s*(.+))?$/gmi;
   const legacyRows: CompatibilityRow[] = [];
   while ((m = legacyRe.exec(text)) !== null) {
     const label = (m[1] || '').trim();
@@ -1047,7 +1047,7 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
         doc.moveDown(1);
       }
 
-      // Chart reference page (Natal Chart Overview) — always present for every reading
+      // Chart reference page (Natal Chart Overview) - always present for every reading
       if (ENABLE_CHART_REFERENCE_PAGE) {
         const hasChartReference = Boolean(String(options.chartReferencePage || '').trim() || String(options.chartReferencePageRight || '').trim());
         if (hasChartReference) {

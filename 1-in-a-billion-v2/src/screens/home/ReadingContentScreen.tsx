@@ -95,7 +95,7 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
     const pdfArtifact = useMemo(() => getFirstPdfArtifact(relevantArtifacts), [relevantArtifacts]);
 
     const title = useMemo(() => {
-        // Try job params first — they have both person names for synastry
+        // Try job params first - they have both person names for synastry
         const params = job?.params || job?.input || {};
         const p1 = params.person1?.name || params.person?.name;
         const p2 = params.person2?.name;
@@ -238,7 +238,7 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
         if (!otherSound) return;
 
         try {
-            // Always attempt to pause — don't rely on isPlaying check which can race
+            // Always attempt to pause - don't rely on isPlaying check which can race
             await otherSound.pauseAsync();
             setIsAudioPlayingByKind((prev) => ({ ...prev, [otherKind]: false }));
         } catch {

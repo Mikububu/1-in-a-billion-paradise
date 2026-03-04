@@ -78,7 +78,7 @@ export async function getApiKey(
         'fly_io': 'FLY_ACCESS_TOKEN', // Fly.io deployment token
         'minimax': 'MINIMAX_API_KEY', // MiniMax API for music generation
         'resend': 'RESEND_API_KEY', // Resend API for email notifications
-        'revenuecat_secret': 'REVENUECAT_SECRET_KEY', // RevenueCat secret – webhook Authorization: Bearer <key>
+        'revenuecat_secret': 'REVENUECAT_SECRET_KEY', // RevenueCat secret - webhook Authorization: Bearer <key>
       };
 
       const configKey = keyMapping[service];

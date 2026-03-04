@@ -1,5 +1,5 @@
 /**
- * RATE LIMITER WORKER — The ONLY process that talks to Replicate
+ * RATE LIMITER WORKER - The ONLY process that talks to Replicate
  *
  * Processes the `replicate-chunks` BullMQ queue at a globally controlled rate.
  * Uses the existing runReplicateWithRateLimit() for per-process pacing,
@@ -74,7 +74,7 @@ async function processChunk(
   const textPreview = (replicateInput.text || replicateInput.text_to_synthesize || '').substring(0, 50);
   console.log(
     `[RateLimiterWorker] Processing chunk ${chunkIndex + 1}/${totalChunks} ` +
-    `(task ${taskId}) — "${textPreview}..."`,
+    `(task ${taskId}) - "${textPreview}..."`,
   );
 
   const startTime = Date.now();
@@ -115,9 +115,9 @@ async function processChunk(
 
   // Upload to Supabase temp storage instead of returning base64 through Redis
   // This prevents Redis from filling up with large audio buffers
-  if (!supabase) throw new Error('Supabase not configured — cannot upload audio chunks');
+  if (!supabase) throw new Error('Supabase not configured - cannot upload audio chunks');
   if (audioBuffer.length < 100) {
-    throw new Error(`Chunk ${chunkIndex + 1} audio buffer suspiciously small (${audioBuffer.length} bytes) — likely corrupted`);
+    throw new Error(`Chunk ${chunkIndex + 1} audio buffer suspiciously small (${audioBuffer.length} bytes) - likely corrupted`);
   }
   const storagePath = `temp-chunks/${taskId}/${chunkIndex}.wav`;
 
@@ -147,11 +147,11 @@ async function processChunk(
   }
 
   console.log(
-    `[RateLimiterWorker] ✅ Chunk ${chunkIndex + 1}/${totalChunks} done — ` +
+    `[RateLimiterWorker] ✅ Chunk ${chunkIndex + 1}/${totalChunks} done - ` +
     `${audioBuffer.length} bytes in ${elapsed}s → ${storagePath}`,
   );
 
-  // Return only the storage path (tiny string) — not the audio data
+  // Return only the storage path (tiny string) - not the audio data
   return {
     storagePath,
     audioBytes: audioBuffer.length,

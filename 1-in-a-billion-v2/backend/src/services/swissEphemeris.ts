@@ -417,14 +417,14 @@ export type PlacementSummary = {
   // This prevents the LLM from falling back to name/gematria analysis.
   kabbalahProfile?: KabbalahProfileV2;
 
-  // Vimshottari Dasha (Vedic timing system — based on Moon's nakshatra at birth)
+  // Vimshottari Dasha (Vedic timing system - based on Moon's nakshatra at birth)
   vimshottariDasha?: {
     mahadasha: { lord: string; years: number; startDate: string; endDate: string };
     antardasha: { lord: string; startDate: string; endDate: string };
     allMahadashas: Array<{ lord: string; years: number; startDate: string; endDate: string; isCurrent: boolean }>;
   };
 
-  // Navamsha (D-9) — the hidden chart, used primarily for partnership analysis
+  // Navamsha (D-9) - the hidden chart, used primarily for partnership analysis
   navamsha?: {
     lagnaSign: string;
     grahas: Array<{ key: string; navamshaSign: string }>;
@@ -434,7 +434,7 @@ export type PlacementSummary = {
 type VedicGrahaKey = NonNullable<PlacementSummary['sidereal']>['grahas'][number]['key'];
 
 // ═══════════════════════════════════════════════════════════════════════════
-// VIMSHOTTARI DASHA (pure — no Swiss Ephemeris calls needed)
+// VIMSHOTTARI DASHA (pure - no Swiss Ephemeris calls needed)
 // ═══════════════════════════════════════════════════════════════════════════
 const DASHA_LORDS = ['Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'];
 const DASHA_YEARS: Record<string, number> = {
@@ -515,7 +515,7 @@ function calculateVimshottariDasha(
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// NAVAMSHA D-9 (pure — derived from sidereal longitudes)
+// NAVAMSHA D-9 (pure - derived from sidereal longitudes)
 // ═══════════════════════════════════════════════════════════════════════════
 // Element start signs: fire→Aries(0), earth→Capricorn(9), air→Libra(6), water→Cancer(3)
 const NAVAMSHA_STARTS = [0, 9, 6, 3];

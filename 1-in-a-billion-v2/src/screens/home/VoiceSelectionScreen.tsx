@@ -227,7 +227,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
             ? 'bundle_verdict'
             : (readingType === 'overlay' ? 'synastry' : 'extended');
 
-        // Billionaire tier gets all readings free — always send useIncludedReading
+        // Billionaire tier gets all readings free - always send useIncludedReading
         const shouldUseIncluded = unlimitedReadings || Boolean(restParams.useIncludedReading);
 
         const payload: any = {
@@ -262,7 +262,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
 
         // ── Photo upload prompt ──────────────────────────────────────────
         // Before generating a paid reading, check if the person(s) have photos.
-        // Photos improve the PDF (AI portrait on cover) — offer to upload.
+        // Photos improve the PDF (AI portrait on cover) - offer to upload.
         const selfProfile = self;
         const p1HasPhoto = !!(selfProfile?.portraitUrl || selfProfile?.originalPhotoUrl);
         const p2Profile = partnerFromStore || (targetPerson?.id !== self?.id ? targetPerson : null);

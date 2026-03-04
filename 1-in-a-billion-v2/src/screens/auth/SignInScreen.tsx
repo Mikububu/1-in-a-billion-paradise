@@ -169,7 +169,7 @@ export const SignInScreen = () => {
         const url = event.url;
         console.log('🔗 Deep link received:', url);
 
-        // Handle password reset confirmation — navigate to ResetPassword screen
+        // Handle password reset confirmation - navigate to ResetPassword screen
         if (url.includes('auth/reset-password') || url.includes('type=recovery')) {
             console.log('✅ Password reset link detected, navigating to ResetPassword');
             navigation.navigate('ResetPassword' as any);

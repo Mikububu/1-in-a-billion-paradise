@@ -2,7 +2,7 @@
  * OVERLAY READING STRUCTURE
  *
  * Word count: Controlled SOLELY by src/prompts/config/wordCounts.ts (STANDARD_READING).
- * Do NOT hardcode word counts here — getWordTarget() in builder.ts is the single source of truth.
+ * Do NOT hardcode word counts here - getWordTarget() in builder.ts is the single source of truth.
  * Section breakdowns below are proportional guides that sum to STANDARD_READING.target (7000).
  *
  * CANONICAL PATH: builder.ts → buildOverlayStructure() → getWordTarget()
@@ -13,7 +13,7 @@
 /**
  * Build structure instructions for Overlay reading.
  *
- * IMPORTANT: Do NOT include a word count here — getWordTarget() in builder.ts
+ * IMPORTANT: Do NOT include a word count here - getWordTarget() in builder.ts
  * is the single source of truth and is injected separately.
  */
 export function buildOverlayStructure(person1Name: string, person2Name: string): string {
@@ -43,7 +43,7 @@ FORMAT RULES (THIS IS SPOKEN AUDIO):
 Tell the story of what these charts reveal could unfold between these two souls.
 
 THEN, after the prose ends, append a MINI COMPATIBILITY SNAPSHOT for this system only.
-Format it EXACTLY like this — no markdown, no asterisks, clean plain text, each score with 2 sentences:
+Format it EXACTLY like this - no markdown, no asterisks, clean plain text, each score with 2 sentences:
 
 COMPATIBILITY SNAPSHOT: ${person1Name} & ${person2Name}
 
@@ -67,6 +67,6 @@ SHADOW RISK: [0-100]
 
 SCORING RULES:
 - Use the full 0-100 range. Do not cluster around 70-80.
-- These scores are derived from THIS system's chart data only — not a guess across all systems.
+- These scores are derived from THIS system's chart data only - not a guess across all systems.
 `;
 }

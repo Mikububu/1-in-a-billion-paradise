@@ -228,7 +228,7 @@ function extractCoverQuote(reading: string): string {
 // ─── Portrait Generation (Gemini 3 Pro) ─────────────────────────────────────
 async function generatePortraitForPerson(person: TestPerson): Promise<string | null> {
   if (!person.portraitFile) {
-    console.log(`⏭️  No portrait file for ${person.name} — skipping`);
+    console.log(`⏭️  No portrait file for ${person.name} - skipping`);
     return null;
   }
 
@@ -268,10 +268,10 @@ async function runSystemReading(
   const fileBase = `${person.name.toLowerCase()}_${system}_${timestamp}`;
 
   console.log(`\n${'═'.repeat(70)}`);
-  console.log(`  ${display.toUpperCase()} READING — ${person.name}`);
+  console.log(`  ${display.toUpperCase()} READING - ${person.name}`);
   console.log(`${'═'.repeat(70)}`);
 
-  // ── Build Chart Data (FULL — no stripping) ──────────────────────────────
+  // ── Build Chart Data (FULL - no stripping) ──────────────────────────────
   console.log(`📊 Building ${system} chart data (FULL)...`);
   const p1BirthData = {
     birthDate: person.birthDate,
@@ -422,8 +422,8 @@ async function main() {
   console.log(`   Portrait: ${skipPortrait ? 'SKIPPED' : `Gemini 3 Pro Image → ${person.portraitFile || 'none'}`}`);
   console.log(`   Output:   ${OUT_DIR}\n`);
 
-  // ── Step 1: Compute Placements (FRESH — Swiss Ephemeris) ────────────────
-  console.log('🧮 Computing placements (Swiss Ephemeris — fresh)...');
+  // ── Step 1: Compute Placements (FRESH - Swiss Ephemeris) ────────────────
+  console.log('🧮 Computing placements (Swiss Ephemeris - fresh)...');
   const placements = await ephemerisIsolation.computePlacements({
     birthDate: person.birthDate,
     birthTime: person.birthTime,

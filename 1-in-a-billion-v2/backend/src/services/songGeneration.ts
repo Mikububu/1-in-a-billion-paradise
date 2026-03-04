@@ -76,7 +76,7 @@ export async function generateSong(input: SongGenerationInput): Promise<SongGene
       console.log(`🎵 Using persona mixer prompt for ${personName}`);
     } else {
       // Fallback hardcoded prompt (if somehow no custom prompt provided)
-      const stylePrompt = `Style: 70% Leonard Cohen (deep, philosophical, minimal), 20% Paul Simon (melodic, introspective), 10% Tom Waits (raw, intimate). The song should feel dark, beautiful, minimal, and emotionally intimate—NOT pop or commercial.`;
+      const stylePrompt = `Style: 70% Leonard Cohen (deep, philosophical, minimal), 20% Paul Simon (melodic, introspective), 10% Tom Waits (raw, intimate). The song should feel dark, beautiful, minimal, and emotionally intimate-NOT pop or commercial.`;
       prompt = `A dark, poetic song with deep male vocals. ${stylePrompt} Use sparse instrumentation: piano, acoustic guitar, subtle strings. The vocal should be a deep, resonant male voice with emotional depth and intimacy.`;
       console.log(`🎵 Using fallback prompt for ${personName}`);
     }

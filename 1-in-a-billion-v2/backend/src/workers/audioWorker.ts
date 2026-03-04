@@ -315,7 +315,7 @@ export class AudioWorker extends BaseWorker {
       });
       text = `${intro}\n\n${cleanedText}`.trim();
 
-      // Chunk size — language-aware (Chinese needs shorter chunks, etc.)
+      // Chunk size - language-aware (Chinese needs shorter chunks, etc.)
       const langChunkConfig = getChunkConfig(jobLang);
       const configuredChunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || String(langChunkConfig.maxChars), 10);
       const chunkSize = Math.max(langChunkConfig.minChars, Math.min(langChunkConfig.maxChars, Number.isFinite(configuredChunkSize) ? configuredChunkSize : langChunkConfig.maxChars));
@@ -341,7 +341,7 @@ export class AudioWorker extends BaseWorker {
       // ─────────────────────────────────────────────────────────────────────
       const voiceConfig = getVoiceConfig(jobLang);
       if (!hasVoiceSupport(jobLang)) {
-        console.warn(`⚠️ [AudioWorker] No TTS voice configured for ${jobLang} — skipping audio generation.`);
+        console.warn(`⚠️ [AudioWorker] No TTS voice configured for ${jobLang} - skipping audio generation.`);
         return { success: true, output: { skippedAudio: true, reason: `no_voice_for_${jobLang}` } };
       }
       const useMultilingual = voiceConfig.provider === 'chatterbox-multilingual';
@@ -441,7 +441,7 @@ export class AudioWorker extends BaseWorker {
         console.log(`🎤 [AudioWorker] Voice settings:`, { temperature, top_p, repetition_penalty, isTurboPreset });
 
         // ─────────────────────────────────────────────────────────────────────
-        // REPLICATE CHUNK GENERATION — via global BullMQ queue
+        // REPLICATE CHUNK GENERATION - via global BullMQ queue
         //
         // Instead of calling Replicate directly, we enqueue all chunks into
         // a Redis-backed BullMQ queue. A dedicated rate-limiter-worker
@@ -501,7 +501,7 @@ export class AudioWorker extends BaseWorker {
 
         if (useGlobalQueue) {
           // ═══════════════════════════════════════════════════════════════════
-          // GLOBAL QUEUE MODE — enqueue to Redis, rate-limiter-worker processes
+          // GLOBAL QUEUE MODE - enqueue to Redis, rate-limiter-worker processes
           // ═══════════════════════════════════════════════════════════════════
           console.log(`🚀 [AudioWorker] Enqueuing ${chunks.length} chunks to global BullMQ queue...`);
           console.log(`   Model: ${replicateModel}, Timeout: ${chunkTimeoutMs}ms`);
@@ -516,7 +516,7 @@ export class AudioWorker extends BaseWorker {
             chunkTimeoutMs,
           );
 
-          console.log(`📤 [AudioWorker] All ${chunks.length} chunks enqueued — waiting for rate-limiter-worker...`);
+          console.log(`📤 [AudioWorker] All ${chunks.length} chunks enqueued - waiting for rate-limiter-worker...`);
 
           // Wait for all chunks to be processed (up to 45 min for large readings on slow lane)
           const queueTimeoutMs = parseInt(process.env.QUEUE_WAIT_TIMEOUT_MS || '2700000', 10);
@@ -524,9 +524,9 @@ export class AudioWorker extends BaseWorker {
 
         } else {
           // ═══════════════════════════════════════════════════════════════════
-          // LOCAL FALLBACK — direct Replicate calls (no Redis needed)
+          // LOCAL FALLBACK - direct Replicate calls (no Redis needed)
           // ═══════════════════════════════════════════════════════════════════
-          console.log(`🚀 [AudioWorker] No REDIS_URL — using direct Replicate calls (local dev mode)`);
+          console.log(`🚀 [AudioWorker] No REDIS_URL - using direct Replicate calls (local dev mode)`);
           console.log(`   Generating ${chunks.length} chunks sequentially...`);
 
           for (let i = 0; i < chunks.length; i++) {
@@ -568,7 +568,7 @@ export class AudioWorker extends BaseWorker {
                 }
 
                 console.log(`  ✅ [Replicate] Chunk ${i + 1} completed: ${buffer.length} bytes`);
-                break; // Success — exit retry loop
+                break; // Success - exit retry loop
               } catch (error: any) {
                 const is429 = isReplicateRateLimitError(error);
                 console.error(`  ❌ [Replicate] Chunk ${i + 1} attempt ${attempt} failed: ${error.message}`);
@@ -650,7 +650,7 @@ export class AudioWorker extends BaseWorker {
         // Concatenate and convert: MP3 only (QuickTime-safe default).
         const wavAudio = concatenateWavBuffers(audioBuffers);
 
-        // ⚠️ MEMORY: Release chunk buffers immediately after concat — they're
+        // ⚠️ MEMORY: Release chunk buffers immediately after concat - they're
         // no longer needed and can be 20-40MB for a long reading.
         audioBuffers.length = 0;
 

@@ -13,7 +13,7 @@
  *
  * OVERLAY PRINCIPLE:
  *   English is the source of truth. Other languages fall back to English
- *   for any missing key. The core app uses t() calls — changing English
+ *   for any missing key. The core app uses t() calls - changing English
  *   values in en.json propagates automatically. Translations are updated
  *   independently without touching app logic.
  */

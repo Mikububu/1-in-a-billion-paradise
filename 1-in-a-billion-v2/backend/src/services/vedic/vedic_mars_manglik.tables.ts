@@ -6,7 +6,7 @@ MARS DOSHA AND CANCELLATION
 
 /* ================================
    MARS HOUSE DOSHA
-   HOUSE INDEX 0–11 (1st–12th)
+   HOUSE INDEX 0-11 (1st-12th)
 ================================ */
 
 export const MARS_DOSHA_BY_HOUSE: number[] = [
@@ -63,7 +63,7 @@ export function marsMutualCancellation(
 
 /* ================================
    SIGN BASED CANCELLATION
-   RASHI INDEX 0–11
+   RASHI INDEX 0-11
 ================================ */
 
 export const MARS_SIGN_CANCELLATION: number[] = [

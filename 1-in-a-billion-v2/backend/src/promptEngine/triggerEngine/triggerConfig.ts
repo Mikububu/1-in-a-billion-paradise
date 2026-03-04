@@ -51,7 +51,7 @@ export const CORE_FAIRYTALE_SEED = [
   'Write this as a fairytale about a soul that came to Earth and is having a human experience.',
   `The narrative trigger is the ${NARRATIVE_TRIGGER_LABEL}; serve it relentlessly.`,
   NARRATIVE_TRIGGER_VARIATION_RULE,
-  'Present tense. NEVER invent fictional characters — no named partners, friends, exes, or colleagues that do not appear in the chart data.',
+  'Present tense. NEVER invent fictional characters - no named partners, friends, exes, or colleagues that do not appear in the chart data.',
 ].join(' ');
 
 /**
@@ -63,5 +63,5 @@ export const CORE_FAIRYTALE_SEED_OVERLAY =
     'Write this as a fairytale about two souls who came to Earth and what happens when their energies collide.',
     `The narrative trigger is the ${RELATIONAL_TRIGGER_LABEL}; serve it relentlessly.`,
     NARRATIVE_TRIGGER_VARIATION_RULE,
-    'Present tense. NEVER invent fictional characters — no named partners, friends, exes, or colleagues that do not appear in the chart data.',
+    'Present tense. NEVER invent fictional characters - no named partners, friends, exes, or colleagues that do not appear in the chart data.',
   ].join(' ');

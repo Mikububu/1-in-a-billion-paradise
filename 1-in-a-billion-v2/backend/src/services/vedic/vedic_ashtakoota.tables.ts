@@ -3,8 +3,8 @@ FILE: vedic_ashtakoota.tables.ts
 SCOPE: Full Ashtakoota (36-Guna) numeric computation
 STYLE: Vectorized, deterministic, backend-only
 INDICES:
-- Nakshatra: 0–26
-- Rashi: 0–11
+- Nakshatra: 0-26
+- Rashi: 0-11
 */
 
 /* =====================================================

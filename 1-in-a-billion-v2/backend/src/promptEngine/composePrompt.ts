@@ -208,7 +208,7 @@ function modeRules(readingKind: ComposePromptInput['readingKind']): string {
             '- Do not flatten the bond into generic romance language.',
             '',
             'THEN, after the prose ends, append a MINI COMPATIBILITY SNAPSHOT for this system only.',
-            'Format it EXACTLY like this — no markdown, no asterisks, clean plain text, each score with 2 sentences:',
+            'Format it EXACTLY like this - no markdown, no asterisks, clean plain text, each score with 2 sentences:',
             '',
             'COMPATIBILITY SNAPSHOT',
             '',
@@ -392,7 +392,7 @@ function buildVoiceOverlayBlock(
                     sections.push(`SYSTEM-SPECIFIC VOICE LAYER (${label})\n${voice}`);
                 }
             } catch {
-                // Voice insert not found — non-fatal, system prompt alone is sufficient
+                // Voice insert not found - non-fatal, system prompt alone is sufficient
             }
         }
     }
@@ -473,17 +473,17 @@ export function composePrompt(input: ComposePromptInput): ComposePromptResult {
     const finalInstruction = styleLayerId === 'writing-style-guide-incarnation-v1'
         ? [
             'FINAL OUTPUT REQUIREMENT:',
-            '- Return only the reading prose. One continuous literary essay punctuated by 4-6 surreal headlines (not 10, not 15 — exactly 4 to 6).',
+            '- Return only the reading prose. One continuous literary essay punctuated by 4-6 surreal headlines (not 10, not 15 - exactly 4 to 6).',
             '- No markdown. No bullet lists.',
-            '- Use this system\'s own vocabulary throughout the entire reading — as living characters, forces, rooms, weather, architecture, organisms, machinery. Never as textbook definitions or formulas.',
-            '- FORBIDDEN SYNTAX: "[element] in [position] creates/indicates/suggests..." — this is a report, not a reading.',
+            '- Use this system\'s own vocabulary throughout the entire reading - as living characters, forces, rooms, weather, architecture, organisms, machinery. Never as textbook definitions or formulas.',
+            '- FORBIDDEN SYNTAX: "[element] in [position] creates/indicates/suggests..." - this is a report, not a reading.',
             '- REQUIRED: Every paragraph grounded in at least one specific element from CHART DATA. The system-specific prompt defines which elements and how to deploy them.',
             '- Do not copy phrases from the Voice Anchor; invent fresh language.',
             '',
-            'NARRATIVE_ARC INSTRUCTIONS (HIGHEST PRIORITY — READ BEFORE WRITING A SINGLE WORD):',
+            'NARRATIVE_ARC INSTRUCTIONS (HIGHEST PRIORITY - READ BEFORE WRITING A SINGLE WORD):',
             '',
             'If the CHART DATA contains a NARRATIVE_ARC section, locate and internalize these fields before writing anything:',
-            '- THE_WOUND: The entire reading serves this one thing. Not the behavior — the thing underneath it.',
+            '- THE_WOUND: The entire reading serves this one thing. Not the behavior - the thing underneath it.',
             '- THE_DEFENSE: The surface pattern that opens the reading (Act 1). What draws people in.',
             '- THE_COST: Where Act 2 breaks through. What the defense destroys.',
             '- ACT_1/2/3: The emotional journey. Follow this arc.',
@@ -491,12 +491,12 @@ export function composePrompt(input: ComposePromptInput): ComposePromptResult {
             '- WHAT_THIS_READING_MUST_NOT_DO: Read this first. Do not do this thing.',
             '',
             'If the CHART DATA does NOT contain a NARRATIVE_ARC section, derive your own arc internally BEFORE writing a word:',
-            '  THE_WOUND: The single most hidden thing this chart is organized around. Not a placement — the thing a placement protects. One sentence. Specific enough that no other chart produces it.',
+            '  THE_WOUND: The single most hidden thing this chart is organized around. Not a placement - the thing a placement protects. One sentence. Specific enough that no other chart produces it.',
             '  THE_DEFENSE: What this person has always done to keep that wound invisible. The surface pattern everyone sees first.',
             '  THE_COST: What the defense destroys over time. The specific isolation or failure it produces.',
             '  ACT_1 (~first 1500 words): The defense in action. Compelling. Reader is interested, not yet unsettled.',
             '  ACT_2 (middle): The defense becomes visible AS a defense. Reader stops feeling flattered and starts feeling recognized.',
-            '  ACT_3 (final section): Current timing — what this system uses for "now." What cannot continue. What is forced. No resolution. No growth language. Name the pressure and leave it present.',
+            '  ACT_3 (final section): Current timing - what this system uses for "now." What cannot continue. What is forced. No resolution. No growth language. Name the pressure and leave it present.',
             '  LANDING_TEMPERATURE: Exact emotional state at the last line. Not hopeful. Not destroyed. Specific.',
             '  WHAT_NOT_TO_DO: The flattery trap this chart invites. Name it to avoid it.',
             '',

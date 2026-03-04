@@ -317,7 +317,7 @@ export const IntroScreen = ({ navigation }: Props) => {
         resizeMode="cover"
       />
 
-      {/* Language pill — top left, rotating through all languages */}
+      {/* Language pill - top left, rotating through all languages */}
       <TouchableOpacity
         style={[styles.langPill, { top: insets.top + spacing.sm }]}
         onPress={() => setLangPickerVisible(true)}

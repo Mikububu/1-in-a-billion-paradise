@@ -79,7 +79,7 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
     // Check eligibility and quota on mount
     useEffect(() => {
         let cancelled = false;
-        // Billionaire tier always eligible — skip the network call
+        // Billionaire tier always eligible - skip the network call
         if (unlimitedReadings) {
             setFreeReadingEligible(true);
             return;
@@ -171,7 +171,7 @@ export const SystemsOverviewScreen = ({ navigation, route }: Props) => {
 
     const showFreeReadingConfirmation = (system: SystemInfo) => {
         if (unlimitedReadings) {
-            // Billionaire — no confirmation needed, go straight to reading
+            // Billionaire - no confirmation needed, go straight to reading
             navigateToExplainer(system.id, true);
             return;
         }
