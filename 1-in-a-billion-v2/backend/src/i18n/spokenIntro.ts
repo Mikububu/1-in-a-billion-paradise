@@ -63,7 +63,7 @@ export function buildLocalizedSpokenIntro(options: {
     const p2Name = String(p2.name || 'Person 2').trim();
 
     // Translations - Super simple, no dates or branding for TTS reliability
-    const translations = {
+    const translations: Record<string, { verdict: string; overlayIntro: string; individualIntro: string }> = {
         en: {
             verdict: `This is the final verdict reading for ${p1Name} and ${p2Name}, synthesizing all five systems.`,
             overlayIntro: `This is a ${systemName} compatibility reading for ${p1Name} and ${p2Name}.`,
