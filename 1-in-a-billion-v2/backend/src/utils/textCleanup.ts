@@ -50,14 +50,7 @@ export function cleanupTextForTTS(text: string): string {
   // Keep standard punctuation: . , ; : ' " ? !
   cleaned = cleaned.replace(/[♈♉♊♋♌♍♎♏♐♑♒♓]/g, ''); // Zodiac symbols
   cleaned = cleaned.replace(/[°'"]/g, ''); // Degree symbols and quotes (keep standard quotes)
-  cleaned = cleaned.replace(/[^\x20-\x7E\n\r\t.,;:!?'"()\[\]{}]/g, (char) => {
-    // Keep printable ASCII + newlines/tabs + standard punctuation
-    // Remove everything else (unicode, special symbols)
-    const code = char.charCodeAt(0);
-    if (code >= 32 && code <= 126) return char; // Printable ASCII
-    if (code === 9 || code === 10 || code === 13) return char; // Tab, LF, CR
-    return ' '; // Replace with space
-  });
+  cleaned = cleaned.replace(/[^\p{L}\p{N}\p{M}\x20-\x7E\n\r\t.,;:!?'"()\[\]{}]/gu, ' ');
 
   // Remove emojis (common emoji ranges)
   cleaned = cleaned.replace(/[\u{1F300}-\u{1F9FF}]/gu, ''); // Miscellaneous Symbols and Pictographs
@@ -66,7 +59,7 @@ export function cleanupTextForTTS(text: string): string {
 
   // Clean up multiple spaces
   cleaned = cleaned.replace(/ +/g, ' ');
-  
+
   // Ensure headlines have space after them (for TTS pauses)
   // Match lines that look like headlines (ALL CAPS or Title Case at start of line)
   cleaned = cleaned.replace(/^([A-Z][A-Z\s]{10,})\n/gm, (match) => {
@@ -98,7 +91,7 @@ export function validateTextForTTS(text: string): {
   const issues: string[] = [];
 
   // Check for problematic characters
-  if (/[♈♉♊♋♌♍♎♏♐♑♒♓°--]/.test(text)) {
+  if (/[♈♉♊♋♌♍♎♏♐♑♒♓°—\-]/.test(text)) {
     issues.push('Contains zodiac symbols, degree symbols, or em-dashes');
   }
 

@@ -43,7 +43,7 @@ export async function getMinimaxSequenceForUrl(url: string, filename: string): P
 /**
  * Generates an MP3 using the MiniMax T2A Async API
  */
-export async function generateMinimaxAsync(text: string, voiceId: string, clonePromptFileId?: string): Promise<Buffer> {
+export async function generateMinimaxAsync(text: string, voiceId: string, clonePromptFileId?: string, speed: number = 0.9): Promise<Buffer> {
     const key = await apiKeys.minimax().catch(() => null) || env.MINIMAX_API_KEY;
     if (!key) throw new Error("MiniMax API key not found");
 
@@ -54,6 +54,7 @@ export async function generateMinimaxAsync(text: string, voiceId: string, cloneP
         text: text,
         voice_setting: {
             voice_id: voiceId,
+            speed: speed
         },
         audio_setting: { sample_rate: 32000, format: 'mp3' }
     };

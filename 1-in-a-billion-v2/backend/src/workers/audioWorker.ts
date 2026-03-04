@@ -313,7 +313,22 @@ export class AudioWorker extends BaseWorker {
         person2: person2Meta,
         language: jobLang
       });
-      text = `${intro}\n\n${cleanedText}`.trim();
+      // Add deliberate pauses between the intro and body text for pacing
+      const pauseIndicators: Record<string, string> = {
+        en: '... ...',
+        de: '... ...',
+        es: '... ...',
+        fr: '... ...',
+        pt: '... ...',
+        it: '... ...',
+        zh: '......',
+        ko: '...',
+        ja: '……'
+      };
+      const langPrefix = jobLang.substring(0, 2).toLowerCase();
+      const pauseStr = pauseIndicators[langPrefix] || '... ...';
+
+      text = `${intro}\n\n${pauseStr}\n\n${cleanedText}`.trim();
 
       // Chunk size - language-aware (Chinese needs shorter chunks, etc.)
       const langChunkConfig = getChunkConfig(jobLang);
@@ -366,16 +381,23 @@ export class AudioWorker extends BaseWorker {
         console.log(`🎵 MINIMAX AUDIO GENERATION STARTING (${jobLang})`);
         console.log('═'.repeat(70));
 
+        // Get default speed configure (0.9 slows it down slightly by default for better pacing)
+        const MINIMAX_DEFAULT_SPEED = Number(process.env.MINIMAX_DEFAULT_SPEED || 0.9);
+
         // We need a valid system voice ID as a base for MiniMax's T2A v2 cloning. 
         // Using native dialects ensures the cloned voice adopts the correct accent.
-        let minimaxVoiceId = 'English_expressive_narrator';
-        if (jobLang.startsWith('de')) minimaxVoiceId = 'German_FriendlyMan';
-        else if (jobLang.startsWith('es')) minimaxVoiceId = 'Spanish_FriendlyNeighbor';
-        else if (jobLang.startsWith('ja')) minimaxVoiceId = 'Japanese_FriendlyGirl';
-        else if (jobLang.startsWith('ko')) minimaxVoiceId = 'Korean_SweetGirl';
-        else if (jobLang.startsWith('pt')) minimaxVoiceId = 'Portuguese_FriendlyNeighbor';
-        else if (jobLang.startsWith('it')) minimaxVoiceId = 'Italian_Narrator';
-        else if (jobLang.startsWith('fr')) minimaxVoiceId = 'French_CasualMan';
+        let minimaxVoiceId = (voice as any)?.minimaxVoiceId;
+
+        if (!minimaxVoiceId) {
+          minimaxVoiceId = 'English_expressive_narrator';
+          if (jobLang.startsWith('de')) minimaxVoiceId = 'German_FriendlyMan';
+          else if (jobLang.startsWith('es')) minimaxVoiceId = 'Spanish_FriendlyNeighbor';
+          else if (jobLang.startsWith('ja')) minimaxVoiceId = 'Japanese_FriendlyGirl';
+          else if (jobLang.startsWith('ko')) minimaxVoiceId = 'Korean_SweetGirl';
+          else if (jobLang.startsWith('pt')) minimaxVoiceId = 'Portuguese_FriendlyNeighbor';
+          else if (jobLang.startsWith('it')) minimaxVoiceId = 'Italian_Narrator';
+          else if (jobLang.startsWith('fr')) minimaxVoiceId = 'French_CasualMan';
+        }
         // Hindi fallback to English base if native ID is unknown.
 
         let clonePromptFileId: string | undefined;
@@ -389,7 +411,7 @@ export class AudioWorker extends BaseWorker {
           });
         }
 
-        mp3 = await generateMinimaxAsync(text, minimaxVoiceId, clonePromptFileId);
+        mp3 = await generateMinimaxAsync(text, minimaxVoiceId, clonePromptFileId, MINIMAX_DEFAULT_SPEED);
 
         // Approximate duration
         duration = Math.ceil(mp3.length / 4000);
