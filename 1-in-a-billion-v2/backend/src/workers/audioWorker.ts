@@ -389,18 +389,18 @@ export class AudioWorker extends BaseWorker {
         const MINIMAX_DEFAULT_VOLUME = Number(process.env.MINIMAX_DEFAULT_VOLUME || 1.0);
 
         // We need a valid system voice ID as a base for MiniMax's T2A v2 cloning. 
-        // Using native dialects ensures the cloned voice adopts the correct accent.
+        // Using generic cross-lingual base voices avoids gender mismatch artifacts
+        // and allows the clone prompt's timbre to shine through natively.
         let minimaxVoiceId = (voice as any)?.minimaxVoiceId;
 
         if (!minimaxVoiceId) {
-          minimaxVoiceId = 'English_expressive_narrator';
-          if (jobLang.startsWith('de')) minimaxVoiceId = 'German_FriendlyMan';
-          else if (jobLang.startsWith('es')) minimaxVoiceId = 'Spanish_FriendlyNeighbor';
-          else if (jobLang.startsWith('ja')) minimaxVoiceId = 'Japanese_FriendlyGirl';
-          else if (jobLang.startsWith('ko')) minimaxVoiceId = 'Korean_SweetGirl';
-          else if (jobLang.startsWith('pt')) minimaxVoiceId = 'Portuguese_FriendlyNeighbor';
-          else if (jobLang.startsWith('it')) minimaxVoiceId = 'Italian_Narrator';
-          else if (jobLang.startsWith('fr')) minimaxVoiceId = 'French_CasualMan';
+          const category = (voice as any)?.category || 'neutral';
+          if (category === 'female') {
+            minimaxVoiceId = 'audiobook_female_1';
+          } else {
+            // Default to male for 'male' or 'neutral'
+            minimaxVoiceId = 'audiobook_male_1';
+          }
         }
         // Hindi fallback to English base if native ID is unknown.
 

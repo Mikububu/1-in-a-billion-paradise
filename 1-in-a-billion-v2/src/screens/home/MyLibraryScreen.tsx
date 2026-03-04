@@ -9,6 +9,7 @@ import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { BackButton } from '@/components/BackButton';
 import { fetchJobSnapshot, deleteJob, type JobSnapshot } from '@/services/jobStatus';
 import { recoverReadingsFromCloud } from '@/services/libraryRecovery';
+import { getFallbackAvatar } from '@/utils/avatarUtils';
 import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'MyLibrary'>;
@@ -314,25 +315,19 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                                             {reading.personImageUrl ? (
                                                 <Image source={{ uri: reading.personImageUrl }} style={styles.badgeImageLeft} />
                                             ) : (
-                                                <View style={[styles.readingBadgeSmall, styles.badgeRed]}>
-                                                    <Text style={styles.readingBadgeSmallText}>{reading.personName.charAt(0)}</Text>
-                                                </View>
+                                                <Image source={getFallbackAvatar(reading.personName)} style={styles.badgeImageLeft} />
                                             )}
                                             {reading.partnerImageUrl ? (
                                                 <Image source={{ uri: reading.partnerImageUrl }} style={styles.badgeImageRight} />
                                             ) : (
-                                                <View style={[styles.readingBadgeSmall, styles.badgeGreen]}>
-                                                    <Text style={styles.readingBadgeSmallTextGreen}>{(reading.partnerName || 'P').charAt(0)}</Text>
-                                                </View>
+                                                <Image source={getFallbackAvatar(reading.partnerName || 'P')} style={styles.badgeImageRight} />
                                             )}
                                         </View>
                                     ) : (
                                         reading.personImageUrl ? (
                                             <Image source={{ uri: reading.personImageUrl }} style={styles.badgeImageSingle} />
                                         ) : (
-                                            <View style={styles.readingBadge}>
-                                                <Text style={styles.readingBadgeText}>{reading.personName.charAt(0)}</Text>
-                                            </View>
+                                            <Image source={getFallbackAvatar(reading.personName)} style={styles.badgeImageSingle} />
                                         )
                                     )}
                                     <View style={styles.jobMain}>

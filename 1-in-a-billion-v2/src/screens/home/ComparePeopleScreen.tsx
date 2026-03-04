@@ -9,6 +9,7 @@ import { deletePersonFromSupabase } from '@/services/peopleService';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
+import { getFallbackAvatar } from '@/utils/avatarUtils';
 import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ComparePeople'>;
@@ -231,9 +232,7 @@ export const ComparePeopleScreen = ({ navigation }: Props) => {
                                             {hasPortrait ? (
                                                 <Image source={{ uri: p.portraitUrl }} style={styles.avatarImage} />
                                             ) : (
-                                                <Text style={[styles.avatarText, { color: avatarTextColor }]}>
-                                                    {p.name.charAt(0).toUpperCase()}
-                                                </Text>
+                                                <Image source={getFallbackAvatar(p.id)} style={styles.avatarImage} />
                                             )}
                                         </View>
                                         {!hasPortrait && (

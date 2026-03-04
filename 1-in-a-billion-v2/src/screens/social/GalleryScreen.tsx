@@ -24,6 +24,7 @@ import { colors, spacing, typography } from '@/theme/tokens';
 import { ChatAccessRenewModal } from '@/components/ChatAccessRenewModal';
 import { useChatAccessGate } from '@/hooks/useChatAccessGate';
 import { CHAT_RENEW_WARNING_TEXT } from '@/utils/chatAccess';
+import { getFallbackAvatar } from '@/utils/avatarUtils';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Gallery'>;
 
@@ -175,9 +176,7 @@ export const GalleryScreen = ({ navigation }: Props) => {
         {item.otherPortraitUrl ? (
           <Image source={{ uri: item.otherPortraitUrl }} style={styles.matchImage} />
         ) : (
-          <View style={[styles.matchImage, styles.matchImagePlaceholder]}>
-            <Text style={styles.matchInitial}>{item.otherName?.charAt(0) || '?'}</Text>
-          </View>
+          <Image source={getFallbackAvatar(item.otherPersonId || item.otherName)} style={styles.matchImage} />
         )}
 
         <Text numberOfLines={1} style={styles.matchName}>
@@ -211,9 +210,7 @@ export const GalleryScreen = ({ navigation }: Props) => {
       {item.portraitUrl ? (
         <Image source={{ uri: item.portraitUrl }} style={styles.galleryImage} />
       ) : (
-        <View style={[styles.galleryImage, styles.placeholderImage]}>
-          <Text style={styles.placeholderText}>{item.displayName?.charAt(0) || '?'}</Text>
-        </View>
+        <Image source={getFallbackAvatar(item.id || item.displayName)} style={styles.galleryImage} />
       )}
       <View style={styles.galleryOverlay}>
         <Text style={styles.gallerySigns}>
@@ -269,11 +266,7 @@ export const GalleryScreen = ({ navigation }: Props) => {
             {selectedPerson.portraitUrl ? (
               <Image source={{ uri: selectedPerson.portraitUrl }} style={styles.profileImage} />
             ) : (
-              <View style={[styles.profileImage, styles.placeholderImage]}>
-                <Text style={[styles.placeholderText, { fontSize: 80 }]}>
-                  {selectedPerson.displayName?.charAt(0) || '?'}
-                </Text>
-              </View>
+              <Image source={getFallbackAvatar(selectedPerson.id || selectedPerson.displayName)} style={styles.profileImage} />
             )}
 
             <Text style={styles.profileTitle}>Soul Profile</Text>
