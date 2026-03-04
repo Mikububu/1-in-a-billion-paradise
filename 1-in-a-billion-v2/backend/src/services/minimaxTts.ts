@@ -59,8 +59,11 @@ export async function generateMinimaxAsync(
         const apiKey = await apiKeys.minimax().catch(() => null) || env.MINIMAX_API_KEY;
         if (!apiKey) throw new Error("MiniMax API key not found");
 
-        // Use speech-02-turbo for better cross-lingual cloning; fall back via env override.
-        const model = process.env.MINIMAX_TTS_MODEL || 'speech-02-turbo';
+        // Model selection: speech-01-turbo produces better voice cloning for English.
+        // speech-02-turbo has superior cross-lingual support (Japanese, German, etc.).
+        // Auto-select based on language, with env override available.
+        const isEnglish = !language || language === 'en';
+        const model = process.env.MINIMAX_TTS_MODEL || (isEnglish ? 'speech-01-turbo' : 'speech-02-turbo');
 
         console.log(`[MiniMax TTS] Submitting Async task for ${text.length} chars (model=${model}, lang=${language || 'auto'})...`);
 

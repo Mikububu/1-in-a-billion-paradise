@@ -108,7 +108,7 @@ export class PdfWorker extends BaseWorker {
     let person1Id: string | undefined = person1?.id;
     let person2Id: string | undefined = person2?.id;
 
-    const getPortraitUrl = async (clientPersonId?: string, personName?: string): Promise<{ url: string | null; id: string | null }> => {
+    const getPortraitUrl = async (clientPersonId?: string, personName?: string, isSelfReading?: boolean): Promise<{ url: string | null; id: string | null }> => {
       // Try by client_person_id first
       if (clientPersonId) {
         try {
@@ -146,21 +146,24 @@ export class PdfWorker extends BaseWorker {
         }
       }
 
-      // Fallback 2: if the ID doesn't match a client_person_id (self profile often uses is_user=true),
-      // fall back to the self profile.
-      try {
-        const { data, error } = await supabase
-          .from('library_people')
-          .select('portrait_url, original_photo_url, client_person_id')
-          .eq('user_id', userId)
-          .eq('is_user', true)
-          .maybeSingle();
-        if (!error && data) {
-          const url = (data.portrait_url || data.original_photo_url) as string | null;
-          return { url, id: data.client_person_id };
+      // Fallback 2: ONLY for self-readings (where person IS the user).
+      // Previously this fired for ALL people, causing other people's PDFs
+      // to show the user's own portrait instead of the anonymous avatar.
+      if (isSelfReading) {
+        try {
+          const { data, error } = await supabase
+            .from('library_people')
+            .select('portrait_url, original_photo_url, client_person_id')
+            .eq('user_id', userId)
+            .eq('is_user', true)
+            .maybeSingle();
+          if (!error && data) {
+            const url = (data.portrait_url || data.original_photo_url) as string | null;
+            return { url, id: data.client_person_id };
+          }
+        } catch {
+          // ignore
         }
-      } catch {
-        // ignore
       }
 
       return { url: null, id: null };
@@ -196,8 +199,8 @@ export class PdfWorker extends BaseWorker {
 
     while (Date.now() - startedAt < maxWaitMs) {
       const [p1Result, p2Result, c] = await Promise.all([
-        getPortraitUrl(person1Id, person1?.name),
-        getPortraitUrl(person2Id, person2?.name),
+        getPortraitUrl(person1Id, person1?.name, !!person1?.is_user),
+        getPortraitUrl(person2Id, person2?.name, !!person2?.is_user),
         getCoupleImageUrl(person1Id, person2Id),
       ]);
 
