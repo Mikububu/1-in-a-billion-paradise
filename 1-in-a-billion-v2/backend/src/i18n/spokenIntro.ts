@@ -35,6 +35,30 @@ function getSystemDisplayName(system: string, lang: OutputLanguage): string {
         if (lower === 'human_design') return '人类图';
         if (lower === 'gene_keys') return '基因天命';
         if (lower === 'kabbalah') return '卡巴拉';
+    } else if (lang === 'ru') {
+        if (lower === 'western') return 'Западная Астрология';
+        if (lower === 'vedic') return 'Ведическая Астрология';
+        if (lower === 'human_design') return 'Дизайн Человека';
+        if (lower === 'gene_keys') return 'Генные Ключи';
+        if (lower === 'kabbalah') return 'Каббала';
+    } else if (lang === 'pt') {
+        if (lower === 'western') return 'Astrologia Ocidental';
+        if (lower === 'vedic') return 'Astrologia Védica';
+        if (lower === 'human_design') return 'Design Humano';
+        if (lower === 'gene_keys') return 'Gene Keys';
+        if (lower === 'kabbalah') return 'Cabala';
+    } else if (lang === 'it') {
+        if (lower === 'western') return 'Astrologia Occidentale';
+        if (lower === 'vedic') return 'Astrologia Vedica';
+        if (lower === 'human_design') return 'Human Design';
+        if (lower === 'gene_keys') return 'Gene Keys';
+        if (lower === 'kabbalah') return 'Kabbalah';
+    } else if (lang === 'ko') {
+        if (lower === 'western') return '서양 점성술';
+        if (lower === 'vedic') return '베다 점성술';
+        if (lower === 'human_design') return '휴먼 디자인';
+        if (lower === 'gene_keys') return '진 키';
+        if (lower === 'kabbalah') return '카발라';
     }
 
     // Default EN
@@ -88,6 +112,26 @@ export function buildLocalizedSpokenIntro(options: {
             verdict: `这是 ${p1Name} 和 ${p2Name} 的最终判决解读，综合了所有五个系统。`,
             overlayIntro: `这是 ${p1Name} 和 ${p2Name} 的 ${systemName} 契合度解读。`,
             individualIntro: `这是关于`
+        },
+        ru: {
+            verdict: `Это итоговое заключение для ${p1Name} и ${p2Name}, синтезирующее все пять систем.`,
+            overlayIntro: `Это анализ совместимости ${systemName} для ${p1Name} и ${p2Name}.`,
+            individualIntro: `Это анализ ${systemName} для`
+        },
+        pt: {
+            verdict: `Este é o veredicto final para ${p1Name} e ${p2Name}, sintetizando os cinco sistemas.`,
+            overlayIntro: `Esta é uma leitura de compatibilidade de ${systemName} para ${p1Name} e ${p2Name}.`,
+            individualIntro: `Esta é uma leitura de ${systemName} para`
+        },
+        it: {
+            verdict: `Questo è il verdetto finale per ${p1Name} e ${p2Name}, che sintetizza tutti e cinque i sistemi.`,
+            overlayIntro: `Questa è una lettura di compatibilità ${systemName} per ${p1Name} e ${p2Name}.`,
+            individualIntro: `Questa è una lettura ${systemName} per`
+        },
+        ko: {
+            verdict: `이것은 ${p1Name} 및 ${p2Name}에 대한 최종 판결 리딩으로, 5가지 시스템을 모두 종합합니다.`,
+            overlayIntro: `이것은 ${p1Name} 및 ${p2Name}에 대한 ${systemName} 호환성 리딩입니다.`,
+            individualIntro: `이것은 다음에 대한 ${systemName} 리딩입니다:`
         }
     };
 
@@ -106,6 +150,10 @@ export function buildLocalizedSpokenIntro(options: {
 
     if (lang === 'zh') {
         return `${t.individualIntro} ${subjectName} 的 ${systemName} 解读。`;
+    }
+
+    if (lang === 'ko') {
+        return `${subjectName} 님을 위한 ${systemName} 리딩입니다.`;
     }
 
     return `${t.individualIntro} ${subjectName}.`.trim();

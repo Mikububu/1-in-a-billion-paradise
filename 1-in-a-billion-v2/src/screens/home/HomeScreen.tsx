@@ -31,31 +31,31 @@ type Props = NativeStackScreenProps<MainStackParamList, 'Home'>;
 type ReadingType = 'sun' | 'moon' | 'rising';
 
 type HookReadingLike = {
-    type: ReadingType;
-    sign: string;
-    intro: string;
-    main: string;
-    generatedAt?: string;
+  type: ReadingType;
+  sign: string;
+  intro: string;
+  main: string;
+  generatedAt?: string;
 };
 
 const toHookRecord = (hookReadings: any): Partial<Record<ReadingType, HookReadingLike>> | null => {
-    if (!hookReadings) return null;
-    if (!Array.isArray(hookReadings) && typeof hookReadings === 'object') return hookReadings as any;
-    if (Array.isArray(hookReadings)) {
-        const out: any = {};
-        for (const r of hookReadings) {
-            if (r?.type) out[r.type] = r;
-        }
-        return out;
+  if (!hookReadings) return null;
+  if (!Array.isArray(hookReadings) && typeof hookReadings === 'object') return hookReadings as any;
+  if (Array.isArray(hookReadings)) {
+    const out: any = {};
+    for (const r of hookReadings) {
+      if (r?.type) out[r.type] = r;
     }
-    return null;
+    return out;
+  }
+  return null;
 };
 
 const recordToArray = (rec: Partial<Record<ReadingType, HookReadingLike>>): any[] => {
-    return (['sun', 'moon', 'rising'] as ReadingType[])
-        .map((k) => rec[k])
-        .filter((r): r is HookReadingLike => Boolean(r))
-        .map((r) => ({ ...r, type: r.type || (r as any).type }));
+  return (['sun', 'moon', 'rising'] as ReadingType[])
+    .map((k) => rec[k])
+    .filter((r): r is HookReadingLike => Boolean(r))
+    .map((r) => ({ ...r, type: r.type || (r as any).type }));
 };
 
 export const HomeScreen = ({ navigation }: Props) => {
@@ -79,11 +79,10 @@ export const HomeScreen = ({ navigation }: Props) => {
   const clearCompatibilityReadings = useProfileStore((state) => state.clearCompatibilityReadings);
   const entitlementState = useAuthStore((state) => state.entitlementState);
   const partners = useMemo(() => allPeople.filter(p => !p.isUser), [allPeople]);
-  
+
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [portraitPhotoUrl, setPortraitPhotoUrl] = useState<string | null>(null);
   const [portraitPreviewVisible, setPortraitPreviewVisible] = useState(false);
-  const [howMatchingVisible, setHowMatchingVisible] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [matchCount, setMatchCount] = useState(0);
   const [activeJob, setActiveJob] = useState<{ receipt: JobReceipt; percent: number } | null>(null);
@@ -452,7 +451,7 @@ export const HomeScreen = ({ navigation }: Props) => {
 
   useFocusEffect(useCallback(() => {
     return () => {
-      stopAudio().catch(() => {});
+      stopAudio().catch(() => { });
       setAudioPlaying(false);
     };
   }, [stopAudio]));
@@ -475,7 +474,7 @@ export const HomeScreen = ({ navigation }: Props) => {
     const myToken = ++playRequestTokenRef.current;
     const reading = modalReadings?.[selectedReading];
     if (!reading) { Alert.alert(t('common.error'), t('home.reading.error.notFound')); return; }
-    
+
     let audioSource =
       currentPerson?.person?.hookAudioPaths?.[selectedReading] ||
       (currentPerson?.person?.isUser ? hookAudio[selectedReading] : partnerAudio[selectedReading]) ||
@@ -575,7 +574,7 @@ export const HomeScreen = ({ navigation }: Props) => {
             onPress: async () => {
               try {
                 // 1. Sign out from Supabase FIRST — kills session so auto-sync stops
-                try { await supabase.auth.signOut(); } catch {}
+                try { await supabase.auth.signOut(); } catch { }
 
                 // 2. Reset Zustand stores immediately (before async clear)
                 useAuthStore.getState().signOut();
@@ -654,13 +653,6 @@ export const HomeScreen = ({ navigation }: Props) => {
               accessibilityLabel={`${displayedMatchCount} matches, view gallery`}
             >
               <Text style={[styles.statusNumber, displayedMatchCount > 0 && styles.statusNumberMatch]}>{displayedMatchCount}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.howMatchingButton}
-              onPress={() => setHowMatchingVisible(true)}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.howMatchingButtonText}>{t('home.howMatching.button')}</Text>
             </TouchableOpacity>
           </View>
           {displayedMatchCount > 0 ? (
@@ -742,7 +734,7 @@ export const HomeScreen = ({ navigation }: Props) => {
         onRequestClose={() => setPortraitPreviewVisible(false)}
       >
         <Pressable style={styles.previewBackdrop} onPress={() => setPortraitPreviewVisible(false)}>
-          <Pressable style={styles.previewCard} onPress={() => {}}>
+          <Pressable style={styles.previewCard} onPress={() => { }}>
             <Text style={styles.previewTitle}>{userName || 'Your'} portrait</Text>
             {portraitPhotoUrl ? (
               <Image source={{ uri: portraitPhotoUrl }} style={styles.previewImage} resizeMode="contain" />
@@ -753,36 +745,6 @@ export const HomeScreen = ({ navigation }: Props) => {
               </TouchableOpacity>
             )}
             <Text style={styles.previewHint}>{t('myLibrary.preview.closeHint')}</Text>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      <Modal
-        visible={howMatchingVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setHowMatchingVisible(false)}
-      >
-        <Pressable style={styles.howMatchingBackdrop} onPress={() => setHowMatchingVisible(false)}>
-          <Pressable style={styles.howMatchingCard} onPress={() => {}}>
-            <View style={styles.howMatchingHeader}>
-              <Text style={styles.howMatchingTitle}>{t('home.matching.modal.title')}</Text>
-              <Pressable style={styles.howMatchingCloseButton} onPress={() => setHowMatchingVisible(false)}>
-                <Text style={styles.howMatchingCloseText}>✕</Text>
-              </Pressable>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.howMatchingContent}>
-              <Text style={styles.howMatchingParagraph}>
-                {t('home.matching.modal.paragraph1')}
-              </Text>
-              <Text style={styles.howMatchingParagraph}>
-                {t('home.matching.modal.paragraph2')}
-              </Text>
-              <Text style={styles.howMatchingParagraph}>
-                {t('home.matching.modal.paragraph3')}
-              </Text>
-            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
@@ -907,23 +869,6 @@ const styles = StyleSheet.create({
   },
   matchCountRow: { width: '100%', minHeight: 64, justifyContent: 'center', alignItems: 'center' },
   matchCountWrapper: { padding: 10 },
-  howMatchingButton: {
-    position: 'absolute',
-    right: spacing.xs,
-    top: '50%',
-    marginTop: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  howMatchingButtonText: {
-    fontFamily: typography.sansSemiBold,
-    fontSize: 11,
-    color: colors.mutedText,
-  },
   previewBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.page },
   previewCard: { width: '100%', maxWidth: 420, backgroundColor: colors.surface, borderRadius: radii.card, borderWidth: 1, borderColor: colors.border, padding: spacing.md, alignItems: 'center' },
   previewTitle: { fontFamily: typography.sansSemiBold, fontSize: 18, color: colors.text, marginBottom: spacing.sm },
@@ -931,59 +876,5 @@ const styles = StyleSheet.create({
   changePhotoBtn: { marginTop: spacing.md, paddingVertical: 10, paddingHorizontal: 24, borderRadius: radii.card, borderWidth: 1, borderColor: colors.primary, backgroundColor: 'transparent' },
   changePhotoBtnText: { fontFamily: typography.sansSemiBold, fontSize: 14, color: colors.primary, textAlign: 'center' as const },
   previewHint: { marginTop: spacing.sm, fontFamily: typography.sansRegular, fontSize: 12, color: colors.mutedText },
-  howMatchingBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.page,
-  },
-  howMatchingCard: {
-    width: '100%',
-    maxWidth: 430,
-    maxHeight: '78%',
-    backgroundColor: colors.background,
-    borderRadius: radii.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  howMatchingHeader: {
-    paddingHorizontal: spacing.page,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  howMatchingTitle: {
-    fontFamily: typography.headline,
-    fontSize: 34,
-    color: colors.text,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    paddingRight: spacing.xl,
-  },
-  howMatchingCloseButton: {
-    position: 'absolute',
-    right: spacing.sm,
-    top: spacing.xs,
-    padding: spacing.xs,
-  },
-  howMatchingCloseText: {
-    fontFamily: typography.sansSemiBold,
-    fontSize: 28,
-    color: colors.text,
-  },
-  howMatchingContent: {
-    padding: spacing.page,
-    gap: spacing.md,
-  },
-  howMatchingParagraph: {
-    fontFamily: typography.sansRegular,
-    fontSize: 16,
-    color: colors.text,
-    lineHeight: 24,
-  },
   walkersOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 0 },
 });
