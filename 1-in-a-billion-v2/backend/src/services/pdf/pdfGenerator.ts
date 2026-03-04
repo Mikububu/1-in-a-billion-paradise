@@ -675,7 +675,9 @@ type FinalIronyVerdict = { score: number; text: string };
  */
 function extractFinalIronyVerdict(reading: string): FinalIronyVerdict | null {
   const text = String(reading || '');
-  const verdictRe = /^FINAL VERDICT:\s*(\d{1,2}(?:\.\d+)?)\s*\/\s*10\s*[\-—–]+\s*(.+)$/gmi;
+  // By using [^:\n]+ we match absolutely any translated label (including emojis, accents, etc.)
+  // e.g. "ENDGÜLTIGES URTEIL: 8/10 - ..." or "VERDICT FINAL: 8/10 - ..."
+  const verdictRe = /^([^:\n]+):\s*(\d{1,2}(?:\.\d+)?)\s*\/\s*10\s*[\-—–]+\s*(.+)$/gmi;
   const match = verdictRe.exec(text);
   if (!match) return null;
 
@@ -706,9 +708,9 @@ function extractCompatibilityRows(reading: string, _appendix?: string): Compatib
   const normalizedText = text.replace(/[*_]+/g, '');
 
   // ── Strategy 1: Parse LLM /100 format ──────────────────────────────────
-  // Match lines like "SEXUAL CHEMISTRY: 72" or "OVERALL ALIGNMENT: 95"
-  // followed by sentence(s) until the next score label or end of text.
-  const scoreBlockRe = /^([A-Z][A-Z &\-\/]+?):\s*(\d{1,3})(?:\/100)?\s*$/gmi;
+  // Match lines like "SEXUAL CHEMISTRY: 72" or "CHIMIE SEXUELLE: 95"
+  // Using [^:\n]+ ensures we successfully capture ANY translated label (accents, punctuation, etc.)
+  const scoreBlockRe = /^([^:\n]+):\s*(\d{1,3})(?:\/100)?\s*$/gmi;
   const matches: Array<{ label: string; score100: number; index: number }> = [];
   let m: RegExpExecArray | null;
   while ((m = scoreBlockRe.exec(normalizedText)) !== null) {

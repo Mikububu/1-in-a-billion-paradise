@@ -386,7 +386,7 @@ export class AudioWorker extends BaseWorker {
         // Get default speed configure (1.0 is default, lower speeds sound robotic)
         const MINIMAX_DEFAULT_SPEED = Number(process.env.MINIMAX_DEFAULT_SPEED || 0.95);
         // Get default volume configure (1.0 is default max is 10)
-        const MINIMAX_DEFAULT_VOLUME = Number(process.env.MINIMAX_DEFAULT_VOLUME || 1.0);
+        const MINIMAX_DEFAULT_VOLUME = Number(process.env.MINIMAX_DEFAULT_VOLUME || 3.0);
 
         // We need a valid system voice ID as a base for MiniMax's T2A v2 cloning. 
         // Using generic cross-lingual base voices avoids gender mismatch artifacts
