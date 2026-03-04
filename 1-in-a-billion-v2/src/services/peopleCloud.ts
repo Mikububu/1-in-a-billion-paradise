@@ -70,7 +70,9 @@ function toRow(userId: string, p: Person, selfEmail?: string | null): Partial<Li
     if (p.isUser) {
         const onboarding = useOnboardingStore.getState();
         row.relationship_intensity = onboarding.relationshipPreferenceScale ?? null;
-        // NOTE: primary_language column needs migration before it can be saved here
+        if (onboarding.primaryLanguage) {
+            row.primary_language = onboarding.primaryLanguage.code;
+        }
     }
 
     // IMPORTANT: Only include portrait URLs if they have actual values.

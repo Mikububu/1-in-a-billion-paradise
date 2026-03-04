@@ -22,6 +22,7 @@ export async function uploadHookAudioBase64(params: {
     personId: string;
     type: HookAudioType;
     audioBase64: string;
+    language?: string;
 }): Promise<{ success: true; path: string } | { success: false; error: string }> {
     const { userId, personId, type, audioBase64 } = params;
 
@@ -31,7 +32,10 @@ export async function uploadHookAudioBase64(params: {
     if (!audioBase64) return { success: false, error: 'Missing audioBase64' };
 
     // Stable path so we can upsert without growing storage endlessly.
-    const path = `hook-audio/${userId}/${personId}/${type}.mp3`;
+    // Include language if provided to avoid cross-language overwrites
+    const path = language
+        ? `hook-audio/${userId}/${language}/${personId}/${type}.mp3`
+        : `hook-audio/${userId}/${personId}/${type}.mp3`;
 
     try {
         // Convert base64 → Blob via data URL (works in Expo/React Native fetch)

@@ -43,13 +43,13 @@ export function cleanupTextForTTS(text: string): string {
   cleaned = cleaned.replace(/^\d+\.\s+/gm, ''); // Numbered lists
 
   // Replace em-dashes and en-dashes with commas or semicolons
-  cleaned = cleaned.replace(/-/g, ', ');
-  cleaned = cleaned.replace(/-/g, ', ');
+  cleaned = cleaned.replace(/\u2014/g, ', '); // em-dash
+  cleaned = cleaned.replace(/\u2013/g, ', '); // en-dash
 
   // Remove special characters and unicode symbols
   // Keep standard punctuation: . , ; : ' " ? !
-  cleaned = cleaned.replace(/[♈♉♊♋♌♍♎♏♐♑♒♓]/g, ''); // Zodiac symbols
-  cleaned = cleaned.replace(/[°'"]/g, ''); // Degree symbols and quotes (keep standard quotes)
+  cleaned = cleaned.replace(/[\u2648-\u2653]/g, ''); // Zodiac symbols
+  cleaned = cleaned.replace(/[\u00B0'"]/g, ''); // Degree symbols and quotes (keep standard quotes)
   cleaned = cleaned.replace(/[^\p{L}\p{N}\p{M}\x20-\x7E\n\r\t.,;:!?'"()\[\]{}]/gu, ' ');
 
   // Remove emojis (common emoji ranges)
@@ -91,7 +91,7 @@ export function validateTextForTTS(text: string): {
   const issues: string[] = [];
 
   // Check for problematic characters
-  if (/[♈♉♊♋♌♍♎♏♐♑♒♓°—\-]/.test(text)) {
+  if (/[\u2648-\u2653\u00B0\u2014\u2013\-]/.test(text)) {
     issues.push('Contains zodiac symbols, degree symbols, or em-dashes');
   }
 

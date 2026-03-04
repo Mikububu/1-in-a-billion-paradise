@@ -30,11 +30,12 @@ export interface SavedReading {
 export async function saveHookReadings(
   userId: string,
   readings: Partial<Record<HookReading['type'], HookReading>>,
-  audioData?: Partial<Record<HookReading['type'], string>>
+  audioData?: Partial<Record<HookReading['type'], string>>,
+  primaryLanguage?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const readingsToSave: Omit<SavedReading, 'id' | 'created_at'>[] = [];
-    
+
     for (const type of ['sun', 'moon', 'rising'] as const) {
       const reading = readings[type];
       if (reading) {
@@ -48,11 +49,11 @@ export async function saveHookReadings(
         });
       }
     }
-    
+
     if (readingsToSave.length === 0) {
       return { success: false, error: 'No readings to save' };
     }
-    
+
     // 1. Save to user_readings table (per-reading rows)
     const { error } = await supabase
       .from('user_readings')
@@ -60,12 +61,12 @@ export async function saveHookReadings(
         onConflict: 'user_id,type',
         ignoreDuplicates: false,
       });
-    
+
     if (error) {
       console.error('Error saving hook readings to user_readings:', error);
       return { success: false, error: error.message };
     }
-    
+
     // 2. ALSO save to library_people.hook_readings column (INVARIANT 9)
     // This is critical for bootstrap to detect onboarding completion
     const hookReadingsObject: Record<string, HookReading> = {};
@@ -74,17 +75,18 @@ export async function saveHookReadings(
         hookReadingsObject[type] = readings[type]!;
       }
     }
-    
+
     if (Object.keys(hookReadingsObject).length > 0) {
       const { error: libraryError } = await supabase
         .from('library_people')
-        .update({ 
+        .update({
           hook_readings: hookReadingsObject,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          ...(primaryLanguage ? { hook_language_recorded: primaryLanguage } : {})
         })
         .eq('user_id', userId)
         .eq('is_user', true);
-      
+
       if (libraryError) {
         // Log but don't fail - user_readings write succeeded
         console.warn('⚠️ Failed to save hook_readings to library_people:', libraryError.message);
@@ -92,7 +94,7 @@ export async function saveHookReadings(
         console.log('✅ Also saved hook_readings to library_people.hook_readings');
       }
     }
-    
+
     console.log(`✅ Saved ${readingsToSave.length} readings for user ${userId}`);
     return { success: true };
   } catch (error: any) {
@@ -111,12 +113,12 @@ export async function getUserReadings(userId: string): Promise<SavedReading[]> {
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: true });
-    
+
     if (error) {
       console.error('Error fetching user readings:', error);
       return [];
     }
-    
+
     return data || [];
   } catch (error) {
     console.error('Error in getUserReadings:', error);
@@ -133,12 +135,12 @@ export async function hasExistingReadings(userId: string): Promise<boolean> {
       .from('user_readings')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId);
-    
+
     if (error) {
       console.error('Error checking existing readings:', error);
       return false;
     }
-    
+
     return (count || 0) > 0;
   } catch (error) {
     console.error('Error in hasExistingReadings:', error);

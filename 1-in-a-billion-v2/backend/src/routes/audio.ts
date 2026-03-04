@@ -641,9 +641,10 @@ router.post('/generate-tts-stream', async (c) => {
 
 // Hook audio generation endpoint - stores in Supabase Storage and returns URL
 const hookAudioSchema = z.object({
-  text: z.string().min(1).max(50000),
   userId: z.string().uuid(),
   type: z.enum(['sun', 'moon', 'rising']),
+  text: z.string().min(1),
+  language: z.string().default('en'),
   exaggeration: z.number().min(0).max(1).optional().default(0.3),
   audioUrl: z.string().optional()  // Voice sample URL (validated for SSRF)
     .refine(val => !val || validateAudioUrl(val), {
@@ -774,7 +775,7 @@ router.post('/hook-audio/generate', async (c) => {
     }
 
     // Store in Supabase Storage (library bucket, same as hookAudioCloud.ts)
-    const storagePath = `hook-audio/${parsed.userId}/${parsed.type}.${format}`;
+    const storagePath = `hook-audio/${parsed.userId}/${parsed.language}/${parsed.type}.${format}`;
     const contentType = mime || 'audio/mpeg';
 
     const { data: uploadData, error: uploadError } = await supabase.storage
