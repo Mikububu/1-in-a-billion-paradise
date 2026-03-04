@@ -15,6 +15,7 @@ import { buildVerdictPrompt } from '../prompts/structures/paidReadingPrompts';
 import { getSystemPromptForStyle } from '../prompts/styles';
 import { buildChartAwareProvocations } from '../prompts/chartProvocations';
 import { SpiceLevel } from '../prompts/spice/levels';
+import { generateCompatibilityScores, type CompatibilityScore } from '../scripts/shared/compatibilityScoring';
 import {
   WORD_COUNT_LIMITS,
   WORD_COUNT_LIMITS_OVERLAY,
@@ -1667,6 +1668,24 @@ export class TextWorker extends BaseWorker {
     console.log(`   📖 Reading: "${dramaticTitles.readingTitle}"`);
     console.log(`   🎵 Song: "${dramaticTitles.songTitle}"`);
 
+    // Generate Compatibility Scores for Overlay/Verdict PDFs
+    let compatibilityScores: CompatibilityScore[] | undefined;
+    if (docType === 'overlay' || docType === 'verdict') {
+      try {
+        console.log(`🎯 Generating compatibility scores for ${docType}...`);
+        compatibilityScores = await generateCompatibilityScores({
+          person1Name: person1.name,
+          person2Name: person2?.name || 'Partner',
+          readingText: text,
+          chartData: chartDataForPrompt,
+          label: label,
+          isVerdict: docType === 'verdict',
+        });
+      } catch (err: any) {
+        console.warn(`⚠️ Failed to generate compatibility scores: ${err.message}`);
+      }
+    }
+
     // Match BaseWorker storage path logic for output (so SQL trigger can enqueue audio tasks)
     const artifactType = 'text' as const;
     const extension = 'txt';
@@ -1686,6 +1705,7 @@ export class TextWorker extends BaseWorker {
         headline, // Add headline to output
         chartReferencePage: chartRefPage || undefined,
         chartReferencePageRight: chartRefPageRight || undefined,
+        compatibilityScores,
       },
       artifacts: [
         {

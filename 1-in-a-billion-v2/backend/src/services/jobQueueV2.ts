@@ -66,7 +66,7 @@ export class JobQueueV2 {
         status: 'pending' as const,
         attempts: 0,
         max_attempts: 3,
-        heartbeat_timeout_seconds: 600, // 10 minutes
+        heartbeat_timeout_seconds: 1800, // 30 minutes (allows slow Japanese generation)
       }));
 
       const { error: tasksError } = await supabase
@@ -266,7 +266,7 @@ export class JobQueueV2 {
     // Extract and save essences for person1
     if (Object.keys(person1Readings).length > 0) {
       let essences = extractAllEssences(person1Readings);
-      
+
       // DETERMINISTIC FALLBACK: If we have params, generate reliable essences from placements
       if (params.person1) {
         try {

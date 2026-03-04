@@ -327,7 +327,7 @@ class LLMService {
         const response = await axios.post(config.url, body, {
           headers: await config.getHeaders(),
           responseType: 'stream',
-          timeout: 600000, // 10 min for streaming
+          timeout: 1800000, // 30 min for streaming (allows slow Japanese/Chinese generation)
           httpsAgent: sharedHttpsAgent,
         });
 

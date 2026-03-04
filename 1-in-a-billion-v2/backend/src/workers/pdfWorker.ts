@@ -78,6 +78,8 @@ export class PdfWorker extends BaseWorker {
     // ─── Fetch chart reference page from source text task output ──────────────
     let chartReferencePage: string | undefined;
     let chartReferencePageRight: string | undefined;
+    let compatibilityScores: Array<{ label: string; score: number; scoreTen: number; note: string }> | undefined;
+
     const sourceTaskId = task.input?.sourceTaskId as string | undefined;
     if (sourceTaskId) {
       try {
@@ -89,12 +91,16 @@ export class PdfWorker extends BaseWorker {
         if (!srcErr && srcTask?.output) {
           chartReferencePage = srcTask.output.chartReferencePage as string | undefined;
           chartReferencePageRight = srcTask.output.chartReferencePageRight as string | undefined;
+          compatibilityScores = srcTask.output.compatibilityScores as any | undefined;
           if (chartReferencePage) {
             console.log(`   📋 Chart reference page loaded from text task (${chartReferencePage.length} chars)`);
           }
+          if (compatibilityScores) {
+            console.log(`   🎯 Compatibility scores loaded from text task (${compatibilityScores.length} categories)`);
+          }
         }
       } catch {
-        console.warn('   ⚠️ Could not load chart reference page from source text task');
+        console.warn('   ⚠️ Could not load chart reference data from source text task');
       }
     }
     const person1 = params.person1 || { name: 'Person 1', birthDate: '' };
@@ -360,6 +366,7 @@ export class PdfWorker extends BaseWorker {
         {
           chartReferencePage,
           chartReferencePageRight,
+          compatibilityScores,
           outputLanguage: params?.outputLanguage,
         }
       );
