@@ -355,6 +355,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
                 personId: partnerIdFromRoute,
                 type: 'sun',
                 audioBase64: result.audioBase64,
+                language: payload.primaryLanguage,
               })
                 .then(uploadResult => {
                   if (uploadResult.success) {
@@ -434,6 +435,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
                   personId: partnerIdFromRoute,
                   type: 'moon',
                   audioBase64: result.audioBase64,
+                  language: payload.primaryLanguage,
                 })
                   .then(uploadResult => {
                     if (uploadResult.success) {
@@ -500,6 +502,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
                   personId: partnerIdFromRoute,
                   type: 'rising',
                   audioBase64: result.audioBase64,
+                  language: payload.primaryLanguage,
                 })
                   .then(uploadResult => {
                     if (uploadResult.success) {

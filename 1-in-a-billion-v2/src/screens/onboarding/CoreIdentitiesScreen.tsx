@@ -456,6 +456,7 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
               personId,
               type,
               audioBase64: tts.audioBase64,
+              language: primaryLanguage?.code,
             })
               .then(result => {
                 if (result.success) {
