@@ -396,10 +396,10 @@ export class AudioWorker extends BaseWorker {
         if (!minimaxVoiceId) {
           const category = (voice as any)?.category || 'neutral';
           if (category === 'female') {
-            minimaxVoiceId = 'audiobook_female_1';
+            minimaxVoiceId = 'English_Graceful_Lady';
           } else {
             // Default to male for 'male' or 'neutral'
-            minimaxVoiceId = 'audiobook_male_1';
+            minimaxVoiceId = 'English_expressive_narrator';
           }
         }
         // Hindi fallback to English base if native ID is unknown.
