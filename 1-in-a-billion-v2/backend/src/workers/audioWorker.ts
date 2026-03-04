@@ -381,8 +381,10 @@ export class AudioWorker extends BaseWorker {
         console.log(`🎵 MINIMAX AUDIO GENERATION STARTING (${jobLang})`);
         console.log('═'.repeat(70));
 
-        // Get default speed configure (0.9 slows it down slightly by default for better pacing)
-        const MINIMAX_DEFAULT_SPEED = Number(process.env.MINIMAX_DEFAULT_SPEED || 0.9);
+        // Get default speed configure (1.0 is default, lower speeds sound robotic)
+        const MINIMAX_DEFAULT_SPEED = Number(process.env.MINIMAX_DEFAULT_SPEED || 1.0);
+        // Get default volume configure (1.0 is default max is 10)
+        const MINIMAX_DEFAULT_VOLUME = Number(process.env.MINIMAX_DEFAULT_VOLUME || 1.0);
 
         // We need a valid system voice ID as a base for MiniMax's T2A v2 cloning. 
         // Using native dialects ensures the cloned voice adopts the correct accent.
@@ -411,8 +413,14 @@ export class AudioWorker extends BaseWorker {
           });
         }
 
-        mp3 = await generateMinimaxAsync(text, minimaxVoiceId, clonePromptFileId, MINIMAX_DEFAULT_SPEED);
+        console.log(`[MiniMax] Using Voice: ${minimaxVoiceId} | Cloning File ID: ${clonePromptFileId || 'None'} | Speed: ${MINIMAX_DEFAULT_SPEED} | Volume: ${MINIMAX_DEFAULT_VOLUME}`);
 
+        try {
+          mp3 = await generateMinimaxAsync(text, minimaxVoiceId, clonePromptFileId, MINIMAX_DEFAULT_SPEED, MINIMAX_DEFAULT_VOLUME);
+        } catch (error: any) {
+          console.error(`❌ [AudioWorker] MiniMax generation failed: ${error.message}`);
+          return { success: false, error: `MiniMax generation failed: ${error.message}` };
+        }
         // Approximate duration
         duration = Math.ceil(mp3.length / 4000);
         elapsedMs = Date.now() - startTime;

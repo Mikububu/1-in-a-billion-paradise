@@ -714,6 +714,7 @@ const styles = StyleSheet.create({
     playerTrackHitArea: {
         paddingVertical: 12,
         justifyContent: 'center',
+        marginHorizontal: 7,
     },
     playerTrack: {
         height: 6,
@@ -728,7 +729,7 @@ const styles = StyleSheet.create({
     },
     playerThumb: {
         position: 'absolute',
-        top: 12 - 7,
+        top: 8,
         width: 14,
         height: 14,
         borderRadius: 7,

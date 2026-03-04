@@ -21,7 +21,7 @@ export const SimpleSlider = ({
     const [width, setWidth] = React.useState(0);
 
     return (
-        <View>
+        <View style={styles.wrapper}>
             <View
                 style={styles.container}
                 onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
@@ -48,6 +48,10 @@ export const SimpleSlider = ({
 };
 
 const styles = StyleSheet.create({
+    wrapper: {
+        paddingHorizontal: 16,
+        width: '100%',
+    },
     container: {
         height: 40,
         justifyContent: 'center',

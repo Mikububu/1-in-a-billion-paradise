@@ -3,6 +3,7 @@ import FormData from 'form-data';
 import * as tar from 'tar-stream';
 import { apiKeys } from './apiKeysHelper';
 import { env } from '../config/env';
+import { VOICE_SAMPLE_QUOTE } from '../config/voices';
 
 /**
  * Uploads a reference WAV file to MiniMax for voice cloning
@@ -43,65 +44,66 @@ export async function getMinimaxSequenceForUrl(url: string, filename: string): P
 /**
  * Generates an MP3 using the MiniMax T2A Async API
  */
-export async function generateMinimaxAsync(text: string, voiceId: string, clonePromptFileId?: string, speed: number = 0.9): Promise<Buffer> {
-    const key = await apiKeys.minimax().catch(() => null) || env.MINIMAX_API_KEY;
-    if (!key) throw new Error("MiniMax API key not found");
+export async function generateMinimaxAsync(text: string, voiceId: string, clonePromptFileId?: string, speed: number = 1.0, volume: number = 1.0): Promise<Buffer> {
+    try {
+        const apiKey = await apiKeys.minimax().catch(() => null) || env.MINIMAX_API_KEY;
+        if (!apiKey) throw new Error("MiniMax API key not found");
 
-    console.log(`[MiniMax TTS] Submitting Async task for ${text.length} chars...`);
+        console.log(`[MiniMax TTS] Submitting Async task for ${text.length} chars...`);
 
-    const payload: any = {
-        model: 'speech-01-turbo',
-        text: text,
-        voice_setting: {
-            voice_id: voiceId,
-            speed: speed
-        },
-        audio_setting: { sample_rate: 32000, format: 'mp3' }
-    };
-
-    if (clonePromptFileId) {
-        payload.clone_prompt = { prompt_audio: clonePromptFileId };
-    }
-
-    const submitRes = await axios.post('https://api.minimax.io/v1/t2a_async_v2', payload, {
-        headers: { 'Authorization': `Bearer ${key}` }
-    });
-
-    if (submitRes.data.base_resp?.status_code !== 0) {
-        throw new Error(`MiniMax T2A Async failed: ${submitRes.data.base_resp?.status_msg}`);
-    }
-
-    const taskId = submitRes.data.task_id;
-    console.log(`[MiniMax TTS] Task ID: ${taskId}. Waiting for completion...`);
-
-    // Poll for completion
-    while (true) {
-        const fetchRes = await axios.get(`https://api.minimax.io/v1/query/t2a_async_query_v2?task_id=${taskId}`, {
-            headers: { 'Authorization': `Bearer ${key}` }
+        const payload: any = {
+            model: 'speech-01-turbo',
+            text: text,
+            voice_setting: {
+                voice_id: voiceId,
+                speed: speed,
+                vol: volume
+            },
+            audio_setting: { sample_rate: 32000, format: 'mp3' }
+        };
+        const submitRes = await axios.post('https://api.minimax.io/v1/t2a_async_v2', payload, {
+            headers: { 'Authorization': `Bearer ${apiKey}` } // Use the actual dynamically fetched key
         });
 
-        const status = fetchRes.data.status;
+        if (submitRes.data.base_resp?.status_code !== 0) {
+            throw new Error(`MiniMax T2A Async failed: ${submitRes.data.base_resp?.status_msg}`);
+        }
 
-        if (status === 'Success') {
-            const outputFileId = fetchRes.data.file_id;
-            console.log(`[MiniMax TTS] Completed. Audio File ID: ${outputFileId}`);
+        const taskId = submitRes.data.task_id;
+        console.log(`[MiniMax TTS] Task ID: ${taskId}. Waiting for completion...`);
 
-            const retrieveRes = await axios.get(`https://api.minimax.io/v1/files/retrieve?file_id=${outputFileId}`, {
-                headers: { 'Authorization': `Bearer ${key}` }
+        // Poll for completion
+        while (true) {
+            const fetchRes = await axios.get(`https://api.minimax.io/v1/query/t2a_async_query_v2?task_id=${taskId}`, {
+                headers: { 'Authorization': `Bearer ${apiKey}` } // Use the actual dynamically fetched key
             });
 
-            const downloadUrl = retrieveRes.data.file?.download_url;
-            if (!downloadUrl) throw new Error('MiniMax did not return a download_url for the generated audio');
+            const status = fetchRes.data.status;
 
-            console.log(`[MiniMax TTS] Downloading output tar stream...`);
-            return downloadAndExtractMp3FromTar(downloadUrl);
+            if (status === 'Success') {
+                const outputFileId = fetchRes.data.file_id;
+                console.log(`[MiniMax TTS] Completed. Audio File ID: ${outputFileId}`);
+
+                const retrieveRes = await axios.get(`https://api.minimax.io/v1/files/retrieve?file_id=${outputFileId}`, {
+                    headers: { 'Authorization': `Bearer ${apiKey}` } // Use the actual dynamically fetched key
+                });
+
+                const downloadUrl = retrieveRes.data.file?.download_url;
+                if (!downloadUrl) throw new Error('MiniMax did not return a download_url for the generated audio');
+
+                console.log(`[MiniMax TTS] Downloading output tar stream...`);
+                return await downloadAndExtractMp3FromTar(downloadUrl);
+            }
+
+            if (status === 'Fail') {
+                throw new Error(`MiniMax T2A Async Task failed on server: ${JSON.stringify(fetchRes.data)}`);
+            }
+
+            await new Promise(res => setTimeout(res, 2000));
         }
-
-        if (status === 'Fail') {
-            throw new Error(`MiniMax T2A Async Task failed on server: ${JSON.stringify(fetchRes.data)}`);
-        }
-
-        await new Promise(res => setTimeout(res, 2000));
+    } catch (error) {
+        console.error("MiniMax TTS generation error:", error);
+        throw error;
     }
 }
 

@@ -12,6 +12,40 @@
 import { createSupabaseServiceClient } from './supabaseClient';
 
 // ═══════════════════════════════════════════════════════════════════════════
+// PRICING CACHE (dynamically fetched from pricing_tiers table)
+// ═══════════════════════════════════════════════════════════════════════════
+let pricingCache: Record<string, any> = {};
+let pricingCacheTimestamp = 0;
+const CACHE_TTL_MS = 1000 * 60 * 5; // 5 minutes
+
+export async function getPricingTiers(): Promise<Record<string, any>> {
+  const now = Date.now();
+  if (now - pricingCacheTimestamp < CACHE_TTL_MS && Object.keys(pricingCache).length > 0) {
+    return pricingCache;
+  }
+
+  const supabase = createSupabaseServiceClient();
+  if (!supabase) return pricingCache;
+
+  try {
+    const { data, error } = await supabase.from('pricing_tiers').select('*');
+    if (error) throw error;
+
+    const newCache: Record<string, any> = {};
+    for (const row of data || []) {
+      newCache[row.provider] = row;
+    }
+
+    pricingCache = newCache;
+    pricingCacheTimestamp = now;
+    return pricingCache;
+  } catch (err: any) {
+    console.error('❌ [Cost] Failed to fetch pricing tiers:', err.message);
+    return pricingCache;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // PRICING CONFIGURATION (per 1M tokens)
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -142,13 +176,25 @@ export async function logLLMCost(
   usage: LLMUsage,
   label?: string
 ): Promise<number> {
-  const cost = calculateLLMCost(usage);
+  const tiers = await getPricingTiers();
+  let cost = 0;
+  let modelToLog = usage.model || LLM_PRICING[usage.provider]?.model;
+
+  if (tiers[usage.provider]) {
+    const tier = tiers[usage.provider];
+    const inputCost = (usage.inputTokens / 1_000_000) * parseFloat(tier.input_per_1m || '0');
+    const outputCost = (usage.outputTokens / 1_000_000) * parseFloat(tier.output_per_1m || '0');
+    cost = inputCost + outputCost;
+    if (!usage.model && tier.model_name) modelToLog = tier.model_name;
+  } else {
+    cost = calculateLLMCost(usage); // Fallback
+  }
 
   await logCost({
     jobId,
     taskId,
     provider: usage.provider,
-    model: usage.model || LLM_PRICING[usage.provider].model,
+    model: modelToLog,
     inputTokens: usage.inputTokens,
     outputTokens: usage.outputTokens,
     costUsd: cost,
@@ -167,7 +213,16 @@ export async function logReplicateCost(
   executionTimeMs: number,
   label?: string
 ): Promise<number> {
-  const cost = calculateReplicateCost({ executionTimeMs });
+  const tiers = await getPricingTiers();
+  let cost = 0;
+
+  if (tiers['replicate']) {
+    const tier = tiers['replicate'];
+    const seconds = executionTimeMs / 1000;
+    cost = seconds * parseFloat(tier.per_second || '0');
+  } else {
+    cost = calculateReplicateCost({ executionTimeMs }); // Fallback
+  }
 
   await logCost({
     jobId,
@@ -190,7 +245,15 @@ export async function logMinimaxTtsCost(
   charsLength: number,
   label?: string
 ): Promise<number> {
-  const cost = (charsLength / 10000) * MINIMAX_PRICING.ttsPer10KChars;
+  const tiers = await getPricingTiers();
+  let cost = 0;
+
+  if (tiers['minimax']) {
+    const tier = tiers['minimax'];
+    cost = (charsLength / 10000) * parseFloat(tier.tts_per_10k_chars || '0');
+  } else {
+    cost = (charsLength / 10000) * MINIMAX_PRICING.ttsPer10KChars;
+  }
 
   await logCost({
     jobId,
@@ -198,6 +261,72 @@ export async function logMinimaxTtsCost(
     provider: 'minimax',
     costUsd: cost,
     label: label || 'TTS Generation',
+  });
+
+  return cost;
+}
+
+/**
+ * Log Google AI Studio (Portraits) cost
+ */
+export async function logGoogleAiStudioCost(
+  jobId: string,
+  taskId: string | undefined,
+  numImages: number,
+  label?: string
+): Promise<number> {
+  const tiers = await getPricingTiers();
+  let cost = 0;
+  let modelToLog = 'gemini-3-pro-image-preview'; // Default fallback
+
+  if (tiers['google_ai_studio']) {
+    const tier = tiers['google_ai_studio'];
+    cost = numImages * parseFloat(tier.per_item || '0');
+    if (tier.model_name) modelToLog = tier.model_name;
+  } else {
+    cost = numImages * 0.05; // Fallback
+  }
+
+  await logCost({
+    jobId,
+    taskId,
+    provider: 'google_ai_studio',
+    costUsd: cost,
+    model: modelToLog,
+    label: label || 'AI Portrait Generation',
+  });
+
+  return cost;
+}
+
+/**
+ * Log Google TTS cost
+ */
+export async function logGoogleTtsCost(
+  jobId: string,
+  taskId: string | undefined,
+  charsLength: number,
+  label?: string
+): Promise<number> {
+  const tiers = await getPricingTiers();
+  let cost = 0;
+  let modelToLog = 'chirp-3-hd'; // Default fallback
+
+  if (tiers['google_tts']) {
+    const tier = tiers['google_tts'];
+    cost = (charsLength / 10000) * parseFloat(tier.tts_per_10k_chars || '0');
+    if (tier.model_name) modelToLog = tier.model_name;
+  } else {
+    cost = (charsLength / 10000) * 0.16; // $0.16 per 10k chars fallback
+  }
+
+  await logCost({
+    jobId,
+    taskId,
+    provider: 'google_tts',
+    costUsd: cost,
+    model: modelToLog,
+    label: label || 'Google TTS',
   });
 
   return cost;

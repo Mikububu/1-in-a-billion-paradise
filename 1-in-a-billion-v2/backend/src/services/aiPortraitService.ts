@@ -16,6 +16,7 @@ import { getApiKey } from './apiKeys';
 import { env } from '../config/env';
 import { createSupabaseServiceClient } from './supabaseClient';
 import { loadImagePromptLayer } from '../promptEngine/imagePromptLayers';
+import { logGoogleAiStudioCost } from './costTracking';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // EXAMPLE IMAGES (loaded at startup for style reference)
@@ -335,12 +336,20 @@ export async function generateAIPortrait(
       console.log('✅ [AI Portrait] Updated library_people with both URLs');
     }
 
+    // Log the cost of generation
+    await logGoogleAiStudioCost(
+      `portrait_${userId}_${personId || 'self'}`,
+      undefined,
+      1,
+      'AI Portrait Generation Step'
+    );
+
     return {
       success: true,
       imageUrl,
       originalUrl,
       storagePath,
-      cost: 0.05, // Google AI Studio image generation (estimated)
+      cost: 0.05, // Google AI Studio image generation (estimated fallback, actual logged to DB)
     };
 
   } catch (error: any) {

@@ -21,6 +21,7 @@ import {
   isReplicateRateLimitError,
   runReplicateWithRateLimit,
 } from '../services/replicateRateLimiter';
+import { logGoogleTtsCost } from '../services/costTracking';
 import type { AppEnv } from '../types/hono';
 
 const router = new Hono<AppEnv>();
@@ -317,7 +318,7 @@ router.post('/generate-tts', async (c) => {
       // Inter-chunk delay to respect Replicate rate limits.
       // Keep default low; retries already honor API-provided retry_after.
       const chunkDelayMs = parseInt(process.env.REPLICATE_CHUNK_DELAY_MS || '0', 10);
-      
+
       const startTime = Date.now();
       let audioBuffers: Buffer[] = [];
       const parallelMode = String(process.env.AUDIO_ROUTE_PARALLEL || 'true').toLowerCase() === 'true';
@@ -450,6 +451,14 @@ router.post('/generate-tts', async (c) => {
 
       // Estimate duration (roughly 150 words per minute, 5 chars per word)
       const estimatedDuration = Math.ceil(parsed.text.length / 750 * 60);
+
+      // Log the cost
+      await logGoogleTtsCost(
+        parsed.title || 'test_tts_generate',
+        undefined,
+        parsed.text.length,
+        'Google TTS Generation (Admin/Test)'
+      );
 
       return c.json({
         success: true,

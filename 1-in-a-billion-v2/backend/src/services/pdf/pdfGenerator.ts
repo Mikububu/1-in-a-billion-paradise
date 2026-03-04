@@ -703,14 +703,15 @@ function extractFinalIronyVerdict(reading: string): FinalIronyVerdict | null {
  */
 function extractCompatibilityRows(reading: string, _appendix?: string): CompatibilityRow[] {
   const text = String(reading || '');
+  const normalizedText = text.replace(/[*_]+/g, '');
 
   // ── Strategy 1: Parse LLM /100 format ──────────────────────────────────
   // Match lines like "SEXUAL CHEMISTRY: 72" or "OVERALL ALIGNMENT: 95"
   // followed by sentence(s) until the next score label or end of text.
-  const scoreBlockRe = /^([A-Z][A-Z &\-\/]+?):\s*(\d{1,3})\s*$/gm;
+  const scoreBlockRe = /^([A-Z][A-Z &\-\/]+?):\s*(\d{1,3})(?:\/100)?\s*$/gmi;
   const matches: Array<{ label: string; score100: number; index: number }> = [];
   let m: RegExpExecArray | null;
-  while ((m = scoreBlockRe.exec(text)) !== null) {
+  while ((m = scoreBlockRe.exec(normalizedText)) !== null) {
     const rawLabel = (m[1] || '').trim();
     const score100 = Number(m[2]);
     if (!rawLabel || !Number.isFinite(score100)) continue;
@@ -724,9 +725,9 @@ function extractCompatibilityRows(reading: string, _appendix?: string): Compatib
     const rows: CompatibilityRow[] = [];
     for (let i = 0; i < matches.length; i++) {
       const current = matches[i];
-      const nextIndex = i + 1 < matches.length ? matches[i + 1].index - matches[i + 1].label.length - 10 : text.length;
+      const nextIndex = i + 1 < matches.length ? matches[i + 1].index - matches[i + 1].label.length - 10 : normalizedText.length;
       // Extract the note text between this score line and the next
-      const noteText = text.slice(current.index, nextIndex).trim();
+      const noteText = normalizedText.slice(current.index, nextIndex).trim();
       // Take the first 2-4 sentences as the note
       const sentences = noteText
         .split(/(?<=[.!?])\s+/)
@@ -745,7 +746,7 @@ function extractCompatibilityRows(reading: string, _appendix?: string): Compatib
   // ── Strategy 2: Legacy /10 format (backward compat) ────────────────────
   const legacyRe = /^-?\s*([^:]{3,60}):\s*(\d{1,2}(?:\.\d+)?)\s*\/\s*10\s*(?:[--]\s*(.+))?$/gmi;
   const legacyRows: CompatibilityRow[] = [];
-  while ((m = legacyRe.exec(text)) !== null) {
+  while ((m = legacyRe.exec(normalizedText)) !== null) {
     const label = (m[1] || '').trim();
     const score = Number(m[2]);
     const note = (m[3] || '').trim() || undefined;
@@ -904,6 +905,7 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
   const imageToUse = options.type === 'single'
     ? person1Portrait
     : (couplePortrait || person1Portrait);
+
   let imageForPdf: Buffer | null = null;
   if (imageToUse) {
     try {
