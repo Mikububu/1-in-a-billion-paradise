@@ -74,11 +74,6 @@ This output is rendered as PDF and may also be narrated as audio.
 - "Ultimately, at the end of the day..."
 - Any sterile corporate-AI voice patterns.
 
-## Anti-Hallucination & Mechanics
-
-- NEVER invent or assume real-world external barriers (e.g. "life circumstances don't let them be together"). Describe their energetic and psychological compatibility, but do not dictate their actual life plot or fate.
-- NEVER discuss the technical mechanics of how a chart was cast (e.g. do not mention "Daylight Saving Time", "wintertime", "summertime", or time zones). Read the chart as absolute truth without explaining the astronomy or calendar math behind it.
-
 ## Editing Contract
 
 If the global voice should change, edit only this file.
