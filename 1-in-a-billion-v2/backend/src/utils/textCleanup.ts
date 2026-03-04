@@ -42,6 +42,7 @@ export function cleanupTextForTTS(text: string, language: string = 'en'): string
   cleaned = cleaned.replace(/~~([^~]+)~~/g, '$1'); // Strikethrough ~~text~~
   cleaned = cleaned.replace(/^[-*+]\s+/gm, ''); // Bullet points
   cleaned = cleaned.replace(/^\d+\.\s+/gm, ''); // Numbered lists
+  cleaned = cleaned.replace(/^[ivxlcdmIVXLCDM]+\.\s+/gm, ''); // Roman numeral lists
 
   // Replace em-dashes and en-dashes with commas or semicolons
   cleaned = cleaned.replace(/\u2014/g, ', '); // em-dash
@@ -65,11 +66,16 @@ export function cleanupTextForTTS(text: string, language: string = 'en'): string
   // Match lines that look like headlines (ALL CAPS or Title Case at start of line)
   cleaned = cleaned.replace(/^([A-Z][A-Z\s]{10,})\n/gm, (match) => {
     // If it's all caps or title case and ends without space, add space
-    return match.trimEnd() + ' \n';
+    return match.trimEnd() + ' ... \n';
   });
 
   // Clean up multiple newlines (keep max 2 for paragraph breaks)
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+
+  // Insert explicit pause markers at paragraph breaks so TTS properly pauses
+  cleaned = cleaned.replace(/\n\n/g, ' ... ');
+  // Replace remaining single newlines with spaces to prevent abrupt TTS reading
+  cleaned = cleaned.replace(/\n/g, ' ');
 
   // Remove leading/trailing whitespace
   cleaned = cleaned.trim();

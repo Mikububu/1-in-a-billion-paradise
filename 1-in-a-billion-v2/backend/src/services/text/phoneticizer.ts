@@ -30,7 +30,9 @@ Example output for German:
         );
 
         const normalized = rawContent.replace(/```json|```/g, '').trim();
+        console.log("Phoneticizer Output Normal:", normalized);
         const dictionary = JSON.parse(normalized);
+        console.log("Phoneticizer Dictionary:", dictionary);
 
         // Apply the replacements to the text
         let processedText = text;
@@ -39,7 +41,7 @@ Example output for German:
                 // Create a case-insensitive regex for the term, matching whole words where possible
                 // We escape regex chars in the original term just in case
                 const escaped = original.replace(/[-\\/\\\\^$*+?.()|[\\]{}]/g, '\\\\$&');
-                const regex = new RegExp(`\\\\b${escaped}\\\\b`, 'gi');
+                const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
                 processedText = processedText.replace(regex, phonetic);
             }
         }
