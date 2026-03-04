@@ -12,6 +12,7 @@ import { JobTask, supabase } from '../services/supabaseClient';
 import { generateChapterPDF } from '../services/pdf/pdfGenerator';
 import { getCoupleImage } from '../services/coupleImageService';
 import { getSystemDisplayName } from '../config/systemConfig';
+import { getAvatarFileUrl } from '../utils/avatarUtils';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -208,6 +209,19 @@ export class PdfWorker extends BaseWorker {
       if (hasSingleReady && hasOverlayReady) break;
 
       await sleep(pollMs);
+    }
+
+    // ── FALLBACK FOR MISSING PORTRAITS ──
+    // If after the timeout (or immediately if they didn't have one in DB) we still lack a portrait, 
+    // assign the faceless placeholder avatar based on their personId.
+    if (!person1PortraitUrl && person1Id) {
+      person1PortraitUrl = getAvatarFileUrl(person1Id);
+    }
+    const isPerson2ReadingLocal = docType === 'person2';
+    const isOverlayReadingLocal = docType === 'overlay' || docType === 'verdict';
+    // Only assign a fallback to Person 2 if the document actually needs Person 2 shown
+    if ((isPerson2ReadingLocal || isOverlayReadingLocal) && !person2PortraitUrl && person2Id) {
+      person2PortraitUrl = getAvatarFileUrl(person2Id);
     }
 
     let coupleImageUrl = existingCoupleImageUrl;

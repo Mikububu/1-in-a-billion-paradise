@@ -127,7 +127,7 @@ function buildOverlayWritingPromptBase(params: {
     '[2 sentences: what kind of sexual dynamic these charts suggest. Whether the bedroom would liberate or consume.]',
     '',
     'PAST LIFE CONNECTION: [0-100]',
-    '[2 sentences: how strongly this system\\'s placements suggest pre - existing soul familiarity.Recognition or repetition.]',
+    '[2 sentences: how strongly this system\'s placements suggest pre - existing soul familiarity.Recognition or repetition.]',
   '',
     'WORLD-CHANGING POTENTIAL: [0-100]',
     '[2 sentences: what these two could build or ignite externally if they combined forces. Private connection or larger purpose.]',
@@ -143,11 +143,11 @@ function buildOverlayWritingPromptBase(params: {
     '',
     'SCORING RULES (PREVENT AI INFLATION):',
     '- DO NOT default to high scores (70-90) out of generic "AI positivity."',
-    '- Anchor scores in strict mathematical friction. If there are squares, oppositions, or a lack of major connective tissue in THIS specific system\\'s chart data, the score MUST drop to the 30 - 50 range.',
+    '- Anchor scores in strict mathematical friction. If there are squares, oppositions, or a lack of major connective tissue in THIS specific system\'s chart data, the score MUST drop to the 30 - 50 range.',
   '- A score of 90+ requires rare, exceptionally tight alignments (e.g., exact conjunctions, full channel completions).',
     '- Use the full 0-100 spectrum. A 25 is just as likely as a 75 if the charts clash.',
-    '- These scores are derived from THIS system\\'s chart data only - not a guess across all systems.',
-  ].join('\\n');
+    '- These scores are derived from THIS system\'s chart data only - not a guess across all systems.',
+  ].join('\n');
 }
 
 // ─── OVERLAY-SPECIFIC EXTRACTION HELPERS ─────────────────────────────────────

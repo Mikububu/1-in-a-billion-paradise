@@ -24,7 +24,9 @@ import { createSupabaseServiceClient } from './supabaseClient';
 import { getApiKey } from './apiKeys';
 import { env } from '../config/env';
 import sharp from 'sharp';
+import fs from 'fs';
 import { loadImagePromptLayer } from '../promptEngine/imagePromptLayers';
+import { isLocalFileUrl, getLocalFilePath } from '../utils/avatarUtils';
 
 const COUPLE_IMAGES_BUCKET = 'couple-portraits';
 
@@ -61,15 +63,12 @@ export async function composeCoupleImage(
     // ⚠️ CRITICAL VALIDATION: Ensure we're receiving styled portraits, not original photos
     // Styled portraits should be in profile-images bucket with /AI-generated-portrait.png suffix
     // or in couple-portraits bucket
-    const isStyledPortrait1 = portrait1Url.includes('/AI-generated-portrait.png') || portrait1Url.includes('couple-portraits');
-    const isStyledPortrait2 = portrait2Url.includes('/AI-generated-portrait.png') || portrait2Url.includes('couple-portraits');
+    const isStyledPortrait1 = portrait1Url.includes('/AI-generated-portrait.png') || portrait1Url.includes('couple-portraits') || isLocalFileUrl(portrait1Url);
+    const isStyledPortrait2 = portrait2Url.includes('/AI-generated-portrait.png') || portrait2Url.includes('couple-portraits') || isLocalFileUrl(portrait2Url);
 
     if (!isStyledPortrait1 || !isStyledPortrait2) {
       console.warn('⚠️ [Couple] WARNING: URLs do not appear to be styled portraits!');
-      console.warn('   Person 1 URL:', portrait1Url);
-      console.warn('   Person 2 URL:', portrait2Url);
-      console.warn('   Expected URLs to contain "/AI-generated-portrait.png"');
-      console.warn('   Couple portraits MUST be composed from styled portraits, not original photos!');
+      console.warn('   Expected URLs to contain "/AI-generated-portrait.png" or be fallback avatars.');
       // Don't fail completely, but log the warning
     }
 
@@ -81,19 +80,26 @@ export async function composeCoupleImage(
     console.log(`👫 [Couple] Generating AI couple portrait for ${person1Id} + ${person2Id}...`);
 
     // 1. Download both portrait images
-    const [image1Response, image2Response] = await Promise.all([
-      fetch(portrait1Url),
-      fetch(portrait2Url),
-    ]);
+    const fetchImage = async (url: string): Promise<Buffer> => {
+      if (isLocalFileUrl(url)) {
+        return await fs.promises.readFile(getLocalFilePath(url));
+      }
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const ab = await res.arrayBuffer();
+      return Buffer.from(ab);
+    };
 
-    if (!image1Response.ok || !image2Response.ok) {
-      return { success: false, error: 'Failed to download portrait images' };
+    let image1Buffer: Buffer;
+    let image2Buffer: Buffer;
+    try {
+      [image1Buffer, image2Buffer] = await Promise.all([
+        fetchImage(portrait1Url),
+        fetchImage(portrait2Url),
+      ]);
+    } catch (e: any) {
+      return { success: false, error: `Failed to download portrait images: ${e.message}` };
     }
-
-    const [image1Buffer, image2Buffer] = await Promise.all([
-      image1Response.arrayBuffer(),
-      image2Response.arrayBuffer(),
-    ]);
 
     // 1.5. Convert and resize images to 1024x1024 JPEG to prevent payload size timeouts
     console.log('📐 [Couple] Compressing images for Google AI Studio payload...');
