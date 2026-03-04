@@ -34,8 +34,8 @@ export function cleanupTextForTTS(text: string): string {
 
   // Remove markdown syntax
   cleaned = cleaned.replace(/^#{1,6}\s+/gm, ''); // Headers (#, ##, ###, etc.)
-  cleaned = cleaned.replace(/\*\*([^*]+)\*\*/g, '$1'); // Bold **text**
-  cleaned = cleaned.replace(/\*([^*]+)\*/g, '$1'); // Italic *text*
+  cleaned = cleaned.replace(/\*/g, ''); // Asterisks 
+
   cleaned = cleaned.replace(/__([^_]+)__/g, '$1'); // Bold __text__
   cleaned = cleaned.replace(/_([^_]+)_/g, '$1'); // Italic _text_
   cleaned = cleaned.replace(/~~([^~]+)~~/g, '$1'); // Strikethrough ~~text~~

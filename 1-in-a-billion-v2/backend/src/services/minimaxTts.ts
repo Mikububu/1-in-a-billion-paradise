@@ -61,6 +61,11 @@ export async function generateMinimaxAsync(text: string, voiceId: string, cloneP
             },
             audio_setting: { sample_rate: 32000, format: 'mp3' }
         };
+
+        if (clonePromptFileId) {
+            payload.clone_prompt = { prompt_audio: clonePromptFileId };
+        }
+
         const submitRes = await axios.post('https://api.minimax.io/v1/t2a_async_v2', payload, {
             headers: { 'Authorization': `Bearer ${apiKey}` } // Use the actual dynamically fetched key
         });
