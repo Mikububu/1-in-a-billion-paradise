@@ -1,0 +1,319 @@
+Deploy	UNKNOWN STEP	﻿2026-03-04T13:13:18.7099878Z Current runner version: '2.331.0'
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7126015Z ##[group]Runner Image Provisioner
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7126912Z Hosted Compute Agent
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7127565Z Version: 20260213.493
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7128196Z Commit: 5c115507f6dd24b8de37d8bbe0bb4509d0cc0fa3
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7128954Z Build Date: 2026-02-13T00:28:41Z
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7130057Z Worker ID: {b6ba2b69-9992-4361-8473-1a6a57b4e61c}
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7130781Z Azure Region: northcentralus
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7131442Z ##[endgroup]
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7133115Z ##[group]Operating System
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7133752Z Ubuntu
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7134301Z 24.04.3
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7134754Z LTS
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7135360Z ##[endgroup]
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7135945Z ##[group]Runner Image
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7136478Z Image: ubuntu-24.04
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7137111Z Version: 20260224.36.1
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7138288Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260224.36/images/ubuntu/Ubuntu2404-Readme.md
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7140102Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260224.36
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7141006Z ##[endgroup]
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7142220Z ##[group]GITHUB_TOKEN Permissions
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7144403Z Contents: read
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7144950Z Metadata: read
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7145681Z Packages: read
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7146172Z ##[endgroup]
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7148246Z Secret source: Actions
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7149914Z Prepare workflow directory
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7519421Z Prepare all required actions
+Deploy	UNKNOWN STEP	2026-03-04T13:13:18.7562441Z Getting action download info
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.1205972Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.2866991Z Download action repository 'superfly/flyctl-actions@master' (SHA:63da3ecc5e2793b98a3f2519b3d75d4f4c11cec2)
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.7148777Z Complete job name: Deploy
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.7922694Z ##[group]Run actions/checkout@v4
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.7923665Z with:
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.7924186Z   repository: Mikububu/1-in-a-billion-paradise
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.7925025Z   token: ***
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.7925464Z   ssh-strict: true
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.7925905Z   ssh-user: git
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.7926344Z   persist-credentials: true
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.7926845Z   clean: true
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.7927289Z   sparse-checkout-cone-mode: true
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.7927822Z   fetch-depth: 1
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.7928256Z   fetch-tags: false
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.7928705Z   show-progress: true
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.7929334Z   lfs: false
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.7929757Z   submodules: false
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.7930220Z   set-safe-directory: true
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.7930998Z ##[endgroup]
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9081921Z Syncing repository: Mikububu/1-in-a-billion-paradise
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9085100Z ##[group]Getting Git version info
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9086916Z Working directory is '/home/runner/work/1-in-a-billion-paradise/1-in-a-billion-paradise'
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9089540Z [command]/usr/bin/git version
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9189861Z git version 2.53.0
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9219642Z ##[endgroup]
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9237443Z Temporarily overriding HOME='/home/runner/work/_temp/c756dcb5-df75-47ef-adfc-a6b0477b92b9' before making global git config changes
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9240416Z Adding repository directory to the temporary git global config as a safe directory
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9254042Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/1-in-a-billion-paradise/1-in-a-billion-paradise
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9301241Z Deleting the contents of '/home/runner/work/1-in-a-billion-paradise/1-in-a-billion-paradise'
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9304920Z ##[group]Initializing the repository
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9310792Z [command]/usr/bin/git init /home/runner/work/1-in-a-billion-paradise/1-in-a-billion-paradise
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9442601Z hint: Using 'master' as the name for the initial branch. This default branch name
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9444114Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9445798Z hint: to use in all of your new repositories, which will suppress this warning,
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9447154Z hint: call:
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9448034Z hint:
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9449293Z hint: 	git config --global init.defaultBranch <name>
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9450562Z hint:
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9451718Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9453621Z hint: 'development'. The just-created branch can be renamed via this command:
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9455210Z hint:
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9456010Z hint: 	git branch -m <name>
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9456868Z hint:
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9458024Z hint: Disable this message with "git config set advice.defaultBranchName false"
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9460714Z Initialized empty Git repository in /home/runner/work/1-in-a-billion-paradise/1-in-a-billion-paradise/.git/
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9464807Z [command]/usr/bin/git remote add origin https://github.com/Mikububu/1-in-a-billion-paradise
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9509845Z ##[endgroup]
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9510715Z ##[group]Disabling automatic garbage collection
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9511468Z [command]/usr/bin/git config --local gc.auto 0
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9541408Z ##[endgroup]
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9542850Z ##[group]Setting up auth
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9549840Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Deploy	UNKNOWN STEP	2026-03-04T13:13:19.9584622Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+Deploy	UNKNOWN STEP	2026-03-04T13:13:20.0049164Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+Deploy	UNKNOWN STEP	2026-03-04T13:13:20.0080904Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Deploy	UNKNOWN STEP	2026-03-04T13:13:20.0324309Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+Deploy	UNKNOWN STEP	2026-03-04T13:13:20.0359911Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Deploy	UNKNOWN STEP	2026-03-04T13:13:20.0615333Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+Deploy	UNKNOWN STEP	2026-03-04T13:13:20.0653978Z ##[endgroup]
+Deploy	UNKNOWN STEP	2026-03-04T13:13:20.0655477Z ##[group]Fetching the repository
+Deploy	UNKNOWN STEP	2026-03-04T13:13:20.0664869Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +693915445c634781648ccec7672f7a676a7d3638:refs/remotes/origin/main
+Deploy	UNKNOWN STEP	2026-03-04T13:13:23.3770541Z From https://github.com/Mikububu/1-in-a-billion-paradise
+Deploy	UNKNOWN STEP	2026-03-04T13:13:23.3771567Z  * [new ref]         693915445c634781648ccec7672f7a676a7d3638 -> origin/main
+Deploy	UNKNOWN STEP	2026-03-04T13:13:23.3808110Z ##[endgroup]
+Deploy	UNKNOWN STEP	2026-03-04T13:13:23.3808933Z ##[group]Determining the checkout info
+Deploy	UNKNOWN STEP	2026-03-04T13:13:23.3811604Z ##[endgroup]
+Deploy	UNKNOWN STEP	2026-03-04T13:13:23.3816301Z [command]/usr/bin/git sparse-checkout disable
+Deploy	UNKNOWN STEP	2026-03-04T13:13:23.3862058Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+Deploy	UNKNOWN STEP	2026-03-04T13:13:23.3890857Z ##[group]Checking out the ref
+Deploy	UNKNOWN STEP	2026-03-04T13:13:23.3895141Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+Deploy	UNKNOWN STEP	2026-03-04T13:13:23.8078187Z Switched to a new branch 'main'
+Deploy	UNKNOWN STEP	2026-03-04T13:13:23.8079271Z branch 'main' set up to track 'origin/main'.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:23.8142476Z ##[endgroup]
+Deploy	UNKNOWN STEP	2026-03-04T13:13:23.8189774Z [command]/usr/bin/git log -1 --format=%H
+Deploy	UNKNOWN STEP	2026-03-04T13:13:23.8219492Z 693915445c634781648ccec7672f7a676a7d3638
+Deploy	UNKNOWN STEP	2026-03-04T13:13:23.8424313Z ##[group]Run superfly/flyctl-actions/setup-flyctl@master
+Deploy	UNKNOWN STEP	2026-03-04T13:13:23.8424709Z with:
+Deploy	UNKNOWN STEP	2026-03-04T13:13:23.8424887Z   version: latest
+Deploy	UNKNOWN STEP	2026-03-04T13:13:23.8425086Z ##[endgroup]
+Deploy	UNKNOWN STEP	2026-03-04T13:13:24.4844174Z Acquired 0.4.17 from https://github.com/superfly/flyctl/releases/download/v0.4.17/flyctl_0.4.17_Linux_x86_64.tar.gz
+Deploy	UNKNOWN STEP	2026-03-04T13:13:24.4945003Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/9817f067-63c6-4eb6-83e4-238fc0254e22 -f /home/runner/work/_temp/ff6c526e-9970-41a8-9c84-d3ef1ac1f01a
+Deploy	UNKNOWN STEP	2026-03-04T13:13:25.2029953Z Successfully cached flyctl to /opt/hostedtoolcache/flyctl/0.4.17/x86_64
+Deploy	UNKNOWN STEP	2026-03-04T13:13:25.2031026Z Added flyctl to the path
+Deploy	UNKNOWN STEP	2026-03-04T13:13:25.2181204Z ##[group]Run flyctl deploy --remote-only
+Deploy	UNKNOWN STEP	2026-03-04T13:13:25.2181675Z [36;1mflyctl deploy --remote-only[0m
+Deploy	UNKNOWN STEP	2026-03-04T13:13:25.2243771Z shell: /usr/bin/bash -e {0}
+Deploy	UNKNOWN STEP	2026-03-04T13:13:25.2244104Z env:
+Deploy	UNKNOWN STEP	2026-03-04T13:13:25.2249820Z   FLY_API_TOKEN: ***
+Deploy	UNKNOWN STEP	2026-03-04T13:13:25.2250076Z ##[endgroup]
+Deploy	UNKNOWN STEP	2026-03-04T13:13:25.2677865Z ==> Verifying app config
+Deploy	UNKNOWN STEP	2026-03-04T13:13:25.2696711Z --> Verified app config
+Deploy	UNKNOWN STEP	2026-03-04T13:13:25.2697674Z Validating /home/runner/work/1-in-a-billion-paradise/1-in-a-billion-paradise/1-in-a-billion-v2/backend/fly.toml
+Deploy	UNKNOWN STEP	2026-03-04T13:13:25.2699237Z [32m✓[0m Configuration is valid
+Deploy	UNKNOWN STEP	2026-03-04T13:13:25.4737204Z ==> Building image
+Deploy	UNKNOWN STEP	2026-03-04T13:13:25.6230453Z Waiting for depot builder...
+Deploy	UNKNOWN STEP	2026-03-04T13:13:25.6231073Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:42.2072604Z ==> Building image with Depot
+Deploy	UNKNOWN STEP	2026-03-04T13:13:42.2073556Z --> build:  (​)
+Deploy	UNKNOWN STEP	2026-03-04T13:13:42.4762033Z #1 [internal] load build definition from Dockerfile
+Deploy	UNKNOWN STEP	2026-03-04T13:13:42.4762865Z #1 transferring dockerfile: 1.62kB 0.1s done
+Deploy	UNKNOWN STEP	2026-03-04T13:13:42.4763228Z #1 DONE 0.1s
+Deploy	UNKNOWN STEP	2026-03-04T13:13:42.4763369Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:42.4763734Z #2 [internal] load metadata for docker.io/library/node:22-bookworm-slim
+Deploy	UNKNOWN STEP	2026-03-04T13:13:42.6803124Z #2 DONE 0.4s
+Deploy	UNKNOWN STEP	2026-03-04T13:13:42.8066215Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:42.8067095Z #3 [internal] load .dockerignore
+Deploy	UNKNOWN STEP	2026-03-04T13:13:42.8069414Z #3 transferring context: 476B 0.1s done
+Deploy	UNKNOWN STEP	2026-03-04T13:13:42.8069879Z #3 DONE 0.1s
+Deploy	UNKNOWN STEP	2026-03-04T13:13:42.8070062Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:42.8070810Z #4 [stage-1  1/11] FROM docker.io/library/node:22-bookworm-slim@sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94
+Deploy	UNKNOWN STEP	2026-03-04T13:13:42.8072400Z #4 resolve docker.io/library/node:22-bookworm-slim@sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94 done
+Deploy	UNKNOWN STEP	2026-03-04T13:13:42.8073194Z #4 DONE 0.0s
+Deploy	UNKNOWN STEP	2026-03-04T13:13:42.8073328Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:42.8073426Z #5 [internal] load build context
+Deploy	UNKNOWN STEP	2026-03-04T13:13:43.2642590Z #5 transferring context: 6.58MB 0.5s done
+Deploy	UNKNOWN STEP	2026-03-04T13:13:43.4274446Z #5 DONE 0.5s
+Deploy	UNKNOWN STEP	2026-03-04T13:13:43.4274770Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:43.4275651Z #6 [builder 2/8] RUN apt-get update && apt-get install -y --no-install-recommends   python3 make g++   && rm -rf /var/lib/apt/lists/*
+Deploy	UNKNOWN STEP	2026-03-04T13:13:43.4277030Z #6 CACHED
+Deploy	UNKNOWN STEP	2026-03-04T13:13:43.4277280Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:43.4277504Z #7 [builder 3/8] WORKDIR /app
+Deploy	UNKNOWN STEP	2026-03-04T13:13:43.4278026Z #7 CACHED
+Deploy	UNKNOWN STEP	2026-03-04T13:13:43.4278233Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:43.4278536Z #8 [builder 4/8] COPY package.json package-lock.json ./
+Deploy	UNKNOWN STEP	2026-03-04T13:13:43.4279577Z #8 CACHED
+Deploy	UNKNOWN STEP	2026-03-04T13:13:43.4279823Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:43.4280016Z #9 [builder 5/8] RUN npm ci
+Deploy	UNKNOWN STEP	2026-03-04T13:13:43.4280451Z #9 CACHED
+Deploy	UNKNOWN STEP	2026-03-04T13:13:43.4280666Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:43.4280832Z #10 [builder 6/8] COPY . .
+Deploy	UNKNOWN STEP	2026-03-04T13:13:43.4281252Z #10 DONE 0.1s
+Deploy	UNKNOWN STEP	2026-03-04T13:13:43.5802359Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:43.5803038Z #11 [builder 7/8] RUN npm run build
+Deploy	UNKNOWN STEP	2026-03-04T13:13:44.2337254Z #11 0.804 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:44.2337757Z #11 0.804 > backend@1.0.0 build
+Deploy	UNKNOWN STEP	2026-03-04T13:13:44.2338409Z #11 0.804 > tsc -p tsconfig.json
+Deploy	UNKNOWN STEP	2026-03-04T13:13:44.2338879Z #11 0.804 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:52.9957208Z #11 9.566 src/promptEngine/triggerEngine/overlayTrigger.ts(130,47): error TS1005: ',' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1466299Z #11 9.566 src/promptEngine/triggerEngine/overlayTrigger.ts(130,49): error TS1005: ',' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1467783Z #11 9.566 src/promptEngine/triggerEngine/overlayTrigger.ts(130,60): error TS1005: ',' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1469222Z #11 9.566 src/promptEngine/triggerEngine/overlayTrigger.ts(130,68): error TS1005: ',' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1470106Z #11 9.566 src/promptEngine/triggerEngine/overlayTrigger.ts(130,83): error TS1005: ',' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1471399Z #11 9.566 src/promptEngine/triggerEngine/overlayTrigger.ts(130,88): error TS1005: ',' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1472224Z #11 9.566 src/promptEngine/triggerEngine/overlayTrigger.ts(130,112): error TS1005: ',' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1473302Z #11 9.566 src/promptEngine/triggerEngine/overlayTrigger.ts(130,115): error TS1005: ',' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1474193Z #11 9.566 src/promptEngine/triggerEngine/overlayTrigger.ts(130,126): error TS1003: Identifier expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1475042Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(130,127): error TS1005: ';' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1475938Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(130,129): error TS1002: Unterminated string literal.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1476825Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(146,153): error TS1005: ';' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1477730Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(146,155): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1478652Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(146,171): error TS1005: ';' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1479822Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(146,177): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1480893Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(146,182): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1481882Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(146,187): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1482870Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(146,190): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1483675Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(146,202): error TS1005: ';' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1484336Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(146,208): error TS1003: Identifier expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1485061Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(146,210): error TS1002: Unterminated string literal.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1485715Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(149,52): error TS1005: ';' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1486391Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(149,54): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1487135Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(149,60): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1487792Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(149,76): error TS1005: ';' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1488467Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(149,78): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1489320Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(149,84): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1490031Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(149,91): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1490716Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(149,103): error TS1003: Identifier expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1491395Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(149,105): error TS1002: Unterminated string literal.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1492112Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(150,3): error TS1128: Declaration or statement expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.1492852Z #11 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(150,4): error TS1128: Declaration or statement expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.2170361Z #11 ERROR: process "/bin/sh -c npm run build" did not complete successfully: exit code: 2
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.2453416Z ------
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.2453855Z  > [builder 7/8] RUN npm run build:
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.2454740Z 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(149,54): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.2456535Z 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(149,60): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.2457650Z 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(149,76): error TS1005: ';' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.2458706Z 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(149,78): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.2460127Z 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(149,84): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.2461041Z 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(149,91): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.2461913Z 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(149,103): error TS1003: Identifier expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.2462776Z 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(149,105): error TS1002: Unterminated string literal.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.2463672Z 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(150,3): error TS1128: Declaration or statement expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.2464582Z 9.567 src/promptEngine/triggerEngine/overlayTrigger.ts(150,4): error TS1128: Declaration or statement expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.2465170Z ------
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.4250319Z ==> Building image
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.5668002Z Waiting for depot builder...
+Deploy	UNKNOWN STEP	2026-03-04T13:13:53.5668531Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.0604021Z ==> Building image with Depot
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.0604916Z --> build:  (​)
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.3310890Z #1 [internal] load build definition from Dockerfile
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.3311453Z #1 transferring dockerfile: 1.62kB 0.1s done
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.3311857Z #1 DONE 0.1s
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.3312016Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.3312289Z #2 [internal] load metadata for docker.io/library/node:22-bookworm-slim
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.4551856Z #2 DONE 0.3s
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.5811473Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.5811862Z #3 [internal] load .dockerignore
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.5812214Z #3 transferring context: 476B 0.1s done
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.5812525Z #3 DONE 0.1s
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.5812634Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.5813066Z #4 [builder 1/8] FROM docker.io/library/node:22-bookworm-slim@sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.5813952Z #4 resolve docker.io/library/node:22-bookworm-slim@sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94 done
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.5814509Z #4 DONE 0.0s
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.5814610Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.5814702Z #5 [internal] load build context
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.7993993Z #5 transferring context: 21.34kB 0.1s done
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.7994354Z #5 DONE 0.1s
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.7994493Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.7994999Z #6 [builder 2/8] RUN apt-get update && apt-get install -y --no-install-recommends   python3 make g++   && rm -rf /var/lib/apt/lists/*
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.7995689Z #6 CACHED
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.7995809Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.7995908Z #7 [builder 3/8] WORKDIR /app
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.7996168Z #7 CACHED
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.7996278Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.7996470Z #8 [builder 4/8] COPY package.json package-lock.json ./
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.7996812Z #8 CACHED
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.7996933Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.7997028Z #9 [builder 5/8] RUN npm ci
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.7997275Z #9 CACHED
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.7997384Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.7997476Z #10 [builder 6/8] COPY . .
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.7997715Z #10 CACHED
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.7997836Z 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.7997942Z #11 [builder 7/8] RUN npm run build
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.9010446Z #11 0.252 
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.9011216Z #11 0.252 > backend@1.0.0 build
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.9011790Z #11 0.252 > tsc -p tsconfig.json
+Deploy	UNKNOWN STEP	2026-03-04T13:13:54.9012209Z #11 0.252 
+Deploy	UNKNOWN STEP	2026-03-04T13:14:02.8775366Z #11 8.228 src/promptEngine/triggerEngine/overlayTrigger.ts(130,47): error TS1005: ',' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0286541Z #11 8.228 src/promptEngine/triggerEngine/overlayTrigger.ts(130,49): error TS1005: ',' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0288031Z #11 8.228 src/promptEngine/triggerEngine/overlayTrigger.ts(130,60): error TS1005: ',' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0290056Z #11 8.228 src/promptEngine/triggerEngine/overlayTrigger.ts(130,68): error TS1005: ',' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0291189Z #11 8.228 src/promptEngine/triggerEngine/overlayTrigger.ts(130,83): error TS1005: ',' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0292542Z #11 8.228 src/promptEngine/triggerEngine/overlayTrigger.ts(130,88): error TS1005: ',' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0293472Z #11 8.228 src/promptEngine/triggerEngine/overlayTrigger.ts(130,112): error TS1005: ',' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0294218Z #11 8.228 src/promptEngine/triggerEngine/overlayTrigger.ts(130,115): error TS1005: ',' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0294970Z #11 8.228 src/promptEngine/triggerEngine/overlayTrigger.ts(130,126): error TS1003: Identifier expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0295712Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(130,127): error TS1005: ';' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0296481Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(130,129): error TS1002: Unterminated string literal.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0297260Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(146,153): error TS1005: ';' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0298043Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(146,155): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0298834Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(146,171): error TS1005: ';' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0299688Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(146,177): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0300405Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(146,182): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0301123Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(146,187): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0301837Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(146,190): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0302493Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(146,202): error TS1005: ';' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0303113Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(146,208): error TS1003: Identifier expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0303792Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(146,210): error TS1002: Unterminated string literal.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0304443Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(149,52): error TS1005: ';' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0305097Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(149,54): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0305817Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(149,60): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0306470Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(149,76): error TS1005: ';' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0307118Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(149,78): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0307831Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(149,84): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0308545Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(149,91): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0309383Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(149,103): error TS1003: Identifier expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0310066Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(149,105): error TS1002: Unterminated string literal.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0310769Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(150,3): error TS1128: Declaration or statement expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0311477Z #11 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(150,4): error TS1128: Declaration or statement expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0412472Z #11 ERROR: process "/bin/sh -c npm run build" did not complete successfully: exit code: 2
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0705494Z ------
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0705953Z  > [builder 7/8] RUN npm run build:
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0706953Z 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(149,54): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0708460Z 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(149,60): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0710890Z 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(149,76): error TS1005: ';' expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0712608Z 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(149,78): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0714458Z 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(149,84): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0716109Z 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(149,91): error TS1434: Unexpected keyword or identifier.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0717189Z 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(149,103): error TS1003: Identifier expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0718245Z 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(149,105): error TS1002: Unterminated string literal.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0719593Z 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(150,3): error TS1128: Declaration or statement expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0720357Z 8.229 src/promptEngine/triggerEngine/overlayTrigger.ts(150,4): error TS1128: Declaration or statement expected.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.0720833Z ------
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.2930531Z Error: failed to fetch an image or build from source: error building: failed to solve: process "/bin/sh -c npm run build" did not complete successfully: exit code: 2
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.3037440Z ##[error]Process completed with exit code 1.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.3145540Z Post job cleanup.
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.4152927Z [command]/usr/bin/git version
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.4195787Z git version 2.53.0
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.4245146Z Temporarily overriding HOME='/home/runner/work/_temp/4279c987-0d09-4a78-9bdc-c279787afac9' before making global git config changes
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.4246722Z Adding repository directory to the temporary git global config as a safe directory
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.4260241Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/1-in-a-billion-paradise/1-in-a-billion-paradise
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.4301964Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.4340296Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.4618948Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.4648786Z http.https://github.com/.extraheader
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.4666106Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.4709859Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.4953446Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.4989350Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Deploy	UNKNOWN STEP	2026-03-04T13:14:03.5373900Z Cleaning up orphan processes

@@ -60,7 +60,7 @@ export const LLM_PRICING = {
     name: 'Claude Sonnet 4',
     inputPer1M: 3.00,   // $3.00 per 1M input tokens
     outputPer1M: 15.00, // $15.00 per 1M output tokens
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-6',
   },
   openai: {
     name: 'OpenAI GPT-4o',

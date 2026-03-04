@@ -39,7 +39,7 @@ type LLMProvider = 'deepseek' | 'claude' | 'openai';
 // 🎯 CHANGE THIS OR SET LLM_PROVIDER ENV VAR:
 // DeepSeek for all readings - faster and more reliable
 const DEFAULT_PROVIDER: LLMProvider = 'deepseek';
-const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-4-20250514';
+const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-4-6';
 
 // Token usage tracking
 export interface TokenUsage {

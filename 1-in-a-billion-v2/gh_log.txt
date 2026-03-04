@@ -1,0 +1,407 @@
+Deploy	Set up job	﻿2026-03-04T13:56:07.1707778Z Current runner version: '2.331.0'
+Deploy	Set up job	2026-03-04T13:56:07.1734115Z ##[group]Runner Image Provisioner
+Deploy	Set up job	2026-03-04T13:56:07.1734872Z Hosted Compute Agent
+Deploy	Set up job	2026-03-04T13:56:07.1735468Z Version: 20260213.493
+Deploy	Set up job	2026-03-04T13:56:07.1735994Z Commit: 5c115507f6dd24b8de37d8bbe0bb4509d0cc0fa3
+Deploy	Set up job	2026-03-04T13:56:07.1736649Z Build Date: 2026-02-13T00:28:41Z
+Deploy	Set up job	2026-03-04T13:56:07.1737336Z Worker ID: {38db6cad-6d67-4c26-8547-db5192268667}
+Deploy	Set up job	2026-03-04T13:56:07.1737945Z Azure Region: northcentralus
+Deploy	Set up job	2026-03-04T13:56:07.1738509Z ##[endgroup]
+Deploy	Set up job	2026-03-04T13:56:07.1739769Z ##[group]Operating System
+Deploy	Set up job	2026-03-04T13:56:07.1740278Z Ubuntu
+Deploy	Set up job	2026-03-04T13:56:07.1740744Z 24.04.3
+Deploy	Set up job	2026-03-04T13:56:07.1741251Z LTS
+Deploy	Set up job	2026-03-04T13:56:07.1741654Z ##[endgroup]
+Deploy	Set up job	2026-03-04T13:56:07.1742114Z ##[group]Runner Image
+Deploy	Set up job	2026-03-04T13:56:07.1742698Z Image: ubuntu-24.04
+Deploy	Set up job	2026-03-04T13:56:07.1743187Z Version: 20260224.36.1
+Deploy	Set up job	2026-03-04T13:56:07.1744095Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260224.36/images/ubuntu/Ubuntu2404-Readme.md
+Deploy	Set up job	2026-03-04T13:56:07.1745549Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260224.36
+Deploy	Set up job	2026-03-04T13:56:07.1746330Z ##[endgroup]
+Deploy	Set up job	2026-03-04T13:56:07.1747332Z ##[group]GITHUB_TOKEN Permissions
+Deploy	Set up job	2026-03-04T13:56:07.1749409Z Contents: read
+Deploy	Set up job	2026-03-04T13:56:07.1749944Z Metadata: read
+Deploy	Set up job	2026-03-04T13:56:07.1750422Z Packages: read
+Deploy	Set up job	2026-03-04T13:56:07.1750857Z ##[endgroup]
+Deploy	Set up job	2026-03-04T13:56:07.1753190Z Secret source: Actions
+Deploy	Set up job	2026-03-04T13:56:07.1754516Z Prepare workflow directory
+Deploy	Set up job	2026-03-04T13:56:07.2064350Z Prepare all required actions
+Deploy	Set up job	2026-03-04T13:56:07.2102918Z Getting action download info
+Deploy	Set up job	2026-03-04T13:56:07.5270805Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+Deploy	Set up job	2026-03-04T13:56:07.6528554Z Download action repository 'superfly/flyctl-actions@master' (SHA:63da3ecc5e2793b98a3f2519b3d75d4f4c11cec2)
+Deploy	Set up job	2026-03-04T13:56:08.0865181Z Complete job name: Deploy
+Deploy	Run actions/checkout@v4	﻿2026-03-04T13:56:08.1502153Z ##[group]Run actions/checkout@v4
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.1503390Z with:
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.1504007Z   repository: Mikububu/1-in-a-billion-paradise
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.1504742Z   token: ***
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.1505195Z   ssh-strict: true
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.1505696Z   ssh-user: git
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.1506118Z   persist-credentials: true
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.1506604Z   clean: true
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.1507094Z   sparse-checkout-cone-mode: true
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.1507581Z   fetch-depth: 1
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.1508089Z   fetch-tags: false
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.1508595Z   show-progress: true
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.1509073Z   lfs: false
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.1509495Z   submodules: false
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.1509961Z   set-safe-directory: true
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.1510745Z ##[endgroup]
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2572313Z Syncing repository: Mikububu/1-in-a-billion-paradise
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2574737Z ##[group]Getting Git version info
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2575928Z Working directory is '/home/runner/work/1-in-a-billion-paradise/1-in-a-billion-paradise'
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2577786Z [command]/usr/bin/git version
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2654926Z git version 2.53.0
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2677844Z ##[endgroup]
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2691001Z Temporarily overriding HOME='/home/runner/work/_temp/0620ddcf-f09d-4096-8a87-bd539e7a1d27' before making global git config changes
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2692235Z Adding repository directory to the temporary git global config as a safe directory
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2704843Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/1-in-a-billion-paradise/1-in-a-billion-paradise
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2741280Z Deleting the contents of '/home/runner/work/1-in-a-billion-paradise/1-in-a-billion-paradise'
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2744510Z ##[group]Initializing the repository
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2748835Z [command]/usr/bin/git init /home/runner/work/1-in-a-billion-paradise/1-in-a-billion-paradise
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2880530Z hint: Using 'master' as the name for the initial branch. This default branch name
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2881678Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2883572Z hint: to use in all of your new repositories, which will suppress this warning,
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2884740Z hint: call:
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2885495Z hint:
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2886410Z hint: 	git config --global init.defaultBranch <name>
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2886989Z hint:
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2887609Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2888467Z hint: 'development'. The just-created branch can be renamed via this command:
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2889154Z hint:
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2889629Z hint: 	git branch -m <name>
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2890362Z hint:
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2890973Z hint: Disable this message with "git config set advice.defaultBranchName false"
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2892097Z Initialized empty Git repository in /home/runner/work/1-in-a-billion-paradise/1-in-a-billion-paradise/.git/
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2895998Z [command]/usr/bin/git remote add origin https://github.com/Mikububu/1-in-a-billion-paradise
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2927654Z ##[endgroup]
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2929074Z ##[group]Disabling automatic garbage collection
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2932767Z [command]/usr/bin/git config --local gc.auto 0
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2957897Z ##[endgroup]
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2959047Z ##[group]Setting up auth
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2965476Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.2991025Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.3304163Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.3329931Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.3506337Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.3541846Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.3772713Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.3802745Z ##[endgroup]
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.3804129Z ##[group]Fetching the repository
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:08.3812031Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +cba451031ae49df19483a3d85cef524805723352:refs/remotes/origin/main
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:11.6291526Z From https://github.com/Mikububu/1-in-a-billion-paradise
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:11.6293654Z  * [new ref]         cba451031ae49df19483a3d85cef524805723352 -> origin/main
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:11.6327946Z ##[endgroup]
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:11.6329339Z ##[group]Determining the checkout info
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:11.6332736Z ##[endgroup]
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:11.6339681Z [command]/usr/bin/git sparse-checkout disable
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:11.6396481Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:11.6893434Z ##[group]Checking out the ref
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:11.6897712Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:12.1316275Z Switched to a new branch 'main'
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:12.1317466Z branch 'main' set up to track 'origin/main'.
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:12.1348226Z ##[endgroup]
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:12.1497246Z [command]/usr/bin/git log -1 --format=%H
+Deploy	Run actions/checkout@v4	2026-03-04T13:56:12.1497948Z cba451031ae49df19483a3d85cef524805723352
+Deploy	Run superfly/flyctl-actions/setup-flyctl@master	﻿2026-03-04T13:56:12.1614147Z ##[group]Run superfly/flyctl-actions/setup-flyctl@master
+Deploy	Run superfly/flyctl-actions/setup-flyctl@master	2026-03-04T13:56:12.1614633Z with:
+Deploy	Run superfly/flyctl-actions/setup-flyctl@master	2026-03-04T13:56:12.1614875Z   version: latest
+Deploy	Run superfly/flyctl-actions/setup-flyctl@master	2026-03-04T13:56:12.1615128Z ##[endgroup]
+Deploy	Run superfly/flyctl-actions/setup-flyctl@master	2026-03-04T13:56:12.6306018Z Acquired 0.4.17 from https://github.com/superfly/flyctl/releases/download/v0.4.17/flyctl_0.4.17_Linux_x86_64.tar.gz
+Deploy	Run superfly/flyctl-actions/setup-flyctl@master	2026-03-04T13:56:12.6393816Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/3c447710-60c0-482c-911d-925b02781480 -f /home/runner/work/_temp/36428a0f-e71a-43de-9feb-85500954cb04
+Deploy	Run superfly/flyctl-actions/setup-flyctl@master	2026-03-04T13:56:13.3333564Z Successfully cached flyctl to /opt/hostedtoolcache/flyctl/0.4.17/x86_64
+Deploy	Run superfly/flyctl-actions/setup-flyctl@master	2026-03-04T13:56:13.3334411Z Added flyctl to the path
+Deploy	Deploy to Fly.io	﻿2026-03-04T13:56:13.3479774Z ##[group]Run flyctl deploy --remote-only
+Deploy	Deploy to Fly.io	2026-03-04T13:56:13.3480454Z [36;1mflyctl deploy --remote-only[0m
+Deploy	Deploy to Fly.io	2026-03-04T13:56:13.3518450Z shell: /usr/bin/bash -e {0}
+Deploy	Deploy to Fly.io	2026-03-04T13:56:13.3518742Z env:
+Deploy	Deploy to Fly.io	2026-03-04T13:56:13.3523154Z   FLY_API_TOKEN: ***
+Deploy	Deploy to Fly.io	2026-03-04T13:56:13.3523373Z ##[endgroup]
+Deploy	Deploy to Fly.io	2026-03-04T13:56:13.3903396Z ==> Verifying app config
+Deploy	Deploy to Fly.io	2026-03-04T13:56:13.3921209Z --> Verified app config
+Deploy	Deploy to Fly.io	2026-03-04T13:56:13.3922175Z Validating /home/runner/work/1-in-a-billion-paradise/1-in-a-billion-paradise/1-in-a-billion-v2/backend/fly.toml
+Deploy	Deploy to Fly.io	2026-03-04T13:56:13.3923332Z [32m✓[0m Configuration is valid
+Deploy	Deploy to Fly.io	2026-03-04T13:56:13.5755567Z ==> Building image
+Deploy	Deploy to Fly.io	2026-03-04T13:56:13.7666676Z Waiting for depot builder...
+Deploy	Deploy to Fly.io	2026-03-04T13:56:13.7666997Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:43.1729497Z ==> Building image with Depot
+Deploy	Deploy to Fly.io	2026-03-04T13:56:43.1730399Z --> build:  (​)
+Deploy	Deploy to Fly.io	2026-03-04T13:56:43.4450230Z #1 [internal] load build definition from Dockerfile
+Deploy	Deploy to Fly.io	2026-03-04T13:56:43.4450748Z #1 transferring dockerfile: 1.62kB 0.1s done
+Deploy	Deploy to Fly.io	2026-03-04T13:56:43.4451207Z #1 DONE 0.1s
+Deploy	Deploy to Fly.io	2026-03-04T13:56:43.4451394Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:43.4451743Z #2 [internal] load metadata for docker.io/library/node:22-bookworm-slim
+Deploy	Deploy to Fly.io	2026-03-04T13:56:43.5723305Z #2 DONE 0.3s
+Deploy	Deploy to Fly.io	2026-03-04T13:56:43.6725331Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:43.6726207Z #3 [internal] load .dockerignore
+Deploy	Deploy to Fly.io	2026-03-04T13:56:43.6727067Z #3 transferring context: 476B 0.1s done
+Deploy	Deploy to Fly.io	2026-03-04T13:56:43.6727495Z #3 DONE 0.1s
+Deploy	Deploy to Fly.io	2026-03-04T13:56:43.6727661Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:43.6728365Z #4 [builder 1/8] FROM docker.io/library/node:22-bookworm-slim@sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94
+Deploy	Deploy to Fly.io	2026-03-04T13:56:43.6729878Z #4 resolve docker.io/library/node:22-bookworm-slim@sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94 done
+Deploy	Deploy to Fly.io	2026-03-04T13:56:43.6730728Z #4 DONE 0.0s
+Deploy	Deploy to Fly.io	2026-03-04T13:56:43.6730926Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:43.6731058Z #5 [internal] load build context
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.3452006Z #5 transferring context: 6.58MB 0.5s done
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.3452754Z #5 DONE 0.5s
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.3452938Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.3453692Z #6 [builder 2/8] RUN apt-get update && apt-get install -y --no-install-recommends   python3 make g++   && rm -rf /var/lib/apt/lists/*
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.3454534Z #6 CACHED
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.3454691Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.3454850Z #7 [builder 3/8] WORKDIR /app
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.3455189Z #7 CACHED
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.3455297Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.3456604Z #8 [builder 4/8] COPY package.json package-lock.json ./
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.3457181Z #8 CACHED
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.3457363Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.3457501Z #9 [builder 5/8] RUN npm ci
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.3457805Z #9 CACHED
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.3457968Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.4968408Z #10 [builder 6/8] COPY . .
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.4968851Z #10 DONE 0.1s
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.4968992Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.4969118Z #11 [builder 7/8] RUN npm run build
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.9842233Z #11 0.638 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.9843132Z #11 0.638 > backend@1.0.0 build
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.9843783Z #11 0.638 > tsc -p tsconfig.json
+Deploy	Deploy to Fly.io	2026-03-04T13:56:44.9844097Z #11 0.638 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:54.1111663Z #11 DONE 9.8s
+Deploy	Deploy to Fly.io	2026-03-04T13:56:54.2628728Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:54.2629494Z #12 [builder 8/8] RUN npm prune --omit=dev
+Deploy	Deploy to Fly.io	2026-03-04T13:56:57.9394970Z #12 3.827 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:57.9395391Z #12 3.827 up to date, audited 440 packages in 4s
+Deploy	Deploy to Fly.io	2026-03-04T13:56:57.9395761Z #12 3.827 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:57.9396001Z #12 3.827 63 packages are looking for funding
+Deploy	Deploy to Fly.io	2026-03-04T13:56:57.9396325Z #12 3.827   run `npm fund` for details
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.1626800Z #12 3.844 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.1628560Z #12 3.844 8 vulnerabilities (1 low, 6 high, 1 critical)
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.1631649Z #12 3.844 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.1632985Z #12 3.844 To address issues that do not require attention, run:
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.1633368Z #12 3.844   npm audit fix
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.1633615Z #12 3.844 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.1633902Z #12 3.844 To address all issues (including breaking changes), run:
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.1634296Z #12 3.844   npm audit fix --force
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.1634568Z #12 3.844 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.1635025Z #12 3.844 Run `npm audit` for details.
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.1635295Z #12 DONE 3.9s
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.8356513Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.8357777Z #13 [stage-1  2/11] RUN apt-get update && apt-get install -y --no-install-recommends   ffmpeg ca-certificates   && rm -rf /var/lib/apt/lists/*
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.8358468Z #13 CACHED
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.8358585Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.8358682Z #14 [stage-1  3/11] WORKDIR /app
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.8358934Z #14 CACHED
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.8359039Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.8359334Z #15 [stage-1  4/11] COPY package.json package-lock.json ./
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.8359708Z #15 CACHED
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.9864185Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:56:58.9865096Z #16 [stage-1  5/11] COPY --from=builder /app/dist ./dist
+Deploy	Deploy to Fly.io	2026-03-04T13:56:59.0693413Z #16 DONE 0.2s
+Deploy	Deploy to Fly.io	2026-03-04T13:57:04.2013374Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:57:04.2014171Z #17 [stage-1  6/11] COPY --from=builder /app/node_modules ./node_modules
+Deploy	Deploy to Fly.io	2026-03-04T13:57:10.7697987Z #17 DONE 6.6s
+Deploy	Deploy to Fly.io	2026-03-04T13:57:10.9205648Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:57:10.9206404Z #18 [stage-1  7/11] COPY --from=builder /app/assets ./assets
+Deploy	Deploy to Fly.io	2026-03-04T13:57:10.9893798Z #18 DONE 0.2s
+Deploy	Deploy to Fly.io	2026-03-04T13:57:11.1769785Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:57:11.1770650Z #19 [stage-1  8/11] COPY --from=builder /app/prompts ./prompts
+Deploy	Deploy to Fly.io	2026-03-04T13:57:11.1771065Z #19 DONE 0.0s
+Deploy	Deploy to Fly.io	2026-03-04T13:57:11.1771201Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:57:11.1771407Z #20 [stage-1  9/11] COPY --from=builder /app/prompt-layers ./prompt-layers
+Deploy	Deploy to Fly.io	2026-03-04T13:57:11.1771777Z #20 DONE 0.0s
+Deploy	Deploy to Fly.io	2026-03-04T13:57:11.1771909Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:57:11.1772099Z #21 [stage-1 10/11] COPY docker-entrypoint.sh /docker-entrypoint.sh
+Deploy	Deploy to Fly.io	2026-03-04T13:57:11.1772461Z #21 DONE 0.0s
+Deploy	Deploy to Fly.io	2026-03-04T13:57:11.1772753Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:57:11.1772890Z #22 [stage-1 11/11] RUN chmod +x /docker-entrypoint.sh
+Deploy	Deploy to Fly.io	2026-03-04T13:57:11.1773204Z #22 DONE 0.1s
+Deploy	Deploy to Fly.io	2026-03-04T13:57:11.3289175Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:57:11.3289816Z #23 exporting to image
+Deploy	Deploy to Fly.io	2026-03-04T13:57:11.3290169Z #23 exporting layers
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.3923252Z #23 exporting layers 5.2s done
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.5813671Z #23 exporting manifest sha256:2760755900e446a35b126da1983fda118f441a3c3365e75b34f77967413e9e30 done
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.5816495Z #23 exporting config sha256:b620a31eb00b47ea1266411213aff9f17916cff81b48861e0d8731f00a9a17fa done
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.5818571Z #23 pushing layers for registry.fly.io/1-in-a-billion-backend:deployment-01KJWJ51PHTBGXA615M388Q67Z@sha256:2760755900e446a35b126da1983fda118f441a3c3365e75b34f77967413e9e30
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.5819576Z #23 pushing layer sha256:b620a31eb00b47ea1266411213aff9f17916cff81b48861e0d8731f00a9a17fa
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.5820145Z #23 pushing layer sha256:2c1ce468d9f3d941396801f6e3afc8921466650dd05430fe644cd3537713d27f
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.5820676Z #23 pushing layer sha256:e48d4647605a033d438fd960e35af76c6d03522c2672bfb59c8a98c20150ac87
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.5821196Z #23 pushing layer sha256:4979dfdbaa2af098670397d524d3f45eac2c8f4fde1101873a0b0ffde6d6c22b
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.5821705Z #23 pushing layer sha256:39a6a608a4e65a265a56adf778ba255876df15ca1bfab817108a8da6cf683b28
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.5822221Z #23 pushing layer sha256:961b239a31d5353484b043eefe21cbe70d416f912b1587e161c843c4d55db92f
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.5822954Z #23 pushing layer sha256:e83a9091d8486bc1d3ebfe8c01dde5791d7323785cc1376e1e2adf256b9ac854
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.5823505Z #23 pushing layer sha256:b404b6f6fe769d12bff3cea2abfbdc19a4fc971f1a948ab2f3ecf7eae1471079
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.5824045Z #23 pushing layer sha256:279a7d9737be1d05269bf0061c80a832b1388d8b276e297adb7c6d04c32f5917
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.5824570Z #23 pushing layer sha256:567435dcd3a0d9bab95d05fdb67294c1a46d1ee8c201141440cef93ae3d76f29
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.5825090Z #23 pushing layer sha256:4e561e7f5cebe64cfca55ab5ec225407e9621d4718c0de28157cef3056474852
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.5825869Z #23 pushing layer sha256:ab37c812268b0e6f69d70d7692453d18e81330c8a6376e55a733e386a736445e
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.5826392Z #23 pushing layer sha256:ee25de584f67c3ed214292c8aa4ae917d7460f365e02e2af2fcf84af0e24128d
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.5826899Z #23 pushing layer sha256:ea0394ac563fdd7e5ee08323e9ab898075486bf470116c44e24b928259c04b5a
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.5829737Z #23 pushing layer sha256:fd2263093ef8cf1bb53b95a892082f54da4377bedfc84421d486e21ef4e1b1e9
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.5830265Z #23 pushing layer sha256:d47931e3718e415b7c5b5f89d12c9a5fdc4df6b2eb78b8d86f7feb8ba2f5b3d6
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.7987343Z #23 pushing layer sha256:ab37c812268b0e6f69d70d7692453d18e81330c8a6376e55a733e386a736445e 0.4s done
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.9514229Z #23 pushing layer sha256:2c1ce468d9f3d941396801f6e3afc8921466650dd05430fe644cd3537713d27f 0.4s done
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.9515072Z #23 pushing layer sha256:e48d4647605a033d438fd960e35af76c6d03522c2672bfb59c8a98c20150ac87 0.4s done
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.9515811Z #23 pushing layer sha256:39a6a608a4e65a265a56adf778ba255876df15ca1bfab817108a8da6cf683b28 0.4s done
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.9516555Z #23 pushing layer sha256:961b239a31d5353484b043eefe21cbe70d416f912b1587e161c843c4d55db92f 0.4s done
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.9517263Z #23 pushing layer sha256:b404b6f6fe769d12bff3cea2abfbdc19a4fc971f1a948ab2f3ecf7eae1471079 0.4s done
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.9517985Z #23 pushing layer sha256:ee25de584f67c3ed214292c8aa4ae917d7460f365e02e2af2fcf84af0e24128d 0.4s done
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.9518680Z #23 pushing layer sha256:ea0394ac563fdd7e5ee08323e9ab898075486bf470116c44e24b928259c04b5a 0.4s done
+Deploy	Deploy to Fly.io	2026-03-04T13:57:16.9519379Z #23 pushing layer sha256:fd2263093ef8cf1bb53b95a892082f54da4377bedfc84421d486e21ef4e1b1e9 0.4s done
+Deploy	Deploy to Fly.io	2026-03-04T13:57:17.8312454Z #23 pushing layer sha256:4e561e7f5cebe64cfca55ab5ec225407e9621d4718c0de28157cef3056474852 1.4s done
+Deploy	Deploy to Fly.io	2026-03-04T13:57:17.9841321Z #23 pushing layer sha256:e83a9091d8486bc1d3ebfe8c01dde5791d7323785cc1376e1e2adf256b9ac854 1.4s done
+Deploy	Deploy to Fly.io	2026-03-04T13:57:17.9842253Z #23 pushing layer sha256:567435dcd3a0d9bab95d05fdb67294c1a46d1ee8c201141440cef93ae3d76f29 1.6s done
+Deploy	Deploy to Fly.io	2026-03-04T13:57:18.0895185Z #23 pushing layer sha256:b620a31eb00b47ea1266411213aff9f17916cff81b48861e0d8731f00a9a17fa 1.7s done
+Deploy	Deploy to Fly.io	2026-03-04T13:57:18.0896021Z #23 pushing layer sha256:4979dfdbaa2af098670397d524d3f45eac2c8f4fde1101873a0b0ffde6d6c22b 1.6s done
+Deploy	Deploy to Fly.io	2026-03-04T13:57:18.0896793Z #23 pushing layer sha256:d47931e3718e415b7c5b5f89d12c9a5fdc4df6b2eb78b8d86f7feb8ba2f5b3d6 1.6s done
+Deploy	Deploy to Fly.io	2026-03-04T13:57:18.6232753Z #23 pushing layers for registry.fly.io/1-in-a-billion-backend:deployment-01KJWJ51PHTBGXA615M388Q67Z@sha256:2760755900e446a35b126da1983fda118f441a3c3365e75b34f77967413e9e30 2.2s done
+Deploy	Deploy to Fly.io	2026-03-04T13:57:18.6233927Z #23 pushing layer sha256:279a7d9737be1d05269bf0061c80a832b1388d8b276e297adb7c6d04c32f5917 2.2s done
+Deploy	Deploy to Fly.io	2026-03-04T13:57:18.6234948Z #23 pushing manifest for registry.fly.io/1-in-a-billion-backend:deployment-01KJWJ51PHTBGXA615M388Q67Z@sha256:2760755900e446a35b126da1983fda118f441a3c3365e75b34f77967413e9e30
+Deploy	Deploy to Fly.io	2026-03-04T13:57:18.8716872Z #23 pushing manifest for registry.fly.io/1-in-a-billion-backend:deployment-01KJWJ51PHTBGXA615M388Q67Z@sha256:2760755900e446a35b126da1983fda118f441a3c3365e75b34f77967413e9e30 0.2s done
+Deploy	Deploy to Fly.io	2026-03-04T13:57:18.8996901Z #23 DONE 7.7s
+Deploy	Deploy to Fly.io	2026-03-04T13:57:18.8997657Z --> Build Summary:  (​)
+Deploy	Deploy to Fly.io	2026-03-04T13:57:19.0301282Z [38;5;252m--> Building image done[0m
+Deploy	Deploy to Fly.io	2026-03-04T13:57:19.2924620Z image: registry.fly.io/1-in-a-billion-backend:deployment-01KJWJ51PHTBGXA615M388Q67Z
+Deploy	Deploy to Fly.io	2026-03-04T13:57:19.2925413Z image size: 274 MB
+Deploy	Deploy to Fly.io	2026-03-04T13:57:19.2925611Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:57:19.2925984Z Watch your deployment at https://fly.io/apps/1-in-a-billion-backend/monitoring
+Deploy	Deploy to Fly.io	2026-03-04T13:57:19.2926496Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:57:20.3671429Z Updating existing machines in '1-in-a-billion-backend' with rolling strategy
+Deploy	Deploy to Fly.io	2026-03-04T13:57:20.9069238Z > [3/9] Acquiring lease for 17817215c29428
+Deploy	Deploy to Fly.io	2026-03-04T13:57:20.9069895Z > [1/9] Acquiring lease for 784e4deae5d178
+Deploy	Deploy to Fly.io	2026-03-04T13:57:20.9073144Z > [2/9] Acquiring lease for 3287e045ae6738
+Deploy	Deploy to Fly.io	2026-03-04T13:57:21.2318143Z > [1/9] Acquired lease for 784e4deae5d178
+Deploy	Deploy to Fly.io	2026-03-04T13:57:21.2318816Z > [4/9] Acquiring lease for 3287e041b3e9e8
+Deploy	Deploy to Fly.io	2026-03-04T13:57:21.4452906Z > [3/9] Acquired lease for 17817215c29428
+Deploy	Deploy to Fly.io	2026-03-04T13:57:21.4453453Z > [5/9] Acquiring lease for e286127ec35986
+Deploy	Deploy to Fly.io	2026-03-04T13:57:21.4565917Z > [2/9] Acquired lease for 3287e045ae6738
+Deploy	Deploy to Fly.io	2026-03-04T13:57:21.4566953Z > [6/9] Acquiring lease for 1850606f4370d8
+Deploy	Deploy to Fly.io	2026-03-04T13:57:21.5589293Z > [4/9] Acquired lease for 3287e041b3e9e8
+Deploy	Deploy to Fly.io	2026-03-04T13:57:21.5589931Z > [7/9] Acquiring lease for 3287d076b13785
+Deploy	Deploy to Fly.io	2026-03-04T13:57:21.9747310Z > [5/9] Acquired lease for e286127ec35986
+Deploy	Deploy to Fly.io	2026-03-04T13:57:21.9747961Z > [8/9] Acquiring lease for d8d31d0c249118
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.0135846Z > [6/9] Acquired lease for 1850606f4370d8
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.0136459Z > [9/9] Acquiring lease for 148e7ed5f19528
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.0907861Z > [7/9] Acquired lease for 3287d076b13785
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.2059510Z > [8/9] Acquired lease for d8d31d0c249118
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.6040938Z > [9/9] Acquired lease for 148e7ed5f19528
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.6041697Z > [6/9] Updating machine config for 1850606f4370d8
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.6042248Z > [8/9] Updating machine config for d8d31d0c249118
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.6064243Z > [4/9] Updating machine config for 3287e041b3e9e8
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.6064770Z > [3/9] Updating machine config for 17817215c29428
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.6065204Z > [8/9] Updating d8d31d0c249118 [worker]
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.6065622Z > [7/9] Updating machine config for 3287d076b13785
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.6066130Z > [4/9] Updating 3287e041b3e9e8 [pdf-worker]
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.6066578Z > [3/9] Updating 17817215c29428 [watchdog]
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.6067006Z > [2/9] Updating machine config for 3287e045ae6738
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.6067518Z > [9/9] Updating machine config for 148e7ed5f19528
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.6068014Z > [7/9] Updating 3287d076b13785 [rate-limiter]
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.6068507Z > [1/9] Updating machine config for 784e4deae5d178
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.6069083Z > [2/9] Updating 3287e045ae6738 [people-scaling-worker]
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.6069595Z > [9/9] Updating 148e7ed5f19528 [song-worker]
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.6070086Z > [5/9] Updating machine config for e286127ec35986
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.6070588Z > [6/9] Updating 1850606f4370d8 [audio-worker]
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.6071072Z > [5/9] Updating e286127ec35986 [rate-limiter]
+Deploy	Deploy to Fly.io	2026-03-04T13:57:22.6071550Z > [1/9] Updating 784e4deae5d178 [app]
+Deploy	Deploy to Fly.io	2026-03-04T13:57:25.3215864Z > [5/9] Updated machine config for e286127ec35986
+Deploy	Deploy to Fly.io	2026-03-04T13:57:25.3216771Z ✔ [5/9] Machine e286127ec35986 is now in a good state
+Deploy	Deploy to Fly.io	2026-03-04T13:57:25.6379340Z > [6/9] Updated machine config for 1850606f4370d8
+Deploy	Deploy to Fly.io	2026-03-04T13:57:25.6380574Z > [6/9] Waiting for machine 1850606f4370d8 to reach a good state
+Deploy	Deploy to Fly.io	2026-03-04T13:57:25.6865688Z > [9/9] Updated machine config for 148e7ed5f19528
+Deploy	Deploy to Fly.io	2026-03-04T13:57:25.6868562Z > [9/9] Waiting for machine 148e7ed5f19528 to reach a good state
+Deploy	Deploy to Fly.io	2026-03-04T13:57:25.7393955Z > [4/9] Updated machine config for 3287e041b3e9e8
+Deploy	Deploy to Fly.io	2026-03-04T13:57:25.7394708Z > [4/9] Waiting for machine 3287e041b3e9e8 to reach a good state
+Deploy	Deploy to Fly.io	2026-03-04T13:57:25.9841444Z > [2/9] Updated machine config for 3287e045ae6738
+Deploy	Deploy to Fly.io	2026-03-04T13:57:25.9842201Z > [2/9] Waiting for machine 3287e045ae6738 to reach a good state
+Deploy	Deploy to Fly.io	2026-03-04T13:57:26.0849095Z > [1/9] Updated machine config for 784e4deae5d178
+Deploy	Deploy to Fly.io	2026-03-04T13:57:26.0850010Z > [1/9] Waiting for machine 784e4deae5d178 to reach a good state
+Deploy	Deploy to Fly.io	2026-03-04T13:57:26.0998461Z > [7/9] Updated machine config for 3287d076b13785
+Deploy	Deploy to Fly.io	2026-03-04T13:57:26.0999223Z > [7/9] Waiting for machine 3287d076b13785 to reach a good state
+Deploy	Deploy to Fly.io	2026-03-04T13:57:26.5673167Z > [3/9] Updated machine config for 17817215c29428
+Deploy	Deploy to Fly.io	2026-03-04T13:57:26.5674012Z > [3/9] Waiting for machine 17817215c29428 to reach a good state
+Deploy	Deploy to Fly.io	2026-03-04T13:57:26.7945773Z > [8/9] Updated machine config for d8d31d0c249118
+Deploy	Deploy to Fly.io	2026-03-04T13:57:26.7946570Z > [8/9] Waiting for machine d8d31d0c249118 to reach a good state
+Deploy	Deploy to Fly.io	2026-03-04T13:57:41.9800307Z > [1/9] Machine 784e4deae5d178 reached started state
+Deploy	Deploy to Fly.io	2026-03-04T13:57:42.3637964Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:57:42.3639045Z WARNING The app is not listening on the expected address and will not be reachable by fly-proxy.
+Deploy	Deploy to Fly.io	2026-03-04T13:57:42.3640965Z You can fix this by configuring your app to listen on the following addresses:
+Deploy	Deploy to Fly.io	2026-03-04T13:57:42.3641637Z   - 0.0.0.0:8787
+Deploy	Deploy to Fly.io	2026-03-04T13:57:42.3642133Z Found these processes inside the machine with open listening sockets:
+Deploy	Deploy to Fly.io	2026-03-04T13:57:42.3643343Z   PROCESS        | ADDRESSES                              
+Deploy	Deploy to Fly.io	2026-03-04T13:57:42.3643744Z -----------------*----------------------------------------
+Deploy	Deploy to Fly.io	2026-03-04T13:57:42.3644120Z   /.fly/hallpass | [fdaa:3a:f9ad:a7b:18a:944d:ee24:2]:22  
+Deploy	Deploy to Fly.io	2026-03-04T13:57:42.3644363Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:57:42.3644510Z > [1/9] Running smoke checks on machine 784e4deae5d178
+Deploy	Deploy to Fly.io	2026-03-04T13:57:43.5772756Z > [7/9] Machine 3287d076b13785 reached started state
+Deploy	Deploy to Fly.io	2026-03-04T13:57:44.3465116Z > [7/9] Running smoke checks on machine 3287d076b13785
+Deploy	Deploy to Fly.io	2026-03-04T13:57:46.0120536Z > [3/9] Machine 17817215c29428 reached started state
+Deploy	Deploy to Fly.io	2026-03-04T13:57:46.8142900Z > [3/9] Running smoke checks on machine 17817215c29428
+Deploy	Deploy to Fly.io	2026-03-04T13:57:48.6986334Z > [4/9] Machine 3287e041b3e9e8 reached started state
+Deploy	Deploy to Fly.io	2026-03-04T13:57:48.9996484Z > [4/9] Running smoke checks on machine 3287e041b3e9e8
+Deploy	Deploy to Fly.io	2026-03-04T13:57:50.0519360Z > [1/9] Running machine checks on machine 784e4deae5d178
+Deploy	Deploy to Fly.io	2026-03-04T13:57:50.0519891Z > [1/9] Checking health of machine 784e4deae5d178
+Deploy	Deploy to Fly.io	2026-03-04T13:57:50.0520578Z ✔ [1/9] Machine 784e4deae5d178 is now in a good state
+Deploy	Deploy to Fly.io	2026-03-04T13:57:52.5923683Z > [7/9] Running machine checks on machine 3287d076b13785
+Deploy	Deploy to Fly.io	2026-03-04T13:57:52.5924167Z > [7/9] Checking health of machine 3287d076b13785
+Deploy	Deploy to Fly.io	2026-03-04T13:57:52.5924941Z ✔ [7/9] Machine 3287d076b13785 is now in a good state
+Deploy	Deploy to Fly.io	2026-03-04T13:57:53.1432386Z > [2/9] Machine 3287e045ae6738 reached started state
+Deploy	Deploy to Fly.io	2026-03-04T13:57:54.2390679Z > [2/9] Running smoke checks on machine 3287e045ae6738
+Deploy	Deploy to Fly.io	2026-03-04T13:57:54.3116989Z > [3/9] Running machine checks on machine 17817215c29428
+Deploy	Deploy to Fly.io	2026-03-04T13:57:54.3117474Z > [3/9] Checking health of machine 17817215c29428
+Deploy	Deploy to Fly.io	2026-03-04T13:57:54.3118135Z ✔ [3/9] Machine 17817215c29428 is now in a good state
+Deploy	Deploy to Fly.io	2026-03-04T13:57:55.1067956Z > [8/9] Machine d8d31d0c249118 reached started state
+Deploy	Deploy to Fly.io	2026-03-04T13:57:55.7286240Z > [4/9] Running machine checks on machine 3287e041b3e9e8
+Deploy	Deploy to Fly.io	2026-03-04T13:57:55.7286787Z > [4/9] Checking health of machine 3287e041b3e9e8
+Deploy	Deploy to Fly.io	2026-03-04T13:57:55.7287647Z ✔ [4/9] Machine 3287e041b3e9e8 is now in a good state
+Deploy	Deploy to Fly.io	2026-03-04T13:57:56.0618117Z > [8/9] Running smoke checks on machine d8d31d0c249118
+Deploy	Deploy to Fly.io	2026-03-04T13:57:56.0702819Z > [9/9] Machine 148e7ed5f19528 reached started state
+Deploy	Deploy to Fly.io	2026-03-04T13:57:56.9440210Z > [9/9] Running smoke checks on machine 148e7ed5f19528
+Deploy	Deploy to Fly.io	2026-03-04T13:58:02.2653409Z > [2/9] Running machine checks on machine 3287e045ae6738
+Deploy	Deploy to Fly.io	2026-03-04T13:58:02.2653920Z > [2/9] Checking health of machine 3287e045ae6738
+Deploy	Deploy to Fly.io	2026-03-04T13:58:02.2654613Z ✔ [2/9] Machine 3287e045ae6738 is now in a good state
+Deploy	Deploy to Fly.io	2026-03-04T13:58:02.5946822Z > [9/9] Running machine checks on machine 148e7ed5f19528
+Deploy	Deploy to Fly.io	2026-03-04T13:58:02.5949449Z > [9/9] Checking health of machine 148e7ed5f19528
+Deploy	Deploy to Fly.io	2026-03-04T13:58:02.5950230Z ✔ [9/9] Machine 148e7ed5f19528 is now in a good state
+Deploy	Deploy to Fly.io	2026-03-04T13:58:04.3121094Z > [8/9] Running machine checks on machine d8d31d0c249118
+Deploy	Deploy to Fly.io	2026-03-04T13:58:04.3121624Z > [8/9] Checking health of machine d8d31d0c249118
+Deploy	Deploy to Fly.io	2026-03-04T13:58:04.3122356Z ✔ [8/9] Machine d8d31d0c249118 is now in a good state
+Deploy	Deploy to Fly.io	2026-03-04T13:58:05.9715751Z > [6/9] Machine 1850606f4370d8 reached started state
+Deploy	Deploy to Fly.io	2026-03-04T13:58:06.8995206Z > [6/9] Running smoke checks on machine 1850606f4370d8
+Deploy	Deploy to Fly.io	2026-03-04T13:58:15.8529117Z > [6/9] Running machine checks on machine 1850606f4370d8
+Deploy	Deploy to Fly.io	2026-03-04T13:58:15.8529844Z > [6/9] Checking health of machine 1850606f4370d8
+Deploy	Deploy to Fly.io	2026-03-04T13:58:15.8530834Z ✔ [6/9] Machine 1850606f4370d8 is now in a good state
+Deploy	Deploy to Fly.io	2026-03-04T13:58:15.8531406Z > [9/9] Clearing lease for 148e7ed5f19528
+Deploy	Deploy to Fly.io	2026-03-04T13:58:15.8532342Z > [3/9] Clearing lease for 17817215c29428
+Deploy	Deploy to Fly.io	2026-03-04T13:58:15.8533010Z > [1/9] Clearing lease for 784e4deae5d178
+Deploy	Deploy to Fly.io	2026-03-04T13:58:15.8535618Z > [4/9] Clearing lease for 3287e041b3e9e8
+Deploy	Deploy to Fly.io	2026-03-04T13:58:15.8536202Z > [5/9] Clearing lease for e286127ec35986
+Deploy	Deploy to Fly.io	2026-03-04T13:58:15.8536667Z > [2/9] Clearing lease for 3287e045ae6738
+Deploy	Deploy to Fly.io	2026-03-04T13:58:15.8537172Z > [6/9] Clearing lease for 1850606f4370d8
+Deploy	Deploy to Fly.io	2026-03-04T13:58:15.8538004Z > [8/9] Clearing lease for d8d31d0c249118
+Deploy	Deploy to Fly.io	2026-03-04T13:58:15.8538481Z > [7/9] Clearing lease for 3287d076b13785
+Deploy	Deploy to Fly.io	2026-03-04T13:58:16.0748839Z ✔ [5/9] Cleared lease for e286127ec35986
+Deploy	Deploy to Fly.io	2026-03-04T13:58:16.0798835Z ✔ [7/9] Cleared lease for 3287d076b13785
+Deploy	Deploy to Fly.io	2026-03-04T13:58:16.0815056Z ✔ [8/9] Cleared lease for d8d31d0c249118
+Deploy	Deploy to Fly.io	2026-03-04T13:58:16.0819304Z ✔ [9/9] Cleared lease for 148e7ed5f19528
+Deploy	Deploy to Fly.io	2026-03-04T13:58:16.0871722Z ✔ [6/9] Cleared lease for 1850606f4370d8
+Deploy	Deploy to Fly.io	2026-03-04T13:58:16.0872201Z ✔ [4/9] Cleared lease for 3287e041b3e9e8
+Deploy	Deploy to Fly.io	2026-03-04T13:58:16.0872802Z ✔ [1/9] Cleared lease for 784e4deae5d178
+Deploy	Deploy to Fly.io	2026-03-04T13:58:16.0920902Z ✔ [3/9] Cleared lease for 17817215c29428
+Deploy	Deploy to Fly.io	2026-03-04T13:58:16.0924505Z ✔ [2/9] Cleared lease for 3287e045ae6738
+Deploy	Deploy to Fly.io	2026-03-04T13:58:16.4055858Z Checking DNS configuration for 1-in-a-billion-backend.fly.dev
+Deploy	Deploy to Fly.io	2026-03-04T13:58:16.5165061Z ✓ DNS configuration verified
+Deploy	Deploy to Fly.io	2026-03-04T13:58:16.5165555Z 
+Deploy	Deploy to Fly.io	2026-03-04T13:58:16.5166042Z Visit your newly deployed app at https://1-in-a-billion-backend.fly.dev/
+Deploy	Deploy to Fly.io	2026-03-04T13:58:16.5166469Z 
+Deploy	Post Run actions/checkout@v4	﻿2026-03-04T13:58:16.5564964Z Post job cleanup.
+Deploy	Post Run actions/checkout@v4	2026-03-04T13:58:16.6448604Z [command]/usr/bin/git version
+Deploy	Post Run actions/checkout@v4	2026-03-04T13:58:16.6482760Z git version 2.53.0
+Deploy	Post Run actions/checkout@v4	2026-03-04T13:58:16.6522113Z Temporarily overriding HOME='/home/runner/work/_temp/1ffd4927-febc-46ca-914a-b2dcd56c774c' before making global git config changes
+Deploy	Post Run actions/checkout@v4	2026-03-04T13:58:16.6523569Z Adding repository directory to the temporary git global config as a safe directory
+Deploy	Post Run actions/checkout@v4	2026-03-04T13:58:16.6528548Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/1-in-a-billion-paradise/1-in-a-billion-paradise
+Deploy	Post Run actions/checkout@v4	2026-03-04T13:58:16.6561840Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Deploy	Post Run actions/checkout@v4	2026-03-04T13:58:16.6590365Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+Deploy	Post Run actions/checkout@v4	2026-03-04T13:58:16.6776575Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+Deploy	Post Run actions/checkout@v4	2026-03-04T13:58:16.6793128Z http.https://github.com/.extraheader
+Deploy	Post Run actions/checkout@v4	2026-03-04T13:58:16.6803601Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+Deploy	Post Run actions/checkout@v4	2026-03-04T13:58:16.6828206Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Deploy	Post Run actions/checkout@v4	2026-03-04T13:58:16.6997893Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+Deploy	Post Run actions/checkout@v4	2026-03-04T13:58:16.7022815Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Deploy	Complete job	﻿2026-03-04T13:58:16.7301790Z Cleaning up orphan processes

@@ -1167,7 +1167,7 @@ router.get('/services/status', requirePermission('system', 'read'), async (c) =>
       details: {
         keyConfigured: !!claudeKey,
         provider: 'claude',
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         note: 'Anthropic does not provide a balance API. Check your dashboard.',
         dashboardUrl: 'https://console.anthropic.com/settings/billing',
       },
