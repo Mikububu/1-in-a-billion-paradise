@@ -388,21 +388,36 @@ export class AudioWorker extends BaseWorker {
         // Get default volume configure (1.0 is default max is 10)
         const MINIMAX_DEFAULT_VOLUME = Number(process.env.MINIMAX_DEFAULT_VOLUME || 2.0);
 
-        // We need a valid system voice ID as a base for MiniMax's T2A v2 cloning. 
-        // Using generic cross-lingual base voices avoids gender mismatch artifacts
-        // and allows the clone prompt's timbre to shine through natively.
+        // We need a valid system voice ID as a base for MiniMax's T2A v2 cloning.
+        // Using a language-native base voice produces much better cross-lingual results
+        // than forcing an English base to speak Japanese/German/etc.
         let minimaxVoiceId = (voice as any)?.minimaxVoiceId;
 
         if (!minimaxVoiceId) {
           const category = (voice as any)?.category || 'neutral';
-          if (category === 'female') {
-            minimaxVoiceId = 'English_Graceful_Lady';
-          } else {
-            // Default to male for 'male' or 'neutral'
-            minimaxVoiceId = 'English_expressive_narrator';
-          }
+          const isFemale = category === 'female';
+          const langPrefix = jobLang.substring(0, 2).toLowerCase();
+
+          // Language-native base voices for best cross-lingual cloning quality.
+          // The clone_prompt timbre overrides these, but a native base avoids accent artifacts.
+          const NATIVE_BASE_VOICES: Record<string, { male: string; female: string }> = {
+            en: { male: 'English_expressive_narrator', female: 'English_Graceful_Lady' },
+            de: { male: 'German_ExpressiveStoryteller', female: 'German_ExpressiveStoryteller' },
+            es: { male: 'Spanish_FreestyleRapper', female: 'Spanish_Graceful_Lady' },
+            fr: { male: 'French_Narrator', female: 'French_Narrator' },
+            zh: { male: 'Chinese (Mandarin)_Reliable_Executive', female: 'Chinese (Mandarin)_Reliable_Executive' },
+            ja: { male: 'Japanese_IntellectualSenior', female: 'Japanese_GentleButler' },
+            ko: { male: 'Korean_WiseTeacher', female: 'Korean_WiseTeacher' },
+            pt: { male: 'Portuguese_Narrator', female: 'Portuguese_Narrator' },
+            it: { male: 'Italian_Narrator', female: 'Italian_Narrator' },
+            hi: { male: 'Hindi_Narrator', female: 'Hindi_Narrator' },
+          };
+
+          const langVoices = NATIVE_BASE_VOICES[langPrefix] || NATIVE_BASE_VOICES['en']!;
+          minimaxVoiceId = isFemale ? langVoices.female : langVoices.male;
+
+          console.log(`[MiniMax] Auto-selected base voice: ${minimaxVoiceId} (lang=${langPrefix}, gender=${category})`);
         }
-        // Hindi fallback to English base if native ID is unknown.
 
         let clonePromptFileId: string | undefined;
         const refAudioUrl = voice?.sampleAudioUrl || task.input.audioUrl || this.voiceSampleUrl;
@@ -418,7 +433,16 @@ export class AudioWorker extends BaseWorker {
         console.log(`[MiniMax] Using Voice: ${minimaxVoiceId} | Cloning File ID: ${clonePromptFileId || 'None'} | Speed: ${MINIMAX_DEFAULT_SPEED} | Volume: ${MINIMAX_DEFAULT_VOLUME}`);
 
         try {
-          mp3 = await generateMinimaxAsync(text, minimaxVoiceId, clonePromptFileId, MINIMAX_DEFAULT_SPEED, MINIMAX_DEFAULT_VOLUME);
+          // Wrap MiniMax call with a hard timeout (25 min) as ultimate safety net.
+          // The MiniMax polling loop has its own 20-min timeout, but this catches
+          // any other hang (upload, download, network stall).
+          const MINIMAX_HARD_TIMEOUT_MS = parseInt(process.env.MINIMAX_HARD_TIMEOUT_MS || '1500000', 10);
+          const minimaxLang = jobLang.substring(0, 2).toLowerCase();
+          mp3 = await withTimeout(
+            generateMinimaxAsync(text, minimaxVoiceId, clonePromptFileId, MINIMAX_DEFAULT_SPEED, MINIMAX_DEFAULT_VOLUME, minimaxLang),
+            MINIMAX_HARD_TIMEOUT_MS,
+            `MiniMax TTS (${text.length} chars, ${jobLang})`
+          );
         } catch (error: any) {
           console.error(`❌ [AudioWorker] MiniMax generation failed: ${error.message}`);
           return { success: false, error: `MiniMax generation failed: ${error.message}` };

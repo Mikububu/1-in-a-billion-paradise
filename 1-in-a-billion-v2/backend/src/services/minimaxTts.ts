@@ -42,24 +42,40 @@ export async function getMinimaxSequenceForUrl(url: string, filename: string): P
 }
 
 /**
- * Generates an MP3 using the MiniMax T2A Async API
+ * Generates an MP3 using the MiniMax T2A Async API.
+ *
+ * @param language - ISO 639-1 language code (e.g. 'en', 'de', 'ja') for language_boost.
+ *                   Enables cross-lingual voice cloning so cloned voices speak the target language natively.
  */
-export async function generateMinimaxAsync(text: string, voiceId: string, clonePromptFileId?: string, speed: number = 1.0, volume: number = 1.0): Promise<Buffer> {
+export async function generateMinimaxAsync(
+    text: string,
+    voiceId: string,
+    clonePromptFileId?: string,
+    speed: number = 1.0,
+    volume: number = 1.0,
+    language?: string,
+): Promise<Buffer> {
     try {
         const apiKey = await apiKeys.minimax().catch(() => null) || env.MINIMAX_API_KEY;
         if (!apiKey) throw new Error("MiniMax API key not found");
 
-        console.log(`[MiniMax TTS] Submitting Async task for ${text.length} chars...`);
+        // Use speech-02-turbo for better cross-lingual cloning; fall back via env override.
+        const model = process.env.MINIMAX_TTS_MODEL || 'speech-02-turbo';
+
+        console.log(`[MiniMax TTS] Submitting Async task for ${text.length} chars (model=${model}, lang=${language || 'auto'})...`);
 
         const payload: any = {
-            model: 'speech-01-turbo',
+            model,
             text: text,
             voice_setting: {
                 voice_id: voiceId,
                 speed: speed,
                 vol: volume
             },
-            audio_setting: { sample_rate: 44100, format: 'mp3', bit_rate: 128000 }
+            audio_setting: { sample_rate: 44100, format: 'mp3', bit_rate: 128000 },
+            // language_boost tells MiniMax what language to synthesize.
+            // Critical for cross-lingual voice cloning (e.g. English voice speaking Japanese).
+            language_boost: language || 'auto',
         };
 
         if (clonePromptFileId) {
@@ -82,20 +98,36 @@ export async function generateMinimaxAsync(text: string, voiceId: string, cloneP
         const taskId = submitRes.data.task_id;
         console.log(`[MiniMax TTS] Task ID: ${taskId}. Waiting for completion...`);
 
-        // Poll for completion
+        // Poll for completion with timeout (20 minutes max for very long readings)
+        const MAX_POLL_MS = parseInt(process.env.MINIMAX_POLL_TIMEOUT_MS || '1200000', 10); // 20 min default
+        const POLL_INTERVAL_MS = 3000;
+        const pollStart = Date.now();
+        let pollCount = 0;
+
         while (true) {
+            const elapsed = Date.now() - pollStart;
+            if (elapsed > MAX_POLL_MS) {
+                throw new Error(`MiniMax T2A Async timed out after ${Math.round(elapsed / 1000)}s (task_id: ${taskId}). The task may still be processing on MiniMax's side.`);
+            }
+
             const fetchRes = await axios.get(`https://api.minimax.io/v1/query/t2a_async_query_v2?task_id=${taskId}`, {
-                headers: { 'Authorization': `Bearer ${apiKey}` } // Use the actual dynamically fetched key
+                headers: { 'Authorization': `Bearer ${apiKey}` }
             });
 
             const status = fetchRes.data.status;
+            pollCount++;
+
+            // Log progress every 10 polls (~30s)
+            if (pollCount % 10 === 0) {
+                console.log(`[MiniMax TTS] Still polling... status=${status}, elapsed=${Math.round(elapsed / 1000)}s, polls=${pollCount}`);
+            }
 
             if (status === 'Success') {
                 const outputFileId = fetchRes.data.file_id;
-                console.log(`[MiniMax TTS] Completed. Audio File ID: ${outputFileId}`);
+                console.log(`[MiniMax TTS] Completed in ${Math.round(elapsed / 1000)}s (${pollCount} polls). Audio File ID: ${outputFileId}`);
 
                 const retrieveRes = await axios.get(`https://api.minimax.io/v1/files/retrieve?file_id=${outputFileId}`, {
-                    headers: { 'Authorization': `Bearer ${apiKey}` } // Use the actual dynamically fetched key
+                    headers: { 'Authorization': `Bearer ${apiKey}` }
                 });
 
                 const downloadUrl = retrieveRes.data.file?.download_url;
@@ -109,7 +141,7 @@ export async function generateMinimaxAsync(text: string, voiceId: string, cloneP
                 throw new Error(`MiniMax T2A Async Task failed on server: ${JSON.stringify(fetchRes.data)}`);
             }
 
-            await new Promise(res => setTimeout(res, 2000));
+            await new Promise(res => setTimeout(res, POLL_INTERVAL_MS));
         }
     } catch (error) {
         console.error("MiniMax TTS generation error:", error);
