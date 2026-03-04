@@ -8,8 +8,10 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import axios from 'axios';
+import { randomUUID } from 'crypto';
 import { requireAdminAuth, requirePermission, getAdmin, logAdminAction } from '../middleware/adminAuth';
 import { createSupabaseServiceClient } from '../services/supabaseClient';
+import { swissEngine } from '../services/swissEphemeris';
 import { SYSTEM_LLM_PROVIDERS, type LLMProviderName, type ReadingSystem } from '../config/llmProviders';
 import { llm, llmPaid } from '../services/llm';
 import { apiKeys } from '../services/apiKeysHelper';
@@ -748,7 +750,7 @@ router.get('/dashboard/job-logs', requirePermission('analytics', 'read'), async 
     // Group tasks by job
     const tasksByJob = (tasks || []).reduce((acc: any, task: any) => {
       if (!acc[task.job_id]) acc[task.job_id] = [];
-      
+
       // Calculate execution time
       const executionTime = task.completed_at && task.created_at
         ? new Date(task.completed_at).getTime() - new Date(task.created_at).getTime()
@@ -1021,7 +1023,7 @@ router.post('/subscriptions/:subscriptionId/reset-reading', requirePermission('s
       'subscription_reading_reset',
       'subscription',
       subscriptionId,
-      { 
+      {
         previous_system: subscription.included_reading_system,
         previous_job_id: subscription.included_reading_job_id,
       },
@@ -1059,7 +1061,7 @@ router.get('/services/status', requirePermission('system', 'read'), async (c) =>
   try {
     const runpodKey = await apiKeys.runpod();
     const runpodEndpointId = await apiKeys.runpodEndpoint();
-    
+
     // Get balance and spend info
     const balanceRes = await axios.post('https://api.runpod.io/graphql', {
       query: `query { myself { currentSpendPerHr creditBalance serverlessDiscount { discountFactor } } }`
@@ -1124,10 +1126,10 @@ router.get('/services/status', requirePermission('system', 'read'), async (c) =>
         },
         timeout: 10000,
       });
-      
+
       const orgs = billingRes.data?.data?.viewer?.organizations?.nodes || [];
       const org = orgs[0];
-      
+
       services.push({
         name: 'Fly.io',
         status: org?.billingStatus === 'current' ? 'ok' : 'unknown',
@@ -1401,7 +1403,7 @@ router.get('/services/status', requirePermission('system', 'read'), async (c) =>
         const Stripe = (await import('stripe')).default;
         const stripe = new Stripe(stripeKey);
         const balance = await stripe.balance.retrieve();
-        
+
         // Sum available balance
         const availableUSD = balance.available
           .filter((b: any) => b.currency === 'usd')
@@ -2008,7 +2010,7 @@ router.get('/matches/stats', async (c) => {
         matchStats.active_matches = matches.filter((m: any) => m.status === 'active').length;
         matchStats.pending_matches = matches.filter((m: any) => m.status === 'pending').length;
         matchStats.declined_matches = matches.filter((m: any) => m.status === 'declined').length;
-        
+
         const scoresWithValues = matches.filter((m: any) => m.compatibility_score != null);
         if (scoresWithValues.length > 0) {
           matchStats.avg_compatibility = scoresWithValues.reduce((sum: number, m: any) => sum + m.compatibility_score, 0) / scoresWithValues.length;
@@ -2102,6 +2104,134 @@ router.get('/gallery', async (c) => {
     });
   } catch (err: any) {
     return c.json({ error: err.message }, 500);
+  }
+});
+
+/**
+ * POST /api/admin/users/:userId/people/import
+ * Use LLM to parse raw text into people and insert them into library_people
+ */
+router.post('/users/:userId/people/import', requirePermission('users', 'write'), async (c) => {
+  const supabase = createSupabaseServiceClient();
+  if (!supabase) return c.json({ error: 'Database connection failed' }, 500);
+
+  const userId = c.req.param('userId');
+  const body = await c.req.json();
+  const rawText = body.text;
+
+  if (!rawText || typeof rawText !== 'string') {
+    return c.json({ error: 'Missing or invalid text input' }, 400);
+  }
+
+  try {
+    // 1. Build prompt for LLM
+    const systemPrompt = `You are a data extraction assistant. The user will provide unstructured text containing details about one or multiple people.
+Extract all distinct people into a strictly formatted JSON array.
+For each person, provide:
+- name: string (first and last name if available)
+- gender: "male" | "female" | "other" (infer if obvious, else "other")
+- birthDate: YYYY-MM-DD
+- birthTime: HH:MM (24-hour format, use "12:00" if unknown)
+- birthCity: string (City, Country formatted)
+- latitude: number (approximate latitude if city is known)
+- longitude: number (approximate longitude if city is known)
+- timezone: string (e.g. "Europe/London", "America/New_York", essential for calculations!)
+
+If any information is missing or you cannot determine it reasonably, do your best to approximate coordinates and timezone from the city name. 
+Return ONLY a valid JSON array of these objects, without markdown blocks.`;
+
+    const llmResult = await llm.generate(rawText, 'admin-import-people', {
+      systemPrompt,
+      temperature: 0.1,
+    });
+
+    let parsedPeople: any[];
+    try {
+      // Strip markdown code blocks if the LLM included them
+      const cleaned = llmResult.replace(/```json/g, '').replace(/```/g, '').trim();
+      parsedPeople = JSON.parse(cleaned);
+      if (!Array.isArray(parsedPeople)) throw new Error('Not an array');
+    } catch (parseErr) {
+      console.error('LLM JSON parse error:', llmResult);
+      return c.json({ error: 'LLM returned invalid JSON structure', raw: llmResult }, 500);
+    }
+
+    // 2. Compute placements and prepare insert
+    const insertRows = [];
+    const insertedDetails = [];
+
+    for (const person of parsedPeople) {
+      const clientPersonId = randomUUID();
+
+      let placements = null;
+      try {
+        const chart = await swissEngine.computePlacements({
+          birthDate: person.birthDate,
+          birthTime: person.birthTime,
+          timezone: person.timezone || 'UTC',
+          latitude: person.latitude || 0,
+          longitude: person.longitude || 0,
+        } as any);
+
+        // We save the raw swiss ephemeris output as "placements" json so frontend can normalize it
+        placements = chart;
+      } catch (e: any) {
+        console.error('Placements error for', person.name, e.message);
+      }
+
+      const row = {
+        user_id: userId,
+        client_person_id: clientPersonId,
+        name: person.name || 'Unknown',
+        gender: person.gender || 'other',
+        birth_date: person.birthDate,
+        birth_time: person.birthTime,
+        birth_city: person.birthCity,
+        latitude: person.latitude,
+        longitude: person.longitude,
+        timezone: person.timezone,
+        placements,
+        is_user: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      insertRows.push(row);
+      insertedDetails.push({ name: row.name, client_person_id: clientPersonId, hasPlacements: !!placements });
+    }
+
+    if (insertRows.length === 0) {
+      return c.json({ error: 'No people were extracted from the text.' }, 400);
+    }
+
+    // 3. Insert into Supabase
+    const { error: insertError } = await supabase
+      .from('library_people')
+      .insert(insertRows);
+
+    if (insertError) {
+      console.error('Supabase insert error:', insertError);
+      return c.json({ error: 'Failed to insert people into database', details: insertError }, 500);
+    }
+
+    // 4. Log admin action
+    const admin = getAdmin(c);
+    if (admin) {
+      logAdminAction(admin.id, 'import_people', 'user', userId, {
+        count: insertRows.length,
+        names: insertedDetails.map(d => d.name),
+      });
+    }
+
+    return c.json({
+      success: true,
+      count: insertRows.length,
+      people: insertedDetails,
+    });
+
+  } catch (err: any) {
+    console.error('Import people error:', err);
+    return c.json({ error: 'Internal server error: ' + err.message }, 500);
   }
 });
 

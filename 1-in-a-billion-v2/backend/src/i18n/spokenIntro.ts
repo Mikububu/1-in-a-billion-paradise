@@ -35,12 +35,6 @@ function getSystemDisplayName(system: string, lang: OutputLanguage): string {
         if (lower === 'human_design') return '人类图';
         if (lower === 'gene_keys') return '基因天命';
         if (lower === 'kabbalah') return '卡巴拉';
-    } else if (lang === 'ru') {
-        if (lower === 'western') return 'Западная Астрология';
-        if (lower === 'vedic') return 'Ведическая Астрология';
-        if (lower === 'human_design') return 'Дизайн Человека';
-        if (lower === 'gene_keys') return 'Генные Ключи';
-        if (lower === 'kabbalah') return 'Каббала';
     } else if (lang === 'pt') {
         if (lower === 'western') return 'Astrologia Ocidental';
         if (lower === 'vedic') return 'Astrologia Védica';
@@ -112,11 +106,6 @@ export function buildLocalizedSpokenIntro(options: {
             verdict: `这是 ${p1Name} 和 ${p2Name} 的最终判决解读，综合了所有五个系统。`,
             overlayIntro: `这是 ${p1Name} 和 ${p2Name} 的 ${systemName} 契合度解读。`,
             individualIntro: `这是关于`
-        },
-        ru: {
-            verdict: `Это итоговое заключение для ${p1Name} и ${p2Name}, синтезирующее все пять систем.`,
-            overlayIntro: `Это анализ совместимости ${systemName} для ${p1Name} и ${p2Name}.`,
-            individualIntro: `Это анализ ${systemName} для`
         },
         pt: {
             verdict: `Este é o veredicto final para ${p1Name} e ${p2Name}, sintetizando os cinco sistemas.`,
