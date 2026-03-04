@@ -59,7 +59,7 @@ export async function generateMinimaxAsync(text: string, voiceId: string, cloneP
                 speed: speed,
                 vol: volume
             },
-            audio_setting: { sample_rate: 32000, format: 'mp3' }
+            audio_setting: { sample_rate: 44100, format: 'mp3', bit_rate: 128000 }
         };
 
         if (clonePromptFileId) {
