@@ -331,21 +331,64 @@ class LLMService {
           httpsAgent: sharedHttpsAgent,
         });
 
-        // Process the stream
+        // Process the stream with inactivity timeout.
+        // The axios timeout only covers the initial connection. Once streaming starts,
+        // a stalled stream (LLM hangs mid-generation) would wait forever.
+        // This inactivity timer fires if no data arrives for 5 minutes.
+        const STREAM_INACTIVITY_MS = parseInt(process.env.STREAM_INACTIVITY_TIMEOUT_MS || '300000', 10); // 5 min
+        const STREAM_TOTAL_MS = parseInt(process.env.STREAM_TOTAL_TIMEOUT_MS || '1800000', 10); // 30 min total
+
         const text = await new Promise<string>((resolve, reject) => {
           let buffer = '';
           const stream = response.data;
+          let inactivityTimer: NodeJS.Timeout | null = null;
+          let totalTimer: NodeJS.Timeout | null = null;
+          let settled = false;
+
+          const cleanup = () => {
+            if (inactivityTimer) { clearTimeout(inactivityTimer); inactivityTimer = null; }
+            if (totalTimer) { clearTimeout(totalTimer); totalTimer = null; }
+          };
 
           const fail = (err: Error) => {
+            if (settled) return;
+            settled = true;
+            cleanup();
             try {
               stream.removeAllListeners();
+              stream.destroy?.();
             } catch {
               // ignore
             }
             reject(err);
           };
 
+          const succeed = (text: string) => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            resolve(text);
+          };
+
+          const resetInactivityTimer = () => {
+            if (inactivityTimer) clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(() => {
+              const words = fullText.split(/\s+/).length;
+              fail(new Error(`Stream stalled: no data for ${STREAM_INACTIVITY_MS / 1000}s (got ${words} words so far). LLM may have hung.`));
+            }, STREAM_INACTIVITY_MS);
+          };
+
+          // Total timeout: hard cap on entire stream duration
+          totalTimer = setTimeout(() => {
+            const words = fullText.split(/\s+/).length;
+            fail(new Error(`Stream total timeout after ${STREAM_TOTAL_MS / 1000}s (got ${words} words). Generation took too long.`));
+          }, STREAM_TOTAL_MS);
+
+          // Start inactivity timer
+          resetInactivityTimer();
+
           stream.on('data', (chunk: Buffer) => {
+            resetInactivityTimer(); // Got data — reset inactivity timer
             buffer += chunk.toString();
             const lines = buffer.split('\n');
             buffer = lines.pop() || '';
@@ -399,7 +442,7 @@ class LLMService {
             }
           });
 
-          stream.on('end', () => resolve(fullText.trim()));
+          stream.on('end', () => succeed(fullText.trim()));
           stream.on('error', (err: Error) => fail(err));
         });
 
