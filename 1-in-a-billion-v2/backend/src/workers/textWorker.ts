@@ -155,7 +155,7 @@ function cleanReadingText(raw: string, options?: { preserveSurrealHeadlines?: bo
   let out = String(raw || '')
     .replace(/^\s*\|---.*\|\s*$/gim, '')
     // Remove em-dashes and en-dashes
-    .replace(/-/g, ', ').replace(/-/g, '-')
+    .replace(/—/g, ', ').replace(/–/g, '-')
     // Remove markdown bold/italic asterisks
     .replace(/\*\*\*/g, '').replace(/\*\*/g, '').replace(/\*/g, '')
     // Remove markdown headers (# ## ### etc)
@@ -589,7 +589,7 @@ export class TextWorker extends BaseWorker {
     // This prevents the LLM from writing about relationships in individual readings
     // ===========================================================================
     let chartData: string;
-    
+
     if (docType === 'person1' || docType === 'individual') {
       // Person1/individual reading - ONLY person1's chart
       chartData = buildChartDataForSystem(
@@ -617,22 +617,22 @@ export class TextWorker extends BaseWorker {
         null
       );
       console.log(`📊 [TextWorker] Building ${system} chart data for person2 doc ${docNum} (individual only)`);
-	    } else {
-	      // Overlay/verdict/other - include both charts
-	      chartData = buildChartDataForSystem(
-	        system || 'western',
-	        person1.name,
+    } else {
+      // Overlay/verdict/other - include both charts
+      chartData = buildChartDataForSystem(
+        system || 'western',
+        person1.name,
         p1Placements,
         person2?.name || null,
         p2Placements,
         p1BirthData,
         p2BirthData
-	      );
-	      console.log(`📊 [TextWorker] Building ${system} chart data for ${docType} doc ${docNum} (both people)`);
-	    }
+      );
+      console.log(`📊 [TextWorker] Building ${system} chart data for ${docType} doc ${docNum} (both people)`);
+    }
 
-	    // Default: prompts see the full chart data. Some systems (Western) can be too heavy,
-	    // so we optionally replace this with a curated digest (two-pass prompting).
+    // Default: prompts see the full chart data. Some systems (Western) can be too heavy,
+    // so we optionally replace this with a curated digest (two-pass prompting).
     let chartDataForPrompt = chartData;
     const expectedAge = extractExpectedAge(chartData);
 
@@ -688,13 +688,13 @@ export class TextWorker extends BaseWorker {
     }
     console.log(`📋 [TextWorker] Chart reference page built: ${chartRefPage.length} chars${chartRefPageRight ? `, right: ${chartRefPageRight.length} chars` : ''}`);
 
-	    let prompt = '';
-	    let composedV2: ReturnType<typeof composePromptFromJobStartPayload> | null = null;
-	    let label = `job:${jobId}:doc:${docNum}`;
-	    let text = '';
-	    let wordCount = 0;
-	    let generationComplete = false;
-      let narrativeTriggerForOutput = '';
+    let prompt = '';
+    let composedV2: ReturnType<typeof composePromptFromJobStartPayload> | null = null;
+    let label = `job:${jobId}:doc:${docNum}`;
+    let text = '';
+    let wordCount = 0;
+    let generationComplete = false;
+    let narrativeTriggerForOutput = '';
 
     if (docType === 'verdict') {
       if (job.type !== 'bundle_verdict' && job.type !== 'nuclear_v2') {
@@ -764,574 +764,574 @@ export class TextWorker extends BaseWorker {
       });
       label += ':verdict';
 
-	    } else {
-	      if (!system) {
-	        throw new Error(`Missing system for non-verdict doc ${docNum} (docType=${docType})`);
-	      }
+    } else {
+      if (!system) {
+        throw new Error(`Missing system for non-verdict doc ${docNum} (docType=${docType})`);
+      }
 
       if (docType === 'overlay' && !person2) {
         throw new Error(`Overlay doc requires person2, but person2 is missing for job ${jobId}`);
       }
 
-	      if (docType === 'person2' && !person2) {
-	        throw new Error(`person2 doc requires person2, but person2 is missing for job ${jobId}`);
-	      }
+      if (docType === 'person2' && !person2) {
+        throw new Error(`person2 doc requires person2, but person2 is missing for job ${jobId}`);
+      }
 
-        const buildOverlayChartParts = (systemId: string) => {
-          if (!person2 || !p2Placements || !p2BirthData) {
-            throw new Error(`Overlay ${systemId} requires person2 chart data`);
-          }
-          const person1Raw = buildChartDataForSystem(
-            systemId,
-            person1.name,
-            p1Placements,
-            null,
-            null,
-            p1BirthData,
-            null
-          );
-          const person2Raw = buildChartDataForSystem(
-            systemId,
-            person2.name,
-            p2Placements,
-            null,
-            null,
-            p2BirthData,
-            null
-          );
-          return { person1Raw, person2Raw };
-        };
-
-	      // ── WESTERN: narrativeTrigger engine (strip → narrativeTrigger call → writing call) ──────────
-	      if (system === 'western' && docType !== 'overlay') {
-	        const subject = docType === 'person2' ? person2 : person1;
-	        if (!subject?.name) throw new Error(`Missing subject name for western ${docType}`);
-
-          const stripped = stripWesternChartData(chartData);
-	        const triggerPrompt = buildWesternTriggerPrompt({ personName: subject.name, strippedChartData: stripped, spiceLevel });
-	        console.log(`🩸 [TextWorker] Western narrativeTrigger call for ${subject.name}...`);
-	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
-	          maxTokens: 300,
-	          temperature: 0.7,
-	          maxRetries: 3,
-	        });
-	        const triggerUsage = llmPaid.getLastUsage();
-	        if (triggerUsage) {
-	          await logLLMCost(jobId, task.id, { provider: triggerUsage.provider, inputTokens: triggerUsage.usage.inputTokens, outputTokens: triggerUsage.usage.outputTokens }, `text_western_trigger_${docType}`);
-	        }
-	        const narrativeTrigger = String(triggerRaw || '').trim();
-	        if (!narrativeTrigger) {
-	          throw new Error(`Trigger call returned empty for western ${docType}: ${subject.name}`);
-	        }
-          narrativeTriggerForOutput = narrativeTrigger;
-	        console.log(`✅ [TextWorker] Western narrativeTrigger: ${narrativeTrigger.slice(0, 80)}...`);
-
-	        // Call 2: writing - bypass composePrompt entirely, use custom prompt
-	        const chartProvocations = buildChartAwareProvocations(subject.name, 'western', chartData, spiceLevel);
-	        const baseWritingPrompt = buildWesternWritingPrompt({
-            personName: subject.name,
-            narrativeTrigger,
-            strippedChartData: stripped,
-            targetWords: WORD_COUNT_LIMITS.min,
-          });
-	        const writingPrompt = `${chartProvocations}\n\n${baseWritingPrompt}`;
-
-	        console.log(`✍️ [TextWorker] Western writing call for ${subject.name}...`);
-	        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
-	          maxTokens: 16384,
-	          temperature: 0.7,
-	          maxRetries: 3,
-	          systemPrompt: getSystemPromptForStyle(style, 'individual', 'western', params.outputLanguage),
-	        });
-
-	        const writingUsage = llmPaid.getLastUsage();
-	        if (writingUsage) {
-	          await logLLMCost(jobId, task.id, { provider: writingUsage.provider, inputTokens: writingUsage.usage.inputTokens, outputTokens: writingUsage.usage.outputTokens }, `text_western_writing_${docType}`);
-	        }
-
-	        // Clean and return - expansion passes handled downstream if needed
-	        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
-	        const westernFooter = extractChartSignatureFooter(text);
-	        text = westernFooter.body;
-	        wordCount = countWords(text);
-	        console.log(`✅ [TextWorker] Western reading complete: ${wordCount} words`);
-	        generationComplete = true;
-	      }
-
-	      // ── VEDIC narrativeTrigger engine ──────────────────────────────────────────────
-	      if (!generationComplete && system === 'vedic' && docType !== 'overlay') {
-	        const subject = docType === 'person2' ? person2 : person1;
-	        if (!subject?.name) throw new Error(`Missing subject name for vedic ${docType}`);
-
-          const stripped = stripVedicChartData(chartData);
-	        const triggerPrompt = buildVedicTriggerPrompt({ personName: subject.name, strippedChartData: stripped, spiceLevel });
-	        console.log(`🩸 [TextWorker] Vedic narrativeTrigger call for ${subject.name}...`);
-	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
-	          maxTokens: 300, temperature: 0.7, maxRetries: 3,
-	        });
-	        const triggerUsageV = llmPaid.getLastUsage();
-	        if (triggerUsageV) await logLLMCost(jobId, task.id, { provider: triggerUsageV.provider, inputTokens: triggerUsageV.usage.inputTokens, outputTokens: triggerUsageV.usage.outputTokens }, `text_vedic_trigger_${docType}`);
-	        const narrativeTrigger = String(triggerRaw || '').trim();
-	        if (!narrativeTrigger) {
-	          throw new Error(`Trigger call returned empty for vedic ${docType}: ${subject.name}`);
-	        }
-          narrativeTriggerForOutput = narrativeTrigger;
-	        console.log(`✅ [TextWorker] Vedic narrativeTrigger: ${narrativeTrigger.slice(0, 80)}...`);
-
-	        const chartProvocationsV = buildChartAwareProvocations(subject.name, 'vedic', chartData, spiceLevel);
-	        const baseWritingPromptV = buildVedicWritingPrompt({
-            personName: subject.name,
-            narrativeTrigger,
-            strippedChartData: stripped,
-            targetWords: WORD_COUNT_LIMITS.min,
-          });
-	        const writingPrompt = `${chartProvocationsV}\n\n${baseWritingPromptV}`;
-	        console.log(`✍️ [TextWorker] Vedic writing call for ${subject.name}...`);
-	        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
-	          maxTokens: 16384, temperature: 0.7, maxRetries: 3,
-	          systemPrompt: getSystemPromptForStyle(style, 'individual', 'vedic', params.outputLanguage),
-	        });
-	        const wUsageV = llmPaid.getLastUsage();
-	        if (wUsageV) await logLLMCost(jobId, task.id, { provider: wUsageV.provider, inputTokens: wUsageV.usage.inputTokens, outputTokens: wUsageV.usage.outputTokens }, `text_vedic_writing_${docType}`);
-
-	        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
-	        const vedicFooter = extractChartSignatureFooter(text);
-	        text = vedicFooter.body;
-	        wordCount = countWords(text);
-	        console.log(`✅ [TextWorker] Vedic reading complete: ${wordCount} words`);
-	        generationComplete = true;
-	      }
-
-	      // ── HUMAN DESIGN narrativeTrigger engine ───────────────────────────────────────
-	      if (!generationComplete && system === 'human_design' && docType !== 'overlay') {
-	        const subject = docType === 'person2' ? person2 : person1;
-	        if (!subject?.name) throw new Error(`Missing subject name for human_design ${docType}`);
-
-          const stripped = stripHDChartData(chartData);
-	        const triggerPrompt = buildHDTriggerPrompt({ personName: subject.name, strippedChartData: stripped, spiceLevel });
-	        console.log(`🩸 [TextWorker] HD narrativeTrigger call for ${subject.name}...`);
-	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
-	          maxTokens: 300, temperature: 0.7, maxRetries: 3,
-	        });
-	        const triggerUsageH = llmPaid.getLastUsage();
-	        if (triggerUsageH) await logLLMCost(jobId, task.id, { provider: triggerUsageH.provider, inputTokens: triggerUsageH.usage.inputTokens, outputTokens: triggerUsageH.usage.outputTokens }, `text_hd_trigger_${docType}`);
-	        const narrativeTrigger = String(triggerRaw || '').trim();
-	        if (!narrativeTrigger) {
-	          throw new Error(`Trigger call returned empty for human_design ${docType}: ${subject.name}`);
-	        }
-          narrativeTriggerForOutput = narrativeTrigger;
-	        console.log(`✅ [TextWorker] HD narrativeTrigger: ${narrativeTrigger.slice(0, 80)}...`);
-
-	        const chartProvocationsH = buildChartAwareProvocations(subject.name, 'human_design', chartData, spiceLevel);
-	        const baseWritingPromptH = buildHDWritingPrompt({
-            personName: subject.name,
-            narrativeTrigger,
-            strippedChartData: stripped,
-            targetWords: WORD_COUNT_LIMITS.min,
-          });
-	        const writingPrompt = `${chartProvocationsH}\n\n${baseWritingPromptH}`;
-	        console.log(`✍️ [TextWorker] HD writing call for ${subject.name}...`);
-	        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
-	          maxTokens: 16384, temperature: 0.7, maxRetries: 3,
-	          systemPrompt: getSystemPromptForStyle(style, 'individual', 'human_design', params.outputLanguage),
-	        });
-	        const wUsageH = llmPaid.getLastUsage();
-	        if (wUsageH) await logLLMCost(jobId, task.id, { provider: wUsageH.provider, inputTokens: wUsageH.usage.inputTokens, outputTokens: wUsageH.usage.outputTokens }, `text_hd_writing_${docType}`);
-
-	        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
-	        const hdFooter = extractChartSignatureFooter(text);
-	        text = hdFooter.body;
-	        wordCount = countWords(text);
-	        console.log(`✅ [TextWorker] HD reading complete: ${wordCount} words`);
-	        generationComplete = true;
-	      }
-
-	      // ── GENE KEYS narrativeTrigger engine ──────────────────────────────────────────
-	      if (!generationComplete && system === 'gene_keys' && docType !== 'overlay') {
-	        const subject = docType === 'person2' ? person2 : person1;
-	        if (!subject?.name) throw new Error(`Missing subject name for gene_keys ${docType}`);
-
-          const stripped = stripGeneKeysChartData(chartData);
-	        const triggerPrompt = buildGeneKeysTriggerPrompt({ personName: subject.name, strippedChartData: stripped, spiceLevel });
-	        console.log(`🩸 [TextWorker] Gene Keys narrativeTrigger call for ${subject.name}...`);
-	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
-	          maxTokens: 300, temperature: 0.7, maxRetries: 3,
-	        });
-	        const triggerUsageG = llmPaid.getLastUsage();
-	        if (triggerUsageG) await logLLMCost(jobId, task.id, { provider: triggerUsageG.provider, inputTokens: triggerUsageG.usage.inputTokens, outputTokens: triggerUsageG.usage.outputTokens }, `text_gk_trigger_${docType}`);
-	        const narrativeTrigger = String(triggerRaw || '').trim();
-	        if (!narrativeTrigger) {
-	          throw new Error(`Trigger call returned empty for gene_keys ${docType}: ${subject.name}`);
-	        }
-          narrativeTriggerForOutput = narrativeTrigger;
-	        console.log(`✅ [TextWorker] Gene Keys narrativeTrigger: ${narrativeTrigger.slice(0, 80)}...`);
-
-	        const chartProvocationsG = buildChartAwareProvocations(subject.name, 'gene_keys', chartData, spiceLevel);
-	        const baseWritingPromptG = buildGeneKeysWritingPrompt({
-            personName: subject.name,
-            narrativeTrigger,
-            strippedChartData: stripped,
-            targetWords: WORD_COUNT_LIMITS.min,
-          });
-	        const writingPrompt = `${chartProvocationsG}\n\n${baseWritingPromptG}`;
-	        console.log(`✍️ [TextWorker] Gene Keys writing call for ${subject.name}...`);
-	        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
-	          maxTokens: 16384, temperature: 0.7, maxRetries: 3,
-	          systemPrompt: getSystemPromptForStyle(style, 'individual', 'gene_keys', params.outputLanguage),
-	        });
-	        const wUsageG = llmPaid.getLastUsage();
-	        if (wUsageG) await logLLMCost(jobId, task.id, { provider: wUsageG.provider, inputTokens: wUsageG.usage.inputTokens, outputTokens: wUsageG.usage.outputTokens }, `text_gk_writing_${docType}`);
-
-	        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
-	        const gkFooter = extractChartSignatureFooter(text);
-	        text = gkFooter.body;
-	        wordCount = countWords(text);
-	        console.log(`✅ [TextWorker] Gene Keys reading complete: ${wordCount} words`);
-	        generationComplete = true;
-	      }
-
-	      // ── KABBALAH narrativeTrigger engine ───────────────────────────────────────────
-	      if (!generationComplete && system === 'kabbalah' && docType !== 'overlay') {
-	        const subject = docType === 'person2' ? person2 : person1;
-	        if (!subject?.name) throw new Error(`Missing subject name for kabbalah ${docType}`);
-
-          const stripped = stripKabbalahChartData(chartData);
-	        const triggerPrompt = buildKabbalahTriggerPrompt({ personName: subject.name, strippedChartData: stripped, spiceLevel });
-	        console.log(`🩸 [TextWorker] Kabbalah narrativeTrigger call for ${subject.name}...`);
-	        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
-	          maxTokens: 300, temperature: 0.7, maxRetries: 3,
-	        });
-	        const triggerUsageK = llmPaid.getLastUsage();
-	        if (triggerUsageK) await logLLMCost(jobId, task.id, { provider: triggerUsageK.provider, inputTokens: triggerUsageK.usage.inputTokens, outputTokens: triggerUsageK.usage.outputTokens }, `text_kab_trigger_${docType}`);
-	        const narrativeTrigger = String(triggerRaw || '').trim();
-	        if (!narrativeTrigger) {
-	          throw new Error(`Trigger call returned empty for kabbalah ${docType}: ${subject.name}`);
-	        }
-          narrativeTriggerForOutput = narrativeTrigger;
-	        console.log(`✅ [TextWorker] Kabbalah narrativeTrigger: ${narrativeTrigger.slice(0, 80)}...`);
-
-	        const chartProvocationsK = buildChartAwareProvocations(subject.name, 'kabbalah', chartData, spiceLevel);
-	        const baseWritingPromptK = buildKabbalahWritingPrompt({
-            personName: subject.name,
-            narrativeTrigger,
-            strippedChartData: stripped,
-            targetWords: WORD_COUNT_LIMITS.min,
-          });
-	        const writingPrompt = `${chartProvocationsK}\n\n${baseWritingPromptK}`;
-	        console.log(`✍️ [TextWorker] Kabbalah writing call for ${subject.name}...`);
-	        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
-	          maxTokens: 16384, temperature: 0.7, maxRetries: 3,
-	          systemPrompt: getSystemPromptForStyle(style, 'individual', 'kabbalah', params.outputLanguage),
-	        });
-	        const wUsageK = llmPaid.getLastUsage();
-	        if (wUsageK) await logLLMCost(jobId, task.id, { provider: wUsageK.provider, inputTokens: wUsageK.usage.inputTokens, outputTokens: wUsageK.usage.outputTokens }, `text_kab_writing_${docType}`);
-
-	        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
-	        const kabFooter = extractChartSignatureFooter(text);
-	        text = kabFooter.body;
-	        wordCount = countWords(text);
-	        console.log(`✅ [TextWorker] Kabbalah reading complete: ${wordCount} words`);
-	        generationComplete = true;
-	      }
-
-        // ── WESTERN OVERLAY narrativeTrigger engine ────────────────────────────────────
-        if (!generationComplete && system === 'western' && docType === 'overlay') {
-          const { person1Raw, person2Raw } = buildOverlayChartParts('western');
-          const combinedChartData = stripWesternOverlayData(person1Raw, person2Raw);
-
-          const triggerPrompt = buildWesternOverlayTriggerPrompt({
-            person1Name: person1.name,
-            person2Name: person2!.name,
-            strippedChartData: combinedChartData,
-          });
-          console.log(`🩸 [TextWorker] Western overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
-          const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
-            maxTokens: 300, temperature: 0.7, maxRetries: 3,
-          });
-          const triggerUsageO = llmPaid.getLastUsage();
-          if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_western_overlay_trigger');
-          const narrativeTrigger = String(triggerRaw || '').trim();
-          if (!narrativeTrigger) throw new Error(`Trigger call returned empty for western overlay: ${person1.name}/${person2!.name}`);
-          narrativeTriggerForOutput = narrativeTrigger;
-
-          const writingPrompt = buildWesternOverlayWritingPrompt({
-            person1Name: person1.name,
-            person2Name: person2!.name,
-            narrativeTrigger,
-            strippedChartData: combinedChartData,
-            targetWords: WORD_COUNT_LIMITS_OVERLAY.min,
-          });
-          console.log(`✍️ [TextWorker] Western overlay writing call for ${person1.name} & ${person2!.name}...`);
-          text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
-            maxTokens: 16384, temperature: 0.7, maxRetries: 3,
-            systemPrompt: getSystemPromptForStyle(style, 'overlay', undefined, params.outputLanguage),
-          });
-          const wUsageO = llmPaid.getLastUsage();
-          if (wUsageO) await logLLMCost(jobId, task.id, { provider: wUsageO.provider, inputTokens: wUsageO.usage.inputTokens, outputTokens: wUsageO.usage.outputTokens }, 'text_western_overlay_writing');
-
-          text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
-          const overlayFooter = extractChartSignatureFooter(text);
-          text = overlayFooter.body;
-          wordCount = countWords(text);
-          console.log(`✅ [TextWorker] Western overlay reading complete: ${wordCount} words`);
-          generationComplete = true;
+      const buildOverlayChartParts = (systemId: string) => {
+        if (!person2 || !p2Placements || !p2BirthData) {
+          throw new Error(`Overlay ${systemId} requires person2 chart data`);
         }
-
-        // ── VEDIC OVERLAY narrativeTrigger engine ──────────────────────────────────────
-        if (!generationComplete && system === 'vedic' && docType === 'overlay') {
-          const { person1Raw, person2Raw } = buildOverlayChartParts('vedic');
-          let combinedChartData = stripVedicOverlayData(person1Raw, person2Raw);
-
-          // ── Inject compact Ashtakoot (Kundali Milan) scores ──────────────────────
-          try {
-            const p1Sid = p1Placements?.sidereal;
-            const p2Sid = p2Placements?.sidereal;
-            if (p1Sid?.janmaNakshatra && p2Sid?.janmaNakshatra && p1Sid?.chandraRashi && p2Sid?.chandraRashi) {
-              const { computeVedicMatch } = require('../services/vedic/vedic_matchmaking.engine');
-              const vedicRuler: Record<string, string> = {
-                Aries: 'mars', Taurus: 'venus', Gemini: 'mercury', Cancer: 'moon',
-                Leo: 'sun', Virgo: 'mercury', Libra: 'venus', Scorpio: 'mars',
-                Sagittarius: 'jupiter', Capricorn: 'saturn', Aquarius: 'saturn', Pisces: 'jupiter',
-              };
-              const marsG1 = (p1Sid.grahas || []).find((g: any) => g.key === 'mars');
-              const marsG2 = (p2Sid.grahas || []).find((g: any) => g.key === 'mars');
-              const chart1 = {
-                id: 'person1', birth_data: { date: '', time: '', location: { latitude: 0, longitude: 0, timezone: 'UTC' } },
-                moon_nakshatra: p1Sid.janmaNakshatra, moon_sign: p1Sid.chandraRashi,
-                moon_rashi_lord: vedicRuler[p1Sid.chandraRashi] || '',
-                gana: '', yoni: '', nadi: '', varna: '', vashya: '',
-                pada: p1Sid.janmaPada || 1, mars_placement_house: marsG1?.bhava || 1,
-              };
-              const chart2 = {
-                id: 'person2', birth_data: { date: '', time: '', location: { latitude: 0, longitude: 0, timezone: 'UTC' } },
-                moon_nakshatra: p2Sid.janmaNakshatra, moon_sign: p2Sid.chandraRashi,
-                moon_rashi_lord: vedicRuler[p2Sid.chandraRashi] || '',
-                gana: '', yoni: '', nadi: '', varna: '', vashya: '',
-                pada: p2Sid.janmaPada || 1, mars_placement_house: marsG2?.bhava || 1,
-              };
-              const result = computeVedicMatch(chart1, chart2);
-              const a = result.ashtakoota;
-              const total = a.total_points;
-              let tier = 'Poor (<18)';
-              if (total >= 28) tier = 'Excellent (28+)';
-              else if (total >= 24) tier = 'Very Good (24-27)';
-              else if (total >= 18) tier = 'Good (18-23)';
-
-              const doshas: string[] = [];
-              if (a.nadi.dosha_present) doshas.push('Nadi Dosha (same nadi - health/progeny concern)');
-              if (a.bhakoot.score === 0) doshas.push('Bhakoot Dosha (inauspicious moon-sign pair)');
-              const m1 = marsG1 && [1, 2, 4, 7, 8, 12].includes(marsG1.bhava);
-              const m2 = marsG2 && [1, 2, 4, 7, 8, 12].includes(marsG2.bhava);
-              if (m1 || m2) doshas.push(`Manglik Dosha (${m1 && m2 ? 'both' : m1 ? 'person1' : 'person2'})`);
-
-              combinedChartData += '\n\nASHTAKOOT KUNDALI MILAN:\n' +
-                `Varna ${a.varna.score}/1 | Vashya ${a.vashya.score}/2 | Tara ${a.tara.score}/3 | Yoni ${a.yoni.score}/4 | ` +
-                `Graha Maitri ${a.graha_maitri.score}/5 | Gana ${a.gana.score}/6 | Bhakoot ${a.bhakoot.score}/7 | Nadi ${a.nadi.score}/8\n` +
-                `TOTAL: ${total}/36 - ${tier}` +
-                (doshas.length > 0 ? `\nDOSHA: ${doshas.join('; ')}` : '');
-
-              console.log(`🔢 [TextWorker] Ashtakoot scores injected for Vedic overlay: ${total}/36 (${tier})`);
-            }
-          } catch (err: any) {
-            console.warn(`⚠️ [TextWorker] Ashtakoot scoring failed for overlay, continuing without: ${err?.message}`);
-          }
-
-          const triggerPrompt = buildVedicOverlayTriggerPrompt({
-            person1Name: person1.name,
-            person2Name: person2!.name,
-            strippedChartData: combinedChartData,
-          });
-          console.log(`🩸 [TextWorker] Vedic overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
-          const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
-            maxTokens: 300, temperature: 0.7, maxRetries: 3,
-          });
-          const triggerUsageO = llmPaid.getLastUsage();
-          if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_vedic_overlay_trigger');
-          const narrativeTrigger = String(triggerRaw || '').trim();
-          if (!narrativeTrigger) throw new Error(`Trigger call returned empty for vedic overlay: ${person1.name}/${person2!.name}`);
-          narrativeTriggerForOutput = narrativeTrigger;
-
-          const writingPrompt = buildVedicOverlayWritingPrompt({
-            person1Name: person1.name,
-            person2Name: person2!.name,
-            narrativeTrigger,
-            strippedChartData: combinedChartData,
-            targetWords: WORD_COUNT_LIMITS_OVERLAY.min,
-          });
-          console.log(`✍️ [TextWorker] Vedic overlay writing call for ${person1.name} & ${person2!.name}...`);
-          text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
-            maxTokens: 16384, temperature: 0.7, maxRetries: 3,
-            systemPrompt: getSystemPromptForStyle(style, 'overlay', undefined, params.outputLanguage),
-          });
-          const wUsageO = llmPaid.getLastUsage();
-          if (wUsageO) await logLLMCost(jobId, task.id, { provider: wUsageO.provider, inputTokens: wUsageO.usage.inputTokens, outputTokens: wUsageO.usage.outputTokens }, 'text_vedic_overlay_writing');
-
-          text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
-          const overlayFooter = extractChartSignatureFooter(text);
-          text = overlayFooter.body;
-          wordCount = countWords(text);
-          console.log(`✅ [TextWorker] Vedic overlay reading complete: ${wordCount} words`);
-          generationComplete = true;
-        }
-
-        // ── HUMAN DESIGN OVERLAY narrativeTrigger engine ───────────────────────────────
-        if (!generationComplete && system === 'human_design' && docType === 'overlay') {
-          const { person1Raw, person2Raw } = buildOverlayChartParts('human_design');
-          const combinedChartData = stripHDOverlayData(person1Raw, person2Raw);
-
-          const triggerPrompt = buildHDOverlayTriggerPrompt({
-            person1Name: person1.name,
-            person2Name: person2!.name,
-            strippedChartData: combinedChartData,
-          });
-          console.log(`🩸 [TextWorker] HD overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
-          const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
-            maxTokens: 300, temperature: 0.7, maxRetries: 3,
-          });
-          const triggerUsageO = llmPaid.getLastUsage();
-          if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_hd_overlay_trigger');
-          const narrativeTrigger = String(triggerRaw || '').trim();
-          if (!narrativeTrigger) throw new Error(`Trigger call returned empty for human_design overlay: ${person1.name}/${person2!.name}`);
-          narrativeTriggerForOutput = narrativeTrigger;
-
-          const writingPrompt = buildHDOverlayWritingPrompt({
-            person1Name: person1.name,
-            person2Name: person2!.name,
-            narrativeTrigger,
-            strippedChartData: combinedChartData,
-            targetWords: WORD_COUNT_LIMITS_OVERLAY.min,
-          });
-          console.log(`✍️ [TextWorker] HD overlay writing call for ${person1.name} & ${person2!.name}...`);
-          text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
-            maxTokens: 16384, temperature: 0.7, maxRetries: 3,
-            systemPrompt: getSystemPromptForStyle(style, 'overlay', undefined, params.outputLanguage),
-          });
-          const wUsageO = llmPaid.getLastUsage();
-          if (wUsageO) await logLLMCost(jobId, task.id, { provider: wUsageO.provider, inputTokens: wUsageO.usage.inputTokens, outputTokens: wUsageO.usage.outputTokens }, 'text_hd_overlay_writing');
-
-          text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
-          const overlayFooter = extractChartSignatureFooter(text);
-          text = overlayFooter.body;
-          wordCount = countWords(text);
-          console.log(`✅ [TextWorker] HD overlay reading complete: ${wordCount} words`);
-          generationComplete = true;
-        }
-
-        // ── GENE KEYS OVERLAY narrativeTrigger engine ──────────────────────────────────
-        if (!generationComplete && system === 'gene_keys' && docType === 'overlay') {
-          const { person1Raw, person2Raw } = buildOverlayChartParts('gene_keys');
-          const combinedChartData = stripGeneKeysOverlayData(person1Raw, person2Raw);
-
-          const triggerPrompt = buildGeneKeysOverlayTriggerPrompt({
-            person1Name: person1.name,
-            person2Name: person2!.name,
-            strippedChartData: combinedChartData,
-          });
-          console.log(`🩸 [TextWorker] Gene Keys overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
-          const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
-            maxTokens: 300, temperature: 0.7, maxRetries: 3,
-          });
-          const triggerUsageO = llmPaid.getLastUsage();
-          if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_gk_overlay_trigger');
-          const narrativeTrigger = String(triggerRaw || '').trim();
-          if (!narrativeTrigger) throw new Error(`Trigger call returned empty for gene_keys overlay: ${person1.name}/${person2!.name}`);
-          narrativeTriggerForOutput = narrativeTrigger;
-
-          const writingPrompt = buildGeneKeysOverlayWritingPrompt({
-            person1Name: person1.name,
-            person2Name: person2!.name,
-            narrativeTrigger,
-            strippedChartData: combinedChartData,
-            targetWords: WORD_COUNT_LIMITS_OVERLAY.min,
-          });
-          console.log(`✍️ [TextWorker] Gene Keys overlay writing call for ${person1.name} & ${person2!.name}...`);
-          text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
-            maxTokens: 16384, temperature: 0.7, maxRetries: 3,
-            systemPrompt: getSystemPromptForStyle(style, 'overlay', undefined, params.outputLanguage),
-          });
-          const wUsageO = llmPaid.getLastUsage();
-          if (wUsageO) await logLLMCost(jobId, task.id, { provider: wUsageO.provider, inputTokens: wUsageO.usage.inputTokens, outputTokens: wUsageO.usage.outputTokens }, 'text_gk_overlay_writing');
-
-          text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
-          const overlayFooter = extractChartSignatureFooter(text);
-          text = overlayFooter.body;
-          wordCount = countWords(text);
-          console.log(`✅ [TextWorker] Gene Keys overlay reading complete: ${wordCount} words`);
-          generationComplete = true;
-        }
-
-        // ── KABBALAH OVERLAY narrativeTrigger engine ───────────────────────────────────
-        if (!generationComplete && system === 'kabbalah' && docType === 'overlay') {
-          const { person1Raw, person2Raw } = buildOverlayChartParts('kabbalah');
-          const combinedChartData = stripKabbalahOverlayData(person1Raw, person2Raw);
-
-          const triggerPrompt = buildKabbalahOverlayTriggerPrompt({
-            person1Name: person1.name,
-            person2Name: person2!.name,
-            strippedChartData: combinedChartData,
-          });
-          console.log(`🩸 [TextWorker] Kabbalah overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
-          const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
-            maxTokens: 300, temperature: 0.7, maxRetries: 3,
-          });
-          const triggerUsageO = llmPaid.getLastUsage();
-          if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_kab_overlay_trigger');
-          const narrativeTrigger = String(triggerRaw || '').trim();
-          if (!narrativeTrigger) throw new Error(`Trigger call returned empty for kabbalah overlay: ${person1.name}/${person2!.name}`);
-          narrativeTriggerForOutput = narrativeTrigger;
-
-          const writingPrompt = buildKabbalahOverlayWritingPrompt({
-            person1Name: person1.name,
-            person2Name: person2!.name,
-            narrativeTrigger,
-            strippedChartData: combinedChartData,
-            targetWords: WORD_COUNT_LIMITS_OVERLAY.min,
-          });
-          console.log(`✍️ [TextWorker] Kabbalah overlay writing call for ${person1.name} & ${person2!.name}...`);
-          text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
-            maxTokens: 16384, temperature: 0.7, maxRetries: 3,
-            systemPrompt: getSystemPromptForStyle(style, 'overlay', undefined, params.outputLanguage),
-          });
-          const wUsageO = llmPaid.getLastUsage();
-          if (wUsageO) await logLLMCost(jobId, task.id, { provider: wUsageO.provider, inputTokens: wUsageO.usage.inputTokens, outputTokens: wUsageO.usage.outputTokens }, 'text_kab_overlay_writing');
-
-          text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
-          const overlayFooter = extractChartSignatureFooter(text);
-          text = overlayFooter.body;
-          wordCount = countWords(text);
-          console.log(`✅ [TextWorker] Kabbalah overlay reading complete: ${wordCount} words`);
-          generationComplete = true;
-        }
-
-	      // V2 prompt engine (MD prompt layers) is the source of truth for all systems.
-	      // Map docType into the prompt-engine job type.
-	      if (!generationComplete) {
-	      const promptPayload: any = {
-	        type: docType === 'overlay' ? 'synastry' : 'extended',
-	        systems: [system],
-	        person1: docType === 'person2' ? person2 : person1,
-	        ...(docType === 'overlay' ? { person2 } : {}),
-	        chartData: chartDataForPrompt,
-	        relationshipPreferenceScale: spiceLevel,
-	        personalContext: params.personalContext,
-	        relationshipContext: params.relationshipContext,
-	        outputLanguage: params.outputLanguage,
-        outputLengthContract: params.outputLengthContract,
-        promptLayerDirective: params.promptLayerDirective,
+        const person1Raw = buildChartDataForSystem(
+          systemId,
+          person1.name,
+          p1Placements,
+          null,
+          null,
+          p1BirthData,
+          null
+        );
+        const person2Raw = buildChartDataForSystem(
+          systemId,
+          person2.name,
+          p2Placements,
+          null,
+          null,
+          p2BirthData,
+          null
+        );
+        return { person1Raw, person2Raw };
       };
 
-      const composed = composePromptFromJobStartPayload(promptPayload);
-      composedV2 = composed;
-      prompt = composed.prompt;
-      label += `:v2prompt:${docType}:${system}`;
+      // ── WESTERN: narrativeTrigger engine (strip → narrativeTrigger call → writing call) ──────────
+      if (system === 'western' && docType !== 'overlay') {
+        const subject = docType === 'person2' ? person2 : person1;
+        if (!subject?.name) throw new Error(`Missing subject name for western ${docType}`);
 
-      console.log(
-        `🧩 [PromptEngine] style=${composed.diagnostics.styleLayerId} systems=${composed.diagnostics.systemLayerIds
-	          .map((s) => `${s.system}:${s.layerId}`)
-	          .join(',')} chars=${composed.diagnostics.totalChars}`
-	      );
-	      }
-	    }
+        const stripped = stripWesternChartData(chartData);
+        const triggerPrompt = buildWesternTriggerPrompt({ personName: subject.name, strippedChartData: stripped, spiceLevel });
+        console.log(`🩸 [TextWorker] Western narrativeTrigger call for ${subject.name}...`);
+        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
+          maxTokens: 300,
+          temperature: 0.7,
+          maxRetries: 3,
+        });
+        const triggerUsage = llmPaid.getLastUsage();
+        if (triggerUsage) {
+          await logLLMCost(jobId, task.id, { provider: triggerUsage.provider, inputTokens: triggerUsage.usage.inputTokens, outputTokens: triggerUsage.usage.outputTokens }, `text_western_trigger_${docType}`);
+        }
+        const narrativeTrigger = String(triggerRaw || '').trim();
+        if (!narrativeTrigger) {
+          throw new Error(`Trigger call returned empty for western ${docType}: ${subject.name}`);
+        }
+        narrativeTriggerForOutput = narrativeTrigger;
+        console.log(`✅ [TextWorker] Western narrativeTrigger: ${narrativeTrigger.slice(0, 80)}...`);
+
+        // Call 2: writing - bypass composePrompt entirely, use custom prompt
+        const chartProvocations = buildChartAwareProvocations(subject.name, 'western', chartData, spiceLevel);
+        const baseWritingPrompt = buildWesternWritingPrompt({
+          personName: subject.name,
+          narrativeTrigger,
+          strippedChartData: stripped,
+          targetWords: WORD_COUNT_LIMITS.min,
+        });
+        const writingPrompt = `${chartProvocations}\n\n${baseWritingPrompt}`;
+
+        console.log(`✍️ [TextWorker] Western writing call for ${subject.name}...`);
+        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
+          maxTokens: 16384,
+          temperature: 0.7,
+          maxRetries: 3,
+          systemPrompt: getSystemPromptForStyle(style, 'individual', 'western', params.outputLanguage),
+        });
+
+        const writingUsage = llmPaid.getLastUsage();
+        if (writingUsage) {
+          await logLLMCost(jobId, task.id, { provider: writingUsage.provider, inputTokens: writingUsage.usage.inputTokens, outputTokens: writingUsage.usage.outputTokens }, `text_western_writing_${docType}`);
+        }
+
+        // Clean and return - expansion passes handled downstream if needed
+        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
+        const westernFooter = extractChartSignatureFooter(text);
+        text = westernFooter.body;
+        wordCount = countWords(text);
+        console.log(`✅ [TextWorker] Western reading complete: ${wordCount} words`);
+        generationComplete = true;
+      }
+
+      // ── VEDIC narrativeTrigger engine ──────────────────────────────────────────────
+      if (!generationComplete && system === 'vedic' && docType !== 'overlay') {
+        const subject = docType === 'person2' ? person2 : person1;
+        if (!subject?.name) throw new Error(`Missing subject name for vedic ${docType}`);
+
+        const stripped = stripVedicChartData(chartData);
+        const triggerPrompt = buildVedicTriggerPrompt({ personName: subject.name, strippedChartData: stripped, spiceLevel });
+        console.log(`🩸 [TextWorker] Vedic narrativeTrigger call for ${subject.name}...`);
+        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
+          maxTokens: 300, temperature: 0.7, maxRetries: 3,
+        });
+        const triggerUsageV = llmPaid.getLastUsage();
+        if (triggerUsageV) await logLLMCost(jobId, task.id, { provider: triggerUsageV.provider, inputTokens: triggerUsageV.usage.inputTokens, outputTokens: triggerUsageV.usage.outputTokens }, `text_vedic_trigger_${docType}`);
+        const narrativeTrigger = String(triggerRaw || '').trim();
+        if (!narrativeTrigger) {
+          throw new Error(`Trigger call returned empty for vedic ${docType}: ${subject.name}`);
+        }
+        narrativeTriggerForOutput = narrativeTrigger;
+        console.log(`✅ [TextWorker] Vedic narrativeTrigger: ${narrativeTrigger.slice(0, 80)}...`);
+
+        const chartProvocationsV = buildChartAwareProvocations(subject.name, 'vedic', chartData, spiceLevel);
+        const baseWritingPromptV = buildVedicWritingPrompt({
+          personName: subject.name,
+          narrativeTrigger,
+          strippedChartData: stripped,
+          targetWords: WORD_COUNT_LIMITS.min,
+        });
+        const writingPrompt = `${chartProvocationsV}\n\n${baseWritingPromptV}`;
+        console.log(`✍️ [TextWorker] Vedic writing call for ${subject.name}...`);
+        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
+          maxTokens: 16384, temperature: 0.7, maxRetries: 3,
+          systemPrompt: getSystemPromptForStyle(style, 'individual', 'vedic', params.outputLanguage),
+        });
+        const wUsageV = llmPaid.getLastUsage();
+        if (wUsageV) await logLLMCost(jobId, task.id, { provider: wUsageV.provider, inputTokens: wUsageV.usage.inputTokens, outputTokens: wUsageV.usage.outputTokens }, `text_vedic_writing_${docType}`);
+
+        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
+        const vedicFooter = extractChartSignatureFooter(text);
+        text = vedicFooter.body;
+        wordCount = countWords(text);
+        console.log(`✅ [TextWorker] Vedic reading complete: ${wordCount} words`);
+        generationComplete = true;
+      }
+
+      // ── HUMAN DESIGN narrativeTrigger engine ───────────────────────────────────────
+      if (!generationComplete && system === 'human_design' && docType !== 'overlay') {
+        const subject = docType === 'person2' ? person2 : person1;
+        if (!subject?.name) throw new Error(`Missing subject name for human_design ${docType}`);
+
+        const stripped = stripHDChartData(chartData);
+        const triggerPrompt = buildHDTriggerPrompt({ personName: subject.name, strippedChartData: stripped, spiceLevel });
+        console.log(`🩸 [TextWorker] HD narrativeTrigger call for ${subject.name}...`);
+        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
+          maxTokens: 300, temperature: 0.7, maxRetries: 3,
+        });
+        const triggerUsageH = llmPaid.getLastUsage();
+        if (triggerUsageH) await logLLMCost(jobId, task.id, { provider: triggerUsageH.provider, inputTokens: triggerUsageH.usage.inputTokens, outputTokens: triggerUsageH.usage.outputTokens }, `text_hd_trigger_${docType}`);
+        const narrativeTrigger = String(triggerRaw || '').trim();
+        if (!narrativeTrigger) {
+          throw new Error(`Trigger call returned empty for human_design ${docType}: ${subject.name}`);
+        }
+        narrativeTriggerForOutput = narrativeTrigger;
+        console.log(`✅ [TextWorker] HD narrativeTrigger: ${narrativeTrigger.slice(0, 80)}...`);
+
+        const chartProvocationsH = buildChartAwareProvocations(subject.name, 'human_design', chartData, spiceLevel);
+        const baseWritingPromptH = buildHDWritingPrompt({
+          personName: subject.name,
+          narrativeTrigger,
+          strippedChartData: stripped,
+          targetWords: WORD_COUNT_LIMITS.min,
+        });
+        const writingPrompt = `${chartProvocationsH}\n\n${baseWritingPromptH}`;
+        console.log(`✍️ [TextWorker] HD writing call for ${subject.name}...`);
+        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
+          maxTokens: 16384, temperature: 0.7, maxRetries: 3,
+          systemPrompt: getSystemPromptForStyle(style, 'individual', 'human_design', params.outputLanguage),
+        });
+        const wUsageH = llmPaid.getLastUsage();
+        if (wUsageH) await logLLMCost(jobId, task.id, { provider: wUsageH.provider, inputTokens: wUsageH.usage.inputTokens, outputTokens: wUsageH.usage.outputTokens }, `text_hd_writing_${docType}`);
+
+        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
+        const hdFooter = extractChartSignatureFooter(text);
+        text = hdFooter.body;
+        wordCount = countWords(text);
+        console.log(`✅ [TextWorker] HD reading complete: ${wordCount} words`);
+        generationComplete = true;
+      }
+
+      // ── GENE KEYS narrativeTrigger engine ──────────────────────────────────────────
+      if (!generationComplete && system === 'gene_keys' && docType !== 'overlay') {
+        const subject = docType === 'person2' ? person2 : person1;
+        if (!subject?.name) throw new Error(`Missing subject name for gene_keys ${docType}`);
+
+        const stripped = stripGeneKeysChartData(chartData);
+        const triggerPrompt = buildGeneKeysTriggerPrompt({ personName: subject.name, strippedChartData: stripped, spiceLevel });
+        console.log(`🩸 [TextWorker] Gene Keys narrativeTrigger call for ${subject.name}...`);
+        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
+          maxTokens: 300, temperature: 0.7, maxRetries: 3,
+        });
+        const triggerUsageG = llmPaid.getLastUsage();
+        if (triggerUsageG) await logLLMCost(jobId, task.id, { provider: triggerUsageG.provider, inputTokens: triggerUsageG.usage.inputTokens, outputTokens: triggerUsageG.usage.outputTokens }, `text_gk_trigger_${docType}`);
+        const narrativeTrigger = String(triggerRaw || '').trim();
+        if (!narrativeTrigger) {
+          throw new Error(`Trigger call returned empty for gene_keys ${docType}: ${subject.name}`);
+        }
+        narrativeTriggerForOutput = narrativeTrigger;
+        console.log(`✅ [TextWorker] Gene Keys narrativeTrigger: ${narrativeTrigger.slice(0, 80)}...`);
+
+        const chartProvocationsG = buildChartAwareProvocations(subject.name, 'gene_keys', chartData, spiceLevel);
+        const baseWritingPromptG = buildGeneKeysWritingPrompt({
+          personName: subject.name,
+          narrativeTrigger,
+          strippedChartData: stripped,
+          targetWords: WORD_COUNT_LIMITS.min,
+        });
+        const writingPrompt = `${chartProvocationsG}\n\n${baseWritingPromptG}`;
+        console.log(`✍️ [TextWorker] Gene Keys writing call for ${subject.name}...`);
+        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
+          maxTokens: 16384, temperature: 0.7, maxRetries: 3,
+          systemPrompt: getSystemPromptForStyle(style, 'individual', 'gene_keys', params.outputLanguage),
+        });
+        const wUsageG = llmPaid.getLastUsage();
+        if (wUsageG) await logLLMCost(jobId, task.id, { provider: wUsageG.provider, inputTokens: wUsageG.usage.inputTokens, outputTokens: wUsageG.usage.outputTokens }, `text_gk_writing_${docType}`);
+
+        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
+        const gkFooter = extractChartSignatureFooter(text);
+        text = gkFooter.body;
+        wordCount = countWords(text);
+        console.log(`✅ [TextWorker] Gene Keys reading complete: ${wordCount} words`);
+        generationComplete = true;
+      }
+
+      // ── KABBALAH narrativeTrigger engine ───────────────────────────────────────────
+      if (!generationComplete && system === 'kabbalah' && docType !== 'overlay') {
+        const subject = docType === 'person2' ? person2 : person1;
+        if (!subject?.name) throw new Error(`Missing subject name for kabbalah ${docType}`);
+
+        const stripped = stripKabbalahChartData(chartData);
+        const triggerPrompt = buildKabbalahTriggerPrompt({ personName: subject.name, strippedChartData: stripped, spiceLevel });
+        console.log(`🩸 [TextWorker] Kabbalah narrativeTrigger call for ${subject.name}...`);
+        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
+          maxTokens: 300, temperature: 0.7, maxRetries: 3,
+        });
+        const triggerUsageK = llmPaid.getLastUsage();
+        if (triggerUsageK) await logLLMCost(jobId, task.id, { provider: triggerUsageK.provider, inputTokens: triggerUsageK.usage.inputTokens, outputTokens: triggerUsageK.usage.outputTokens }, `text_kab_trigger_${docType}`);
+        const narrativeTrigger = String(triggerRaw || '').trim();
+        if (!narrativeTrigger) {
+          throw new Error(`Trigger call returned empty for kabbalah ${docType}: ${subject.name}`);
+        }
+        narrativeTriggerForOutput = narrativeTrigger;
+        console.log(`✅ [TextWorker] Kabbalah narrativeTrigger: ${narrativeTrigger.slice(0, 80)}...`);
+
+        const chartProvocationsK = buildChartAwareProvocations(subject.name, 'kabbalah', chartData, spiceLevel);
+        const baseWritingPromptK = buildKabbalahWritingPrompt({
+          personName: subject.name,
+          narrativeTrigger,
+          strippedChartData: stripped,
+          targetWords: WORD_COUNT_LIMITS.min,
+        });
+        const writingPrompt = `${chartProvocationsK}\n\n${baseWritingPromptK}`;
+        console.log(`✍️ [TextWorker] Kabbalah writing call for ${subject.name}...`);
+        text = await llmPaid.generateStreaming(writingPrompt, `${label}:writing`, {
+          maxTokens: 16384, temperature: 0.7, maxRetries: 3,
+          systemPrompt: getSystemPromptForStyle(style, 'individual', 'kabbalah', params.outputLanguage),
+        });
+        const wUsageK = llmPaid.getLastUsage();
+        if (wUsageK) await logLLMCost(jobId, task.id, { provider: wUsageK.provider, inputTokens: wUsageK.usage.inputTokens, outputTokens: wUsageK.usage.outputTokens }, `text_kab_writing_${docType}`);
+
+        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
+        const kabFooter = extractChartSignatureFooter(text);
+        text = kabFooter.body;
+        wordCount = countWords(text);
+        console.log(`✅ [TextWorker] Kabbalah reading complete: ${wordCount} words`);
+        generationComplete = true;
+      }
+
+      // ── WESTERN OVERLAY narrativeTrigger engine ────────────────────────────────────
+      if (!generationComplete && system === 'western' && docType === 'overlay') {
+        const { person1Raw, person2Raw } = buildOverlayChartParts('western');
+        const combinedChartData = stripWesternOverlayData(person1Raw, person2Raw);
+
+        const triggerPrompt = buildWesternOverlayTriggerPrompt({
+          person1Name: person1.name,
+          person2Name: person2!.name,
+          strippedChartData: combinedChartData,
+        });
+        console.log(`🩸 [TextWorker] Western overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
+        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
+          maxTokens: 300, temperature: 0.7, maxRetries: 3,
+        });
+        const triggerUsageO = llmPaid.getLastUsage();
+        if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_western_overlay_trigger');
+        const narrativeTrigger = String(triggerRaw || '').trim();
+        if (!narrativeTrigger) throw new Error(`Trigger call returned empty for western overlay: ${person1.name}/${person2!.name}`);
+        narrativeTriggerForOutput = narrativeTrigger;
+
+        const writingPrompt = buildWesternOverlayWritingPrompt({
+          person1Name: person1.name,
+          person2Name: person2!.name,
+          narrativeTrigger,
+          strippedChartData: combinedChartData,
+          targetWords: WORD_COUNT_LIMITS_OVERLAY.min,
+        });
+        console.log(`✍️ [TextWorker] Western overlay writing call for ${person1.name} & ${person2!.name}...`);
+        text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
+          maxTokens: 16384, temperature: 0.7, maxRetries: 3,
+          systemPrompt: getSystemPromptForStyle(style, 'overlay', undefined, params.outputLanguage),
+        });
+        const wUsageO = llmPaid.getLastUsage();
+        if (wUsageO) await logLLMCost(jobId, task.id, { provider: wUsageO.provider, inputTokens: wUsageO.usage.inputTokens, outputTokens: wUsageO.usage.outputTokens }, 'text_western_overlay_writing');
+
+        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
+        const overlayFooter = extractChartSignatureFooter(text);
+        text = overlayFooter.body;
+        wordCount = countWords(text);
+        console.log(`✅ [TextWorker] Western overlay reading complete: ${wordCount} words`);
+        generationComplete = true;
+      }
+
+      // ── VEDIC OVERLAY narrativeTrigger engine ──────────────────────────────────────
+      if (!generationComplete && system === 'vedic' && docType === 'overlay') {
+        const { person1Raw, person2Raw } = buildOverlayChartParts('vedic');
+        let combinedChartData = stripVedicOverlayData(person1Raw, person2Raw);
+
+        // ── Inject compact Ashtakoot (Kundali Milan) scores ──────────────────────
+        try {
+          const p1Sid = p1Placements?.sidereal;
+          const p2Sid = p2Placements?.sidereal;
+          if (p1Sid?.janmaNakshatra && p2Sid?.janmaNakshatra && p1Sid?.chandraRashi && p2Sid?.chandraRashi) {
+            const { computeVedicMatch } = require('../services/vedic/vedic_matchmaking.engine');
+            const vedicRuler: Record<string, string> = {
+              Aries: 'mars', Taurus: 'venus', Gemini: 'mercury', Cancer: 'moon',
+              Leo: 'sun', Virgo: 'mercury', Libra: 'venus', Scorpio: 'mars',
+              Sagittarius: 'jupiter', Capricorn: 'saturn', Aquarius: 'saturn', Pisces: 'jupiter',
+            };
+            const marsG1 = (p1Sid.grahas || []).find((g: any) => g.key === 'mars');
+            const marsG2 = (p2Sid.grahas || []).find((g: any) => g.key === 'mars');
+            const chart1 = {
+              id: 'person1', birth_data: { date: '', time: '', location: { latitude: 0, longitude: 0, timezone: 'UTC' } },
+              moon_nakshatra: p1Sid.janmaNakshatra, moon_sign: p1Sid.chandraRashi,
+              moon_rashi_lord: vedicRuler[p1Sid.chandraRashi] || '',
+              gana: '', yoni: '', nadi: '', varna: '', vashya: '',
+              pada: p1Sid.janmaPada || 1, mars_placement_house: marsG1?.bhava || 1,
+            };
+            const chart2 = {
+              id: 'person2', birth_data: { date: '', time: '', location: { latitude: 0, longitude: 0, timezone: 'UTC' } },
+              moon_nakshatra: p2Sid.janmaNakshatra, moon_sign: p2Sid.chandraRashi,
+              moon_rashi_lord: vedicRuler[p2Sid.chandraRashi] || '',
+              gana: '', yoni: '', nadi: '', varna: '', vashya: '',
+              pada: p2Sid.janmaPada || 1, mars_placement_house: marsG2?.bhava || 1,
+            };
+            const result = computeVedicMatch(chart1, chart2);
+            const a = result.ashtakoota;
+            const total = a.total_points;
+            let tier = 'Poor (<18)';
+            if (total >= 28) tier = 'Excellent (28+)';
+            else if (total >= 24) tier = 'Very Good (24-27)';
+            else if (total >= 18) tier = 'Good (18-23)';
+
+            const doshas: string[] = [];
+            if (a.nadi.dosha_present) doshas.push('Nadi Dosha (same nadi - health/progeny concern)');
+            if (a.bhakoot.score === 0) doshas.push('Bhakoot Dosha (inauspicious moon-sign pair)');
+            const m1 = marsG1 && [1, 2, 4, 7, 8, 12].includes(marsG1.bhava);
+            const m2 = marsG2 && [1, 2, 4, 7, 8, 12].includes(marsG2.bhava);
+            if (m1 || m2) doshas.push(`Manglik Dosha (${m1 && m2 ? 'both' : m1 ? 'person1' : 'person2'})`);
+
+            combinedChartData += '\n\nASHTAKOOT KUNDALI MILAN:\n' +
+              `Varna ${a.varna.score}/1 | Vashya ${a.vashya.score}/2 | Tara ${a.tara.score}/3 | Yoni ${a.yoni.score}/4 | ` +
+              `Graha Maitri ${a.graha_maitri.score}/5 | Gana ${a.gana.score}/6 | Bhakoot ${a.bhakoot.score}/7 | Nadi ${a.nadi.score}/8\n` +
+              `TOTAL: ${total}/36 - ${tier}` +
+              (doshas.length > 0 ? `\nDOSHA: ${doshas.join('; ')}` : '');
+
+            console.log(`🔢 [TextWorker] Ashtakoot scores injected for Vedic overlay: ${total}/36 (${tier})`);
+          }
+        } catch (err: any) {
+          console.warn(`⚠️ [TextWorker] Ashtakoot scoring failed for overlay, continuing without: ${err?.message}`);
+        }
+
+        const triggerPrompt = buildVedicOverlayTriggerPrompt({
+          person1Name: person1.name,
+          person2Name: person2!.name,
+          strippedChartData: combinedChartData,
+        });
+        console.log(`🩸 [TextWorker] Vedic overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
+        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
+          maxTokens: 300, temperature: 0.7, maxRetries: 3,
+        });
+        const triggerUsageO = llmPaid.getLastUsage();
+        if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_vedic_overlay_trigger');
+        const narrativeTrigger = String(triggerRaw || '').trim();
+        if (!narrativeTrigger) throw new Error(`Trigger call returned empty for vedic overlay: ${person1.name}/${person2!.name}`);
+        narrativeTriggerForOutput = narrativeTrigger;
+
+        const writingPrompt = buildVedicOverlayWritingPrompt({
+          person1Name: person1.name,
+          person2Name: person2!.name,
+          narrativeTrigger,
+          strippedChartData: combinedChartData,
+          targetWords: WORD_COUNT_LIMITS_OVERLAY.min,
+        });
+        console.log(`✍️ [TextWorker] Vedic overlay writing call for ${person1.name} & ${person2!.name}...`);
+        text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
+          maxTokens: 16384, temperature: 0.7, maxRetries: 3,
+          systemPrompt: getSystemPromptForStyle(style, 'overlay', undefined, params.outputLanguage),
+        });
+        const wUsageO = llmPaid.getLastUsage();
+        if (wUsageO) await logLLMCost(jobId, task.id, { provider: wUsageO.provider, inputTokens: wUsageO.usage.inputTokens, outputTokens: wUsageO.usage.outputTokens }, 'text_vedic_overlay_writing');
+
+        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
+        const overlayFooter = extractChartSignatureFooter(text);
+        text = overlayFooter.body;
+        wordCount = countWords(text);
+        console.log(`✅ [TextWorker] Vedic overlay reading complete: ${wordCount} words`);
+        generationComplete = true;
+      }
+
+      // ── HUMAN DESIGN OVERLAY narrativeTrigger engine ───────────────────────────────
+      if (!generationComplete && system === 'human_design' && docType === 'overlay') {
+        const { person1Raw, person2Raw } = buildOverlayChartParts('human_design');
+        const combinedChartData = stripHDOverlayData(person1Raw, person2Raw);
+
+        const triggerPrompt = buildHDOverlayTriggerPrompt({
+          person1Name: person1.name,
+          person2Name: person2!.name,
+          strippedChartData: combinedChartData,
+        });
+        console.log(`🩸 [TextWorker] HD overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
+        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
+          maxTokens: 300, temperature: 0.7, maxRetries: 3,
+        });
+        const triggerUsageO = llmPaid.getLastUsage();
+        if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_hd_overlay_trigger');
+        const narrativeTrigger = String(triggerRaw || '').trim();
+        if (!narrativeTrigger) throw new Error(`Trigger call returned empty for human_design overlay: ${person1.name}/${person2!.name}`);
+        narrativeTriggerForOutput = narrativeTrigger;
+
+        const writingPrompt = buildHDOverlayWritingPrompt({
+          person1Name: person1.name,
+          person2Name: person2!.name,
+          narrativeTrigger,
+          strippedChartData: combinedChartData,
+          targetWords: WORD_COUNT_LIMITS_OVERLAY.min,
+        });
+        console.log(`✍️ [TextWorker] HD overlay writing call for ${person1.name} & ${person2!.name}...`);
+        text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
+          maxTokens: 16384, temperature: 0.7, maxRetries: 3,
+          systemPrompt: getSystemPromptForStyle(style, 'overlay', undefined, params.outputLanguage),
+        });
+        const wUsageO = llmPaid.getLastUsage();
+        if (wUsageO) await logLLMCost(jobId, task.id, { provider: wUsageO.provider, inputTokens: wUsageO.usage.inputTokens, outputTokens: wUsageO.usage.outputTokens }, 'text_hd_overlay_writing');
+
+        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
+        const overlayFooter = extractChartSignatureFooter(text);
+        text = overlayFooter.body;
+        wordCount = countWords(text);
+        console.log(`✅ [TextWorker] HD overlay reading complete: ${wordCount} words`);
+        generationComplete = true;
+      }
+
+      // ── GENE KEYS OVERLAY narrativeTrigger engine ──────────────────────────────────
+      if (!generationComplete && system === 'gene_keys' && docType === 'overlay') {
+        const { person1Raw, person2Raw } = buildOverlayChartParts('gene_keys');
+        const combinedChartData = stripGeneKeysOverlayData(person1Raw, person2Raw);
+
+        const triggerPrompt = buildGeneKeysOverlayTriggerPrompt({
+          person1Name: person1.name,
+          person2Name: person2!.name,
+          strippedChartData: combinedChartData,
+        });
+        console.log(`🩸 [TextWorker] Gene Keys overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
+        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
+          maxTokens: 300, temperature: 0.7, maxRetries: 3,
+        });
+        const triggerUsageO = llmPaid.getLastUsage();
+        if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_gk_overlay_trigger');
+        const narrativeTrigger = String(triggerRaw || '').trim();
+        if (!narrativeTrigger) throw new Error(`Trigger call returned empty for gene_keys overlay: ${person1.name}/${person2!.name}`);
+        narrativeTriggerForOutput = narrativeTrigger;
+
+        const writingPrompt = buildGeneKeysOverlayWritingPrompt({
+          person1Name: person1.name,
+          person2Name: person2!.name,
+          narrativeTrigger,
+          strippedChartData: combinedChartData,
+          targetWords: WORD_COUNT_LIMITS_OVERLAY.min,
+        });
+        console.log(`✍️ [TextWorker] Gene Keys overlay writing call for ${person1.name} & ${person2!.name}...`);
+        text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
+          maxTokens: 16384, temperature: 0.7, maxRetries: 3,
+          systemPrompt: getSystemPromptForStyle(style, 'overlay', undefined, params.outputLanguage),
+        });
+        const wUsageO = llmPaid.getLastUsage();
+        if (wUsageO) await logLLMCost(jobId, task.id, { provider: wUsageO.provider, inputTokens: wUsageO.usage.inputTokens, outputTokens: wUsageO.usage.outputTokens }, 'text_gk_overlay_writing');
+
+        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
+        const overlayFooter = extractChartSignatureFooter(text);
+        text = overlayFooter.body;
+        wordCount = countWords(text);
+        console.log(`✅ [TextWorker] Gene Keys overlay reading complete: ${wordCount} words`);
+        generationComplete = true;
+      }
+
+      // ── KABBALAH OVERLAY narrativeTrigger engine ───────────────────────────────────
+      if (!generationComplete && system === 'kabbalah' && docType === 'overlay') {
+        const { person1Raw, person2Raw } = buildOverlayChartParts('kabbalah');
+        const combinedChartData = stripKabbalahOverlayData(person1Raw, person2Raw);
+
+        const triggerPrompt = buildKabbalahOverlayTriggerPrompt({
+          person1Name: person1.name,
+          person2Name: person2!.name,
+          strippedChartData: combinedChartData,
+        });
+        console.log(`🩸 [TextWorker] Kabbalah overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
+        const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
+          maxTokens: 300, temperature: 0.7, maxRetries: 3,
+        });
+        const triggerUsageO = llmPaid.getLastUsage();
+        if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_kab_overlay_trigger');
+        const narrativeTrigger = String(triggerRaw || '').trim();
+        if (!narrativeTrigger) throw new Error(`Trigger call returned empty for kabbalah overlay: ${person1.name}/${person2!.name}`);
+        narrativeTriggerForOutput = narrativeTrigger;
+
+        const writingPrompt = buildKabbalahOverlayWritingPrompt({
+          person1Name: person1.name,
+          person2Name: person2!.name,
+          narrativeTrigger,
+          strippedChartData: combinedChartData,
+          targetWords: WORD_COUNT_LIMITS_OVERLAY.min,
+        });
+        console.log(`✍️ [TextWorker] Kabbalah overlay writing call for ${person1.name} & ${person2!.name}...`);
+        text = await llmPaid.generateStreaming(writingPrompt, `${label}:overlay:writing`, {
+          maxTokens: 16384, temperature: 0.7, maxRetries: 3,
+          systemPrompt: getSystemPromptForStyle(style, 'overlay', undefined, params.outputLanguage),
+        });
+        const wUsageO = llmPaid.getLastUsage();
+        if (wUsageO) await logLLMCost(jobId, task.id, { provider: wUsageO.provider, inputTokens: wUsageO.usage.inputTokens, outputTokens: wUsageO.usage.outputTokens }, 'text_kab_overlay_writing');
+
+        text = tightenParagraphs(cleanReadingText(text, { preserveSurrealHeadlines: false }), { preserveSurrealHeadlines: false });
+        const overlayFooter = extractChartSignatureFooter(text);
+        text = overlayFooter.body;
+        wordCount = countWords(text);
+        console.log(`✅ [TextWorker] Kabbalah overlay reading complete: ${wordCount} words`);
+        generationComplete = true;
+      }
+
+      // V2 prompt engine (MD prompt layers) is the source of truth for all systems.
+      // Map docType into the prompt-engine job type.
+      if (!generationComplete) {
+        const promptPayload: any = {
+          type: docType === 'overlay' ? 'synastry' : 'extended',
+          systems: [system],
+          person1: docType === 'person2' ? person2 : person1,
+          ...(docType === 'overlay' ? { person2 } : {}),
+          chartData: chartDataForPrompt,
+          relationshipPreferenceScale: spiceLevel,
+          personalContext: params.personalContext,
+          relationshipContext: params.relationshipContext,
+          outputLanguage: params.outputLanguage,
+          outputLengthContract: params.outputLengthContract,
+          promptLayerDirective: params.promptLayerDirective,
+        };
+
+        const composed = composePromptFromJobStartPayload(promptPayload);
+        composedV2 = composed;
+        prompt = composed.prompt;
+        label += `:v2prompt:${docType}:${system}`;
+
+        console.log(
+          `🧩 [PromptEngine] style=${composed.diagnostics.styleLayerId} systems=${composed.diagnostics.systemLayerIds
+            .map((s) => `${s.system}:${s.layerId}`)
+            .join(',')} chars=${composed.diagnostics.totalChars}`
+        );
+      }
+    }
 
     // Use centralized LLM service with per-system provider config
     const configuredProvider = getProviderForSystem(system || 'western');
@@ -1438,13 +1438,13 @@ export class TextWorker extends BaseWorker {
           '- If you mention any placement or transit, it must match CHART DATA exactly.',
           preserveSurrealHeadlines
             ? [
-                '- ZONE 2 HARD BAN: Zero technical astrology syntax in this continuation.',
-                '- Forbidden: planet-in-sign formulas (e.g. "Mars in Leo", "Moon in Scorpio"), house numbers, aspect nouns (conjunction, opposition, square, trine, sextile), degree references, transit/profection jargon.',
-                '- Forbidden even when poetic: disguised report syntax that maps placements in costume.',
-                '- Allowed: embodied behavior, relational pattern, emotional weather, architecture metaphors, concrete consequence.',
-                '- Graha/planet names may appear ONLY as mythic story characters (e.g. "Saturn crouches in the basement") without technical placement syntax.',
-                '- If you need timing language, use: "this season", "this year", "the next twelve months".',
-              ].join('\n')
+              '- ZONE 2 HARD BAN: Zero technical astrology syntax in this continuation.',
+              '- Forbidden: planet-in-sign formulas (e.g. "Mars in Leo", "Moon in Scorpio"), house numbers, aspect nouns (conjunction, opposition, square, trine, sextile), degree references, transit/profection jargon.',
+              '- Forbidden even when poetic: disguised report syntax that maps placements in costume.',
+              '- Allowed: embodied behavior, relational pattern, emotional weather, architecture metaphors, concrete consequence.',
+              '- Graha/planet names may appear ONLY as mythic story characters (e.g. "Saturn crouches in the basement") without technical placement syntax.',
+              '- If you need timing language, use: "this season", "this year", "the next twelve months".',
+            ].join('\n')
             : '- Do not drift into astrology lecture mode. Avoid definitional frames like:\n  "The Sun represents...", "The Moon governs...", "The rising sign is...", "Astrologers call...", "the ninth house is..."',
           '- Avoid template openers like: "carries the signature of..."',
           `- Write at least ${minAdditional} NEW words before stopping.`,
@@ -1654,7 +1654,7 @@ export class TextWorker extends BaseWorker {
     // Generate dramatic titles (separate LLM call for evocative titles)
     const personName = docType === 'person2' && person2?.name ? person2.name : person1?.name || 'User';
     console.log(`🎭 Generating dramatic titles for ${personName}/${system}...`);
-    
+
     const dramaticTitles = await generateDramaticTitles({
       system: system || 'western',
       personName,
@@ -1662,7 +1662,7 @@ export class TextWorker extends BaseWorker {
       docType: docType as 'person1' | 'person2' | 'overlay' | 'verdict',
       spiceLevel,
     });
-    
+
     console.log(`✅ Dramatic titles generated:`);
     console.log(`   📖 Reading: "${dramaticTitles.readingTitle}"`);
     console.log(`   🎵 Song: "${dramaticTitles.songTitle}"`);
