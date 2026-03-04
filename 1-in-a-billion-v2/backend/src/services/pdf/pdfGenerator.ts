@@ -48,10 +48,44 @@ type SignatureBlock = {
   dataLine?: string;
 };
 
+import { OutputLanguage } from '../../config/languages';
+
+const PDF_TRANSLATIONS: Record<string, Partial<Record<OutputLanguage, string>>> = {
+  'Compatibility Snapshot': { de: 'Kompatibilitäts-Übersicht', es: 'Resumen de Compatibilidad', fr: 'Aperçu de Compatibilité', ja: '相性の概要', ko: '호환성 개요', hi: 'अनुकूलता स्नैपशॉट', pt: 'Resumo de Compatibilidade', it: 'Panoramica di Compatibilità', zh: '契合度快照' },
+  'FINAL VERDICT:': { de: 'ENDGÜLTIGES URTEIL:', es: 'VEREDICTO FINAL:', fr: 'VERDICT FINAL :', ja: '最終判定:', ko: '최종 판정:', hi: 'अंतिम निर्णय:', pt: 'VEREDICTO FINAL:', it: 'VERDETTO FINALE:', zh: '最终裁定:' },
+  'Natal Chart Overview': { de: 'Geburtshoroskop Übersicht', es: 'Resumen de la Carta Natal', fr: 'Aperçu du Thème Astral', ja: '出生図の概要', ko: '출생 차트 개요', hi: 'जन्म कुंडली का अवलोकन', pt: 'Visão Geral do Mapa Astral', it: 'Panoramica Tema Natale', zh: '星盘概览' },
+  'Chart Signature Glossary': { de: 'Glossar der Horoskopsignaturen', es: 'Glosario de Firmas Astrales', fr: 'Glossaire des Signatures', ja: 'チャート署名用語集', ko: '차트 서명 용어집', hi: 'चार्ट सिग्नेचर शब्दावली', pt: 'Glossário das Assinaturas do Mapa', it: 'Glossario delle Firme Astrali', zh: '星盘签名词汇表' },
+  'generated on': { de: 'erstellt am', es: 'generado el', fr: 'généré le', ja: '生成日', ko: '생성일', hi: 'उत्पन्न किया गया', pt: 'gerado em', it: 'generato il', zh: '生成于' },
+  'Person 1:': { de: 'Person 1:', es: 'Persona 1:', fr: 'Personne 1 :', ja: '人物 1:', ko: '사람 1:', hi: 'व्यक्ति 1:', pt: 'Pessoa 1:', it: 'Persona 1:', zh: '角色 1:' },
+  'Person 2:': { de: 'Person 2:', es: 'Persona 2:', fr: 'Personne 2 :', ja: '人物 2:', ko: '사람 2:', hi: 'व्यक्ति 2:', pt: 'Pessoa 2:', it: 'Persona 2:', zh: '角色 2:' },
+
+  // Compatibility Score Labels (Title Cased in extraction)
+  'Overall Alignment': { de: 'Gesamte Ausrichtung', es: 'Alineación General', fr: 'Alignement Global', ja: '全体的なアライメント', ko: '전반적인 정렬', hi: 'समग्र संरेखण', pt: 'Alinhamento Geral', it: 'Allineamento Generale', zh: '总体契合' },
+  'Western Astrology': { de: 'Westliche Astrologie', es: 'Astrología Occidental', fr: 'Astrologie Occidentale', ja: '西洋占星術', ko: '서양 점성술', hi: 'पश्चिमी ज्योतिष', pt: 'Astrologia Ocidental', it: 'Astrologia Occidentale', zh: '西方占星术' },
+  'Vedic Jyotish': { de: 'Vedische Astrologie', es: 'Jyotish Védico', fr: 'Astrologie Védique', ja: 'ヴェーダ占星術', ko: '베다 점성술', hi: 'वैदिक ज्योतिष', pt: 'Astrologia Védica', it: 'Astrologia Vedica', zh: '吠陀占星' },
+  'Human Design': { de: 'Human Design', es: 'Diseño Humano', fr: 'Design Humain', ja: 'ヒューマンデザイン', ko: '휴먼 디자인', hi: 'मानव डिजाइन', pt: 'Desenho Humano', it: 'Human Design', zh: '人类图' },
+  'Gene Keys': { de: 'Gene Keys', es: 'Claves Genéticas', fr: 'Clés Génétiques', ja: 'ジーンキー', ko: '유전자 키', hi: 'जीन कीज', pt: 'Chaves Genéticas', it: 'Chiavi Genetiche', zh: '基因天命' },
+  'Kabbalah': { de: 'Kabbala', es: 'Cábala', fr: 'Kabbale', ja: 'カバラ', ko: '카발라', hi: 'कब्बालाह', pt: 'Cabalá', it: 'Cabala', zh: '卡巴拉' },
+  'Sexual Chemistry': { de: 'Sexuelle Chemie', es: 'Química Sexual', fr: 'Alchimie Sexuelle', ja: '性的相性', ko: '성적 화합', hi: 'यौन केमिस्ट्री', pt: 'Química Sexual', it: 'Chimica Sessuale', zh: '性吸引力' },
+  'Past Life Connection': { de: 'Verbindung aus früheren Leben', es: 'Conexión de Vidas Pasadas', fr: 'Connexion de Vies Antérieures', ja: '過去世のつながり', ko: '전생의 연결', hi: 'पिछले जन्म का संबंध', pt: 'Conexão de Vidas Passadas', it: 'Connessione Vite Passate', zh: '前世纠葛' },
+  'World-changing Potential': { de: 'Weltveränderndes Potenzial', es: 'Potencial de Cambiar el Mundo', fr: 'Potentiel de Changement', ja: '世界を変える可能性', ko: '세상을 바꿀 잠재력', hi: 'दुनिया बदलने की क्षमता', pt: 'Potencial Transformador', it: 'Potenziale di Cambiare il Mondo', zh: '改变世界的潜力' },
+  'Karmic Verdict': { de: 'Karmisches Urteil', es: 'Veredicto Kármico', fr: 'Verdict Karmique', ja: 'カルマの判定', ko: '카르마 판정', hi: 'कार्मिक निर्णय', pt: 'Veredicto Cármico', it: 'Verdetto Karmico', zh: '业力裁定' },
+  'Growth Potential': { de: 'Wachstumspotenzial', es: 'Potencial de Crecimiento', fr: 'Potentiel de Croissance', ja: '成長の可能性', ko: '성장 잠재력', hi: 'विकास की संभावना', pt: 'Potencial de Crescimento', it: 'Potenziale di Crescita', zh: '成长潜力' },
+  'Shadow Risk': { de: 'Schattenrisiko', es: 'Riesgo de Sombra', fr: 'Risque d\'Ombre', ja: 'シャドウリスク', ko: '그림자 위험', hi: 'छाया का जोखिम', pt: 'Risco de Sombra', it: 'Rischio d\'Ombra', zh: '阴暗面风险' },
+  'Magnetic Pull': { de: 'Magnetische Anziehung', es: 'Atracción Magnética', fr: 'Attraction Magnétique', ja: '磁力的な引力', ko: '자기적 이끌림', hi: 'चुंबकीय आकर्षण', pt: 'Atração Magnética', it: 'Attrazione Magnetica', zh: '磁性吸引' },
+  'Long-term Sustainability': { de: 'Langfristige Nachhaltigkeit', es: 'Sostenibilidad a Largo Plazo', fr: 'Durabilité à Long Terme', ja: '長期的な持続可能性', ko: '장기적 지속 가능성', hi: 'दीर्घकालिक स्थिरता', pt: 'Sustentabilidade a Longo Prazo', it: 'Sostenibilità a Lungo Termine', zh: '长期维系' }
+};
+
+function translateLabel(label: string, lang?: string): string {
+  if (!lang || lang === 'en') return label;
+  return PDF_TRANSLATIONS[label]?.[lang as OutputLanguage] || label;
+}
+
 export interface PDFGenerationOptions {
   type: 'single' | 'overlay' | 'nuclear';
   title: string;
   subtitle?: string;
+  outputLanguage?: OutputLanguage;
   coverQuote?: string;
   person1: { name: string; birthDate: string; birthTime?: string; birthPlace?: string; timezone?: string; sunSign?: string; moonSign?: string; risingSign?: string; portraitUrl?: string };
   person2?: { name: string; birthDate: string; birthTime?: string; birthPlace?: string; timezone?: string; sunSign?: string; moonSign?: string; risingSign?: string; portraitUrl?: string };
@@ -735,7 +769,8 @@ function renderCompatibilitySnapshotPage(
   doc: any,
   rows: CompatibilityRow[],
   hasPlayfairBold: boolean,
-  finalVerdict?: FinalIronyVerdict | null
+  finalVerdict?: FinalIronyVerdict | null,
+  lang?: OutputLanguage
 ): void {
   if (!rows.length && !finalVerdict) return;
   doc.addPage();
@@ -746,7 +781,7 @@ function renderCompatibilitySnapshotPage(
 
   // Title
   doc.font(hasPlayfairBold ? 'PlayfairBold' : 'Garamond').fontSize(16).fillColor('#7a4a12')
-    .text('Compatibility Snapshot', { width: contentWidth, align: 'center' });
+    .text(translateLabel('Compatibility Snapshot', lang), { width: contentWidth, align: 'center' });
   doc.moveDown(1.0);
 
   for (const row of rows) {
@@ -762,7 +797,7 @@ function renderCompatibilitySnapshotPage(
     // ── Label left, score right on same line ──
     const lineY = doc.y;
     doc.font(hasPlayfairBold ? 'PlayfairBold' : 'GaramondBold').fontSize(10.5).fillColor('#111111');
-    doc.text(row.label, left, lineY, { width: contentWidth - 60, continued: false });
+    doc.text(translateLabel(toTitleCase(row.label), lang), left, lineY, { width: contentWidth - 60, continued: false });
     doc.font('Garamond').fontSize(10).fillColor('#555555');
     doc.text(`${row.score.toFixed(1)}/10`, left, lineY, { width: contentWidth, align: 'right' });
 
@@ -801,7 +836,7 @@ function renderCompatibilitySnapshotPage(
     doc.save();
 
     doc.font(hasPlayfairBold ? 'PlayfairBold' : 'GaramondBold').fontSize(24).fillColor('#b91c1c')
-      .text(`FINAL VERDICT: ${finalVerdict.score}/10`, { width: contentWidth, align: 'center' });
+      .text(`${translateLabel('FINAL VERDICT:', lang)} ${finalVerdict.score}/10`, { width: contentWidth, align: 'center' });
 
     doc.moveDown(0.3);
 
@@ -955,7 +990,7 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
 
       if (overlayMode && options.person2) {
         // Keep cover identity lines readable and consistent (not bold)
-        renderCoverPersonLabel(`Person 1: ${options.person1.name}`);
+        renderCoverPersonLabel(`${translateLabel('Person 1:', options.outputLanguage)} ${options.person1.name}`);
         const p1Line = formatPersonCoverLine(options.person1);
         if (p1Line) {
           doc.font('Garamond').fillColor('#4b5563').fontSize(coverMetaFontSize).text(p1Line, { align: 'center' });
@@ -963,13 +998,13 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
         doc.moveDown(0.9);
         doc.fillColor('#6b7280').fontSize(12).text('&', { align: 'center' });
         doc.moveDown(0.6);
-        renderCoverPersonLabel(`Person 2: ${options.person2.name}`);
+        renderCoverPersonLabel(`${translateLabel('Person 2:', options.outputLanguage)} ${options.person2.name}`);
         const p2Line = formatPersonCoverLine(options.person2);
         if (p2Line) {
           doc.font('Garamond').fillColor('#4b5563').fontSize(coverMetaFontSize).text(p2Line, { align: 'center' });
         }
         doc.moveDown(0.9);
-        doc.font('Garamond').fillColor('#4b5563').fontSize(coverMetaFontSize).text(`generated on ${timestamp}`, { align: 'center' });
+        doc.font('Garamond').fillColor('#4b5563').fontSize(coverMetaFontSize).text(`${translateLabel('generated on', options.outputLanguage)} ${timestamp}`, { align: 'center' });
         doc.fillColor('#111111');
       } else {
         const titleLower = String(options.title || '').toLowerCase();
@@ -986,7 +1021,7 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
         }
 
         doc.moveDown(options.person2 ? 1.0 : 0.45);
-        doc.font('Garamond').fillColor('#4b5563').fontSize(coverMetaFontSize).text(`generated on ${timestamp}`, { align: 'center' });
+        doc.font('Garamond').fillColor('#4b5563').fontSize(coverMetaFontSize).text(`${translateLabel('generated on', options.outputLanguage)} ${timestamp}`, { align: 'center' });
         doc.fillColor('#111111');
       }
 
@@ -1078,13 +1113,13 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
             note: s.note || undefined,
           }));
           const finalVerdictStr = extractFinalIronyVerdict(allReadingText);
-          renderCompatibilitySnapshotPage(doc, rows, hasPlayfairBold, finalVerdictStr);
+          renderCompatibilitySnapshotPage(doc, rows, hasPlayfairBold, finalVerdictStr, options.outputLanguage);
         } else {
           // Fallback: try to extract from reading text (legacy/worker path)
           const compatibilityRows = extractCompatibilityRows(allReadingText);
           const finalVerdictStr = extractFinalIronyVerdict(allReadingText);
           if (compatibilityRows.length > 0 || finalVerdictStr) {
-            renderCompatibilitySnapshotPage(doc, compatibilityRows, hasPlayfairBold, finalVerdictStr);
+            renderCompatibilitySnapshotPage(doc, compatibilityRows, hasPlayfairBold, finalVerdictStr, options.outputLanguage);
           }
         }
       }
@@ -1162,7 +1197,7 @@ export async function generateChapterPDF(
   person1: PDFGenerationOptions['person1'],
   person2?: PDFGenerationOptions['person2'],
   coupleImageUrl?: string,
-  extras?: { chartReferencePage?: string; chartReferencePageRight?: string; compatibilityScores?: Array<{ label: string; score: number; scoreTen: number; note: string }> }
+  extras?: { chartReferencePage?: string; chartReferencePageRight?: string; compatibilityScores?: Array<{ label: string; score: number; scoreTen: number; note: string }>; outputLanguage?: OutputLanguage }
 ): Promise<{ filePath: string; pageCount: number }> {
   // ⚠️ CRITICAL VALIDATION: Prevent using same content for different reading types
   // Count how many reading fields have content
@@ -1205,5 +1240,6 @@ export async function generateChapterPDF(
     chartReferencePage: extras?.chartReferencePage,
     chartReferencePageRight: extras?.chartReferencePageRight,
     compatibilityScores: extras?.compatibilityScores,
+    outputLanguage: extras?.outputLanguage,
   });
 }

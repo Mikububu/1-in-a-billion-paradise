@@ -25,7 +25,7 @@ let exampleImagesBase64: string[] = [];
 
 function loadExampleImages() {
   if (exampleImagesBase64.length > 0) return; // Already loaded
-  
+
   const examplesDir = path.join(__dirname, '../../assets/example-portraits');
   try {
     if (fs.existsSync(examplesDir)) {
@@ -155,14 +155,14 @@ export async function generateAIPortrait(
 
   try {
     const googleKey = await getApiKey('google_ai_studio', env.GOOGLE_AI_STUDIO_API_KEY || '');
-    
+
     if (!googleKey) {
       return { success: false, error: 'Google AI Studio API key not found' };
     }
 
     console.log('🎨 [AI Portrait] Starting portrait generation with Google AI Studio...');
     console.log('🔑 [AI Portrait] Key length:', googleKey.length, 'prefix:', googleKey.substring(0, 15) + '...');
-    
+
     // Ensure example images are loaded
     loadExampleImages();
 
@@ -170,17 +170,17 @@ export async function generateAIPortrait(
     // STEP 0: Store original image first
     // ─────────────────────────────────────────────────────────────────────
     console.log('📸 [AI Portrait] Step 0: Storing original image...');
-    
+
     const originalBuffer = Buffer.from(photoBase64, 'base64');
     const originalPath = `${userId}/${personId || 'self'}/original.jpg`;
-    
+
     const { error: originalUploadError } = await supabase.storage
       .from('profile-images')
       .upload(originalPath, originalBuffer, {
         contentType: 'image/jpeg',
         upsert: true,
       });
-    
+
     let originalUrl: string | undefined;
     if (!originalUploadError) {
       const { data: originalUrlData } = supabase.storage
@@ -193,31 +193,16 @@ export async function generateAIPortrait(
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // STEP 1: Resize input image to max 2000px (Google AI Studio limit)
+    // STEP 1: Compress input image to 1024x1024 JPEG (Google AI Studio payload limit)
     // ─────────────────────────────────────────────────────────────────────
-    console.log('📐 [AI Portrait] Resizing input image to max 2000px for Google AI Studio...');
-    
+    console.log('📐 [AI Portrait] Compressing input image to 1024px JPEG for Google AI Studio payload...');
+
     const originalImageBuffer = Buffer.from(photoBase64.includes(',') ? photoBase64.split(',')[1] : photoBase64, 'base64');
-    
-    // Get image metadata to check dimensions
-    const metadata = await sharp(originalImageBuffer).metadata();
-    const maxDimension = Math.max(metadata.width || 0, metadata.height || 0);
-    
-    let resizedForAPI: Buffer;
-    if (maxDimension > 2000) {
-      console.log(`   Original size: ${metadata.width}x${metadata.height}, resizing to max 2000px...`);
-      // Resize to max 2000px on longest side, maintaining aspect ratio
-      resizedForAPI = await sharp(originalImageBuffer)
-        .resize(2000, 2000, { fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: 90 })
-        .toBuffer();
-      
-      const resizedMetadata = await sharp(resizedForAPI).metadata();
-      console.log(`   Resized to: ${resizedMetadata.width}x${resizedMetadata.height}`);
-    } else {
-      console.log(`   Image size OK: ${metadata.width}x${metadata.height} (under 2000px limit)`);
-      resizedForAPI = originalImageBuffer;
-    }
+
+    const resizedForAPI = await sharp(originalImageBuffer)
+      .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 85 })
+      .toBuffer();
 
     // ─────────────────────────────────────────────────────────────────────
     // STEP 2: Generate AI portrait directly with Google AI Studio (image-to-image)
@@ -228,7 +213,7 @@ export async function generateAIPortrait(
 
     // Build parts array: image first, then text (matching working code)
     const parts: any[] = [];
-    
+
     // Add resized image (convert to base64)
     const resizedBase64 = resizedForAPI.toString('base64');
     parts.push({
@@ -283,12 +268,12 @@ export async function generateAIPortrait(
     // - Slight saturation/contrast bump to avoid a washed-out look
     // ─────────────────────────────────────────────────────────────────────
     const rawImageBuffer = Buffer.from(generatedImageB64, 'base64');
-    
+
     // First trim white/off-white background
     const trimmedBuffer = await sharp(rawImageBuffer)
       .trim({ threshold: 30 })  // Trim pixels similar to white/off-white
       .toBuffer();
-    
+
     // Then apply other processing
     const imageBuffer = await sharp(trimmedBuffer)
       // Normalize to 1024x1024, crop using attention to keep the subject prominent

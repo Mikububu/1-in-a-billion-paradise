@@ -145,6 +145,7 @@ export async function preloadApiKeys() {
     'google_places',
     'google_ai_studio',
     'minimax',
+    'active_tts_provider',
     'revenuecat_secret',
   ];
 

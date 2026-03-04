@@ -56,6 +56,31 @@ const CHUNK_RULES: Record<OutputLanguage, ChunkConfig> = {
     splitPattern: /[。！？]\s*/,
     minChars: 50,
   },
+  ja: {
+    maxChars: 180,            // Logograms pack dense meaning
+    splitPattern: /[。！？]\s*/,
+    minChars: 50,
+  },
+  ko: {
+    maxChars: 180,            // Hangul clusters are visually dense
+    splitPattern: /[.!?]\s+/,
+    minChars: 50,
+  },
+  hi: {
+    maxChars: 220,            // Devanagari script
+    splitPattern: /[।!?]\s+/, // Danda (।) is Hindi full stop
+    minChars: 80,
+  },
+  pt: {
+    maxChars: 250,            // Similar to ES/FR syntax
+    splitPattern: /[.!?]\s+/,
+    minChars: 80,
+  },
+  it: {
+    maxChars: 250,            // Similar to ES/FR syntax
+    splitPattern: /[.!?]\s+/,
+    minChars: 80,
+  },
 };
 
 /**

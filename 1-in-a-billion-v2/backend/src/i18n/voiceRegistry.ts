@@ -76,6 +76,41 @@ const VOICE_REGISTRY: Record<OutputLanguage, VoiceConfig> = {
     label: 'Chinese (Chatterbox Multilingual)',
     supportsCloning: true,
   },
+  ja: {
+    provider: 'chatterbox-multilingual',
+    modelId: 'resemble-ai/chatterbox-multilingual',
+    languageId: 'ja',
+    label: 'Japanese (Chatterbox Multilingual)',
+    supportsCloning: true,
+  },
+  ko: {
+    provider: 'chatterbox-multilingual',
+    modelId: 'resemble-ai/chatterbox-multilingual',
+    languageId: 'ko',
+    label: 'Korean (Chatterbox Multilingual)',
+    supportsCloning: true,
+  },
+  hi: {
+    provider: 'chatterbox-multilingual',
+    modelId: 'resemble-ai/chatterbox-multilingual',
+    languageId: 'hi',
+    label: 'Hindi (Chatterbox Multilingual)',
+    supportsCloning: true,
+  },
+  pt: {
+    provider: 'chatterbox-multilingual',
+    modelId: 'resemble-ai/chatterbox-multilingual',
+    languageId: 'pt',
+    label: 'Portuguese (Chatterbox Multilingual)',
+    supportsCloning: true,
+  },
+  it: {
+    provider: 'chatterbox-multilingual',
+    modelId: 'resemble-ai/chatterbox-multilingual',
+    languageId: 'it',
+    label: 'Italian (Chatterbox Multilingual)',
+    supportsCloning: true,
+  },
 };
 
 /**

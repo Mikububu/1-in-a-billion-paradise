@@ -55,6 +55,12 @@ export const apiKeys = {
     return key;
   },
 
+  async activeTtsProvider(): Promise<'replicate' | 'minimax'> {
+    const val = await getApiKey('active_tts_provider');
+    if (val === 'replicate') return 'replicate';
+    return 'minimax'; // Default to minimax
+  },
+
   async stripe(): Promise<string | null> {
     return await getApiKey('stripe', process.env.STRIPE_SECRET_KEY || undefined);
   },

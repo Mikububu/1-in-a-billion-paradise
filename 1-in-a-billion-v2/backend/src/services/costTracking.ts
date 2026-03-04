@@ -45,6 +45,7 @@ export const REPLICATE_PRICING = {
 // MiniMax pricing (approximate)
 export const MINIMAX_PRICING = {
   perSong: 0.05, // ~$0.05 per song generation
+  ttsPer10KChars: 0.035, // ~$0.035 per 10k characters (T2A async)
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -142,7 +143,7 @@ export async function logLLMCost(
   label?: string
 ): Promise<number> {
   const cost = calculateLLMCost(usage);
-  
+
   await logCost({
     jobId,
     taskId,
@@ -167,7 +168,7 @@ export async function logReplicateCost(
   label?: string
 ): Promise<number> {
   const cost = calculateReplicateCost({ executionTimeMs });
-  
+
   await logCost({
     jobId,
     taskId,
@@ -176,7 +177,29 @@ export async function logReplicateCost(
     costUsd: cost,
     label,
   });
-  
+
+  return cost;
+}
+
+/**
+ * Log MiniMax TTS cost with automatic calculation
+ */
+export async function logMinimaxTtsCost(
+  jobId: string,
+  taskId: string | undefined,
+  charsLength: number,
+  label?: string
+): Promise<number> {
+  const cost = (charsLength / 10000) * MINIMAX_PRICING.ttsPer10KChars;
+
+  await logCost({
+    jobId,
+    taskId,
+    provider: 'minimax',
+    costUsd: cost,
+    label: label || 'TTS Generation',
+  });
+
   return cost;
 }
 

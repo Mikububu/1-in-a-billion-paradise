@@ -25,6 +25,8 @@ import { JobTask, supabase } from '../services/supabaseClient';
 import { env } from '../config/env';
 import { apiKeys } from '../services/apiKeysHelper';
 import { clearApiKeyCache } from '../services/apiKeys';
+import { getMinimaxSequenceForUrl, generateMinimaxAsync } from '../services/minimaxTts';
+import { logMinimaxTtsCost, logReplicateCost } from '../services/costTracking';
 import { getVoiceById, isTurboPresetVoice } from '../config/voices';
 import { getSystemDisplayName } from '../config/systemConfig';
 import { cleanupTextForTTS } from '../utils/textCleanup';
@@ -348,285 +350,337 @@ export class AudioWorker extends BaseWorker {
       }
 
       // ─────────────────────────────────────────────────────────────────────
-      // CHATTERBOX TTS GENERATION
-      // - Turbo (English): `voice` param or `reference_audio` for cloning
-      // - Multilingual (DE/ES/FR/ZH): `language_id` + `reference_audio`
+      // VOICE PROVIDER ROUTING & GENERATION
       // ─────────────────────────────────────────────────────────────────────
-      console.log('\n' + '═'.repeat(70));
-      console.log('🎵 REPLICATE AUDIO GENERATION STARTING');
-      console.log('═'.repeat(70));
-
+      const activeProvider = await apiKeys.activeTtsProvider() || 'replicate';
+      let mp3: Buffer;
+      let duration: number;
       const voiceId = task.input.voiceId || task.input.voice || 'david';
       const voice = getVoiceById(voiceId);
       const isTurboPreset = voice?.isTurboPreset || false;
-
-
-      console.log(`🚀 [AudioWorker] Using REPLICATE for ${isTurboPreset ? 'Turbo preset' : 'custom voice'}: ${voice?.displayName || voiceId}`);
-
-      // Get Replicate API token
-      console.log(`🔑 [AudioWorker] Fetching Replicate API token...`);
-      let replicateToken = await apiKeys.replicate().catch(() => null) || env.REPLICATE_API_TOKEN;
-      if (!replicateToken) {
-        // Forced refresh: avoid stale negative cache after transient Supabase/API hiccups.
-        clearApiKeyCache('replicate');
-        replicateToken = await apiKeys.replicate().catch(() => null) || env.REPLICATE_API_TOKEN;
-      }
-      if (!replicateToken) {
-        console.error(`❌ [AudioWorker] REPLICATE TOKEN NOT FOUND!`);
-        throw new Error('Replicate API token not found (check Supabase api_keys table or REPLICATE_API_TOKEN env var)');
-      }
-      console.log(`✅ [AudioWorker] Replicate token found: ${replicateToken.substring(0, 10)}...`);
-
-      const replicate = new Replicate({ auth: replicateToken });
-      console.log(`✅ [AudioWorker] Replicate client initialized`);
-
-      // Get voice-specific settings from config (or use defaults)
-      // Chatterbox Turbo parameters: temperature, top_p, top_k, repetition_penalty
-      const voiceSettings = voice?.turboSettings || {};
-      const temperature = voiceSettings.temperature ?? 0.7;  // Default
-      const top_p = voiceSettings.top_p ?? 0.95;             // Default
-      // CRITICAL: Higher repetition_penalty reduces duplicate sentences (default 1.2, max 2.0)
-      // Increased from default to reduce repeated-sentence artifacts
-      const repetitionPenaltyRaw = Number(
-        process.env.CHATTERBOX_REPETITION_PENALTY ?? (voiceSettings.repetition_penalty ?? 1.7)
-      );
-      const repetition_penalty = Number.isFinite(repetitionPenaltyRaw)
-        ? Math.max(1, Math.min(2, repetitionPenaltyRaw))
-        : 1.7;
-
-      console.log(`🎤 [AudioWorker] Voice settings:`, { temperature, top_p, repetition_penalty, isTurboPreset });
-
-      // ─────────────────────────────────────────────────────────────────────
-      // REPLICATE CHUNK GENERATION — via global BullMQ queue
-      //
-      // Instead of calling Replicate directly, we enqueue all chunks into
-      // a Redis-backed BullMQ queue. A dedicated rate-limiter-worker
-      // processes the queue at the global 600 RPM limit across ALL workers.
-      //
-      // Fallback: If REDIS_URL is not set, use direct Replicate calls
-      // (original behavior) for local dev without Redis.
-      // ─────────────────────────────────────────────────────────────────────
-
-      const useGlobalQueue = !!process.env.REDIS_URL;
-      const chunkTimeoutMs = parseInt(process.env.REPLICATE_CHUNK_TIMEOUT_MS || '120000', 10);
-
-      // Determine which Replicate model to call
-      // Use version-pinned identifier for multilingual to avoid 404 on model endpoint
-      const replicateModel = useMultilingual
-        ? 'resemble-ai/chatterbox-multilingual:9cfba4c265e685f840612be835424f8c33bdee685d7466ece7684b0d9d4c0b1c'
-        : 'resemble-ai/chatterbox-turbo';
-
-      // Build base input params (without per-chunk text field)
-      // NOTE: chatterbox-multilingual uses 'text' (not 'text_to_synthesize') and 'language' (not 'language_id')
-      let baseInput: Record<string, any>;
-      // Both models use 'text' as the input field
-      let textField: 'text' = 'text';
-
-      if (useMultilingual) {
-        const refAudio = voice?.sampleAudioUrl || task.input.audioUrl || this.voiceSampleUrl;
-        baseInput = {
-          language: voiceConfig.languageId,
-          exaggeration: 0.5,
-          cfg_weight: 0.5,
-          temperature: temperature,
-        };
-        if (refAudio) {
-          baseInput.reference_audio = refAudio;
-          console.log(`  [Replicate] Multilingual voice cloning (${voiceConfig.languageId}) with reference: ${refAudio.substring(0, 80)}...`);
-        }
-      } else if (isTurboPreset) {
-        textField = 'text';
-        baseInput = {
-          temperature,
-          top_p,
-          repetition_penalty,
-          voice: voice?.turboVoiceId || 'alloy',
-        };
-      } else {
-        textField = 'text';
-        const refAudio = voice?.sampleAudioUrl || task.input.audioUrl || this.voiceSampleUrl;
-        baseInput = {
-          temperature,
-          top_p,
-          repetition_penalty,
-          reference_audio: refAudio,
-        };
-        console.log(`  [Replicate] Custom voice cloning with reference_audio: ${refAudio?.substring(0, 80)}...`);
-      }
-
       const startTime = Date.now();
-      let audioBuffers: Buffer[] = [];
+      let elapsedMs = 0;
 
-      if (useGlobalQueue) {
-        // ═══════════════════════════════════════════════════════════════════
-        // GLOBAL QUEUE MODE — enqueue to Redis, rate-limiter-worker processes
-        // ═══════════════════════════════════════════════════════════════════
-        console.log(`🚀 [AudioWorker] Enqueuing ${chunks.length} chunks to global BullMQ queue...`);
-        console.log(`   Model: ${replicateModel}, Timeout: ${chunkTimeoutMs}ms`);
+      if (activeProvider === 'minimax') {
+        console.log('\n' + '═'.repeat(70));
+        console.log(`🎵 MINIMAX AUDIO GENERATION STARTING (${jobLang})`);
+        console.log('═'.repeat(70));
 
-        const taskId = task.id || 'unknown';
-        const jobIds = await enqueueAllChunks(
-          taskId,
-          chunks,
-          replicateModel,
-          baseInput,
-          textField,
-          chunkTimeoutMs,
+        // We need a valid system voice ID as a base for MiniMax's T2A v2 cloning. 
+        // Using native dialects ensures the cloned voice adopts the correct accent.
+        let minimaxVoiceId = 'English_expressive_narrator';
+        if (jobLang.startsWith('de')) minimaxVoiceId = 'German_FriendlyMan';
+        else if (jobLang.startsWith('es')) minimaxVoiceId = 'Spanish_FriendlyNeighbor';
+        else if (jobLang.startsWith('ja')) minimaxVoiceId = 'Japanese_FriendlyGirl';
+        else if (jobLang.startsWith('ko')) minimaxVoiceId = 'Korean_SweetGirl';
+        else if (jobLang.startsWith('pt')) minimaxVoiceId = 'Portuguese_FriendlyNeighbor';
+        else if (jobLang.startsWith('it')) minimaxVoiceId = 'Italian_Narrator';
+        else if (jobLang.startsWith('fr')) minimaxVoiceId = 'French_CasualMan';
+        // Hindi fallback to English base if native ID is unknown.
+
+        let clonePromptFileId: string | undefined;
+        const refAudioUrl = voice?.sampleAudioUrl || task.input.audioUrl || this.voiceSampleUrl;
+
+        if (refAudioUrl) {
+          console.log(`[AudioWorker] Uploading MiniMax reference audio from: ${refAudioUrl}`);
+          clonePromptFileId = await getMinimaxSequenceForUrl(refAudioUrl, `${voiceId}_reference.wav`).catch(e => {
+            console.warn("⚠️ [AudioWorker] Failed to upload reference audio, proceeding without clone prompt", e.message);
+            return undefined;
+          });
+        }
+
+        mp3 = await generateMinimaxAsync(text, minimaxVoiceId, clonePromptFileId);
+
+        // Approximate duration
+        duration = Math.ceil(mp3.length / 4000);
+        elapsedMs = Date.now() - startTime;
+        console.log(`🎵 [AudioWorker] Final: ${Math.round(mp3.length / 1024)}KB MP3, ~${duration}s (MiniMax)`);
+      } else {
+        // ─────────────────────────────────────────────────────────────────────
+        // CHATTERBOX TTS GENERATION
+        // - Turbo (English): `voice` param or `reference_audio` for cloning
+        // - Multilingual (DE/ES/FR/ZH): `language_id` + `reference_audio`
+        // ─────────────────────────────────────────────────────────────────────
+        console.log('\n' + '═'.repeat(70));
+        console.log('🎵 REPLICATE AUDIO GENERATION STARTING');
+        console.log('═'.repeat(70));
+
+        console.log(`🚀 [AudioWorker] Using REPLICATE for ${isTurboPreset ? 'Turbo preset' : 'custom voice'}: ${voice?.displayName || voiceId}`);
+
+        // Get Replicate API token
+        console.log(`🔑 [AudioWorker] Fetching Replicate API token...`);
+        let replicateToken = await apiKeys.replicate().catch(() => null) || env.REPLICATE_API_TOKEN;
+        if (!replicateToken) {
+          // Forced refresh: avoid stale negative cache after transient Supabase/API hiccups.
+          clearApiKeyCache('replicate');
+          replicateToken = await apiKeys.replicate().catch(() => null) || env.REPLICATE_API_TOKEN;
+        }
+        if (!replicateToken) {
+          console.error(`❌ [AudioWorker] REPLICATE TOKEN NOT FOUND!`);
+          throw new Error('Replicate API token not found (check Supabase api_keys table or REPLICATE_API_TOKEN env var)');
+        }
+        console.log(`✅ [AudioWorker] Replicate token found: ${replicateToken.substring(0, 10)}...`);
+
+        const replicate = new Replicate({ auth: replicateToken });
+        console.log(`✅ [AudioWorker] Replicate client initialized`);
+
+        // Get voice-specific settings from config (or use defaults)
+        // Chatterbox Turbo parameters: temperature, top_p, top_k, repetition_penalty
+        const voiceSettings = voice?.turboSettings || {};
+        const temperature = voiceSettings.temperature ?? 0.7;  // Default
+        const top_p = voiceSettings.top_p ?? 0.95;             // Default
+        // CRITICAL: Higher repetition_penalty reduces duplicate sentences (default 1.2, max 2.0)
+        // Increased from default to reduce repeated-sentence artifacts
+        const repetitionPenaltyRaw = Number(
+          process.env.CHATTERBOX_REPETITION_PENALTY ?? (voiceSettings.repetition_penalty ?? 1.7)
+        );
+        const repetition_penalty = Number.isFinite(repetitionPenaltyRaw)
+          ? Math.max(1, Math.min(2, repetitionPenaltyRaw))
+          : 1.7;
+
+        console.log(`🎤 [AudioWorker] Voice settings:`, { temperature, top_p, repetition_penalty, isTurboPreset });
+
+        // ─────────────────────────────────────────────────────────────────────
+        // REPLICATE CHUNK GENERATION — via global BullMQ queue
+        //
+        // Instead of calling Replicate directly, we enqueue all chunks into
+        // a Redis-backed BullMQ queue. A dedicated rate-limiter-worker
+        // processes the queue at the global 600 RPM limit across ALL workers.
+        //
+        // Fallback: If REDIS_URL is not set, use direct Replicate calls
+        // (original behavior) for local dev without Redis.
+        // ─────────────────────────────────────────────────────────────────────
+
+        const useGlobalQueue = !!process.env.REDIS_URL;
+        const chunkTimeoutMs = parseInt(process.env.REPLICATE_CHUNK_TIMEOUT_MS || '120000', 10);
+
+        // Determine which Replicate model to call
+        // Use version-pinned identifier for multilingual to avoid 404 on model endpoint
+        const replicateModel = useMultilingual
+          ? 'resemble-ai/chatterbox-multilingual:9cfba4c265e685f840612be835424f8c33bdee685d7466ece7684b0d9d4c0b1c'
+          : 'resemble-ai/chatterbox-turbo';
+
+        // Build base input params (without per-chunk text field)
+        // NOTE: chatterbox-multilingual uses 'text' (not 'text_to_synthesize') and 'language' (not 'language_id')
+        let baseInput: Record<string, any>;
+        // Both models use 'text' as the input field
+        let textField: 'text' = 'text';
+
+        if (useMultilingual) {
+          const refAudio = voice?.sampleAudioUrl || task.input.audioUrl || this.voiceSampleUrl;
+          baseInput = {
+            language: voiceConfig.languageId,
+            exaggeration: 0.5,
+            cfg_weight: 0.5,
+            temperature: temperature,
+          };
+          if (refAudio) {
+            baseInput.reference_audio = refAudio;
+            console.log(`  [Replicate] Multilingual voice cloning (${voiceConfig.languageId}) with reference: ${refAudio.substring(0, 80)}...`);
+          }
+        } else if (isTurboPreset) {
+          textField = 'text';
+          baseInput = {
+            temperature,
+            top_p,
+            repetition_penalty,
+            voice: voice?.turboVoiceId || 'alloy',
+          };
+        } else {
+          textField = 'text';
+          const refAudio = voice?.sampleAudioUrl || task.input.audioUrl || this.voiceSampleUrl;
+          baseInput = {
+            temperature,
+            top_p,
+            repetition_penalty,
+            reference_audio: refAudio,
+          };
+        }
+
+        let audioBuffers: Buffer[] = [];
+
+        if (useGlobalQueue) {
+          // ═══════════════════════════════════════════════════════════════════
+          // GLOBAL QUEUE MODE — enqueue to Redis, rate-limiter-worker processes
+          // ═══════════════════════════════════════════════════════════════════
+          console.log(`🚀 [AudioWorker] Enqueuing ${chunks.length} chunks to global BullMQ queue...`);
+          console.log(`   Model: ${replicateModel}, Timeout: ${chunkTimeoutMs}ms`);
+
+          const taskId = task.id || 'unknown';
+          const jobIds = await enqueueAllChunks(
+            taskId,
+            chunks,
+            replicateModel,
+            baseInput,
+            textField,
+            chunkTimeoutMs,
+          );
+
+          console.log(`📤 [AudioWorker] All ${chunks.length} chunks enqueued — waiting for rate-limiter-worker...`);
+
+          // Wait for all chunks to be processed (up to 45 min for large readings on slow lane)
+          const queueTimeoutMs = parseInt(process.env.QUEUE_WAIT_TIMEOUT_MS || '2700000', 10);
+          audioBuffers = await waitForAllChunks(jobIds, replicateModel, queueTimeoutMs);
+
+        } else {
+          // ═══════════════════════════════════════════════════════════════════
+          // LOCAL FALLBACK — direct Replicate calls (no Redis needed)
+          // ═══════════════════════════════════════════════════════════════════
+          console.log(`🚀 [AudioWorker] No REDIS_URL — using direct Replicate calls (local dev mode)`);
+          console.log(`   Generating ${chunks.length} chunks sequentially...`);
+
+          for (let i = 0; i < chunks.length; i++) {
+            const maxRetries = Math.max(1, parseInt(process.env.REPLICATE_CHUNK_MAX_RETRIES || '6', 10));
+            let buffer: Buffer | null = null;
+
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+              try {
+                console.log(`  [Replicate] Chunk ${i + 1}/${chunks.length} (${chunks[i]!.length} chars) attempt ${attempt}`);
+                const input = { ...baseInput, [textField]: chunks[i] };
+
+                const output = await runReplicateWithRateLimit(
+                  `audioWorker:chunk:${i + 1}`,
+                  () => withTimeout(
+                    replicate.run(replicateModel as `${string}/${string}`, { input }),
+                    chunkTimeoutMs,
+                    `Replicate chunk ${i + 1}`
+                  )
+                );
+
+                // Convert output to Buffer
+                if (output instanceof ReadableStream || (output as any).getReader) {
+                  const reader = (output as ReadableStream).getReader();
+                  const parts: Uint8Array[] = [];
+                  while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    parts.push(value);
+                  }
+                  buffer = Buffer.concat(parts);
+                } else if (typeof output === 'string') {
+                  const response = await axios.get(output, { responseType: 'arraybuffer' });
+                  buffer = Buffer.from(response.data);
+                } else if (Buffer.isBuffer(output)) {
+                  buffer = output;
+                } else {
+                  const data = await (output as any).arrayBuffer?.() || output;
+                  buffer = Buffer.from(data);
+                }
+
+                console.log(`  ✅ [Replicate] Chunk ${i + 1} completed: ${buffer.length} bytes`);
+                break; // Success — exit retry loop
+              } catch (error: any) {
+                const is429 = isReplicateRateLimitError(error);
+                console.error(`  ❌ [Replicate] Chunk ${i + 1} attempt ${attempt} failed: ${error.message}`);
+                if (attempt < maxRetries) {
+                  const retryAfter = is429 ? 12 : attempt * 3;
+                  console.log(`  ⏳ Retrying in ${retryAfter}s...`);
+                  await this.sleep(retryAfter * 1000);
+                } else {
+                  throw new Error(`REPLICATE ABORT: Chunk ${i + 1} failed after ${maxRetries} attempts: ${error.message}`);
+                }
+              }
+            }
+
+            audioBuffers.push(buffer!);
+          }
+        }
+
+        elapsedMs = Date.now() - startTime;
+        const elapsed = (elapsedMs / 1000).toFixed(1);
+
+        const memAfterChunks = process.memoryUsage();
+        console.log(`📊 [AudioWorker] Memory after chunks: RSS=${Math.round(memAfterChunks.rss / 1024 / 1024)}MB, Heap=${Math.round(memAfterChunks.heapUsed / 1024 / 1024)}MB`);
+
+        console.log('\n' + '═'.repeat(70));
+        console.log('✅ REPLICATE AUDIO GENERATION COMPLETE');
+        console.log('═'.repeat(70));
+        console.log(`  📊 Summary:`);
+        console.log(`     • Total chunks: ${chunks.length}`);
+        console.log(`     • Time elapsed: ${elapsed}s`);
+        console.log(`     • Voice: ${voice?.displayName || voiceId} (${isTurboPreset ? 'Turbo preset' : 'Custom clone'})`);
+        console.log(`     • Text length: ${text.length} chars`);
+        console.log(`     • Provider: Replicate Chatterbox Turbo`);
+        console.log('═'.repeat(70) + '\n');
+
+        // ─────────────────────────────────────────────────────────────────────
+        // SILENCE TRIMMING: Remove leading/trailing dead-air from each chunk
+        // Chatterbox Turbo generates variable silence at chunk boundaries.
+        // Without trimming, 10-20s gaps appear in the final audio.
+        // ─────────────────────────────────────────────────────────────────────
+        if (AUDIO_CONFIG.SILENCE_TRIM_ENABLED) {
+          console.log(`\n✂️  [AudioWorker] Trimming silence from ${audioBuffers.length} chunks...`);
+          const trimStart = Date.now();
+
+          // Parallelize FFmpeg trimming to speed up processing
+          // Limit to 3 concurrent trims so we don't blow memory (safe on 1GB VM) 
+          const trimLimit = pLimit(3);
+          const trimTasks = audioBuffers.map((buffer, i) => {
+            return trimLimit(async () => {
+              const before = buffer.length;
+              audioBuffers[i] = await trimSilenceFromWav(buffer);
+              const after = audioBuffers[i]!.length;
+              if (before !== after) {
+                console.log(`  ✂️  Chunk ${i + 1}: ${Math.round(before / 1024)}KB → ${Math.round(after / 1024)}KB`);
+              }
+            });
+          });
+
+          await Promise.all(trimTasks);
+
+          const trimElapsed = ((Date.now() - trimStart) / 1000).toFixed(1);
+          console.log(`✂️  [AudioWorker] Silence trimming done in ${trimElapsed}s`);
+        }
+
+        // INSERT INTER-CHUNK GAPS: Add controlled silence between chunks for natural flow
+        const gapMs = AUDIO_CONFIG.INTER_CHUNK_GAP_MS;
+        if (gapMs > 0 && audioBuffers.length > 1) {
+          console.log(`🔇 [AudioWorker] Inserting ${gapMs}ms silence gaps between ${audioBuffers.length} chunks...`);
+          const gapWav = buildSilenceWav(gapMs);
+          const withGaps: Buffer[] = [];
+          for (let i = 0; i < audioBuffers.length; i++) {
+            withGaps.push(audioBuffers[i]!);
+            if (i < audioBuffers.length - 1) {
+              withGaps.push(gapWav);
+            }
+          }
+          audioBuffers = withGaps;
+        }
+
+        // Concatenate and convert: MP3 only (QuickTime-safe default).
+        const wavAudio = concatenateWavBuffers(audioBuffers);
+
+        // ⚠️ MEMORY: Release chunk buffers immediately after concat — they're
+        // no longer needed and can be 20-40MB for a long reading.
+        audioBuffers.length = 0;
+
+        mp3 = await convertWavToMp3(wavAudio);
+        // Calculate duration from WAV header (sample rate, channels, bits per sample)
+        const wavHeader = parseWavHeader(wavAudio);
+        const bytesPerSecond = wavHeader
+          ? wavHeader.sampleRate * wavHeader.numChannels * (wavHeader.bitsPerSample / 8)
+          : 48000; // fallback: 24kHz mono 16-bit
+        const dataSize = wavHeader ? wavHeader.dataSize : (wavAudio.length - 44);
+        duration = Math.ceil(dataSize / bytesPerSecond);
+
+        const memAfterStitch = process.memoryUsage();
+        console.log(`📊 [AudioWorker] Memory after stitch+encode: RSS=${Math.round(memAfterStitch.rss / 1024 / 1024)}MB, Heap=${Math.round(memAfterStitch.heapUsed / 1024 / 1024)}MB`);
+
+        console.log(
+          `🎵 [AudioWorker] Final: ${Math.round(mp3.length / 1024)}KB MP3, ~${duration}s from ${chunks.length} chunks (Replicate)`
         );
 
-        console.log(`📤 [AudioWorker] All ${chunks.length} chunks enqueued — waiting for rate-limiter-worker...`);
+      } // End Replicate block
 
-        // Wait for all chunks to be processed (up to 45 min for large readings on slow lane)
-        const queueTimeoutMs = parseInt(process.env.QUEUE_WAIT_TIMEOUT_MS || '2700000', 10);
-        audioBuffers = await waitForAllChunks(jobIds, replicateModel, queueTimeoutMs);
-
+      if (activeProvider === 'minimax') {
+        // Log Minimax Cost asynchronously based on text length
+        logMinimaxTtsCost(task.job_id, task.id, text.length, `AudioWorker: Minimax (${jobLang})`)
+          .catch(e => console.error("⚠️ Failed to log Minimax cost", e));
       } else {
-        // ═══════════════════════════════════════════════════════════════════
-        // LOCAL FALLBACK — direct Replicate calls (no Redis needed)
-        // ═══════════════════════════════════════════════════════════════════
-        console.log(`🚀 [AudioWorker] No REDIS_URL — using direct Replicate calls (local dev mode)`);
-        console.log(`   Generating ${chunks.length} chunks sequentially...`);
-
-        for (let i = 0; i < chunks.length; i++) {
-          const maxRetries = Math.max(1, parseInt(process.env.REPLICATE_CHUNK_MAX_RETRIES || '6', 10));
-          let buffer: Buffer | null = null;
-
-          for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-              console.log(`  [Replicate] Chunk ${i + 1}/${chunks.length} (${chunks[i]!.length} chars) attempt ${attempt}`);
-              const input = { ...baseInput, [textField]: chunks[i] };
-
-              const output = await runReplicateWithRateLimit(
-                `audioWorker:chunk:${i + 1}`,
-                () => withTimeout(
-                  replicate.run(replicateModel as `${string}/${string}`, { input }),
-                  chunkTimeoutMs,
-                  `Replicate chunk ${i + 1}`
-                )
-              );
-
-              // Convert output to Buffer
-              if (output instanceof ReadableStream || (output as any).getReader) {
-                const reader = (output as ReadableStream).getReader();
-                const parts: Uint8Array[] = [];
-                while (true) {
-                  const { done, value } = await reader.read();
-                  if (done) break;
-                  parts.push(value);
-                }
-                buffer = Buffer.concat(parts);
-              } else if (typeof output === 'string') {
-                const response = await axios.get(output, { responseType: 'arraybuffer' });
-                buffer = Buffer.from(response.data);
-              } else if (Buffer.isBuffer(output)) {
-                buffer = output;
-              } else {
-                const data = await (output as any).arrayBuffer?.() || output;
-                buffer = Buffer.from(data);
-              }
-
-              console.log(`  ✅ [Replicate] Chunk ${i + 1} completed: ${buffer.length} bytes`);
-              break; // Success — exit retry loop
-            } catch (error: any) {
-              const is429 = isReplicateRateLimitError(error);
-              console.error(`  ❌ [Replicate] Chunk ${i + 1} attempt ${attempt} failed: ${error.message}`);
-              if (attempt < maxRetries) {
-                const retryAfter = is429 ? 12 : attempt * 3;
-                console.log(`  ⏳ Retrying in ${retryAfter}s...`);
-                await this.sleep(retryAfter * 1000);
-              } else {
-                throw new Error(`REPLICATE ABORT: Chunk ${i + 1} failed after ${maxRetries} attempts: ${error.message}`);
-              }
-            }
-          }
-
-          audioBuffers.push(buffer!);
-        }
+        // Log Replicate Cost based on elapsed total time
+        logReplicateCost(task.job_id, task.id, elapsedMs, `AudioWorker: Replicate (${voiceId})`)
+          .catch(e => console.error("⚠️ Failed to log Replicate cost", e));
       }
-
-      const elapsedMs = Date.now() - startTime;
-      const elapsed = (elapsedMs / 1000).toFixed(1);
-
-      const memAfterChunks = process.memoryUsage();
-      console.log(`📊 [AudioWorker] Memory after chunks: RSS=${Math.round(memAfterChunks.rss / 1024 / 1024)}MB, Heap=${Math.round(memAfterChunks.heapUsed / 1024 / 1024)}MB`);
-
-      console.log('\n' + '═'.repeat(70));
-      console.log('✅ REPLICATE AUDIO GENERATION COMPLETE');
-      console.log('═'.repeat(70));
-      console.log(`  📊 Summary:`);
-      console.log(`     • Total chunks: ${chunks.length}`);
-      console.log(`     • Time elapsed: ${elapsed}s`);
-      console.log(`     • Voice: ${voice?.displayName || voiceId} (${isTurboPreset ? 'Turbo preset' : 'Custom clone'})`);
-      console.log(`     • Text length: ${text.length} chars`);
-      console.log(`     • Provider: Replicate Chatterbox Turbo`);
-      console.log('═'.repeat(70) + '\n');
-
-      // ─────────────────────────────────────────────────────────────────────
-      // SILENCE TRIMMING: Remove leading/trailing dead-air from each chunk
-      // Chatterbox Turbo generates variable silence at chunk boundaries.
-      // Without trimming, 10-20s gaps appear in the final audio.
-      // ─────────────────────────────────────────────────────────────────────
-      if (AUDIO_CONFIG.SILENCE_TRIM_ENABLED) {
-        console.log(`\n✂️  [AudioWorker] Trimming silence from ${audioBuffers.length} chunks...`);
-        const trimStart = Date.now();
-
-        // Parallelize FFmpeg trimming to speed up processing
-        // Limit to 3 concurrent trims so we don't blow memory (safe on 1GB VM) 
-        const trimLimit = pLimit(3);
-        const trimTasks = audioBuffers.map((buffer, i) => {
-          return trimLimit(async () => {
-            const before = buffer.length;
-            audioBuffers[i] = await trimSilenceFromWav(buffer);
-            const after = audioBuffers[i]!.length;
-            if (before !== after) {
-              console.log(`  ✂️  Chunk ${i + 1}: ${Math.round(before / 1024)}KB → ${Math.round(after / 1024)}KB`);
-            }
-          });
-        });
-
-        await Promise.all(trimTasks);
-
-        const trimElapsed = ((Date.now() - trimStart) / 1000).toFixed(1);
-        console.log(`✂️  [AudioWorker] Silence trimming done in ${trimElapsed}s`);
-      }
-
-      // INSERT INTER-CHUNK GAPS: Add controlled silence between chunks for natural flow
-      const gapMs = AUDIO_CONFIG.INTER_CHUNK_GAP_MS;
-      if (gapMs > 0 && audioBuffers.length > 1) {
-        console.log(`🔇 [AudioWorker] Inserting ${gapMs}ms silence gaps between ${audioBuffers.length} chunks...`);
-        const gapWav = buildSilenceWav(gapMs);
-        const withGaps: Buffer[] = [];
-        for (let i = 0; i < audioBuffers.length; i++) {
-          withGaps.push(audioBuffers[i]!);
-          if (i < audioBuffers.length - 1) {
-            withGaps.push(gapWav);
-          }
-        }
-        audioBuffers = withGaps;
-      }
-
-      // Concatenate and convert: MP3 only (QuickTime-safe default).
-      const wavAudio = concatenateWavBuffers(audioBuffers);
-
-      // ⚠️ MEMORY: Release chunk buffers immediately after concat — they're
-      // no longer needed and can be 20-40MB for a long reading.
-      audioBuffers.length = 0;
-
-      const mp3 = await convertWavToMp3(wavAudio);
-      // Calculate duration from WAV header (sample rate, channels, bits per sample)
-      const wavHeader = parseWavHeader(wavAudio);
-      const bytesPerSecond = wavHeader
-        ? wavHeader.sampleRate * wavHeader.numChannels * (wavHeader.bitsPerSample / 8)
-        : 48000; // fallback: 24kHz mono 16-bit
-      const dataSize = wavHeader ? wavHeader.dataSize : (wavAudio.length - 44);
-      const duration = Math.ceil(dataSize / bytesPerSecond);
-
-      const memAfterStitch = process.memoryUsage();
-      console.log(`📊 [AudioWorker] Memory after stitch+encode: RSS=${Math.round(memAfterStitch.rss / 1024 / 1024)}MB, Heap=${Math.round(memAfterStitch.heapUsed / 1024 / 1024)}MB`);
-
-      console.log(
-        `🎵 [AudioWorker] Final: ${Math.round(mp3.length / 1024)}KB MP3, ~${duration}s from ${chunks.length} chunks (Replicate)`
-      );
 
       return {
         success: true,
@@ -634,7 +688,7 @@ export class AudioWorker extends BaseWorker {
           size: mp3.length,
           chunks: chunks.length,
           duration,
-          provider: 'replicate',
+          provider: activeProvider,
           processingTime: elapsedMs,
           formats: ['mp3'],
         },
@@ -648,8 +702,8 @@ export class AudioWorker extends BaseWorker {
               chunks: chunks.length,
               duration,
               format: 'mp3',
-              provider: 'replicate',
-              voice: voiceId,
+              provider: activeProvider,
+              voice: task.input.voiceId || task.input.voice || 'david',
               voiceType: isTurboPreset ? 'turbo-preset' : 'custom-clone',
               docNum: task.input?.docNum,
               system: task.input?.system,

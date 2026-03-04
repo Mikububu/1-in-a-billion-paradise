@@ -25,12 +25,17 @@ import de from './de.json';
 import es from './es.json';
 import fr from './fr.json';
 import zh from './zh.json';
+import ja from './ja.json';
+import ko from './ko.json';
+import hi from './hi.json';
+import pt from './pt.json';
+import it from './it.json';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SUPPORTED LANGUAGES
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const SUPPORTED_LANGUAGES = ['en', 'de', 'es', 'fr', 'zh'] as const;
+export const SUPPORTED_LANGUAGES = ['en', 'de', 'es', 'fr', 'zh', 'ja', 'ko', 'hi', 'pt', 'it'] as const;
 export type LanguageCode = typeof SUPPORTED_LANGUAGES[number];
 
 export const LANGUAGE_META: Record<LanguageCode, {
@@ -38,11 +43,16 @@ export const LANGUAGE_META: Record<LanguageCode, {
   nativeName: string;
   locale: string;    // BCP-47 locale for Intl.DateTimeFormat etc.
 }> = {
-  en: { name: 'English',  nativeName: 'English',   locale: 'en-US' },
-  de: { name: 'German',   nativeName: 'Deutsch',   locale: 'de-DE' },
-  es: { name: 'Spanish',  nativeName: 'Español',   locale: 'es-ES' },
-  fr: { name: 'French',   nativeName: 'Français',  locale: 'fr-FR' },
-  zh: { name: 'Chinese',  nativeName: '中文',       locale: 'zh-CN' },
+  en: { name: 'English', nativeName: 'English', locale: 'en-US' },
+  de: { name: 'German', nativeName: 'Deutsch', locale: 'de-DE' },
+  es: { name: 'Spanish', nativeName: 'Español', locale: 'es-ES' },
+  fr: { name: 'French', nativeName: 'Français', locale: 'fr-FR' },
+  zh: { name: 'Chinese', nativeName: '中文', locale: 'zh-CN' },
+  ja: { name: 'Japanese', nativeName: '日本語', locale: 'ja-JP' },
+  ko: { name: 'Korean', nativeName: '한국어', locale: 'ko-KR' },
+  hi: { name: 'Hindi', nativeName: 'हिन्दी', locale: 'hi-IN' },
+  pt: { name: 'Portuguese', nativeName: 'Português', locale: 'pt-BR' },
+  it: { name: 'Italian', nativeName: 'Italiano', locale: 'it-IT' },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -58,6 +68,11 @@ const translations: Translations = {
   es: es as TranslationDict,
   fr: fr as TranslationDict,
   zh: zh as TranslationDict,
+  ja: ja as TranslationDict,
+  ko: ko as TranslationDict,
+  hi: hi as TranslationDict,
+  pt: pt as TranslationDict,
+  it: it as TranslationDict,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

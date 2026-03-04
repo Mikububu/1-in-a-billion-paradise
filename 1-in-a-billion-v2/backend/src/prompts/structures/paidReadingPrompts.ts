@@ -460,7 +460,8 @@ ${languageInstruction}
 Tell the story of what these charts reveal could unfold between these two souls.
 
 THEN, after the prose ends, append a MINI COMPATIBILITY SNAPSHOT for this system only.
-Format it EXACTLY like this — no markdown, no asterisks, clean plain text, each score with 2 sentences:
+Format it EXACTLY like this — no markdown, no asterisks, clean plain text, each score with 2 sentences.
+CRITICAL: The all-caps labels (e.g. "SEXUAL CHEMISTRY:") MUST remain in EXACT ENGLISH so our system can parse them. ONLY translate the description text beneath them into the target language.
 
 COMPATIBILITY SNAPSHOT: ${person1Name} & ${person2Name}
 
@@ -602,7 +603,8 @@ After the prose ends, output the following score block exactly as formatted belo
 These scores are derived from the five system readings. They are not opinions. They are mathematical conclusions.
 Each score is a number from 0 to 100. Each score has a 4-sentence verdict beneath it — specific, chart-anchored, and unflinching.
 
-Format the score block EXACTLY like this — no markdown, no asterisks, clean plain text:
+Format the score block EXACTLY like this — no markdown, no asterisks, clean plain text.
+CRITICAL: ALL all-caps labels ("OVERALL ALIGNMENT:", "WESTERN ASTROLOGY:", "FINAL VERDICT:", etc.) MUST remain EXACTLY as written in ENGLISH for our system parser. DO NOT translate these labels. Only translate the 4 sentences of your analysis/prose beneath each score into the target language.
 
 COMPATIBILITY SCORES: ${person1Name} & ${person2Name}
 

@@ -163,7 +163,7 @@ export class PdfWorker extends BaseWorker {
       if (!a || !b) return null;
       const [p1, p2] = a < b ? [a, b] : [b, a];
       try {
-        const { data, error} = await supabase
+        const { data, error } = await supabase
           .from('couple_portraits')
           .select('couple_image_url')
           .eq('user_id', userId)
@@ -197,7 +197,7 @@ export class PdfWorker extends BaseWorker {
       person1PortraitUrl = p1Result.url;
       person2PortraitUrl = p2Result.url;
       existingCoupleImageUrl = c;
-      
+
       // Update person IDs if we found them by name
       if (!person1Id && p1Result.id) person1Id = p1Result.id;
       if (!person2Id && p2Result.id) person2Id = p2Result.id;
@@ -216,7 +216,7 @@ export class PdfWorker extends BaseWorker {
       // getPortraitUrl() prefers portrait_url, but falls back to original_photo_url
       const isStyled1 = person1PortraitUrl.includes('/AI-generated-portrait.png');
       const isStyled2 = person2PortraitUrl.includes('/AI-generated-portrait.png');
-      
+
       if (!isStyled1 || !isStyled2) {
         console.warn('⚠️ [PDFWorker] WARNING: Portrait URLs appear to be original photos, not styled portraits!');
         console.warn(`   Person 1 styled: ${isStyled1} (${person1PortraitUrl})`);
@@ -224,7 +224,7 @@ export class PdfWorker extends BaseWorker {
         console.warn('   Couple portraits should use styled portraits for best results.');
         console.warn('   The system will proceed, but facial features may not be preserved correctly.');
       }
-      
+
       // Ensure couple image exists for synastry PDFs (generate if missing/outdated)
       const res = await getCoupleImage(userId, person1Id, person2Id, person1PortraitUrl, person2PortraitUrl, false);
       if (res.success && res.coupleImageUrl) {
@@ -239,39 +239,39 @@ export class PdfWorker extends BaseWorker {
       // person1 docs → ONLY person1 data
       // person2 docs → ONLY person2 data
       // overlay/verdict docs → BOTH people
-      
+
       const isPerson2Reading = docType === 'person2';
       const isOverlayReading = docType === 'overlay' || docType === 'verdict';
-      
+
       // Determine which person to show in the PDF
       const pdfPerson1 = isPerson2Reading && person2 ? person2 : person1;
       const pdfPerson1Portrait = isPerson2Reading ? person2PortraitUrl : person1PortraitUrl;
-      
+
       // Only include person2 for overlay readings (NOT for single person readings)
       const pdfPerson2 = isOverlayReading && person2 ? person2 : undefined;
       const pdfPerson2Portrait = isOverlayReading ? person2PortraitUrl : undefined;
-      
+
       // ⚠️ CRITICAL VALIDATION: Ensure correct content routing
       // This prevents the bug where same content is used for all PDFs
       console.log(`   👤 PDF will show:`);
       console.log(`      Person 1: ${pdfPerson1.name}`);
       if (pdfPerson2) console.log(`      Person 2: ${pdfPerson2.name}`);
       console.log(`   📝 Content type: ${docType}`);
-      
+
       // Validate: person2 readings must have person2 data
       if (docType === 'person2' && !person2) {
         return { success: false, error: 'CRITICAL: person2 reading requested but no person2 in job params' };
       }
-      
+
       // Validate: overlay readings must have both people
       if ((docType === 'overlay' || docType === 'verdict') && !person2) {
         return { success: false, error: 'CRITICAL: overlay/verdict reading requested but no person2 in job params' };
       }
-      
+
       // ⚠️ CRITICAL: Route text to correct field based on docType
       // For person2 docs, we treat person2 as "person1" in the PDF layout (single-person PDF)
       // So the content should go in person1Reading, not person2Reading
-      
+
       // Generate proper PDF title: "System Display Name - Person Name"
       // See docs/PDF_STYLE_GUIDE.md: Format: "System Name - Person Name"
       const systemDisplayName = getSystemDisplayName(system);
@@ -284,7 +284,7 @@ export class PdfWorker extends BaseWorker {
         pdfTitle = `${systemDisplayName} - ${person1.name}`;
       }
       console.log(`   📝 PDF Title: ${pdfTitle}`);
-      
+
       const chapterContent = {
         title: pdfTitle,
         system: system,
@@ -293,7 +293,7 @@ export class PdfWorker extends BaseWorker {
         overlayReading: docType === 'overlay' ? text : undefined,
         verdict: docType === 'verdict' ? text : undefined,
       };
-      
+
       // Validate: exactly ONE reading field should have content
       const contentFields = [
         chapterContent.person1Reading,
@@ -301,16 +301,16 @@ export class PdfWorker extends BaseWorker {
         chapterContent.overlayReading,
         chapterContent.verdict,
       ].filter(Boolean);
-      
+
       if (contentFields.length === 0) {
         return { success: false, error: `CRITICAL: No reading content assigned for docType=${docType}` };
       }
       if (contentFields.length > 1) {
         return { success: false, error: `CRITICAL: Multiple reading fields assigned for docType=${docType}. Only one should have content.` };
       }
-      
+
       console.log(`   ✅ Content validation passed: 1 field assigned (${text.length} chars)`);
-      
+
       const { filePath, pageCount } = await generateChapterPDF(
         docNum,
         chapterContent,
@@ -327,16 +327,16 @@ export class PdfWorker extends BaseWorker {
         },
         pdfPerson2
           ? {
-              name: pdfPerson2.name,
-              birthDate: pdfPerson2.birthDate || '',
-              birthTime: pdfPerson2.birthTime,
-              birthPlace: pdfPerson2.birthPlace,
-              timezone: pdfPerson2.timezone,
-              sunSign: pdfPerson2.sunSign,
-              moonSign: pdfPerson2.moonSign,
-              risingSign: pdfPerson2.risingSign,
-              portraitUrl: pdfPerson2Portrait || undefined,
-            }
+            name: pdfPerson2.name,
+            birthDate: pdfPerson2.birthDate || '',
+            birthTime: pdfPerson2.birthTime,
+            birthPlace: pdfPerson2.birthPlace,
+            timezone: pdfPerson2.timezone,
+            sunSign: pdfPerson2.sunSign,
+            moonSign: pdfPerson2.moonSign,
+            risingSign: pdfPerson2.risingSign,
+            portraitUrl: pdfPerson2Portrait || undefined,
+          }
           : undefined
         ,
         // CRITICAL: Only pass couple image for overlay/verdict readings
@@ -346,6 +346,7 @@ export class PdfWorker extends BaseWorker {
         {
           chartReferencePage,
           chartReferencePageRight,
+          outputLanguage: params?.outputLanguage,
         }
       );
 
