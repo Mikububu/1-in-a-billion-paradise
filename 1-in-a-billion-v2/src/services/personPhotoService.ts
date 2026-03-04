@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { env } from '@/config/env';
 import { useAuthStore } from '@/store/authStore';
 import { getAuthHeaders } from '@/services/api';
@@ -15,24 +16,17 @@ export async function uploadPersonPhoto(personId: string, photoBase64: string): 
         if (!userId) return { success: false, error: 'User not authenticated' };
         if (!env.CORE_API_URL) return { success: false, error: 'CORE_API_URL is not configured' };
 
-        const response = await fetch(`${env.CORE_API_URL}/api/profile/portrait`, {
-            method: 'POST',
+        const response = await axios.post(`${env.CORE_API_URL}/api/profile/portrait`, {
+            personId,
+            photoBase64,
+        }, {
             headers: {
-                'Content-Type': 'application/json',
                 ...getAuthHeaders(),
             },
-            body: JSON.stringify({
-                personId,
-                photoBase64,
-            }),
+            timeout: 60000, // 60 seconds timeout since AI generation takes ~20s
         });
 
-        if (!response.ok) {
-            const text = await response.text().catch(() => '');
-            return { success: false, error: text || `Upload failed (${response.status})` };
-        }
-
-        const data = await response.json();
+        const data = response.data;
         if (!data?.success || !data?.imageUrl) {
             return { success: false, error: data?.error || 'Portrait generation failed' };
         }
@@ -43,6 +37,13 @@ export async function uploadPersonPhoto(personId: string, photoBase64: string): 
             originalUrl: typeof data.originalUrl === 'string' ? data.originalUrl : undefined,
         };
     } catch (error: any) {
+        // Axios wraps the response in error.response
+        if (error.response) {
+            return {
+                success: false,
+                error: error.response.data?.error || `Upload failed (${error.response.status})`
+            };
+        }
         return { success: false, error: error?.message || 'Unknown error' };
     }
 }
