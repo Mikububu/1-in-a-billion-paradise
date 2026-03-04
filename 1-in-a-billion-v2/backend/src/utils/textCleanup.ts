@@ -24,8 +24,27 @@
  * - All text is readable and pronounceable
  * - No symbols that would confuse TTS
  */
-export function cleanupTextForTTS(text: string): string {
+export function cleanupTextForTTS(text: string, language: string = 'en'): string {
   let cleaned = text;
+
+  // Pronunciation phonetic respellings for English terms read in foreign languages
+  if (language === 'de') {
+    cleaned = cleaned.replace(/Gene Keys/ig, 'Dschien Kies');
+    cleaned = cleaned.replace(/Human Design/ig, 'Hiumän Disein');
+  } else if (language === 'es') {
+    cleaned = cleaned.replace(/Gene Keys/ig, 'Yinquis');
+    cleaned = cleaned.replace(/Human Design/ig, 'Yuman Disain');
+  } else if (language === 'fr') {
+    cleaned = cleaned.replace(/Gene Keys/ig, 'Djin Kise');
+    cleaned = cleaned.replace(/Human Design/ig, 'Youmenn Dizaïn');
+  } else if (language === 'pt') {
+    cleaned = cleaned.replace(/Gene Keys/ig, 'Djin Quis');
+    cleaned = cleaned.replace(/Human Design/ig, 'Hiuman Dizaing');
+  } else if (language === 'it') {
+    cleaned = cleaned.replace(/Gene Keys/ig, 'Gin Chis');
+    cleaned = cleaned.replace(/Human Design/ig, 'Iuman Disain');
+  }
+
 
   // Remove HTML tags and entities
   cleaned = cleaned.replace(/<[^>]*>/g, '');

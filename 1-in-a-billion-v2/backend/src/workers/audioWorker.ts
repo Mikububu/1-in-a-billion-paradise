@@ -295,7 +295,8 @@ export class AudioWorker extends BaseWorker {
 
       // Clean and de-duplicate text BEFORE chunking.
       const originalText = String(text);
-      let cleanedText = cleanupTextForTTS(originalText);
+      const jobLangStr = (this as any)._jobOutputLanguage || 'en';
+      let cleanedText = cleanupTextForTTS(originalText, jobLangStr);
       const dedupResult = dedupeAdjacentSentences(cleanedText);
       cleanedText = dedupResult.text;
       if (dedupResult.removed > 0) {

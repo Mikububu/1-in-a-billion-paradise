@@ -681,10 +681,11 @@ router.post('/hook-audio/generate', async (c) => {
     const replicate = new Replicate({ auth: replicateToken });
 
     // Generate hook audio using the same Chatterbox model as long-form audio.
-    const textLength = parsed.text.length;
+    const cleanedText = cleanupTextForTTS(parsed.text, parsed.language);
+    const textLength = cleanedText.length;
     const configuredChunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || String(AUDIO_CONFIG.CHUNK_MAX_LENGTH), 10);
     const chunkSize = Math.max(120, Math.min(300, Number.isFinite(configuredChunkSize) ? configuredChunkSize : AUDIO_CONFIG.CHUNK_MAX_LENGTH));
-    let chunks = splitIntoChunks(parsed.text, chunkSize);
+    let chunks = splitIntoChunks(cleanedText, chunkSize);
     const boundaryDedup = dedupeChunkBoundaryOverlap(chunks);
     chunks = boundaryDedup.chunks;
     console.log(`📦 Chunking ${textLength} chars into ${chunks.length} pieces`);
