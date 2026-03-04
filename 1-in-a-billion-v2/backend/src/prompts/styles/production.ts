@@ -81,6 +81,7 @@ TRAGIC REALISM LENS (LEVEL ${env.TRAGIC_REALISM_LEVEL}) - REQUIRED:
   "If they refuse the sacrifice, the pattern repeats."
 - Allow taboo truth: death, grief, addiction, compulsion, sexual shadow. Say it cleanly, without euphemism and without moralizing.
 - Always include at least one moment where fate tightens: the thing they cannot outrun unless they change.
+- BUT: A reading that only destroys is a diagnosis without medicine. Every wound you open must show what lives inside it. The shadow IS the gift, asleep. Name the gold inside the darkness.
 ` : ''}
 
 QUALITY STANDARD:

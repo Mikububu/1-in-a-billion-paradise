@@ -28,14 +28,14 @@ export const INDIVIDUAL_STRUCTURE = {
     },
     {
       name: 'Shadow - Wounds, Patterns, Self-Sabotage, Sexual Shadow',
-      words: 2000,
+      words: 1600,
       description: 'Unconscious patterns, repeating loops, what they avoid, sexual psychology, the abyss, addiction potential',
       isShadow: true,
     },
     {
       name: 'Gifts When Conscious',
-      words: 1200,
-      description: 'Natural talents, how they shine when awake, their superpower, what they become when evolved',
+      words: 1600,
+      description: 'Natural talents, how they shine when awake, their superpower, what they become when evolved, the gold inside the shadow',
     },
     {
       name: 'How to Love Them - and What Destroys Them',
@@ -60,8 +60,8 @@ OUTPUT REQUIREMENTS
 STRUCTURE (for your guidance only - do NOT include headers in output):
 1. Who ${personName} fundamentally IS - the soul beneath the surface (1400 words)
 2. How ${personName} loves, attaches, and relates - intimacy patterns (1400 words)
-3. ${personName}'s shadow - wounds, patterns, self-sabotage, sexual shadow, the abyss (2000 words)
-4. ${personName}'s gifts when conscious - what they become when evolved (1200 words)
+3. ${personName}'s shadow - wounds, patterns, self-sabotage, sexual shadow, the abyss (1600 words)
+4. ${personName}'s gifts when conscious - the gold inside the shadow, what they become when evolved (1600 words)
 5. How to love ${personName} - and what destroys them (1000 words)
 
 FORMAT RULES (THIS IS SPOKEN AUDIO):
