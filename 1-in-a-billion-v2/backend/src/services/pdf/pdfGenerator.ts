@@ -129,10 +129,12 @@ async function fetchImageBuffer(url: string): Promise<Buffer | null> {
   try {
     // Local file support for dev/test runs (absolute paths or file:// URLs)
     if (url.startsWith('file://')) {
-      const localPath = new URL(url).pathname;
+      // decodeURIComponent handles spaces encoded as %20 in directory names
+      const localPath = decodeURIComponent(new URL(url).pathname);
       if (fs.existsSync(localPath)) {
         return await fs.promises.readFile(localPath);
       }
+      console.warn(`⚠️ [fetchImageBuffer] Local file not found: ${localPath}`);
       return null;
     }
 
