@@ -1,16 +1,12 @@
 /**
- * VOICE REGISTRY - Language Boundary #2
+ * VOICE REGISTRY - Replicate/Chatterbox Fallback Configuration
  *
- * Maps language -> TTS provider + voice configuration.
+ * ⚠️  DORMANT: Only used when active_tts_provider = 'replicate' in api_keys table.
+ *     MiniMax is the default/active TTS provider (see apiKeysHelper.ts).
  *
- * All 5 launch languages use Chatterbox on Replicate:
- *   - English → chatterbox-turbo (existing pipeline, zero change)
- *   - DE/ES/FR/ZH → chatterbox-multilingual (language_id param)
- *
- * OVERLAY PRINCIPLE:
- *   The audio worker calls getVoiceConfig(language) instead of
- *   hardcoding a single model. For English, nothing changes.
- *   Adding a new language = adding a new registry entry.
+ * Maps language -> Replicate Chatterbox model + voice configuration:
+ *   - English → chatterbox-turbo (fastest)
+ *   - All others → chatterbox-multilingual (language_id param)
  */
 
 import { OutputLanguage } from '../config/languages';
@@ -30,15 +26,8 @@ export interface VoiceConfig {
 }
 
 /**
- * Voice registry.
- *
- * English keeps chatterbox-turbo (battle-tested, fastest).
- * All other languages use chatterbox-multilingual with language_id.
- *
- * To add a new language:
- *   1. Check it's in Chatterbox Multilingual's 23-language list
- *   2. Add the entry here with the correct languageId
- *   3. Done - the audio worker routes automatically
+ * Replicate voice registry (dormant fallback).
+ * Only active when provider is switched to 'replicate'.
  */
 const VOICE_REGISTRY: Record<OutputLanguage, VoiceConfig> = {
   en: {

@@ -1,16 +1,14 @@
 /**
- * AUDIO WORKER - TTS Generation with Text Chunking
+ * AUDIO WORKER - TTS Generation
  *
  * Processes audio_generation tasks:
  * - Reads text from Storage artifact (full reading ~8000 chars)
- * - Chunks text into 450-char segments (Chatterbox has input limits)
- * - Processes chunks SEQUENTIALLY via Replicate (respects rate limits)
- * - Concatenates WAV chunks into single audio
- * - Converts to MP3 (Mac-safe default)
+ * - Routes to active TTS provider (MiniMax by default, Replicate as fallback)
+ * - MiniMax: Sends full text in one call, outputs single MP3
+ *   - Supports cross-lingual voice cloning via language_boost + native base voices
+ * - Replicate/Chatterbox: Chunks text, processes sequentially, concatenates WAV→MP3
+ *   - Dormant fallback (activate via active_tts_provider='replicate' in api_keys)
  * - Uploads artifact to Supabase Storage
- * 
- * IMPORTANT: Chunks are processed sequentially, not in parallel, to avoid
- * overwhelming Replicate API rate limits.
  */
 
 import axios from 'axios';
@@ -40,9 +38,9 @@ import {
   trimSilenceFromWav,
   buildSilenceWav,
 } from '../services/audioProcessing';
-import { getVoiceConfig, hasVoiceSupport } from '../i18n/voiceRegistry';
+import { getVoiceConfig } from '../i18n/voiceRegistry';
 import { getChunkConfig } from '../i18n/chunkRules';
-import { parseLanguage, type OutputLanguage } from '../config/languages';
+import { parseLanguage, isValidLanguage, type OutputLanguage } from '../config/languages';
 import {
   isReplicateRateLimitError,
   runReplicateWithRateLimit,
@@ -353,17 +351,12 @@ export class AudioWorker extends BaseWorker {
 
       // ─────────────────────────────────────────────────────────────────────
       // VOICE PROVIDER ROUTING
-      // English -> Chatterbox Turbo (existing pipeline, fastest)
-      // DE/ES/FR/ZH -> Chatterbox Multilingual (language_id param)
+      // MiniMax (default) handles ALL languages with cross-lingual cloning.
+      // Replicate/Chatterbox is dormant fallback (activate via api_keys table).
       // ─────────────────────────────────────────────────────────────────────
-      const voiceConfig = getVoiceConfig(jobLang);
-      if (!hasVoiceSupport(jobLang)) {
-        console.warn(`⚠️ [AudioWorker] No TTS voice configured for ${jobLang} - skipping audio generation.`);
+      if (!isValidLanguage(jobLang)) {
+        console.warn(`⚠️ [AudioWorker] Language ${jobLang} not in supported list - skipping audio generation.`);
         return { success: true, output: { skippedAudio: true, reason: `no_voice_for_${jobLang}` } };
-      }
-      const useMultilingual = voiceConfig.provider === 'chatterbox-multilingual';
-      if (useMultilingual) {
-        console.log(`🌍 [AudioWorker] Using Chatterbox Multilingual for ${jobLang} (language_id: ${voiceConfig.languageId})`);
       }
 
       // ─────────────────────────────────────────────────────────────────────
@@ -453,12 +446,16 @@ export class AudioWorker extends BaseWorker {
         console.log(`🎵 [AudioWorker] Final: ${Math.round(mp3.length / 1024)}KB MP3, ~${duration}s (MiniMax)`);
       } else {
         // ─────────────────────────────────────────────────────────────────────
-        // CHATTERBOX TTS GENERATION
+        // REPLICATE/CHATTERBOX TTS (dormant fallback — only runs when
+        // active_tts_provider is set to 'replicate' in api_keys table)
         // - Turbo (English): `voice` param or `reference_audio` for cloning
         // - Multilingual (DE/ES/FR/ZH): `language_id` + `reference_audio`
         // ─────────────────────────────────────────────────────────────────────
+        const voiceConfig = getVoiceConfig(jobLang);
+        const useMultilingual = voiceConfig.provider === 'chatterbox-multilingual';
+
         console.log('\n' + '═'.repeat(70));
-        console.log('🎵 REPLICATE AUDIO GENERATION STARTING');
+        console.log(`🎵 REPLICATE AUDIO GENERATION STARTING${useMultilingual ? ` (Multilingual: ${voiceConfig.languageId})` : ''}`);
         console.log('═'.repeat(70));
 
         console.log(`🚀 [AudioWorker] Using REPLICATE for ${isTurboPreset ? 'Turbo preset' : 'custom voice'}: ${voice?.displayName || voiceId}`);

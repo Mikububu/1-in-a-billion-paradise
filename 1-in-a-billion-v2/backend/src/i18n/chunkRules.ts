@@ -1,14 +1,13 @@
 /**
- * CHUNK RULES - Language Boundary #3
+ * CHUNK RULES - Language-specific text chunking for TTS.
  *
- * Language-specific text chunking rules for TTS.
  * Different languages have different optimal chunk sizes
  * and sentence boundary patterns.
  *
- * OVERLAY PRINCIPLE:
- *   Changing the English chunk size only affects the 'en' entry.
- *   Each language has its own config. The audio pipeline calls
- *   getChunkConfig(language) instead of using hardcoded values.
+ * NOTE: MiniMax handles full text natively (no chunking needed).
+ * These rules are used by the Replicate/Chatterbox fallback path
+ * which requires text to be split into smaller chunks.
+ * maxChars is still used by audioWorker to set chunk size.
  */
 
 import { OutputLanguage } from '../config/languages';

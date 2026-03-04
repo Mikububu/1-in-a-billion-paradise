@@ -1,15 +1,15 @@
 /**
  * BACKEND i18n - Central export for all language boundary modules.
  *
- * The multilingual system has 3 boundaries (plus frontend i18n):
- *   1. promptWrapper  - wraps English prompts with language output directive
- *   2. voiceRegistry  - maps language -> TTS provider + voice config
+ * Language boundaries:
+ *   1. languages.ts   - prompt instructions + language config (source of truth)
+ *   2. voiceRegistry  - Replicate/Chatterbox fallback voice config (dormant when MiniMax active)
  *   3. chunkRules     - language-specific text chunking for TTS
+ *   4. spokenIntro    - localized spoken introductions
  *
- * All boundaries are NO-OPs for English. The core app behaves
- * identically when language === 'en'.
+ * Active TTS provider is MiniMax (see apiKeysHelper.activeTtsProvider()).
+ * voiceRegistry is only used when provider is switched to 'replicate'.
  */
 
-export { wrapForLanguage, getLanguageLabel } from './promptWrapper';
 export { getVoiceConfig, hasVoiceSupport, type VoiceConfig, type TTSProvider } from './voiceRegistry';
 export { getChunkConfig, type ChunkConfig } from './chunkRules';
