@@ -20,6 +20,7 @@ backend/runtime/
 
 # Local environment
 .env
+.env.*
 .env.local
 
 # Claude / AI tooling
@@ -27,4 +28,5 @@ backend/runtime/
 
 # Temp files
 *.bak
+*.bak*
 tsc_errors.log

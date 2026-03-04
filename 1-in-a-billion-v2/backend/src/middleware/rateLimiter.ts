@@ -147,3 +147,10 @@ export const webhookLimiter = createRateLimiter('webhook', {
   windowMs: 60_000,
   maxRequests: 30,
 });
+
+/** Admin endpoints: 30 requests per minute per IP */
+export const adminLimiter = createRateLimiter('admin', {
+  windowMs: 60_000,
+  maxRequests: 30,
+  message: 'Too many admin requests. Please try again later.',
+});

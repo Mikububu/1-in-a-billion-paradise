@@ -16,7 +16,6 @@ import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { readingsApi } from '@/services/api';
 import { SIGN_LABELS } from '@/config/readingConfig';
-import { AntChase } from '@/components/AntChase';
 import { AntChaseV2 } from '@/components/AntChaseV2';
 import { useAudio } from '@/contexts/AudioContext';
 import { CHAT_RENEW_WARNING_TEXT } from '@/utils/chatAccess';

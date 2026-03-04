@@ -262,6 +262,11 @@ const dedupePeopleState = (state: any) => {
     groups.set('user', people.filter(p => p.isUser));
     for (const p of people.filter(p => !p.isUser)) {
         const key = norm(p.name);
+        if (!key) {
+            // Skip merging people with empty names — treat each as unique
+            survivors.push(p);
+            continue;
+        }
         const arr = groups.get(key) || [];
         arr.push(p);
         groups.set(key, arr);

@@ -39,10 +39,10 @@ router.post('/signup', async (c) => {
             }, 400);
         }
 
-        if (!password || typeof password !== 'string' || password.length === 0) {
+        if (!password || typeof password !== 'string' || password.length < 6) {
             return c.json({
                 success: false,
-                error: 'Password is required'
+                error: 'Password must be at least 6 characters'
             }, 400);
         }
 
@@ -140,10 +140,10 @@ router.post('/signin', async (c) => {
             }, 400);
         }
 
-        if (!password || typeof password !== 'string') {
+        if (!password || typeof password !== 'string' || password.length < 6) {
             return c.json({
                 success: false,
-                error: 'Password is required'
+                error: 'Password must be at least 6 characters'
             }, 400);
         }
 
@@ -385,10 +385,10 @@ router.post('/reset-password', async (c) => {
         const body = await c.req.json();
         const { password, token_hash } = body;
 
-        if (!password || typeof password !== 'string' || password.length === 0) {
+        if (!password || typeof password !== 'string' || password.length < 6) {
             return c.json({
                 success: false,
-                error: 'Password is required'
+                error: 'Password must be at least 6 characters'
             }, 400);
         }
 

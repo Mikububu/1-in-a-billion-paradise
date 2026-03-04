@@ -42,8 +42,8 @@ export default function App() {
     logger.info('APP RENDER CYCLE START');
 
     // Get auth state to key NavigationContainer
-    const user = useAuthStore((state: any) => state.user);
-    const isAuthReady = useAuthStore((state: any) => state.isAuthReady);
+    const user = useAuthStore((state) => state.user);
+    const isAuthReady = useAuthStore((state) => state.isAuthReady);
     const hasSession = !!user;
 
     const [fontsLoaded] = useFonts({
@@ -79,7 +79,7 @@ export default function App() {
     }
 
     return (
-        <ErrorBoundary onReset={() => navigationRef.current?.reset({ index: 0, routes: [{ name: 'Root' as any }] })}>
+        <ErrorBoundary onReset={() => navigationRef.current?.reset({ index: 0, routes: [{ name: 'Root' }] })}>
             <GestureHandlerRootView style={{ flex: 1 }}>
                 <SafeAreaProvider>
                     <QueryClientProvider client={queryClient}>

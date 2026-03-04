@@ -14,10 +14,17 @@ export const isSupabaseConfigured = Boolean(
     env.SUPABASE_URL && env.SUPABASE_ANON_KEY
 )
 
+// Fail fast if Supabase is not configured
+if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
+    throw new Error(
+        'Missing Supabase configuration. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY environment variables.'
+    );
+}
+
 // Create Supabase client
 export const supabase = createClient(
-    env.SUPABASE_URL || 'https://placeholder.supabase.co',
-    env.SUPABASE_ANON_KEY || 'placeholder',
+    env.SUPABASE_URL,
+    env.SUPABASE_ANON_KEY,
     {
         auth: {
             storage: AsyncStorage,

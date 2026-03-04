@@ -681,8 +681,8 @@ function extractFinalIronyVerdict(reading: string): FinalIronyVerdict | null {
   const match = verdictRe.exec(text);
   if (!match) return null;
 
-  const score = Number(match[1]);
-  const verdictText = (match[2] || '').trim();
+  const score = Number(match[2]);
+  const verdictText = (match[3] || '').trim();
 
   if (!Number.isFinite(score) || !verdictText) return null;
   return {
@@ -717,8 +717,10 @@ function extractCompatibilityRows(reading: string, _appendix?: string): Compatib
     const rawLabel = (m[1] || '').trim();
     const score100 = Number(m[2]);
     if (!rawLabel || !Number.isFinite(score100)) continue;
-    // Skip header lines like "COMPATIBILITY SNAPSHOT:" or "SCORING RULES:"
-    if (/^(COMPATIBILITY|SCORING|FORMAT|OUTPUT|STRUCTURE|STYLE)/i.test(rawLabel)) continue;
+    // Skip header/meta lines and common false positives from reading prose
+    if (/^(COMPATIBILITY|SCORING|FORMAT|OUTPUT|STRUCTURE|STYLE|CHAPTER|SECTION|PART|BORN|AGE|HOUSE|PAGE|VERSE|LINE|STEP|YEAR|DAY|MONTH)/i.test(rawLabel)) continue;
+    // Labels should be at least 3 chars and no more than 60 (avoids matching random prose lines)
+    if (rawLabel.length < 3 || rawLabel.length > 60) continue;
     if (score100 < 0 || score100 > 100) continue;
     matches.push({ label: toTitleCase(rawLabel), score100, index: m.index + m[0].length });
   }

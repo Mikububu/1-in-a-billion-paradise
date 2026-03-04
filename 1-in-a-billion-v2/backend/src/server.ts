@@ -25,7 +25,7 @@ import couplesRouter from './routes/couples';
 import chatRouter from './routes/chat';
 import couponsRouter from './routes/coupons';
 import { preloadApiKeys } from './services/apiKeys';
-import { globalLimiter, authLimiter, llmLimiter, jobPollingLimiter, webhookLimiter } from './middleware/rateLimiter';
+import { globalLimiter, authLimiter, llmLimiter, jobPollingLimiter, webhookLimiter, adminLimiter } from './middleware/rateLimiter';
 import { errorHandler } from './middleware/errorHandler';
 import './services/jobHealthCheck'; // Auto-starts job health check service
 
@@ -65,6 +65,7 @@ app.use('/api/jobs/v2/start', llmLimiter);
 app.use('/api/jobs/v2/:jobId', jobPollingLimiter);
 app.use('/api/jobs/v2/user/:userId/jobs', jobPollingLimiter);
 app.use('/api/payments/webhook', webhookLimiter);
+app.use('/api/admin/*', adminLimiter);
 
 app.get('/health', (c) => c.json({ status: 'ok', time: new Date().toISOString() }));
 

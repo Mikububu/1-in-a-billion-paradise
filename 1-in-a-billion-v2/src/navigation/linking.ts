@@ -22,8 +22,6 @@ export const linking: LinkingOptions<any> = {
           Home: 'home',
           Gallery: 'gallery',
           MyLibrary: 'library',
-          ReadingDetail: 'reading/:readingId',
-          PersonDetail: 'person/:personId',
           Settings: 'settings',
         },
       },

@@ -217,7 +217,9 @@ export const useOnboardingStore = create<OnboardingState>()(
             setVoiceId: (voiceId) => set({ voiceId }),
             setRedirectAfterOnboarding: (redirectAfterOnboarding) => set({ redirectAfterOnboarding }),
             setShowDashboard: (showDashboard) => {
-                console.log('🎯 setShowDashboard called with:', showDashboard, new Error().stack?.split('\n').slice(1, 4).join(' <- '));
+                if (__DEV__) {
+                    console.log('setShowDashboard:', showDashboard);
+                }
                 set({ showDashboard });
             },
             setLastActiveTimestamp: (lastActiveTimestamp) => set({ lastActiveTimestamp }),
@@ -245,8 +247,8 @@ export const useOnboardingStore = create<OnboardingState>()(
             deletePerson: (id) =>
                 set((state) => ({
                     people: state.people.filter((p) => p.id !== id),
-                    // Also remove readings that only involve this person
-                    readings: state.readings.filter((r) => !r.personIds.every((pid) => pid === id)),
+                    // Remove all readings that reference this person
+                    readings: state.readings.filter((r) => !r.personIds.includes(id)),
                 })),
 
             getPersonById: (id) => {

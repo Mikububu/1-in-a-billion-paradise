@@ -15,8 +15,8 @@ export const SimpleSlider = ({
     minimumValue = 0,
     maximumValue = 10
 }: SimpleSliderProps) => {
-    const range = maximumValue - minimumValue;
-    const percentage = ((value - minimumValue) / range) * 100;
+    const range = maximumValue - minimumValue || 1;
+    const percentage = Math.min(100, Math.max(0, ((value - minimumValue) / range) * 100));
 
     const [width, setWidth] = React.useState(0);
 

@@ -78,8 +78,10 @@ export const useAuthStore = create<AuthState>()(
                     const keys = await AsyncStorage.getAllKeys();
                     const supabaseKeys = keys.filter(key =>
                         key.startsWith('sb-') ||
+                        key.startsWith('supabase') ||
                         key.includes('supabase') ||
-                        key.includes('auth-token')
+                        key.includes('auth-token') ||
+                        key.includes('gotrue')
                     );
 
                     if (supabaseKeys.length > 0) {
@@ -112,12 +114,17 @@ export const useAuthStore = create<AuthState>()(
 
             markFreeOverlayUsed: (userId) => {
                 const key = userId || 'anonymous';
-                set((state) => ({
-                    freeOverlayUsedByUserId: {
-                        ...(state.freeOverlayUsedByUserId || {}),
-                        [key]: true,
-                    },
-                }));
+                set((state) => {
+                    const current = state.freeOverlayUsedByUserId || {};
+                    // Cap at 1000 entries to prevent unbounded growth
+                    const keys = Object.keys(current);
+                    const pruned = keys.length >= 1000
+                        ? Object.fromEntries(keys.slice(-500).map(k => [k, current[k]]))
+                        : current;
+                    return {
+                        freeOverlayUsedByUserId: { ...pruned, [key]: true },
+                    };
+                });
             },
         }),
         {

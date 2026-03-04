@@ -73,6 +73,7 @@ function buildScoringPrompt(params: {
     categoryBlock,
     '',
     'SCORING RULES:',
+    '- CRITICAL: Output ALL category labels in EXACT ENGLISH as shown above, regardless of the language of the reading text. Never translate the labels.',
     '- Use the FULL 0-100 range. Do not cluster around 70-80.',
     '- A score of 90+ means genuinely rare alignment. Below 30 means structural incompatibility.',
     '- Each score MUST have 2-3 sentences of specific reasoning anchored to chart data or the reading.',
