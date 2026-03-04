@@ -1,7 +1,9 @@
 import path from 'path';
 
 export const getFallbackAvatarPath = (id: string | null | undefined): string => {
-    const assetsDir = path.resolve(process.cwd(), '../assets/images/faceless avatar');
+    // Assets are inside backend/assets/ (copied into Docker at /app/assets/).
+    // Do NOT use '../assets' — that resolves outside the container.
+    const assetsDir = path.resolve(process.cwd(), 'assets/images/faceless avatar');
 
     if (!id) {
         return path.join(assetsDir, 'anonym.avatar.001.jpg');
