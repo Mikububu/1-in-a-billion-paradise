@@ -9,6 +9,7 @@ import { audioService } from '../services/audioService';
 import { clearApiKeyCache } from '../services/apiKeys';
 import { apiKeys } from '../services/apiKeysHelper';
 import { cleanupTextForTTS } from '../utils/textCleanup';
+import { phoneticizeTextForTTS } from '../services/text/phoneticizer';
 import {
   splitIntoChunks,
   concatenateWavBuffers,
@@ -193,7 +194,8 @@ router.post('/generate-tts', async (c) => {
         ? `This is an audio reading titled ${parsed.title}. Generated on ${generatedOn} by 1 in a billion app, powered by forbidden-yoga dot com.`
         : `This is an audio reading generated on ${generatedOn} by 1 in a billion app, powered by forbidden-yoga dot com.`;
 
-      const cleaned = cleanupTextForTTS(parsed.text);
+      let cleaned = cleanupTextForTTS(parsed.text);
+      cleaned = await phoneticizeTextForTTS(cleaned, 'en');
       const dedup = dedupeAdjacentSentences(cleaned);
       let narrationText = dedup.text;
       if (dedup.removed > 0) {
@@ -681,7 +683,8 @@ router.post('/hook-audio/generate', async (c) => {
     const replicate = new Replicate({ auth: replicateToken });
 
     // Generate hook audio using the same Chatterbox model as long-form audio.
-    const cleanedText = cleanupTextForTTS(parsed.text, parsed.language);
+    let cleanedText = cleanupTextForTTS(parsed.text, parsed.language);
+    cleanedText = await phoneticizeTextForTTS(cleanedText, parsed.language || 'en');
     const textLength = cleanedText.length;
     const configuredChunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || String(AUDIO_CONFIG.CHUNK_MAX_LENGTH), 10);
     const chunkSize = Math.max(120, Math.min(300, Number.isFinite(configuredChunkSize) ? configuredChunkSize : AUDIO_CONFIG.CHUNK_MAX_LENGTH));

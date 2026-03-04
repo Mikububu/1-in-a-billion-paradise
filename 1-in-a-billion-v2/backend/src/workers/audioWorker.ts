@@ -30,6 +30,7 @@ import { logMinimaxTtsCost, logReplicateCost } from '../services/costTracking';
 import { getVoiceById, isTurboPresetVoice } from '../config/voices';
 import { getSystemDisplayName } from '../config/systemConfig';
 import { cleanupTextForTTS } from '../utils/textCleanup';
+import { phoneticizeTextForTTS } from '../services/text/phoneticizer';
 import {
   splitIntoChunks,
   concatenateWavBuffers,
@@ -292,11 +293,11 @@ export class AudioWorker extends BaseWorker {
           console.warn(`⚠️ [AudioWorker] Could not load job metadata for spoken intro: ${metaErr?.message || String(metaErr)}`);
         }
       }
-
       // Clean and de-duplicate text BEFORE chunking.
       const originalText = String(text);
       const jobLangStr = (this as any)._jobOutputLanguage || 'en';
       let cleanedText = cleanupTextForTTS(originalText, jobLangStr);
+      cleanedText = await phoneticizeTextForTTS(cleanedText, jobLangStr);
       const dedupResult = dedupeAdjacentSentences(cleanedText);
       cleanedText = dedupResult.text;
       if (dedupResult.removed > 0) {
