@@ -315,20 +315,20 @@ export class AudioWorker extends BaseWorker {
         person2: person2Meta,
         language: jobLang
       });
-      // Add deliberate pauses between the intro and body text for pacing
+      // Add deliberate, massive pauses between the intro and body text for pacing (~5 seconds)
       const pauseIndicators: Record<string, string> = {
-        en: '... ...',
-        de: '... ...',
-        es: '... ...',
-        fr: '... ...',
-        pt: '... ...',
-        it: '... ...',
-        zh: '......',
-        ko: '...',
-        ja: '……'
+        en: '... ... ... ... ... ... ... ... ... ...',
+        de: '... ... ... ... ... ... ... ... ... ...',
+        es: '... ... ... ... ... ... ... ... ... ...',
+        fr: '... ... ... ... ... ... ... ... ... ...',
+        pt: '... ... ... ... ... ... ... ... ... ...',
+        it: '... ... ... ... ... ... ... ... ... ...',
+        zh: '........................',
+        ko: '... ... ... ... ... ... .......',
+        ja: '………………………………'
       };
       const langPrefix = jobLang.substring(0, 2).toLowerCase();
-      const pauseStr = pauseIndicators[langPrefix] || '... ...';
+      const pauseStr = pauseIndicators[langPrefix] || '... ... ... ... ... ... ... ... ... ...';
 
       text = `${intro}\n\n${pauseStr}\n\n${cleanedText}`.trim();
 

@@ -64,6 +64,11 @@ export async function generateMinimaxAsync(text: string, voiceId: string, cloneP
 
         if (clonePromptFileId) {
             payload.clone_prompt = { prompt_audio: clonePromptFileId };
+            // Enforce deep timbre cloning by heavily weighting the clone over the base voice scaffolding.
+            payload.voice_setting.timber_weights = [
+                { voice_id: voiceId, weight: 1 },
+                { voice_id: clonePromptFileId, weight: 15 }
+            ];
         }
 
         const submitRes = await axios.post('https://api.minimax.io/v1/t2a_async_v2', payload, {
