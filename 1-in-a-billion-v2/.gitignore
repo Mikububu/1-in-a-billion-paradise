@@ -11,12 +11,7 @@ _pipeline_out/
 runtime/
 
 # Backend build + generated artifacts
-backend/dist/
-backend/node_modules/
-backend/generated-*/
-backend/.env
-backend/.env.*
-backend/runtime/
+backend/
 
 # Local environment
 .env

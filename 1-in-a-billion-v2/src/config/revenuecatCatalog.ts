@@ -9,7 +9,17 @@ export const RC_PRODUCT_IDS = {
   compatibilityOverlay: 'compatibility_overlay',
   bundle16Readings: 'nuclear_package',
   yearlySubscription: 'yearly_subscription',
+  basicMonthly: 'basic_monthly',
+  billionaireYearly: 'billionaire_yearly',
 } as const;
+
+/** Map reading product type → RevenueCat product ID for IAP purchases */
+export const PRODUCT_TYPE_TO_RC_ID: Record<string, string> = {
+  single_system: RC_PRODUCT_IDS.singleSystem,
+  complete_reading: RC_PRODUCT_IDS.completeReading,
+  compatibility_overlay: RC_PRODUCT_IDS.compatibilityOverlay,
+  nuclear_package: RC_PRODUCT_IDS.bundle16Readings,
+};
 
 export const RC_PACKAGE_IDENTIFIERS = {
   singleSystem: RC_PRODUCT_IDS.singleSystem,
@@ -73,4 +83,17 @@ export function getPackageByIdentifier(
 ): AnyRecord | null {
   const packages = getAvailableRevenueCatPackages(offerings);
   return packages.find((pkg) => String(pkg?.identifier || '') === packageIdentifier) || null;
+}
+
+/** Find a package by its App Store product ID (for one-time IAP purchases) */
+export function findIAPPackageByProductId(
+  offerings: AnyRecord | null | undefined,
+  productId: string
+): AnyRecord | null {
+  const packages = getAvailableRevenueCatPackages(offerings);
+  // Search by product identifier (App Store product ID)
+  return packages.find((pkg) => {
+    const id = pkg?.product?.identifier || pkg?.storeProduct?.identifier || pkg?.identifier || '';
+    return String(id) === productId;
+  }) || null;
 }

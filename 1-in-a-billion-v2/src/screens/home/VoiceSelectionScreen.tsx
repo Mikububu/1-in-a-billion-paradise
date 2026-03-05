@@ -17,6 +17,8 @@ import { useOnboardingStore } from '@/store/onboardingStore';
 import { useProfileStore } from '@/store/profileStore';
 import { useAuthStore } from '@/store/authStore';
 import { t, getLanguage } from '@/i18n';
+import { PRODUCT_TYPE_TO_RC_ID, findIAPPackageByProductId } from '@/config/revenuecatCatalog';
+import { initializeRevenueCat, getOfferings, purchasePackage } from '@/services/payments';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'VoiceSelection'>;
 
@@ -237,6 +239,45 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
         // Billionaire tier gets all readings free - always send useIncludedReading
         const shouldUseIncluded = unlimitedReadings || Boolean(restParams.useIncludedReading);
 
+        // ── IAP Payment Gate ─────────────────────────────────────────
+        // If NOT using an included reading (no subscription or quota exhausted),
+        // collect payment via RevenueCat before starting the job.
+        let purchaseTransactionId: string | undefined;
+        if (!shouldUseIncluded && !env.ALLOW_PAYMENT_BYPASS) {
+            const rcProductId = PRODUCT_TYPE_TO_RC_ID[productType];
+            if (!rcProductId) {
+                Alert.alert(t('voiceSelection.couldNotStart'), 'Unknown product type');
+                return;
+            }
+
+            const rcReady = await initializeRevenueCat(authUser?.id);
+            if (!rcReady) {
+                Alert.alert(t('pricing.paymentUnavailable.title'), t('pricing.paymentUnavailable.message'));
+                return;
+            }
+
+            const offerings = await getOfferings();
+            const pkg = findIAPPackageByProductId(offerings, rcProductId);
+            if (!pkg) {
+                Alert.alert(t('pricing.subscriptionUnavailable.title'), t('pricing.subscriptionUnavailable.message'));
+                return;
+            }
+
+            const purchaseResult = await purchasePackage(pkg);
+            if (!purchaseResult.success) {
+                if (purchaseResult.error && purchaseResult.error !== 'cancelled') {
+                    Alert.alert(t('pricing.paymentFailed.title'), purchaseResult.error);
+                }
+                return; // cancelled or failed — don't start job
+            }
+
+            // Extract transaction ID from the purchase for backend verification
+            purchaseTransactionId =
+                purchaseResult.customerInfo?.nonSubscriptionTransactions?.[0]?.transactionIdentifier ||
+                purchaseResult.customerInfo?.latestExpirationDate || // fallback breadcrumb
+                'rc_purchase_verified';
+        }
+
         const payload: any = {
             type: jobType,
             systems,
@@ -246,6 +287,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
             voiceId: selectedVoice,
             language: readingLanguage || getLanguage(),
             ...(shouldUseIncluded && { useIncludedReading: true }),
+            ...(purchaseTransactionId && { purchaseTransactionId }),
         };
 
         const outputContract = getReadingOutputContract(productType);

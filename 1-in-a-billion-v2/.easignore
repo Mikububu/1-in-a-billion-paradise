@@ -2,6 +2,10 @@
 backend/
 .claude/
 
+# Native app directories (EAS builds these)
+android/
+ios/
+
 # Local artifacts
 _preview/
 _pipeline_out/
@@ -9,17 +13,19 @@ runtime/
 *.pdf
 *.mp3
 *.wav
+*.mkv
+*.mp4
 
 # Test files
 test_*
-backend/test_*
 
 # Git
 .git/
 
 # Node modules will be reinstalled on EAS
-# node_modules/  # EAS needs this, don't ignore
+node_modules/
 
 # Development files
 .DS_Store
 *.log
+

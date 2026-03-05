@@ -132,6 +132,7 @@ router.post('/v2/start', jwtAuth, async (c) => {
       relationshipContext,
       personalContext,
       useIncludedReading,
+      purchaseTransactionId,
       language,
     } = body;
 
@@ -161,6 +162,21 @@ router.post('/v2/start', jwtAuth, async (c) => {
           quota: quota ? { used: quota.used, limit: quota.monthlyLimit, remaining: quota.remaining } : undefined,
         }, 403);
       }
+    }
+
+    // ── Payment Gate: reject unpaid requests ────────────────────────────
+    // If not using a subscription reading, a purchase transaction must be provided.
+    // The actual payment was already processed by Apple via RevenueCat on the client.
+    if (!useIncludedReading && !unlimited && !purchaseTransactionId) {
+      console.warn(`⚠️ Job rejected: no payment proof. user=${userId} type=${type}`);
+      return c.json({
+        success: false,
+        error: 'Payment required. Please purchase this reading before generating.',
+        paymentRequired: true,
+      }, 402);
+    }
+    if (purchaseTransactionId) {
+      console.log(`💳 IAP purchase: user=${userId} txn=${purchaseTransactionId} type=${type}`);
     }
 
     // Build job params (same shape the workers expect)
