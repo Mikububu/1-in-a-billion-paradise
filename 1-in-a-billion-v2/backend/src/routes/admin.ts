@@ -2235,5 +2235,177 @@ Return ONLY a valid JSON array of these objects, without markdown blocks.`;
   }
 });
 
+// ───────────────────────────────────────────────────────────────────────────
+// VOICE CLONE REGISTRATION (MiniMax Voice Clone API)
+// ───────────────────────────────────────────────────────────────────────────
+
+/**
+ * POST /admin/voices/register-clone
+ *
+ * Registers a custom voice with MiniMax Voice Clone API.
+ * Uses the full WAV file (sampleAudioUrl) to create a permanent cloned voice_id.
+ *
+ * Body: { voiceId: string }  (e.g. "david", "elisabeth")
+ *
+ * The registered voice_id will be stored in api_keys table for the audioWorker to use.
+ */
+router.post('/voices/register-clone', requirePermission('system', 'write'), async (c) => {
+  try {
+    const { voiceId } = await c.req.json();
+    if (!voiceId) return c.json({ error: 'voiceId is required' }, 400);
+
+    const admin = getAdmin(c);
+    const { getCustomVoices } = await import('../config/voices');
+    const { uploadForVoiceClone, registerVoiceClone } = await import('../services/minimaxTts');
+
+    const voices = getCustomVoices();
+    const voice = voices.find(v => v.id === voiceId);
+    if (!voice) return c.json({ error: `Voice "${voiceId}" not found or not a custom voice` }, 404);
+    if (!voice.sampleAudioUrl) return c.json({ error: `Voice "${voiceId}" has no sampleAudioUrl` }, 400);
+
+    console.log(`[Admin] Registering voice clone for: ${voice.displayName} (${voiceId})`);
+
+    // Step 1: Download full WAV and upload with purpose='voice_clone'
+    const wavRes = await axios.get(voice.sampleAudioUrl, { responseType: 'arraybuffer' });
+    const wavBuffer = Buffer.from(wavRes.data);
+    console.log(`[Admin] Downloaded WAV: ${Math.round(wavBuffer.length / 1024)}KB`);
+
+    const fileId = await uploadForVoiceClone(wavBuffer, `${voiceId}_full.wav`);
+    console.log(`[Admin] Uploaded to MiniMax: fileId=${fileId}`);
+
+    // Step 2: Register with Voice Clone API
+    // voice_id must be 8+ chars, alphanumeric, start with letter
+    const minimaxVoiceId = `billion${voiceId}voice`;
+    const result = await registerVoiceClone(fileId, minimaxVoiceId, 'speech-01-turbo');
+    console.log(`[Admin] Voice clone registered: ${minimaxVoiceId}`);
+
+    // Step 3: Store the registered voice_id in api_keys table
+    const sb = createSupabaseServiceClient();
+    if (sb) {
+      await sb.from('api_keys').upsert({
+        key_name: `minimax_clone_${voiceId}`,
+        key_value: minimaxVoiceId,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'key_name' });
+      console.log(`[Admin] Stored clone ID in api_keys: minimax_clone_${voiceId} = ${minimaxVoiceId}`);
+    }
+
+    await logAdminAction(admin!.id, 'register_voice_clone', 'voice', voiceId, { minimaxVoiceId });
+
+    return c.json({
+      success: true,
+      voiceId,
+      minimaxClonedVoiceId: minimaxVoiceId,
+      demoAudio: result.demoAudio,
+      fileId,
+    });
+
+  } catch (err: any) {
+    console.error('Voice clone registration error:', err);
+    return c.json({ error: err.message || 'Registration failed' }, 500);
+  }
+});
+
+/**
+ * POST /admin/voices/register-all-clones
+ *
+ * Registers ALL custom voices with MiniMax Voice Clone API in one call.
+ */
+router.post('/voices/register-all-clones', requirePermission('system', 'write'), async (c) => {
+  try {
+    const admin = getAdmin(c);
+    const { getCustomVoices } = await import('../config/voices');
+    const { uploadForVoiceClone, registerVoiceClone } = await import('../services/minimaxTts');
+
+    const voices = getCustomVoices();
+    const results: any[] = [];
+
+    for (const voice of voices) {
+      if (!voice.sampleAudioUrl) {
+        results.push({ voiceId: voice.id, error: 'No sampleAudioUrl' });
+        continue;
+      }
+
+      try {
+        console.log(`[Admin] Registering clone for ${voice.displayName}...`);
+
+        const wavRes = await axios.get(voice.sampleAudioUrl, { responseType: 'arraybuffer' });
+        const fileId = await uploadForVoiceClone(Buffer.from(wavRes.data), `${voice.id}_full.wav`);
+        const minimaxVoiceId = `billion${voice.id}voice`;
+
+        const result = await registerVoiceClone(fileId, minimaxVoiceId, 'speech-01-turbo');
+
+        // Store in api_keys
+        const sb = createSupabaseServiceClient();
+        if (sb) {
+          await sb.from('api_keys').upsert({
+            key_name: `minimax_clone_${voice.id}`,
+            key_value: minimaxVoiceId,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'key_name' });
+        }
+
+        results.push({
+          voiceId: voice.id,
+          minimaxClonedVoiceId: minimaxVoiceId,
+          demoAudio: result.demoAudio,
+          success: true,
+        });
+
+        // Small delay between registrations to avoid rate limits
+        await new Promise(r => setTimeout(r, 2000));
+
+      } catch (err: any) {
+        console.error(`Failed to register ${voice.id}:`, err.message);
+        results.push({ voiceId: voice.id, error: err.message });
+      }
+    }
+
+    await logAdminAction(admin!.id, 'register_all_voice_clones', 'voice', null,
+      { registered: results.filter(r => r.success).length, total: voices.length });
+
+    return c.json({ success: true, results });
+
+  } catch (err: any) {
+    console.error('Batch voice clone error:', err);
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+/**
+ * GET /admin/voices/clone-status
+ *
+ * Check which voices have registered MiniMax clones stored in api_keys.
+ */
+router.get('/voices/clone-status', requirePermission('system', 'read'), async (c) => {
+  try {
+    const { getCustomVoices } = await import('../config/voices');
+    const sb = createSupabaseServiceClient();
+    if (!sb) return c.json({ error: 'Supabase not configured' }, 500);
+
+    const voices = getCustomVoices();
+    const keyNames = voices.map(v => `minimax_clone_${v.id}`);
+
+    const { data: keys } = await sb
+      .from('api_keys')
+      .select('key_name, key_value, updated_at')
+      .in('key_name', keyNames);
+
+    const keyMap = new Map((keys || []).map((k: any) => [k.key_name, k]));
+
+    const status = voices.map(v => ({
+      voiceId: v.id,
+      displayName: v.displayName,
+      registered: keyMap.has(`minimax_clone_${v.id}`),
+      minimaxClonedVoiceId: (keyMap.get(`minimax_clone_${v.id}`) as any)?.key_value || null,
+      registeredAt: (keyMap.get(`minimax_clone_${v.id}`) as any)?.updated_at || null,
+    }));
+
+    return c.json({ voices: status });
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
 export default router;
 

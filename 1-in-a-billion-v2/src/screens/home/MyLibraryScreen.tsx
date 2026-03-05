@@ -10,7 +10,7 @@ import { BackButton } from '@/components/BackButton';
 import { fetchJobSnapshot, deleteJob, type JobSnapshot } from '@/services/jobStatus';
 import { recoverReadingsFromCloud } from '@/services/libraryRecovery';
 import { getFallbackAvatar } from '@/utils/avatarUtils';
-import { t } from '@/i18n';
+import { t, getSystemDisplayName } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'MyLibrary'>;
 
@@ -264,7 +264,7 @@ export const MyLibraryScreen = ({ navigation }: Props) => {
                             const systemName = reading.readingType === 'verdict'
                                 ? t('myLibrary.reading.verdictType')
                                 : reading.system
-                                    ? reading.system.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+                                    ? getSystemDisplayName(reading.system)
                                     : 'Reading';
                             const statusRaw = String(snapshot?.status || '').toLowerCase();
                             const isComplete = statusRaw === 'complete' || statusRaw === 'completed';

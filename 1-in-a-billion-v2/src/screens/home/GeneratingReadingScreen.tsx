@@ -14,7 +14,7 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { addJobToBuffer } from '@/services/jobBuffer';
 import { useProfileStore, type ReadingSystem } from '@/store/profileStore';
 import { fetchJobSnapshot } from '@/services/jobStatus';
-import { t } from '@/i18n';
+import { t, getSystemDisplayName } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'GeneratingReading'>;
 
@@ -218,7 +218,7 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
     }, [partnerName, personName]);
 
     const progressWidth = `${progressPercent}%` as `${number}%`;
-    const systemLabel = (systems || []).join(', ') || (productName || productType || 'Deep Reading');
+    const systemLabel = (systems || []).map(s => getSystemDisplayName(s)).join(', ') || (productName || productType || 'Deep Reading');
 
     return (
         <SafeAreaView style={styles.container}>

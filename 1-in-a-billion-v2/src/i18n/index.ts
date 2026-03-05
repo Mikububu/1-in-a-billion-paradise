@@ -184,6 +184,29 @@ export function t(key: string, params?: Record<string, string | number>): string
   return value;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SYSTEM DISPLAY NAMES
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SYSTEM_I18N_KEYS: Record<string, string> = {
+  western: 'systems.western',
+  vedic: 'systems.vedic',
+  human_design: 'systems.humanDesign',
+  gene_keys: 'systems.geneKeys',
+  kabbalah: 'systems.kabbalah',
+};
+
+/**
+ * Convert a system slug (e.g. 'western', 'gene_keys') to its localized display name.
+ * Falls back to capitalize-and-split for unknown systems.
+ */
+export function getSystemDisplayName(slug: string): string {
+  const key = SYSTEM_I18N_KEYS[slug];
+  if (key) return t(key);
+  // Fallback: capitalize each word, replace underscores with spaces
+  return slug.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
 /**
  * Format a date using the current locale.
  */

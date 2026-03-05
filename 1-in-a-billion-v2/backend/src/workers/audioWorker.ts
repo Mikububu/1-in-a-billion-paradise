@@ -414,10 +414,28 @@ export class AudioWorker extends BaseWorker {
 
         // Check if voice has a pre-registered MiniMax cloned voice ID
         // (from Voice Clone API — produces better quality than inline clone_prompt)
-        const hasRegisteredClone = !!(voice as any)?.minimaxClonedVoiceId;
+        // First check voice config, then check api_keys table in Supabase
+        let hasRegisteredClone = !!(voice as any)?.minimaxClonedVoiceId;
         if (hasRegisteredClone) {
           minimaxVoiceId = (voice as any).minimaxClonedVoiceId;
-          console.log(`[MiniMax] Using pre-registered cloned voice: ${minimaxVoiceId} (skipping inline clone_prompt)`);
+        } else if (supabase && !isTurboPreset) {
+          // Look up registered clone from api_keys table (set via admin endpoint)
+          try {
+            const { data: cloneKey } = await supabase
+              .from('api_keys')
+              .select('key_value')
+              .eq('key_name', `minimax_clone_${voiceId}`)
+              .maybeSingle();
+            if (cloneKey?.key_value) {
+              minimaxVoiceId = cloneKey.key_value;
+              hasRegisteredClone = true;
+            }
+          } catch (e: any) {
+            console.warn(`[MiniMax] Could not look up clone ID for ${voiceId}:`, e.message);
+          }
+        }
+        if (hasRegisteredClone) {
+          console.log(`[MiniMax] Using REGISTERED cloned voice: ${minimaxVoiceId} (skipping inline clone_prompt)`);
         }
 
         let clonePromptFileId: string | undefined;

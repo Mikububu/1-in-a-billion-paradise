@@ -10,7 +10,7 @@ import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { downloadTextContent, fetchJobArtifacts, type JobArtifact } from '@/services/jobArtifacts';
 import { getCachedArtifactSignedUrl, prewarmArtifactSignedUrls } from '@/services/artifactSignedUrlCache';
-import { t } from '@/i18n';
+import { t, getSystemDisplayName } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ReadingContent'>;
 
@@ -118,7 +118,7 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
 
     const readingTypeSubheadline = useMemo(() => {
         if (system) {
-            return `System: ${system.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}`;
+            return `System: ${getSystemDisplayName(system)}`;
         }
         return `Job: ${jobId}`;
     }, [system, jobId]);

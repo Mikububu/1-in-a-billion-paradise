@@ -9,7 +9,7 @@ import { env } from '@/config/env';
 import { isSupabaseConfigured, supabase } from '@/services/supabase';
 import { fetchJobArtifacts, type JobArtifact } from '@/services/jobArtifacts';
 import { prewarmArtifactSignedUrls } from '@/services/artifactSignedUrlCache';
-import { t } from '@/i18n';
+import { t, getSystemDisplayName } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'JobDetail'>;
 
@@ -196,11 +196,11 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
     }, [job, personName, partnerName, docNum]);
 
     const systemsLabel = useMemo(() => {
-        if (system) return system.charAt(0).toUpperCase() + system.slice(1);
+        if (system) return getSystemDisplayName(system);
         const params = job?.params || job?.input || {};
         const systems = Array.isArray(params.systems) ? params.systems : [];
         if (systems.length === 0) return t('jobDetail.systems.empty');
-        return systems.join(', ');
+        return systems.map(s => getSystemDisplayName(s)).join(', ');
     }, [job, system]);
 
     const updatedAt = useMemo(() => {

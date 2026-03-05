@@ -7,7 +7,7 @@ import { useProfileStore } from '@/store/profileStore';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { BackButton } from '@/components/BackButton';
 import { fetchJobSnapshot, type JobSnapshot } from '@/services/jobStatus';
-import { t } from '@/i18n';
+import { t, getSystemDisplayName } from '@/i18n';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonReadings'>;
 
@@ -197,7 +197,7 @@ export const PersonReadingsScreen = ({ navigation, route }: Props) => {
                                 : t('personReadings.statusUnavailable');
                             const isComplete = String(snapshot?.status || '').toLowerCase() === 'complete' || String(snapshot?.status || '').toLowerCase() === 'completed';
                             const systems =
-                                readingJob.systems.length > 0 ? readingJob.systems.join(', ') : t('personReadings.systemsPending');
+                                readingJob.systems.length > 0 ? readingJob.systems.map(s => getSystemDisplayName(s)).join(', ') : t('personReadings.systemsPending');
                             const updatedAt = snapshot?.updatedAt || (readingJob.timestamp ? new Date(readingJob.timestamp).toISOString() : '');
                             const readingLabel = t('personReadings.readingPrefix') + ' ' + readingJob.jobId.slice(0, 8);
                             const readingDate = readingJob.timestamp ? new Date(readingJob.timestamp).toLocaleString() : '';

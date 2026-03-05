@@ -39,18 +39,22 @@ export const NextStepScreen = ({ navigation }: Props) => {
     const buttons = [
         {
             label: t('nextStep.soulsLibrary'),
+            desc: t('nextStep.soulsLibrary.desc'),
             onPress: () => navigation.navigate('MyLibrary'),
         },
         {
             label: t('nextStep.karmicZoo'),
+            desc: t('nextStep.karmicZoo.desc'),
             onPress: () => navigation.navigate('ComparePeople'),
         },
         {
             label: t('nextStep.exploreMyself'),
+            desc: t('nextStep.exploreMyself.desc'),
             onPress: () => navigation.navigate('SystemsOverview'),
         },
         {
             label: t('nextStep.backToSecretLife'),
+            desc: t('nextStep.backToSecretLife.desc'),
             onPress: () => navigation.navigate('Home'),
         },
     ];
@@ -70,6 +74,7 @@ export const NextStepScreen = ({ navigation }: Props) => {
                         activeOpacity={0.85}
                     >
                         <Text style={styles.buttonText}>{btn.label}</Text>
+                        {btn.desc ? <Text style={styles.buttonDesc}>{btn.desc}</Text> : null}
                     </TouchableOpacity>
                 ))}
             </View>
@@ -130,7 +135,8 @@ const styles = StyleSheet.create({
     button: {
         width: '100%',
         backgroundColor: colors.surface,
-        paddingVertical: 16,
+        paddingVertical: 14,
+        paddingHorizontal: 20,
         borderRadius: 999,
         alignItems: 'center',
         borderWidth: 1,
@@ -141,5 +147,12 @@ const styles = StyleSheet.create({
         fontSize: 15,
         color: colors.text,
         letterSpacing: 0.5,
+    },
+    buttonDesc: {
+        fontFamily: typography.sans,
+        fontSize: 10,
+        color: '#999',
+        marginTop: 2,
+        letterSpacing: 0.2,
     },
 });
