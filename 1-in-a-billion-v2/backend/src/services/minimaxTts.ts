@@ -3,7 +3,7 @@ import FormData from 'form-data';
 import * as tar from 'tar-stream';
 import { apiKeys } from './apiKeysHelper';
 import { env } from '../config/env';
-import { VOICE_SAMPLE_QUOTE } from '../config/voices';
+import { VOICE_CLONE_TRANSCRIPT } from '../config/voices';
 
 /**
  * Uploads a reference WAV file to MiniMax for voice cloning
@@ -82,9 +82,17 @@ export async function generateMinimaxAsync(
         };
 
         if (clonePromptFileId) {
-            payload.clone_prompt = { prompt_audio: clonePromptFileId };
-            // MiniMax automatically clones the timber from prompt_audio.
-            // Do NOT specify timber_weights with a file ID as it breaks the cloning.
+            // Voice cloning via clone_prompt in T2A v2:
+            // - prompt_audio: the uploaded reference audio file_id
+            // - prompt_text: transcript of that audio (helps MiniMax align the clone)
+            // The base voice_id (e.g. English_expressive_narrator) stays as scaffolding —
+            // clone_prompt modulates it to sound like the reference speaker.
+            // NOTE: timber_weights only accepts MiniMax system voice IDs, NOT file IDs.
+            payload.clone_prompt = {
+                prompt_audio: clonePromptFileId,
+                prompt_text: VOICE_CLONE_TRANSCRIPT,
+            };
+            console.log(`[MiniMax TTS] Clone prompt set: audio=${clonePromptFileId}, transcript=${VOICE_CLONE_TRANSCRIPT.substring(0, 60)}...`);
         }
 
         const submitRes = await axios.post('https://api.minimax.io/v1/t2a_async_v2', payload, {

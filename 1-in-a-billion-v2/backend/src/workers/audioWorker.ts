@@ -413,7 +413,8 @@ export class AudioWorker extends BaseWorker {
         }
 
         let clonePromptFileId: string | undefined;
-        const refAudioUrl = voice?.sampleAudioUrl || task.input.audioUrl || this.voiceSampleUrl;
+        // Use short clone clip (<8s) for MiniMax clone_prompt, fall back to full sample
+        const refAudioUrl = (voice as any)?.cloneAudioUrl || voice?.sampleAudioUrl || task.input.audioUrl || this.voiceSampleUrl;
 
         if (refAudioUrl) {
           console.log(`[AudioWorker] Uploading MiniMax reference audio from: ${refAudioUrl}`);

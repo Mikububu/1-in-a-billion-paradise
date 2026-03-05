@@ -18,6 +18,7 @@ export interface Voice {
     displayName: string;     // User-facing name (e.g., "David", "Elisabeth")
     description: string;     // Brief description shown to users
     sampleAudioUrl: string;  // URL to voice sample (WAV preferred for RunPod/Chatterbox training, MP3 also works)
+    cloneAudioUrl?: string;  // Short (<8s) WAV clip for MiniMax clone_prompt (must be under 8 seconds)
     previewSampleUrl?: string; // Optional: MP3 URL for frontend previews (if different from sampleAudioUrl)
     category?: 'male' | 'female' | 'neutral';
     enabled?: boolean;       // Allow disabling voices without removing them
@@ -32,6 +33,12 @@ export interface Voice {
  * See: docs/PREVIEW_Speaker_text.md for full text
  */
 export const VOICE_SAMPLE_QUOTE = `My first vision of earth was water veiled. I am of the race of men and women who see things through this curtain of sea, and my eyes are the color of water. I looked with chameleon eyes upon the changing face of the world, looked with anonymous vision upon my uncompleted self. I remember my first birth in water. All round me a sulphurous transparency and my bones move as if made of rubber. I sway and float, stand on boneless toes listening for distant sounds, sounds beyond the reach of human ears, see things beyond the reach of human eyes. Born full of memories of the bells of Atlantide. Always listening for lost sounds and searching for lost colors, standing forever on the threshold like one troubled with memories, and walking with a swimming stride. I cut the air with wideslicing fins, and swim through wall-less rooms. The night surrounded me, a photograph unglued from its frame. The lining of a coat ripped open like the two shells of an oyster. The day and night unglued, and I falling in between not knowing on which layer I was resting, whether it was the cold upper leaf of dawn, or the dark layer of night.`;
+
+/**
+ * Short transcript matching the first 8 seconds of each voice clone clip.
+ * MiniMax clone_prompt requires prompt_text to align with prompt_audio.
+ */
+export const VOICE_CLONE_TRANSCRIPT = `My first vision of earth was water veiled. I am of the race of men and women who see things through this curtain of sea, and my eyes are the color of water.`;
 
 /**
  * All available voices for the application.
@@ -59,10 +66,10 @@ export const VOICES: Voice[] = [
         displayName: 'David',
         description: 'Warm and engaging male narrator with a natural, conversational tone',
         sampleAudioUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/david.wav',
+        cloneAudioUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/david_clone.wav',
         previewSampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/david/preview.mp3',
         category: 'male',
         enabled: true,
-        // Custom voice cloning via reference_audio
         turboSettings: { temperature: 0.7 },
     },
     {
@@ -70,6 +77,7 @@ export const VOICES: Voice[] = [
         displayName: 'Elisabeth',
         description: 'Elegant female narrator with a clear, sophisticated voice',
         sampleAudioUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/elisabeth.wav',
+        cloneAudioUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/elisabeth_clone.wav',
         previewSampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/elisabeth/preview.mp3',
         category: 'female',
         enabled: true,
@@ -80,6 +88,7 @@ export const VOICES: Voice[] = [
         displayName: 'Michael',
         description: 'Confident male narrator with a strong, authoritative presence',
         sampleAudioUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/michael.wav',
+        cloneAudioUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/michael_clone.wav',
         previewSampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/michael/preview.mp3',
         category: 'male',
         enabled: true,
@@ -90,6 +99,7 @@ export const VOICES: Voice[] = [
         displayName: 'Peter',
         description: 'Friendly male narrator with a warm, approachable tone',
         sampleAudioUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/peter.wav',
+        cloneAudioUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/peter_clone.wav',
         previewSampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/peter/preview.mp3',
         category: 'male',
         enabled: true,
@@ -100,6 +110,7 @@ export const VOICES: Voice[] = [
         displayName: 'Victor',
         description: 'Deep male narrator with a rich, resonant voice',
         sampleAudioUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/victor.wav',
+        cloneAudioUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/victor_clone.wav',
         previewSampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/victor/preview.mp3',
         category: 'male',
         enabled: true,
