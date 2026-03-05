@@ -21,6 +21,7 @@ import {
   WORD_COUNT_LIMITS_OVERLAY,
   WORD_COUNT_LIMITS_VERDICT,
 } from '../prompts/config/wordCounts';
+import { LANGUAGE_CONFIG } from '../config/languages';
 import { logLLMCost } from '../services/costTracking';
 import { composePromptFromJobStartPayload } from '../promptEngine/fromJobPayload';
 import { buildChartDataForSystem } from '../services/chartDataBuilder';
@@ -73,8 +74,29 @@ function clampSpice(level: number): SpiceLevel {
   return clamped as SpiceLevel; // Cast validated number (1-10) to SpiceLevel
 }
 
+/**
+ * CJK-aware word counter.
+ * For CJK characters (Japanese, Chinese, Korean) there are no spaces between words,
+ * so we count each CJK character as ~1 word-equivalent.
+ * For mixed text: count space-delimited tokens + CJK characters separately.
+ */
+const CJK_RANGE =
+  /[\u3000-\u303F\u3040-\u309F\u30A0-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\uFF66-\uFF9F\uAC00-\uD7AF]/g;
+
 function countWords(text: string): number {
-  return String(text || '').split(/\s+/).filter(Boolean).length;
+  const s = String(text || '');
+  // Count CJK characters (each ≈ 1 word)
+  const cjkMatches = s.match(CJK_RANGE);
+  const cjkCount = cjkMatches ? cjkMatches.length : 0;
+  // Remove CJK characters, then count remaining space-delimited tokens
+  const nonCjk = s.replace(CJK_RANGE, ' ');
+  const spaceWords = nonCjk.split(/\s+/).filter(Boolean).length;
+  return spaceWords + cjkCount;
+}
+
+/** Languages where word counting should use CJK rules and reduced floors */
+function isCJKLanguage(lang?: string): boolean {
+  return ['ja', 'zh', 'ko'].includes(lang || '');
 }
 
 function isHeadlineLine(line: string): boolean {
@@ -690,7 +712,7 @@ export class TextWorker extends BaseWorker {
     console.log(`📋 [TextWorker] Chart reference page built: ${chartRefPage.length} chars${chartRefPageRight ? `, right: ${chartRefPageRight.length} chars` : ''}`);
 
     let prompt = '';
-    let composedV2: ReturnType<typeof composePromptFromJobStartPayload> | null = null;
+    let composedV2: Awaited<ReturnType<typeof composePromptFromJobStartPayload>> | null = null;
     let label = `job:${jobId}:doc:${docNum}`;
     let text = '';
     let wordCount = 0;
@@ -1331,7 +1353,7 @@ export class TextWorker extends BaseWorker {
           promptLayerDirective: params.promptLayerDirective,
         };
 
-        const composed = composePromptFromJobStartPayload(promptPayload);
+        const composed = await composePromptFromJobStartPayload(promptPayload);
         composedV2 = composed;
         prompt = composed.prompt;
         label += `:v2prompt:${docType}:${system}`;
@@ -1409,12 +1431,20 @@ export class TextWorker extends BaseWorker {
     // We enforce a hard floor and auto-continue in a few passes instead of failing the job.
     // Enforcement floor: keep it long-form, but don't force unnecessary expansion passes.
     // The prompt contract already targets WORD_COUNT_LIMITS.min-max.
-    const HARD_FLOOR_WORDS =
+    // CJK languages (ja/zh/ko) have no spaces; our CJK-aware countWords() counts
+    // each CJK character as 1 "word". CJK text is ~0.6x English word count for
+    // equivalent content, so we reduce the floor accordingly.
+    const CJK_FLOOR_RATIO = 0.6;
+    const cjkLang = isCJKLanguage(params.outputLanguage);
+    const baseFloor =
       docType === 'overlay'
         ? WORD_COUNT_LIMITS_OVERLAY.min
         : docType === 'verdict'
           ? WORD_COUNT_LIMITS_VERDICT.min
           : WORD_COUNT_LIMITS.min;
+    const HARD_FLOOR_WORDS = cjkLang
+      ? Math.round(baseFloor * CJK_FLOOR_RATIO)
+      : baseFloor;
     const MAX_EXPANSION_PASSES = 3;
 
     async function expandToHardFloor(initial: string): Promise<string> {
@@ -1435,9 +1465,16 @@ export class TextWorker extends BaseWorker {
           `🧱 [TextWorker] Output too short (${currentWords} < ${HARD_FLOOR_WORDS}). Expanding pass ${pass}/${MAX_EXPANSION_PASSES} (+${minAdditional} words)...`
         );
 
+        // For CJK languages, use "characters" instead of "words" in the prompt
+        const unitLabel = cjkLang ? 'characters' : 'words';
+
         const expansionPrompt = [
           'You are continuing an existing long-form astrology reading that was cut short.',
           '',
+          // For non-English: instruct the LLM to continue in the same language
+          ...(params.outputLanguage && params.outputLanguage !== 'en'
+            ? [`CRITICAL: Continue writing in ${(LANGUAGE_CONFIG as Record<string, { name: string }>)[params.outputLanguage]?.name || params.outputLanguage}. Do NOT switch to English.`, '']
+            : []),
           'RULES:',
           '- Continue seamlessly from the text below.',
           '- Do not repeat, summarize, or restart the reading.',
@@ -1458,7 +1495,7 @@ export class TextWorker extends BaseWorker {
             ].join('\n')
             : '- Do not drift into astrology lecture mode. Avoid definitional frames like:\n  "The Sun represents...", "The Moon governs...", "The rising sign is...", "Astrologers call...", "the ninth house is..."',
           '- Avoid template openers like: "carries the signature of..."',
-          `- Write at least ${minAdditional} NEW words before stopping.`,
+          `- Write at least ${minAdditional} NEW ${unitLabel} before stopping.`,
           '- Do not mention word counts.',
           chartBlock,
           '',
@@ -1521,6 +1558,7 @@ export class TextWorker extends BaseWorker {
       return out;
     }
 
+    console.log(`📏 [TextWorker] Word count: ${wordCount} | Floor: ${HARD_FLOOR_WORDS} | CJK: ${cjkLang} | Lang: ${params.outputLanguage || 'en'} | Chars: ${text.length}`);
     if (wordCount < HARD_FLOOR_WORDS) {
       console.log(`📏 [TextWorker] Word count ${wordCount} below floor ${HARD_FLOOR_WORDS} for ${system} - running expansion loop...`);
       text = await expandToHardFloor(text);

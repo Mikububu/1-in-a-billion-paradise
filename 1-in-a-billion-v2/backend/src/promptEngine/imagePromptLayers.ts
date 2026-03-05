@@ -1,4 +1,4 @@
-import { loadLayerMarkdown } from './layerLoader';
+import { loadLayerMarkdownAsync } from './layerLoader';
 
 export type ImagePromptKind = 'single_portrait' | 'synastry_portrait';
 
@@ -38,13 +38,13 @@ function extractPromptBlock(markdown: string, kind: ImagePromptKind): string {
     return block;
 }
 
-export function loadImagePromptLayer(kind: ImagePromptKind): string {
-    const markdown = loadLayerMarkdown(IMAGE_PROMPT_LAYER_FILE);
+export async function loadImagePromptLayerAsync(kind: ImagePromptKind): Promise<string> {
+    const markdown = await loadLayerMarkdownAsync(IMAGE_PROMPT_LAYER_FILE);
     return extractPromptBlock(markdown, kind);
 }
 
-export function loadAllImagePromptLayers(): Record<ImagePromptKind, string> {
-    const markdown = loadLayerMarkdown(IMAGE_PROMPT_LAYER_FILE);
+export async function loadAllImagePromptLayersAsync(): Promise<Record<ImagePromptKind, string>> {
+    const markdown = await loadLayerMarkdownAsync(IMAGE_PROMPT_LAYER_FILE);
     return {
         single_portrait: extractPromptBlock(markdown, 'single_portrait'),
         synastry_portrait: extractPromptBlock(markdown, 'synastry_portrait'),

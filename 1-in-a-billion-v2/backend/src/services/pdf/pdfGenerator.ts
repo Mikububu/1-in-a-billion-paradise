@@ -73,7 +73,12 @@ const PDF_TRANSLATIONS: Record<string, Partial<Record<OutputLanguage, string>>> 
   'Growth Potential': { de: 'Wachstumspotenzial', es: 'Potencial de Crecimiento', fr: 'Potentiel de Croissance', ja: '成長の可能性', ko: '성장 잠재력', hi: 'विकास की संभावना', pt: 'Potencial de Crescimento', it: 'Potenziale di Crescita', zh: '成长潜力' },
   'Shadow Risk': { de: 'Schattenrisiko', es: 'Riesgo de Sombra', fr: 'Risque d\'Ombre', ja: 'シャドウリスク', ko: '그림자 위험', hi: 'छाया का जोखिम', pt: 'Risco de Sombra', it: 'Rischio d\'Ombra', zh: '阴暗面风险' },
   'Magnetic Pull': { de: 'Magnetische Anziehung', es: 'Atracción Magnética', fr: 'Attraction Magnétique', ja: '磁力的な引力', ko: '자기적 이끌림', hi: 'चुंबकीय आकर्षण', pt: 'Atração Magnética', it: 'Attrazione Magnetica', zh: '磁性吸引' },
-  'Long-term Sustainability': { de: 'Langfristige Nachhaltigkeit', es: 'Sostenibilidad a Largo Plazo', fr: 'Durabilité à Long Terme', ja: '長期的な持続可能性', ko: '장기적 지속 가능성', hi: 'दीर्घकालिक स्थिरता', pt: 'Sustentabilidade a Longo Prazo', it: 'Sostenibilità a Lungo Termine', zh: '长期维系' }
+  'Long-term Sustainability': { de: 'Langfristige Nachhaltigkeit', es: 'Sostenibilidad a Largo Plazo', fr: 'Durabilité à Long Terme', ja: '長期的な持続可能性', ko: '장기적 지속 가능성', hi: 'दीर्घकालिक स्थिरता', pt: 'Sustentabilidade a Longo Prazo', it: 'Sostenibilità a Lungo Termine', zh: '长期维系' },
+  'Karmic Resonance': { de: 'Karmische Resonanz', es: 'Resonancia Kármica', fr: 'Résonance Karmique', ja: 'カルマの共鳴', ko: '카르마 공명', hi: 'कार्मिक अनुनाद', pt: 'Ressonância Cármica', it: 'Risonanza Karmica', zh: '业力共振' },
+  'Healing Potential': { de: 'Heilungspotenzial', es: 'Potencial de Sanación', fr: 'Potentiel de Guérison', ja: '癒しの可能性', ko: '치유 잠재력', hi: 'उपचार की संभावना', pt: 'Potencial de Cura', it: 'Potenziale di Guarigione', zh: '疗愈潜力' },
+  'Daily Life': { de: 'Alltag', es: 'Vida Cotidiana', fr: 'Vie Quotidienne', ja: '日常生活', ko: '일상생활', hi: 'दैनिक जीवन', pt: 'Vida Diária', it: 'Vita Quotidiana', zh: '日常生活' },
+  'Communication Depth': { de: 'Kommunikationstiefe', es: 'Profundidad de Comunicación', fr: 'Profondeur de Communication', ja: 'コミュニケーションの深さ', ko: '소통의 깊이', hi: 'संवाद की गहराई', pt: 'Profundidade de Comunicação', it: 'Profondità di Comunicazione', zh: '沟通深度' },
+  'Toxic Relationship Potential': { de: 'Toxisches Beziehungspotenzial', es: 'Potencial de Relación Tóxica', fr: 'Potentiel de Toxicité', ja: '有害な関係の可能性', ko: '독성 관계 가능성', hi: 'विषैले रिश्ते की संभावना', pt: 'Potencial de Relação Tóxica', it: 'Potenziale Tossico', zh: '有毒关系潜力' },
 };
 
 function translateLabel(label: string, lang?: string): string {
@@ -481,6 +486,24 @@ function extractChartSignatureFooter(rawText?: string): SignatureExtraction {
   const body = lines.slice(0, sigStart).join('\n').trim();
   const signature = sigParts.join(' ').replace(/\s+/g, ' ').trim();
   return { body, signature, dataLine };
+}
+
+/**
+ * Strip the COMPATIBILITY SNAPSHOT block from the end of overlay reading text.
+ * The LLM appends this after the prose with a `---` separator or directly as
+ * "COMPATIBILITY SNAPSHOT: Person1 & Person2". It's rendered separately on its
+ * own dedicated page with score bars, so we remove it from the body text to
+ * prevent it appearing as a wall of unformatted text.
+ */
+function stripCompatibilitySnapshot(text: string): string {
+  const s = String(text || '');
+  // Match "---" followed by "COMPATIBILITY SNAPSHOT" (with optional whitespace/newlines)
+  const dashMarker = s.search(/---\s*\n\s*COMPATIBILITY SNAPSHOT/i);
+  if (dashMarker >= 0) return s.slice(0, dashMarker).trim();
+  // Match standalone "COMPATIBILITY SNAPSHOT:" line
+  const directMarker = s.search(/\nCOMPATIBILITY SNAPSHOT\s*:/i);
+  if (directMarker >= 0) return s.slice(0, directMarker).trim();
+  return s;
 }
 
 function buildSystemGlossary(system: string): Array<{ term: string; meaning: string }> {
@@ -1089,6 +1112,12 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
         if (options.person2) capture('person2Reading', `${options.person2.name} Signature`);
         if (options.person2) capture('overlayReading', `${options.person1.name} & ${options.person2.name} Signature`);
         capture('verdict', 'Verdict Signature');
+
+        // Strip COMPATIBILITY SNAPSHOT blocks from body text — they're rendered
+        // on their own dedicated page with score bars, so remove from prose.
+        if (cleaned.overlayReading) cleaned.overlayReading = stripCompatibilitySnapshot(cleaned.overlayReading);
+        if (cleaned.verdict) cleaned.verdict = stripCompatibilitySnapshot(cleaned.verdict);
+
         return cleaned;
       });
 

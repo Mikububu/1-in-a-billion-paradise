@@ -15,7 +15,8 @@ import sharp from 'sharp';
 import { getApiKey } from './apiKeys';
 import { env } from '../config/env';
 import { createSupabaseServiceClient } from './supabaseClient';
-import { loadImagePromptLayer } from '../promptEngine/imagePromptLayers';
+import { loadImagePromptLayerAsync } from '../promptEngine/imagePromptLayers';
+import { getConfigAsync } from '../promptEngine/layerLoader';
 import { logGoogleAiStudioCost } from './costTracking';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -227,7 +228,7 @@ export async function generateAIPortrait(
     // Add text prompt (loaded from editable prompt layer markdown)
     let stylePrompt = '';
     try {
-      stylePrompt = loadImagePromptLayer('single_portrait');
+      stylePrompt = await loadImagePromptLayerAsync('single_portrait');
       console.log(`🧾 [AI Portrait] Using image prompt layer "single_portrait": ${stylePrompt.replace(/\s+/g, ' ').slice(0, 140)}...`);
     } catch (err) {
       console.warn('⚠️ [AI Portrait] Failed to load image prompt layer, using fallback:', (err as Error)?.message || err);
@@ -235,8 +236,38 @@ export async function generateAIPortrait(
     }
     parts.push({ text: stylePrompt });
 
+    // Fetch preferred model from Supabase ai_configurations
+    const defaultModel = env.GOOGLE_IMAGE_MODEL || 'gemini-3-pro-image-preview';
+    const activeModel = await getConfigAsync('google_image_model', defaultModel);
+
     // Generate using the SDK with retry/backoff for transient network failures.
-    const response = await generateGoogleImageWithRetry(ai, parts);
+    let lastError: any;
+    let response: any;
+    for (let attempt = 1; attempt <= 4; attempt += 1) {
+      try {
+        response = await ai.models.generateContent({
+          model: activeModel,
+          contents: { parts },
+          config: {
+            imageConfig: {
+              aspectRatio: '1:1',
+            },
+          },
+        });
+        break; // Success
+      } catch (error: any) {
+        lastError = error;
+        const retryable = isRetryableError(error);
+        if (!retryable || attempt === 4) {
+          throw error;
+        }
+        const delayMs = attempt * 2500;
+        console.warn(
+          `⚠️ [AI Portrait] Google image call failed (attempt ${attempt}/4): ${error?.message || error}. Retrying in ${delayMs}ms...`
+        );
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
 
     // Extract image from response (loop through parts to find inlineData)
     let generatedImageB64: string | undefined;

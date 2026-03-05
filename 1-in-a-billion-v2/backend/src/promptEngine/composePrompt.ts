@@ -1,4 +1,4 @@
-import { loadLayerMarkdown } from './layerLoader';
+import { loadLayerMarkdown, loadLayerMarkdownAsync } from './layerLoader';
 import { STYLE_LAYER_REGISTRY, SYSTEM_LAYER_REGISTRY, VERDICT_LAYER_REGISTRY } from './layerRegistry';
 import { getDefaultOutputLengthContract, type OutputLengthContract } from './outputLengthProfiles';
 import {
@@ -334,24 +334,24 @@ function soulMemoirOverride(styleLayerId: string): string {
     ].join('\n');
 }
 
-function buildSystemBlock(
+async function buildSystemBlock(
     systems: SystemId[],
     readingKind: ComposePromptInput['readingKind'],
     directive: PromptLayerDirective | undefined,
     stats: PromptLayerDiagnostics[]
-): { text: string; ids: Array<{ system: SystemId; layerId: string; mode: LayerMode }> } {
+): Promise<{ text: string; ids: Array<{ system: SystemId; layerId: string; mode: LayerMode }> }> {
     const systemIds: Array<{ system: SystemId; layerId: string; mode: LayerMode }> = [];
     const sections: string[] = [];
 
-    systems.forEach((system) => {
+    for (const system of systems) {
         const { layerId, mode } = resolveSystemLayerId(system, readingKind, directive);
         const file = SYSTEM_LAYER_REGISTRY[system].files[layerId];
-        const raw = loadLayerMarkdown(file);
+        const raw = await loadLayerMarkdownAsync(file);
         const layer = capLayer(`system:${system}:${layerId}`, raw, LAYER_BUDGET.systemKnowledge, stats);
 
         systemIds.push({ system, layerId, mode });
         sections.push(`SYSTEM ANALYSIS KNOWLEDGE (${system.toUpperCase()} | ${mode.toUpperCase()} | ${layerId})\n${layer}`);
-    });
+    }
 
     return {
         text: sections.join('\n\n'),
@@ -359,18 +359,18 @@ function buildSystemBlock(
     };
 }
 
-function buildVoiceOverlayBlock(
+async function buildVoiceOverlayBlock(
     systems: SystemId[],
     styleLayerId: string,
     stats: PromptLayerDiagnostics[]
-): string {
+): Promise<string> {
     if (styleLayerId !== 'writing-style-guide-incarnation-v1') return '';
 
     const sections: string[] = [];
 
     const voiceArchitecture = capLayer(
         'voice-architecture-all-systems',
-        dropSecondPersonLines(loadLayerMarkdown('style/voice-architecture-all-systems.md')),
+        dropSecondPersonLines(await loadLayerMarkdownAsync('style/voice-architecture-all-systems.md')),
         LAYER_BUDGET.voiceArchitecture,
         stats
     );
@@ -390,7 +390,7 @@ function buildVoiceOverlayBlock(
             try {
                 const voice = capLayer(
                     `voice-${system}`,
-                    dropSecondPersonLines(loadLayerMarkdown(file)),
+                    dropSecondPersonLines(await loadLayerMarkdownAsync(file)),
                     LAYER_BUDGET.systemVoice,
                     stats
                 );
@@ -406,7 +406,7 @@ function buildVoiceOverlayBlock(
     return sections.join('\n\n');
 }
 
-export function composePrompt(input: ComposePromptInput): ComposePromptResult {
+export async function composePrompt(input: ComposePromptInput): Promise<ComposePromptResult> {
     const systems = uniqueSystems(input.systems || []);
     if (systems.length === 0) {
         throw new Error('composePrompt requires at least one system');
@@ -420,14 +420,14 @@ export function composePrompt(input: ComposePromptInput): ComposePromptResult {
     const directive = input.promptLayerDirective;
 
     const styleLayerId = resolveStyleLayerId(directive);
-    const styleRaw = loadLayerMarkdown(STYLE_LAYER_REGISTRY.files[styleLayerId]);
+    const styleRaw = await loadLayerMarkdownAsync(STYLE_LAYER_REGISTRY.files[styleLayerId]);
     const systemPrompt = extractSystemPromptFromStyleLayer(styleLayerId, systems[0], input.readingKind);
     const styleRawForUser = styleLayerId === 'writing-style-guide-incarnation-v1'
         ? stripIncarnationIdentitySection(styleRaw)
         : styleRaw;
     const styleLayer = capLayer('global-style', styleRawForUser, LAYER_BUDGET.globalStyle, stats);
 
-    const systemsBlock = buildSystemBlock(systems, input.readingKind, directive, stats);
+    const systemsBlock = await buildSystemBlock(systems, input.readingKind, directive, stats);
     const modeLayer = capLayer('mode-rules', modeRules(input.readingKind), LAYER_BUDGET.modeRules, stats);
     const preferenceLayer = capLayer(
         'preference-lens',
@@ -464,14 +464,14 @@ export function composePrompt(input: ComposePromptInput): ComposePromptResult {
         LAYER_BUDGET.outputLanguage,
         stats
     );
-    const voiceOverlayLayer = buildVoiceOverlayBlock(systems, styleLayerId, stats);
+    const voiceOverlayLayer = await buildVoiceOverlayBlock(systems, styleLayerId, stats);
 
     const kabbalahPolicyLine = systems.includes('kabbalah')
         ? `KABBALAH NAME/GEMATRIA MODE: ${directive?.kabbalahNameGematriaMode || 'disabled'}`
         : '';
     const verdictLayerId = input.readingKind === 'verdict' ? resolveVerdictLayerId(directive) : undefined;
     const verdictLayer = verdictLayerId
-        ? capLayer('final-verdict-layer', loadLayerMarkdown(VERDICT_LAYER_REGISTRY.files[verdictLayerId]), LAYER_BUDGET.systemKnowledge, stats)
+        ? capLayer('final-verdict-layer', await loadLayerMarkdownAsync(VERDICT_LAYER_REGISTRY.files[verdictLayerId]), LAYER_BUDGET.systemKnowledge, stats)
         : '';
 
     const styleOverrideLayer = capLayer('style-override', soulMemoirOverride(styleLayerId), 1800, stats);

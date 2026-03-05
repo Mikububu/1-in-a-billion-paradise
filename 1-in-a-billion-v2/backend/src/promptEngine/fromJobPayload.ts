@@ -1,5 +1,5 @@
 import { composePrompt } from './composePrompt';
-import { ComposePromptInput, SystemId } from './types';
+import { ComposePromptInput, SystemId, ComposePromptResult } from './types';
 import { normalizeOutputLengthContract } from './outputLengthProfiles';
 
 const isSystem = (value: string): value is SystemId =>
@@ -9,7 +9,7 @@ const isSystem = (value: string): value is SystemId =>
     value === 'gene_keys' ||
     value === 'kabbalah';
 
-export function composePromptFromJobStartPayload(payload: any): ReturnType<typeof composePrompt> {
+export async function composePromptFromJobStartPayload(payload: any): Promise<ComposePromptResult> {
     const systems = Array.isArray(payload?.systems) ? payload.systems.filter(isSystem) : [];
     const readingKind = payload?.type === 'synastry'
         ? 'synastry'
@@ -35,5 +35,5 @@ export function composePromptFromJobStartPayload(payload: any): ReturnType<typeo
         promptLayerDirective: payload?.promptLayerDirective,
     };
 
-    return composePrompt(input);
+    return await composePrompt(input);
 }

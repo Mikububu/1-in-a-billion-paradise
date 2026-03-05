@@ -25,7 +25,8 @@ import { getApiKey } from './apiKeys';
 import { env } from '../config/env';
 import sharp from 'sharp';
 import fs from 'fs';
-import { loadImagePromptLayer } from '../promptEngine/imagePromptLayers';
+import { loadImagePromptLayerAsync } from '../promptEngine/imagePromptLayers';
+import { getConfigAsync } from '../promptEngine/layerLoader';
 import { isLocalFileUrl, getLocalFilePath } from '../utils/avatarUtils';
 
 const COUPLE_IMAGES_BUCKET = 'couple-portraits';
@@ -122,6 +123,15 @@ export async function composeCoupleImage(
     // 2. Generate couple portrait with Google AI Studio
     const ai = new GoogleGenAI({ apiKey: googleKey });
 
+    let synastryPrompt = '';
+    try {
+      synastryPrompt = await loadImagePromptLayerAsync('synastry_portrait');
+      console.log(`🧾 [Couple] Using image prompt layer "synastry_portrait": ${synastryPrompt.replace(/\s+/g, ' ').slice(0, 140)}...`);
+    } catch (err) {
+      console.warn('⚠️ [Couple] Failed to load synastry image prompt layer, using fallback:', (err as Error)?.message || err);
+      synastryPrompt = 'Compose these two stylized portraits into a romantic couple portrait. Keep the exact same artistic style from the input portraits. Show them pressed close together in love, intimate composition. Preserve the facial features from both portraits exactly as shown - do not change or reinterpret the faces. Extreme close-up zoomed in, subjects fill entire frame edge to edge, no empty margins or white space around subjects.';
+    }
+
     const parts: any[] = [
       // First person's portrait
       {
@@ -139,21 +149,15 @@ export async function composeCoupleImage(
       },
       // Romantic couple composition prompt
       {
-        text: (() => {
-          try {
-            const prompt = loadImagePromptLayer('synastry_portrait');
-            console.log(`🧾 [Couple] Using image prompt layer "synastry_portrait": ${prompt.replace(/\s+/g, ' ').slice(0, 140)}...`);
-            return prompt;
-          } catch (err) {
-            console.warn('⚠️ [Couple] Failed to load synastry image prompt layer, using fallback:', (err as Error)?.message || err);
-            return 'Compose these two stylized portraits into a romantic couple portrait. Keep the exact same artistic style from the input portraits. Show them pressed close together in love, intimate composition. Preserve the facial features from both portraits exactly as shown - do not change or reinterpret the faces. Extreme close-up zoomed in, subjects fill entire frame edge to edge, no empty margins or white space around subjects.';
-          }
-        })()
+        text: synastryPrompt
       }
     ];
 
+    const defaultModel = env.GOOGLE_IMAGE_MODEL || 'gemini-3-pro-image-preview';
+    const activeModel = await getConfigAsync('google_image_model', defaultModel);
+
     const response = await ai.models.generateContent({
-      model: env.GOOGLE_IMAGE_MODEL || 'gemini-3-pro-image-preview',
+      model: activeModel,
       contents: { parts },
       config: {
         imageConfig: {

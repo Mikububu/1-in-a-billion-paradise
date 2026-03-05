@@ -74,7 +74,7 @@ async function main() {
     ].join('\n'),
   } as any;
 
-  const composed = composePromptFromJobStartPayload(payload);
+  const composed = await composePromptFromJobStartPayload(payload);
   const userMessage = composed.userMessage || composed.prompt;
   const systemPrompt = composed.systemPrompt || undefined;
 
