@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { getFallbackAvatar } from '@/utils/avatarUtils';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 import { MainStackParamList } from '@/navigation/RootNavigator';
@@ -55,6 +56,12 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
     const [playingVoice, setPlayingVoice] = useState<string | null>(null);
     const previewSoundRef = useRef<Audio.Sound | null>(null);
     const isLoadingPreviewRef = useRef(false);
+
+    // Photo upload modal state (replaces native Alert)
+    const [photoModalVisible, setPhotoModalVisible] = useState(false);
+    const [photoModalUploadId, setPhotoModalUploadId] = useState<string | null>(null);
+    const [photoModalWho, setPhotoModalWho] = useState('');
+    const photoModalResolveRef = useRef<((value: boolean) => void) | null>(null);
 
     const productName = useMemo(() => {
         if (productType === 'complete_reading') return 'All 5 Systems';
@@ -281,26 +288,10 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
                 : p2Profile?.id || targetPerson?.id || null;
 
             const proceed = await new Promise<boolean>((resolve) => {
-                Alert.alert(
-                    t('voiceSelection.uploadPhotoTitle'),
-                    t('voiceSelection.uploadPhotoMessage', { who: whoMissing }),
-                    [
-                        {
-                            text: t('voiceSelection.uploadPhotoButton'),
-                            onPress: () => {
-                                if (uploadId) {
-                                    navigation.navigate('PersonPhotoUpload', { personId: uploadId });
-                                }
-                                resolve(false); // Don't proceed, user navigated away
-                            },
-                        },
-                        {
-                            text: t('voiceSelection.skipGenerate'),
-                            style: 'cancel',
-                            onPress: () => resolve(true),
-                        },
-                    ]
-                );
+                photoModalResolveRef.current = resolve;
+                setPhotoModalUploadId(uploadId);
+                setPhotoModalWho(whoMissing);
+                setPhotoModalVisible(true);
             });
 
             if (!proceed) return;
@@ -422,6 +413,77 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
                     disabled={isLoading}
                 />
             </View>
+
+            {/* ── Photo Upload Modal (shows anonymous avatar) ──────────────── */}
+            <Modal
+                transparent
+                visible={photoModalVisible}
+                animationType="fade"
+                onRequestClose={() => {
+                    setPhotoModalVisible(false);
+                    photoModalResolveRef.current?.(false);
+                }}
+            >
+                <Pressable
+                    style={styles.modalBackdrop}
+                    onPress={() => {
+                        setPhotoModalVisible(false);
+                        photoModalResolveRef.current?.(false);
+                    }}
+                >
+                    <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+                        {/* Avatar image */}
+                        <TouchableOpacity
+                            style={styles.modalAvatarWrap}
+                            activeOpacity={0.8}
+                            onPress={() => {
+                                setPhotoModalVisible(false);
+                                if (photoModalUploadId) {
+                                    navigation.navigate('PersonPhotoUpload', { personId: photoModalUploadId });
+                                }
+                                photoModalResolveRef.current?.(false);
+                            }}
+                        >
+                            <Image
+                                source={getFallbackAvatar(photoModalUploadId)}
+                                style={styles.modalAvatar}
+                            />
+                        </TouchableOpacity>
+
+                        <Text style={styles.modalTitle}>{t('voiceSelection.uploadPhotoTitle')}</Text>
+                        <Text style={styles.modalMessage}>
+                            {t('voiceSelection.uploadPhotoMessage', { who: photoModalWho })}
+                        </Text>
+
+                        {/* Upload button */}
+                        <TouchableOpacity
+                            style={styles.modalUploadButton}
+                            activeOpacity={0.8}
+                            onPress={() => {
+                                setPhotoModalVisible(false);
+                                if (photoModalUploadId) {
+                                    navigation.navigate('PersonPhotoUpload', { personId: photoModalUploadId });
+                                }
+                                photoModalResolveRef.current?.(false);
+                            }}
+                        >
+                            <Text style={styles.modalUploadButtonText}>{t('voiceSelection.uploadPhotoButton')}</Text>
+                        </TouchableOpacity>
+
+                        {/* Skip button */}
+                        <TouchableOpacity
+                            style={styles.modalSkipButton}
+                            activeOpacity={0.7}
+                            onPress={() => {
+                                setPhotoModalVisible(false);
+                                photoModalResolveRef.current?.(true);
+                            }}
+                        >
+                            <Text style={styles.modalSkipText}>{t('voiceSelection.skipGenerate')}</Text>
+                        </TouchableOpacity>
+                    </Pressable>
+                </Pressable>
+            </Modal>
         </SafeAreaView>
     );
 };
@@ -515,5 +577,75 @@ const styles = StyleSheet.create({
     },
     checkSelected: {
         color: colors.primary,
+    },
+    // ── Photo Upload Modal ──
+    modalBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.48)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: spacing.page,
+    },
+    modalCard: {
+        width: '100%',
+        maxWidth: 340,
+        borderRadius: radii.modal,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
+        paddingHorizontal: spacing.lg,
+        paddingTop: spacing.lg,
+        paddingBottom: spacing.md,
+        alignItems: 'center',
+    },
+    modalAvatarWrap: {
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        overflow: 'hidden',
+        borderWidth: 2,
+        borderColor: colors.border,
+        marginBottom: spacing.md,
+    },
+    modalAvatar: {
+        width: '100%',
+        height: '100%',
+    },
+    modalTitle: {
+        fontFamily: typography.headline,
+        fontSize: 22,
+        color: colors.text,
+        textAlign: 'center',
+        marginBottom: spacing.xs,
+    },
+    modalMessage: {
+        fontFamily: typography.sansRegular,
+        fontSize: 14,
+        color: colors.mutedText,
+        textAlign: 'center',
+        lineHeight: 20,
+        marginBottom: spacing.lg,
+    },
+    modalUploadButton: {
+        width: '100%',
+        backgroundColor: colors.primary,
+        borderRadius: radii.lg,
+        paddingVertical: 14,
+        alignItems: 'center',
+        marginBottom: spacing.sm,
+    },
+    modalUploadButtonText: {
+        fontFamily: typography.sansSemiBold,
+        fontSize: 16,
+        color: '#FFFFFF',
+    },
+    modalSkipButton: {
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.lg,
+    },
+    modalSkipText: {
+        fontFamily: typography.sansSemiBold,
+        fontSize: 15,
+        color: colors.mutedText,
     },
 });

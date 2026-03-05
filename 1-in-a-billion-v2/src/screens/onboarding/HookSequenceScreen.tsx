@@ -781,7 +781,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
       };
       // Audio is now stored in Supabase Storage (URLs in hookAudio), not Base64
       // saveHookReadings no longer needs audioData - audio URLs are stored separately
-      const result = await saveHookReadings(fakeUser.id, hookReadingsToSave, undefined, onboardingState.primaryLanguage?.code);
+      const result = await saveHookReadings(fakeUser.id, hookReadingsToSave, undefined, primaryLanguage?.code);
       if (result.success) {
         console.log('✅ Hook readings saved to Supabase');
       } else {
@@ -830,7 +830,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
             };
             // Audio is now stored in Supabase Storage (URLs in hookAudio), not Base64
             // saveHookReadings no longer needs audioData - audio URLs are stored separately
-            const result = await saveHookReadings(session.user.id, hookReadingsToSave, undefined, onboardingState.primaryLanguage?.code);
+            const result = await saveHookReadings(session.user.id, hookReadingsToSave, undefined, primaryLanguage?.code);
             if (result.success) {
               console.log('✅ Hook readings saved to Supabase');
             } else {
@@ -975,7 +975,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
         ...(moon ? { moon } : {}),
         ...(rising ? { rising } : {}),
       };
-      saveHookReadings(user.id, hookReadingsToSave, undefined, onboardingState.primaryLanguage?.code).then((res) => {
+      saveHookReadings(user.id, hookReadingsToSave, undefined, primaryLanguage?.code).then((res) => {
         if (res.success) console.log('✅ Hook readings saved to Supabase');
         else console.warn('⚠️ Failed to save hook readings:', res.error);
       }).catch((err) => console.warn('⚠️ Hook readings save error:', err));

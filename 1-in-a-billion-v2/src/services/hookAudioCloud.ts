@@ -24,7 +24,7 @@ export async function uploadHookAudioBase64(params: {
     audioBase64: string;
     language?: string;
 }): Promise<{ success: true; path: string } | { success: false; error: string }> {
-    const { userId, personId, type, audioBase64 } = params;
+    const { userId, personId, type, audioBase64, language } = params;
 
     if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
     if (!userId) return { success: false, error: 'Missing userId' };

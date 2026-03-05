@@ -53,10 +53,10 @@ export function cleanupTextForTTS(text: string, language: string = 'en'): string
   cleaned = cleaned.replace(/\u2013/g, ', '); // en-dash
 
   // Remove special characters and unicode symbols
-  // Keep standard punctuation: . , ; : ' " ? !
+  // Keep all standard punctuation (including CJK full-stops, commas, etc via \p{P})
   cleaned = cleaned.replace(/[\u2648-\u2653]/g, ''); // Zodiac symbols
   cleaned = cleaned.replace(/[\u00B0'"]/g, ''); // Degree symbols and quotes (keep standard quotes)
-  cleaned = cleaned.replace(/[^\p{L}\p{N}\p{M}\x20-\x7E\n\r\t.,;:!?'"()\[\]{}]/gu, ' ');
+  cleaned = cleaned.replace(/[^\p{L}\p{N}\p{M}\p{P}\x20-\x7E\n\r\t]/gu, ' ');
 
   // Remove emojis (common emoji ranges)
   cleaned = cleaned.replace(/[\u{1F300}-\u{1F9FF}]/gu, ''); // Miscellaneous Symbols and Pictographs

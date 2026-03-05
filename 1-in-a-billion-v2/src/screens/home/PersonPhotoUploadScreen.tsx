@@ -20,6 +20,7 @@ import { uploadPersonPhoto } from '@/services/personPhotoService';
 import { useAuthStore } from '@/store/authStore';
 import { insertPersonToSupabase } from '@/services/peopleService';
 import { t } from '@/i18n';
+import { getFallbackAvatar } from '@/utils/avatarUtils';
 import * as ImagePicker from 'expo-image-picker';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PersonPhotoUpload'>;
@@ -173,8 +174,10 @@ export const PersonPhotoUploadScreen = ({ navigation, route }: Props) => {
                         <Image source={{ uri: displayUri }} style={styles.image} />
                     ) : (
                         <View style={styles.placeholder}>
-                            <Text style={styles.placeholderInitial}>{personLabel.charAt(0).toUpperCase()}</Text>
-                            <Text style={styles.placeholderHint}>{t('photoUpload.tapHint')}</Text>
+                            <Image source={getFallbackAvatar(person?.id)} style={styles.placeholderAvatar} />
+                            <View style={styles.placeholderOverlay}>
+                                <Text style={styles.placeholderHint}>{t('photoUpload.tapHint')}</Text>
+                            </View>
                         </View>
                     )}
 
@@ -253,24 +256,30 @@ const styles = StyleSheet.create({
     placeholder: {
         width: '100%',
         height: '100%',
-        borderWidth: 2,
-        borderColor: colors.border,
-        borderStyle: 'dashed',
         borderRadius: radii.card,
-        alignItems: 'center',
-        justifyContent: 'center',
+        overflow: 'hidden',
         backgroundColor: colors.surface,
     },
-    placeholderInitial: {
-        fontFamily: typography.headline,
-        fontSize: 82,
-        color: colors.mutedText,
+    placeholderAvatar: {
+        width: '100%',
+        height: '100%',
+        borderRadius: radii.card,
+    },
+    placeholderOverlay: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        paddingVertical: spacing.sm,
+        backgroundColor: 'rgba(0, 0, 0, 0.45)',
+        alignItems: 'center',
+        borderBottomLeftRadius: radii.card,
+        borderBottomRightRadius: radii.card,
     },
     placeholderHint: {
-        marginTop: spacing.sm,
-        fontFamily: typography.sansRegular,
-        fontSize: 12,
-        color: colors.mutedText,
+        fontFamily: typography.sansSemiBold,
+        fontSize: 13,
+        color: '#FFFFFF',
     },
     pulseBorder: {
         position: 'absolute',
