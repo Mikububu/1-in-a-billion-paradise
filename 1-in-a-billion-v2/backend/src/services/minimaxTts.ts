@@ -6,18 +6,21 @@ import { env } from '../config/env';
 import { VOICE_CLONE_TRANSCRIPT } from '../config/voices';
 
 /**
- * Uploads a reference WAV file to MiniMax for voice cloning
+ * Uploads a reference audio file to MiniMax.
+ *
+ * @param purpose - MiniMax upload purpose:
+ *   - 'prompt_audio': For inline clone_prompt in T2A calls (audio must be <8s)
+ *   - 'voice_clone':  For dedicated Voice Clone API registration (audio must be 10s-5min)
  */
-async function uploadReferenceAudio(wavBuffer: Buffer, filename: string = 'reference.wav'): Promise<string> {
+async function uploadReferenceAudio(wavBuffer: Buffer, filename: string = 'reference.wav', purpose: 'prompt_audio' | 'voice_clone' = 'prompt_audio'): Promise<string> {
     const key = await apiKeys.minimax().catch(() => null) || env.MINIMAX_API_KEY;
     if (!key) throw new Error("MiniMax API key not found");
 
-    console.log(`[MiniMax TTS] Uploading reference audio (${filename})...`);
+    console.log(`[MiniMax TTS] Uploading reference audio (${filename}, purpose=${purpose})...`);
 
-    // Check if it's a URL or a buffer
     const form = new FormData();
     form.append('file', wavBuffer, { filename, contentType: 'audio/wav' });
-    form.append('purpose', 'voice_clone');
+    form.append('purpose', purpose);
 
     const upRes = await axios.post('https://api.minimax.io/v1/files/upload', form, {
         headers: { ...form.getHeaders(), 'Authorization': `Bearer ${key}` }
@@ -30,6 +33,7 @@ async function uploadReferenceAudio(wavBuffer: Buffer, filename: string = 'refer
     const fileId = upRes.data.file?.file_id;
     if (!fileId) throw new Error("MiniMax did not return a file_id after upload");
 
+    console.log(`[MiniMax TTS] Upload successful: fileId=${fileId}`);
     return fileId;
 }
 
@@ -155,6 +159,61 @@ export async function generateMinimaxAsync(
         console.error("MiniMax TTS generation error:", error);
         throw error;
     }
+}
+
+/**
+ * Register a voice clone permanently with MiniMax Voice Clone API.
+ *
+ * This creates a persistent voice_id that can be used directly in T2A calls
+ * without needing clone_prompt. Produces better quality than inline cloning.
+ *
+ * Requirements:
+ * - Audio must be 10s-5min (uploaded with purpose='voice_clone')
+ * - voice_id: min 8 chars, alphanumeric, starts with letter, must be unique per account
+ * - Registered voices are deleted after 7 days if never used in a T2A call
+ * - Limit: ~4 registered voices per account (use them wisely)
+ *
+ * @returns The registered voice_id (same as input) and optional demo audio URL
+ */
+export async function registerVoiceClone(
+    audioFileId: string,
+    voiceId: string,
+    model: string = 'speech-01-turbo'
+): Promise<{ success: boolean; voiceId: string; demoAudio?: string }> {
+    const key = await apiKeys.minimax().catch(() => null) || env.MINIMAX_API_KEY;
+    if (!key) throw new Error("MiniMax API key not found");
+
+    // Validate voice_id format (min 8 chars, alphanumeric, starts with letter)
+    if (voiceId.length < 8 || !/^[a-zA-Z][a-zA-Z0-9]*$/.test(voiceId)) {
+        throw new Error(`Invalid voice_id "${voiceId}": must be 8+ chars, alphanumeric, start with letter`);
+    }
+
+    console.log(`[MiniMax] Registering voice clone: ${voiceId} (model=${model})...`);
+
+    const res = await axios.post('https://api.minimax.io/v1/voice_clone', {
+        file_id: audioFileId,
+        voice_id: voiceId,
+        model,
+        need_noise_reduction: false,
+        need_volumn_normalization: true, // Note: MiniMax spells it "volumn"
+    }, {
+        headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' }
+    });
+
+    if (res.data.base_resp?.status_code !== 0) {
+        throw new Error(`MiniMax voice clone registration failed: ${res.data.base_resp?.status_msg}`);
+    }
+
+    console.log(`[MiniMax] Voice clone registered successfully: ${voiceId}`);
+    return { success: true, voiceId, demoAudio: res.data.demo_audio };
+}
+
+/**
+ * Upload audio for Voice Clone API registration (requires 10s-5min audio).
+ * Use this with registerVoiceClone() for permanent voice registration.
+ */
+export async function uploadForVoiceClone(wavBuffer: Buffer, filename: string = 'reference.wav'): Promise<string> {
+    return uploadReferenceAudio(wavBuffer, filename, 'voice_clone');
 }
 
 async function downloadAndExtractMp3FromTar(url: string): Promise<Buffer> {

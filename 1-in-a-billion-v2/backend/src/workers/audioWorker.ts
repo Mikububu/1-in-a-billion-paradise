@@ -412,16 +412,32 @@ export class AudioWorker extends BaseWorker {
           console.log(`[MiniMax] Auto-selected base voice: ${minimaxVoiceId} (lang=${langPrefix}, gender=${category})`);
         }
 
-        let clonePromptFileId: string | undefined;
-        // Use short clone clip (<8s) for MiniMax clone_prompt, fall back to full sample
-        const refAudioUrl = (voice as any)?.cloneAudioUrl || voice?.sampleAudioUrl || task.input.audioUrl || this.voiceSampleUrl;
+        // Check if voice has a pre-registered MiniMax cloned voice ID
+        // (from Voice Clone API — produces better quality than inline clone_prompt)
+        const hasRegisteredClone = !!(voice as any)?.minimaxClonedVoiceId;
+        if (hasRegisteredClone) {
+          minimaxVoiceId = (voice as any).minimaxClonedVoiceId;
+          console.log(`[MiniMax] Using pre-registered cloned voice: ${minimaxVoiceId} (skipping inline clone_prompt)`);
+        }
 
-        if (refAudioUrl) {
-          console.log(`[AudioWorker] Uploading MiniMax reference audio from: ${refAudioUrl}`);
-          clonePromptFileId = await getMinimaxSequenceForUrl(refAudioUrl, `${voiceId}_reference.wav`).catch(e => {
-            console.warn("⚠️ [AudioWorker] Failed to upload reference audio, proceeding without clone prompt", e.message);
-            return undefined;
-          });
+        let clonePromptFileId: string | undefined;
+
+        // Only upload reference audio for inline cloning if:
+        // 1. Voice is NOT a Turbo preset (they have no reference audio — use base voice only)
+        // 2. Voice does NOT have a pre-registered clone (already handled above)
+        if (!isTurboPreset && !hasRegisteredClone) {
+          // Use short clone clip (<8s) for MiniMax clone_prompt, fall back to full sample
+          const refAudioUrl = (voice as any)?.cloneAudioUrl || voice?.sampleAudioUrl || task.input.audioUrl || this.voiceSampleUrl;
+
+          if (refAudioUrl) {
+            console.log(`[AudioWorker] Uploading MiniMax reference audio (purpose=prompt_audio) from: ${refAudioUrl}`);
+            clonePromptFileId = await getMinimaxSequenceForUrl(refAudioUrl, `${voiceId}_reference.wav`).catch(e => {
+              console.warn("⚠️ [AudioWorker] Failed to upload reference audio, proceeding without clone prompt", e.message);
+              return undefined;
+            });
+          }
+        } else if (isTurboPreset) {
+          console.log(`[MiniMax] Turbo preset voice "${voice?.displayName}" — using base voice only, no clone_prompt`);
         }
 
         console.log(`[MiniMax] Using Voice: ${minimaxVoiceId} | Cloning File ID: ${clonePromptFileId || 'None'} | Speed: ${MINIMAX_DEFAULT_SPEED} | Volume: ${MINIMAX_DEFAULT_VOLUME}`);

@@ -25,6 +25,7 @@ export interface Voice {
     isTurboPreset?: boolean; // True if this is a Chatterbox Turbo built-in voice (no cloning needed)
     turboVoiceId?: string;   // Turbo voice ID for API calls (e.g., "alloy", "echo")
     turboSettings?: TurboVoiceSettings; // Custom settings for Turbo voices
+    minimaxClonedVoiceId?: string; // Pre-registered MiniMax Voice Clone API voice ID (if registered)
 }
 
 /**
