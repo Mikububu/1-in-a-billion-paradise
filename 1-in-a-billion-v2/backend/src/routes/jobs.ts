@@ -529,7 +529,7 @@ router.get('/v2/:jobId/export', async (c) => {
 // DEBUG: Get all tasks for a job (requires JWT auth)
 router.get('/v2/:jobId/tasks', jwtAuth, async (c) => {
 
-  const jobId = c.req.param('jobId');
+  const jobId = c.req.param('jobId')!;
   const tasks = await jobQueueV2.getJobTasks(jobId);
   return c.json({
     success: true,

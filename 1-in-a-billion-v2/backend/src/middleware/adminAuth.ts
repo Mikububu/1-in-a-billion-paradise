@@ -159,7 +159,7 @@ export async function logAdminAction(
   adminId: string,
   action: string,
   resourceType: string,
-  resourceId: string | null,
+  resourceId: string | null | undefined,
   changes: Record<string, any> | null,
   ipAddress?: string,
   userAgent?: string

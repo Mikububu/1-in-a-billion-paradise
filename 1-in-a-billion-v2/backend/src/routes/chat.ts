@@ -119,8 +119,8 @@ router.post('/matches', requireAuth, async (c) => {
  * Mark a match as seen
  */
 router.post('/matches/:matchId/seen', requireAuth, async (c) => {
-  const userId = c.get('userId');
-  const matchId = c.req.param('matchId');
+  const userId = c.get('userId')!;
+  const matchId = c.req.param('matchId')!;
   const success = await markMatchSeen(matchId, userId);
 
   return c.json({ success });
@@ -135,7 +135,7 @@ router.post('/matches/:matchId/seen', requireAuth, async (c) => {
  * Get all conversations for the current user
  */
 router.get('/conversations', requireAuth, async (c) => {
-  const userId = c.get('userId');
+  const userId = c.get('userId')!;
 
   const conversations = await getUserConversations(userId);
   const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
@@ -153,8 +153,8 @@ router.get('/conversations', requireAuth, async (c) => {
  * Get messages for a conversation
  */
 router.get('/conversations/:conversationId/messages', requireAuth, async (c) => {
-  const userId = c.get('userId');
-  const conversationId = c.req.param('conversationId');
+  const userId = c.get('userId')!;
+  const conversationId = c.req.param('conversationId')!;
   const limit = Math.min(Math.max(1, parseInt(c.req.query('limit') || '50') || 50), 200);
   const before = c.req.query('before') || undefined;
 
@@ -168,10 +168,10 @@ router.get('/conversations/:conversationId/messages', requireAuth, async (c) => 
  * Send a message
  */
 router.post('/conversations/:conversationId/messages', requireAuth, async (c) => {
-  const userId = c.get('userId');
+  const userId = c.get('userId')!;
 
   try {
-    const conversationId = c.req.param('conversationId');
+    const conversationId = c.req.param('conversationId')!;
     const body = await c.req.json();
     const { content, messageType } = body;
 
@@ -183,7 +183,7 @@ router.post('/conversations/:conversationId/messages', requireAuth, async (c) =>
       return c.json({ success: false, error: 'Message too long (max 5000 characters)' }, 400);
     }
 
-    const message = await sendMessage(conversationId, userId, content.trim(), messageType);
+    const message = await sendMessage(conversationId, userId!, content.trim(), messageType);
 
     if (!message) {
       return c.json({ success: false, error: 'Failed to send message' }, 500);
@@ -201,8 +201,8 @@ router.post('/conversations/:conversationId/messages', requireAuth, async (c) =>
  * Mark all messages in a conversation as read
  */
 router.post('/conversations/:conversationId/read', requireAuth, async (c) => {
-  const userId = c.get('userId');
-  const conversationId = c.req.param('conversationId');
+  const userId = c.get('userId')!;
+  const conversationId = c.req.param('conversationId')!;
   const success = await markMessagesRead(conversationId, userId);
 
   return c.json({ success });
