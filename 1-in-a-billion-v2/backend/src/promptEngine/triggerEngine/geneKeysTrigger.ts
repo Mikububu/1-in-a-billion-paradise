@@ -138,6 +138,6 @@ export function buildGeneKeysWritingPrompt(params: {
     'CHART DATA (authoritative - do not invent or contradict):',
     strippedChartData,
     '',
-    `Write ${personName}'s Gene Keys reading now:`,
+    `Write ${personName}'s Gene Keys reading now. Do not include the name or any title as a header — begin directly with the narrative:`,
   ].join('\n');
 }

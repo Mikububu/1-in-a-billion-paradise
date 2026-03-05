@@ -252,20 +252,24 @@ export const GeneratingReadingScreen = ({ navigation, route }: Props) => {
                     <Text style={styles.libraryButtonText}>
                         {generationComplete ? t('generatingReading.button.openLibrary') : (libraryLineIndex === 0 ? t('generatingReading.button.libraryLine1') : t('generatingReading.button.libraryLine2'))}
                     </Text>
+                    <Text style={styles.buttonDesc}>{t('generatingReading.button.library.desc')}</Text>
                 </TouchableOpacity>
 
                 {activeJobId ? (
                     <TouchableOpacity style={styles.libraryButton} onPress={() => navigation.navigate('JobDetail', { jobId: activeJobId })}>
                         <Text style={styles.libraryButtonText}>{t('generatingReading.button.jobStatus')}</Text>
+                        <Text style={styles.buttonDesc}>{t('generatingReading.button.jobStatus.desc')}</Text>
                     </TouchableOpacity>
                 ) : null}
 
                 <TouchableOpacity style={styles.libraryButton} onPress={() => navigation.navigate('ComparePeople')}>
                     <Text style={styles.libraryButtonText}>{t('generatingReading.button.peopleList')}</Text>
+                    <Text style={styles.buttonDesc}>{t('generatingReading.button.peopleList.desc')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.libraryButton} onPress={() => navigation.navigate('Home')}>
                     <Text style={styles.libraryButtonText}>{t('generatingReading.button.dashboard')}</Text>
+                    <Text style={styles.buttonDesc}>{t('generatingReading.button.dashboard.desc')}</Text>
                 </TouchableOpacity>
             </ScrollView>
 
@@ -381,7 +385,7 @@ const styles = StyleSheet.create({
     },
     libraryButton: {
         marginTop: spacing.sm,
-        paddingVertical: spacing.md,
+        paddingVertical: 10,
         paddingHorizontal: spacing.lg,
         width: '100%',
         alignItems: 'center',
@@ -394,6 +398,14 @@ const styles = StyleSheet.create({
         fontFamily: typography.sansSemiBold,
         fontSize: 16,
         color: colors.text,
+        textAlign: 'center',
+    },
+    buttonDesc: {
+        fontFamily: typography.sans,
+        fontSize: 12,
+        color: '#999',
+        marginTop: 1,
+        letterSpacing: 0.2,
         textAlign: 'center',
     },
     videoContainer: {

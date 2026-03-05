@@ -815,6 +815,7 @@ export class TextWorker extends BaseWorker {
           maxTokens: 300,
           temperature: 0.7,
           maxRetries: 3,
+          systemPrompt: getSystemPromptForStyle(style, 'individual', 'western', params.outputLanguage),
         });
         const triggerUsage = llmPaid.getLastUsage();
         if (triggerUsage) {
@@ -869,6 +870,7 @@ export class TextWorker extends BaseWorker {
         console.log(`🩸 [TextWorker] Vedic narrativeTrigger call for ${subject.name}...`);
         const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
           maxTokens: 300, temperature: 0.7, maxRetries: 3,
+          systemPrompt: getSystemPromptForStyle(style, 'individual', 'vedic', params.outputLanguage),
         });
         const triggerUsageV = llmPaid.getLastUsage();
         if (triggerUsageV) await logLLMCost(jobId, task.id, { provider: triggerUsageV.provider, inputTokens: triggerUsageV.usage.inputTokens, outputTokens: triggerUsageV.usage.outputTokens }, `text_vedic_trigger_${docType}`);
@@ -913,6 +915,7 @@ export class TextWorker extends BaseWorker {
         console.log(`🩸 [TextWorker] HD narrativeTrigger call for ${subject.name}...`);
         const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
           maxTokens: 300, temperature: 0.7, maxRetries: 3,
+          systemPrompt: getSystemPromptForStyle(style, 'individual', 'human_design', params.outputLanguage),
         });
         const triggerUsageH = llmPaid.getLastUsage();
         if (triggerUsageH) await logLLMCost(jobId, task.id, { provider: triggerUsageH.provider, inputTokens: triggerUsageH.usage.inputTokens, outputTokens: triggerUsageH.usage.outputTokens }, `text_hd_trigger_${docType}`);
@@ -957,6 +960,7 @@ export class TextWorker extends BaseWorker {
         console.log(`🩸 [TextWorker] Gene Keys narrativeTrigger call for ${subject.name}...`);
         const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
           maxTokens: 300, temperature: 0.7, maxRetries: 3,
+          systemPrompt: getSystemPromptForStyle(style, 'individual', 'gene_keys', params.outputLanguage),
         });
         const triggerUsageG = llmPaid.getLastUsage();
         if (triggerUsageG) await logLLMCost(jobId, task.id, { provider: triggerUsageG.provider, inputTokens: triggerUsageG.usage.inputTokens, outputTokens: triggerUsageG.usage.outputTokens }, `text_gk_trigger_${docType}`);
@@ -1001,6 +1005,7 @@ export class TextWorker extends BaseWorker {
         console.log(`🩸 [TextWorker] Kabbalah narrativeTrigger call for ${subject.name}...`);
         const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:narrativeTrigger`, {
           maxTokens: 300, temperature: 0.7, maxRetries: 3,
+          systemPrompt: getSystemPromptForStyle(style, 'individual', 'kabbalah', params.outputLanguage),
         });
         const triggerUsageK = llmPaid.getLastUsage();
         if (triggerUsageK) await logLLMCost(jobId, task.id, { provider: triggerUsageK.provider, inputTokens: triggerUsageK.usage.inputTokens, outputTokens: triggerUsageK.usage.outputTokens }, `text_kab_trigger_${docType}`);
@@ -1048,6 +1053,7 @@ export class TextWorker extends BaseWorker {
         console.log(`🩸 [TextWorker] Western overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
         const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
           maxTokens: 300, temperature: 0.7, maxRetries: 3,
+          systemPrompt: getSystemPromptForStyle(style, 'overlay', undefined, params.outputLanguage),
         });
         const triggerUsageO = llmPaid.getLastUsage();
         if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_western_overlay_trigger');
@@ -1145,6 +1151,7 @@ export class TextWorker extends BaseWorker {
         console.log(`🩸 [TextWorker] Vedic overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
         const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
           maxTokens: 300, temperature: 0.7, maxRetries: 3,
+          systemPrompt: getSystemPromptForStyle(style, 'overlay', undefined, params.outputLanguage),
         });
         const triggerUsageO = llmPaid.getLastUsage();
         if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_vedic_overlay_trigger');
@@ -1188,6 +1195,7 @@ export class TextWorker extends BaseWorker {
         console.log(`🩸 [TextWorker] HD overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
         const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
           maxTokens: 300, temperature: 0.7, maxRetries: 3,
+          systemPrompt: getSystemPromptForStyle(style, 'overlay', undefined, params.outputLanguage),
         });
         const triggerUsageO = llmPaid.getLastUsage();
         if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_hd_overlay_trigger');
@@ -1231,6 +1239,7 @@ export class TextWorker extends BaseWorker {
         console.log(`🩸 [TextWorker] Gene Keys overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
         const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
           maxTokens: 300, temperature: 0.7, maxRetries: 3,
+          systemPrompt: getSystemPromptForStyle(style, 'overlay', undefined, params.outputLanguage),
         });
         const triggerUsageO = llmPaid.getLastUsage();
         if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_gk_overlay_trigger');
@@ -1274,6 +1283,7 @@ export class TextWorker extends BaseWorker {
         console.log(`🩸 [TextWorker] Kabbalah overlay narrativeTrigger call for ${person1.name} & ${person2!.name}...`);
         const triggerRaw = await llmPaid.generateStreaming(triggerPrompt, `${label}:overlay:narrativeTrigger`, {
           maxTokens: 300, temperature: 0.7, maxRetries: 3,
+          systemPrompt: getSystemPromptForStyle(style, 'overlay', undefined, params.outputLanguage),
         });
         const triggerUsageO = llmPaid.getLastUsage();
         if (triggerUsageO) await logLLMCost(jobId, task.id, { provider: triggerUsageO.provider, inputTokens: triggerUsageO.usage.inputTokens, outputTokens: triggerUsageO.usage.outputTokens }, 'text_kab_overlay_trigger');

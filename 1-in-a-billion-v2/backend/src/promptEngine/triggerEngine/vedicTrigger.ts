@@ -203,6 +203,6 @@ export function buildVedicWritingPrompt(params: {
     'CHART DATA (authoritative - do not invent or contradict):',
     strippedChartData,
     '',
-    `Write ${personName}'s Jyotish reading now:`,
+    `Write ${personName}'s Jyotish reading now. Do not include the name or any title as a header — begin directly with the narrative:`,
   ].join('\n');
 }

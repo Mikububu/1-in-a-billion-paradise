@@ -129,13 +129,13 @@ const styles = StyleSheet.create({
         paddingBottom: 0,
         alignItems: 'center',
         paddingHorizontal: 32,
-        gap: 16,
+        gap: 12,
         zIndex: 2,
     },
     button: {
         width: '100%',
         backgroundColor: colors.surface,
-        paddingVertical: 14,
+        paddingVertical: 10,
         paddingHorizontal: 20,
         borderRadius: 999,
         alignItems: 'center',
@@ -150,9 +150,9 @@ const styles = StyleSheet.create({
     },
     buttonDesc: {
         fontFamily: typography.sans,
-        fontSize: 10,
+        fontSize: 12,
         color: '#999',
-        marginTop: 2,
+        marginTop: 1,
         letterSpacing: 0.2,
     },
 });

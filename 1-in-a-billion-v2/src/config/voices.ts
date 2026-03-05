@@ -1,5 +1,5 @@
 export type VoiceId =
-    | 'david' | 'elisabeth' | 'michael' | 'peter' | 'victor'
+    | 'david' | 'elisabeth' | 'peter' | 'victor'
     | 'turbo-aaron' | 'turbo-abigail' | 'turbo-andy' | 'turbo-brian'
     | 'turbo-emmanuel' | 'turbo-evelyn' | 'turbo-gavin' | 'turbo-gordon'
     | 'turbo-ivan' | 'turbo-laura' | 'turbo-lucy' | 'turbo-walter';
@@ -28,12 +28,7 @@ export const VOICE_OPTIONS: VoiceOption[] = [
         description: 'Elegant and gentle guide',
         sampleUrl: `${SUPABASE_VOICE_SAMPLES}/elisabeth/preview.mp3`,
     },
-    {
-        id: 'michael',
-        label: 'Michael',
-        description: 'Confident and grounded tone',
-        sampleUrl: `${SUPABASE_VOICE_SAMPLES}/michael/preview.mp3`,
-    },
+    // Michael disabled — MiniMax Voice Clone API has 4-voice limit
     {
         id: 'peter',
         label: 'Peter',

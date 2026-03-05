@@ -193,6 +193,6 @@ export function buildHDWritingPrompt(params: {
     'CHART DATA (authoritative - do not invent or contradict):',
     strippedChartData,
     '',
-    `Write ${personName}'s Human Design reading now:`,
+    `Write ${personName}'s Human Design reading now. Do not include the name or any title as a header — begin directly with the narrative:`,
   ].join('\n');
 }

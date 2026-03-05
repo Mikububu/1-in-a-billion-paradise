@@ -213,6 +213,6 @@ export function buildWesternWritingPrompt(params: {
     'CHART DATA (authoritative - do not invent or contradict):',
     strippedChartData,
     '',
-    `Write ${personName}'s astrological reading now:`,
+    `Write ${personName}'s astrological reading now. Do not include the name or any title as a header — begin directly with the narrative:`,
   ].join('\n');
 }
