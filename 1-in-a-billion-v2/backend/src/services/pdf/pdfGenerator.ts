@@ -8,6 +8,23 @@ const FONTS_DIR = path.resolve(__dirname, '../../../assets/fonts');
 const GARAMOND = path.join(FONTS_DIR, 'EBGaramond-Regular.ttf');
 const GARAMOND_BOLD = path.join(FONTS_DIR, 'EBGaramond-Bold.ttf');
 const PLAYFAIR_BOLD = path.join(FONTS_DIR, 'PlayfairDisplay_700Bold.ttf');
+
+// CJK & Devanagari fonts (Noto Sans family)
+const NOTO_SANS_JP = path.join(FONTS_DIR, 'NotoSansJP-Regular.ttf');
+const NOTO_SANS_SC = path.join(FONTS_DIR, 'NotoSansSC-Regular.ttf');
+const NOTO_SANS_KR = path.join(FONTS_DIR, 'NotoSansKR-Regular.ttf');
+const NOTO_SANS_DEVANAGARI = path.join(FONTS_DIR, 'NotoSansDevanagari-Regular.ttf');
+
+/** For CJK/Hindi, Latin fonts have zero glyphs → swap to Noto Sans */
+function getNonLatinFont(lang?: string): string | null {
+  switch (lang) {
+    case 'ja': return NOTO_SANS_JP;
+    case 'zh': return NOTO_SANS_SC;
+    case 'ko': return NOTO_SANS_KR;
+    case 'hi': return NOTO_SANS_DEVANAGARI;
+    default: return null;
+  }
+}
 const ENABLE_CHART_REFERENCE_PAGE = true;
 
 /** Max width/height for embedded images (≈2× A4 display). Keeps PDFs small. */
@@ -953,17 +970,26 @@ export async function generateReadingPDF(options: PDFGenerationOptions): Promise
         bufferPages: true,
       });
 
-      // Register Garamond font family
-      if (fs.existsSync(GARAMOND)) {
-        doc.registerFont('Garamond', GARAMOND);
-      }
-      if (fs.existsSync(GARAMOND_BOLD)) {
-        doc.registerFont('GaramondBold', GARAMOND_BOLD);
+      // Register fonts — for CJK/Hindi swap to Noto Sans so glyphs actually render
+      const notoFont = getNonLatinFont(options.outputLanguage);
+      if (notoFont && fs.existsSync(notoFont)) {
+        // Register Noto under the standard names so ALL existing doc.font() calls just work
+        doc.registerFont('Garamond', notoFont);
+        doc.registerFont('GaramondBold', notoFont);   // Noto variable font handles weight
+        doc.registerFont('PlayfairBold', notoFont);
+        console.log(`[pdfGenerator] Using Noto font for ${options.outputLanguage}: ${path.basename(notoFont)}`);
       } else {
-        doc.registerFont('GaramondBold', GARAMOND);
+        if (fs.existsSync(GARAMOND)) {
+          doc.registerFont('Garamond', GARAMOND);
+        }
+        if (fs.existsSync(GARAMOND_BOLD)) {
+          doc.registerFont('GaramondBold', GARAMOND_BOLD);
+        } else {
+          doc.registerFont('GaramondBold', GARAMOND);
+        }
       }
-      const hasPlayfairBold = fs.existsSync(PLAYFAIR_BOLD);
-      if (hasPlayfairBold) {
+      const hasPlayfairBold = notoFont ? true : fs.existsSync(PLAYFAIR_BOLD);
+      if (!notoFont && fs.existsSync(PLAYFAIR_BOLD)) {
         doc.registerFont('PlayfairBold', PLAYFAIR_BOLD);
       }
 

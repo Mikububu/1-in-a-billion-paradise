@@ -234,6 +234,7 @@ export class PdfWorker extends BaseWorker {
     }
 
     let coupleImageUrl = existingCoupleImageUrl;
+    console.log(`🖼️ [PDFWorker] Couple image check: existing=${!!existingCoupleImageUrl} p1Portrait=${!!person1PortraitUrl} p2Portrait=${!!person2PortraitUrl} p1Id=${person1Id || 'MISSING'} p2Id=${person2Id || 'MISSING'}`);
     if (!coupleImageUrl && person1PortraitUrl && person2PortraitUrl && person1Id && person2Id) {
       // ⚠️ CRITICAL: Ensure we're using styled portraits, not original photos
       // getPortraitUrl() prefers portrait_url, but falls back to original_photo_url
@@ -249,9 +250,14 @@ export class PdfWorker extends BaseWorker {
       }
 
       // Ensure couple image exists for synastry PDFs (generate if missing/outdated)
+      console.log(`🖼️ [PDFWorker] Generating couple image for ${person1Id} + ${person2Id}...`);
       const res = await getCoupleImage(userId, person1Id, person2Id, person1PortraitUrl, person2PortraitUrl, false);
       if (res.success && res.coupleImageUrl) {
         coupleImageUrl = res.coupleImageUrl;
+        console.log(`✅ [PDFWorker] Couple image ready: ${coupleImageUrl.slice(0, 80)}...`);
+      } else {
+        console.warn(`⚠️ [PDFWorker] Couple image generation failed: ${(res as any).error || 'unknown'}`);
+        console.warn(`   Will fall back to person1 portrait on cover page.`);
       }
     }
 
