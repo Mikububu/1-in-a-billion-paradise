@@ -423,11 +423,11 @@ export class AudioWorker extends BaseWorker {
           try {
             const { data: cloneKey } = await supabase
               .from('api_keys')
-              .select('key_value')
-              .eq('key_name', `minimax_clone_${voiceId}`)
+              .select('token')
+              .eq('service', `minimax_clone_${voiceId}`)
               .maybeSingle();
-            if (cloneKey?.key_value) {
-              minimaxVoiceId = cloneKey.key_value;
+            if (cloneKey?.token) {
+              minimaxVoiceId = cloneKey.token;
               hasRegisteredClone = true;
             }
           } catch (e: any) {

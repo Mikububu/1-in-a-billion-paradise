@@ -2283,10 +2283,11 @@ router.post('/voices/register-clone', requirePermission('system', 'write'), asyn
     const sb = createSupabaseServiceClient();
     if (sb) {
       await sb.from('api_keys').upsert({
-        key_name: `minimax_clone_${voiceId}`,
-        key_value: minimaxVoiceId,
+        service: `minimax_clone_${voiceId}`,
+        key_name: 'main',
+        token: minimaxVoiceId,
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'key_name' });
+      }, { onConflict: 'service' });
       console.log(`[Admin] Stored clone ID in api_keys: minimax_clone_${voiceId} = ${minimaxVoiceId}`);
     }
 
@@ -2339,10 +2340,11 @@ router.post('/voices/register-all-clones', requirePermission('system', 'write'),
         const sb = createSupabaseServiceClient();
         if (sb) {
           await sb.from('api_keys').upsert({
-            key_name: `minimax_clone_${voice.id}`,
-            key_value: minimaxVoiceId,
+            service: `minimax_clone_${voice.id}`,
+            key_name: 'main',
+            token: minimaxVoiceId,
             updated_at: new Date().toISOString(),
-          }, { onConflict: 'key_name' });
+          }, { onConflict: 'service' });
         }
 
         results.push({
@@ -2388,16 +2390,16 @@ router.get('/voices/clone-status', requirePermission('system', 'read'), async (c
 
     const { data: keys } = await sb
       .from('api_keys')
-      .select('key_name, key_value, updated_at')
-      .in('key_name', keyNames);
+      .select('service, token, updated_at')
+      .in('service', keyNames);
 
-    const keyMap = new Map((keys || []).map((k: any) => [k.key_name, k]));
+    const keyMap = new Map((keys || []).map((k: any) => [k.service, k]));
 
     const status = voices.map(v => ({
       voiceId: v.id,
       displayName: v.displayName,
       registered: keyMap.has(`minimax_clone_${v.id}`),
-      minimaxClonedVoiceId: (keyMap.get(`minimax_clone_${v.id}`) as any)?.key_value || null,
+      minimaxClonedVoiceId: (keyMap.get(`minimax_clone_${v.id}`) as any)?.token || null,
       registeredAt: (keyMap.get(`minimax_clone_${v.id}`) as any)?.updated_at || null,
     }));
 

@@ -92,7 +92,7 @@ export const VOICES: Voice[] = [
         cloneAudioUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/michael_clone.wav',
         previewSampleUrl: 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voice-samples/michael/preview.mp3',
         category: 'male',
-        enabled: true,
+        enabled: false, // Disabled — MiniMax Voice Clone API has 4-voice limit
         turboSettings: { temperature: 0.7 },
     },
     {
