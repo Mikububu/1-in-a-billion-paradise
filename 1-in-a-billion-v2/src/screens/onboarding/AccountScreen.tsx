@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { navigateWithTransition } from '@/utils/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Linking from 'expo-linking';
@@ -223,10 +224,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
       setHasCompletedOnboarding(false);
       setShowDashboard(false);
 
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'CoreIdentities' }],
-      });
+      navigateWithTransition(navigation, 'CoreIdentities');
     },
     [
       name,

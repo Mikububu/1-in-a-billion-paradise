@@ -134,6 +134,7 @@ import { useAuthStore } from '@/store/authStore';
 import { audioApi, readingsApi } from '@/services/api';
 import { AUDIO_CONFIG } from '@/config/readingConfig';
 import { AmbientMusic } from '@/services/ambientMusic';
+import { navigateWithTransition } from '@/utils/navigation';
 // uploadHookAudioBase64 no longer needed — MiniMax endpoint handles upload server-side
 import { Audio } from 'expo-av';
 import { t } from '@/i18n';
@@ -659,20 +660,14 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
       // Use navigation.reset() to clear the back stack completely
       // User CANNOT go back to BirthInfo, Languages, or CoreIdentities
       console.log('✅ Navigating to HookSequence (ALL audio ready, stack cleared)');
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'HookSequence' }],
-      });
+      navigateWithTransition(navigation, 'HookSequence');
 
     } catch (error) {
       console.log('Error fetching readings:', error);
       setStatusText('One moment…');
       await delay(2000);
-      // Still use reset to clear back stack even on error
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'HookSequence' }],
-      });
+      // Still navigate with transition even on error
+      navigateWithTransition(navigation, 'HookSequence');
     }
   };
 

@@ -7,6 +7,7 @@ import { Button } from '@/components/Button';
 import { BackButton } from '@/components/BackButton';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { useProfileStore } from '@/store/profileStore';
+import { navigateWithTransition } from '@/utils/navigation';
 import { CityOption } from '@/types/forms';
 import { t } from '@/i18n';
 
@@ -63,7 +64,7 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
             onPress={() => {
               if (existingPartner && existingPartnerCity) {
                 // Reuse existing free partner hook reading; do not create a new one.
-                navigation.replace('Onboarding_PartnerReadings' as any, {
+                navigateWithTransition(navigation, 'Onboarding_PartnerReadings' as any, {
                   partnerName: existingPartner.name,
                   partnerBirthDate: existingPartner.birthData?.birthDate,
                   partnerBirthTime: existingPartner.birthData?.birthTime,
@@ -73,9 +74,8 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
                 });
                 return;
               }
-              // IMPORTANT: replace, don't navigate.
-              // This removes AddThirdPersonPrompt from history so users can't land on it again when swiping/clicking back.
-              navigation.replace('Onboarding_PartnerInfo', { mode: 'onboarding_hook' } as any);
+              // Navigate with transition, then clear back stack so user can't return here.
+              navigateWithTransition(navigation, 'Onboarding_PartnerInfo', { mode: 'onboarding_hook' } as any);
             }}
             variant="primary"
             style={styles.button}

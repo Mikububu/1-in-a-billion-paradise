@@ -5,6 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { useHookReadings } from '@/hooks/useHookReadings';
+import { navigateWithTransition } from '@/utils/navigation';
 import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'CoreIdentitiesIntro'>;
@@ -58,7 +59,7 @@ export const CoreIdentitiesIntroScreen = ({ navigation }: Props) => {
   }, [sun, moon, rising]);
 
   const handleUnlock = () => {
-    navigation.replace('CoreIdentities');
+    navigateWithTransition(navigation, 'CoreIdentities');
   };
 
   return (
