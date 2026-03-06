@@ -345,7 +345,8 @@ export const IntroScreen = ({ navigation }: Props) => {
         resizeMode="cover"
       />
 
-      {/* Language pill - top left, rotating through all languages with pulsing border */}
+      {/* Language pill — hidden until multiple translations are ready */}
+      {/* TODO: Uncomment when Deutsch, Español, etc. translations are complete
       <TouchableOpacity
         onPress={() => setLangPickerVisible(true)}
         activeOpacity={0.7}
@@ -359,16 +360,6 @@ export const IntroScreen = ({ navigation }: Props) => {
                 inputRange: [0, 1],
                 outputRange: [colors.border, colors.primary],
               }),
-              shadowColor: colors.primary,
-              shadowOpacity: langBorderAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 0.5],
-              }) as any,
-              shadowRadius: langBorderAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 6],
-              }) as any,
-              shadowOffset: { width: 0, height: 0 },
             },
           ]}
         >
@@ -377,8 +368,8 @@ export const IntroScreen = ({ navigation }: Props) => {
           </Animated.Text>
         </Animated.View>
       </TouchableOpacity>
-
       <LanguagePicker visible={langPickerVisible} onClose={() => setLangPickerVisible(false)} />
+      */}
 
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.wrapper}>
