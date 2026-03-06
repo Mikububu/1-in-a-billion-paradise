@@ -179,7 +179,7 @@ coupons.post('/redeem', async (c) => {
         stripe_customer_id: `coupon_${coupon.code}`,
         stripe_subscription_id: `coupon_${redemption.id}`,
         stripe_price_id: 'coupon_free',
-        subscription_tier: 'yearly',  // Coupon users get yearly-tier quota (3 readings/month)
+        subscription_tier: coupon.target_tier || 'yearly',
         status: 'active',
         current_period_start: new Date().toISOString(),
         current_period_end: oneYear.toISOString(),
@@ -276,6 +276,7 @@ coupons.post('/admin/create', requireAuth, async (c) => {
     max_uses?: number | null;
     expires_at?: string | null;
     note?: string;
+    target_tier?: string;
   };
 
   const code = (body.code || '').trim().toUpperCase();
@@ -293,6 +294,13 @@ coupons.post('/admin/create', requireAuth, async (c) => {
     return c.json({ success: false, error: 'Service unavailable' }, 500);
   }
 
+  // Validate target_tier if provided
+  const validTiers = ['basic', 'yearly', 'billionaire'];
+  const targetTier = body.target_tier || 'yearly';
+  if (!validTiers.includes(targetTier)) {
+    return c.json({ success: false, error: `Invalid target_tier. Must be one of: ${validTiers.join(', ')}` }, 400);
+  }
+
   const { data, error } = await supabase
     .from('coupon_codes')
     .insert({
@@ -301,6 +309,7 @@ coupons.post('/admin/create', requireAuth, async (c) => {
       max_uses: body.max_uses ?? null,
       expires_at: body.expires_at ?? null,
       note: body.note ?? null,
+      target_tier: targetTier,
       created_by: c.get('userId'),
     })
     .select()
@@ -314,7 +323,7 @@ coupons.post('/admin/create', requireAuth, async (c) => {
     return c.json({ success: false, error: 'Failed to create coupon' }, 500);
   }
 
-  console.log(`🎟️ New coupon created: ${code} (${discount}% off)`);
+  console.log(`🎟️ New coupon created: ${code} (${discount}% off, tier: ${targetTier})`);
   return c.json({ success: true, coupon: data });
 });
 

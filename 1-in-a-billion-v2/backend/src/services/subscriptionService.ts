@@ -4,7 +4,7 @@
  * Monthly reading quota system:
  *   - basic:       1 reading  / month
  *   - yearly:      3 readings / month
- *   - billionaire: 108 readings / month
+ *   - billionaire: 36 readings / month
  *
  * Quota accounting:
  *   - Individual reading = 1 quota unit  (1 job)
@@ -21,7 +21,7 @@ import type { SubscriptionTier } from './revenuecatService';
 export const TIER_MONTHLY_QUOTA: Record<SubscriptionTier, number> = {
   basic: 1,
   yearly: 3,
-  billionaire: 108,
+  billionaire: 36,
 };
 
 // Synastry produces 3 documents (person1, person2, overlay). It counts as 3.
@@ -96,8 +96,8 @@ export async function getUserSubscriptionTier(userId: string): Promise<Subscript
 }
 
 export async function hasUnlimitedReadings(userId: string): Promise<boolean> {
-  // Kept for backward compat - now billionaire just has a very high quota (108/mo)
-  // but we still treat them as "unlimited" in the sense that no per-reading IAP is required.
+  // Billionaire tier has a 36/mo quota but is "unlimited" in the sense that
+  // no per-reading IAP purchase is required (the payment gate is skipped).
   const sub = await checkUserSubscription(userId);
   if (!sub) return false;
   return sub.subscription_tier === 'billionaire';
@@ -106,15 +106,14 @@ export async function hasUnlimitedReadings(userId: string): Promise<boolean> {
 // ─── Monthly Quota ───────────────────────────────────────────────────────────
 
 /**
- * Get the current billing period boundaries.
- * Uses subscription's current_period_start/end if available;
- * otherwise defaults to calendar month.
+ * Get the current monthly quota window.
+ *
+ * Always uses calendar month boundaries so that quotas are truly "per month"
+ * regardless of whether the subscription billing period is monthly or yearly.
+ * (Previously used the subscription's billing period, which meant yearly subs
+ *  and coupon subs got their "monthly" quota spread across an entire year.)
  */
-function getBillingPeriod(sub: UserSubscription): { start: string; end: string } {
-  if (sub.current_period_start && sub.current_period_end) {
-    return { start: sub.current_period_start, end: sub.current_period_end };
-  }
-  // Fallback: current calendar month
+function getBillingPeriod(_sub: UserSubscription): { start: string; end: string } {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), 1);
   const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);

@@ -10,7 +10,7 @@ export const RC_PRODUCT_IDS = {
   bundle16Readings: 'nuclear_package',
   yearlySubscription: 'yearly_subscription',
   basicMonthly: 'basic_monthly',
-  billionaireYearly: 'billionaire_yearly',
+  billionaireMonthly: 'billionaire_monthly',
 } as const;
 
 /** Map reading product type → RevenueCat product ID for IAP purchases */

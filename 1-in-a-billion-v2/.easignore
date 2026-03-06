@@ -14,7 +14,6 @@ runtime/
 *.mp3
 *.wav
 *.mkv
-*.mp4
 
 # Test files
 test_*

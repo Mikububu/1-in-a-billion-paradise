@@ -74,10 +74,10 @@ const TIERS: TierDef[] = [
   {
     id: 'billionaire',
     label: 'Billionaire',
-    priceLabel: '$10,008',
-    period: '/year',
+    priceLabel: '$834',
+    period: '/month',
     bullets: [
-      '108 extended readings per month',
+      '36 extended readings per month',
       'Daily compatibility matching',
       'Unlimited long-form compatibility readings',
       '1 synastry reading = 3 reading slots',
@@ -136,6 +136,15 @@ export const PricingScreen = ({ navigation }: Props) => {
       const monthlyPrice = getPackagePriceString(monthly);
       if (monthlyPrice) {
         setLivePrices((prev) => ({ ...prev, basic: monthlyPrice }));
+      }
+
+      // Try billionaire
+      const billionaire =
+        getPackageByIdentifier(off, 'billionaire') ||
+        getPackageByIdentifier(off, 'billionaire_monthly');
+      const billionairePrice = getPackagePriceString(billionaire);
+      if (billionairePrice) {
+        setLivePrices((prev) => ({ ...prev, billionaire: billionairePrice }));
       }
     })();
     return () => { alive = false; };
@@ -211,7 +220,7 @@ export const PricingScreen = ({ navigation }: Props) => {
       } else if (tierId === 'billionaire') {
         // Look for billionaire package by identifier
         pkg = getPackageByIdentifier(off, 'billionaire') ||
-              getPackageByIdentifier(off, 'billionaire_yearly');
+              getPackageByIdentifier(off, 'billionaire_monthly');
         if (!pkg) {
           // Fallback: find the most expensive package
           const packages = getAvailableRevenueCatPackages(off);

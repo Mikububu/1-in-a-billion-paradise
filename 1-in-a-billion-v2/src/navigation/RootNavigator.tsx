@@ -567,7 +567,13 @@ export const RootNavigator = () => {
         const runCheck = async () => {
             setEntitlementStatus('checking');
 
-            const verification = await verifyEntitlementWithBackend({ appUserId });
+            const timeoutMs = 8000;
+            const verification = await Promise.race([
+                verifyEntitlementWithBackend({ appUserId }),
+                new Promise<{ success: false; active: false; error: string }>((resolve) =>
+                    setTimeout(() => resolve({ success: false, active: false, error: 'Entitlement check timed out' }), timeoutMs)
+                ),
+            ]);
             if (cancelled) return;
 
             if (verification.success && verification.active) {
@@ -755,9 +761,11 @@ export const RootNavigator = () => {
         return null;
     }
 
-    if (hasSession && !env.ALLOW_PAYMENT_BYPASS && (entitlementStatus === 'idle' || entitlementStatus === 'checking')) {
-        return null;
-    }
+    // Don't block rendering forever – if entitlement check hasn't resolved
+    // within a few seconds, let the app load anyway (it will show onboarding
+    // or dashboard with renewal warnings as appropriate).
+    // Previously this returned null which caused infinite white screen if
+    // the backend was slow or returned an error.
 
     // ONLY use showDashboard - not hasCompletedOnboarding.
     // hasCompletedOnboarding persists across account sessions and causes a race
