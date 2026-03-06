@@ -3,7 +3,9 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -12,8 +14,7 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-// import * as AppleAuthentication from 'expo-apple-authentication';
-const AppleAuthentication = { signInAsync: async () => ({}), AppleAuthenticationScope: { FULL_NAME: 1, EMAIL: 2 } } as any;
+import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { Video, ResizeMode } from 'expo-av';
@@ -774,7 +775,17 @@ export const AccountScreen = ({ navigation, route }: Props) => {
         }}
       />
 
-      <View style={styles.contentContainer}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <ScrollView
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
         <View style={styles.authSection}>
           <View style={styles.headlineCard}>
             <Text style={styles.title}>{showOtpInput ? t('account.verifyEmail') : t('account.createAccount')}</Text>
@@ -930,7 +941,8 @@ export const AccountScreen = ({ navigation, route }: Props) => {
             </>
           )}
         </View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 };
@@ -941,7 +953,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   contentContainer: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: spacing.page,
     paddingTop: 120,
     paddingBottom: spacing.xl,
