@@ -51,7 +51,8 @@ export const IntroScreen = ({ navigation }: Props) => {
   const [displayLangIndex, setDisplayLangIndex] = useState(0);
   const langFadeAnim = useRef(new Animated.Value(1)).current;
   const langBorderAnim = useRef(new Animated.Value(0)).current;
-  const LANG_NAMES = ['English', 'Deutsch', 'Español', 'Français', '中文'];
+  // Only show languages that are actually ready — add more here when translations are complete
+  const LANG_NAMES = ['English'];
 
   useEffect(() => {
     return onLanguageChange(setCurrentLanguage);
