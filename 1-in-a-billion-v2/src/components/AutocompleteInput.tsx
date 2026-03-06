@@ -66,7 +66,7 @@ export const AutocompleteInput = <T,>({
             </View>
             <View style={styles.inputWrapper}>
                 <TextInput
-                    value={query || selectedLabel}
+                    value={isOpen ? query : (query || selectedLabel || '')}
                     onChangeText={(text) => {
                         setQuery(text);
                         setIsOpen(true);
@@ -74,7 +74,10 @@ export const AutocompleteInput = <T,>({
                     placeholder={placeholder}
                     placeholderTextColor={colors.mutedText}
                     style={styles.input}
-                    onFocus={() => setIsOpen(true)}
+                    onFocus={() => {
+                        setQuery('');
+                        setIsOpen(true);
+                    }}
                 />
                 {/* Clear button - show when optional and has value */}
                 {optional && selectedLabel && !isOpen ? (
