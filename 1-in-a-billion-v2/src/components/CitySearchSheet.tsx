@@ -10,12 +10,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
-  Pressable,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -131,54 +133,63 @@ export function CitySearchSheet({
       animationType="slide"
       onRequestClose={handleClose}
     >
-      <Pressable style={styles.backdrop} onPress={handleClose}>
-        <View
-          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}
-          onStartShouldSetResponder={() => true}
+      <View style={styles.backdrop}>
+        {/* Backdrop tap area — separate from sheet so it doesn't steal TextInput focus */}
+        <TouchableWithoutFeedback onPress={handleClose}>
+          <View style={styles.backdropFill} />
+        </TouchableWithoutFeedback>
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.sheetContainer}
         >
-          <View style={styles.handle} />
+          <View
+            style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}
+          >
+            <View style={styles.handle} />
 
-          <Text style={styles.title}>{t('citySearch.title')}</Text>
+            <Text style={styles.title}>{t('citySearch.title')}</Text>
 
-          <View style={styles.searchWrap}>
-            <TextInput
-              ref={inputRef}
-              style={styles.searchInput}
-              value={query}
-              onChangeText={setQuery}
-              placeholder={t('citySearch.placeholder')}
-              placeholderTextColor={colors.mutedText}
-              autoCorrect={false}
-              autoCapitalize="none"
-              clearButtonMode="while-editing"
-              returnKeyType="search"
-            />
-            {isSearching ? (
-              <ActivityIndicator
-                size="small"
-                color={colors.mutedText}
-                style={styles.spinner}
+            <View style={styles.searchWrap}>
+              <TextInput
+                ref={inputRef}
+                style={styles.searchInput}
+                value={query}
+                onChangeText={setQuery}
+                placeholder={t('citySearch.placeholder')}
+                placeholderTextColor={colors.mutedText}
+                autoCorrect={false}
+                autoCapitalize="words"
+                clearButtonMode="while-editing"
+                returnKeyType="search"
               />
-            ) : null}
-          </View>
+              {isSearching ? (
+                <ActivityIndicator
+                  size="small"
+                  color={colors.mutedText}
+                  style={styles.spinner}
+                />
+              ) : null}
+            </View>
 
-          <FlatList
-            data={results}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.id}
-            style={styles.list}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={
-              query.length >= 2 && !isSearching ? (
-                <Text style={styles.emptyText}>{t('common.noResults')}</Text>
-              ) : query.length < 2 ? (
-                <Text style={styles.emptyText}>{t('citySearch.placeholder')}</Text>
-              ) : null
-            }
-          />
-        </View>
-      </Pressable>
+            <FlatList
+              data={results}
+              renderItem={renderItem}
+              keyExtractor={(item) => item.id}
+              style={styles.list}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={
+                query.length >= 2 && !isSearching ? (
+                  <Text style={styles.emptyText}>{t('common.noResults')}</Text>
+                ) : query.length < 2 ? (
+                  <Text style={styles.emptyText}>{t('citySearch.placeholder')}</Text>
+                ) : null
+              }
+            />
+          </View>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -187,6 +198,11 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.48)',
+  },
+  backdropFill: {
+    flex: 1,
+  },
+  sheetContainer: {
     justifyContent: 'flex-end',
   },
   sheet: {
