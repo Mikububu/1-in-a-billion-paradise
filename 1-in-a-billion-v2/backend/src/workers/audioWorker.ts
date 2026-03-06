@@ -507,7 +507,7 @@ export class AudioWorker extends BaseWorker {
           console.error(`❌ [AudioWorker] REPLICATE TOKEN NOT FOUND!`);
           throw new Error('Replicate API token not found (check Supabase api_keys table or REPLICATE_API_TOKEN env var)');
         }
-        console.log(`✅ [AudioWorker] Replicate token found: ${replicateToken.substring(0, 10)}...`);
+        console.log(`✅ [AudioWorker] Replicate token found`);
 
         const replicate = new Replicate({ auth: replicateToken });
         console.log(`✅ [AudioWorker] Replicate client initialized`);
