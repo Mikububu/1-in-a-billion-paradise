@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { t } from '@/i18n';
 import { searchCities } from '@/services/geonames';
+import { TexturedBackground } from '@/components/TexturedBackground';
 import type { CityOption } from '@/types/forms';
 
 interface CitySearchSheetProps {
@@ -129,6 +130,7 @@ export function CitySearchSheet({
       animationType="slide"
       onRequestClose={handleClose}
     >
+      <TexturedBackground>
       <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
         {/* Header with close button */}
         <View style={styles.header}>
@@ -179,6 +181,7 @@ export function CitySearchSheet({
           }
         />
       </View>
+      </TexturedBackground>
     </Modal>
   );
 }
@@ -186,7 +189,7 @@ export function CitySearchSheet({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: 'transparent',
     paddingHorizontal: spacing.page,
   },
   header: {

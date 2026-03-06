@@ -2,8 +2,8 @@
  * BOTTOM SHEET PICKER
  *
  * A generic, reusable bottom-sheet modal for selecting from a list of options.
- * Based on the proven LanguagePicker pattern — slides up from bottom, has search,
- * uses FlatList for performant scrolling of 100+ items.
+ * Uses iOS native formSheet presentation for reliable keyboard handling.
+ * FlatList for performant scrolling of 100+ items.
  *
  * Usage:
  *   <BottomSheetPicker
@@ -17,11 +17,10 @@
  *   />
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Modal,
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -31,6 +30,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { t } from '@/i18n';
+import { TexturedBackground } from '@/components/TexturedBackground';
 
 export interface PickerOption<T> {
   id: string;
@@ -64,6 +64,15 @@ export function BottomSheetPicker<T>({
 }: BottomSheetPickerProps<T>) {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
+  const inputRef = useRef<TextInput>(null);
+
+  // Auto-focus search input when sheet opens
+  useEffect(() => {
+    if (visible && searchable) {
+      setQuery('');
+      setTimeout(() => inputRef.current?.focus(), 500);
+    }
+  }, [visible, searchable]);
 
   const filtered = useMemo(() => {
     if (!query) return options;
@@ -131,92 +140,92 @@ export function BottomSheetPicker<T>({
 
   return (
     <Modal
-      transparent
       visible={visible}
+      presentationStyle="formSheet"
       animationType="slide"
       onRequestClose={handleClose}
     >
-      <Pressable style={styles.backdrop} onPress={handleClose}>
-        <View
-          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}
-          onStartShouldSetResponder={() => true}
-        >
-          <View style={styles.handle} />
-
+      <TexturedBackground>
+      <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
+        {/* Header with cancel button */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleClose} style={styles.cancelButton}>
+            <Text style={styles.cancelText}>{t('common.cancel')}</Text>
+          </TouchableOpacity>
           <Text style={styles.title}>{title}</Text>
-
-          {searchable ? (
-            <View style={styles.searchWrap}>
-              <TextInput
-                style={styles.searchInput}
-                value={query}
-                onChangeText={setQuery}
-                placeholder={searchPlaceholder || t('common.search')}
-                placeholderTextColor={colors.mutedText}
-                autoCorrect={false}
-                autoCapitalize="none"
-                clearButtonMode="while-editing"
-              />
-            </View>
-          ) : null}
-
-          {optional && selectedId ? (
-            <TouchableOpacity
-              style={styles.clearRow}
-              onPress={handleClear}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.clearText}>{t('common.removeSelection')}</Text>
-            </TouchableOpacity>
-          ) : null}
-
-          <FlatList
-            data={filtered}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.id}
-            style={styles.list}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>{t('common.noResults')}</Text>
-            }
-          />
+          <View style={styles.cancelButton} />
         </View>
-      </Pressable>
+
+        {searchable ? (
+          <View style={styles.searchWrap}>
+            <TextInput
+              ref={inputRef}
+              style={styles.searchInput}
+              value={query}
+              onChangeText={setQuery}
+              placeholder={searchPlaceholder || t('common.search')}
+              placeholderTextColor={colors.mutedText}
+              autoCorrect={false}
+              autoCapitalize="none"
+              clearButtonMode="while-editing"
+              returnKeyType="search"
+            />
+          </View>
+        ) : null}
+
+        {optional && selectedId ? (
+          <TouchableOpacity
+            style={styles.clearRow}
+            onPress={handleClear}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.clearText}>{t('common.removeSelection')}</Text>
+          </TouchableOpacity>
+        ) : null}
+
+        <FlatList
+          data={filtered}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          style={styles.list}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>{t('common.noResults')}</Text>
+          }
+        />
+      </View>
+      </TexturedBackground>
     </Modal>
   );
 }
 
-const SHEET_MAX_HEIGHT = '70%';
-
 const styles = StyleSheet.create({
-  backdrop: {
+  container: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.48)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radii.modal,
-    borderTopRightRadius: radii.modal,
-    paddingTop: spacing.sm,
+    backgroundColor: 'transparent',
     paddingHorizontal: spacing.page,
-    maxHeight: SHEET_MAX_HEIGHT,
   },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    alignSelf: 'center',
-    marginBottom: spacing.md,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.md,
+  },
+  cancelButton: {
+    width: 70,
+  },
+  cancelText: {
+    fontFamily: typography.sansRegular,
+    fontSize: 16,
+    color: colors.primary,
   },
   title: {
     fontFamily: typography.sansSemiBold,
     fontSize: 18,
     color: colors.text,
     textAlign: 'center',
-    marginBottom: spacing.md,
+    flex: 1,
   },
   searchWrap: {
     marginBottom: spacing.sm,
