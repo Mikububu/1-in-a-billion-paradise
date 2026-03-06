@@ -21,6 +21,8 @@ import {
     Image,
     Dimensions,
     TextInput,
+    KeyboardAvoidingView,
+    ScrollView,
 } from 'react-native';
 // import { SafeAreaView } from 'react-native-safe-area-context'; // Not used in layout, BackButton handles insets
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -411,136 +413,146 @@ export const SignInScreen = () => {
                 onReadyForDisplay={() => setVideoReady(true)}
             />
 
-            <View style={styles.contentContainer}>
-                <View style={styles.authSection}>
-                    {!showEmailInput ? (
-                        <>
-                            <TouchableOpacity
-                                style={[styles.authButton, styles.emailButton]}
-                                onPress={() => setShowEmailInput(true)}
-                                disabled={isLoading}
-                            >
-                                <Text style={styles.emailButtonText}>{t('signIn.loginWithEmail')}</Text>
-                            </TouchableOpacity>
-
-                            {Platform.OS === 'ios' && (
+            <KeyboardAvoidingView
+                style={styles.contentContainer}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            >
+                <ScrollView
+                    contentContainerStyle={{ flexGrow: 1 }}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag"
+                    showsVerticalScrollIndicator={false}
+                >
+                    <View style={styles.authSection}>
+                        {!showEmailInput ? (
+                            <>
                                 <TouchableOpacity
-                                    style={[styles.authButton, styles.appleButton]}
-                                    onPress={handleAppleSignIn}
+                                    style={[styles.authButton, styles.emailButton]}
+                                    onPress={() => setShowEmailInput(true)}
                                     disabled={isLoading}
                                 >
-                                    <Text style={styles.appleText}>{t('signIn.loginWithApple')}</Text>
+                                    <Text style={styles.emailButtonText}>{t('signIn.loginWithEmail')}</Text>
                                 </TouchableOpacity>
-                            )}
 
-                            <TouchableOpacity
-                                style={[styles.authButton, styles.googleButton]}
-                                onPress={handleGoogleSignIn}
-                                disabled={isLoading}
-                            >
-                                {isLoading ? (
-                                    <ActivityIndicator color="#000" />
-                                ) : (
-                                    <Text style={styles.googleText}>{t('signIn.loginWithGoogle')}</Text>
+                                {Platform.OS === 'ios' && (
+                                    <TouchableOpacity
+                                        style={[styles.authButton, styles.appleButton]}
+                                        onPress={handleAppleSignIn}
+                                        disabled={isLoading}
+                                    >
+                                        <Text style={styles.appleText}>{t('signIn.loginWithApple')}</Text>
+                                    </TouchableOpacity>
                                 )}
-                            </TouchableOpacity>
-                        </>
-                    ) : showForgotPassword ? (
-                        <>
-                            <Text style={styles.forgotPasswordTitle}>{t('signIn.resetPasswordTitle')}</Text>
-                            <Text style={styles.forgotPasswordSubtitle}>{t('signIn.resetPasswordSubtitle')}</Text>
 
-                            <TextInput
-                                style={styles.emailInput}
-                                placeholder={t('signIn.emailPlaceholder')}
-                                placeholderTextColor={colors.mutedText}
-                                value={email}
-                                onChangeText={setEmail}
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                                editable={emailAuthState !== 'loading'}
-                                autoFocus
-                            />
-
-                            <View style={styles.emailActions}>
                                 <TouchableOpacity
-                                    style={[styles.authButton, styles.emailSubmitButton]}
-                                    onPress={handleForgotPassword}
-                                    disabled={emailAuthState === 'loading'}
+                                    style={[styles.authButton, styles.googleButton]}
+                                    onPress={handleGoogleSignIn}
+                                    disabled={isLoading}
                                 >
-                                    {emailAuthState === 'loading' ? (
-                                        <ActivityIndicator color="#fff" />
+                                    {isLoading ? (
+                                        <ActivityIndicator color="#000" />
                                     ) : (
-                                        <Text style={styles.emailSubmitText}>{t('signIn.sendResetLink')}</Text>
+                                        <Text style={styles.googleText}>{t('signIn.loginWithGoogle')}</Text>
                                     )}
                                 </TouchableOpacity>
+                            </>
+                        ) : showForgotPassword ? (
+                            <>
+                                <Text style={styles.forgotPasswordTitle}>{t('signIn.resetPasswordTitle')}</Text>
+                                <Text style={styles.forgotPasswordSubtitle}>{t('signIn.resetPasswordSubtitle')}</Text>
 
-                                <TouchableOpacity
-                                    style={styles.cancelButton}
-                                    onPress={() => {
-                                        setShowForgotPassword(false);
-                                        setEmailAuthState('idle');
-                                    }}
-                                    disabled={emailAuthState === 'loading'}
-                                >
-                                    <Text style={styles.cancelButtonText}>{t('signIn.backToSignIn')}</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </>
-                    ) : (
-                        <>
-                            <TextInput
-                                style={styles.emailInput}
-                                placeholder={t('signIn.emailPlaceholder')}
-                                placeholderTextColor={colors.mutedText}
-                                value={email}
-                                onChangeText={setEmail}
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                                editable={emailAuthState !== 'loading'}
-                            />
+                                <TextInput
+                                    style={styles.emailInput}
+                                    placeholder={t('signIn.emailPlaceholder')}
+                                    placeholderTextColor={colors.mutedText}
+                                    value={email}
+                                    onChangeText={setEmail}
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                    editable={emailAuthState !== 'loading'}
+                                    autoFocus
+                                />
 
-                            <TextInput
-                                style={styles.emailInput}
-                                placeholder={t('signIn.passwordPlaceholder')}
-                                placeholderTextColor={colors.mutedText}
-                                value={password}
-                                onChangeText={setPassword}
-                                secureTextEntry
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                                editable={emailAuthState !== 'loading'}
-                            />
+                                <View style={styles.emailActions}>
+                                    <TouchableOpacity
+                                        style={[styles.authButton, styles.emailSubmitButton]}
+                                        onPress={handleForgotPassword}
+                                        disabled={emailAuthState === 'loading'}
+                                    >
+                                        {emailAuthState === 'loading' ? (
+                                            <ActivityIndicator color="#fff" />
+                                        ) : (
+                                            <Text style={styles.emailSubmitText}>{t('signIn.sendResetLink')}</Text>
+                                        )}
+                                    </TouchableOpacity>
 
-                            <View style={styles.emailActions}>
-                                <TouchableOpacity
-                                    style={[styles.authButton, styles.emailSubmitButton]}
-                                    onPress={handleEmailAuth}
-                                    disabled={emailAuthState === 'loading'}
-                                >
-                                    {emailAuthState === 'loading' ? (
-                                        <ActivityIndicator color="#fff" />
-                                    ) : (
-                                        <Text style={styles.emailSubmitText}>
-                                            {t('auth.signIn')}
-                                        </Text>
-                                    )}
-                                </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={styles.cancelButton}
+                                        onPress={() => {
+                                            setShowForgotPassword(false);
+                                            setEmailAuthState('idle');
+                                        }}
+                                        disabled={emailAuthState === 'loading'}
+                                    >
+                                        <Text style={styles.cancelButtonText}>{t('signIn.backToSignIn')}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </>
+                        ) : (
+                            <>
+                                <TextInput
+                                    style={styles.emailInput}
+                                    placeholder={t('signIn.emailPlaceholder')}
+                                    placeholderTextColor={colors.mutedText}
+                                    value={email}
+                                    onChangeText={setEmail}
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                    editable={emailAuthState !== 'loading'}
+                                />
 
-                                <TouchableOpacity
-                                    style={styles.forgotPasswordButton}
-                                    onPress={() => setShowForgotPassword(true)}
-                                    disabled={emailAuthState === 'loading'}
-                                >
-                                    <Text style={styles.forgotPasswordText}>{t('auth.forgotPassword')}</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </>
-                    )}
-                </View>
-            </View>
+                                <TextInput
+                                    style={styles.emailInput}
+                                    placeholder={t('signIn.passwordPlaceholder')}
+                                    placeholderTextColor={colors.mutedText}
+                                    value={password}
+                                    onChangeText={setPassword}
+                                    secureTextEntry
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                    editable={emailAuthState !== 'loading'}
+                                />
+
+                                <View style={styles.emailActions}>
+                                    <TouchableOpacity
+                                        style={[styles.authButton, styles.emailSubmitButton]}
+                                        onPress={handleEmailAuth}
+                                        disabled={emailAuthState === 'loading'}
+                                    >
+                                        {emailAuthState === 'loading' ? (
+                                            <ActivityIndicator color="#fff" />
+                                        ) : (
+                                            <Text style={styles.emailSubmitText}>
+                                                {t('auth.signIn')}
+                                            </Text>
+                                        )}
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={styles.forgotPasswordButton}
+                                        onPress={() => setShowForgotPassword(true)}
+                                        disabled={emailAuthState === 'loading'}
+                                    >
+                                        <Text style={styles.forgotPasswordText}>{t('auth.forgotPassword')}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </>
+                        )}
+                    </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
         </View>
     );
 };

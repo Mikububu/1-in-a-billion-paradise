@@ -2,6 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -288,7 +291,16 @@ export const PricingScreen = ({ navigation }: Props) => {
   /* ── Render ─────────────────────────────────────────────────────── */
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
         <Text style={styles.heading}>{t('pricing.title')}</Text>
         <Text style={styles.subheading}>
           {t('pricing.subtitle')}
@@ -391,7 +403,8 @@ export const PricingScreen = ({ navigation }: Props) => {
             </Text>
           ) : null}
         </View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -404,7 +417,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   container: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: spacing.page,
     paddingTop: spacing.lg,
     justifyContent: 'center',

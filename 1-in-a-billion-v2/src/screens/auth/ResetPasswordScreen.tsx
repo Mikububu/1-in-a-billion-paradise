@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
@@ -59,43 +59,53 @@ export const ResetPasswordScreen = ({ navigation }: Props) => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.content}>
-                <Text style={styles.title}>{t('resetPassword.title')}</Text>
-                <Text style={styles.subtitle}>{t('resetPassword.subtitle')}</Text>
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            >
+                <ScrollView
+                    contentContainerStyle={styles.content}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag"
+                    showsVerticalScrollIndicator={false}
+                >
+                    <Text style={styles.title}>{t('resetPassword.title')}</Text>
+                    <Text style={styles.subtitle}>{t('resetPassword.subtitle')}</Text>
 
-                <TextInput
-                    style={styles.input}
-                    placeholder={t('resetPassword.newPasswordPlaceholder')}
-                    placeholderTextColor={colors.mutedText}
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    autoFocus
-                />
-
-                <TextInput
-                    style={styles.input}
-                    placeholder={t('resetPassword.confirmPasswordPlaceholder')}
-                    placeholderTextColor={colors.mutedText}
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    secureTextEntry
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                />
-
-                {isSubmitting ? (
-                    <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.lg }} />
-                ) : (
-                    <Button
-                        label={t('resetPassword.setNewPassword')}
-                        onPress={handleResetPassword}
-                        style={styles.button}
+                    <TextInput
+                        style={styles.input}
+                        placeholder={t('resetPassword.newPasswordPlaceholder')}
+                        placeholderTextColor={colors.mutedText}
+                        value={password}
+                        onChangeText={setPassword}
+                        secureTextEntry
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        autoFocus
                     />
-                )}
-            </View>
+
+                    <TextInput
+                        style={styles.input}
+                        placeholder={t('resetPassword.confirmPasswordPlaceholder')}
+                        placeholderTextColor={colors.mutedText}
+                        value={confirmPassword}
+                        onChangeText={setConfirmPassword}
+                        secureTextEntry
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                    />
+
+                    {isSubmitting ? (
+                        <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.lg }} />
+                    ) : (
+                        <Button
+                            label={t('resetPassword.setNewPassword')}
+                            onPress={handleResetPassword}
+                            style={styles.button}
+                        />
+                    )}
+                </ScrollView>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 };
@@ -106,7 +116,7 @@ const styles = StyleSheet.create({
         backgroundColor: colors.background,
     },
     content: {
-        flex: 1,
+        flexGrow: 1,
         paddingHorizontal: spacing.page,
         paddingTop: spacing.xl * 2,
     },
