@@ -85,6 +85,34 @@ export function getPackageByIdentifier(
   return packages.find((pkg) => String(pkg?.identifier || '') === packageIdentifier) || null;
 }
 
+/** Find the Billionaire subscription package (multi-strategy fallback) */
+export function findBillionairePackage(offerings: AnyRecord | null | undefined): AnyRecord | null {
+  // 1. Try exact package identifier
+  const byId =
+    getPackageByIdentifier(offerings, 'billionaire') ||
+    getPackageByIdentifier(offerings, 'billionaire_monthly');
+  if (byId) return byId;
+
+  // 2. Try App Store product ID
+  const packages = getAvailableRevenueCatPackages(offerings);
+  const byProductId = packages.find((pkg) => {
+    const prodId = pkg?.product?.identifier || pkg?.storeProduct?.identifier || '';
+    return String(prodId) === RC_PRODUCT_IDS.billionaireMonthly;
+  }) || null;
+  if (byProductId) return byProductId;
+
+  // 3. Fallback: most expensive package (excluding yearly which may cost more total)
+  const monthlyOrCustom = packages.filter((p) =>
+    String(p?.packageType || '').toUpperCase() !== 'ANNUAL'
+  );
+  const sorted = [...(monthlyOrCustom.length ? monthlyOrCustom : packages)].sort((a, b) => {
+    const pa = a?.product?.price ?? a?.storeProduct?.price ?? 0;
+    const pb = b?.product?.price ?? b?.storeProduct?.price ?? 0;
+    return pb - pa;
+  });
+  return sorted[0] || null;
+}
+
 /** Find a package by its App Store product ID (for one-time IAP purchases) */
 export function findIAPPackageByProductId(
   offerings: AnyRecord | null | undefined,

@@ -20,9 +20,9 @@ import { useAuthStore } from '@/store/authStore';
 import { env } from '@/config/env';
 import { t } from '@/i18n';
 import {
+  findBillionairePackage,
   findYearlySubscriptionPackage,
   getAvailableRevenueCatPackages,
-  getPackageByIdentifier,
   getPackagePriceString,
 } from '@/config/revenuecatCatalog';
 import {
@@ -136,10 +136,8 @@ export const PricingScreen = ({ navigation }: Props) => {
         setLivePrices((prev) => ({ ...prev, basic: monthlyPrice }));
       }
 
-      // Try billionaire
-      const billionaire =
-        getPackageByIdentifier(off, 'billionaire') ||
-        getPackageByIdentifier(off, 'billionaire_monthly');
+      // Try billionaire (multi-strategy: identifier → product ID → most expensive)
+      const billionaire = findBillionairePackage(off);
       const billionairePrice = getPackagePriceString(billionaire);
       if (billionairePrice) {
         setLivePrices((prev) => ({ ...prev, billionaire: billionairePrice }));
@@ -233,19 +231,7 @@ export const PricingScreen = ({ navigation }: Props) => {
         const packages = getAvailableRevenueCatPackages(off);
         pkg = packages.find((p) => String(p?.packageType || '').toUpperCase() === 'MONTHLY') || null;
       } else if (tierId === 'billionaire') {
-        // Look for billionaire package by identifier
-        pkg = getPackageByIdentifier(off, 'billionaire') ||
-              getPackageByIdentifier(off, 'billionaire_monthly');
-        if (!pkg) {
-          // Fallback: find the most expensive package
-          const packages = getAvailableRevenueCatPackages(off);
-          const sorted = [...packages].sort((a, b) => {
-            const pa = a?.product?.price ?? a?.storeProduct?.price ?? 0;
-            const pb = b?.product?.price ?? b?.storeProduct?.price ?? 0;
-            return pb - pa;
-          });
-          pkg = sorted[0] || null;
-        }
+        pkg = findBillionairePackage(off);
       }
 
       if (!pkg) {
