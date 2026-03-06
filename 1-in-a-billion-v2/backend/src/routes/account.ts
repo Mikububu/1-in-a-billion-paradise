@@ -24,6 +24,7 @@
 import { Hono } from 'hono';
 import { env } from '../config/env';
 import type { AppEnv } from '../types/hono';
+import { authLimiter } from '../middleware/rateLimiter';
 
 const router = new Hono<AppEnv>();
 
@@ -40,7 +41,7 @@ function getBearerToken(c: any): string | null {
  * Requires: Authorization header with valid access token
  * Returns: { success: true } on success
  */
-router.delete('/purge', async (c) => {
+router.delete('/purge', authLimiter, async (c) => {
     try {
         const accessToken = getBearerToken(c);
 

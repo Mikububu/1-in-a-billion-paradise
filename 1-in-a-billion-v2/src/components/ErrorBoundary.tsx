@@ -8,6 +8,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { logger } from '../utils/logger';
+import { t } from '@/i18n';
 
 interface Props {
   children: ReactNode;
@@ -51,9 +52,9 @@ export class ErrorBoundary extends Component<Props, State> {
         <View style={styles.container}>
           <View style={styles.content}>
             <Text style={styles.emoji}>✦</Text>
-            <Text style={styles.title}>Something went wrong</Text>
+            <Text style={styles.title}>{t('error.title')}</Text>
             <Text style={styles.message}>
-              We hit an unexpected issue. You can try again or go back to the home screen.
+              {t('error.message')}
             </Text>
             {__DEV__ && this.state.error && (
               <ScrollView style={styles.debugBox}>
@@ -61,10 +62,10 @@ export class ErrorBoundary extends Component<Props, State> {
               </ScrollView>
             )}
             <TouchableOpacity style={styles.primaryButton} onPress={this.handleRetry} accessibilityLabel="Try again" accessibilityRole="button">
-              <Text style={styles.primaryButtonText}>Try Again</Text>
+              <Text style={styles.primaryButtonText}>{t('error.tryAgain')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.secondaryButton} onPress={this.handleGoHome} accessibilityLabel="Go to home screen" accessibilityRole="button">
-              <Text style={styles.secondaryButtonText}>Go Home</Text>
+              <Text style={styles.secondaryButtonText}>{t('error.goHome')}</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
         letterSpacing: 0.5,
     },
     buttonDesc: {
-        fontFamily: typography.sans,
+        fontFamily: typography.sansRegular,
         fontSize: 12,
         color: '#999',
         marginTop: 1,

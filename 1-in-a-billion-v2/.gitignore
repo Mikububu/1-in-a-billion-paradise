@@ -21,6 +21,9 @@ backend/
 # Claude / AI tooling
 .claude/
 
+# Credentials / secrets
+credentials.json
+
 # Temp files
 *.bak
 *.bak*

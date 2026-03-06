@@ -199,13 +199,4 @@ export async function canUseIncludedReading(userId: string): Promise<boolean> {
   return canStartReading(userId, false);
 }
 
-export async function markIncludedReadingUsed(
-  userId: string,
-  system: string,
-  jobId: string,
-): Promise<boolean> {
-  // With the monthly quota system, we no longer need to mark a boolean.
-  // Quota is computed by counting jobs. Just log it.
-  console.log(`📊 Reading counted toward monthly quota: user=${userId} system=${system} job=${jobId}`);
-  return true;
-}
+// markIncludedReadingUsed removed: was a no-op since monthly quota is computed by counting jobs.

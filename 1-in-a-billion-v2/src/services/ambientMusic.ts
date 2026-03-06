@@ -90,6 +90,8 @@ class AmbientMusicService {
 
             for (let i = steps; i >= 0; i--) {
                 if (!this.sound) break;
+                const fadeStatus = await this.sound.getStatusAsync();
+                if (!fadeStatus.isLoaded) return;
                 await this.sound.setVolumeAsync(i / steps);
                 await new Promise(resolve => setTimeout(resolve, stepDuration));
             }

@@ -24,6 +24,8 @@ import {
 } from '../services/replicateRateLimiter';
 import { logGoogleTtsCost } from '../services/costTracking';
 import type { AppEnv } from '../types/hono';
+import { requireAuth } from '../middleware/requireAuth';
+import { logger } from '../utils/logger';
 
 const router = new Hono<AppEnv>();
 
@@ -150,19 +152,19 @@ function wavToCompressed(wavBuffer: Buffer): { buffer: Buffer; format: 'mp3'; mi
     fs.writeFileSync(tmpWav, wavBuffer);
     execSync(`ffmpeg -y -i "${tmpWav}" -codec:a libmp3lame -b:a 128k "${tmpMp3}" 2>/dev/null`);
     const mp3Buffer = fs.readFileSync(tmpMp3);
-    console.log(`WAV->MP3: ${Math.round(wavBuffer.length / 1024)}KB -> ${Math.round(mp3Buffer.length / 1024)}KB`);
+    logger.info(`WAV->MP3: ${Math.round(wavBuffer.length / 1024)}KB -> ${Math.round(mp3Buffer.length / 1024)}KB`);
     return { buffer: mp3Buffer, format: 'mp3', mime: 'audio/mpeg' };
   } finally {
     cleanup();
   }
 }
 
-router.post('/generate-tts', async (c) => {
+router.post('/generate-tts', requireAuth, async (c) => {
   const parsed = ttsPayloadSchema.parse(await c.req.json());
   const { env } = await import('../config/env');
   const Replicate = (await import('replicate')).default;
 
-  console.log(`TTS request (${parsed.provider}): ${parsed.text.substring(0, 100)}... (${parsed.text.length} chars)`);
+  logger.info(`TTS request (${parsed.provider}): ${parsed.text.substring(0, 100)}... (${parsed.text.length} chars)`);
 
   // CHATTERBOX via Replicate (resemble-ai/chatterbox-turbo)
   if (parsed.provider === 'chatterbox') {
@@ -182,7 +184,7 @@ router.post('/generate-tts', async (c) => {
     }
 
     try {
-      console.log('🎵 Generating audio with Chatterbox Turbo via Replicate...');
+      logger.info('Generating audio with Chatterbox Turbo via Replicate...');
       const replicate = new Replicate({ auth: replicateToken });
 
       const generatedOn = new Date().toLocaleDateString('en-GB', {
@@ -199,7 +201,7 @@ router.post('/generate-tts', async (c) => {
       const dedup = dedupeAdjacentSentences(cleaned);
       let narrationText = dedup.text;
       if (dedup.removed > 0) {
-        console.warn(`⚠️ [AudioRoute] Removed ${dedup.removed} adjacent duplicate sentence(s) before TTS.`);
+        logger.warn(`[AudioRoute] Removed ${dedup.removed} adjacent duplicate sentence(s) before TTS.`);
       }
 
       if (parsed.includeIntro !== false) {
@@ -211,15 +213,15 @@ router.post('/generate-tts', async (c) => {
       const configuredChunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || String(AUDIO_CONFIG.CHUNK_MAX_LENGTH), 10);
       const chunkSize = Math.max(120, Math.min(300, Number.isFinite(configuredChunkSize) ? configuredChunkSize : AUDIO_CONFIG.CHUNK_MAX_LENGTH));
       if (chunkSize !== configuredChunkSize) {
-        console.warn(`⚠️ [AudioRoute] Clamped CHATTERBOX_CHUNK_SIZE ${configuredChunkSize} -> ${chunkSize}.`);
+        logger.warn(`[AudioRoute] Clamped CHATTERBOX_CHUNK_SIZE ${configuredChunkSize} -> ${chunkSize}.`);
       }
       let chunks = splitIntoChunks(narrationText, chunkSize);
       const boundaryDedup = dedupeChunkBoundaryOverlap(chunks);
       chunks = boundaryDedup.chunks;
       if (boundaryDedup.removed > 0) {
-        console.warn(`⚠️ [AudioRoute] Removed ${boundaryDedup.removed} duplicated boundary sentence(s) across chunks.`);
+        logger.warn(`[AudioRoute] Removed ${boundaryDedup.removed} duplicated boundary sentence(s) across chunks.`);
       }
-      console.log(`📦 Chunking ${textLength} chars into ${chunks.length} pieces (max ${chunkSize} chars/chunk)`);
+      logger.info(`Chunking ${textLength} chars into ${chunks.length} pieces (max ${chunkSize} chars/chunk)`);
 
       // Voice sample for cloning (default narrator)
       const voiceSampleUrl = parsed.audioUrl || 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/david.wav';
@@ -233,7 +235,7 @@ router.post('/generate-tts', async (c) => {
       const generateChunk = async (chunk: string, index: number, maxRetries = routeChunkMaxRetries): Promise<Buffer> => {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
           try {
-            console.log(`  [Replicate] Chunk ${index + 1}/${chunks.length} (${chunk.length} chars) attempt ${attempt}`);
+            logger.info(`[Replicate] Chunk ${index + 1}/${chunks.length} (${chunk.length} chars) attempt ${attempt}`);
 
             // Build input for Replicate
             const input: any = {
@@ -244,7 +246,7 @@ router.post('/generate-tts', async (c) => {
               repetition_penalty: repetitionPenalty, // Reduces duplicate sentences
             };
 
-            console.log(`  🎯 [Replicate] Calling API with model: resemble-ai/chatterbox-turbo`);
+            logger.info('[Replicate] Calling API with model: resemble-ai/chatterbox-turbo');
             const startTime = Date.now();
 
             // Call Replicate API with hard timeout to avoid hung chunks.
@@ -260,12 +262,12 @@ router.post('/generate-tts', async (c) => {
             );
 
             const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
-            console.log(`  ⏱️  [Replicate] API call completed in ${elapsed}s`);
+            logger.info(`[Replicate] API call completed in ${elapsed}s`);
 
             // Handle different output types (stream, URL, buffer)
             let audioBuffer: Buffer;
             if (output instanceof ReadableStream || (output as any).getReader) {
-              console.log(`  🌊 [Replicate] Processing as ReadableStream...`);
+              logger.info('[Replicate] Processing as ReadableStream...');
               const reader = (output as ReadableStream).getReader();
               const streamChunks: Uint8Array[] = [];
               while (true) {
@@ -274,23 +276,23 @@ router.post('/generate-tts', async (c) => {
                 streamChunks.push(value);
               }
               audioBuffer = Buffer.concat(streamChunks);
-              console.log(`  ✅ [Replicate] Stream processed: ${streamChunks.length} chunks, ${audioBuffer.length} bytes`);
+              logger.info(`[Replicate] Stream processed: ${streamChunks.length} chunks, ${audioBuffer.length} bytes`);
             } else if (typeof output === 'string') {
-              console.log(`  🔗 [Replicate] Processing as URL: ${(output as string).substring(0, 60)}...`);
+              logger.info(`[Replicate] Processing as URL: ${(output as string).substring(0, 60)}...`);
               const response = await axios.get(output, { responseType: 'arraybuffer' });
               audioBuffer = Buffer.from(response.data);
-              console.log(`  ✅ [Replicate] URL fetched: ${audioBuffer.length} bytes`);
+              logger.info(`[Replicate] URL fetched: ${audioBuffer.length} bytes`);
             } else if (Buffer.isBuffer(output)) {
-              console.log(`  📦 [Replicate] Direct buffer received: ${output.length} bytes`);
+              logger.info(`[Replicate] Direct buffer received: ${output.length} bytes`);
               audioBuffer = output;
             } else {
-              console.log(`  ⚠️  [Replicate] Unknown output type, attempting conversion...`);
+              logger.warn('[Replicate] Unknown output type, attempting conversion...');
               const data = await (output as any).arrayBuffer?.() || output;
               audioBuffer = Buffer.from(data);
-              console.log(`  ✅ [Replicate] Converted to buffer: ${audioBuffer.length} bytes`);
+              logger.info(`[Replicate] Converted to buffer: ${audioBuffer.length} bytes`);
             }
 
-            console.log(`  ✅ [Replicate] Chunk ${index + 1} completed: ${audioBuffer.length} bytes`);
+            logger.info(`[Replicate] Chunk ${index + 1} completed: ${audioBuffer.length} bytes`);
             return audioBuffer;
 
           } catch (error: any) {
@@ -298,7 +300,7 @@ router.post('/generate-tts', async (c) => {
             const isAuthError = error.message?.includes('401') || error.message?.includes('authentication') || error.message?.includes('Unauthorized');
             const isBadRequest = error.message?.includes('400') || error.message?.includes('422') || error.message?.includes('invalid');
 
-            console.error(`  ❌ [Replicate] Chunk ${index + 1} attempt ${attempt} failed: ${error.message}`);
+            logger.error(`[Replicate] Chunk ${index + 1} attempt ${attempt} failed: ${error.message}`);
 
             // ABORT IMMEDIATELY on auth or bad request errors (no retry)
             if (isAuthError || isBadRequest) {
@@ -307,7 +309,7 @@ router.post('/generate-tts', async (c) => {
 
             if (attempt < maxRetries) {
               const retryAfter = is429 ? 12 : attempt * 3;
-              console.log(`  ⏳ Retrying in ${retryAfter}s...${is429 ? ' (rate limited)' : ''}`);
+              logger.info(`Retrying in ${retryAfter}s...${is429 ? ' (rate limited)' : ''}`);
               await new Promise(r => setTimeout(r, retryAfter * 1000));
             } else {
               throw error;
@@ -329,7 +331,7 @@ router.post('/generate-tts', async (c) => {
       if (parallelMode) {
         const pLimit = (await import('p-limit')).default;
         const limiter = pLimit(parallelLimit);
-        console.log(`🚀 Starting PARALLEL chunk scheduling for ${chunks.length} chunks (limit ${parallelLimit}); shared limiter enforces Replicate pacing...`);
+        logger.info(`Starting PARALLEL chunk scheduling for ${chunks.length} chunks (limit ${parallelLimit}); shared limiter enforces Replicate pacing...`);
         const results = await Promise.all(
           chunks.map((chunk, i) =>
             limiter(async () => {
@@ -342,7 +344,7 @@ router.post('/generate-tts', async (c) => {
         audioBuffers = results.map((r) => r.buffer);
       } else {
         // SEQUENTIAL MODE - safer for strict rate limits
-        console.log(`🚀 Starting SEQUENTIAL Replicate generation of ${chunks.length} chunks (${chunkDelayMs}ms delay)...`);
+        logger.info(`Starting SEQUENTIAL Replicate generation of ${chunks.length} chunks (${chunkDelayMs}ms delay)...`);
         for (let i = 0; i < chunks.length; i++) {
           try {
             const buffer = await generateChunk(chunks[i]!, i);
@@ -350,18 +352,18 @@ router.post('/generate-tts', async (c) => {
 
             // Add delay between chunks to respect rate limits (except for last chunk)
             if (i < chunks.length - 1 && chunkDelayMs > 0) {
-              console.log(`  ⏳ Waiting ${chunkDelayMs}ms before next chunk...`);
+              logger.info(`Waiting ${chunkDelayMs}ms before next chunk...`);
               await new Promise(r => setTimeout(r, chunkDelayMs));
             }
           } catch (err: any) {
-            console.error(`❌ Chunk ${i + 1} failed permanently: ${err.message}`);
+            logger.error(`Chunk ${i + 1} failed permanently: ${err.message}`);
             throw err;
           }
         }
       }
 
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-      console.log(`✅ All ${chunks.length} chunks completed in ${elapsed}s (Replicate sequential)!`);
+      logger.info(`All ${chunks.length} chunks completed in ${elapsed}s`);
 
       // Concatenate all chunks into WAV
       const wavAudio = concatenateWavBuffers(audioBuffers);
@@ -370,7 +372,7 @@ router.post('/generate-tts', async (c) => {
       const { buffer: compressedAudio, format, mime } = wavToCompressed(wavAudio);
       const base64Audio = compressedAudio.toString('base64');
 
-      console.log(`Final audio: ${Math.round(compressedAudio.length / 1024)}KB ${format.toUpperCase()} from ${audioBuffers.length} chunks`);
+      logger.info(`Final audio: ${Math.round(compressedAudio.length / 1024)}KB ${format.toUpperCase()} from ${audioBuffers.length} chunks`);
 
       // Calculate duration from actual WAV header (sample rate may vary)
       let estimatedDuration: number;
@@ -394,7 +396,7 @@ router.post('/generate-tts', async (c) => {
       });
 
     } catch (error: any) {
-      console.error('Replicate Chatterbox error:', error.response?.data || error.message);
+      logger.error('Replicate Chatterbox error', { detail: error.response?.data || error.message });
       return c.json({
         success: false,
         message: `Chatterbox (Replicate) failed: ${error.message}`,
@@ -406,7 +408,7 @@ router.post('/generate-tts', async (c) => {
   // GOOGLE TTS (only if explicitly requested - NOT as fallback)
   if (parsed.provider === 'google') {
     try {
-      console.log('Attempting Google TTS...');
+      logger.info('Attempting Google TTS...');
       const accessToken = await getGoogleAccessToken();
 
       // Google TTS voices - Chirp 3 HD voices (highest quality)
@@ -472,7 +474,7 @@ router.post('/generate-tts', async (c) => {
         provider: 'google',
       });
     } catch (error) {
-      console.error('Google TTS error:', error);
+      logger.error('Google TTS error', { detail: String(error) });
       return c.json({
         success: false,
         message: `Google TTS error: ${String(error)}`,
@@ -502,7 +504,7 @@ router.get('/stream/:id', async (c) => {
 
 // 🚀 STREAMING TTS - Send audio chunks as they complete via SSE
 // Client can start playing immediately while remaining chunks generate
-router.post('/generate-tts-stream', async (c) => {
+router.post('/generate-tts-stream', requireAuth, async (c) => {
   const parsed = ttsPayloadSchema.parse(await c.req.json());
 
   // SINGLE SOURCE OF TRUTH: Supabase api_keys table
@@ -520,7 +522,7 @@ router.post('/generate-tts-stream', async (c) => {
   const chunks = splitIntoChunks(parsed.text, chunkSize);
   const voiceSampleUrl = parsed.audioUrl || 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/david.wav';
 
-  console.log(`🌊 STREAMING TTS: ${textLength} chars -> ${chunks.length} chunks (max ${chunkSize} chars/chunk)`);
+  logger.info(`STREAMING TTS: ${textLength} chars -> ${chunks.length} chunks (max ${chunkSize} chars/chunk)`);
 
   // Set up SSE response
   c.header('Content-Type', 'text/event-stream');
@@ -563,7 +565,7 @@ router.post('/generate-tts-stream', async (c) => {
 
             const audio = response.data?.output?.audio_base64;
             if (audio) {
-              console.log(`✅ Chunk ${index + 1}/${chunks.length} ready`);
+              logger.info(`Chunk ${index + 1}/${chunks.length} ready`);
               return { index, audio };
             }
           } catch (e: any) {
@@ -593,7 +595,7 @@ router.post('/generate-tts-stream', async (c) => {
           for (let i = 0; i < chunks.length; i++) {
             if (!completed.has(i) && !failed.has(i)) {
               failed.add(i);
-              console.error(`❌ Streaming TTS: Chunk ${i + 1}/${chunks.length} failed after all retries`);
+              logger.error(`Streaming TTS: Chunk ${i + 1}/${chunks.length} failed after all retries`);
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({
                 type: 'error',
                 index: i,
@@ -654,7 +656,7 @@ const hookAudioSchema = z.object({
     }),
 });
 
-router.post('/hook-audio/generate', async (c) => {
+router.post('/hook-audio/generate', requireAuth, async (c) => {
   try {
     const parsed = hookAudioSchema.parse(await c.req.json());
     const { supabase } = await import('../services/supabaseClient');
@@ -664,14 +666,15 @@ router.post('/hook-audio/generate', async (c) => {
       return c.json({ success: false, error: 'Supabase not configured' }, 500);
     }
 
-    const userId = parsed.userId;
+    // Use authenticated userId from JWT token instead of request body
+    const userId = c.get('userId');
     const language = parsed.language || 'en';
-    console.log(`🎤 Hook audio generation (MiniMax): ${parsed.type} for user ${userId} (${parsed.text.length} chars, lang=${language})`);
+    logger.info(`Hook audio generation (MiniMax): ${parsed.type} for user ${userId} (${parsed.text.length} chars, lang=${language})`);
 
     // Clean text for TTS pronunciation
     let cleanedText = cleanupTextForTTS(parsed.text, language);
     cleanedText = await phoneticizeTextForTTS(cleanedText, language);
-    console.log(`📝 Cleaned text: ${cleanedText.length} chars`);
+    logger.info(`Cleaned text: ${cleanedText.length} chars`);
 
     // Look up David's registered MiniMax clone voice ID from api_keys table
     // (same pattern as audioWorker.ts lines 424-436)
@@ -686,10 +689,10 @@ router.post('/hook-audio/generate', async (c) => {
       if (cloneKey?.token) {
         minimaxVoiceId = cloneKey.token;
         hasRegisteredClone = true;
-        console.log(`🎙️ Using registered David clone: ${minimaxVoiceId}`);
+        logger.info(`Using registered David clone: ${minimaxVoiceId}`);
       }
     } catch (e: any) {
-      console.warn('[HookAudio] Could not look up David clone ID:', e.message);
+      logger.warn('[HookAudio] Could not look up David clone ID', { error: e.message });
     }
 
     // If no registered clone, upload reference audio for inline cloning
@@ -698,9 +701,9 @@ router.post('/hook-audio/generate', async (c) => {
       try {
         const DAVID_CLONE_URL = 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/david_clone.wav';
         clonePromptFileId = await getMinimaxSequenceForUrl(DAVID_CLONE_URL, 'david_clone.wav');
-        console.log(`🎙️ Using inline clone_prompt for David: ${clonePromptFileId}`);
+        logger.info(`Using inline clone_prompt for David: ${clonePromptFileId}`);
       } catch (e: any) {
-        console.warn('[HookAudio] Could not upload David clone reference:', e.message);
+        logger.warn('[HookAudio] Could not upload David clone reference', { error: e.message });
       }
     }
 
@@ -730,7 +733,7 @@ router.post('/hook-audio/generate', async (c) => {
       });
 
     if (uploadError) {
-      console.error('Failed to upload hook audio:', uploadError);
+      logger.error('Failed to upload hook audio', { error: uploadError.message });
       return c.json({
         success: false,
         error: `Storage upload failed: ${uploadError.message}`,
@@ -744,7 +747,7 @@ router.post('/hook-audio/generate', async (c) => {
 
     const audioUrl = urlData.publicUrl;
 
-    console.log(`✅ Hook audio stored: ${storagePath} (${Math.round(mp3Buffer.length / 1024)}KB, ~${estimatedDuration}s)`);
+    logger.info(`Hook audio stored: ${storagePath} (${Math.round(mp3Buffer.length / 1024)}KB, ~${estimatedDuration}s)`);
 
     return c.json({
       success: true,
@@ -756,7 +759,7 @@ router.post('/hook-audio/generate', async (c) => {
     });
 
   } catch (error: any) {
-    console.error('Hook audio generation error:', error);
+    logger.error('Hook audio generation error', { error: error?.message || String(error) });
     return c.json({
       success: false,
       error: error.message || 'Hook audio generation failed',

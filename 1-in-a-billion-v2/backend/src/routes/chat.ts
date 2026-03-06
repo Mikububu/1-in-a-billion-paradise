@@ -95,6 +95,12 @@ router.post('/matches', requireAuth, async (c) => {
       return c.json({ success: false, error: 'Missing user IDs' }, 400);
     }
 
+    // Verify the authenticated user is one of the participants
+    const authUserId = c.get('userId');
+    if (authUserId !== user1Id && authUserId !== user2Id) {
+      return c.json({ error: 'Unauthorized' }, 403);
+    }
+
     const result = await createMatch(user1Id, user2Id, {
       person1Id,
       person2Id,

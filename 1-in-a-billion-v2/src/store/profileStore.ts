@@ -178,7 +178,7 @@ type ProfileState = {
     reset: () => void;
 };
 
-const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${Math.random().toString(36).substr(2, 9)}`;
 
 const norm = (s: unknown) => (typeof s === 'string' ? s.trim().toLowerCase() : '');
 

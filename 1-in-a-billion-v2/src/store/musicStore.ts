@@ -8,7 +8,7 @@ interface MusicState {
 }
 
 export const useMusicStore = create<MusicState>((set) => ({
-    isPlaying: true, // Default to true as intro starts playing
+    isPlaying: false, // Default to false; set to true when music actually starts playing
     setIsPlaying: (playing) => set({ isPlaying: playing }),
     isMusicLoaded: false,
     setIsMusicLoaded: (loaded) => set({ isMusicLoaded: loaded }),

@@ -6,7 +6,7 @@ import {
     TouchableOpacity,
     ScrollView,
 } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     buttonDesc: {
-        fontFamily: typography.sans,
+        fontFamily: typography.sansRegular,
         fontSize: 12,
         color: '#999',
         marginTop: 1,

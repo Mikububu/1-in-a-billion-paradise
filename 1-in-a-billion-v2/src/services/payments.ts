@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { env } from '@/config/env';
+import { useAuthStore } from '@/store/authStore';
 
 type AnyObj = Record<string, any>;
 type EntitlementVerifyResponse = {
@@ -156,9 +157,15 @@ export async function verifyEntitlementWithBackend(params: {
   if (!appUserId) return { success: false, active: false, error: 'Missing appUserId' };
 
   try {
+    const session = useAuthStore.getState().session;
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+
     const response = await fetch(`${env.CORE_API_URL}/api/payments/verify-entitlement`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         appUserId,
         entitlementId: params.entitlementId,

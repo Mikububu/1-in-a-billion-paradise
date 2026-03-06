@@ -7,6 +7,8 @@
 import { Hono } from 'hono';
 import { subscribeToNotifications, notifyJobComplete } from '../services/notificationService';
 import type { AppEnv } from '../types/hono';
+import { requireAuth } from '../middleware/requireAuth';
+import { requireAdminAuth } from '../middleware/adminAuth';
 
 const app = new Hono<AppEnv>();
 
@@ -14,10 +16,13 @@ const app = new Hono<AppEnv>();
  * POST /api/notifications/subscribe
  * Subscribe to notifications for a job
  */
-app.post('/subscribe', async (c) => {
+app.post('/subscribe', requireAuth, async (c) => {
   try {
     const body = await c.req.json();
-    const { userId, jobId, pushToken, email, pushEnabled, emailEnabled } = body;
+    const { jobId, pushToken, email, pushEnabled, emailEnabled } = body;
+
+    // Use authenticated userId from JWT token instead of request body
+    const userId = c.get('userId');
 
     if (!userId || !jobId) {
       return c.json({ success: false, error: 'Missing userId or jobId' }, 400);
@@ -41,7 +46,7 @@ app.post('/subscribe', async (c) => {
  * POST /api/notifications/send
  * Manually trigger notifications for a job (admin/testing)
  */
-app.post('/send', async (c) => {
+app.post('/send', requireAdminAuth, async (c) => {
   try {
     const body = await c.req.json();
     const { jobId, personName, systemName, type } = body;

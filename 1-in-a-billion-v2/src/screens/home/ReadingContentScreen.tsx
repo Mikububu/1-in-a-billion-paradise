@@ -159,7 +159,7 @@ export const ReadingContentScreen = ({ navigation, route }: Props) => {
             });
 
             if (response.status === 401 || response.status === 403) {
-                response = await fetch(url);
+                throw new Error(`Session expired or access denied (${response.status})`);
             }
 
             if (!response.ok) {

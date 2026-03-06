@@ -48,9 +48,16 @@ const supabaseClient = axios.create({
     headers: SUPABASE_ANON_KEY
         ? {
             apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
         }
         : undefined,
+});
+
+// Automatically attach user's Supabase access token to every supabaseClient request
+// (falls back to anon key if no session exists)
+supabaseClient.interceptors.request.use((config) => {
+    const token = useAuthStore.getState().session?.access_token;
+    config.headers.Authorization = `Bearer ${token || SUPABASE_ANON_KEY}`;
+    return config;
 });
 
 // Add response interceptor for 401 errors to both clients

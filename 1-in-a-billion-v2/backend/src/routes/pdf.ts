@@ -2,7 +2,9 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { generateReadingPDF, generateChapterPDF } from '../services/pdf/pdfGenerator';
 import fs from 'fs';
+import path from 'path';
 import type { AppEnv } from '../types/hono';
+import { requireAuth } from '../middleware/requireAuth';
 
 const router = new Hono<AppEnv>();
 
@@ -165,10 +167,15 @@ router.post('/generate-chapter', async (c) => {
  * Download a generated PDF
  * GET /api/pdf/download/:filename
  */
-router.get('/download/:filename', async (c) => {
-  const filename = c.req.param('filename');
-  const filePath = `./generated-pdfs/${filename}`;
-  
+router.get('/download/:filename', requireAuth, async (c) => {
+  const filename = c.req.param('filename')!;
+  const PDF_DIR = './generated-pdfs';
+  const resolved = path.resolve(PDF_DIR, filename);
+  if (!resolved.startsWith(path.resolve(PDF_DIR))) {
+    return c.json({ error: 'Invalid filename' }, 400);
+  }
+  const filePath = resolved;
+
   if (!fs.existsSync(filePath)) {
     return c.json({ error: 'PDF not found' }, 404);
   }
@@ -187,7 +194,7 @@ router.get('/download/:filename', async (c) => {
  * List generated PDFs
  * GET /api/pdf/list
  */
-router.get('/list', async (c) => {
+router.get('/list', requireAuth, async (c) => {
   const pdfDir = './generated-pdfs';
   
   if (!fs.existsSync(pdfDir)) {

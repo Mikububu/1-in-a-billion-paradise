@@ -31,17 +31,3 @@ export const QUERY_STALE_TIME_MS = 5 * 60_000;    // 5 minutes
 export const QUERY_GC_TIME_MS = 10 * 60_000;      // 10 minutes
 export const QUERY_RETRY_COUNT = 2;
 
-// ── Colors (repeated in many files) ────────────────────────────────
-export const COLORS = {
-  background: '#0a0a0a',
-  surface: '#141414',
-  surfaceLight: '#1a1a1a',
-  gold: '#c9a94e',
-  goldLight: '#d4b85c',
-  textPrimary: '#ffffff',
-  textSecondary: '#999999',
-  textMuted: '#666666',
-  error: '#ff6b6b',
-  success: '#4ecdc4',
-  border: '#333333',
-} as const;

@@ -32,13 +32,16 @@ import './services/jobHealthCheck'; // Auto-starts job health check service
 const app = new Hono();
 
 // CORS middleware - restrict to known origins
-app.use('*', cors({
-  origin: [
-    'https://1-in-a-billion.app',
-    'https://www.1-in-a-billion.app',
+const allowedOrigins: string[] = [
+  'https://1-in-a-billion.app',
+  'https://www.1-in-a-billion.app',
+  ...(process.env.NODE_ENV !== 'production' ? [
     'http://localhost:8081',       // Expo dev
     'http://localhost:19006',      // Expo web dev
-  ],
+  ] : []),
+];
+app.use('*', cors({
+  origin: allowedOrigins,
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
   exposeHeaders: ['Content-Length'],

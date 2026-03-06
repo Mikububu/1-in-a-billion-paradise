@@ -6,19 +6,21 @@ import { readingsClient } from '../services/text/readingsClient';
 import type { AppEnv } from '../types/hono';
 import { llm } from '../services/llm';
 import { ResponseCache } from '../services/cache';
+import { requireAuth } from '../middleware/requireAuth';
+import { logger } from '../utils/logger';
 
 const payloadSchema = z.object({
-  birthDate: z.string(),
-  birthTime: z.string(),
-  timezone: z.string(),
+  birthDate: z.string().max(100),
+  birthTime: z.string().max(100),
+  timezone: z.string().max(100),
   latitude: z.number(),
   longitude: z.number(),
-  birthPlace: z.string().optional(), // City name for poetic intro
+  birthPlace: z.string().max(200).optional(), // City name for poetic intro
   relationshipIntensity: z.number().min(0).max(10),
   relationshipMode: z.enum(['family', 'sensual']),
-  primaryLanguage: z.string(),
-  secondaryLanguage: z.string().optional(),
-  subjectName: z.string().optional(),
+  primaryLanguage: z.string().max(100),
+  secondaryLanguage: z.string().max(100).optional(),
+  subjectName: z.string().max(200).optional(),
   isPartnerReading: z.boolean().optional(),
 });
 
@@ -52,7 +54,7 @@ async function correctTimezoneIfNeeded(timezone: string, latitude: number, longi
   const expectedOffset = Math.round(longitude / 15);
   if (Math.abs(expectedOffset) <= 1) return timezone;
 
-  console.error(`⚠️ [${label}] TIMEZONE BUG DETECTED! Timezone is UTC but coordinates suggest offset:`, {
+  logger.error(`[${label}] TIMEZONE BUG DETECTED! Timezone is UTC but coordinates suggest offset`, {
     timezone, longitude,
     expectedOffset: `UTC${expectedOffset >= 0 ? '+' : ''}${expectedOffset}`,
     coordinates: `${latitude}, ${longitude}`,
@@ -67,12 +69,12 @@ async function correctTimezoneIfNeeded(timezone: string, latitude: number, longi
       const tzResponse = await fetch(tzUrl);
       const tzData = await tzResponse.json();
       if (tzData.status === 'OK' && tzData.timeZoneId) {
-        console.log(`✅ [${label}] AUTO-CORRECTED timezone: UTC → ${tzData.timeZoneId}`);
+        logger.info(`[${label}] AUTO-CORRECTED timezone: UTC -> ${tzData.timeZoneId}`);
         return tzData.timeZoneId;
       }
     }
   } catch (tzErr) {
-    console.warn(`[${label}] Failed to auto-correct timezone:`, tzErr);
+    logger.warn(`[${label}] Failed to auto-correct timezone`, { error: String(tzErr) });
   }
   return timezone;
 }
@@ -80,19 +82,19 @@ async function correctTimezoneIfNeeded(timezone: string, latitude: number, longi
 // Placements endpoint (Swiss Ephemeris only)
 // Used by mobile to compute Sun/Moon/Rising immediately after saving a person.
 const placementsSchema = z.object({
-  birthDate: z.string(),
-  birthTime: z.string(),
-  timezone: z.string(),
+  birthDate: z.string().max(100),
+  birthTime: z.string().max(100),
+  timezone: z.string().max(100),
   latitude: z.number(),
   longitude: z.number(),
   system: z.enum(['western', 'vedic']).optional().default('western'),
 });
 
-router.post('/placements', async (c) => {
+router.post('/placements', requireAuth, async (c) => {
   const parsed = placementsSchema.parse(await c.req.json());
 
   // DEBUG: Log incoming data for troubleshooting
-  console.log('📍 [Placements] Incoming request:', {
+  logger.info('[Placements] Incoming request', {
     birthDate: parsed.birthDate,
     birthTime: parsed.birthTime,
     timezone: parsed.timezone,
@@ -106,7 +108,7 @@ router.post('/placements', async (c) => {
 
   // VALIDATION: Reject invalid coordinates (0,0 is in the middle of the ocean)
   if (parsed.latitude === 0 && parsed.longitude === 0) {
-    console.error('❌ [Placements] Invalid coordinates (0,0) - birth location missing!');
+    logger.error('[Placements] Invalid coordinates (0,0) - birth location missing!');
     return c.json({ error: 'Invalid birth location - coordinates are 0,0' }, 400);
   }
 
@@ -142,12 +144,12 @@ router.post('/placements', async (c) => {
   return c.json({ placements });
 });
 
-router.post('/sun', async (c) => {
+router.post('/sun', requireAuth, async (c) => {
   const parsed = payloadSchema.parse(await c.req.json());
   const nocache = c.req.query('nocache') === 'true';
 
   // DEBUG: Log incoming data
-  console.log('☉ [Sun] Incoming request:', {
+  logger.info('[Sun] Incoming request', {
     birthDate: parsed.birthDate,
     birthTime: parsed.birthTime,
     timezone: parsed.timezone,
@@ -158,7 +160,7 @@ router.post('/sun', async (c) => {
 
   // VALIDATION: Reject invalid coordinates
   if (parsed.latitude === 0 && parsed.longitude === 0) {
-    console.error('❌ [Sun] Invalid coordinates (0,0) - birth location missing!');
+    logger.error('[Sun] Invalid coordinates (0,0) - birth location missing!');
     return c.json({ error: 'Invalid birth location - coordinates are 0,0' }, 400);
   }
 
@@ -170,11 +172,11 @@ router.post('/sun', async (c) => {
   if (!nocache) {
     const cached = sunCache.get(cacheKey);
     if (cached) {
-      console.log('✅ [Sun] Returning CACHED reading');
+      logger.info('[Sun] Returning CACHED reading');
       return c.json({ ...cached, metadata: { ...cached.metadata, cacheHit: true } });
     }
   } else {
-    console.log('🔥 [Sun] NOCACHE mode - bypassing cache, generating fresh reading');
+    logger.info('[Sun] NOCACHE mode - bypassing cache, generating fresh reading');
   }
 
   const placements = await swissEngine.computePlacements(correctedParsed);
@@ -189,12 +191,12 @@ router.post('/sun', async (c) => {
   return c.json(response);
 });
 
-router.post('/moon', async (c) => {
+router.post('/moon', requireAuth, async (c) => {
   const parsed = payloadSchema.parse(await c.req.json());
   const nocache = c.req.query('nocache') === 'true';
 
   // DEBUG: Log incoming data
-  console.log('☽ [Moon] Incoming request:', {
+  logger.info('[Moon] Incoming request', {
     birthDate: parsed.birthDate,
     birthTime: parsed.birthTime,
     timezone: parsed.timezone,
@@ -205,7 +207,7 @@ router.post('/moon', async (c) => {
 
   // VALIDATION: Reject invalid coordinates
   if (parsed.latitude === 0 && parsed.longitude === 0) {
-    console.error('❌ [Moon] Invalid coordinates (0,0) - birth location missing!');
+    logger.error('[Moon] Invalid coordinates (0,0) - birth location missing!');
     return c.json({ error: 'Invalid birth location - coordinates are 0,0' }, 400);
   }
 
@@ -217,11 +219,11 @@ router.post('/moon', async (c) => {
   if (!nocache) {
     const cached = moonCache.get(cacheKey);
     if (cached) {
-      console.log('✅ [Moon] Returning CACHED reading');
+      logger.info('[Moon] Returning CACHED reading');
       return c.json({ ...cached, metadata: { ...cached.metadata, cacheHit: true } });
     }
   } else {
-    console.log('🔥 [Moon] NOCACHE mode - bypassing cache, generating fresh reading');
+    logger.info('[Moon] NOCACHE mode - bypassing cache, generating fresh reading');
   }
 
   const placements = await swissEngine.computePlacements(correctedParsed);
@@ -236,12 +238,12 @@ router.post('/moon', async (c) => {
   return c.json(response);
 });
 
-router.post('/rising', async (c) => {
+router.post('/rising', requireAuth, async (c) => {
   const parsed = payloadSchema.parse(await c.req.json());
   const nocache = c.req.query('nocache') === 'true';
 
   // DEBUG: Log incoming data
-  console.log('↑ [Rising] Incoming request:', {
+  logger.info('[Rising] Incoming request', {
     birthDate: parsed.birthDate,
     birthTime: parsed.birthTime,
     timezone: parsed.timezone,
@@ -252,7 +254,7 @@ router.post('/rising', async (c) => {
 
   // VALIDATION: Reject invalid coordinates
   if (parsed.latitude === 0 && parsed.longitude === 0) {
-    console.error('❌ [Rising] Invalid coordinates (0,0) - birth location missing!');
+    logger.error('[Rising] Invalid coordinates (0,0) - birth location missing!');
     return c.json({ error: 'Invalid birth location - coordinates are 0,0' }, 400);
   }
 
@@ -264,11 +266,11 @@ router.post('/rising', async (c) => {
   if (!nocache) {
     const cached = risingCache.get(cacheKey);
     if (cached) {
-      console.log('✅ [Rising] Returning CACHED reading');
+      logger.info('[Rising] Returning CACHED reading');
       return c.json({ ...cached, metadata: { ...cached.metadata, cacheHit: true } });
     }
   } else {
-    console.log('🔥 [Rising] NOCACHE mode - bypassing cache, generating fresh reading');
+    logger.info('[Rising] NOCACHE mode - bypassing cache, generating fresh reading');
   }
 
   const placements = await swissEngine.computePlacements(correctedParsed);
@@ -285,24 +287,24 @@ router.post('/rising', async (c) => {
 
 // Extended reading endpoint for full readings
 const extendedSchema = z.object({
-  system: z.string(),
-  birthDate: z.string(),
-  birthTime: z.string(),
-  timezone: z.string(),
+  system: z.string().max(100),
+  birthDate: z.string().max(100),
+  birthTime: z.string().max(100),
+  timezone: z.string().max(100),
   latitude: z.number(),
   longitude: z.number(),
   relationshipIntensity: z.number().optional(),
-  relationshipMode: z.string().optional(),
-  primaryLanguage: z.string().optional(),
-  provider: z.string().optional(),
+  relationshipMode: z.string().max(100).optional(),
+  primaryLanguage: z.string().max(100).optional(),
+  provider: z.string().max(100).optional(),
   longForm: z.boolean().optional(),
-  subjectName: z.string().optional(),
+  subjectName: z.string().max(200).optional(),
   isPartnerReading: z.boolean().optional(),
 });
 
 const extendedCache = new ResponseCache<any>();
 
-router.post('/extended', async (c) => {
+router.post('/extended', requireAuth, async (c) => {
   const body = await c.req.json();
   const parsed = extendedSchema.parse(body);
   const cacheKey = JSON.stringify({ type: 'extended', parsed });
@@ -345,20 +347,20 @@ router.post('/extended', async (c) => {
 
 // Synastry reading endpoint for compatibility analysis
 const synastrySchema = z.object({
-  system: z.string(),
+  system: z.string().max(100),
   person1: z.object({
-    name: z.string(),
-    birthDate: z.string(),
-    birthTime: z.string(),
-    timezone: z.string(),
+    name: z.string().max(200),
+    birthDate: z.string().max(100),
+    birthTime: z.string().max(100),
+    timezone: z.string().max(100),
     latitude: z.number(),
     longitude: z.number(),
   }),
   person2: z.object({
-    name: z.string(),
-    birthDate: z.string(),
-    birthTime: z.string(),
-    timezone: z.string(),
+    name: z.string().max(200),
+    birthDate: z.string().max(100),
+    birthTime: z.string().max(100),
+    timezone: z.string().max(100),
     latitude: z.number(),
     longitude: z.number(),
   }),
@@ -367,7 +369,7 @@ const synastrySchema = z.object({
 
 const synastryCache = new ResponseCache<any>();
 
-router.post('/synastry', async (c) => {
+router.post('/synastry', requireAuth, async (c) => {
   const body = await c.req.json();
   const parsed = synastrySchema.parse(body);
   const cacheKey = JSON.stringify({ type: 'synastry', parsed });

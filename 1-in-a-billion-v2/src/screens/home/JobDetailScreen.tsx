@@ -200,7 +200,7 @@ export const JobDetailScreen = ({ navigation, route }: Props) => {
         const params = job?.params || job?.input || {};
         const systems = Array.isArray(params.systems) ? params.systems : [];
         if (systems.length === 0) return t('jobDetail.systems.empty');
-        return systems.map(s => getSystemDisplayName(s)).join(', ');
+        return systems.map((s: string) => getSystemDisplayName(s)).join(', ');
     }, [job, system]);
 
     const updatedAt = useMemo(() => {

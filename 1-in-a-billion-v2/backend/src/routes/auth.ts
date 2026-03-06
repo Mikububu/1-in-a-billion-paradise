@@ -32,7 +32,7 @@ router.post('/signup', async (c) => {
         const { email: emailRaw, password, name } = body;
         const email = typeof emailRaw === 'string' ? emailRaw.trim().toLowerCase() : emailRaw;
 
-        if (!email || typeof email !== 'string' || !email.includes('@')) {
+        if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             return c.json({
                 success: false,
                 error: 'Invalid email address'
@@ -133,7 +133,7 @@ router.post('/signin', async (c) => {
         const body = await c.req.json();
         const { email, password } = body;
 
-        if (!email || typeof email !== 'string' || !email.includes('@')) {
+        if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             return c.json({
                 success: false,
                 error: 'Invalid email address'
@@ -204,7 +204,7 @@ router.post('/verify-signup-code', async (c) => {
         const email = typeof emailRaw === 'string' ? emailRaw.trim().toLowerCase() : emailRaw;
         const token = typeof code === 'string' ? code.trim() : '';
 
-        if (!email || typeof email !== 'string' || !email.includes('@')) {
+        if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             return c.json({
                 success: false,
                 error: 'Invalid email address'
@@ -268,7 +268,7 @@ router.post('/resend-confirmation', async (c) => {
         const body = await c.req.json();
         const { email } = body;
 
-        if (!email || typeof email !== 'string' || !email.includes('@')) {
+        if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             return c.json({
                 success: false,
                 error: 'Invalid email address'
@@ -327,7 +327,7 @@ router.post('/forgot-password', async (c) => {
         const body = await c.req.json();
         const { email } = body;
 
-        if (!email || typeof email !== 'string' || !email.includes('@')) {
+        if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             return c.json({
                 success: false,
                 error: 'Invalid email address'

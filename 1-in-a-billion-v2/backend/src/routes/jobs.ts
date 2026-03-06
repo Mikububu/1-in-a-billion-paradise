@@ -20,6 +20,7 @@ import { PassThrough, Readable } from 'node:stream';
 import { requireAuth as jwtAuth, getAuthUserId } from '../middleware/requireAuth';
 import { sanitizeDirective, sanitizeContext } from '../utils/sanitizeInput';
 import type { AppEnv } from '../types/hono';
+import { logger } from '../utils/logger';
 
 const router = new Hono<AppEnv>();
 const DEBUG_LOG_PATH = process.env.DEBUG_LOG_PATH || `${process.cwd()}/.cursor/debug.log`;
@@ -43,7 +44,7 @@ function appendAgentDebug(location: string, message: string, data: Record<string
       );
     })
     .catch((err) => {
-      console.warn('[debugLog] Failed to write debug log:', err);
+      logger.warn('[debugLog] Failed to write debug log', { error: String(err) });
     });
 }
 
@@ -89,7 +90,7 @@ router.delete('/:jobId', jwtAuth, async (c) => {
       .eq('job_id', jobId);
 
     if (tasksError) {
-      console.error('[DELETE JOB] Failed to delete tasks:', tasksError);
+      logger.error('[DELETE JOB] Failed to delete tasks', { error: String(tasksError) });
       return c.json({ success: false, error: 'Failed to delete job tasks' }, 500);
     }
 
@@ -100,13 +101,13 @@ router.delete('/:jobId', jwtAuth, async (c) => {
       .eq('id', jobId);
 
     if (jobError) {
-      console.error('[DELETE JOB] Failed to delete job:', jobError);
+      logger.error('[DELETE JOB] Failed to delete job', { error: String(jobError) });
       return c.json({ success: false, error: 'Failed to delete job' }, 500);
     }
 
     return c.json({ success: true });
   } catch (err: any) {
-    console.error('[DELETE JOB] Error:', err);
+    logger.error('[DELETE JOB] Error', { error: String(err) });
     return c.json({ success: false, error: 'Internal server error' }, 500);
   }
 });
@@ -168,7 +169,7 @@ router.post('/v2/start', jwtAuth, async (c) => {
     // If not using a subscription reading, a purchase transaction must be provided.
     // The actual payment was already processed by Apple via RevenueCat on the client.
     if (!useIncludedReading && !unlimited && !purchaseTransactionId) {
-      console.warn(`⚠️ Job rejected: no payment proof. user=${userId} type=${type}`);
+      logger.warn(`Job rejected: no payment proof`, { userId, type });
       return c.json({
         success: false,
         error: 'Payment required. Please purchase this reading before generating.',
@@ -176,7 +177,7 @@ router.post('/v2/start', jwtAuth, async (c) => {
       }, 402);
     }
     if (purchaseTransactionId) {
-      console.log(`💳 IAP purchase: user=${userId} txn=${purchaseTransactionId} type=${type}`);
+      logger.info(`IAP purchase verified`, { userId, purchaseTransactionId, type });
     }
 
     // Build job params (same shape the workers expect)
@@ -205,17 +206,14 @@ router.post('/v2/start', jwtAuth, async (c) => {
 
     // Log reading against monthly quota
     if (useIncludedReading) {
-      const { markIncludedReadingUsed } = await import('../services/subscriptionService');
-      const system = systems[0] || 'unknown';
-      await markIncludedReadingUsed(userId, system, jobId);
       const quota = await getMonthlyQuotaStatus(userId);
-      console.log(`📊 Reading counted: user=${userId} type=${isSynastry ? 'synastry(3)' : 'individual(1)'} quota=${quota?.used}/${quota?.monthlyLimit}`);
+      logger.info(`Reading counted`, { userId, type: isSynastry ? 'synastry(3)' : 'individual(1)', quotaUsed: quota?.used, quotaLimit: quota?.monthlyLimit });
     }
 
-    console.log(`🚀 Job started: ${jobId} type=${type} systems=${systems.join(',')} user=${userId}`);
+    logger.info(`Job started`, { jobId, type, systems: systems.join(','), userId });
     return c.json({ success: true, jobId });
   } catch (error: any) {
-    console.error('❌ Failed to start job:', error);
+    logger.error('Failed to start job', { error: error?.message || String(error) });
     return c.json({ success: false, error: error?.message ?? 'Failed to start job' }, 500);
   }
 });
@@ -359,7 +357,7 @@ const getJobHandler = async (c: any) => {
     }
     jobWithArtifacts.results.documents = documents;
 
-    console.log(`📋 Built ${documents.length} documents from ${jobWithArtifacts.artifacts.length} artifacts`);
+    logger.info(`Built ${documents.length} documents from ${jobWithArtifacts.artifacts.length} artifacts`);
   }
 
   return c.json({ success: true, job });
@@ -499,7 +497,7 @@ router.get('/v2/:jobId/export', async (c) => {
   const out = new PassThrough();
   const archive = archiver('zip', { zlib: { level: 9 } });
   archive.on('error', (err) => {
-    console.error('❌ ZIP archive error:', err);
+    logger.error('ZIP archive error', { error: String(err) });
     out.destroy(err);
   });
   archive.pipe(out);
@@ -529,7 +527,7 @@ router.get('/v2/:jobId/export', async (c) => {
   }
 
   archive.finalize().catch((err) => {
-    console.error('[ZIP] archive.finalize() failed:', err);
+    logger.error('[ZIP] archive.finalize() failed', { error: String(err) });
   });
 
   const headers = new Headers();
@@ -657,9 +655,9 @@ router.get('/v2/user/:userId/jobs', jwtAuth, async (c) => {
 
 // Audio streaming endpoint: /api/jobs/v2/:jobId/audio/:docNum
 // Returns a redirect to the signed URL for the audio artifact
-router.get('/v2/:jobId/audio/:docNum', async (c) => {
-  const jobId = c.req.param('jobId');
-  const docNum = parseInt(c.req.param('docNum'), 10);
+router.get('/v2/:jobId/audio/:docNum', jwtAuth, async (c) => {
+  const jobId = c.req.param('jobId')!;
+  const docNum = parseInt(c.req.param('docNum')!, 10);
   const rangeHeader = c.req.header('range') || c.req.header('Range') || null;
 
   appendAgentDebug('jobs.ts:465', 'Audio endpoint called', { jobId: jobId.substring(0, 8), docNum }, 'C');
@@ -680,6 +678,12 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
       return c.json({ success: false, error: 'Job not found' }, 404);
     }
 
+    // Verify the authenticated user owns this job
+    const authUserId = c.get('userId');
+    if (job.user_id !== authUserId) {
+      return c.json({ success: false, error: 'Not authorized to access this job' }, 403);
+    }
+
     // Get all artifacts for this job
     const supabase = supabaseService;
 
@@ -691,7 +695,7 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
       .order('created_at', { ascending: true });
 
     if (error) {
-      console.error('Error fetching audio artifacts:', JSON.stringify(error, null, 2));
+      logger.error('Error fetching audio artifacts', { error: JSON.stringify(error) });
       return c.json({ success: false, error: `Failed to fetch audio artifacts: ${error.message || JSON.stringify(error)}` }, 500);
     }
 
@@ -749,11 +753,11 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
     // Now: We ONLY serve audio if we find an exact match by docNum
 
     if (!audioArtifact || !audioArtifact.storage_path) {
-      console.error(`❌ Audio artifact not found for job ${jobId}, docNum ${docNum}. Available artifacts: ${artifacts.length}`);
+      logger.error(`Audio artifact not found for job ${jobId}, docNum ${docNum}`, { availableArtifacts: artifacts.length });
       return c.json({ success: false, error: `Audio artifact not found for docNum ${docNum}` }, 404);
     }
 
-    console.log(`✅ Found audio artifact for docNum ${docNum}: ${audioArtifact.storage_path}`);
+    logger.info(`Found audio artifact for docNum ${docNum}: ${audioArtifact.storage_path}`);
 
     // Get signed URL (valid for 1 hour)
     const signedUrl = await getSignedArtifactUrl(audioArtifact.storage_path, 3600);
@@ -764,15 +768,13 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
 
     // Stream the audio bytes directly (iOS AVPlayer has issues with redirects).
     // IMPORTANT: Support HTTP Range requests so seeking works.
-    console.log(
-      `🎵 Streaming audio from: ${signedUrl.substring(0, 80)}...${rangeHeader ? ` (Range: ${rangeHeader})` : ''}`
-    );
+    logger.info(`Streaming audio from signed URL`, { rangeHeader: rangeHeader || undefined });
     const audioResponse = await fetch(signedUrl, {
       headers: rangeHeader ? { Range: rangeHeader } : undefined,
     });
 
     if (!audioResponse.ok) {
-      console.error(`❌ Failed to fetch audio: ${audioResponse.status} ${audioResponse.statusText}`);
+      logger.error(`Failed to fetch audio: ${audioResponse.status} ${audioResponse.statusText}`);
       return c.json({ success: false, error: 'Failed to fetch audio from storage' }, 500);
     }
 
@@ -788,16 +790,16 @@ router.get('/v2/:jobId/audio/:docNum', async (c) => {
     // Return streaming response with upstream status (200 or 206)
     return new Response(audioResponse.body, { status: audioResponse.status, headers });
   } catch (error: any) {
-    console.error('Error in audio endpoint:', error);
+    logger.error('Error in audio endpoint', { error: error?.message || String(error) });
     return c.json({ success: false, error: error.message || 'Internal server error' }, 500);
   }
 });
 
 // Song download endpoint: /api/jobs/v2/:jobId/song/:docNum
 // Returns a redirect to the signed URL for the song artifact
-router.get('/v2/:jobId/song/:docNum', async (c) => {
-  const jobId = c.req.param('jobId');
-  const docNum = parseInt(c.req.param('docNum'), 10);
+router.get('/v2/:jobId/song/:docNum', jwtAuth, async (c) => {
+  const jobId = c.req.param('jobId')!;
+  const docNum = parseInt(c.req.param('docNum')!, 10);
   const rangeHeader = c.req.header('range') || c.req.header('Range') || null;
 
   appendAgentDebug('jobs.ts:580', 'Song endpoint called', { jobId: jobId.substring(0, 8), docNum }, 'D');
@@ -818,6 +820,12 @@ router.get('/v2/:jobId/song/:docNum', async (c) => {
       return c.json({ success: false, error: 'Job not found' }, 404);
     }
 
+    // Verify the authenticated user owns this job
+    const authUserId = c.get('userId');
+    if (job.user_id !== authUserId) {
+      return c.json({ success: false, error: 'Not authorized to access this job' }, 403);
+    }
+
     // Get all song artifacts for this job
     const supabase = supabaseService;
 
@@ -829,7 +837,7 @@ router.get('/v2/:jobId/song/:docNum', async (c) => {
       .order('created_at', { ascending: true });
 
     if (error) {
-      console.error('Error fetching song artifacts:', error);
+      logger.error('Error fetching song artifacts', { error: String(error) });
       return c.json({ success: false, error: 'Failed to fetch song artifacts' }, 500);
     }
 
@@ -866,11 +874,11 @@ router.get('/v2/:jobId/song/:docNum', async (c) => {
     // NO FALLBACKS - Only return exact matches
 
     if (!songArtifact || !songArtifact.storage_path) {
-      console.error(`❌ Song artifact not found for job ${jobId}, docNum ${docNum}. Available artifacts: ${artifacts.length}`);
+      logger.error(`Song artifact not found for job ${jobId}, docNum ${docNum}`, { availableArtifacts: artifacts.length });
       return c.json({ success: false, error: `Song artifact not found for docNum ${docNum}` }, 404);
     }
 
-    console.log(`✅ Found song artifact for docNum ${docNum}: ${songArtifact.storage_path}`);
+    logger.info(`Found song artifact for docNum ${docNum}: ${songArtifact.storage_path}`);
 
     // Get the URL to fetch from (prefer public, fallback to signed)
     let fetchUrl = songArtifact.public_url;
@@ -884,15 +892,13 @@ router.get('/v2/:jobId/song/:docNum', async (c) => {
 
     // Stream the song bytes directly (iOS AVPlayer has issues with redirects).
     // IMPORTANT: Support HTTP Range requests so seeking works.
-    console.log(
-      `🎵 Streaming song from: ${fetchUrl.substring(0, 80)}...${rangeHeader ? ` (Range: ${rangeHeader})` : ''}`
-    );
+    logger.info(`Streaming song from signed URL`, { rangeHeader: rangeHeader || undefined });
     const songResponse = await fetch(fetchUrl, {
       headers: rangeHeader ? { Range: rangeHeader } : undefined,
     });
 
     if (!songResponse.ok) {
-      console.error(`❌ Failed to fetch song: ${songResponse.status} ${songResponse.statusText}`);
+      logger.error(`Failed to fetch song: ${songResponse.status} ${songResponse.statusText}`);
       return c.json({ success: false, error: 'Failed to fetch song from storage' }, 500);
     }
 
@@ -908,16 +914,16 @@ router.get('/v2/:jobId/song/:docNum', async (c) => {
     // Return streaming response with upstream status (200 or 206)
     return new Response(songResponse.body, { status: songResponse.status, headers });
   } catch (error: any) {
-    console.error('Error in song endpoint:', error);
+    logger.error('Error in song endpoint', { error: error?.message || String(error) });
     return c.json({ success: false, error: error.message || 'Internal server error' }, 500);
   }
 });
 
 // Song metadata endpoint: /api/jobs/v2/:jobId/song/:docNum/metadata
 // Returns song title and lyrics (no audio)
-router.get('/v2/:jobId/song/:docNum/metadata', async (c) => {
-  const jobId = c.req.param('jobId');
-  const docNum = parseInt(c.req.param('docNum'), 10);
+router.get('/v2/:jobId/song/:docNum/metadata', jwtAuth, async (c) => {
+  const jobId = c.req.param('jobId')!;
+  const docNum = parseInt(c.req.param('docNum')!, 10);
 
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return c.json({ success: false, error: 'Supabase not configured' }, 500);
@@ -935,6 +941,12 @@ router.get('/v2/:jobId/song/:docNum/metadata', async (c) => {
       return c.json({ success: false, error: 'Job not found' }, 404);
     }
 
+    // Verify the authenticated user owns this job
+    const authUserId = c.get('userId');
+    if (job.user_id !== authUserId) {
+      return c.json({ success: false, error: 'Not authorized to access this job' }, 403);
+    }
+
     // Get song artifact metadata for this job
     const supabase = supabaseService;
 
@@ -946,7 +958,7 @@ router.get('/v2/:jobId/song/:docNum/metadata', async (c) => {
       .order('created_at', { ascending: true });
 
     if (error) {
-      console.error('Error fetching song artifacts:', error);
+      logger.error('Error fetching song artifacts', { error: String(error) });
       return c.json({ success: false, error: 'Failed to fetch song artifacts' }, 500);
     }
 
@@ -993,16 +1005,16 @@ router.get('/v2/:jobId/song/:docNum/metadata', async (c) => {
       docType: songArtifact.metadata?.docType || null,
     });
   } catch (error: any) {
-    console.error('Error in song metadata endpoint:', error);
+    logger.error('Error in song metadata endpoint', { error: error?.message || String(error) });
     return c.json({ success: false, error: error.message || 'Internal server error' }, 500);
   }
 });
 
 // PDF download endpoint: /api/jobs/v2/:jobId/pdf/:docNum
 // Returns the PDF artifact as application/pdf
-router.get('/v2/:jobId/pdf/:docNum', async (c) => {
-  const jobId = c.req.param('jobId');
-  const docNum = parseInt(c.req.param('docNum'), 10);
+router.get('/v2/:jobId/pdf/:docNum', jwtAuth, async (c) => {
+  const jobId = c.req.param('jobId')!;
+  const docNum = parseInt(c.req.param('docNum')!, 10);
 
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return c.json({ success: false, error: 'Supabase not configured' }, 500);
@@ -1020,6 +1032,12 @@ router.get('/v2/:jobId/pdf/:docNum', async (c) => {
       return c.json({ success: false, error: 'Job not found' }, 404);
     }
 
+    // Verify the authenticated user owns this job
+    const authUserId = c.get('userId');
+    if (job.user_id !== authUserId) {
+      return c.json({ success: false, error: 'Not authorized to access this job' }, 403);
+    }
+
     // Get all PDF artifacts for this job
     const supabase = supabaseService;
 
@@ -1031,7 +1049,7 @@ router.get('/v2/:jobId/pdf/:docNum', async (c) => {
       .order('created_at', { ascending: true });
 
     if (error) {
-      console.error('Error fetching PDF artifacts:', error);
+      logger.error('Error fetching PDF artifacts', { error: String(error) });
       return c.json({ success: false, error: 'Failed to fetch PDF artifacts' }, 500);
     }
 
@@ -1066,11 +1084,11 @@ router.get('/v2/:jobId/pdf/:docNum', async (c) => {
     }
 
     if (!pdfArtifact || !pdfArtifact.storage_path) {
-      console.error(`❌ PDF artifact not found for job ${jobId}, docNum ${docNum}. Available artifacts: ${artifacts.length}`);
+      logger.error(`PDF artifact not found for job ${jobId}, docNum ${docNum}`, { availableArtifacts: artifacts.length });
       return c.json({ success: false, error: `PDF artifact not found for docNum ${docNum}` }, 404);
     }
 
-    console.log(`✅ Found PDF artifact for docNum ${docNum}: ${pdfArtifact.storage_path}`);
+    logger.info(`Found PDF artifact for docNum ${docNum}: ${pdfArtifact.storage_path}`);
 
     // Get the URL to fetch from (prefer public, fallback to signed)
     let fetchUrl = pdfArtifact.public_url;
@@ -1083,11 +1101,11 @@ router.get('/v2/:jobId/pdf/:docNum', async (c) => {
     }
 
     // Stream the PDF bytes directly
-    console.log(`📄 Streaming PDF from: ${fetchUrl.substring(0, 80)}...`);
+    logger.info('Streaming PDF from signed URL');
     const pdfResponse = await fetch(fetchUrl);
 
     if (!pdfResponse.ok) {
-      console.error(`❌ Failed to fetch PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
+      logger.error(`Failed to fetch PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
       return c.json({ success: false, error: 'Failed to fetch PDF from storage' }, 500);
     }
 
@@ -1100,7 +1118,7 @@ router.get('/v2/:jobId/pdf/:docNum', async (c) => {
     // Return PDF stream
     return new Response(pdfResponse.body, { status: 200, headers });
   } catch (error: any) {
-    console.error('Error in PDF endpoint:', error);
+    logger.error('Error in PDF endpoint', { error: error?.message || String(error) });
     return c.json({ success: false, error: error.message || 'Internal server error' }, 500);
   }
 });
@@ -1117,6 +1135,20 @@ router.post('/v2/:jobId/reset-stuck', jwtAuth, async (c) => {
     return c.json({ success: false, error: 'Supabase service role key not configured' }, 500);
   }
   const supabase = supabaseService;
+
+  // Verify the user owns this job before resetting
+  const authUserId = c.get('userId');
+  const { data: jobRow, error: fetchErr } = await supabase
+    .from('jobs')
+    .select('user_id')
+    .eq('id', jobId)
+    .single();
+  if (fetchErr || !jobRow) {
+    return c.json({ success: false, error: 'Job not found' }, 404);
+  }
+  if (jobRow.user_id !== authUserId) {
+    return c.json({ success: false, error: 'Not authorized to reset this job' }, 403);
+  }
 
   // Reset any tasks stuck in claimed/processing status (worker died)
   const { data, error } = await supabase

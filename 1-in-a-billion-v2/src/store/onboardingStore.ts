@@ -5,7 +5,7 @@ import { CityOption, HookReading, LanguageOption } from '@/types/forms';
 import { ProfileSnapshot } from '@/types/api';
 
 // Helper to generate IDs
-const generateId = () => Math.random().toString(36).substr(2, 9);
+const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${Math.random().toString(36).substr(2, 9)}`;
 
 
 
@@ -394,7 +394,6 @@ export const useOnboardingStore = create<OnboardingState>()(
                 redirectAfterOnboarding: state.redirectAfterOnboarding,
                 showDashboard: state.showDashboard,
                 lastActiveTimestamp: state.lastActiveTimestamp, // Persist for inactivity tracking
-                _hasHydrated: state._hasHydrated,
             } as any),
             onRehydrateStorage: () => (state) => {
                 if (state) {

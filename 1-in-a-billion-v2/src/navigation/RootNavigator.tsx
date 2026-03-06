@@ -12,11 +12,13 @@ import { useAuthStore } from '@/store/authStore';
 // ║  DEV RESET - set to true to wipe all data on next reload   ║
 // ║  Set back to false after confirming the reset worked.      ║
 // ╚══════════════════════════════════════════════════════════════╝
-const DEV_FORCE_RESET = false;
+const DEV_FORCE_RESET = __DEV__ ? false : false; // Only available in dev builds
 import { useSupabaseAuthBootstrap } from '@/hooks/useSupabaseAuthBootstrap';
 import { useSupabaseLibraryAutoSync } from '@/hooks/useSupabaseLibraryAutoSync';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeArtifactSync';
 import { useSecureOnboardingSync } from '@/hooks/useSecureOnboardingSync';
+import { useSessionMonitor } from '@/hooks/useSessionMonitor';
+import { setSessionExpiredHandler } from '@/services/api';
 import { verifyEntitlementWithBackend, fetchSubscriptionTier } from '@/services/payments';
 import { env } from '@/config/env';
 import { TexturedBackground } from '@/components/TexturedBackground';
@@ -466,11 +468,11 @@ const MainNavigator = () => {
 };
 
 export const RootNavigator = () => {
-    const [devResetDone, setDevResetDone] = useState(!DEV_FORCE_RESET);
+    const [devResetDone, setDevResetDone] = useState(!(__DEV__ && DEV_FORCE_RESET));
 
     // One-shot dev reset: wipe AsyncStorage → all Zustand stores rehydrate to defaults
     useEffect(() => {
-        if (!DEV_FORCE_RESET) return;
+        if (!__DEV__ || !DEV_FORCE_RESET) return;
         (async () => {
             console.log('🔴 DEV_FORCE_RESET: Clearing ALL AsyncStorage keys…');
             await AsyncStorage.multiRemove([
@@ -504,6 +506,12 @@ export const RootNavigator = () => {
 
     // 4. Secure Onboarding Sync
     useSecureOnboardingSync();
+
+    // 5. Session Monitor - handle 401s from API clients
+    const { handleSessionExpired } = useSessionMonitor();
+    useEffect(() => {
+        setSessionExpiredHandler(handleSessionExpired);
+    }, [handleSessionExpired]);
 
     const hasSession = !!user;
     // Onboarding state - showDashboard controls transition to MainNavigator
@@ -733,13 +741,15 @@ export const RootNavigator = () => {
                 backgroundedAtRef.current = null;
 
                 if (elapsed >= IDLE_THRESHOLD_MS && hasSession) {
-                    console.log(`🔄 Idle reset: user was away ${Math.round(elapsed / 60000)} min → navigating to Intro`);
-                    // Reset to Intro screen (screen 1) - user stays logged in
+                    const inMainNavigator = useOnboardingStore.getState().showDashboard;
+                    const targetScreen = inMainNavigator ? 'Home' : 'Intro';
+                    console.log(`🔄 Idle reset: user was away ${Math.round(elapsed / 60000)} min → navigating to ${targetScreen}`);
+                    // Reset to appropriate root screen - user stays logged in
                     if (navigationRef.isReady()) {
                         navigationRef.dispatch(
                             CommonActions.reset({
                                 index: 0,
-                                routes: [{ name: 'Intro' }],
+                                routes: [{ name: targetScreen }],
                             })
                         );
                     }

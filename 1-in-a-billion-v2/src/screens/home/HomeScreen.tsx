@@ -72,7 +72,8 @@ export const HomeScreen = ({ navigation }: Props) => {
   const partnerAudio = useOnboardingStore((state) => state.partnerAudio);
   const setHookAudio = useOnboardingStore((state) => state.setHookAudio);
   const setPartnerAudio = useOnboardingStore((state) => state.setPartnerAudio);
-  const user = useProfileStore((state) => state.getUser());
+  const people = useProfileStore((state) => state.people);
+  const user = useMemo(() => people.find((p: any) => p.isUser), [people]);
   const userName = useOnboardingStore((state) => state.name) || 'User';
   const allPeople = useProfileStore((state) => state.people);
   const clearCompatibilityReadings = useProfileStore((state) => state.clearCompatibilityReadings);

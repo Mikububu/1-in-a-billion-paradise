@@ -21,6 +21,15 @@ function resolveLayerRoot(): string {
 
 // Memory cache for fetched layers to prevent redundant DB calls
 const layerCache = new Map<string, string>();
+const LAYER_CACHE_MAX_SIZE = 100;
+
+function addToLayerCache(key: string, value: string) {
+    if (layerCache.size >= LAYER_CACHE_MAX_SIZE) {
+        const firstKey = layerCache.keys().next().value;
+        if (firstKey !== undefined) layerCache.delete(firstKey);
+    }
+    layerCache.set(key, value);
+}
 
 /**
  * Validates a layer name, ensuring we fetch by the pure key (e.g. 'gene-keys-individual')
@@ -60,7 +69,7 @@ export async function loadLayerMarkdownAsync(relativeFile: string): Promise<stri
 
     if (data?.content) {
         const content = data.content.trim();
-        layerCache.set(key, content);
+        addToLayerCache(key, content);
         return content;
     }
 
@@ -89,7 +98,7 @@ export async function getConfigAsync(key: string, defaultValue: string = ''): Pr
 
     if (!error && data?.content) {
         const content = data.content.trim();
-        layerCache.set(key, content);
+        addToLayerCache(key, content);
         return content;
     }
 

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Keyboard, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
+import { t } from '@/i18n';
 
 export type AutocompleteOption<T> = {
     id: string;
@@ -34,14 +35,14 @@ export const AutocompleteInput = <T,>({
     const filtered = useMemo(() => {
         if (!options || !Array.isArray(options)) return [];
         if (!query) {
-            return options.slice(0, 6);
+            return options;
         }
         const normalized = query.toLowerCase();
         return options.filter(
             (option) =>
                 option.primary.toLowerCase().includes(normalized) ||
                 option.secondary?.toLowerCase().includes(normalized)
-        ).slice(0, 20);
+        );
     }, [options, query]);
 
     const handleSelect = (option: AutocompleteOption<T>) => {
@@ -112,7 +113,7 @@ export const AutocompleteInput = <T,>({
                         }}
                         activeOpacity={0.7}
                     >
-                        <Text style={styles.dismissText}>Close</Text>
+                        <Text style={styles.dismissText}>{t('common.close')}</Text>
                     </TouchableOpacity>
                     <ScrollView
                         style={styles.suggestionScroll}

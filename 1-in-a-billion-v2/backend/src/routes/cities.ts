@@ -164,8 +164,6 @@ router.get('/search', async (c) => {
             }, 500);
         }
         
-        console.log('🔑 Google Places key prefix:', googlePlacesKey.substring(0, 10) + '...');
-
         // Multi-strategy search: try different type restrictions to maximize coverage
         // Some cities only appear with certain type filters
         const searchStrategies = [

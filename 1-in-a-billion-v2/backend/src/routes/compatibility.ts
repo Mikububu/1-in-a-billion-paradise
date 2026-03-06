@@ -4,21 +4,22 @@ import { swissEngine } from '../services/swissEphemeris';
 import { llm } from '../services/llm';
 import { ResponseCache } from '../services/cache';
 import type { AppEnv } from '../types/hono';
+import { requireAuth } from '../middleware/requireAuth';
 
 const compatibilitySchema = z.object({
   person1: z.object({
-    name: z.string(),
-    birthDate: z.string(),
-    birthTime: z.string(),
-    timezone: z.string(),
+    name: z.string().max(200),
+    birthDate: z.string().max(100),
+    birthTime: z.string().max(100),
+    timezone: z.string().max(100),
     latitude: z.number(),
     longitude: z.number(),
   }),
   person2: z.object({
-    name: z.string(),
-    birthDate: z.string(),
-    birthTime: z.string(),
-    timezone: z.string(),
+    name: z.string().max(200),
+    birthDate: z.string().max(100),
+    birthTime: z.string().max(100),
+    timezone: z.string().max(100),
     latitude: z.number(),
     longitude: z.number(),
   }),
@@ -28,7 +29,7 @@ const compatibilityCache = new ResponseCache<any>();
 
 const router = new Hono<AppEnv>();
 
-router.post('/calculate', async (c) => {
+router.post('/calculate', requireAuth, async (c) => {
   const body = await c.req.json();
   const parsed = compatibilitySchema.parse(body);
   const cacheKey = JSON.stringify({ type: 'compatibility_scores', parsed });
