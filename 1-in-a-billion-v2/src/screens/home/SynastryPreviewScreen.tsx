@@ -28,6 +28,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { useOnboardingStore } from '@/store/onboardingStore';
+import { getAuthHeaders } from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
 import { useProfileStore, type Person } from '@/store/profileStore';
 import { env } from '@/config/env';
@@ -168,7 +169,7 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
         setLoadingScores(true);
         const response = await fetch(`${env.CORE_API_URL}/api/compatibility/calculate`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify({
             person1: {
               name: userName,

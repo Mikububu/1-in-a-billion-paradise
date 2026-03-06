@@ -40,7 +40,7 @@ import { HookReading, CityOption } from '@/types/forms';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { env } from '@/config/env';
 
-import { audioApi } from '@/services/api';
+import { audioApi, getAuthHeaders } from '@/services/api';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
 import { getHookAudioSignedUrl } from '@/services/hookAudioCloud';
 import { AUDIO_CONFIG, SIGN_LABELS } from '@/config/readingConfig';
@@ -898,7 +898,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
 
         const response = await fetch(`${env.CORE_API_URL}/api/reading/${type}?provider=${provider}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify({
             birthDate: birthDate || '',
             birthTime: birthTime || '',

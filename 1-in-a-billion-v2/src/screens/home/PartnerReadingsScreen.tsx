@@ -21,7 +21,7 @@ import { colors, spacing, typography } from '@/theme/tokens';
 import { HookReading } from '@/types/forms';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { env } from '@/config/env';
-import { audioApi } from '@/services/api';
+import { audioApi, getAuthHeaders } from '@/services/api';
 import { getHookAudioSignedUrl, uploadHookAudioBase64 } from '@/services/hookAudioCloud';
 import { isSupabaseConfigured } from '@/services/supabase';
 import { useProfileStore } from '@/store/profileStore';
@@ -463,7 +463,7 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
       for (const type of types) {
         const response = await fetch(`${env.CORE_API_URL}/api/reading/${type}?provider=${provider}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify({
             birthDate: partnerBirthDate || '',
             birthTime: partnerBirthTime || '12:00',

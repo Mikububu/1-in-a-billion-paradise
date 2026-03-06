@@ -24,7 +24,7 @@ import { env } from '@/config/env';
 import { useProfileStore } from '@/store/profileStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useAuthStore } from '@/store/authStore';
-import { audioApi } from '@/services/api';
+import { audioApi, getAuthHeaders } from '@/services/api';
 // uploadHookAudioBase64 no longer needed — backend stores audio in Supabase directly
 import { AUDIO_CONFIG } from '@/config/readingConfig';
 import { CityOption } from '@/types/forms';
@@ -317,7 +317,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
       const nocacheParam = __DEV__ ? '&nocache=true' : ''; // Always bypass cache in dev
       const sunReadingPromise = fetch(`${env.CORE_API_URL}/api/reading/sun?provider=deepseek${nocacheParam}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(payload),
       }).then(res => res.ok ? res.json() : null);
 
@@ -384,7 +384,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
 
       const moonRes = await fetch(`${env.CORE_API_URL}/api/reading/moon?provider=deepseek${nocacheParam}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(payload),
       });
       const moonData = moonRes.ok ? await moonRes.json() : null;
@@ -439,7 +439,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
 
       const risingRes = await fetch(`${env.CORE_API_URL}/api/reading/rising?provider=deepseek${nocacheParam}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(payload),
       });
       const risingData = risingRes.ok ? await risingRes.json() : null;

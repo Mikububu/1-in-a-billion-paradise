@@ -19,7 +19,6 @@ import {
     Platform,
     Linking,
     Image,
-    Dimensions,
     TextInput,
     KeyboardAvoidingView,
     ScrollView,
@@ -30,7 +29,6 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import * as WebBrowser from 'expo-web-browser';
 import * as ExpoLinking from 'expo-linking';
 import { t } from '@/i18n';
-import { Video, ResizeMode } from 'expo-av';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { useAuthStore } from '@/store/authStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
@@ -57,7 +55,6 @@ export const SignInScreen = () => {
     const hasPassedLanguages = useOnboardingStore((state) => state.hasPassedLanguages);
     const setEntitlementState = useAuthStore((state) => state.setEntitlementState);
     const [isLoading, setIsLoading] = useState(false);
-    const [videoReady, setVideoReady] = useState(false);
     const { isPlaying } = useMusicStore();
 
     // Email authentication state
@@ -393,24 +390,11 @@ export const SignInScreen = () => {
         <View style={styles.container}>
             <BackButton onPress={() => navigation.navigate('Intro')} />
 
-            {/* Background Video + Poster */}
-            {!videoReady && (
-                <Image
-                    source={require('../../../assets/images/signin-poster.jpg')}
-                    style={styles.backgroundVideo}
-                    resizeMode="cover"
-                />
-            )}
-
-            <Video
-                key="signin-video-v2" // Cache-busting key
-                source={require('../../../assets/videos/signin-background.mp4')}
-                style={styles.backgroundVideo}
-                resizeMode={ResizeMode.COVER}
-                shouldPlay
-                isLooping
-                isMuted
-                onReadyForDisplay={() => setVideoReady(true)}
+            {/* Background GIF */}
+            <Image
+                source={require('../../../assets/images/VicandNora.gif')}
+                style={styles.backgroundImage}
+                resizeMode="cover"
             />
 
             <KeyboardAvoidingView
@@ -562,7 +546,7 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: 'transparent',
     },
-    backgroundVideo: {
+    backgroundImage: {
         position: 'absolute',
         top: 0,
         left: 0,
@@ -570,7 +554,6 @@ const styles = StyleSheet.create({
         bottom: 0,
         width: '100%',
         height: '100%',
-        backgroundColor: 'transparent',
     },
     contentContainer: {
         flex: 1,
