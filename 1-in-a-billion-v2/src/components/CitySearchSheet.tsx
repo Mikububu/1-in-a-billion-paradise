@@ -1,23 +1,19 @@
 /**
  * CITY SEARCH SHEET
  *
- * A specialized bottom-sheet modal for city search with debounced API calls.
- * Same Modal pattern as BottomSheetPicker but with live search against the
- * backend city search API instead of a static options list.
+ * Uses iOS native formSheet presentation for proper keyboard handling.
+ * The TextInput works reliably because iOS manages the sheet + keyboard natively.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -51,8 +47,8 @@ export function CitySearchSheet({
       setQuery('');
       setResults([]);
       setIsSearching(false);
-      // Auto-focus the search input
-      setTimeout(() => inputRef.current?.focus(), 300);
+      // Auto-focus after modal presentation animation
+      setTimeout(() => inputRef.current?.focus(), 500);
     }
   }, [visible]);
 
@@ -128,105 +124,91 @@ export function CitySearchSheet({
 
   return (
     <Modal
-      transparent
       visible={visible}
+      presentationStyle="formSheet"
       animationType="slide"
       onRequestClose={handleClose}
     >
-      <View style={styles.backdrop}>
-        {/* Backdrop tap area — separate from sheet so it doesn't steal TextInput focus */}
-        <TouchableWithoutFeedback onPress={handleClose}>
-          <View style={styles.backdropFill} />
-        </TouchableWithoutFeedback>
+      <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
+        {/* Header with close button */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+            <Text style={styles.closeText}>{t('common.cancel')}</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>{t('citySearch.title')}</Text>
+          <View style={styles.closeButton} />
+        </View>
 
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.sheetContainer}
-        >
-          <View
-            style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}
-          >
-            <View style={styles.handle} />
-
-            <Text style={styles.title}>{t('citySearch.title')}</Text>
-
-            <View style={styles.searchWrap}>
-              <TextInput
-                ref={inputRef}
-                style={styles.searchInput}
-                value={query}
-                onChangeText={setQuery}
-                placeholder={t('citySearch.placeholder')}
-                placeholderTextColor={colors.mutedText}
-                autoCorrect={false}
-                autoCapitalize="words"
-                clearButtonMode="while-editing"
-                returnKeyType="search"
-              />
-              {isSearching ? (
-                <ActivityIndicator
-                  size="small"
-                  color={colors.mutedText}
-                  style={styles.spinner}
-                />
-              ) : null}
-            </View>
-
-            <FlatList
-              data={results}
-              renderItem={renderItem}
-              keyExtractor={(item) => item.id}
-              style={styles.list}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-              ListEmptyComponent={
-                query.length >= 2 && !isSearching ? (
-                  <Text style={styles.emptyText}>{t('common.noResults')}</Text>
-                ) : query.length < 2 ? (
-                  <Text style={styles.emptyText}>{t('citySearch.placeholder')}</Text>
-                ) : null
-              }
+        {/* Search input */}
+        <View style={styles.searchWrap}>
+          <TextInput
+            ref={inputRef}
+            style={styles.searchInput}
+            value={query}
+            onChangeText={setQuery}
+            placeholder={t('citySearch.placeholder')}
+            placeholderTextColor={colors.mutedText}
+            autoCorrect={false}
+            autoCapitalize="words"
+            clearButtonMode="while-editing"
+            returnKeyType="search"
+          />
+          {isSearching ? (
+            <ActivityIndicator
+              size="small"
+              color={colors.mutedText}
+              style={styles.spinner}
             />
-          </View>
-        </KeyboardAvoidingView>
+          ) : null}
+        </View>
+
+        {/* Results */}
+        <FlatList
+          data={results}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          style={styles.list}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            query.length >= 2 && !isSearching ? (
+              <Text style={styles.emptyText}>{t('common.noResults')}</Text>
+            ) : query.length < 2 ? (
+              <Text style={styles.emptyText}>{t('citySearch.placeholder')}</Text>
+            ) : null
+          }
+        />
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
+  container: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.48)',
-  },
-  backdropFill: {
-    flex: 1,
-  },
-  sheetContainer: {
-    justifyContent: 'flex-end',
-  },
-  sheet: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: radii.modal,
-    borderTopRightRadius: radii.modal,
-    paddingTop: spacing.sm,
     paddingHorizontal: spacing.page,
-    maxHeight: '70%',
   },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    alignSelf: 'center',
-    marginBottom: spacing.md,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.md,
+  },
+  closeButton: {
+    width: 70,
+  },
+  closeText: {
+    fontFamily: typography.sansRegular,
+    fontSize: 16,
+    color: colors.primary,
   },
   title: {
     fontFamily: typography.sansSemiBold,
     fontSize: 18,
     color: colors.text,
     textAlign: 'center',
-    marginBottom: spacing.md,
+    flex: 1,
   },
   searchWrap: {
     marginBottom: spacing.sm,
@@ -252,7 +234,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   list: {
-    flexGrow: 0,
+    flex: 1,
   },
   option: {
     flexDirection: 'row',

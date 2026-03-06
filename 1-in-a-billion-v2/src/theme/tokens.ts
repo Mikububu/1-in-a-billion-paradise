@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // VINTAGE TINT - Change this ONE value to adjust warmth across ALL screens
 // ═══════════════════════════════════════════════════════════════════════════
-const VINTAGE_TINT = 'rgba(248, 238, 210, 0.92)'; // Warm vintage cream background — visible golden warmth
+const VINTAGE_TINT = 'rgba(252, 248, 235, 0.88)'; // Warm vintage cream background
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CARD/BUTTON COLOR - Change this ONE value for all cards, buttons, and inputs
