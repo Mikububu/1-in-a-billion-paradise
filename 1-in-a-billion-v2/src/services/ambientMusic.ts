@@ -13,6 +13,14 @@ class AmbientMusicService {
 
         try {
             console.log('🎵 AmbientMusic: Loading intro music...');
+            
+            // Ensure audio plays even if the physical silent switch is flipped
+            await Audio.setAudioModeAsync({
+                playsInSilentModeIOS: true,
+                staysActiveInBackground: false,
+                shouldDuckAndroid: false,
+            });
+
             // CRITICAL: Path adjusted for new project structure (assets are at root ../../assets)
             // But verify where this file is relative to root.
             // src/services/ambientMusic.ts -> ../../assets (correct)
