@@ -95,9 +95,8 @@ export async function calculatePlacements(
 
         const baseCandidates = [
             env.CORE_API_URL,
-            // Dev/simulator fallbacks:
-            'http://localhost:8787',
-            'http://127.0.0.1:8787',
+            // Dev/simulator fallbacks (only in dev mode to avoid wasting time in production):
+            ...(__DEV__ ? ['http://localhost:8787', 'http://127.0.0.1:8787'] : []),
         ];
         const bases = Array.from(new Set(baseCandidates.filter(Boolean)));
 

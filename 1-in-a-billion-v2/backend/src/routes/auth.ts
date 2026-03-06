@@ -82,13 +82,27 @@ router.post('/signup', async (c) => {
                 return c.json({
                     success: false,
                     code: 'ACCOUNT_EXISTS',
-                    error: 'Account already exists. Please sign in.',
+                    error: 'An account with this email already exists. Please sign in instead.',
                 }, 409);
             }
             return c.json({
                 success: false,
                 error: error.message
             }, 400);
+        }
+
+        // CRITICAL: Supabase returns a "fake" success for duplicate emails when
+        // email confirmations are enabled. The giveaway is user.identities = [].
+        // This prevents email enumeration attacks, but we need to catch it to
+        // show the user an appropriate message.
+        const identities = data?.user?.identities;
+        if (Array.isArray(identities) && identities.length === 0) {
+            console.warn(`⚠️ Duplicate signup attempt for: ${email} (identities empty)`);
+            return c.json({
+                success: false,
+                code: 'ACCOUNT_EXISTS',
+                error: 'An account with this email already exists. Please sign in instead.',
+            }, 409);
         }
 
         console.log(`✅ Signup accepted for ${email}; requiresVerification=${!data.session}`);

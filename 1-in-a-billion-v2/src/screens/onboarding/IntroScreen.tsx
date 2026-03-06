@@ -160,8 +160,12 @@ export const IntroScreen = ({ navigation }: Props) => {
   const words = t('intro.tagline').split(' ');
 
   useEffect(() => {
-    // Load music once
-    AmbientMusic.load();
+    // Load music and auto-play on first screen
+    (async () => {
+      await AmbientMusic.load();
+      // Auto-play immediately after loading (no play button needed)
+      AmbientMusic.play();
+    })();
 
     // Word highlight animation - Random word selection instead of sequential
     const wordInterval = setInterval(() => {

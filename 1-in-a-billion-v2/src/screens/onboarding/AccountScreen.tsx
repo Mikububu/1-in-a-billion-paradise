@@ -427,6 +427,22 @@ export const AccountScreen = ({ navigation, route }: Props) => {
 
       const payload = await response.json().catch(() => ({} as any));
       if (!response.ok || !payload?.success) {
+        // Special handling: if account already exists, offer to sign in
+        if (payload?.code === 'ACCOUNT_EXISTS' || response.status === 409) {
+          Alert.alert(
+            t('account.accountExists'),
+            t('account.accountExistsMessage'),
+            [
+              { text: t('common.ok'), style: 'default' },
+              {
+                text: t('account.goToSignIn'),
+                onPress: () => navigation.navigate('SignIn' as any, { allowSignUp: false }),
+              },
+            ],
+          );
+          setIsLoading(false);
+          return;
+        }
         throw new Error(payload?.error || 'Could not create account.');
       }
 
