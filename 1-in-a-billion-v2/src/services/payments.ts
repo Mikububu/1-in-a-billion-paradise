@@ -1,8 +1,8 @@
 import { Platform } from 'react-native';
+import Purchases from 'react-native-purchases';
 import { env } from '@/config/env';
 import { useAuthStore } from '@/store/authStore';
 
-type AnyObj = Record<string, any>;
 type EntitlementVerifyResponse = {
   success: boolean;
   active: boolean;
@@ -13,22 +13,7 @@ type EntitlementVerifyResponse = {
   error?: string;
 };
 
-let PurchasesSDK: AnyObj | null = null;
 let isConfigured = false;
-
-function loadPurchasesSdk(): AnyObj | null {
-  if (PurchasesSDK) return PurchasesSDK;
-
-  try {
-    // Avoid static require so app can still run in environments without native RevenueCat module.
-    const req = (0, eval)('require');
-    const mod = req('react-native-purchases');
-    PurchasesSDK = mod?.default || mod;
-    return PurchasesSDK;
-  } catch {
-    return null;
-  }
-}
 
 function getSdkKey(): string {
   if (Platform.OS === 'ios') return env.REVENUECAT_API_KEY_IOS || '';
@@ -37,16 +22,10 @@ function getSdkKey(): string {
 }
 
 export async function initializeRevenueCat(userId?: string | null): Promise<boolean> {
-  const sdk = loadPurchasesSdk();
-  if (!sdk) {
-    console.warn('⚠️ RevenueCat SDK unavailable in this build');
-    return false;
-  }
-
   if (isConfigured) {
     try {
       if (userId && userId !== 'anonymous') {
-        await sdk.logIn?.(String(userId));
+        await Purchases.logIn(String(userId));
       }
     } catch {
       // non-fatal
@@ -61,7 +40,7 @@ export async function initializeRevenueCat(userId?: string | null): Promise<bool
   }
 
   try {
-    await sdk.configure({
+    Purchases.configure({
       apiKey,
       appUserID: userId && userId !== 'anonymous' ? String(userId) : undefined,
     });
@@ -74,10 +53,8 @@ export async function initializeRevenueCat(userId?: string | null): Promise<bool
 }
 
 export async function getOfferings(): Promise<any | null> {
-  const sdk = loadPurchasesSdk();
-  if (!sdk) return null;
   try {
-    return await sdk.getOfferings();
+    return await Purchases.getOfferings();
   } catch (e) {
     console.error('❌ RevenueCat getOfferings failed', e);
     return null;
@@ -85,11 +62,8 @@ export async function getOfferings(): Promise<any | null> {
 }
 
 export async function purchasePackage(pkg: any): Promise<{ success: boolean; error?: string; customerInfo?: any }> {
-  const sdk = loadPurchasesSdk();
-  if (!sdk) return { success: false, error: 'RevenueCat not available in this build' };
-
   try {
-    const result = await sdk.purchasePackage(pkg);
+    const result = await Purchases.purchasePackage(pkg);
     return {
       success: true,
       customerInfo: result?.customerInfo,
@@ -122,10 +96,8 @@ export function extractRevenueCatAppUserId(customerInfo: any): string | null {
 }
 
 export async function getRevenueCatCustomerInfo(): Promise<any | null> {
-  const sdk = loadPurchasesSdk();
-  if (!sdk) return null;
   try {
-    return await sdk.getCustomerInfo?.();
+    return await Purchases.getCustomerInfo();
   } catch (e) {
     console.warn('⚠️ RevenueCat getCustomerInfo failed', e);
     return null;
@@ -133,15 +105,12 @@ export async function getRevenueCatCustomerInfo(): Promise<any | null> {
 }
 
 export async function logInRevenueCat(appUserId: string): Promise<boolean> {
-  const sdk = loadPurchasesSdk();
-  if (!sdk) return false;
-
   const normalized = String(appUserId || '').trim();
   if (!normalized) return false;
 
   try {
     await initializeRevenueCat();
-    await sdk.logIn?.(normalized);
+    await Purchases.logIn(normalized);
     return true;
   } catch (e) {
     console.warn('⚠️ RevenueCat logIn failed', e);

@@ -94,7 +94,7 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   content: {
     flex: 1,
     padding: spacing.page,

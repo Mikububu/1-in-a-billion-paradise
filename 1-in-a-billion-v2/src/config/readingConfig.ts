@@ -25,6 +25,13 @@ export const READING_LIMITS = {
     },
 };
 
+// Must match backend TIER_MONTHLY_QUOTA in subscriptionService.ts
+export const TIER_MONTHLY_READINGS = {
+    basic: 1,
+    yearly: 3,
+    billionaire: 36,
+} as const;
+
 export const LLM_CONFIG = {
     model: 'gpt-4o', // Use the best model for creative writing
     temperature: 0.8, // Slightly creative but grounded

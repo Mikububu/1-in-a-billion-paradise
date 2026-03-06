@@ -389,6 +389,7 @@
   "pricing.couponPlaceholder": "Coupon code",
   "pricing.couponRedeem": "Redeem",
   "pricing.couponApply": "Apply",
+  "pricing.tapAgain": "Tap again to subscribe",
   "account.verifyEmail": "Verify Email",
   "account.createAccount": "Create Account",
   "account.verifySubtitle": "Enter the 6-digit code we sent to your email.",

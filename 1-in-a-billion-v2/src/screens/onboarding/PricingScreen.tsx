@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -14,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, radii, spacing, typography } from '@/theme/tokens';
+import { TIER_MONTHLY_READINGS } from '@/config/readingConfig';
 import { useAuthStore } from '@/store/authStore';
 import { env } from '@/config/env';
 import { t } from '@/i18n';
@@ -22,7 +24,6 @@ import {
   getAvailableRevenueCatPackages,
   getPackageByIdentifier,
   getPackagePriceString,
-  RC_PACKAGE_IDENTIFIERS,
 } from '@/config/revenuecatCatalog';
 import {
   extractRevenueCatAppUserId,
@@ -46,7 +47,6 @@ type TierDef = {
   priceLabel: string; // display fallback; overridden by RevenueCat if available
   period: string;
   bullets: string[];
-  highlight?: boolean; // visually emphasise
 };
 
 const TIERS: TierDef[] = [
@@ -56,7 +56,7 @@ const TIERS: TierDef[] = [
     priceLabel: '$21',
     period: '/month',
     bullets: [
-      '1 extended reading per month',
+      `${TIER_MONTHLY_READINGS.basic} extended reading per month`,
       'Daily compatibility matching',
       'Ongoing background resonance updates',
     ],
@@ -67,12 +67,11 @@ const TIERS: TierDef[] = [
     priceLabel: '$108',
     period: '/year',
     bullets: [
-      '3 extended readings per month',
+      `${TIER_MONTHLY_READINGS.yearly} extended readings per month`,
       'Daily compatibility matching',
       'Narrated readings with audio & PDF',
       '1 synastry reading = 3 reading slots',
     ],
-    highlight: true,
   },
   {
     id: 'billionaire',
@@ -80,19 +79,14 @@ const TIERS: TierDef[] = [
     priceLabel: '$834',
     period: '/month',
     bullets: [
-      '36 extended readings per month',
+      `${TIER_MONTHLY_READINGS.billionaire} extended readings per month`,
       'Daily compatibility matching',
-      'Unlimited long-form compatibility readings',
+      'Narrated readings with audio & PDF',
       '1 synastry reading = 3 reading slots',
     ],
   },
 ];
 
-const IAP_ITEMS = [
-  'Compare yourself with anyone',
-  'Compare any two people',
-  'Deep narrative compatibility overlays',
-];
 const IAP_RANGE = '$14 - $108';
 
 /* ── Component ────────────────────────────────────────────────────── */
@@ -103,6 +97,7 @@ export const PricingScreen = ({ navigation }: Props) => {
 
   const [isPaying, setIsPaying] = useState(false);
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
+  const borderAnim = useRef(new Animated.Value(0)).current;
 
   // Live prices from RevenueCat
   const [livePrices, setLivePrices] = useState<Record<string, string>>({});
@@ -193,11 +188,28 @@ export const PricingScreen = ({ navigation }: Props) => {
     setCouponMessage(`${result.discount_percent}% discount applied! Proceed with payment.`);
   }, [couponCode, navigation]);
 
+  /* ── Tap handler: first tap selects, second tap purchases ── */
+  const handleCardTap = useCallback((tierId: string) => {
+    if (isPaying) return;
+    if (selectedTier === tierId) {
+      // Second tap — purchase
+      handlePurchase(tierId);
+    } else {
+      // First tap — select with animation
+      setSelectedTier(tierId);
+      borderAnim.setValue(0);
+      Animated.timing(borderAnim, {
+        toValue: 1,
+        duration: 350,
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [isPaying, selectedTier, borderAnim]);
+
   /* ── Purchase handler ── */
   const handlePurchase = useCallback(async (tierId: string) => {
     if (isPaying) return;
     setIsPaying(true);
-    setSelectedTier(tierId);
 
     try {
       if (paymentBypassEnabled) {
@@ -310,39 +322,63 @@ export const PricingScreen = ({ navigation }: Props) => {
         {TIERS.map((tier) => {
           const price = livePrices[tier.id] || tier.priceLabel;
           const isBuying = isPaying && selectedTier === tier.id;
+          const isSelected = selectedTier === tier.id;
+
+          const animatedBorderColor = isSelected
+            ? borderAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [colors.border, colors.primary],
+              })
+            : colors.border;
+          const animatedBorderWidth = isSelected
+            ? borderAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [1, 2],
+              })
+            : 1;
 
           return (
             <TouchableOpacity
               key={tier.id}
-              style={[styles.card, tier.highlight && styles.cardHighlight]}
               activeOpacity={0.85}
-              onPress={() => handlePurchase(tier.id)}
+              onPress={() => handleCardTap(tier.id)}
               disabled={isPaying}
               accessibilityRole="button"
               accessibilityLabel={`Subscribe to ${tier.label} for ${price}${tier.period}`}
             >
-              <View style={styles.cardHeader}>
-                <Text style={styles.tierLabel}>{tier.label}</Text>
-                <View style={styles.priceRow}>
-                  <Text style={styles.priceText}>{price}</Text>
-                  <Text style={styles.periodText}>{tier.period}</Text>
+              <Animated.View
+                style={[
+                  styles.card,
+                  { borderColor: animatedBorderColor, borderWidth: animatedBorderWidth },
+                ]}
+              >
+                <View style={styles.cardHeader}>
+                  <Text style={styles.tierLabel}>{tier.label}</Text>
+                  <View style={styles.priceRow}>
+                    <Text style={styles.priceText}>{price}</Text>
+                    <Text style={styles.periodText}> {tier.period}</Text>
+                  </View>
                 </View>
-              </View>
 
-              <View style={styles.bulletList}>
-                {tier.bullets.map((b, i) => (
-                  <Text key={i} style={styles.bullet}>
-                    {'  \u2022  '}{b}
-                  </Text>
-                ))}
-              </View>
+                <View style={styles.bulletList}>
+                  {tier.bullets.map((b, i) => (
+                    <Text key={i} style={styles.bullet}>
+                      {'  \u2022  '}{b}
+                    </Text>
+                  ))}
+                </View>
 
-              {isBuying && (
-                <ActivityIndicator
-                  color={colors.primary}
-                  style={styles.cardLoader}
-                />
-              )}
+                {isSelected && !isBuying && (
+                  <Text style={styles.tapHint}>{t('pricing.tapAgain') || 'Tap again to subscribe'}</Text>
+                )}
+
+                {isBuying && (
+                  <ActivityIndicator
+                    color={colors.primary}
+                    style={styles.cardLoader}
+                  />
+                )}
+              </Animated.View>
             </TouchableOpacity>
           );
         })}
@@ -414,7 +450,7 @@ export const PricingScreen = ({ navigation }: Props) => {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: 'transparent',
   },
   container: {
     flexGrow: 1,
@@ -438,25 +474,21 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  /* ── Tier cards - compact ── */
+  /* ── Tier cards ── */
   card: {
     backgroundColor: colors.surface,
     borderRadius: radii.card,
     paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-    marginBottom: 6,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
-  },
-  cardHighlight: {
-    borderColor: colors.primary,
-    borderWidth: 2,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'baseline',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   tierLabel: {
     fontFamily: typography.serifBold,
@@ -486,6 +518,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textDim,
     lineHeight: 19,
+  },
+  tapHint: {
+    fontFamily: typography.sansMedium,
+    fontSize: 13,
+    color: colors.primary,
+    textAlign: 'center',
+    marginTop: 6,
   },
   cardLoader: {
     marginTop: 4,
