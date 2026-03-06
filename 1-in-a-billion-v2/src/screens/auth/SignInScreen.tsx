@@ -24,8 +24,7 @@ import {
 } from 'react-native';
 // import { SafeAreaView } from 'react-native-safe-area-context'; // Not used in layout, BackButton handles insets
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-// import * as AppleAuthentication from 'expo-apple-authentication';
-const AppleAuthentication = { signInAsync: async () => ({}), AppleAuthenticationScope: { FULL_NAME: 1, EMAIL: 2 } } as any;
+import * as AppleAuthentication from 'expo-apple-authentication';
 import * as WebBrowser from 'expo-web-browser';
 import * as ExpoLinking from 'expo-linking';
 import { t } from '@/i18n';

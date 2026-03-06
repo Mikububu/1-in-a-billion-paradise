@@ -72,6 +72,8 @@ export const LanguagesScreen = () => {
             <ScrollView
                 contentContainerStyle={styles.content}
                 showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
             >
                 <Text style={styles.title}>{t('languages.title')}</Text>
                 <Text style={styles.subtitle}>

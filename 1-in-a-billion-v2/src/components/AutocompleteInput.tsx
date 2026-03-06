@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Keyboard, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 
 export type AutocompleteOption<T> = {
@@ -41,7 +41,7 @@ export const AutocompleteInput = <T,>({
             (option) =>
                 option.primary.toLowerCase().includes(normalized) ||
                 option.secondary?.toLowerCase().includes(normalized)
-        ).slice(0, 6);
+        ).slice(0, 20);
     }, [options, query]);
 
     const handleSelect = (option: AutocompleteOption<T>) => {
@@ -111,20 +111,26 @@ export const AutocompleteInput = <T,>({
                     >
                         <Text style={styles.dismissText}>Close</Text>
                     </TouchableOpacity>
-                    {filtered.map((item, index) => (
-                        <TouchableOpacity
-                            key={item.id}
-                            style={[
-                                styles.option,
-                                index < filtered.length - 1 && styles.optionBorder
-                            ]}
-                            onPress={() => handleSelect(item)}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.optionPrimary}>{item.primary}</Text>
-                            {item.secondary ? <Text style={styles.optionSecondary}>{item.secondary}</Text> : null}
-                        </TouchableOpacity>
-                    ))}
+                    <ScrollView
+                        style={styles.suggestionScroll}
+                        keyboardShouldPersistTaps="handled"
+                        nestedScrollEnabled
+                    >
+                        {filtered.map((item, index) => (
+                            <TouchableOpacity
+                                key={item.id}
+                                style={[
+                                    styles.option,
+                                    index < filtered.length - 1 && styles.optionBorder
+                                ]}
+                                onPress={() => handleSelect(item)}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={styles.optionPrimary}>{item.primary}</Text>
+                                {item.secondary ? <Text style={styles.optionSecondary}>{item.secondary}</Text> : null}
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
                 </View>
             ) : null}
         </View>
@@ -188,6 +194,10 @@ const styles = StyleSheet.create({
         borderRadius: radii.card,
         backgroundColor: colors.surface,
         marginTop: spacing.xs,
+        maxHeight: 250,
+    },
+    suggestionScroll: {
+        flexGrow: 0,
     },
     option: {
         paddingHorizontal: spacing.lg,
