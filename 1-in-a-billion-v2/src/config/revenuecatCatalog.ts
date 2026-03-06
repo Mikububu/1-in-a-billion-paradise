@@ -60,21 +60,47 @@ export function getAvailableRevenueCatPackages(offerings: AnyRecord | null | und
 export function findYearlySubscriptionPackage(offerings: AnyRecord | null | undefined): AnyRecord | null {
   const packages = getAvailableRevenueCatPackages(offerings);
 
+  // Debug: log all available packages so we can see what RevenueCat returns
+  console.log('🔎 [RevenueCat] Available packages:', packages.map((p) => ({
+    id: p?.identifier,
+    type: p?.packageType,
+    productId: p?.product?.identifier || p?.storeProduct?.identifier,
+    price: p?.product?.price ?? p?.storeProduct?.price,
+  })));
+
   // 1. Try by package identifier (yearly_subscription or yearly_subscription_990)
   const byIdentifier =
     packages.find((pkg) => YEARLY_PACKAGE_IDENTIFIER_SET.has(String(pkg?.identifier || ''))) || null;
-  if (byIdentifier) return byIdentifier;
+  if (byIdentifier) { console.log('🔎 [RevenueCat] Found expansion by identifier'); return byIdentifier; }
 
   // 2. Try by App Store product ID (product ID is still 'yearly_subscription' even though it's now monthly)
   const byProductId = packages.find((pkg) => {
     const prodId = pkg?.product?.identifier || pkg?.storeProduct?.identifier || '';
     return String(prodId) === RC_PRODUCT_IDS.yearlySubscription;
   }) || null;
-  if (byProductId) return byProductId;
+  if (byProductId) { console.log('🔎 [RevenueCat] Found expansion by product ID'); return byProductId; }
 
-  // 3. Fallback: try ANNUAL package type (legacy)
+  // 3. Try ANNUAL package type (legacy)
   const byType = packages.find((pkg) => String(pkg?.packageType || '').toUpperCase() === 'ANNUAL') || null;
-  return byType;
+  if (byType) { console.log('🔎 [RevenueCat] Found expansion by ANNUAL type'); return byType; }
+
+  // 4. Fallback: find the "middle" package (not cheapest, not most expensive)
+  // Since all tiers are monthly, sort by price and pick the middle one
+  const sorted = [...packages].sort((a, b) => {
+    const pa = a?.product?.price ?? a?.storeProduct?.price ?? 0;
+    const pb = b?.product?.price ?? b?.storeProduct?.price ?? 0;
+    return pa - pb;
+  });
+  if (sorted.length >= 3) {
+    console.log('🔎 [RevenueCat] Fallback: using middle-priced package for expansion');
+    return sorted[1]; // middle = expansion
+  }
+  if (sorted.length === 2) {
+    return sorted[0]; // cheaper of two
+  }
+
+  console.warn('⚠️ [RevenueCat] Could not find expansion/yearly package');
+  return null;
 }
 
 export function getPackagePriceString(pkg: AnyRecord | null | undefined): string | null {

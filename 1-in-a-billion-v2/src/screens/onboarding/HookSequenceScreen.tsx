@@ -1457,6 +1457,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   textScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
     paddingBottom: spacing.xl * 2, // Extra padding before footer
     paddingHorizontal: spacing.sm,
   },
