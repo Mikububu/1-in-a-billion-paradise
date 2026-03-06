@@ -50,6 +50,7 @@ export const IntroScreen = ({ navigation }: Props) => {
   // Rotating language pill animation
   const [displayLangIndex, setDisplayLangIndex] = useState(0);
   const langFadeAnim = useRef(new Animated.Value(1)).current;
+  const langBorderAnim = useRef(new Animated.Value(0)).current;
   const LANG_NAMES = ['English', 'Deutsch', 'Español', 'Français', '中文'];
 
   useEffect(() => {
@@ -80,6 +81,28 @@ export const IntroScreen = ({ navigation }: Props) => {
 
     return () => clearInterval(interval);
   }, [langFadeAnim]);
+
+  // "Marching ants" border glow — continuous pulse draws attention to the language pill
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(langBorderAnim, {
+          toValue: 1,
+          duration: 1200,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false, // color interpolation needs JS driver
+        }),
+        Animated.timing(langBorderAnim, {
+          toValue: 0,
+          duration: 1200,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [langBorderAnim]);
 
   const handleBigOneTap = () => {
     // Clear previous timeout
@@ -321,15 +344,37 @@ export const IntroScreen = ({ navigation }: Props) => {
         resizeMode="cover"
       />
 
-      {/* Language pill - top left, rotating through all languages */}
+      {/* Language pill - top left, rotating through all languages with pulsing border */}
       <TouchableOpacity
-        style={[styles.langPill, { top: insets.top + spacing.sm }]}
         onPress={() => setLangPickerVisible(true)}
         activeOpacity={0.7}
+        style={{ position: 'absolute', left: spacing.page, top: insets.top + spacing.sm, zIndex: 50 }}
       >
-        <Animated.Text style={[styles.langPillText, { opacity: langFadeAnim }]}>
-          {LANG_NAMES[displayLangIndex]}
-        </Animated.Text>
+        <Animated.View
+          style={[
+            styles.langPill,
+            {
+              borderColor: langBorderAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [colors.border, colors.primary],
+              }),
+              shadowColor: colors.primary,
+              shadowOpacity: langBorderAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 0.5],
+              }) as any,
+              shadowRadius: langBorderAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 6],
+              }) as any,
+              shadowOffset: { width: 0, height: 0 },
+            },
+          ]}
+        >
+          <Animated.Text style={[styles.langPillText, { opacity: langFadeAnim }]}>
+            {LANG_NAMES[displayLangIndex]}
+          </Animated.Text>
+        </Animated.View>
       </TouchableOpacity>
 
       <LanguagePicker visible={langPickerVisible} onClose={() => setLangPickerVisible(false)} />
@@ -514,15 +559,12 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   langPill: {
-    position: 'absolute',
-    left: spacing.page,
-    zIndex: 50,
     minWidth: 90,
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: radii.pill,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
