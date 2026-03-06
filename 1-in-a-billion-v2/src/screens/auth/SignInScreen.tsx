@@ -570,7 +570,7 @@ const styles = StyleSheet.create({
         bottom: 0,
         width: '100%',
         height: '100%',
-        backgroundColor: colors.background, // Solid background since assets don't exist
+        backgroundColor: 'transparent',
     },
     contentContainer: {
         flex: 1,

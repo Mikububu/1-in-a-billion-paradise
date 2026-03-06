@@ -144,7 +144,7 @@ export const AudioProvider = ({ children }: { children: React.ReactNode }) => {
 
         const { sound } = await Audio.Sound.createAsync(
             { uri },
-            { shouldPlay: false, isLooping: false, progressUpdateIntervalMillis: 80 }
+            { shouldPlay: false, isLooping: false, progressUpdateIntervalMillis: 80, volume: 0.9 }
         );
 
         cacheRef.current.set(key, { signature, sound });

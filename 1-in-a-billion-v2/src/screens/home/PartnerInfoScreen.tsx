@@ -308,7 +308,8 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
                   if (navigation.canGoBack()) {
                     navigation.goBack();
                   } else {
-                    navigation.navigate('HookSequence' as any, { initialReading: 'rising' });
+                    // Skip partner flow — go straight to Pricing
+                    navigation.navigate('Pricing' as any);
                   }
                   return;
                 }

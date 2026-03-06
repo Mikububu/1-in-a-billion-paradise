@@ -113,7 +113,7 @@ export const ResetPasswordScreen = ({ navigation }: Props) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: 'transparent',
     },
     content: {
         flexGrow: 1,

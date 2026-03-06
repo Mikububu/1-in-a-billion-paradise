@@ -832,7 +832,7 @@ const styles = StyleSheet.create({
   signCardLabel: { fontFamily: typography.sansSemiBold, fontSize: 11, color: colors.primary, marginBottom: spacing.xs },
   signCardIcon: { fontSize: 28, marginBottom: spacing.xs },
   signCardSign: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.text },
-  modalContainer: { flex: 1, backgroundColor: colors.background },
+  modalContainer: { flex: 1, backgroundColor: 'transparent' },
   modalHeader: { flexDirection: 'row', alignItems: 'center', padding: spacing.page, borderBottomWidth: 1, borderBottomColor: colors.divider },
   modalCloseButton: { padding: spacing.sm },
   modalClose: { fontSize: 28, color: colors.text, fontWeight: 'bold' },
