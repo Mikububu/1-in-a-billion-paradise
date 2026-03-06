@@ -53,8 +53,23 @@ export const PRICE_DISPLAY = {
 type AnyRecord = Record<string, any>;
 
 export function getAvailableRevenueCatPackages(offerings: AnyRecord | null | undefined): AnyRecord[] {
-  const list = offerings?.current?.availablePackages;
-  return Array.isArray(list) ? list : [];
+  // 1. Try the "current" offering (most common)
+  const currentList = offerings?.current?.availablePackages;
+  if (Array.isArray(currentList) && currentList.length > 0) return currentList;
+
+  // 2. Fallback: try ALL offerings (in case "current" isn't set)
+  const all = offerings?.all;
+  if (all && typeof all === 'object') {
+    for (const key of Object.keys(all)) {
+      const pkgs = all[key]?.availablePackages;
+      if (Array.isArray(pkgs) && pkgs.length > 0) {
+        console.log(`🔎 [RevenueCat] Using packages from offering "${key}" (current was empty)`);
+        return pkgs;
+      }
+    }
+  }
+
+  return [];
 }
 
 export function findYearlySubscriptionPackage(offerings: AnyRecord | null | undefined): AnyRecord | null {

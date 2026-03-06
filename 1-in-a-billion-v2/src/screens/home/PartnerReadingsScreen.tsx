@@ -830,8 +830,10 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   textScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
     paddingBottom: spacing.xl * 2,
-    paddingHorizontal: spacing.page, // Restore padding here for text content
+    paddingHorizontal: spacing.page,
   },
   footer: {
     flexDirection: 'row',

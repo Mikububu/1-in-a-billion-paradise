@@ -137,16 +137,39 @@ export const PricingScreen = ({ navigation }: Props) => {
     }, [isMusicLoaded])
   );
 
+  // Debug state: shows what RevenueCat returns
+  const [rcDebug, setRcDebug] = useState<string>('Loading...');
+
   /* ── Load RevenueCat prices ── */
   useEffect(() => {
     let alive = true;
     (async () => {
       const ready = await initializeRevenueCat(userId);
-      if (!ready || !alive) return;
+      if (!ready || !alive) {
+        setRcDebug('RevenueCat init failed');
+        return;
+      }
 
       const off = await getOfferings();
       if (!alive) return;
       setOfferings(off);
+
+      // Debug: capture what RevenueCat returned
+      const packages = getAvailableRevenueCatPackages(off);
+      const debugInfo = packages.map((p: any) => {
+        const id = p?.identifier || '?';
+        const prodId = p?.product?.identifier || p?.storeProduct?.identifier || '?';
+        const price = p?.product?.priceString || p?.storeProduct?.priceString || '?';
+        return `${id} (${prodId}) ${price}`;
+      });
+      const offeringId = off?.current?.identifier || 'none';
+      const allOfferingKeys = off?.all ? Object.keys(off.all).join(', ') : 'none';
+      setRcDebug(
+        packages.length === 0
+          ? `Current: "${offeringId}" — 0 pkgs\nAll offerings: [${allOfferingKeys}]\nCheck RevenueCat dashboard.`
+          : `"${offeringId}" — ${packages.length} pkgs:\n${debugInfo.join('\n')}`
+      );
+      console.log('💰 [PricingScreen] offerings debug:', { offeringId, allOfferingKeys, packages: debugInfo });
 
       // Try to populate live prices
       const yearly = findYearlySubscriptionPackage(off);
@@ -156,11 +179,10 @@ export const PricingScreen = ({ navigation }: Props) => {
       }
 
       // Try basic (by product ID since all tiers are now monthly)
-      const packages = getAvailableRevenueCatPackages(off);
-      const basic = packages.find((p) => {
+      const basic = packages.find((p: any) => {
         const prodId = p?.product?.identifier || p?.storeProduct?.identifier || '';
         return String(prodId) === 'basic_monthly';
-      }) || packages.find((p) => String(p?.identifier || '') === 'basic_monthly');
+      }) || packages.find((p: any) => String(p?.identifier || '') === 'basic_monthly');
       const monthlyPrice = getPackagePriceString(basic);
       if (monthlyPrice) {
         setLivePrices((prev) => ({ ...prev, basic: monthlyPrice }));
@@ -268,7 +290,15 @@ export const PricingScreen = ({ navigation }: Props) => {
       }
 
       if (!pkg) {
-        Alert.alert(t('pricing.subscriptionUnavailable.title'), t('pricing.subscriptionUnavailable.message'));
+        const pkgs = getAvailableRevenueCatPackages(off);
+        const ids = pkgs.map((p: any) => {
+          const pid = p?.product?.identifier || p?.storeProduct?.identifier || p?.identifier || '?';
+          return pid;
+        }).join(', ');
+        Alert.alert(
+          'Subscription unavailable',
+          `Could not match tier "${tierId}".\n\nAvailable packages (${pkgs.length}): ${ids || 'NONE'}\n\nOffering: ${off?.current?.identifier || 'null'}`,
+        );
         return;
       }
 
@@ -406,6 +436,13 @@ export const PricingScreen = ({ navigation }: Props) => {
         <Text style={styles.iapNote}>
           {t('pricing.iapNote')} {IAP_RANGE}
         </Text>
+
+        {/* ── RevenueCat debug (remove after fixing) ── */}
+        <TouchableOpacity onPress={() => Alert.alert('RevenueCat Debug', rcDebug)}>
+          <Text style={styles.rcDebugText}>
+            {rcDebug.split('\n')[0]}
+          </Text>
+        </TouchableOpacity>
 
         {/* ── Coupon code - always visible ── */}
         <View style={styles.couponContainer}>
@@ -557,6 +594,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.sm,
     marginBottom: spacing.sm,
+  },
+
+  /* ── RC Debug ── */
+  rcDebugText: {
+    fontFamily: typography.sansRegular,
+    fontSize: 10,
+    color: '#999',
+    textAlign: 'center',
+    marginBottom: 6,
+    paddingHorizontal: 8,
   },
 
   /* ── Coupon - always visible ── */
