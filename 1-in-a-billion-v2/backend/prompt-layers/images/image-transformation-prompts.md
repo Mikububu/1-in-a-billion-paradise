@@ -16,5 +16,5 @@ hyperreal fashion photoshoot in black yamamoto dress before red background
 ## synastry_portrait
 
 <!-- PROMPT:synastry_portrait:start -->
-2 people together same style
+2 people arm in arm together same style
 <!-- PROMPT:synastry_portrait:end -->

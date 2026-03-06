@@ -658,134 +658,73 @@ router.post('/hook-audio/generate', async (c) => {
   try {
     const parsed = hookAudioSchema.parse(await c.req.json());
     const { supabase } = await import('../services/supabaseClient');
-    const { env } = await import('../config/env');
-    const Replicate = (await import('replicate')).default;
+    const { generateMinimaxAsync, getMinimaxSequenceForUrl } = await import('../services/minimaxTts');
 
     if (!supabase) {
       return c.json({ success: false, error: 'Supabase not configured' }, 500);
     }
 
     const userId = parsed.userId;
-    console.log(`🎤 Hook audio generation: ${parsed.type} for user ${userId} (${parsed.text.length} chars)`);
+    const language = parsed.language || 'en';
+    console.log(`🎤 Hook audio generation (MiniMax): ${parsed.type} for user ${userId} (${parsed.text.length} chars, lang=${language})`);
 
-    // Single source of truth: Supabase api_keys table (fallback to env)
-    let replicateToken = await apiKeys.replicate().catch(() => null) || env.REPLICATE_API_TOKEN;
-    if (!replicateToken) {
-      clearApiKeyCache('replicate');
-      replicateToken = await apiKeys.replicate().catch(() => null) || env.REPLICATE_API_TOKEN;
+    // Clean text for TTS pronunciation
+    let cleanedText = cleanupTextForTTS(parsed.text, language);
+    cleanedText = await phoneticizeTextForTTS(cleanedText, language);
+    console.log(`📝 Cleaned text: ${cleanedText.length} chars`);
+
+    // Look up David's registered MiniMax clone voice ID from api_keys table
+    // (same pattern as audioWorker.ts lines 424-436)
+    let minimaxVoiceId = 'English_expressive_narrator'; // fallback base voice
+    let hasRegisteredClone = false;
+    try {
+      const { data: cloneKey } = await supabase
+        .from('api_keys')
+        .select('token')
+        .eq('service', 'minimax_clone_david')
+        .maybeSingle();
+      if (cloneKey?.token) {
+        minimaxVoiceId = cloneKey.token;
+        hasRegisteredClone = true;
+        console.log(`🎙️ Using registered David clone: ${minimaxVoiceId}`);
+      }
+    } catch (e: any) {
+      console.warn('[HookAudio] Could not look up David clone ID:', e.message);
     }
-    if (!replicateToken) {
-      return c.json({
-        success: false,
-        error: 'Replicate API token not found',
-      }, 500);
-    }
-    const replicate = new Replicate({ auth: replicateToken });
 
-    // Generate hook audio using the same Chatterbox model as long-form audio.
-    let cleanedText = cleanupTextForTTS(parsed.text, parsed.language);
-    cleanedText = await phoneticizeTextForTTS(cleanedText, parsed.language || 'en');
-    const textLength = cleanedText.length;
-    const configuredChunkSize = parseInt(process.env.CHATTERBOX_CHUNK_SIZE || String(AUDIO_CONFIG.CHUNK_MAX_LENGTH), 10);
-    const chunkSize = Math.max(120, Math.min(300, Number.isFinite(configuredChunkSize) ? configuredChunkSize : AUDIO_CONFIG.CHUNK_MAX_LENGTH));
-    let chunks = splitIntoChunks(cleanedText, chunkSize);
-    const boundaryDedup = dedupeChunkBoundaryOverlap(chunks);
-    chunks = boundaryDedup.chunks;
-    console.log(`📦 Chunking ${textLength} chars into ${chunks.length} pieces`);
-
-    const voiceSampleUrl = parsed.audioUrl || 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/david.wav';
-
-    const repetitionPenaltyRaw = Number(process.env.CHATTERBOX_REPETITION_PENALTY || '1.7');
-    const repetitionPenalty = Number.isFinite(repetitionPenaltyRaw)
-      ? Math.max(1, Math.min(2, repetitionPenaltyRaw))
-      : 1.7;
-
-    // Generate chunks sequentially (hook audio is short, this is stable and quick).
-    const audioBuffers: Buffer[] = [];
-    for (let i = 0; i < chunks.length; i++) {
-      const maxRetries = Math.max(1, parseInt(process.env.REPLICATE_CHUNK_MAX_RETRIES || '6', 10));
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          const input: any = {
-            text: chunks[i]!,
-            reference_audio: voiceSampleUrl,
-            temperature: 0.7,
-            top_p: 0.95,
-            repetition_penalty: repetitionPenalty,
-          };
-
-          const chunkTimeoutMs = parseInt(process.env.REPLICATE_CHUNK_TIMEOUT_MS || '120000', 10);
-          const output = await runReplicateWithRateLimit(
-            `hookAudio:${parsed.userId}:${parsed.type}:${i + 1}`,
-            () =>
-              withTimeout(
-                replicate.run('resemble-ai/chatterbox-turbo', { input }),
-                chunkTimeoutMs,
-                `Hook chunk ${i + 1}`
-              )
-          );
-
-          let audioBuffer: Buffer;
-          if (output instanceof ReadableStream || (output as any).getReader) {
-            const reader = (output as ReadableStream).getReader();
-            const streamChunks: Uint8Array[] = [];
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              streamChunks.push(value);
-            }
-            audioBuffer = Buffer.concat(streamChunks);
-          } else if (typeof output === 'string') {
-            const response = await axios.get(output, { responseType: 'arraybuffer' });
-            audioBuffer = Buffer.from(response.data);
-          } else if (Buffer.isBuffer(output)) {
-            audioBuffer = output;
-          } else if (Array.isArray(output)) {
-            const first = output[0] as any;
-            if (typeof first === 'string') {
-              const response = await axios.get(first, { responseType: 'arraybuffer' });
-              audioBuffer = Buffer.from(response.data);
-            } else {
-              throw new Error(`Unexpected array output for hook chunk ${i + 1}`);
-            }
-          } else {
-            throw new Error(`Unexpected output type for hook chunk ${i + 1}`);
-          }
-
-          audioBuffers.push(audioBuffer);
-          break; // Success, move to next chunk
-        } catch (error: any) {
-          if (attempt < maxRetries) {
-            const waitTime = isReplicateRateLimitError(error) ? 12000 : attempt * 3000;
-            console.log(`⚠️ Chunk ${i + 1} failed, retrying in ${waitTime / 1000}s...`);
-            await new Promise(r => setTimeout(r, waitTime));
-          } else {
-            throw error;
-          }
-        }
+    // If no registered clone, upload reference audio for inline cloning
+    let clonePromptFileId: string | undefined;
+    if (!hasRegisteredClone) {
+      try {
+        const DAVID_CLONE_URL = 'https://qdfikbgwuauertfmkmzk.supabase.co/storage/v1/object/public/voices/david_clone.wav';
+        clonePromptFileId = await getMinimaxSequenceForUrl(DAVID_CLONE_URL, 'david_clone.wav');
+        console.log(`🎙️ Using inline clone_prompt for David: ${clonePromptFileId}`);
+      } catch (e: any) {
+        console.warn('[HookAudio] Could not upload David clone reference:', e.message);
       }
     }
 
-    // Concatenate and compress
-    const wavAudio = concatenateWavBuffers(audioBuffers);
-    const { buffer: compressedAudio, format, mime } = wavToCompressed(wavAudio);
-    let estimatedDuration: number;
-    try {
-      const fmt = getWavFormat(wavAudio);
-      const bytesPerSec = fmt.sampleRate * fmt.numChannels * (fmt.bitsPerSample / 8);
-      estimatedDuration = Math.ceil((wavAudio.length - 44) / bytesPerSec);
-    } catch {
-      estimatedDuration = Math.ceil((wavAudio.length - 44) / 48000);
-    }
+    // Generate audio via MiniMax (hook readings are ~600 chars, well within limit)
+    // MiniMax returns MP3 directly — no WAV concatenation or conversion needed
+    const mp3Buffer = await generateMinimaxAsync(
+      cleanedText,
+      minimaxVoiceId,
+      clonePromptFileId,
+      1.0,   // speed
+      1.0,   // volume
+      language
+    );
 
-    // Store in Supabase Storage (library bucket, same as hookAudioCloud.ts)
-    const storagePath = `hook-audio/${parsed.userId}/${parsed.language}/${parsed.type}.${format}`;
-    const contentType = mime || 'audio/mpeg';
+    // Estimate duration (MP3 at 128kbps = ~16000 bytes/sec)
+    const estimatedDuration = Math.ceil(mp3Buffer.length / 16000);
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    // Store in Supabase Storage (library bucket, same path as before)
+    const storagePath = `hook-audio/${userId}/${language}/${parsed.type}.mp3`;
+
+    const { error: uploadError } = await supabase.storage
       .from('library')
-      .upload(storagePath, compressedAudio, {
-        contentType,
+      .upload(storagePath, mp3Buffer, {
+        contentType: 'audio/mpeg',
         upsert: true,
         cacheControl: '3600',
       });
@@ -798,22 +737,22 @@ router.post('/hook-audio/generate', async (c) => {
       }, 500);
     }
 
-    // Get public URL (or signed URL if bucket is private)
+    // Get public URL
     const { data: urlData } = supabase.storage
       .from('library')
       .getPublicUrl(storagePath);
 
     const audioUrl = urlData.publicUrl;
 
-    console.log(`✅ Hook audio stored: ${storagePath} (${Math.round(compressedAudio.length / 1024)}KB)`);
+    console.log(`✅ Hook audio stored: ${storagePath} (${Math.round(mp3Buffer.length / 1024)}KB, ~${estimatedDuration}s)`);
 
     return c.json({
       success: true,
       audioUrl,
       storagePath,
       durationSeconds: estimatedDuration,
-      format,
-      sizeBytes: compressedAudio.length,
+      format: 'mp3',
+      sizeBytes: mp3Buffer.length,
     });
 
   } catch (error: any) {

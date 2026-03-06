@@ -173,6 +173,7 @@ export const audioApi = {
         text: string;
         userId: string;
         type: 'sun' | 'moon' | 'rising';
+        language?: string;
         exaggeration?: number;
         audioUrl?: string;
     }): Promise<{
@@ -190,6 +191,7 @@ export const audioApi = {
                 text: params.text,
                 userId: params.userId,
                 type: params.type,
+                language: params.language || 'en',
                 exaggeration: params.exaggeration ?? 0.3,
                 audioUrl: params.audioUrl,
             }, {

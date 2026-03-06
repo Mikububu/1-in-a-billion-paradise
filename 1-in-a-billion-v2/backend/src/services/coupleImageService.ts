@@ -129,7 +129,7 @@ export async function composeCoupleImage(
       console.log(`🧾 [Couple] Using image prompt layer "synastry_portrait": ${synastryPrompt.replace(/\s+/g, ' ').slice(0, 140)}...`);
     } catch (err) {
       console.warn('⚠️ [Couple] Failed to load synastry image prompt layer, using fallback:', (err as Error)?.message || err);
-      synastryPrompt = 'Compose these two stylized portraits into a romantic couple portrait. Keep the exact same artistic style from the input portraits. Show them pressed close together in love, intimate composition. Preserve the facial features from both portraits exactly as shown - do not change or reinterpret the faces. Extreme close-up zoomed in, subjects fill entire frame edge to edge, no empty margins or white space around subjects.';
+      synastryPrompt = 'Compose these two stylized portraits into a romantic couple portrait. Keep the exact same artistic style from the input portraits. Show them arm in arm in love, intimate composition. Preserve the facial features from both portraits exactly as shown - do not change or reinterpret the faces. Extreme close-up zoomed in, subjects fill entire frame edge to edge, no empty margins or white space around subjects.';
     }
 
     const parts: any[] = [

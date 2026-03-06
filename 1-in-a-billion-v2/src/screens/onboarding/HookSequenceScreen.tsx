@@ -381,20 +381,22 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
       if (existing) return existing;
 
       const textToSpeak = `${reading.intro}\n\n${reading.main}`;
-      // SUN may hit Replicate cold start - use longer timeout
-      const timeout = type === 'sun' ? 180000 : 90000;
+      const userId = useAuthStore.getState().user?.id;
+      if (!userId) return Promise.resolve(null);
+
       const p = audioApi
-        .generateTTS(textToSpeak, {
+        .generateHookAudio({
+          text: textToSpeak,
+          userId,
+          type,
+          language: primaryLanguage?.code || 'en',
           exaggeration: AUDIO_CONFIG.exaggeration,
-          includeIntro: false,
-          timeoutMs: timeout,
         })
         .then(async (result) => {
-          if (result.success && result.audioBase64) {
-            // Store base64 directly in memory - NO FILE SYSTEM
-            console.log(`💾 ${type} audio ready (in memory)`);
-            setHookAudio(type, result.audioBase64);
-            return result.audioBase64;
+          if (result.success && result.audioUrl) {
+            console.log(`💾 ${type} audio ready: ${result.audioUrl}`);
+            setHookAudio(type, result.audioUrl);
+            return result.audioUrl;
           }
           return null;
         })
@@ -408,7 +410,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
       inFlightAudio.current[type] = p;
       return p;
     },
-    [hookAudio, setHookAudio]
+    [hookAudio, setHookAudio, primaryLanguage]
   );
 
   // ... (Upload existing hook audio effect can stay mostly same, but needs to read file if it's a filename) ...
@@ -476,9 +478,10 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
         shouldDuckAndroid: false,
       });
 
-      // SIMPLE: Play base64 directly - no file system
-      const uri = `data:audio/mpeg;base64,${audioSource}`;
-      console.log(`🎵 Playing base64 audio for ${type}`);
+      // Play audio — supports both URLs (MiniMax) and legacy base64
+      const isUrl = audioSource.startsWith('http');
+      const uri = isUrl ? audioSource : `data:audio/mpeg;base64,${audioSource}`;
+      console.log(`🎵 Playing ${isUrl ? 'URL' : 'base64'} audio for ${type}`);
 
       const { sound } = await Audio.Sound.createAsync(
         { uri },
@@ -927,6 +930,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
             text: `${sunReading.intro}\n\n${sunReading.main}`,
             userId,
             type: 'sun',
+            language: primaryLanguage?.code || 'en',
             exaggeration: AUDIO_CONFIG.exaggeration,
           }).then(result => {
             if (result.success && result.audioUrl) {

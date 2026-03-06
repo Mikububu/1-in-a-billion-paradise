@@ -134,7 +134,7 @@ import { useAuthStore } from '@/store/authStore';
 import { audioApi, readingsApi } from '@/services/api';
 import { AUDIO_CONFIG } from '@/config/readingConfig';
 import { AmbientMusic } from '@/services/ambientMusic';
-import { uploadHookAudioBase64 } from '@/services/hookAudioCloud';
+// uploadHookAudioBase64 no longer needed — MiniMax endpoint handles upload server-side
 import { Audio } from 'expo-av';
 import { t } from '@/i18n';
 // Audio stored in memory (base64) - no file system needed
@@ -425,50 +425,31 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
     let moonAudioPromise: Promise<void> | null = null;
     let risingAudioPromise: Promise<void> | null = null;
 
-    // Helper to generate audio for a reading - SIMPLE: store base64 in memory, no file system
+    // Helper to generate audio for a reading via MiniMax (server uploads to Supabase, returns URL)
     const generateAudioForType = async (type: 'sun' | 'moon' | 'rising', reading: any): Promise<void> => {
       if (!reading) return;
-      // SUN is always first → Replicate cold start can take 90-120s.
-      // Moon/Rising run after the model is warm and finish much faster.
-      const timeout = type === 'sun' ? 180000 : 90000;
-      console.log(`🎵 Starting ${type.toUpperCase()} audio generation (timeout ${timeout / 1000}s)...`);
+      console.log(`🎵 Starting ${type.toUpperCase()} audio generation (MiniMax)...`);
 
       try {
-        const tts = await audioApi.generateTTS(`${reading.intro}\n\n${reading.main}`, {
+        const userId = useAuthStore.getState().user?.id;
+        if (!userId) {
+          console.log(`⚠️ ${type.toUpperCase()} audio skipped: no userId`);
+          return;
+        }
+
+        const result = await audioApi.generateHookAudio({
+          text: `${reading.intro}\n\n${reading.main}`,
+          userId,
+          type,
+          language: primaryLanguage?.code || 'en',
           exaggeration: AUDIO_CONFIG.exaggeration,
-          includeIntro: false,
-          timeoutMs: timeout,
         });
 
-        if (tts.success && tts.audioBase64) {
-          // Store base64 directly in memory for immediate playback
-          setHookAudio(type, tts.audioBase64);
-          console.log(`✅ ${type.toUpperCase()} audio ready (in memory)`);
-
-          // Upload to Supabase in background (non-blocking, for cross-device sync)
-          const userId = useAuthStore.getState().user?.id;
-          const user = useProfileStore.getState().people.find(p => p.isUser);
-          const personId = user?.id;
-
-          if (userId && personId && tts.audioBase64) {
-            uploadHookAudioBase64({
-              userId,
-              personId,
-              type,
-              audioBase64: tts.audioBase64,
-              language: primaryLanguage?.code,
-            })
-              .then(result => {
-                if (result.success) {
-                  console.log(`☁️ ${type.toUpperCase()} synced to Supabase: ${result.path}`);
-                } else {
-                  console.log(`⚠️ ${type.toUpperCase()} sync failed: ${result.error} (non-critical)`);
-                }
-              })
-              .catch(err => console.log(`⚠️ ${type.toUpperCase()} sync error:`, err.message));
-          }
+        if (result.success && result.audioUrl) {
+          setHookAudio(type, result.audioUrl);
+          console.log(`✅ ${type.toUpperCase()} audio ready: ${result.audioUrl}`);
         } else {
-          console.log(`❌ ${type.toUpperCase()} audio failed:`, tts.error);
+          console.log(`❌ ${type.toUpperCase()} audio failed:`, result.error);
         }
       } catch (err: any) {
         console.log(`⚠️ ${type.toUpperCase()} audio exception:`, err);

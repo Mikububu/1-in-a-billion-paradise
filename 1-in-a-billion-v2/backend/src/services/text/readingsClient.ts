@@ -3,6 +3,7 @@ import { HookReading, ReadingPayload } from '../../types';
 import { SYSTEM_PROMPT, buildReadingPrompt, PromptContext } from './prompts';
 import { llm, llmWithFallback } from '../llm'; // Centralized LLM service with fallback
 import { buildChartDataForSystem } from '../chartDataBuilder';
+import { getLanguageInstruction, isValidLanguage, type OutputLanguage } from '../../config/languages';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // READINGS CLIENT - Uses centralized LLM service (provider via LLM_PROVIDER env)
@@ -102,7 +103,16 @@ export const readingsClient = {
     try {
       // Use centralized LLM service with automatic fallback (REQUIREMENT #8)
       // If DeepSeek fails or refuses, automatically tries Claude, then OpenAI
-      const fullPrompt = `${SYSTEM_PROMPT}\n\n${buildReadingPrompt(ctx)}`;
+      // Append language instruction for non-English hook readings (same pattern as extended readings)
+      const language = payload.primaryLanguage || 'en';
+      let systemPrompt = SYSTEM_PROMPT;
+      if (language !== 'en' && isValidLanguage(language)) {
+        const langInstruction = getLanguageInstruction(language as OutputLanguage);
+        if (langInstruction) {
+          systemPrompt = systemPrompt + '\n\n' + langInstruction;
+        }
+      }
+      const fullPrompt = `${systemPrompt}\n\n${buildReadingPrompt(ctx)}`;
       const { text: rawContent, provider, usedFallback } = await llmWithFallback.generateWithFallback(
         fullPrompt,
         `hook-${type}`,
