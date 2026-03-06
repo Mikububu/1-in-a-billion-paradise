@@ -76,6 +76,42 @@ class AmbientMusicService {
         }
     }
 
+    /** Restart from the beginning (position 0) at given volume */
+    async restart(volume = 1.0) {
+        if (!this.sound) return;
+        try {
+            await this.sound.setPositionAsync(0);
+            await this.sound.setVolumeAsync(volume);
+            await this.sound.playAsync();
+            useMusicStore.getState().setIsPlaying(true);
+        } catch (error) {
+            console.warn('🎵 AmbientMusic: Restart error', error);
+        }
+    }
+
+    /** Gradually fade volume from 0 → 1.0 over the given duration */
+    async fadeIn(duration = 2000) {
+        if (!this.sound) return;
+        try {
+            const status = await this.sound.getStatusAsync();
+            if (!status.isLoaded) return;
+
+            console.log(`🎵 AmbientMusic: Fading in over ${duration}ms...`);
+            const steps = 20;
+            const stepDuration = duration / steps;
+
+            for (let i = 0; i <= steps; i++) {
+                if (!this.sound) break;
+                const fadeStatus = await this.sound.getStatusAsync();
+                if (!fadeStatus.isLoaded) return;
+                await this.sound.setVolumeAsync(i / steps);
+                await new Promise(resolve => setTimeout(resolve, stepDuration));
+            }
+        } catch (error) {
+            console.warn('🎵 AmbientMusic: Fade in error', error);
+        }
+    }
+
     async fadeOut(duration = 2000) {
         if (!this.sound) return;
         try {

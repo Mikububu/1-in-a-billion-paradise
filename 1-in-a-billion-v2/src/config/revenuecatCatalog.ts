@@ -11,6 +11,7 @@ export const RC_PRODUCT_IDS = {
   yearlySubscription: 'yearly_subscription',
   basicMonthly: 'basic_monthly',
   billionaireMonthly: 'billionaire_monthly',
+  billionaireYearly: 'billionaire_yearly',
 } as const;
 
 /** Map reading product type → RevenueCat product ID for IAP purchases */
@@ -59,10 +60,19 @@ export function getAvailableRevenueCatPackages(offerings: AnyRecord | null | und
 export function findYearlySubscriptionPackage(offerings: AnyRecord | null | undefined): AnyRecord | null {
   const packages = getAvailableRevenueCatPackages(offerings);
 
+  // 1. Try by package identifier (yearly_subscription or yearly_subscription_990)
   const byIdentifier =
     packages.find((pkg) => YEARLY_PACKAGE_IDENTIFIER_SET.has(String(pkg?.identifier || ''))) || null;
   if (byIdentifier) return byIdentifier;
 
+  // 2. Try by App Store product ID (product ID is still 'yearly_subscription' even though it's now monthly)
+  const byProductId = packages.find((pkg) => {
+    const prodId = pkg?.product?.identifier || pkg?.storeProduct?.identifier || '';
+    return String(prodId) === RC_PRODUCT_IDS.yearlySubscription;
+  }) || null;
+  if (byProductId) return byProductId;
+
+  // 3. Fallback: try ANNUAL package type (legacy)
   const byType = packages.find((pkg) => String(pkg?.packageType || '').toUpperCase() === 'ANNUAL') || null;
   return byType;
 }
@@ -90,14 +100,16 @@ export function findBillionairePackage(offerings: AnyRecord | null | undefined):
   // 1. Try exact package identifier
   const byId =
     getPackageByIdentifier(offerings, 'billionaire') ||
-    getPackageByIdentifier(offerings, 'billionaire_monthly');
+    getPackageByIdentifier(offerings, 'billionaire_monthly') ||
+    getPackageByIdentifier(offerings, 'billionaire_yearly');
   if (byId) return byId;
 
-  // 2. Try App Store product ID
+  // 2. Try App Store product ID (check both legacy and current IDs)
   const packages = getAvailableRevenueCatPackages(offerings);
   const byProductId = packages.find((pkg) => {
     const prodId = pkg?.product?.identifier || pkg?.storeProduct?.identifier || '';
-    return String(prodId) === RC_PRODUCT_IDS.billionaireMonthly;
+    return String(prodId) === RC_PRODUCT_IDS.billionaireYearly ||
+           String(prodId) === RC_PRODUCT_IDS.billionaireMonthly;
   }) || null;
   if (byProductId) return byProductId;
 

@@ -13,10 +13,13 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, radii, spacing, typography } from '@/theme/tokens';
 import { TIER_MONTHLY_READINGS } from '@/config/readingConfig';
 import { useAuthStore } from '@/store/authStore';
+import { useMusicStore } from '@/store/musicStore';
+import { AmbientMusic } from '@/services/ambientMusic';
 import { env } from '@/config/env';
 import { t } from '@/i18n';
 import {
@@ -52,20 +55,20 @@ type TierDef = {
 const TIERS: TierDef[] = [
   {
     id: 'basic',
-    label: 'Basic',
-    priceLabel: '$21',
+    label: 'Dreamer',
+    priceLabel: '$20',
     period: '/month',
     bullets: [
       `${TIER_MONTHLY_READINGS.basic} extended reading per month`,
       'Daily compatibility matching',
-      'Ongoing background resonance updates',
+      'Narrated readings with audio & PDF',
     ],
   },
   {
     id: 'yearly',
-    label: 'Yogi',
-    priceLabel: '$108',
-    period: '/year',
+    label: 'Expansion',
+    priceLabel: '$40',
+    period: '/month',
     bullets: [
       `${TIER_MONTHLY_READINGS.yearly} extended readings per month`,
       'Daily compatibility matching',
@@ -75,8 +78,8 @@ const TIERS: TierDef[] = [
   },
   {
     id: 'billionaire',
-    label: 'Billionaire',
-    priceLabel: '$834',
+    label: 'Soul Billionaire',
+    priceLabel: '$1,000',
     period: '/month',
     bullets: [
       `${TIER_MONTHLY_READINGS.billionaire} extended readings per month`,
@@ -87,7 +90,7 @@ const TIERS: TierDef[] = [
   },
 ];
 
-const IAP_RANGE = '$14 - $108';
+const IAP_RANGE = '$20 - $1,000';
 
 /* ── Component ────────────────────────────────────────────────────── */
 
@@ -108,6 +111,32 @@ export const PricingScreen = ({ navigation }: Props) => {
   const [couponStatus, setCouponStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid' | 'redeeming'>('idle');
   const [couponMessage, setCouponMessage] = useState('');
 
+  const isMusicLoaded = useMusicStore((s) => s.isMusicLoaded);
+  const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /* ── Music: restart song, fade in after 7s, fade out on leave ── */
+  useFocusEffect(
+    useCallback(() => {
+      if (isMusicLoaded) {
+        // Restart song from beginning at volume 0 (silent)
+        AmbientMusic.restart(0);
+        // After 7 seconds, fade in over 2 seconds
+        fadeTimerRef.current = setTimeout(() => {
+          AmbientMusic.fadeIn(2000);
+        }, 7000);
+      }
+
+      return () => {
+        // Leaving screen: cancel pending fade-in and fade out
+        if (fadeTimerRef.current) {
+          clearTimeout(fadeTimerRef.current);
+          fadeTimerRef.current = null;
+        }
+        AmbientMusic.fadeOut(2000);
+      };
+    }, [isMusicLoaded])
+  );
+
   /* ── Load RevenueCat prices ── */
   useEffect(() => {
     let alive = true;
@@ -126,12 +155,13 @@ export const PricingScreen = ({ navigation }: Props) => {
         setLivePrices((prev) => ({ ...prev, yearly: yearlyPrice }));
       }
 
-      // Try basic (monthly)
+      // Try basic (by product ID since all tiers are now monthly)
       const packages = getAvailableRevenueCatPackages(off);
-      const monthly = packages.find(
-        (p) => String(p?.packageType || '').toUpperCase() === 'MONTHLY',
-      );
-      const monthlyPrice = getPackagePriceString(monthly);
+      const basic = packages.find((p) => {
+        const prodId = p?.product?.identifier || p?.storeProduct?.identifier || '';
+        return String(prodId) === 'basic_monthly';
+      }) || packages.find((p) => String(p?.identifier || '') === 'basic_monthly');
+      const monthlyPrice = getPackagePriceString(basic);
       if (monthlyPrice) {
         setLivePrices((prev) => ({ ...prev, basic: monthlyPrice }));
       }
@@ -229,7 +259,10 @@ export const PricingScreen = ({ navigation }: Props) => {
         pkg = findYearlySubscriptionPackage(off);
       } else if (tierId === 'basic') {
         const packages = getAvailableRevenueCatPackages(off);
-        pkg = packages.find((p) => String(p?.packageType || '').toUpperCase() === 'MONTHLY') || null;
+        pkg = packages.find((p) => {
+          const prodId = p?.product?.identifier || p?.storeProduct?.identifier || '';
+          return String(prodId) === 'basic_monthly';
+        }) || packages.find((p) => String(p?.identifier || '') === 'basic_monthly') || null;
       } else if (tierId === 'billionaire') {
         pkg = findBillionairePackage(off);
       }
