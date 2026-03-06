@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo } from 'react';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing, typography } from '@/theme/tokens';
@@ -8,17 +8,12 @@ import { BackButton } from '@/components/BackButton';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { useProfileStore } from '@/store/profileStore';
 import { CityOption } from '@/types/forms';
-import { useIsFocused } from '@react-navigation/native';
 import { t } from '@/i18n';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'AddThirdPersonPrompt'>;
 
 export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
-  const isFocused = useIsFocused();
-  const videoDrift = useRef(new Animated.Value(0)).current;
-  const driftLoopRef = useRef<Animated.CompositeAnimation | null>(null);
-
-  // HARD LOCK: only allow one free “third person” hook set. If it exists, reuse it.
+  // HARD LOCK: only allow one free "third person" hook set. If it exists, reuse it.
   const existingPartner = useProfileStore((s) =>
     s.people.find((p) => !p.isUser && p.hookReadings && p.hookReadings.length === 3)
   );
@@ -36,39 +31,6 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
     };
   }, [existingPartner]);
 
-  // Gentle "forth and back" drift so the background feels alive.
-  useEffect(() => {
-    if (!isFocused) {
-      driftLoopRef.current?.stop?.();
-      driftLoopRef.current = null;
-      videoDrift.setValue(0);
-      return;
-    }
-
-    driftLoopRef.current = Animated.loop(
-      Animated.sequence([
-        Animated.timing(videoDrift, {
-          toValue: 1,
-          duration: 14000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(videoDrift, {
-          toValue: 0,
-          duration: 14000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    driftLoopRef.current.start();
-
-    return () => {
-      driftLoopRef.current?.stop?.();
-      driftLoopRef.current = null;
-    };
-  }, [isFocused, videoDrift]);
-
   return (
     <SafeAreaView style={styles.container}>
       <BackButton
@@ -77,28 +39,6 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
           navigation.navigate('HookSequence', { initialReading: 'rising' } as any);
         }}
       />
-      <Animated.View
-        style={[
-          styles.bgVideo,
-          {
-            transform: [
-              {
-                translateX: videoDrift.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-18, 18],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
-        <Animated.Image
-          source={require('../../../assets/images/happy.png')}
-          style={[StyleSheet.absoluteFill, styles.bgImage]}
-          resizeMode="cover"
-          fadeDuration={250}
-        />
-      </Animated.View>
       <View style={styles.content}>
         <View style={styles.textCard}>
           <Text style={styles.title} selectable>
@@ -108,6 +48,12 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
             {t('addThirdPerson.subtitle')}
           </Text>
         </View>
+
+        <Image
+          source={require('../../../assets/images/heart2heart.png')}
+          style={styles.inlineImage}
+          resizeMode="contain"
+        />
 
         <View style={{ flex: 1 }} />
 
@@ -148,30 +94,18 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'transparent' },
-  bgVideo: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    opacity: 1, // explicit: no transparency
-  },
-  bgImage: {
-    // Move even more left + back up, scale to 50%
-    transform: [{ translateX: -220 }, { translateY: -180 }, { scale: 0.5 }],
-  },
+  container: { flex: 1, backgroundColor: colors.background },
   content: {
     flex: 1,
     padding: spacing.page,
-    paddingTop: 60, // Fixed top position like other screens
-    justifyContent: 'flex-start', // Align to top instead of center
+    paddingTop: 60,
+    justifyContent: 'flex-start',
     alignItems: 'center',
   },
   textCard: {
     width: '100%',
     maxWidth: 520,
-    backgroundColor: 'rgba(236, 234, 230, 0.5)', // broken white @ 50% opacity
+    backgroundColor: 'rgba(236, 234, 230, 0.5)',
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 22,
@@ -188,10 +122,18 @@ const styles = StyleSheet.create({
   subtitle: {
     fontFamily: typography.sansRegular,
     fontSize: 16,
-    color: colors.text, // keep text black
+    color: colors.text,
     textAlign: 'center',
     lineHeight: 24,
     maxWidth: 340,
+  },
+  inlineImage: {
+    width: '80%',
+    maxWidth: 300,
+    height: undefined,
+    aspectRatio: 1,
+    marginTop: spacing.lg,
+    alignSelf: 'center',
   },
   buttonContainer: {
     width: '100%',

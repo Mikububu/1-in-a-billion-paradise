@@ -25,7 +25,7 @@ import { useProfileStore } from '@/store/profileStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useAuthStore } from '@/store/authStore';
 import { audioApi } from '@/services/api';
-import { uploadHookAudioBase64 } from '@/services/hookAudioCloud';
+// uploadHookAudioBase64 no longer needed — backend stores audio in Supabase directly
 import { AUDIO_CONFIG } from '@/config/readingConfig';
 import { CityOption } from '@/types/forms';
 import { t } from '@/i18n';
@@ -321,55 +321,42 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         body: JSON.stringify(payload),
       }).then(res => res.ok ? res.json() : null);
 
-      // Start Sun audio generation during intro screen (same as 1st person readings)
+      // Start Sun audio generation during intro screen (MiniMax TTS via backend)
       const sunAudioPromise = sunReadingPromise.then(async (sunData) => {
         if (sunData?.reading) {
           sunSign = sunData.reading.sign;
-          console.log(`🎵 Starting ${name}'s SUN audio generation...`);
+          console.log(`🎵 Starting ${name}'s SUN audio generation (MiniMax)...`);
 
           // ✅ SAVE PLACEMENTS for partner
           if (sunData.placements) {
             console.log(`💾 Saving ${name}'s placements:`, sunData.placements);
-            // Prefer Swiss Ephemeris placements as source-of-truth for signs.
             sunSign = sunSign || sunData.placements.sunSign;
             moonSign = moonSign || sunData.placements.moonSign;
             risingSign = risingSign || sunData.placements.risingSign;
           }
 
-          const result = await audioApi.generateTTS(
-            `${sunData.reading.intro}\n\n${sunData.reading.main}`,
-            { exaggeration: AUDIO_CONFIG.exaggeration, includeIntro: false, timeoutMs: 180000 }
-          );
-          if (result.success) {
-            const immediateSource = result.audioUrl;
-            if (immediateSource) {
-              setPartnerAudio('sun', immediateSource);
-            }
-            console.log(`✅ ${name}'s SUN audio ready`);
-
-            // Upload to Supabase in background (non-blocking)
-            const userId = useAuthStore.getState().user?.id;
-            if (!isPrepayOnboarding && userId && partnerIdFromRoute && result.audioBase64) {
-              uploadHookAudioBase64({
-                userId,
-                personId: partnerIdFromRoute,
-                type: 'sun',
-                audioBase64: result.audioBase64,
-                language: payload.primaryLanguage,
-              })
-                .then(uploadResult => {
-                  if (uploadResult.success) {
-                    setPartnerAudio('sun', uploadResult.path);
-                    useProfileStore.getState().updatePerson(partnerIdFromRoute, {
-                      hookAudioPaths: {
-                        ...(useProfileStore.getState().getPerson(partnerIdFromRoute)?.hookAudioPaths || {}),
-                        sun: uploadResult.path,
-                      },
-                    } as any);
-                    console.log(`☁️ ${name}'s SUN synced to Supabase`);
-                  }
-                })
-                .catch(() => { });
+          const userId = useAuthStore.getState().user?.id;
+          if (userId) {
+            const result = await audioApi.generateHookAudio({
+              text: `${sunData.reading.intro}\n\n${sunData.reading.main}`,
+              userId,
+              type: 'sun',
+              language: payload.primaryLanguage,
+              personId: partnerIdFromRoute,
+              exaggeration: AUDIO_CONFIG.exaggeration,
+            });
+            if (result.success && result.audioUrl) {
+              setPartnerAudio('sun', result.audioUrl);
+              console.log(`✅ ${name}'s SUN audio ready (MiniMax)`);
+              // Backend already stored in Supabase — save storagePath for profile
+              if (partnerIdFromRoute && result.storagePath) {
+                useProfileStore.getState().updatePerson(partnerIdFromRoute, {
+                  hookAudioPaths: {
+                    ...(useProfileStore.getState().getPerson(partnerIdFromRoute)?.hookAudioPaths || {}),
+                    sun: result.storagePath,
+                  },
+                } as any);
+              }
             }
           }
         }
@@ -411,49 +398,36 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         risingSign = risingSign || moonData.placements.risingSign;
       }
 
-      // Start Moon audio generation (returns promise for later awaiting)
+      // Start Moon audio generation via MiniMax (returns promise for later awaiting)
       let moonAudioPromise: Promise<void> | null = null;
       if (moonData?.reading) {
-        console.log(`🎵 Starting ${name}'s MOON audio generation...`);
-        moonAudioPromise = audioApi.generateTTS(
-          `${moonData.reading.intro}\n\n${moonData.reading.main}`,
-          { exaggeration: AUDIO_CONFIG.exaggeration, includeIntro: false, timeoutMs: 90000 }
-        )
-          .then((result) => {
-            if (result.success) {
-              const immediateSource = result.audioUrl;
-              if (immediateSource) {
-                setPartnerAudio('moon', immediateSource);
-              }
-              console.log(`✅ ${name}'s MOON audio ready`);
-
-              // Upload to Supabase in background (non-blocking)
-              const userId = useAuthStore.getState().user?.id;
-              if (!isPrepayOnboarding && userId && partnerIdFromRoute && result.audioBase64) {
-                uploadHookAudioBase64({
-                  userId,
-                  personId: partnerIdFromRoute,
-                  type: 'moon',
-                  audioBase64: result.audioBase64,
-                  language: payload.primaryLanguage,
-                })
-                  .then(uploadResult => {
-                    if (uploadResult.success) {
-                      setPartnerAudio('moon', uploadResult.path);
-                      useProfileStore.getState().updatePerson(partnerIdFromRoute, {
-                        hookAudioPaths: {
-                          ...(useProfileStore.getState().getPerson(partnerIdFromRoute)?.hookAudioPaths || {}),
-                          moon: uploadResult.path,
-                        },
-                      } as any);
-                      console.log(`☁️ ${name}'s MOON synced to Supabase`);
-                    }
-                  })
-                  .catch(() => { });
-              }
-            }
+        const userId = useAuthStore.getState().user?.id;
+        if (userId) {
+          console.log(`🎵 Starting ${name}'s MOON audio generation (MiniMax)...`);
+          moonAudioPromise = audioApi.generateHookAudio({
+            text: `${moonData.reading.intro}\n\n${moonData.reading.main}`,
+            userId,
+            type: 'moon',
+            language: payload.primaryLanguage,
+            personId: partnerIdFromRoute,
+            exaggeration: AUDIO_CONFIG.exaggeration,
           })
-          .catch((err) => console.log('Moon audio generation failed:', err));
+            .then((result) => {
+              if (result.success && result.audioUrl) {
+                setPartnerAudio('moon', result.audioUrl);
+                console.log(`✅ ${name}'s MOON audio ready (MiniMax)`);
+                if (partnerIdFromRoute && result.storagePath) {
+                  useProfileStore.getState().updatePerson(partnerIdFromRoute, {
+                    hookAudioPaths: {
+                      ...(useProfileStore.getState().getPerson(partnerIdFromRoute)?.hookAudioPaths || {}),
+                      moon: result.storagePath,
+                    },
+                  } as any);
+                }
+              }
+            })
+            .catch((err) => console.log('Moon audio generation failed:', err));
+        }
       }
       setProgress(60);
       await delay(3000);
@@ -478,49 +452,36 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         risingSign = risingSign || risingData.placements.risingSign;
       }
 
-      // Start Rising audio generation (returns promise for later awaiting)
+      // Start Rising audio generation via MiniMax (returns promise for later awaiting)
       let risingAudioPromise: Promise<void> | null = null;
       if (risingData?.reading) {
-        console.log(`🎵 Starting ${name}'s RISING audio generation...`);
-        risingAudioPromise = audioApi.generateTTS(
-          `${risingData.reading.intro}\n\n${risingData.reading.main}`,
-          { exaggeration: AUDIO_CONFIG.exaggeration, includeIntro: false, timeoutMs: 90000 }
-        )
-          .then((result) => {
-            if (result.success) {
-              const immediateSource = result.audioUrl;
-              if (immediateSource) {
-                setPartnerAudio('rising', immediateSource);
-              }
-              console.log(`✅ ${name}'s RISING audio ready`);
-
-              // Upload to Supabase in background (non-blocking)
-              const userId = useAuthStore.getState().user?.id;
-              if (!isPrepayOnboarding && userId && partnerIdFromRoute && result.audioBase64) {
-                uploadHookAudioBase64({
-                  userId,
-                  personId: partnerIdFromRoute,
-                  type: 'rising',
-                  audioBase64: result.audioBase64,
-                  language: payload.primaryLanguage,
-                })
-                  .then(uploadResult => {
-                    if (uploadResult.success) {
-                      setPartnerAudio('rising', uploadResult.path);
-                      useProfileStore.getState().updatePerson(partnerIdFromRoute, {
-                        hookAudioPaths: {
-                          ...(useProfileStore.getState().getPerson(partnerIdFromRoute)?.hookAudioPaths || {}),
-                          rising: uploadResult.path,
-                        },
-                      } as any);
-                      console.log(`☁️ ${name}'s RISING synced to Supabase`);
-                    }
-                  })
-                  .catch(() => { });
-              }
-            }
+        const userId = useAuthStore.getState().user?.id;
+        if (userId) {
+          console.log(`🎵 Starting ${name}'s RISING audio generation (MiniMax)...`);
+          risingAudioPromise = audioApi.generateHookAudio({
+            text: `${risingData.reading.intro}\n\n${risingData.reading.main}`,
+            userId,
+            type: 'rising',
+            language: payload.primaryLanguage,
+            personId: partnerIdFromRoute,
+            exaggeration: AUDIO_CONFIG.exaggeration,
           })
-          .catch(() => console.log('Rising audio generation failed'));
+            .then((result) => {
+              if (result.success && result.audioUrl) {
+                setPartnerAudio('rising', result.audioUrl);
+                console.log(`✅ ${name}'s RISING audio ready (MiniMax)`);
+                if (partnerIdFromRoute && result.storagePath) {
+                  useProfileStore.getState().updatePerson(partnerIdFromRoute, {
+                    hookAudioPaths: {
+                      ...(useProfileStore.getState().getPerson(partnerIdFromRoute)?.hookAudioPaths || {}),
+                      rising: result.storagePath,
+                    },
+                  } as any);
+                }
+              }
+            })
+            .catch(() => console.log('Rising audio generation failed'));
+        }
       }
       setProgress(85);
 

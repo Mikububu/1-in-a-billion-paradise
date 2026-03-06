@@ -649,6 +649,7 @@ const hookAudioSchema = z.object({
   type: z.enum(['sun', 'moon', 'rising']),
   text: z.string().min(1),
   language: z.string().default('en'),
+  personId: z.string().optional(), // Optional: for partner/3rd-person audio (separate storage path)
   exaggeration: z.number().min(0).max(1).optional().default(0.3),
   audioUrl: z.string().optional()  // Voice sample URL (validated for SSRF)
     .refine(val => !val || validateAudioUrl(val), {
@@ -721,8 +722,11 @@ router.post('/hook-audio/generate', requireAuth, async (c) => {
     // Estimate duration (MP3 at 128kbps = ~16000 bytes/sec)
     const estimatedDuration = Math.ceil(mp3Buffer.length / 16000);
 
-    // Store in Supabase Storage (library bucket, same path as before)
-    const storagePath = `hook-audio/${userId}/${language}/${parsed.type}.mp3`;
+    // Store in Supabase Storage (library bucket)
+    // If personId is provided, store under person-specific path (for partner audio)
+    const storagePath = parsed.personId
+      ? `hook-audio/${userId}/${language}/${parsed.personId}/${parsed.type}.mp3`
+      : `hook-audio/${userId}/${language}/${parsed.type}.mp3`;
 
     const { error: uploadError } = await supabase.storage
       .from('library')
@@ -740,12 +744,21 @@ router.post('/hook-audio/generate', requireAuth, async (c) => {
       }, 500);
     }
 
-    // Get public URL
-    const { data: urlData } = supabase.storage
+    // Get signed URL (library is a private bucket — public URLs return 400)
+    let audioUrl: string;
+    const { data: signedData, error: signedError } = await supabase.storage
       .from('library')
-      .getPublicUrl(storagePath);
+      .createSignedUrl(storagePath, 60 * 60 * 24); // 24 hours
 
-    const audioUrl = urlData.publicUrl;
+    if (signedData?.signedUrl) {
+      audioUrl = signedData.signedUrl;
+    } else {
+      logger.warn('Signed URL failed, falling back to public URL', { error: signedError?.message });
+      const { data: urlData } = supabase.storage
+        .from('library')
+        .getPublicUrl(storagePath);
+      audioUrl = urlData.publicUrl;
+    }
 
     logger.info(`Hook audio stored: ${storagePath} (${Math.round(mp3Buffer.length / 1024)}KB, ~${estimatedDuration}s)`);
 

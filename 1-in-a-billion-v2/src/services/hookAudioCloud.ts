@@ -56,14 +56,6 @@ export async function uploadHookAudioBase64(params: {
     }
 }
 
-export async function getHookAudioPublicUrl(path: string) {
-    // Note: for private buckets, this URL may not be directly fetchable without a signed URL.
-    // We keep it anyway for debugging / future signed-url support.
-    if (!isSupabaseConfigured) return null;
-    if (!path) return null;
-    const { data } = supabase.storage.from(HOOK_AUDIO_BUCKET).getPublicUrl(path);
-    return data?.publicUrl || null;
-}
 
 export async function getHookAudioSignedUrl(path: string, expiresIn = 3600) {
     if (!isSupabaseConfigured) return null;

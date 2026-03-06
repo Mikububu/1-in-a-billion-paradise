@@ -42,6 +42,7 @@ import { env } from '@/config/env';
 
 import { audioApi } from '@/services/api';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
+import { getHookAudioSignedUrl } from '@/services/hookAudioCloud';
 import { AUDIO_CONFIG, SIGN_LABELS } from '@/config/readingConfig';
 import { saveHookReadings } from '@/services/userReadings';
 import { logAuthIssue } from '@/utils/authDebug';
@@ -421,24 +422,22 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
   // Handle audio playback
   const handlePlayAudio = useCallback(async (reading: HookReading) => {
     const type = reading.type;
-    // Stop logic ... (same as before)
+
+    // Toggle off if already playing this type
     if (currentPlayingType.current === type && soundRef.current) {
-      // ... stop ...
-      // (copy existing stop logic)
       console.log(`⏹️ Stopping audio for ${type}`);
-      await soundRef.current.stopAsync();
-      await soundRef.current.unloadAsync();
+      try { await soundRef.current.stopAsync(); } catch {}
+      try { await soundRef.current.unloadAsync(); } catch {}
       soundRef.current = null;
       setAudioPlaying(prev => ({ ...prev, [type]: false }));
       currentPlayingType.current = null;
       return;
     }
 
-    // Stop any currently playing ... (same as before)
+    // Stop any other currently playing audio
     if (soundRef.current) {
-      // ...
-      await soundRef.current.stopAsync();
-      await soundRef.current.unloadAsync();
+      try { await soundRef.current.stopAsync(); } catch {}
+      try { await soundRef.current.unloadAsync(); } catch {}
       soundRef.current = null;
       if (currentPlayingType.current) {
         setAudioPlaying(prev => ({ ...prev, [currentPlayingType.current!]: false }));
@@ -448,37 +447,51 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
 
     setAudioLoading(prev => ({ ...prev, [type]: true }));
 
-    // RESOLVE AUDIO SOURCE
-    let audioSource: string | null = hookAudio[type] || null;
-    // Check in-flight
-    if (!audioSource) {
-      const inFlight = inFlightAudio.current[type];
-      if (inFlight) {
-        audioSource = (await inFlight) || null;
-      }
-    }
-
-    // Generate if missing
-    if (!audioSource) {
-      const res = await startHookAudioGeneration(type, reading);
-      audioSource = res;
-    }
-
-    if (!audioSource) {
-      setAudioLoading(prev => ({ ...prev, [type]: false }));
-      return;
-    }
-
-    setAudioLoading(prev => ({ ...prev, [type]: false }));
-
     try {
+      // RESOLVE AUDIO SOURCE
+      let audioSource: string | null = hookAudio[type] || null;
+
+      // Check in-flight generation
+      if (!audioSource) {
+        const inFlight = inFlightAudio.current[type];
+        if (inFlight) {
+          audioSource = (await inFlight) || null;
+        }
+      }
+
+      // Generate if missing
+      if (!audioSource) {
+        audioSource = await startHookAudioGeneration(type, reading);
+      }
+
+      if (!audioSource) {
+        Alert.alert(t('hookSequence.audioError') || 'Audio Error', t('hookSequence.audioGenerationFailed') || 'Could not generate audio. Please try again.');
+        setAudioLoading(prev => ({ ...prev, [type]: false }));
+        return;
+      }
+
+      // Resolve Supabase private-bucket public URLs to signed URLs
+      // The library bucket is private, so public URLs don't work directly
+      if (audioSource.includes('/storage/v1/object/public/library/')) {
+        const marker = '/storage/v1/object/public/library/';
+        const pathStart = audioSource.indexOf(marker) + marker.length;
+        const storagePath = decodeURIComponent(audioSource.substring(pathStart));
+        console.log(`🔑 Resolving signed URL for: ${storagePath}`);
+        const signedUrl = await getHookAudioSignedUrl(storagePath, 60 * 60);
+        if (signedUrl) {
+          audioSource = signedUrl;
+        } else {
+          console.warn('Failed to get signed URL, trying direct URL');
+        }
+      }
+
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: true,
         staysActiveInBackground: false,
         shouldDuckAndroid: false,
       });
 
-      // Play audio — supports both URLs (MiniMax) and legacy base64
+      // Play audio — supports URLs (MiniMax signed), legacy base64
       const isUrl = audioSource.startsWith('http');
       const uri = isUrl ? audioSource : `data:audio/mpeg;base64,${audioSource}`;
       console.log(`🎵 Playing ${isUrl ? 'URL' : 'base64'} audio for ${type}`);
@@ -500,6 +513,8 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
 
     } catch (error: any) {
       console.error('Audio playback error:', error);
+      Alert.alert(t('hookSequence.audioError') || 'Audio Error', t('hookSequence.audioPlaybackFailed') || 'Could not play audio. Please try again.');
+    } finally {
       setAudioLoading(prev => ({ ...prev, [type]: false }));
     }
 

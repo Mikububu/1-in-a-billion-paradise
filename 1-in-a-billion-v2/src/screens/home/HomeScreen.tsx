@@ -488,7 +488,10 @@ export const HomeScreen = ({ navigation }: Props) => {
     if (!audioSource && authUserId && personId) {
       setAudioLoading(true); setAudioLoadingText(t('home.checkingAudio'));
       try {
-        const storagePath = `hook-audio/${authUserId}/${personId}/${selectedReading}.mp3`;
+        const lang = currentLang || 'en';
+        const storagePath = currentPerson?.person?.isUser
+          ? `hook-audio/${authUserId}/${lang}/${selectedReading}.mp3`
+          : `hook-audio/${authUserId}/${lang}/${personId}/${selectedReading}.mp3`;
         const signed = await getHookAudioSignedUrl(storagePath, 60);
         if (myToken === playRequestTokenRef.current && signed) {
           audioSource = storagePath;

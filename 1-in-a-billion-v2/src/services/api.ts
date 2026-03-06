@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ReadingPayload, ReadingResponse, AudioGenerateResponse, BirthChart, EntitlementResponse, ProductInfo, SynastryResponse, CompatibilityScores } from '@/types/api';
+import { ReadingPayload, ReadingResponse, BirthChart, EntitlementResponse, ProductInfo, SynastryResponse, CompatibilityScores } from '@/types/api';
 import { env } from '@/config/env';
 import { buildPromptLayerDirective } from '@/config/promptLayers';
 import { getLanguage } from '@/i18n';
@@ -126,61 +126,13 @@ export const readingsApi = {
 };
 
 export const audioApi = {
-    generate: async (readingId: string): Promise<AudioGenerateResponse> => {
-        try {
-            const response = await supabaseClient.post<AudioGenerateResponse>(`${EDGE_FN}/generate-audio`, { readingId });
-            return response.data;
-        } catch (error) {
-            console.warn('Audio fallback', error);
-            return {
-                audioId: readingId,
-                status: 'processing',
-            };
-        }
-    },
-
-    // Generate TTS audio using Chatterbox (via Replicate)
-    generateTTS: async (text: string, options?: {
-        exaggeration?: number;
-        audioUrl?: string; // Custom voice sample URL
-        spokenIntro?: string;
-        includeIntro?: boolean;
-        timeoutMs?: number;
-    }): Promise<{
-        success: boolean;
-        audioBase64?: string;
-        audioUrl?: string;
-        durationSeconds?: number;
-        provider?: string;
-        error?: string;
-    }> => {
-        try {
-            const response = await coreClient.post('/api/audio/generate-tts', {
-                text,
-                provider: 'chatterbox', // Always use Chatterbox (cheapest + voice cloning)
-                exaggeration: options?.exaggeration ?? 0.5,
-                audioUrl: options?.audioUrl && options.audioUrl.length > 0 ? options.audioUrl : undefined, // For custom voice cloning
-                spokenIntro: options?.spokenIntro,
-                includeIntro: options?.includeIntro,
-            }, {
-                timeout: options?.timeoutMs ?? 240000,
-            });
-            return response.data;
-        } catch (error: any) {
-            console.warn('TTS generation failed:', error.message);
-            return {
-                success: false,
-                error: error.message || 'TTS generation failed',
-            };
-        }
-    },
-
     // Generate hook audio - backend stores in Supabase Storage, returns URL
     generateHookAudio: async (params: {
         text: string;
         userId: string;
         type: 'sun' | 'moon' | 'rising';
         language?: string;
+        personId?: string; // For partner/3rd-person audio (separate storage path)
         exaggeration?: number;
         audioUrl?: string;
     }): Promise<{
@@ -199,6 +151,7 @@ export const audioApi = {
                 userId: params.userId,
                 type: params.type,
                 language: params.language || 'en',
+                personId: params.personId,
                 exaggeration: params.exaggeration ?? 0.3,
                 audioUrl: params.audioUrl,
             }, {

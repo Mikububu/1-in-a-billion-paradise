@@ -176,57 +176,38 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
       if (existing) return existing;
 
       const textToSpeak = `${reading.intro}\n\n${reading.main}`;
-      const timeout = type === 'sun' ? 180000 : 90000;
-      console.log(`🎵 Starting ${partnerName}'s ${type.toUpperCase()} audio generation (timeout ${timeout / 1000}s)...`);
+      const userId = authUser?.id;
+      if (!userId) return Promise.resolve(null);
+
+      console.log(`🎵 Starting ${partnerName}'s ${type.toUpperCase()} audio generation (MiniMax)...`);
       const p = audioApi
-        .generateTTS(textToSpeak, {
+        .generateHookAudio({
+          text: textToSpeak,
+          userId,
+          type,
+          language: primaryLanguage,
+          personId: partnerId,
           exaggeration: AUDIO_CONFIG.exaggeration,
-          includeIntro: false,
-          timeoutMs: timeout,
         })
         .then(async (result) => {
-          if (!result.success) return null;
+          if (!result.success || !result.audioUrl) return null;
 
-          const immediateSource = result.audioUrl || null;
-          if (immediateSource) {
-            setPartnerAudio(type, immediateSource);
-            primeAudio(getPartnerAudioKey(type), immediateSource).catch(() => { });
+          setPartnerAudio(type, result.audioUrl);
+          primeAudio(getPartnerAudioKey(type), result.audioUrl).catch(() => { });
+          console.log(`✅ ${partnerName}'s ${type} audio ready (MiniMax)`);
+
+          // Backend already stored in Supabase — save storagePath for profile
+          if (partnerId && result.storagePath) {
+            const latest = useProfileStore.getState().getPerson(partnerId);
+            useProfileStore.getState().updatePerson(partnerId, {
+              hookAudioPaths: {
+                ...(latest?.hookAudioPaths || {}),
+                [type]: result.storagePath,
+              },
+            } as any);
           }
 
-          const userId = authUser?.id;
-          if (!isPrepayOnboarding && userId && partnerId && result.audioBase64) {
-            try {
-              const uploadResult = await uploadHookAudioBase64({
-                userId,
-                personId: partnerId,
-                type,
-                audioBase64: result.audioBase64,
-              });
-              if (uploadResult.success) {
-                setPartnerAudio(type, uploadResult.path);
-                const latest = useProfileStore.getState().getPerson(partnerId);
-                useProfileStore.getState().updatePerson(partnerId, {
-                  hookAudioPaths: {
-                    ...(latest?.hookAudioPaths || {}),
-                    [type]: uploadResult.path,
-                  },
-                } as any);
-                primeAudio(getPartnerAudioKey(type), uploadResult.path).catch(() => { });
-                console.log(`☁️ ${partnerName}'s ${type} synced to Supabase`);
-                return uploadResult.path;
-              }
-            } catch {
-              // Keep immediate URL fallback
-            }
-          }
-
-          if (immediateSource) return immediateSource;
-
-          // Last-resort playback fallback (not persisted): data URI from transient base64
-          if (result.audioBase64) {
-            return `data:audio/mpeg;base64,${result.audioBase64}`;
-          }
-          return null;
+          return result.audioUrl;
         })
         .catch(() => null)
         .finally(() => {
@@ -236,7 +217,7 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
       inFlightAudio.current[type] = p;
       return p;
     },
-    [authUser?.id, getPartnerAudioKey, isPrepayOnboarding, partnerAudio, partnerHookAudioPaths, partnerId, partnerName, primeAudio, setPartnerAudio]
+    [authUser?.id, getPartnerAudioKey, partnerAudio, partnerHookAudioPaths, partnerId, partnerName, primaryLanguage, primeAudio, setPartnerAudio]
   );
 
   // Hydrate missing partner hook audio by probing deterministic cloud storage paths.
@@ -254,7 +235,7 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
         const localAudio = partnerHookAudioPaths?.[type] || partnerAudio[type];
         if (localAudio) continue;
 
-        const storagePath = `hook-audio/${userId}/${partnerId}/${type}.mp3`;
+        const storagePath = `hook-audio/${userId}/${primaryLanguage}/${partnerId}/${type}.mp3`;
         const signed = await getHookAudioSignedUrl(storagePath, 60);
         if (!signed) continue;
 
@@ -306,6 +287,7 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
         personId: partnerId,
         type,
         audioBase64: base64,
+        language: primaryLanguage,
       });
       if (!uploadResult.success) return;
 
