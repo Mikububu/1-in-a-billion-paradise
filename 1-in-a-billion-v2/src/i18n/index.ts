@@ -31,12 +31,14 @@ import hi from './hi.json';
 import pt from './pt.json';
 import it from './it.json';
 import ru from './ru.json';
+import ar from './ar.json';
+import fil from './fil.json';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SUPPORTED LANGUAGES
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const SUPPORTED_LANGUAGES = ['en', 'de', 'es', 'fr', 'zh', 'ja', 'ko', 'hi', 'pt', 'it', 'ru'] as const;
+export const SUPPORTED_LANGUAGES = ['en', 'de', 'es', 'fr', 'zh', 'ja', 'ko', 'hi', 'pt', 'it', 'ru', 'ar', 'fil'] as const;
 export type LanguageCode = typeof SUPPORTED_LANGUAGES[number];
 
 export const LANGUAGE_META: Record<LanguageCode, {
@@ -55,6 +57,8 @@ export const LANGUAGE_META: Record<LanguageCode, {
   pt: { name: 'Portuguese', nativeName: 'Português', locale: 'pt-BR' },
   it: { name: 'Italian', nativeName: 'Italiano', locale: 'it-IT' },
   ru: { name: 'Russian', nativeName: 'Русский', locale: 'ru-RU' },
+  ar: { name: 'Arabic', nativeName: 'العربية', locale: 'ar-SA' },
+  fil: { name: 'Filipino', nativeName: 'Filipino', locale: 'fil-PH' },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -76,6 +80,8 @@ const translations: Translations = {
   pt: pt as TranslationDict,
   it: it as TranslationDict,
   ru: ru as TranslationDict,
+  ar: ar as TranslationDict,
+  fil: fil as TranslationDict,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

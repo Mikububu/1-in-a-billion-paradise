@@ -18,13 +18,15 @@
   "common.ok": "ОК",
   "common.yes": "Да",
   "common.no": "Нет",
-  "common.search": "Поиск",
+  "common.search": "Поиск...",
   "common.noResults": "Ничего не найдено",
   "common.success": "Успех",
   "common.unknown": "Неизвестно",
   "common.skipForNow": "Пропустить пока",
   "common.pause": "Пауза",
   "common.play": "Воспроизвести",
+  "common.optional": "Необязательно",
+  "common.removeSelection": "Удалить выбор",
   "languagePicker.title": "Язык",
   "auth.signIn": "Войти",
   "auth.signUp": "Регистрация",
@@ -993,5 +995,7 @@
   "hookSequence.notConfigured.message": "Вход через Apple требует настройки Supabase.\n\nИспользуйте режим разработчика для тестирования в симуляторе.",
   "hookSequence.notConfigured.devMode": "Режим разработчика",
   "hookSequence.nameRequired.title": "Требуется имя",
-  "hookSequence.nameRequired.message": "Пожалуйста, введите ваше имя"
+  "hookSequence.nameRequired.message": "Пожалуйста, введите ваше имя",
+  "citySearch.title": "Поиск города",
+  "citySearch.placeholder": "Введите название города..."
 }

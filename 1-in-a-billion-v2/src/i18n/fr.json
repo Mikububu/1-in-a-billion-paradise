@@ -18,13 +18,15 @@
   "common.ok": "OK",
   "common.yes": "Oui",
   "common.no": "Non",
-  "common.search": "Rechercher",
+  "common.search": "Rechercher...",
   "common.noResults": "Aucun résultat trouvé",
   "common.success": "Succès",
   "common.unknown": "Inconnu",
   "common.skipForNow": "Passer pour le moment",
   "common.pause": "Pause",
   "common.play": "Jouer",
+  "common.optional": "Facultatif",
+  "common.removeSelection": "Supprimer la s\u00e9lection",
   "languagePicker.title": "Langue",
   "auth.signIn": "Se connecter",
   "auth.signUp": "Créer un compte",
@@ -993,5 +995,7 @@
   "pricing.paymentNotVerified.title": "Paiement pas encore vérifié",
   "pricing.paymentNotVerified.message": "Ton abonnement n'est pas encore actif. Réessaie dans quelques secondes.",
   "pricing.paymentFailed.title": "Paiement échoué",
-  "myLibrary.reading.deletePrompt": "Veux-tu supprimer cette lecture ?"
+  "myLibrary.reading.deletePrompt": "Veux-tu supprimer cette lecture ?",
+  "citySearch.title": "Rechercher une ville",
+  "citySearch.placeholder": "Tape un nom de ville..."
 }

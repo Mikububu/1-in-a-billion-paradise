@@ -18,13 +18,15 @@
   "common.ok": "好的",
   "common.yes": "是的",
   "common.no": "否",
-  "common.search": "搜索",
+  "common.search": "搜索...",
   "common.noResults": "暂无结果",
   "common.success": "成功",
   "common.unknown": "未知",
   "common.skipForNow": "暂时跳过",
   "common.pause": "暂停",
   "common.play": "播放",
+  "common.optional": "可选",
+  "common.removeSelection": "移除选择",
   "languagePicker.title": "语言",
   "auth.signIn": "登录",
   "auth.signUp": "注册",
@@ -993,5 +995,7 @@
   "pricing.paymentNotVerified.title": "支付尚未验证",
   "pricing.paymentNotVerified.message": "你的订阅尚未激活。请在几秒后重试。",
   "pricing.paymentFailed.title": "支付失败",
-  "myLibrary.reading.deletePrompt": "确定要删除这个解读吗？"
+  "myLibrary.reading.deletePrompt": "确定要删除这个解读吗？",
+  "citySearch.title": "搜索城市",
+  "citySearch.placeholder": "输入城市名称..."
 }

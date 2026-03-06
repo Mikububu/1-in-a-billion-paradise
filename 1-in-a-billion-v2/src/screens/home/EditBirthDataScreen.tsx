@@ -1,14 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    Keyboard,
     KeyboardAvoidingView,
     Platform,
     Pressable,
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
     View,
     Alert,
@@ -20,7 +17,7 @@ import { MainStackParamList } from '@/navigation/RootNavigator';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { t } from '@/i18n';
 import type { CityOption } from '@/types/forms';
-import { searchCities } from '@/services/geonames';
+import { CitySearchSheet } from '@/components/CitySearchSheet';
 import { calculatePlacements } from '@/services/placementsCalculator';
 import { syncPeopleToSupabase } from '@/services/peopleCloud';
 import { useProfileStore } from '@/store/profileStore';
@@ -81,13 +78,10 @@ export const EditBirthDataScreen = ({ navigation, route }: Props) => {
 
     const [dateValue, setDateValue] = useState(() => toDisplayDate(person?.birthData?.birthDate));
     const [timeValue, setTimeValue] = useState(() => parseTime(person?.birthData?.birthTime));
-    const [cityQuery, setCityQuery] = useState(person?.birthData?.birthCity || '');
-    const [citySuggestions, setCitySuggestions] = useState<CityOption[]>([]);
     const [selectedCity, setSelectedCity] = useState<CityOption | null>(null);
-    const [showCitySuggestions, setShowCitySuggestions] = useState(false);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
-    const [isSearching, setIsSearching] = useState(false);
+    const [showCitySheet, setShowCitySheet] = useState(false);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
@@ -105,32 +99,8 @@ export const EditBirthDataScreen = ({ navigation, route }: Props) => {
         }
     }, [person?.birthData, person?.id]);
 
-    useEffect(() => {
-        if (!cityQuery || cityQuery.length < 2) {
-            setCitySuggestions([]);
-            return;
-        }
-        const timer = setTimeout(async () => {
-            setIsSearching(true);
-            try {
-                const results = await searchCities(cityQuery);
-                setCitySuggestions(results);
-            } catch {
-                // ignore
-            } finally {
-                setIsSearching(false);
-            }
-        }, 300);
-        return () => clearTimeout(timer);
-    }, [cityQuery]);
-
     const handleCitySelect = useCallback((city: CityOption) => {
-        Keyboard.dismiss();
         setSelectedCity(city);
-        const displayName = city.region ? `${city.name}, ${city.region}, ${city.country}` : `${city.name}, ${city.country}`;
-        setCityQuery(displayName);
-        setShowCitySuggestions(false);
-        setCitySuggestions([]);
     }, []);
 
     const canSave = useMemo(() => Boolean(dateValue && timeValue && selectedCity), [dateValue, timeValue, selectedCity]);
@@ -182,6 +152,12 @@ export const EditBirthDataScreen = ({ navigation, route }: Props) => {
             setSaving(false);
         }
     }, [canSave, dateValue, navigation, person, selectedCity, setBirthCity, setBirthDate, setBirthTime, timeValue, updatePerson, userId]);
+
+    const cityDisplayText = selectedCity
+        ? selectedCity.country
+            ? `${selectedCity.name}, ${selectedCity.country}`
+            : selectedCity.name
+        : undefined;
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -240,34 +216,21 @@ export const EditBirthDataScreen = ({ navigation, route }: Props) => {
                         </View>
                     )}
 
-                    <View style={styles.inputRow}>
+                    {/* City Input — opens bottom sheet */}
+                    <Pressable style={styles.inputRow} onPress={() => setShowCitySheet(true)}>
                         <Text style={styles.iconArt}>✶</Text>
-                        <TextInput
-                            style={styles.cityInput}
-                            value={cityQuery}
-                            onChangeText={(text) => {
-                                setCityQuery(text);
-                                setSelectedCity(null);
-                                setShowCitySuggestions(true);
-                            }}
-                            placeholder={t('editBirthData.cityPlaceholder')}
-                            placeholderTextColor={colors.mutedText}
-                            onFocus={() => setShowCitySuggestions(true)}
-                        />
-                        {isSearching && <ActivityIndicator size="small" color={colors.mutedText} />}
-                    </View>
-                    {showCitySuggestions && citySuggestions.length > 0 && (
-                        <View style={styles.suggestionsBox}>
-                            {citySuggestions.map((city) => (
-                                <TouchableOpacity key={city.id} style={styles.suggestionItem} onPress={() => handleCitySelect(city)} activeOpacity={0.7}>
-                                    <Text style={styles.suggestionText}>
-                                        {city.name}{city.region ? `, ${city.region}` : ''}
-                                    </Text>
-                                    <Text style={styles.suggestionCountry}>{city.country}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    )}
+                        <Text style={[styles.inputText, !selectedCity && styles.placeholder]} numberOfLines={1}>
+                            {cityDisplayText || t('editBirthData.cityPlaceholder')}
+                        </Text>
+                        <Text style={styles.chevron}>›</Text>
+                    </Pressable>
+
+                    <CitySearchSheet
+                        visible={showCitySheet}
+                        onClose={() => setShowCitySheet(false)}
+                        onSelect={handleCitySelect}
+                        selected={selectedCity}
+                    />
 
                     <View style={{ height: spacing.xl }} />
                     <Button label={saving ? t('editBirthData.saving') : t('editBirthData.save')} onPress={handleSave} disabled={!canSave || saving} />
@@ -313,18 +276,14 @@ const styles = StyleSheet.create({
     },
     iconArt: { fontSize: 24, marginRight: spacing.sm, color: colors.text, fontWeight: '300' },
     inputText: { flex: 1, fontFamily: typography.sansRegular, fontSize: 16, color: colors.text },
-    cityInput: { flex: 1, fontFamily: typography.sansRegular, fontSize: 16, color: colors.text, letterSpacing: 0 },
+    placeholder: { color: colors.mutedText },
+    chevron: {
+        fontSize: 22,
+        color: colors.mutedText,
+        fontFamily: typography.sansRegular,
+        marginLeft: spacing.xs,
+    },
     pickerWrapper: { backgroundColor: colors.background, borderRadius: radii.card, marginBottom: spacing.sm },
     pickerDone: { alignItems: 'center', paddingVertical: spacing.sm, borderTopWidth: 1, borderTopColor: colors.divider },
     pickerDoneText: { fontFamily: typography.sansSemiBold, fontSize: 16, color: colors.primary },
-    suggestionsBox: {
-        backgroundColor: colors.background,
-        borderWidth: 1,
-        borderColor: colors.divider,
-        borderRadius: radii.card,
-        marginBottom: spacing.sm,
-    },
-    suggestionItem: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.divider },
-    suggestionText: { fontFamily: typography.sansMedium, fontSize: 15, color: colors.text },
-    suggestionCountry: { fontFamily: typography.sansRegular, fontSize: 13, color: colors.mutedText },
 });

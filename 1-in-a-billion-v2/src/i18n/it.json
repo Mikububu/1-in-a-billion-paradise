@@ -18,13 +18,15 @@
   "common.ok": "OK",
   "common.yes": "Sì",
   "common.no": "No",
-  "common.search": "Cerca",
+  "common.search": "Cerca...",
   "common.noResults": "Nessun risultato trovato",
   "common.success": "Successo",
   "common.unknown": "Sconosciuto",
   "common.skipForNow": "Salta per ora",
   "common.pause": "Pausa",
   "common.play": "Riproduci",
+  "common.optional": "Facoltativo",
+  "common.removeSelection": "Rimuovi selezione",
   "languagePicker.title": "Lingua",
   "auth.signIn": "Accedi",
   "auth.signUp": "Registrati",
@@ -993,5 +995,7 @@
   "hookSequence.notConfigured.message": "L'accesso con Apple richiede la configurazione di Supabase.\n\nUsa la Modalità Sviluppatore per i test sul simulatore.",
   "hookSequence.notConfigured.devMode": "Usa Modalità Sviluppatore",
   "hookSequence.nameRequired.title": "Nome Richiesto",
-  "hookSequence.nameRequired.message": "Per favore, inserisci il tuo nome"
+  "hookSequence.nameRequired.message": "Per favore, inserisci il tuo nome",
+  "citySearch.title": "Cerca citt\u00e0",
+  "citySearch.placeholder": "Digita il nome di una citt\u00e0..."
 }

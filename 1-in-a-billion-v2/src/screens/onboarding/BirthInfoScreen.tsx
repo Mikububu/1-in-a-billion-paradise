@@ -1,15 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import {
-    ActivityIndicator,
     Pressable,
     StyleSheet,
     Text,
-    TextInput,
     View,
     ScrollView,
     KeyboardAvoidingView,
     Platform,
-    Keyboard,
     TouchableOpacity,
     Animated,
     Image,
@@ -19,8 +16,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/Button';
 import { BackButton } from '@/components/BackButton';
+import { CitySearchSheet } from '@/components/CitySearchSheet';
 import { useOnboardingStore } from '@/store/onboardingStore';
-import { searchCities } from '@/services/geonames';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { CityOption } from '@/types/forms';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -78,13 +75,10 @@ export const BirthInfoScreen = () => {
 
     const [dateValue, setDateValue] = useState(() => toDisplayDate(storedDate));
     const [timeValue, setTimeValue] = useState(() => parseTime(storedTime));
-    const [cityQuery, setCityQuery] = useState('');
-    const [citySuggestions, setCitySuggestions] = useState<CityOption[]>([]);
     const [selectedCity, setSelectedCity] = useState<CityOption | undefined>(storedCity);
-    const [showCitySuggestions, setShowCitySuggestions] = useState(false);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
-    const [isSearching, setIsSearching] = useState(false);
+    const [showCitySheet, setShowCitySheet] = useState(false);
     const { isPlaying } = useMusicStore();
 
     // Keep ambient music playing
@@ -120,39 +114,9 @@ export const BirthInfoScreen = () => {
         return () => clearInterval(interval);
     }, [fadeAnim]);
 
-    // Debounced city search
-    useEffect(() => {
-        if (!cityQuery || cityQuery.length < 2) {
-            setCitySuggestions([]);
-            return;
-        }
-
-        const timer = setTimeout(async () => {
-            setIsSearching(true);
-            try {
-                const results = await searchCities(cityQuery);
-                setCitySuggestions(results);
-            } catch (error) {
-                console.warn('City search error:', error);
-            } finally {
-                setIsSearching(false);
-            }
-        }, 300);
-
-        return () => clearTimeout(timer);
-    }, [cityQuery]);
-
     const handleCitySelect = useCallback((city: CityOption) => {
-        Keyboard.dismiss();
         setSelectedCity(city);
-        const displayName = city.region
-            ? `${city.name}, ${city.region}, ${city.country}`
-            : `${city.name}, ${city.country}`;
-        setCityQuery(displayName);
-        setShowCitySuggestions(false);
-        setCitySuggestions([]);
 
-        // DEBUG: Log city data to verify timezone is present
         if (__DEV__) {
             console.log('🏙️ City selected:', {
                 name: city.name,
@@ -176,16 +140,16 @@ export const BirthInfoScreen = () => {
     }, [dateValue, timeValue, selectedCity]);
 
     const handleContinue = () => {
-        Keyboard.dismiss();
-        setShowCitySuggestions(false);
         if (!canContinue) return;
         setBirthDate(toIsoDate(dateValue));
         setBirthTime(toTimeString(timeValue));
         if (selectedCity) setBirthCity(selectedCity);
-        // Flow: BirthInfo → Languages
-        // Note: 'Languages' route will be implemented next
         navigation.navigate('Languages');
     };
+
+    const cityDisplayText = selectedCity
+        ? `${selectedCity.name}, ${selectedCity.country}`
+        : undefined;
 
     return (
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -269,43 +233,24 @@ export const BirthInfoScreen = () => {
                         </View>
                     )}
 
-                    {/* City Input */}
-                    <View style={styles.inputRow}>
+                    {/* City Input — opens bottom sheet */}
+                    <Pressable
+                        style={styles.inputRow}
+                        onPress={() => setShowCitySheet(true)}
+                    >
                         <Text style={styles.iconArt}>✶</Text>
-                        <TextInput
-                            style={styles.cityInput}
-                            value={cityQuery || (selectedCity ? `${selectedCity.name}, ${selectedCity.country}` : '')}
-                            onChangeText={(text) => {
-                                setCityQuery(text);
-                                setSelectedCity(undefined);
-                                setShowCitySuggestions(true);
-                            }}
-                            placeholder={t('birthInfo.cityPlaceholder')}
-                            placeholderTextColor={colors.mutedText}
-                            onFocus={() => setShowCitySuggestions(true)}
-                        />
-                        {isSearching && <ActivityIndicator size="small" color={colors.mutedText} />}
-                    </View>
+                        <Text style={[styles.inputText, !selectedCity && styles.placeholder]} numberOfLines={1}>
+                            {cityDisplayText || t('birthInfo.cityPlaceholder')}
+                        </Text>
+                        <Text style={styles.chevron}>›</Text>
+                    </Pressable>
 
-                    {/* City Suggestions */}
-                    {showCitySuggestions && citySuggestions.length > 0 && (
-                        <View style={styles.suggestionsBox}>
-                            {citySuggestions.map((city) => (
-                                <TouchableOpacity
-                                    key={city.id}
-                                    style={styles.suggestionItem}
-                                    onPress={() => handleCitySelect(city)}
-                                    activeOpacity={0.7}
-                                >
-                                    <Text style={styles.suggestionText} selectable>
-                                        {city.name}
-                                        {city.region ? `, ${city.region}` : ''}
-                                    </Text>
-                                    <Text style={styles.suggestionCountry} selectable>{city.country}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    )}
+                    <CitySearchSheet
+                        visible={showCitySheet}
+                        onClose={() => setShowCitySheet(false)}
+                        onSelect={handleCitySelect}
+                        selected={selectedCity}
+                    />
 
                     <Text style={styles.helper} selectable>
                         {t('birthInfo.helper')}
@@ -382,12 +327,11 @@ const styles = StyleSheet.create({
     placeholder: {
         color: colors.mutedText,
     },
-    cityInput: {
+    chevron: {
+        fontSize: 22,
+        color: colors.mutedText,
         fontFamily: typography.sansRegular,
-        fontSize: 16,
-        color: colors.text,
-        flex: 1,
-        letterSpacing: 0,
+        marginLeft: spacing.xs,
     },
     pickerWrapper: {
         borderRadius: radii.card,
@@ -406,33 +350,6 @@ const styles = StyleSheet.create({
         fontFamily: typography.sansSemiBold,
         fontSize: 16,
         color: '#FFFFFF',
-    },
-    suggestionsBox: {
-        borderWidth: 1,
-        borderColor: colors.divider,
-        borderRadius: radii.card,
-        backgroundColor: colors.surface,
-        marginBottom: spacing.sm,
-        maxHeight: 250,
-    },
-    suggestionItem: {
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.sm + 4,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.divider,
-        minHeight: 50,
-        justifyContent: 'center',
-    },
-    suggestionText: {
-        fontFamily: typography.sansMedium,
-        fontSize: 15,
-        color: colors.text,
-    },
-    suggestionCountry: {
-        fontFamily: typography.sansRegular,
-        fontSize: 13,
-        color: colors.mutedText,
-        marginTop: 2,
     },
     helper: {
         fontFamily: typography.sansBold,
@@ -458,12 +375,5 @@ const styles = StyleSheet.create({
     bottomImage: {
         width: '100%',
         height: 300,
-    },
-    overlayImage: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 0,
     },
 });

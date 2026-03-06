@@ -18,13 +18,15 @@
   "common.ok": "OK",
   "common.yes": "はい",
   "common.no": "いいえ",
-  "common.search": "検索",
+  "common.search": "検索...",
   "common.noResults": "該当なし",
   "common.success": "成功",
   "common.unknown": "不明",
   "common.skipForNow": "今はスキップ",
   "common.pause": "一時停止",
   "common.play": "再生",
+  "common.optional": "任意",
+  "common.removeSelection": "選択を解除",
   "languagePicker.title": "言語",
   "auth.signIn": "サインイン",
   "auth.signUp": "サインアップ",
@@ -993,5 +995,7 @@
   "hookSequence.notConfigured.message": "Apple Sign-InにはSupabaseの設定が必要です。\n\nシミュレーターテストにはDevモードを使用してください。",
   "hookSequence.notConfigured.devMode": "Devモードを使用",
   "hookSequence.nameRequired.title": "名前が必要",
-  "hookSequence.nameRequired.message": "お名前を入力してください"
+  "hookSequence.nameRequired.message": "お名前を入力してください",
+  "citySearch.title": "都市を検索",
+  "citySearch.placeholder": "都市名を入力..."
 }

@@ -18,13 +18,15 @@
   "common.ok": "ठीक है",
   "common.yes": "हाँ",
   "common.no": "नहीं",
-  "common.search": "खोजें",
+  "common.search": "खोजें...",
   "common.noResults": "कुछ नहीं मिला",
   "common.success": "सफलता",
   "common.unknown": "अज्ञात",
   "common.skipForNow": "फिलहाल छोड़ें",
   "common.pause": "रुकें",
   "common.play": "चलाएं",
+  "common.optional": "वैकल्पिक",
+  "common.removeSelection": "चयन हटाएं",
   "languagePicker.title": "भाषा",
   "auth.signIn": "प्रवेश करें",
   "auth.signUp": "खाता बनाएं",
@@ -993,5 +995,7 @@
   "hookSequence.notConfigured.message": "एप्पल साइन-इन के लिए सुपाबेस कॉन्फ़िगरेशन आवश्यक है।\n\nसिम्युलेटर परीक्षण हेतु डेव मोड का प्रयोग करें।",
   "hookSequence.notConfigured.devMode": "डेव मोड प्रयोग करें",
   "hookSequence.nameRequired.title": "नाम आवश्यक",
-  "hookSequence.nameRequired.message": "कृपया अपना नाम दर्ज करें"
+  "hookSequence.nameRequired.message": "कृपया अपना नाम दर्ज करें",
+  "citySearch.title": "शहर खोजें",
+  "citySearch.placeholder": "शहर का नाम लिखें..."
 }

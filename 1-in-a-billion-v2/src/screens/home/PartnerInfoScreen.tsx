@@ -1,11 +1,11 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Keyboard, ScrollView, Alert, Image, Dimensions, Platform, KeyboardAvoidingView } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, Keyboard, ScrollView, Alert, Image, Dimensions, Platform, KeyboardAvoidingView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Button } from '@/components/Button';
 import { TexturedBackground } from '@/components/TexturedBackground';
-import { searchCities } from '@/services/geonames';
+import { CitySearchSheet } from '@/components/CitySearchSheet';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { CityOption } from '@/types/forms';
@@ -55,6 +55,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
   const [birthTime, setBirthTime] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showCitySheet, setShowCitySheet] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Get people from store to check for duplicates
@@ -96,95 +97,34 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
     }
   }, [isPrepayOnboarding, existingFreePartner, navigation]);
 
-  // City search state
-  const [cityQuery, setCityQuery] = useState('');
-  const [citySuggestions, setCitySuggestions] = useState<CityOption[]>([]);
+  // City selection state (explicit selection via CitySearchSheet)
   const [selectedCity, setSelectedCity] = useState<CityOption | null>(null);
-  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
-
-  // Debounced city search
-  useEffect(() => {
-    if (!cityQuery || cityQuery.length < 2) {
-      setCitySuggestions([]);
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      try {
-        const results = await searchCities(cityQuery);
-        setCitySuggestions(results);
-      } catch (error) {
-        console.log('City search error:', error);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [cityQuery]);
 
   const handleCitySelect = useCallback((city: CityOption) => {
-    Keyboard.dismiss();
     setSelectedCity(city);
-    setCityQuery(`${city.name}, ${city.country}`);
-    setShowCitySuggestions(false);
   }, []);
 
-  // Require explicit city selection + birth time (compatibility requires Rising sign; no birth time = no entry)
-  // Allow button if city is selected OR if user has typed a city (will validate/auto-select on submit)
+  // Require explicit city selection + birth time
   const canContinue = useMemo(
     () =>
       Boolean(
         name.trim() &&
           birthDate &&
           birthTime &&
-          (selectedCity !== null || cityQuery.trim().length >= 2)
+          selectedCity !== null
       ),
-    [name, birthDate, birthTime, selectedCity, cityQuery]
+    [name, birthDate, birthTime, selectedCity]
   );
 
   const upsertPersonFromForm = async (): Promise<{ personId?: string; cityToUse?: CityOption }> => {
-    if (!canContinue) return {};
-
-    // NOTE: Removed "Already Created" check - onboarding logic makes it impossible
-    // for a user to reach this screen twice during pre-pay onboarding
+    if (!canContinue || !selectedCity) return {};
 
     if (!birthTime) {
       Alert.alert(t('partnerInfo.birthTimeRequired'), t('partnerInfo.birthTimeRequiredMessage'));
       return {};
     }
 
-    // Resolve city from explicit selection first, then from latest suggestions.
-    // If debounce hasn't finished yet, force one immediate search on submit.
-    const normalizedCityQuery = cityQuery.trim();
-    let cityToUse = selectedCity;
-    let candidateSuggestions = citySuggestions;
-
-    if (!cityToUse && normalizedCityQuery.length >= 2 && candidateSuggestions.length === 0) {
-      try {
-        candidateSuggestions = await searchCities(normalizedCityQuery);
-        if (candidateSuggestions.length > 0) {
-          setCitySuggestions(candidateSuggestions);
-        }
-      } catch (error) {
-        console.log('City submit-time search error:', error);
-      }
-    }
-
-    if (!cityToUse && candidateSuggestions.length > 0) {
-      const queryBase = normalizedCityQuery.toLowerCase().split(',')[0]?.trim() || '';
-      const exactMatch = candidateSuggestions.find(c =>
-        normalizedCityQuery.toLowerCase().includes(c.name.toLowerCase()) ||
-        c.name.toLowerCase().includes(queryBase)
-      );
-      cityToUse = exactMatch || candidateSuggestions[0];
-    }
-
-    if (!cityToUse) {
-      Alert.alert(
-        t('partnerInfo.cityRequired'),
-        t('partnerInfo.cityRequiredMessage')
-      );
-      return {};
-    }
+    const cityToUse = selectedCity;
 
     // Check for existing person with same name (case-insensitive)
     const normalizedName = name.trim().toLowerCase();
@@ -200,7 +140,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
 
       const newBirthDate = birthDate ? toIsoDateLocal(birthDate) : null;
       const newBirthTime = birthTime ? `${birthTime.getHours().toString().padStart(2, '0')}:${birthTime.getMinutes().toString().padStart(2, '0')}` : null;
-      const newCityName = typeof cityToUse === 'object' ? cityToUse.name : cityToUse;
+      const newCityName = cityToUse.name;
 
       // If birth data matches (or is very similar), it's the same person - navigate to their readings
       const birthDateMatches = !existingBirthDate || !newBirthDate || existingBirthDate === newBirthDate;
@@ -329,8 +269,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
   };
 
   const handleContinue = async () => {
-    Keyboard.dismiss(); // Dismiss keyboard first so button works on first press
-    setShowCitySuggestions(false);
+    Keyboard.dismiss();
     if (isSubmitting) return; // Prevent double-clicks
     setIsSubmitting(true);
     try {
@@ -350,6 +289,9 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
     return `${time.getHours().toString().padStart(2, '0')}:${time.getMinutes().toString().padStart(2, '0')}`;
   };
 
+  const cityDisplayText = selectedCity
+    ? `${selectedCity.name}, ${selectedCity.country}`
+    : undefined;
 
   return (
     <TexturedBackground style={{ flex: 1 }}>
@@ -448,43 +390,21 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
                 </View>
               )}
 
-              {/* City Input */}
-              <View style={styles.inputRow}>
+              {/* City Input — opens bottom sheet */}
+              <Pressable style={styles.inputRow} onPress={() => setShowCitySheet(true)}>
                 <Text style={styles.iconArt}>✶</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder={t('partnerInfo.cityPlaceholder')}
-                  placeholderTextColor={colors.mutedText}
-                  value={cityQuery}
-                  onChangeText={(text) => {
-                    setCityQuery(text);
-                    setSelectedCity(null);
-                    setShowCitySuggestions(true);
-                  }}
-                  onFocus={() => setShowCitySuggestions(true)}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
+                <Text style={[styles.inputText, !selectedCity && styles.placeholder]} numberOfLines={1}>
+                  {cityDisplayText || t('partnerInfo.cityPlaceholder')}
+                </Text>
+                <Text style={styles.chevron}>›</Text>
+              </Pressable>
 
-              {/* City Suggestions */}
-              {showCitySuggestions && citySuggestions.length > 0 && (
-                <View style={styles.suggestionsBox}>
-                  {citySuggestions.map((city) => (
-                    <TouchableOpacity
-                      key={city.id}
-                      style={styles.suggestionItem}
-                      onPress={() => handleCitySelect(city)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.suggestionText}>
-                        {city.name}{city.region ? `, ${city.region}` : ''}
-                      </Text>
-                      <Text style={styles.suggestionCountry}>{city.country}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
+              <CitySearchSheet
+                visible={showCitySheet}
+                onClose={() => setShowCitySheet(false)}
+                onSelect={handleCitySelect}
+                selected={selectedCity}
+              />
 
             </View>
 
@@ -519,15 +439,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'transparent', // Let TexturedBackground show through
-  },
-  screenId: {
-    position: 'absolute',
-    top: 55,
-    left: 20,
-    fontFamily: typography.sansRegular,
-    fontSize: 12,
-    color: colors.text,
-    zIndex: 100,
   },
   header: {
     flexDirection: 'row',
@@ -576,10 +487,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md, // Reduced vertical padding
     marginBottom: spacing.sm, // Reduced margin between inputs
   },
-  icon: {
-    fontSize: 20,
-    marginRight: spacing.sm,
-  },
   iconArt: {
     fontSize: 28,
     marginRight: spacing.sm,
@@ -601,6 +508,12 @@ const styles = StyleSheet.create({
   placeholder: {
     color: colors.mutedText,
   },
+  chevron: {
+    fontSize: 22,
+    color: colors.mutedText,
+    fontFamily: typography.sansRegular,
+    marginLeft: spacing.xs,
+  },
   pickerContainer: {
     backgroundColor: colors.background,
     borderRadius: radii.card,
@@ -616,35 +529,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.sansSemiBold,
     fontSize: 16,
     color: colors.primary,
-  },
-  suggestionsBox: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.divider,
-    borderRadius: radii.card,
-    marginBottom: spacing.sm,
-  },
-  suggestionItem: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
-  },
-  suggestionText: {
-    fontFamily: typography.sansMedium,
-    fontSize: 15,
-    color: colors.text,
-  },
-  suggestionCountry: {
-    fontFamily: typography.sansRegular,
-    fontSize: 13,
-    color: colors.mutedText,
-  },
-  helperText: {
-    fontFamily: typography.sansRegular,
-    fontSize: 14,
-    color: colors.mutedText,
-    marginTop: spacing.lg,
   },
   footer: {
     paddingHorizontal: spacing.page,

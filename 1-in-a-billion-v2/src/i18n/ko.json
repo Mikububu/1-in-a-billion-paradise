@@ -18,13 +18,15 @@
   "common.ok": "확인",
   "common.yes": "예",
   "common.no": "아니오",
-  "common.search": "검색",
+  "common.search": "검색...",
   "common.noResults": "결과가 없습니다",
   "common.success": "성공",
   "common.unknown": "미지의",
   "common.skipForNow": "지금은 건너뛰기",
   "common.pause": "일시 정지",
   "common.play": "재생",
+  "common.optional": "선택 사항",
+  "common.removeSelection": "선택 해제",
   "languagePicker.title": "언어",
   "auth.signIn": "로그인",
   "auth.signUp": "회원가입",
@@ -993,5 +995,7 @@
   "hookSequence.notConfigured.message": "Apple 로그인을 위해서는 Supabase 설정이 필요합니다.\n\n시뮬레이터 테스트 시에는 개발자 모드를 이용하세요.",
   "hookSequence.notConfigured.devMode": "개발자 모드 사용",
   "hookSequence.nameRequired.title": "이름이 필요합니다",
-  "hookSequence.nameRequired.message": "당신의 이름을 알려주세요"
+  "hookSequence.nameRequired.message": "당신의 이름을 알려주세요",
+  "citySearch.title": "도시 검색",
+  "citySearch.placeholder": "도시 이름을 입력하세요..."
 }

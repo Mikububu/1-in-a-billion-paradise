@@ -1,7 +1,17 @@
-import { useMemo, useState } from 'react';
-import { Keyboard, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+/**
+ * AUTOCOMPLETE INPUT
+ *
+ * Renders a styled Pressable row that opens a BottomSheetPicker modal.
+ * Same external props API as before — no changes needed in consuming screens.
+ *
+ * For optional fields: X button to clear selection.
+ */
+
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { t } from '@/i18n';
+import { BottomSheetPicker, type PickerOption } from './BottomSheetPicker';
 
 export type AutocompleteOption<T> = {
     id: string;
@@ -29,114 +39,66 @@ export const AutocompleteInput = <T,>({
     helperText,
     optional,
 }: AutocompleteInputProps<T>) => {
-    const [query, setQuery] = useState('');
     const [isOpen, setIsOpen] = useState(false);
 
-    const filtered = useMemo(() => {
-        if (!options || !Array.isArray(options)) return [];
-        if (!query) {
-            return options;
-        }
-        const normalized = query.toLowerCase();
-        return options.filter(
-            (option) =>
-                option.primary.toLowerCase().includes(normalized) ||
-                option.secondary?.toLowerCase().includes(normalized)
-        );
-    }, [options, query]);
-
-    const handleSelect = (option: AutocompleteOption<T>) => {
-        Keyboard.dismiss();
-        onSelect(option.value);
-        setQuery(option.primary);
-        setIsOpen(false);
-    };
+    // Find the selected option's id for the checkmark
+    const selectedId = selectedLabel
+        ? options.find((o) => o.primary === selectedLabel)?.id
+        : undefined;
 
     const handleClear = () => {
-        Keyboard.dismiss();
         onSelect(undefined);
-        setQuery('');
-        setIsOpen(false);
     };
 
     return (
         <View style={styles.wrapper}>
             <View style={styles.labelRow}>
                 <Text style={styles.label}>{label}</Text>
-                {optional ? <Text style={styles.optional}>Optional</Text> : null}
+                {optional ? <Text style={styles.optional}>{t('common.optional')}</Text> : null}
             </View>
-            <View style={styles.inputWrapper}>
-                <TextInput
-                    value={isOpen ? query : (query || selectedLabel || '')}
-                    onChangeText={(text) => {
-                        setQuery(text);
-                        setIsOpen(true);
-                    }}
-                    placeholder={placeholder}
-                    placeholderTextColor={colors.mutedText}
-                    style={styles.input}
-                    onFocus={() => {
-                        setQuery('');
-                        setIsOpen(true);
-                    }}
-                />
-                {/* Clear button - show when optional and has value */}
-                {optional && selectedLabel && !isOpen ? (
+
+            <Pressable
+                style={styles.inputRow}
+                onPress={() => setIsOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel={label}
+            >
+                <Text
+                    style={[styles.inputText, !selectedLabel && styles.placeholder]}
+                    numberOfLines={1}
+                >
+                    {selectedLabel || placeholder || t('common.search')}
+                </Text>
+
+                {/* Clear button for optional fields with a selection */}
+                {optional && selectedLabel ? (
                     <TouchableOpacity
                         style={styles.clearButton}
-                        onPress={handleClear}
+                        onPress={(e) => {
+                            e.stopPropagation();
+                            handleClear();
+                        }}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
-                        <Text style={styles.clearText}>X</Text>
+                        <Text style={styles.clearText}>✕</Text>
                     </TouchableOpacity>
-                ) : null}
-            </View>
+                ) : (
+                    <Text style={styles.chevron}>›</Text>
+                )}
+            </Pressable>
+
             {helperText ? <Text style={styles.helper}>{helperText}</Text> : null}
-            {isOpen && filtered.length > 0 ? (
-                <View style={styles.suggestionBox}>
-                    {/* Clear option for optional fields */}
-                    {optional && selectedLabel ? (
-                        <TouchableOpacity
-                            style={[styles.option, styles.optionBorder]}
-                            onPress={handleClear}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.clearOptionText}>Remove selection</Text>
-                        </TouchableOpacity>
-                    ) : null}
-                    {/* Dismiss option */}
-                    <TouchableOpacity
-                        style={[styles.option, styles.optionBorder]}
-                        onPress={() => {
-                            Keyboard.dismiss();
-                            setIsOpen(false);
-                        }}
-                        activeOpacity={0.7}
-                    >
-                        <Text style={styles.dismissText}>{t('common.close')}</Text>
-                    </TouchableOpacity>
-                    <ScrollView
-                        style={styles.suggestionScroll}
-                        keyboardShouldPersistTaps="handled"
-                        nestedScrollEnabled
-                    >
-                        {filtered.map((item, index) => (
-                            <TouchableOpacity
-                                key={item.id}
-                                style={[
-                                    styles.option,
-                                    index < filtered.length - 1 && styles.optionBorder
-                                ]}
-                                onPress={() => handleSelect(item)}
-                                activeOpacity={0.7}
-                            >
-                                <Text style={styles.optionPrimary}>{item.primary}</Text>
-                                {item.secondary ? <Text style={styles.optionSecondary}>{item.secondary}</Text> : null}
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-                </View>
-            ) : null}
+
+            <BottomSheetPicker
+                visible={isOpen}
+                onClose={() => setIsOpen(false)}
+                title={label}
+                options={options}
+                onSelect={onSelect}
+                selectedId={selectedId}
+                optional={optional}
+                searchPlaceholder={placeholder}
+            />
         </View>
     );
 };
@@ -160,80 +122,44 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: colors.mutedText,
     },
-    inputWrapper: {
-        position: 'relative',
-    },
-    input: {
+    inputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
         borderWidth: 1,
         borderColor: colors.inputStroke,
         borderRadius: radii.input,
         paddingHorizontal: spacing.lg,
         paddingVertical: spacing.sm,
-        paddingRight: 44,
         backgroundColor: colors.inputBg,
+        minHeight: 48,
+    },
+    inputText: {
+        flex: 1,
         fontFamily: typography.sansRegular,
         fontSize: 16,
         color: colors.text,
     },
+    placeholder: {
+        color: colors.mutedText,
+    },
     clearButton: {
-        position: 'absolute',
-        right: spacing.sm,
-        top: 0,
-        bottom: 0,
-        justifyContent: 'center',
         paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
     },
     clearText: {
         fontSize: 16,
         color: colors.mutedText,
+        fontFamily: typography.sansRegular,
+    },
+    chevron: {
+        fontSize: 22,
+        color: colors.mutedText,
+        fontFamily: typography.sansRegular,
+        marginLeft: spacing.xs,
     },
     helper: {
         fontFamily: typography.sansRegular,
         fontSize: 13,
         color: colors.mutedText,
-    },
-    suggestionBox: {
-        borderWidth: 1,
-        borderColor: colors.cardStroke,
-        borderRadius: radii.card,
-        backgroundColor: colors.surface,
-        marginTop: spacing.xs,
-        maxHeight: 250,
-    },
-    suggestionScroll: {
-        flexGrow: 0,
-    },
-    option: {
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.sm + 2,
-        minHeight: 44,
-        justifyContent: 'center',
-    },
-    optionBorder: {
-        borderBottomWidth: 1,
-        borderBottomColor: colors.cardStroke,
-    },
-    optionPrimary: {
-        fontFamily: typography.sansMedium,
-        fontSize: 15,
-        color: colors.text,
-    },
-    optionSecondary: {
-        fontFamily: typography.sansRegular,
-        fontSize: 13,
-        color: colors.mutedText,
-        marginTop: 2,
-    },
-    dismissText: {
-        fontFamily: typography.sansMedium,
-        fontSize: 14,
-        color: colors.mutedText,
-        textAlign: 'center',
-    },
-    clearOptionText: {
-        fontFamily: typography.sansMedium,
-        fontSize: 14,
-        color: colors.primary,
-        textAlign: 'center',
     },
 });
