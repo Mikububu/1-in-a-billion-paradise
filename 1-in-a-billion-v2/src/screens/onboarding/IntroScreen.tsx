@@ -52,8 +52,8 @@ export const IntroScreen = ({ navigation }: Props) => {
   const [displayLangIndex, setDisplayLangIndex] = useState(0);
   const langFadeAnim = useRef(new Animated.Value(1)).current;
   const langBorderAnim = useRef(new Animated.Value(0)).current;
-  // Only show languages that are actually ready — add more here when translations are complete
-  const LANG_NAMES = ['English'];
+  // Automatically pull native names for all supported languages from the i18n config
+  const LANG_NAMES = Object.values(LANGUAGE_META).map(meta => meta.nativeName);
 
   useEffect(() => {
     return onLanguageChange(setCurrentLanguage);
