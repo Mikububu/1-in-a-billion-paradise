@@ -306,6 +306,10 @@ Be psychologically precise. Literary voice like David Attenborough narrating a h
 NO em dashes (-). NO generic platitudes. NO AI phrases like "here's the thing" or "let me show you".
 Each section should flow naturally without numbered headers.
 
+⚠️ NUMBER AND DATE RULES:
+- Write ALL numbers as DIGITS: "0 degrees" not "zero", "1st" not "first"
+- EXCEPTION FOR YEARS: Spell out birth years/dates in WORDS according to the natural spoken language (e.g., "nineteen ninety-three" instead of "1993") so TTS engines pronounce them correctly.
+
 **WORD COUNT REQUIREMENT: 3000 WORDS MINIMUM. COUNT THEM.**
 
 Start directly with the reading content, opening with ${subjectName}'s name.
@@ -394,6 +398,10 @@ Write a comprehensive 800-1200 word synastry reading that includes:
 3. BETRAYAL & TRUST WOUNDS (200 words): How they could hurt each other deeply
 4. DARK EROS (200 words): Sexual undercurrents, forbidden desires, power in bed
 5. THE VERDICT (200 words): Under what CONDITIONS could this work? What must change?
+
+⚠️ NUMBER AND DATE RULES:
+- Write ALL numbers as DIGITS: "0 degrees" not "zero", "1st" not "first"
+- EXCEPTION FOR YEARS: Spell out birth years/dates in WORDS according to the natural spoken language (e.g., "nineteen ninety-three" instead of "1993") so TTS engines pronounce them correctly.
 
 Output as JSON:
 {
