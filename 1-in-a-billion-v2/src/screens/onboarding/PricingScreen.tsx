@@ -20,6 +20,7 @@ import { TIER_MONTHLY_READINGS } from '@/config/readingConfig';
 import { useAuthStore } from '@/store/authStore';
 import { useMusicStore } from '@/store/musicStore';
 import { AmbientMusic } from '@/services/ambientMusic';
+import { PricingMusic } from '@/services/pricingMusic'; // NEW
 import { env } from '@/config/env';
 import { t } from '@/i18n';
 import {
@@ -40,6 +41,7 @@ import {
   verifyEntitlementWithBackend,
 } from '@/services/payments';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
+import { BackButton } from '@/components/BackButton';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Pricing'>;
 
@@ -114,25 +116,39 @@ export const PricingScreen = ({ navigation }: Props) => {
   const isMusicLoaded = useMusicStore((s) => s.isMusicLoaded);
   const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /* ── Music: restart song, fade in after 7s, fade out on leave ── */
+  /* ── Music: fade out ambient, load & play pricing music ── */
   useFocusEffect(
     useCallback(() => {
+      let isActive = true;
+
+      // 1. Fade out the main ambient track so it's not layered
       if (isMusicLoaded) {
-        // Restart song from beginning at volume 0 (silent)
-        AmbientMusic.restart(0);
-        // After 7 seconds, fade in over 2 seconds
-        fadeTimerRef.current = setTimeout(() => {
-          AmbientMusic.fadeIn(2000);
-        }, 7000);
+        AmbientMusic.fadeOut(2000);
       }
 
+      // 2. Load and start the special pricing track
+      (async () => {
+        await PricingMusic.load();
+        if (!isActive) return;
+
+        PricingMusic.restart(0);
+        // After 2 seconds, fade in over 2 seconds
+        fadeTimerRef.current = setTimeout(() => {
+          if (isActive) PricingMusic.fadeIn(2000);
+        }, 2000);
+      })();
+
       return () => {
-        // Leaving screen: cancel pending fade-in and fade out
+        isActive = false;
+        // Leaving screen: cancel pending fade-in and fade out the pricing music
         if (fadeTimerRef.current) {
           clearTimeout(fadeTimerRef.current);
           fadeTimerRef.current = null;
         }
-        AmbientMusic.fadeOut(2000);
+        PricingMusic.fadeOut(2000);
+
+        // NOTE: We don't automatically resume AmbientMusic here. 
+        // Whichever screen we return to (like Intro) will handle resuming AmbientMusic via its own useFocusEffect.
       };
     }, [isMusicLoaded])
   );
@@ -200,6 +216,17 @@ export const PricingScreen = ({ navigation }: Props) => {
   const handleCouponValidate = useCallback(async () => {
     const code = couponCode.trim();
     if (!code) return;
+
+    // Hidden ILOVEYOU bypass
+    if (code === 'ILOVEYOU') {
+      setCouponStatus('valid');
+      setCouponMessage('ILOVEYOU bypass activated!');
+      setTimeout(() => {
+        navigation.navigate('Account', { fromPayment: true });
+      }, 1000);
+      return;
+    }
+
     setCouponStatus('validating');
     setCouponMessage('');
     const result = await validateCouponCode(code);
@@ -210,7 +237,7 @@ export const PricingScreen = ({ navigation }: Props) => {
       setCouponStatus('invalid');
       setCouponMessage(result.message || result.error || 'Invalid code');
     }
-  }, [couponCode]);
+  }, [couponCode, navigation]);
 
   /* ── Restore purchases handler ── */
   const [isRestoring, setIsRestoring] = useState(false);
@@ -384,6 +411,7 @@ export const PricingScreen = ({ navigation }: Props) => {
   /* ── Render ─────────────────────────────────────────────────────── */
   return (
     <SafeAreaView style={styles.safe}>
+      <BackButton onPress={() => navigation.goBack()} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -551,7 +579,7 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingHorizontal: spacing.page,
-    paddingTop: spacing.lg,
+    paddingTop: 80,
     justifyContent: 'center',
   },
   heading: {

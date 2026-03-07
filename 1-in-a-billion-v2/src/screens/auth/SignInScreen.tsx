@@ -567,7 +567,7 @@ export const SignInScreen = () => {
                     {/* GIF moved beneath the buttons */}
                     <View style={styles.gifContainer}>
                         <Image
-                            source={require('../../../assets/images/VicandNora.gif')}
+                            source={require('../../../assets/images/love.gif')}
                             style={styles.gifImage}
                             resizeMode="cover"
                         />
