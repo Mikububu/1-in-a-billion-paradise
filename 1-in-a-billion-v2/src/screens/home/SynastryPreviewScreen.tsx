@@ -38,6 +38,7 @@ import { Video, ResizeMode } from 'expo-av';
 import { getCoupleImage } from '@/services/coupleImageService';
 import { t } from '@/i18n';
 import { useAudio } from '@/contexts/AudioContext';
+import { supabase, isSupabaseConfigured } from '@/services/supabase';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SynastryPreview'>;
 
@@ -241,7 +242,21 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
 
             // Mark the free overlay as used only after a successful calculation (so no accidental charges).
             // Pre-payment onboarding has no auth user, so we skip.
-            if (authUser?.id) markFreeOverlayUsed(authUser.id);
+            if (authUser?.id) {
+              markFreeOverlayUsed(authUser.id);
+              // Persist to server so reinstall can't reset the flag
+              if (isSupabaseConfigured()) {
+                supabase.from('user_commercial_state')
+                  .upsert(
+                    { user_id: authUser.id, free_overlay_used: true, updated_at: new Date().toISOString() },
+                    { onConflict: 'user_id' }
+                  )
+                  .then(({ error }) => {
+                    if (error) console.warn('⚠️ Failed to persist free overlay flag:', error);
+                    else console.log('✅ Free overlay marked server-side');
+                  });
+              }
+            }
           } else {
             console.error('❌ Invalid score format from API:', data);
             // If API returns error object, log it but don't set scores (keep at 0)

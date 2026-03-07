@@ -309,10 +309,15 @@ export const CoreIdentitiesScreen = ({ navigation }: Props) => {
   }, []);
 
   const runSequence = async () => {
-    // REMOVED HARD LOCK: Always recalculate to ensure correct timezone is used
-    // This fixes users who onboarded when the timezone bug existed (returning UTC for all cities)
-    // Yes, this means API costs for regenerating readings, but ensures correctness.
-    console.log('🔄 CoreIdentities: Starting fresh calculation (no hard lock)');
+    // ONE-TIME LOCK: If all 3 readings already exist, skip straight to HookSequence.
+    // CoreIdentities is a one-time calculation — never recalculate.
+    const existingReadings = useOnboardingStore.getState().hookReadings;
+    if (existingReadings.sun && existingReadings.moon && existingReadings.rising) {
+      console.log('✅ CoreIdentities: Readings already exist, skipping to HookSequence');
+      navigation.replace('HookSequence');
+      return;
+    }
+    console.log('🔄 CoreIdentities: First-time calculation');
 
     // Never silently fallback to fake birth data.
     if (!birthDate || !birthCity) {

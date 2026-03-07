@@ -58,6 +58,11 @@ export const useSupabaseAuthBootstrap = () => {
                     setUser(session?.user || null);
                     setIsAuthReady(true);
                     isInitialSessionHandled = true;
+
+                    // Sync server-side free overlay flag (survives reinstalls)
+                    if (session?.user?.id) {
+                        useAuthStore.getState().syncFreeOverlayFromServer(session.user.id);
+                    }
                 }
                 console.log('🔒 SupabaseAuthBootstrap: Complete', !!data.session);
             } catch (error) {

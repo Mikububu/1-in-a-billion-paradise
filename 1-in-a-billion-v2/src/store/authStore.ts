@@ -43,6 +43,7 @@ type AuthState = {
     signOut: () => Promise<void>;
     hasUsedFreeOverlay: (userId?: string | null) => boolean;
     markFreeOverlayUsed: (userId?: string | null) => void;
+    syncFreeOverlayFromServer: (userId: string) => Promise<void>;
 };
 
 export const useAuthStore = create<AuthState>()(
@@ -136,6 +137,31 @@ export const useAuthStore = create<AuthState>()(
                         freeOverlayUsedByUserId: { ...pruned, [key]: true },
                     };
                 });
+            },
+
+            syncFreeOverlayFromServer: async (userId: string) => {
+                try {
+                    const { supabase, isSupabaseConfigured } = await import('@/services/supabase');
+                    if (!isSupabaseConfigured()) return;
+
+                    const { data, error } = await supabase
+                        .from('user_commercial_state')
+                        .select('free_overlay_used')
+                        .eq('user_id', userId)
+                        .maybeSingle();
+
+                    if (error) {
+                        console.warn('⚠️ Failed to sync free overlay from server:', error);
+                        return;
+                    }
+
+                    if (data?.free_overlay_used) {
+                        console.log('✅ Server says free overlay already used — syncing locally');
+                        get().markFreeOverlayUsed(userId);
+                    }
+                } catch (err) {
+                    console.warn('⚠️ syncFreeOverlayFromServer error:', err);
+                }
             },
         }),
         {
