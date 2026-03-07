@@ -584,19 +584,17 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
     gifContainer: {
-        alignItems: 'center',
-        justifyContent: 'flex-end',
-        marginHorizontal: -spacing.page, // Break out of contentContainer padding
-        marginTop: spacing.md,
+        marginHorizontal: -spacing.page,
+        marginTop: 'auto' as any,
+        marginBottom: 0,
     },
     gifImage: {
         width: '100%',
-        aspectRatio: 1200 / 1280, // Exact GIF dimensions (0.9375)
+        aspectRatio: 1200 / 1280,
     },
     contentContainer: {
         flex: 1,
         paddingHorizontal: spacing.page,
-        paddingBottom: spacing.xl,
     },
     authSection: {
         gap: spacing.sm,
