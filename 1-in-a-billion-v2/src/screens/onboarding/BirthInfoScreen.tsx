@@ -170,7 +170,7 @@ export const BirthInfoScreen = () => {
                     {/* Date Input */}
                     <Pressable
                         style={styles.inputRow}
-                        onPress={() => setShowDatePicker(!showDatePicker)}
+                        onPress={() => { Keyboard.dismiss(); setShowDatePicker(!showDatePicker); }}
                     >
                         <Text style={styles.iconArt}>✧</Text>
                         <Text style={[styles.inputText, !storedDate && styles.placeholder]}>
@@ -203,7 +203,7 @@ export const BirthInfoScreen = () => {
                     {/* Time Input */}
                     <Pressable
                         style={styles.inputRow}
-                        onPress={() => setShowTimePicker(!showTimePicker)}
+                        onPress={() => { Keyboard.dismiss(); setShowTimePicker(!showTimePicker); }}
                     >
                         <Text style={styles.iconArt}>◐</Text>
                         <Text style={[styles.inputText, !storedTime && styles.placeholder]}>

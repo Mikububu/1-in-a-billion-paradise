@@ -176,7 +176,7 @@ export const EditBirthDataScreen = ({ navigation, route }: Props) => {
                         {t('editBirthData.subtitle')}
                     </Text>
 
-                    <Pressable style={styles.inputRow} onPress={() => setShowDatePicker(!showDatePicker)}>
+                    <Pressable style={styles.inputRow} onPress={() => { Keyboard.dismiss(); setShowDatePicker(!showDatePicker); }}>
                         <Text style={styles.iconArt}>✧</Text>
                         <Text style={styles.inputText}>{formatDateDisplay(dateValue)}</Text>
                     </Pressable>
@@ -196,7 +196,7 @@ export const EditBirthDataScreen = ({ navigation, route }: Props) => {
                         </View>
                     )}
 
-                    <Pressable style={styles.inputRow} onPress={() => setShowTimePicker(!showTimePicker)}>
+                    <Pressable style={styles.inputRow} onPress={() => { Keyboard.dismiss(); setShowTimePicker(!showTimePicker); }}>
                         <Text style={styles.iconArt}>◐</Text>
                         <Text style={styles.inputText}>{toTimeString(timeValue)}</Text>
                     </Pressable>

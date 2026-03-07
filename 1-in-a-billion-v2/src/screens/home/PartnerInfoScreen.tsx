@@ -357,7 +357,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
               </View>
 
               {/* Date Input */}
-              <TouchableOpacity style={styles.inputRow} onPress={() => setShowDatePicker(true)}>
+              <TouchableOpacity style={styles.inputRow} onPress={() => { Keyboard.dismiss(); setShowDatePicker(true); }}>
                 <Text style={styles.iconArt}>✧</Text>
                 <Text style={[styles.inputText, !birthDate && styles.placeholder]}>
                   {formatDate(birthDate)}
@@ -381,7 +381,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
               )}
 
               {/* Time Input */}
-              <TouchableOpacity style={styles.inputRow} onPress={() => setShowTimePicker(true)}>
+              <TouchableOpacity style={styles.inputRow} onPress={() => { Keyboard.dismiss(); setShowTimePicker(true); }}>
                 <Text style={styles.iconArt}>◐</Text>
                 <Text style={[styles.inputText, !birthTime && styles.placeholder]}>
                   {formatTime(birthTime)}
