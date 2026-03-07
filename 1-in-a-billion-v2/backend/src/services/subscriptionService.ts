@@ -75,15 +75,34 @@ export async function checkUserSubscription(userId: string): Promise<UserSubscri
       .select('*')
       .eq('user_id', userId)
       .eq('status', 'active')
-      .single();
+      .order('subscription_tier', { ascending: false })
+      .limit(1);
 
     if (error) {
-      if (error.code === 'PGRST116') return null; // no rows
       console.error('Error checking subscription:', error);
       return null;
     }
 
-    return data as UserSubscription;
+    const sub = (data as UserSubscription[] | null)?.[0] ?? null;
+    if (!sub) return null;
+
+    // Expiration guard: auto-expire stale subscriptions
+    if (sub.current_period_end) {
+      const expiresAt = new Date(sub.current_period_end).getTime();
+      if (expiresAt < Date.now()) {
+        console.warn(`⚠️ Subscription ${sub.stripe_subscription_id} expired at ${sub.current_period_end}, marking expired`);
+        supabase
+          .from('user_subscriptions')
+          .update({ status: 'expired', updated_at: new Date().toISOString() })
+          .eq('id', sub.id)
+          .then(({ error: updateErr }: { error: any }) => {
+            if (updateErr) console.error('Failed to expire stale subscription:', updateErr);
+          });
+        return null;
+      }
+    }
+
+    return sub;
   } catch (err) {
     console.error('Subscription check failed:', err);
     return null;

@@ -118,6 +118,7 @@ export async function upsertRevenueCatSubscriptionToSupabase(params: {
   transactionId: string;
   productId?: string | null;
   status: 'active' | 'cancelled' | 'expired';
+  cancelAtPeriodEnd?: boolean;
   currentPeriodEndMs?: number | null;
   purchasedAtMs?: number | null;
   metadata?: Record<string, unknown>;
@@ -143,7 +144,7 @@ export async function upsertRevenueCatSubscriptionToSupabase(params: {
         stripe_price_id: params.productId || null,
         status: params.status,
         subscription_tier: tier,
-        cancel_at_period_end: false,
+        cancel_at_period_end: params.cancelAtPeriodEnd ?? false,
         current_period_start: toTs(params.purchasedAtMs ?? null),
         current_period_end: toTs(params.currentPeriodEndMs ?? null),
         metadata: params.metadata || {},
@@ -204,20 +205,70 @@ export async function handleRevenueCatEvent(event: RevenueCatWebhookEvent): Prom
       return;
 
     case 'CANCELLATION':
+      // User cancelled but retains access until period ends
+      await upsertRevenueCatSubscriptionToSupabase({
+        appUserId,
+        transactionId,
+        productId,
+        status: 'active',
+        cancelAtPeriodEnd: true,
+        currentPeriodEndMs: expirationAtMs,
+        purchasedAtMs,
+        metadata: { ...metadata, cancel_reason: event.cancel_reason },
+      });
+      return;
+
     case 'EXPIRATION':
       await upsertRevenueCatSubscriptionToSupabase({
         appUserId,
         transactionId,
         productId,
-        status: type === 'EXPIRATION' ? 'expired' : 'cancelled',
+        status: 'expired',
         currentPeriodEndMs: expirationAtMs,
         purchasedAtMs,
-        metadata: { ...metadata, cancel_reason: event.cancel_reason, expiration_reason: event.expiration_reason },
+        metadata: { ...metadata, expiration_reason: event.expiration_reason },
+      });
+      return;
+
+    case 'BILLING_ISSUE':
+      // Keep active during grace period but flag the issue
+      await upsertRevenueCatSubscriptionToSupabase({
+        appUserId,
+        transactionId,
+        productId,
+        status: 'active',
+        currentPeriodEndMs: expirationAtMs,
+        purchasedAtMs,
+        metadata: { ...metadata, billing_issue: true },
+      });
+      return;
+
+    case 'SUBSCRIPTION_PAUSED':
+      await upsertRevenueCatSubscriptionToSupabase({
+        appUserId,
+        transactionId,
+        productId,
+        status: 'expired',
+        currentPeriodEndMs: expirationAtMs,
+        purchasedAtMs,
+        metadata,
+      });
+      return;
+
+    case 'PRODUCT_CHANGE':
+      // Update product ID so tier resolves correctly
+      await upsertRevenueCatSubscriptionToSupabase({
+        appUserId,
+        transactionId,
+        productId,
+        status: 'active',
+        currentPeriodEndMs: expirationAtMs,
+        purchasedAtMs,
+        metadata,
       });
       return;
 
     case 'NON_RENEWING_PURCHASE':
-      // One-time purchase - still grant active for entitlement period
       await upsertRevenueCatSubscriptionToSupabase({
         appUserId,
         transactionId,

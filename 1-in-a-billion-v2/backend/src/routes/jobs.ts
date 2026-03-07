@@ -177,7 +177,16 @@ router.post('/v2/start', jwtAuth, async (c) => {
       }, 402);
     }
     if (purchaseTransactionId) {
-      logger.info(`IAP purchase verified`, { userId, purchaseTransactionId, type });
+      const txId = String(purchaseTransactionId).trim();
+      if (!/^\d{6,25}$/.test(txId)) {
+        logger.warn(`Job rejected: invalid transaction ID format`, { userId, purchaseTransactionId });
+        return c.json({
+          success: false,
+          error: 'Invalid purchase transaction. Please try again.',
+          paymentRequired: true,
+        }, 402);
+      }
+      logger.info(`IAP purchase accepted`, { userId, purchaseTransactionId: txId, type });
     }
 
     // Build job params (same shape the workers expect)

@@ -137,39 +137,18 @@ export const PricingScreen = ({ navigation }: Props) => {
     }, [isMusicLoaded])
   );
 
-  // Debug state: shows what RevenueCat returns
-  const [rcDebug, setRcDebug] = useState<string>('Loading...');
-
   /* ── Load RevenueCat prices ── */
   useEffect(() => {
     let alive = true;
     (async () => {
       const ready = await initializeRevenueCat(userId);
-      if (!ready || !alive) {
-        setRcDebug('RevenueCat init failed');
-        return;
-      }
+      if (!ready || !alive) return;
 
       const off = await getOfferings();
       if (!alive) return;
       setOfferings(off);
 
-      // Debug: capture what RevenueCat returned
       const packages = getAvailableRevenueCatPackages(off);
-      const debugInfo = packages.map((p: any) => {
-        const id = p?.identifier || '?';
-        const prodId = p?.product?.identifier || p?.storeProduct?.identifier || '?';
-        const price = p?.product?.priceString || p?.storeProduct?.priceString || '?';
-        return `${id} (${prodId}) ${price}`;
-      });
-      const offeringId = off?.current?.identifier || 'none';
-      const allOfferingKeys = off?.all ? Object.keys(off.all).join(', ') : 'none';
-      setRcDebug(
-        packages.length === 0
-          ? `Current: "${offeringId}" — 0 pkgs\nAll offerings: [${allOfferingKeys}]\nCheck RevenueCat dashboard.`
-          : `"${offeringId}" — ${packages.length} pkgs:\n${debugInfo.join('\n')}`
-      );
-      console.log('💰 [PricingScreen] offerings debug:', { offeringId, allOfferingKeys, packages: debugInfo });
 
       // Try to populate live prices
       const yearly = findYearlySubscriptionPackage(off);
@@ -437,13 +416,6 @@ export const PricingScreen = ({ navigation }: Props) => {
           {t('pricing.iapNote')} {IAP_RANGE}
         </Text>
 
-        {/* ── RevenueCat debug (remove after fixing) ── */}
-        <TouchableOpacity onPress={() => Alert.alert('RevenueCat Debug', rcDebug)}>
-          <Text style={styles.rcDebugText}>
-            {rcDebug.split('\n')[0]}
-          </Text>
-        </TouchableOpacity>
-
         {/* ── Coupon code - always visible ── */}
         <View style={styles.couponContainer}>
           <View style={styles.couponInputRow}>
@@ -594,16 +566,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.sm,
     marginBottom: spacing.sm,
-  },
-
-  /* ── RC Debug ── */
-  rcDebugText: {
-    fontFamily: typography.sansRegular,
-    fontSize: 10,
-    color: '#999',
-    textAlign: 'center',
-    marginBottom: 6,
-    paddingHorizontal: 8,
   },
 
   /* ── Coupon - always visible ── */

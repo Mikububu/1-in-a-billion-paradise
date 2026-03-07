@@ -148,14 +148,23 @@ payments.post('/verify-entitlement', requireAuth, async (c) => {
       .select('id, status, current_period_end')
       .eq('stripe_customer_id', rcCustomerId)
       .eq('status', 'active')
-      .single();
+      .limit(1);
 
-    if (error && error.code !== 'PGRST116') {
+    if (error) {
       console.error('verify-entitlement DB error:', error);
     }
 
-    const active = !!(data && data.status === 'active');
-    return c.json({ success: true, active, entitled: active });
+    const sub = data?.[0];
+    let active = false;
+    if (sub) {
+      if (sub.current_period_end) {
+        const expiresAt = new Date(sub.current_period_end).getTime();
+        active = expiresAt > Date.now();
+      } else {
+        active = true;
+      }
+    }
+    return c.json({ success: true, active, entitled: active, appUserId });
   } catch (error: any) {
     console.error('❌ verify-entitlement error:', error);
     return c.json({ success: false, error: error?.message ?? 'Verification failed' }, 500);
