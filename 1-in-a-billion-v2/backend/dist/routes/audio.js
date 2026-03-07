@@ -40,8 +40,6 @@ exports.audioRouter = void 0;
 const hono_1 = require("hono");
 const zod_1 = require("zod");
 const fs = __importStar(require("fs"));
-const path = __importStar(require("path"));
-const crypto = __importStar(require("crypto"));
 const axios_1 = __importDefault(require("axios"));
 const child_process_1 = require("child_process");
 const audioService_1 = require("../services/audioService");
@@ -51,7 +49,6 @@ const textCleanup_1 = require("../utils/textCleanup");
 const phoneticizer_1 = require("../services/text/phoneticizer");
 const audioProcessing_1 = require("../services/audioProcessing");
 const replicateRateLimiter_1 = require("../services/replicateRateLimiter");
-const costTracking_1 = require("../services/costTracking");
 const requireAuth_1 = require("../middleware/requireAuth");
 const logger_1 = require("../utils/logger");
 const router = new hono_1.Hono();
@@ -80,38 +77,6 @@ router.post('/generate', async (c) => {
     const result = await audioService_1.audioService.requestGeneration(parsed.readingId);
     return c.json(result);
 });
-// Google TTS JWT token generation
-async function getGoogleAccessToken() {
-    const credentialsPath = path.join(process.cwd(), 'google-tts-credentials.json');
-    if (!fs.existsSync(credentialsPath)) {
-        throw new Error('Google TTS credentials file not found');
-    }
-    const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'));
-    // Create JWT header and claim
-    const header = { alg: 'RS256', typ: 'JWT' };
-    const now = Math.floor(Date.now() / 1000);
-    const claim = {
-        iss: credentials.client_email,
-        scope: 'https://www.googleapis.com/auth/cloud-platform',
-        aud: 'https://oauth2.googleapis.com/token',
-        iat: now,
-        exp: now + 3600,
-    };
-    // Base64URL encode
-    const base64url = (obj) => Buffer.from(JSON.stringify(obj)).toString('base64url');
-    const unsignedToken = `${base64url(header)}.${base64url(claim)}`;
-    // Sign with private key
-    const sign = crypto.createSign('RSA-SHA256');
-    sign.update(unsignedToken);
-    const signature = sign.sign(credentials.private_key, 'base64url');
-    const jwt = `${unsignedToken}.${signature}`;
-    // Exchange JWT for access token
-    const tokenResponse = await axios_1.default.post('https://oauth2.googleapis.com/token', `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        timeout: 30000,
-    });
-    return tokenResponse.data.access_token;
-}
 // Validate voice sample URLs: must be HTTPS and from trusted domains only.
 // Prevents SSRF (e.g. someone passing http://169.254.169.254/... as audioUrl).
 const ALLOWED_AUDIO_HOSTS = [
@@ -133,7 +98,7 @@ function validateAudioUrl(url) {
 const ttsPayloadSchema = zod_1.z.object({
     text: zod_1.z.string().min(1).max(50000),
     voice: zod_1.z.string().optional().default('default'), // For Chatterbox: use voice cloning or default
-    provider: zod_1.z.enum(['chatterbox']).optional().default('chatterbox'),
+    provider: zod_1.z.literal('chatterbox').optional().default('chatterbox'),
     title: zod_1.z.string().optional(),
     // Chatterbox-specific options
     exaggeration: zod_1.z.number().min(0).max(1).optional().default(0.3), // Emotion intensity (0.3 = natural voice)
@@ -382,69 +347,6 @@ router.post('/generate-tts', requireAuth_1.requireAuth, async (c) => {
                 message: `Chatterbox (Replicate) failed: ${error.message}`,
                 error: error.response?.data || error.message,
             }, 500);
-        }
-    }
-    // GOOGLE TTS (only if explicitly requested - NOT as fallback)
-    if (parsed.provider === 'google') {
-        try {
-            logger_1.logger.info('Attempting Google TTS...');
-            const accessToken = await getGoogleAccessToken();
-            // Google TTS voices - Chirp 3 HD voices (highest quality)
-            const googleVoices = {
-                // Chirp 3 HD Voices (best quality)
-                'Zubenelgenubi': { name: 'en-US-Chirp3-HD-Zubenelgenubi', languageCode: 'en-US' }, // Male - DEFAULT
-                'Achernar': { name: 'en-US-Chirp3-HD-Achernar', languageCode: 'en-US' }, // Female
-                'Gacrux': { name: 'en-US-Chirp3-HD-Gacrux', languageCode: 'en-US' }, // Male
-                'Leda': { name: 'en-US-Chirp3-HD-Leda', languageCode: 'en-US' }, // Female
-                'Orus': { name: 'en-US-Chirp3-HD-Orus', languageCode: 'en-US' }, // Male
-                'Zephyr': { name: 'en-US-Chirp3-HD-Zephyr', languageCode: 'en-US' }, // Female
-                // Neural2 fallbacks
-                'en-US-Neural2-F': { name: 'en-US-Neural2-F', languageCode: 'en-US' },
-                'en-US-Neural2-D': { name: 'en-US-Neural2-D', languageCode: 'en-US' },
-            };
-            const voiceConfig = googleVoices[parsed.voice] || googleVoices['Zubenelgenubi'];
-            const response = await axios_1.default.post('https://texttospeech.googleapis.com/v1/text:synthesize', {
-                input: { text: parsed.text },
-                voice: {
-                    languageCode: voiceConfig.languageCode,
-                    name: voiceConfig.name,
-                },
-                audioConfig: {
-                    audioEncoding: 'MP3',
-                    speakingRate: 0.9, // Slightly slower for clarity
-                    pitch: 0,
-                    sampleRateHertz: 44100, // High quality
-                },
-            }, {
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                    'Content-Type': 'application/json',
-                },
-                timeout: 60000, // 60 second timeout for long texts
-            });
-            const base64Audio = response.data.audioContent;
-            // Estimate duration (roughly 150 words per minute, 5 chars per word)
-            const estimatedDuration = Math.ceil(parsed.text.length / 750 * 60);
-            // Log the cost
-            await (0, costTracking_1.logGoogleTtsCost)(parsed.title || 'test_tts_generate', undefined, parsed.text.length, 'Google TTS Generation (Admin/Test)');
-            return c.json({
-                success: true,
-                message: 'Audio generated successfully (Google TTS)',
-                audioBase64: base64Audio,
-                audioUrl: `data:audio/mpeg;base64,${base64Audio}`,
-                durationSeconds: estimatedDuration,
-                format: 'mp3',
-                provider: 'google',
-            });
-        }
-        catch (error) {
-            logger_1.logger.error('Google TTS error', { detail: String(error) });
-            return c.json({
-                success: false,
-                message: `Google TTS error: ${String(error)}`,
-                audioUrl: null,
-                durationSeconds: 0,
-            });
         }
     }
     // No valid provider

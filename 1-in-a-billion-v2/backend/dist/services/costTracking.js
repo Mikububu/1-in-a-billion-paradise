@@ -19,7 +19,6 @@ exports.logLLMCost = logLLMCost;
 exports.logReplicateCost = logReplicateCost;
 exports.logMinimaxTtsCost = logMinimaxTtsCost;
 exports.logGoogleAiStudioCost = logGoogleAiStudioCost;
-exports.logGoogleTtsCost = logGoogleTtsCost;
 exports.getCostSummary = getCostSummary;
 exports.getTodayCosts = getTodayCosts;
 exports.getMonthCosts = getMonthCosts;
@@ -234,32 +233,6 @@ async function logGoogleAiStudioCost(jobId, taskId, numImages, label) {
         costUsd: cost,
         model: modelToLog,
         label: label || 'AI Portrait Generation',
-    });
-    return cost;
-}
-/**
- * Log Google TTS cost
- */
-async function logGoogleTtsCost(jobId, taskId, charsLength, label) {
-    const tiers = await getPricingTiers();
-    let cost = 0;
-    let modelToLog = 'chirp-3-hd'; // Default fallback
-    if (tiers['google_tts']) {
-        const tier = tiers['google_tts'];
-        cost = (charsLength / 10000) * parseFloat(tier.tts_per_10k_chars || '0');
-        if (tier.model_name)
-            modelToLog = tier.model_name;
-    }
-    else {
-        cost = (charsLength / 10000) * 0.16; // $0.16 per 10k chars fallback
-    }
-    await logCost({
-        jobId,
-        taskId,
-        provider: 'google_tts',
-        costUsd: cost,
-        model: modelToLog,
-        label: label || 'Google TTS',
     });
     return cost;
 }

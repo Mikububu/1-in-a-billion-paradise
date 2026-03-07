@@ -80,10 +80,6 @@ export declare function logMinimaxTtsCost(jobId: string, taskId: string | undefi
  * Log Google AI Studio (Portraits) cost
  */
 export declare function logGoogleAiStudioCost(jobId: string, taskId: string | undefined, numImages: number, label?: string): Promise<number>;
-/**
- * Log Google TTS cost
- */
-export declare function logGoogleTtsCost(jobId: string, taskId: string | undefined, charsLength: number, label?: string): Promise<number>;
 export declare const logRunPodCost: typeof logReplicateCost;
 export declare const calculateRunPodCost: typeof calculateReplicateCost;
 export interface CostSummary {

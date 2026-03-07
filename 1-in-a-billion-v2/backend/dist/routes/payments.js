@@ -276,5 +276,64 @@ payments.get('/subscription-tier', async (c) => {
         return c.json({ success: false, error: error?.message ?? 'Check failed' }, 500);
     }
 });
+/**
+ * POST /api/payments/activate-bypass
+ * Creates a subscription record for ILOVEYOU bypass users.
+ * This ensures bypass users have a real user_subscriptions row so all
+ * downstream entitlement checks (RootNavigator, VoiceSelection, etc.) pass.
+ * Requires Authorization: Bearer <supabase access token>
+ * Idempotent: if an active subscription already exists, returns success without creating a duplicate.
+ */
+payments.post('/activate-bypass', async (c) => {
+    try {
+        const userId = await getAuthUserId(c);
+        if (!userId) {
+            return c.json({ success: false, error: 'Unauthorized' }, 401);
+        }
+        const { createClient } = await Promise.resolve().then(() => __importStar(require('@supabase/supabase-js')));
+        if (!env_1.env.SUPABASE_URL || !env_1.env.SUPABASE_SERVICE_ROLE_KEY) {
+            return c.json({ success: false, error: 'Supabase not configured' }, 500);
+        }
+        const serviceClient = createClient(env_1.env.SUPABASE_URL, env_1.env.SUPABASE_SERVICE_ROLE_KEY);
+        // Idempotency: check if user already has an active subscription
+        const { data: existing } = await serviceClient
+            .from('user_subscriptions')
+            .select('id, status')
+            .eq('user_id', userId)
+            .eq('status', 'active')
+            .limit(1);
+        if (existing && existing.length > 0) {
+            console.log(`✅ activate-bypass: user ${userId} already has active subscription, skipping`);
+            return c.json({ success: true, alreadyActive: true });
+        }
+        // Create a bypass subscription record — billionaire tier, 1 year expiry
+        const now = new Date();
+        const oneYearLater = new Date(now);
+        oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
+        const { error: insertError } = await serviceClient
+            .from('user_subscriptions')
+            .insert({
+            user_id: userId,
+            stripe_customer_id: `bypass_${userId}`,
+            stripe_subscription_id: `bypass_sub_${userId}_${Date.now()}`,
+            status: 'active',
+            plan_id: 'billionaire',
+            current_period_start: now.toISOString(),
+            current_period_end: oneYearLater.toISOString(),
+            created_at: now.toISOString(),
+            updated_at: now.toISOString(),
+        });
+        if (insertError) {
+            console.error('❌ activate-bypass insert error:', insertError);
+            return c.json({ success: false, error: 'Failed to create bypass subscription' }, 500);
+        }
+        console.log(`✅ activate-bypass: created billionaire subscription for user ${userId}`);
+        return c.json({ success: true, tier: 'billionaire' });
+    }
+    catch (error) {
+        console.error('❌ activate-bypass error:', error);
+        return c.json({ success: false, error: error?.message ?? 'Bypass activation failed' }, 500);
+    }
+});
 exports.default = payments;
 //# sourceMappingURL=payments.js.map

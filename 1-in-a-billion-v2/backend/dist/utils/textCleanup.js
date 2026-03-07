@@ -42,10 +42,6 @@ function cleanupTextForTTS(text, language = 'en') {
     cleaned = cleaned.replace(/~~([^~]+)~~/g, '$1'); // Strikethrough ~~text~~
     cleaned = cleaned.replace(/^[-+]\s+/gm, ''); // Bullet points (keep * removed by previous regex)
     cleaned = cleaned.replace(/^\d+\.\s+/gm, ''); // Numbered lists
-    // Aggressively remove roman numeral list markers like i., (i), i) anywhere
-    cleaned = cleaned.replace(/\b[ivxlcdmIVXLCDM]+\.\s+/g, ''); // i. 
-    cleaned = cleaned.replace(/\([ivxlcdmIVXLCDM]+\)\s*/g, ''); // (i)
-    cleaned = cleaned.replace(/\b[ivxlcdmIVXLCDM]+\)\s*/g, ''); // i)
     // Replace em-dashes and en-dashes with commas or semicolons
     cleaned = cleaned.replace(/\u2014/g, ', '); // em-dash
     cleaned = cleaned.replace(/\u2013/g, ', '); // en-dash
