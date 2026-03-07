@@ -130,6 +130,7 @@ REQUIRED:
 - NEVER use the word "decan"
 - One "how did you know?" line specific to THIS exact placement
 - Write ALL numbers as DIGITS: "0 degrees" not "zero degrees"
+- EXCEPTION FOR THE YEAR: Spell out the birth year in WORDS according to the natural spoken language (e.g., "nineteen ninety-three" instead of "1993") so the text-to-speech engine pronounces it correctly.
 - Spell out "degrees" and "minutes" but use numeric values
 - No symbols TTS can't read (no degree symbols or glyphs)
 
@@ -341,7 +342,8 @@ ${ctx.type === 'sun' ? `1. Preamble MUST include: "born on ${formattedDate}" (CO
 3. Use the SPECIFIC degree to create a UNIQUE interpretation, not generic ${sign} traits
 4. This ${sign} ${ctx.type === 'moon' ? 'Moon' : 'Rising'} at ${ctx.type === 'moon' ? moonDeg?.degree : risingDeg?.degree || '?'} degrees (${partnerCurrentDecan}) is different from others`}
 5. Write ALL numbers as DIGITS: "0 degrees" not "zero", "1st" not "first", "23rd" not "twenty-third"
-6. Spell out "degrees" and "minutes" but use numeric values
+6. EXCEPTION FOR THE YEAR: Spell out the birth year in WORDS according to the natural spoken language (e.g., "nineteen ninety-three" instead of "1993") so the text-to-speech engine pronounces it correctly.
+7. Spell out "degrees" and "minutes" but use numeric values
 
 SIGN PSYCHOLOGY (adapted for ${name} - DARK, HONEST, NO WHITEWASH):
 - Wound: ${depth!.wound}
@@ -425,7 +427,8 @@ ${ctx.type === 'sun' ? `1. Your preamble MUST include the date EXACTLY as: "${fo
 4. This ${sign} ${ctx.type === 'moon' ? 'Moon' : 'Rising'} at ${ctx.type === 'moon' ? moonDeg?.degree : risingDeg?.degree || '?'} degrees (${currentDecan}) is different from others
 5. This is NOT generic - it's specific to ${ctx.type === 'moon' ? moonDeg?.degree : risingDeg?.degree || '?'} degrees ${sign}`}
 6. Write ALL numbers as DIGITS: "0 degrees" not "zero", "1st" not "first", "23rd" not "twenty-third"
-7. Spell out "degrees" and "minutes" but use numeric values
+7. EXCEPTION FOR THE YEAR: Spell out the birth year in WORDS according to the natural spoken language (e.g., "nineteen ninety-three" instead of "1993") so the text-to-speech engine pronounces it correctly.
+8. Spell out "degrees" and "minutes" but use numeric values
 
 SIGN PSYCHOLOGY TO WEAVE IN:
 - Core wound: ${depth!.wound}
