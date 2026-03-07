@@ -144,26 +144,26 @@ const FULL_TEXT = LYRICS.join(SEP) + SEP;
 // Duplicate for seamless loop
 const DOUBLE_TEXT = FULL_TEXT + FULL_TEXT;
 
-// one_in_a_billion_2.mp3 is exactly 155.19 seconds — scroll one full pass in this time
-const SONG_DURATION_MS = 155190;
+// Marquee scroll speed in pixels per second
+const MARQUEE_PX_PER_SEC = 80;
 
-/** Continuously scrolling karaoke lyrics ticker — synced to song duration */
+/** Continuously scrolling marquee lyrics ticker — constant speed, right to left */
 const KaraokeBand = React.memo(() => {
   const scrollAnim = useRef(new Animated.Value(0)).current;
-  const highlightAnim = useRef(new Animated.Value(0)).current;
-  // Start with a good estimate for 18px bold uppercase (~10.5px/char average),
-  // then replace with the real measured value via onLayout.
-  const [halfTextWidth, setHalfTextWidth] = useState(FULL_TEXT.length * 10.5);
+  // Estimate for 16px bold uppercase (~9px/char average); replaced by onLayout
+  const [halfTextWidth, setHalfTextWidth] = useState(FULL_TEXT.length * 9);
   const scrollLoopRef = useRef<Animated.CompositeAnimation | null>(null);
 
   const startScroll = useCallback((width: number) => {
     scrollLoopRef.current?.stop();
     scrollAnim.setValue(0);
+    // Duration = distance / speed  →  width pixels at MARQUEE_PX_PER_SEC
+    const durationMs = (width / MARQUEE_PX_PER_SEC) * 1000;
     scrollLoopRef.current = Animated.loop(
       Animated.timing(scrollAnim, {
-        toValue: -1,
-        duration: SONG_DURATION_MS, // exactly one song length per full pass
-        easing: (t) => t,           // linear — no ease in/out
+        toValue: -width,
+        duration: durationMs,
+        easing: (t) => t, // linear
         useNativeDriver: true,
       }),
     );
@@ -172,16 +172,6 @@ const KaraokeBand = React.memo(() => {
 
   useEffect(() => {
     startScroll(halfTextWidth);
-
-    // White highlight sweep across the band (repeats every ~12s)
-    Animated.loop(
-      Animated.timing(highlightAnim, {
-        toValue: 1,
-        duration: 12000,
-        useNativeDriver: false,
-      }),
-    ).start();
-
     return () => { scrollLoopRef.current?.stop(); };
   }, []);
 
@@ -195,34 +185,15 @@ const KaraokeBand = React.memo(() => {
     }
   }, [halfTextWidth, startScroll]);
 
-  const translateX = scrollAnim.interpolate({
-    inputRange: [-1, 0],
-    outputRange: [-halfTextWidth, 0],
-  });
-
-  const highlightWidth = highlightAnim.interpolate({
-    inputRange: [0, 0.85, 1],
-    outputRange: ['0%', '100%', '100%'],
-  });
-
   return (
     <View style={karaokeStyles.band}>
-      {/* Dim white base text */}
       <Animated.View
-        style={[karaokeStyles.track, { transform: [{ translateX }] }]}
+        style={[karaokeStyles.track, { transform: [{ translateX: scrollAnim }] }]}
         onLayout={handleTrackLayout}
       >
         <Text style={karaokeStyles.lyrics} numberOfLines={1}>
           {DOUBLE_TEXT}
         </Text>
-      </Animated.View>
-      {/* Bright white highlight overlay sweeps left-to-right */}
-      <Animated.View style={[karaokeStyles.highlightOverlay, { width: highlightWidth }]}>
-        <Animated.View style={[karaokeStyles.track, { transform: [{ translateX }] }]}>
-          <Text style={[karaokeStyles.lyrics, karaokeStyles.lyricsHighlight]} numberOfLines={1}>
-            {DOUBLE_TEXT}
-          </Text>
-        </Animated.View>
       </Animated.View>
     </View>
   );
@@ -235,12 +206,9 @@ const karaokeStyles = StyleSheet.create({
     marginLeft: -spacing.page,
     marginRight: -spacing.page,
     overflow: 'hidden',
-    backgroundColor: colors.primary,
+    backgroundColor: 'transparent',
     paddingVertical: 14,
     marginBottom: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.15)',
     position: 'relative',
   },
   track: {
@@ -249,20 +217,10 @@ const karaokeStyles = StyleSheet.create({
   },
   lyrics: {
     fontFamily: typography.sansBold,
-    fontSize: 18,
-    color: 'rgba(255,255,255,0.38)',
+    fontSize: 16,
+    color: colors.primary,
     letterSpacing: 0.4,
     textTransform: 'uppercase',
-  },
-  lyricsHighlight: {
-    color: '#FFFFFF',
-  },
-  highlightOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    overflow: 'hidden',
   },
 });
 
