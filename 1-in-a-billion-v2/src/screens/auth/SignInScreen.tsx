@@ -581,17 +581,18 @@ export const SignInScreen = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#000', // Provide a background color now that the image is not fullscreen
+        backgroundColor: 'transparent',
     },
     gifContainer: {
+        flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: spacing.md,
-        marginBottom: spacing.md,
+        marginTop: spacing.xl,
+        marginBottom: spacing.xl,
     },
     gifImage: {
-        width: '100%',
-        height: 550,
+        width: '75%',
+        height: 412,
         borderRadius: radii.card,
     },
     contentContainer: {
