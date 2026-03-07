@@ -840,15 +840,20 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
   };
 
   // Listen for auth state changes (for OAuth callbacks)
+  // IMPORTANT: Only act on SIGNED_IN when user is actively signing in (isSigningIn=true).
+  // Token refreshes also fire SIGNED_IN events, which would incorrectly trigger
+  // completeOnboarding() while the user is browsing PricingScreen.
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('🔐 Auth state changed:', event);
+        console.log('🔐 Auth state changed:', event, 'isSigningIn:', isSigningIn);
 
-        if (event === 'SIGNED_IN' && session) {
-          console.log('✅ ONBOARDING AUTH STATE: SIGNED_IN event - clearing spinner');
+        // Only process SIGNED_IN when user actively triggered sign-in
+        // (prevents token refresh from navigating away from PricingScreen)
+        if (event === 'SIGNED_IN' && session && isSigningIn) {
+          console.log('✅ ONBOARDING AUTH STATE: SIGNED_IN event (user-initiated) - clearing spinner');
           setIsSigningIn(false); // Clear the Google sign-in spinner
 
           setSession(session);
@@ -893,7 +898,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [completeOnboarding, sun, moon, rising]);
+  }, [completeOnboarding, sun, moon, rising, isSigningIn]);
 
   const regenerateWithProvider = async (provider: LLMProvider) => {
     console.log(`🔄 Starting ${provider} regeneration...`);

@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
-  Dimensions,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -102,127 +101,7 @@ function buildTiers(): TierDef[] {
   ];
 }
 
-/* ── Song lyrics for karaoke ticker ─────────────────────────────── */
 
-const LYRICS: string[] = [
-  'I was born with questions written in my breath',
-  'Every love I reached for only guessed',
-  'I searched through lives of faces, through hope that came and went',
-  'Always feeling something had not happened yet',
-  'Then the stars began to speak my name',
-  'Not in chance but truth',
-  'Every fear I ever carried knew you too',
-  'One in a billion — not a thousand choices wide',
-  'Not another endless maybe passing by',
-  'You were written in my birth light, in the moment I began',
-  'I was never looking for many — only one',
-  'They read my sun and shadow, my longing and my flame',
-  'Every wound that shaped me, every hidden name',
-  'Through the wisdom of the ages, through the languages of time',
-  'My soul was drawn in layers until it recognized itself in mine',
-  'Not a picture, not a promise, not a game to win',
-  'Just two lives being remembered from within',
-  'One in a billion — across the world unseen',
-  'Every system telling stories that converge on me',
-  'Through the silence and the waiting, through the years undone',
-  'The universe was patient for the one',
-  'If love is more than chemistry, more than words can say',
-  'If timing is a sacred thing that cannot be rushed or played',
-  'Then let us meet in truth alone, before desire or skin',
-  'Let us hear our souls together before we let the world begin',
-  'One in a billion — now the signs align',
-  'Every fear and every craving intertwined',
-  'In a world that trades in numbers we chose depth over run',
-  'We did not swipe through destiny — we became the one',
-  'May the stars remember this when history is done',
-  'That technology once helped two souls return to one',
-];
-
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const SEP = '  ✦  ';
-const FULL_TEXT = LYRICS.join(SEP) + SEP;
-// Duplicate for seamless loop
-const DOUBLE_TEXT = FULL_TEXT + FULL_TEXT;
-
-// Marquee scroll speed in pixels per second
-const MARQUEE_PX_PER_SEC = 80;
-
-/** Continuously scrolling marquee lyrics ticker — constant speed, right to left */
-const KaraokeBand = React.memo(() => {
-  const scrollAnim = useRef(new Animated.Value(0)).current;
-  // Estimate for 16px bold uppercase (~9px/char average); replaced by onLayout
-  const [halfTextWidth, setHalfTextWidth] = useState(FULL_TEXT.length * 9);
-  const scrollLoopRef = useRef<Animated.CompositeAnimation | null>(null);
-
-  const startScroll = useCallback((width: number) => {
-    scrollLoopRef.current?.stop();
-    scrollAnim.setValue(0);
-    // Duration = distance / speed  →  width pixels at MARQUEE_PX_PER_SEC
-    const durationMs = (width / MARQUEE_PX_PER_SEC) * 1000;
-    scrollLoopRef.current = Animated.loop(
-      Animated.timing(scrollAnim, {
-        toValue: -width,
-        duration: durationMs,
-        easing: (t) => t, // linear
-        useNativeDriver: true,
-      }),
-    );
-    scrollLoopRef.current.start();
-  }, [scrollAnim]);
-
-  useEffect(() => {
-    startScroll(halfTextWidth);
-    return () => { scrollLoopRef.current?.stop(); };
-  }, []);
-
-  // When the real text width arrives from onLayout, restart scroll with exact pixels
-  const handleTrackLayout = useCallback((e: any) => {
-    // DOUBLE_TEXT = FULL_TEXT + FULL_TEXT → total width / 2 = one full pass
-    const measured = e.nativeEvent.layout.width / 2;
-    if (measured > 200 && Math.abs(measured - halfTextWidth) > 20) {
-      setHalfTextWidth(measured);
-      startScroll(measured);
-    }
-  }, [halfTextWidth, startScroll]);
-
-  return (
-    <View style={karaokeStyles.band}>
-      <Animated.View
-        style={[karaokeStyles.track, { transform: [{ translateX: scrollAnim }] }]}
-        onLayout={handleTrackLayout}
-      >
-        <Text style={karaokeStyles.lyrics} numberOfLines={1}>
-          {DOUBLE_TEXT}
-        </Text>
-      </Animated.View>
-    </View>
-  );
-});
-
-const karaokeStyles = StyleSheet.create({
-  band: {
-    width: SCREEN_WIDTH,
-    alignSelf: 'center',
-    marginLeft: -spacing.page,
-    marginRight: -spacing.page,
-    overflow: 'hidden',
-    backgroundColor: 'transparent',
-    paddingVertical: 14,
-    marginBottom: spacing.sm,
-    position: 'relative',
-  },
-  track: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  lyrics: {
-    fontFamily: typography.sansBold,
-    fontSize: 16,
-    color: colors.primary,
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-  },
-});
 
 /* ── Component ────────────────────────────────────────────────────── */
 
@@ -553,8 +432,7 @@ export const PricingScreen = ({ navigation }: Props) => {
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
-          {/* ── Karaoke lyrics ticker ── */}
-          <KaraokeBand />
+
 
           <Text style={styles.heading}>{t('pricing.title')}</Text>
           <Text style={styles.subheading}>
