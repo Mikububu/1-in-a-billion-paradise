@@ -18,7 +18,6 @@ import { readingsApi } from '@/services/api';
 import { SIGN_LABELS } from '@/config/readingConfig';
 import { AntChaseV2 } from '@/components/AntChaseV2';
 import { useAudio } from '@/contexts/AudioContext';
-import { CHAT_RENEW_WARNING_TEXT } from '@/utils/chatAccess';
 import { getJobReceipts, type JobReceipt } from '@/services/jobBuffer';
 import { fetchJobSnapshot } from '@/services/jobStatus';
 import { getLanguage, onLanguageChange, LANGUAGE_META, type LanguageCode, t } from '@/i18n';
@@ -557,7 +556,6 @@ export const HomeScreen = ({ navigation }: Props) => {
   // Match Handlers
   const handleMatchYes = () => Alert.alert(t('home.matching.registered.title'), t('home.matching.registered.message'), [{ text: t('home.gotIt') }]);
   const handleMatchNo = () => clearCompatibilityReadings?.();
-  const matchingPaused = entitlementState === 'inactive';
 
   // 5-tap secret reset on the "1"
   const handleSecretTap = useCallback(() => {
@@ -666,9 +664,6 @@ export const HomeScreen = ({ navigation }: Props) => {
               {t('home.matching.notFound')}
             </Animated.Text>
           )}
-          {matchingPaused ? (
-            <Text style={styles.subscriptionWarning}>{CHAT_RENEW_WARNING_TEXT}</Text>
-          ) : null}
         </View>
 
         <TouchableOpacity style={styles.libraryCard} onPress={() => navigation.navigate('NextStep' as any)}>
@@ -799,13 +794,6 @@ const styles = StyleSheet.create({
   statusSubMatch: { fontFamily: typography.sansBold, color: colors.primary, textAlign: 'center', fontSize: 14 },
   statusSubMatchHint: { fontFamily: typography.sansRegular, color: colors.mutedText, textAlign: 'center', fontSize: 11, marginTop: 4 },
   statusOne: { fontFamily: typography.sansBold, color: colors.primary, fontSize: 16 },
-  subscriptionWarning: {
-    marginTop: spacing.xs,
-    fontFamily: typography.sansSemiBold,
-    fontSize: 12,
-    color: colors.primary,
-    textAlign: 'center',
-  },
   signsCardRow: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm },
   signCard: { backgroundColor: colors.surface, borderRadius: radii.card, padding: spacing.md, alignItems: 'center', borderWidth: 2, minWidth: 100 },
   signCardLabel: { fontFamily: typography.sansSemiBold, fontSize: 11, color: colors.primary, marginBottom: spacing.xs },

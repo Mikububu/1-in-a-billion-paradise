@@ -44,6 +44,7 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
 
     const authUser = useAuthStore((s) => s.user);
     const unlimitedReadings = useAuthStore((s) => s.unlimitedReadings);
+    const entitlementState = useAuthStore((s) => s.entitlementState);
     const getPerson = useProfileStore((s) => s.getPerson);
     const getUser = useProfileStore((s) => s.getUser);
     const people = useProfileStore((s) => s.people);
@@ -236,8 +237,9 @@ export const VoiceSelectionScreen = ({ navigation, route }: Props) => {
             ? 'bundle_verdict'
             : (readingType === 'overlay' ? 'synastry' : 'extended');
 
-        // Billionaire tier gets all readings free - always send useIncludedReading
-        const shouldUseIncluded = unlimitedReadings || Boolean(restParams.useIncludedReading);
+        // Any active subscriber (including coupon users) uses their included quota.
+        // IAP per-reading purchase only applies to users with no subscription at all.
+        const shouldUseIncluded = unlimitedReadings || Boolean(restParams.useIncludedReading) || entitlementState === 'active';
 
         // ── IAP Payment Gate ─────────────────────────────────────────
         // If NOT using an included reading (no subscription or quota exhausted),
