@@ -569,7 +569,7 @@ export const SignInScreen = () => {
                         <Image
                             source={require('../../../assets/images/love.gif')}
                             style={styles.gifImage}
-                            resizeMode="cover"
+                            resizeMode="contain"
                         />
                     </View>
                 </ScrollView>
@@ -587,12 +587,10 @@ const styles = StyleSheet.create({
         marginHorizontal: -spacing.page,
         marginTop: 'auto' as any,
         marginBottom: 0,
-        height: 220,
-        overflow: 'hidden' as const,
     },
     gifImage: {
         width: '100%',
-        height: '100%',
+        aspectRatio: 1200 / 1280,
     },
     contentContainer: {
         flex: 1,
