@@ -221,10 +221,11 @@ const karaokeStyles = StyleSheet.create({
     alignItems: 'center',
   },
   lyrics: {
-    fontFamily: typography.serif,
-    fontSize: 13,
+    fontFamily: typography.sansBold,
+    fontSize: 16,
     color: 'rgba(0,0,0,0.25)',
     letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
   lyricsHighlight: {
     color: '#000',
