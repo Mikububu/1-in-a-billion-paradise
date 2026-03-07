@@ -56,62 +56,58 @@ router.post('/signup', async (c) => {
             }, 500);
         }
 
-        const supabase = createClient(
-            env.SUPABASE_URL,
-            env.SUPABASE_ANON_KEY
-        );
-
         // Build user metadata with name if provided
         const userMetadata = name && typeof name === 'string' && name.trim()
             ? { full_name: name.trim() }
             : {};
 
-        const { data, error } = await supabase.auth.signUp({
+        // Use service role admin.createUser with email_confirm:true so no OTP
+        // email is sent and the account is immediately active.
+        const adminSupabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY!);
+        const { data: adminData, error: adminError } = await adminSupabase.auth.admin.createUser({
             email,
             password,
-            options: {
-                data: userMetadata,
-                emailRedirectTo: `${env.FRONTEND_URL || 'oneinabillionv2://auth/confirm'}`,
-            },
+            user_metadata: userMetadata,
+            email_confirm: true,
         });
 
-        if (error) {
-            console.error('❌ Signup error:', error.message);
-            const msg = (error.message || '').toLowerCase();
-            if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('duplicate')) {
+        if (adminError) {
+            console.error('❌ Signup error:', adminError.message);
+            const msg = (adminError.message || '').toLowerCase();
+            if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('duplicate') || msg.includes('already been registered')) {
                 return c.json({
                     success: false,
                     code: 'ACCOUNT_EXISTS',
                     error: 'An account with this email already exists. Please sign in instead.',
                 }, 409);
             }
-            return c.json({
-                success: false,
-                error: error.message
-            }, 400);
+            return c.json({ success: false, error: adminError.message }, 400);
         }
 
-        // CRITICAL: Supabase returns a "fake" success for duplicate emails when
-        // email confirmations are enabled. The giveaway is user.identities = [].
-        // This prevents email enumeration attacks, but we need to catch it to
-        // show the user an appropriate message.
-        const identities = data?.user?.identities;
-        if (Array.isArray(identities) && identities.length === 0) {
-            console.warn(`⚠️ Duplicate signup attempt for: ${email} (identities empty)`);
+        // Sign in immediately to get a session — no OTP required.
+        const anonSupabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY!);
+        const { data: signInData, error: signInError } = await anonSupabase.auth.signInWithPassword({ email, password });
+
+        if (signInError) {
+            console.error('❌ Auto-signin after signup failed:', signInError.message);
+            // Account was created but session failed — return success with no session so
+            // the client falls back to the OTP input screen.
             return c.json({
-                success: false,
-                code: 'ACCOUNT_EXISTS',
-                error: 'An account with this email already exists. Please sign in instead.',
-            }, 409);
+                success: true,
+                user: adminData.user,
+                session: null,
+                requiresVerification: false,
+                clearLocalStorage: false,
+            });
         }
 
-        console.log(`✅ Signup accepted for ${email}; requiresVerification=${!data.session}`);
+        console.log(`✅ Signup + auto-signin complete for ${email}`);
 
         return c.json({
             success: true,
-            user: data.user,
-            session: data.session,
-            requiresVerification: !data.session,
+            user: signInData.user,
+            session: signInData.session,
+            requiresVerification: false,
             clearLocalStorage: false,
         });
 
