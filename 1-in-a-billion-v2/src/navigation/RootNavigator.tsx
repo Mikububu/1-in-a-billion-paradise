@@ -85,7 +85,7 @@ export type OnboardingStackParamList = {
     Relationship: undefined;
     BirthInfo: undefined;
     Languages: undefined;
-    Account: { fromPayment?: boolean; captureOnly?: boolean; revenueCatAppUserId?: string; couponRedemptionId?: string; couponCustomerId?: string } | undefined;
+    Account: { fromPayment?: boolean; captureOnly?: boolean; revenueCatAppUserId?: string; couponRedemptionId?: string; couponCustomerId?: string; manualBypass?: boolean } | undefined;
     CoreIdentitiesIntro: undefined;
     CoreIdentities: undefined;
     HookSequence: {

@@ -394,6 +394,13 @@ export const IntroScreen = ({ navigation }: Props) => {
                   // Keep intro music running through onboarding flow.
                   // Reset onboarding completion flag when starting fresh
                   useOnboardingStore.getState().setHasCompletedOnboarding(false);
+
+                  // Clear local people store (except user) to avoid "Already Created" block 
+                  // on third person limit from a previous app installation
+                  const profileStore = useProfileStore.getState();
+                  const userProfile = profileStore.getUser();
+                  profileStore.replacePeople(userProfile ? [userProfile] : []);
+
                   navigation.navigate('Relationship');
                 }
               }}

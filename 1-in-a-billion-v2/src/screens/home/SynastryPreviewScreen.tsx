@@ -5,7 +5,7 @@
  * Page 2: Basic Overlay insights (3 cards)
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -25,6 +25,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { MainStackParamList } from '@/navigation/RootNavigator';
 import { useOnboardingStore } from '@/store/onboardingStore';
@@ -36,6 +37,7 @@ import { BackButton } from '@/components/BackButton';
 import { Video, ResizeMode } from 'expo-av';
 import { getCoupleImage } from '@/services/coupleImageService';
 import { t } from '@/i18n';
+import { useAudio } from '@/contexts/AudioContext';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'SynastryPreview'>;
 
@@ -98,6 +100,14 @@ export const SynastryPreviewScreen = ({ navigation, route }: Props) => {
 
   const userName = t('synastryPreview.you');
   const partner = partnerName || t('synastryPreview.them');
+
+  const { stopAudio } = useAudio();
+
+  useFocusEffect(
+    useCallback(() => {
+      stopAudio();
+    }, [stopAudio])
+  );
 
   const [page, setPage] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);

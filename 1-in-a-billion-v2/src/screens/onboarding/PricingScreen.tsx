@@ -222,7 +222,7 @@ export const PricingScreen = ({ navigation }: Props) => {
       setCouponStatus('valid');
       setCouponMessage('ILOVEYOU bypass activated!');
       setTimeout(() => {
-        navigation.navigate('Account', { fromPayment: true });
+        navigation.navigate('Account', { fromPayment: true, manualBypass: true });
       }, 1000);
       return;
     }

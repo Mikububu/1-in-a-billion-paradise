@@ -99,8 +99,9 @@ export const AccountScreen = ({ navigation, route }: Props) => {
   const revenueCatAppUserId = route.params?.revenueCatAppUserId?.trim() || '';
   const couponRedemptionId = route.params?.couponRedemptionId || '';
   const couponCustomerId = route.params?.couponCustomerId || '';
+  const manualBypass = Boolean(route.params?.manualBypass);
   const isCouponSignup = Boolean(couponCustomerId);
-  const paymentBypassEnabled = env.ALLOW_PAYMENT_BYPASS;
+  const paymentBypassEnabled = env.ALLOW_PAYMENT_BYPASS || manualBypass;
   const authUser = useAuthStore((s) => s.user);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -800,161 +801,161 @@ export const AccountScreen = ({ navigation, route }: Props) => {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
-        <View style={styles.authSection}>
-          <View style={styles.headlineCard}>
-            <Text style={styles.title}>{showOtpInput ? t('account.verifyEmail') : t('account.createAccount')}</Text>
-            <Text style={styles.subtitle}>
-              {showOtpInput
-                ? t('account.verifySubtitle')
-                : fromPayment
-                  ? t('account.paymentSubtitle')
-                  : t('account.onboardingSubtitle')}
-            </Text>
-          </View>
-
-          {fromPayment && authUser?.id ? (
-            <View style={styles.input}>
-              <Text style={styles.subtitle}>{t('account.finalizing')}</Text>
+          <View style={styles.authSection}>
+            <View style={styles.headlineCard}>
+              <Text style={styles.title}>{showOtpInput ? t('account.verifyEmail') : t('account.createAccount')}</Text>
+              <Text style={styles.subtitle}>
+                {showOtpInput
+                  ? t('account.verifySubtitle')
+                  : fromPayment
+                    ? t('account.paymentSubtitle')
+                    : t('account.onboardingSubtitle')}
+              </Text>
             </View>
-          ) : showOtpInput ? (
-            <>
-              <TextInput
-                style={[styles.input, styles.otpInput]}
-                placeholder="00000000"
-                placeholderTextColor={colors.mutedText}
-                value={otpCode}
-                onChangeText={(text) => setOtpCode(text.replace(/[^0-9]/g, '').slice(0, 8))}
-                keyboardType="number-pad"
-                maxLength={8}
-                textAlign="center"
-                autoFocus
-                editable={!isLoading}
-              />
 
-              <TouchableOpacity
-                style={[styles.authButton, styles.primaryBtn, (otpCode.length < 8 && !isLoading) && styles.primaryBtnDisabled]}
-                onPress={handleVerifyOtp}
-                disabled={isLoading || otpCode.length < 8}
-              >
-                {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>{t('account.verifyButton')}</Text>}
-              </TouchableOpacity>
+            {fromPayment && authUser?.id ? (
+              <View style={styles.input}>
+                <Text style={styles.subtitle}>{t('account.finalizing')}</Text>
+              </View>
+            ) : showOtpInput ? (
+              <>
+                <TextInput
+                  style={[styles.input, styles.otpInput]}
+                  placeholder="00000000"
+                  placeholderTextColor={colors.mutedText}
+                  value={otpCode}
+                  onChangeText={(text) => setOtpCode(text.replace(/[^0-9]/g, '').slice(0, 8))}
+                  keyboardType="number-pad"
+                  maxLength={8}
+                  textAlign="center"
+                  autoFocus
+                  editable={!isLoading}
+                />
 
-              <TouchableOpacity
-                style={styles.resendBtn}
-                onPress={handleResendOtp}
-                disabled={isLoading}
-              >
-                <Text style={styles.resendText}>{t('account.resend')}</Text>
-              </TouchableOpacity>
-
-            </>
-          ) : (
-            <>
-              <TextInput
-                style={styles.input}
-                placeholder={t('account.firstNamePlaceholder')}
-                placeholderTextColor={colors.mutedText}
-                value={name}
-                onChangeText={(text) => {
-                  setName(text);
-                  if (!text.trim()) {
-                    setSignupStep('name');
-                  }
-                }}
-                editable={!isLoading}
-              />
-
-              {signupStep === 'name' && (
                 <TouchableOpacity
-                  style={[styles.authButton, styles.primaryBtn, (!hasName && !isLoading) && styles.primaryBtnDisabled]}
-                  onPress={handleContinueFromName}
-                  disabled={isLoading || !hasName}
+                  style={[styles.authButton, styles.primaryBtn, (otpCode.length < 8 && !isLoading) && styles.primaryBtnDisabled]}
+                  onPress={handleVerifyOtp}
+                  disabled={isLoading || otpCode.length < 8}
                 >
-                  <Text style={styles.primaryText}>{t('account.continue')}</Text>
+                  {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>{t('account.verifyButton')}</Text>}
                 </TouchableOpacity>
-              )}
 
-              {signupStep === 'method' && (
-                <>
-                  <Text style={styles.methodHint}>{t('account.chooseMethod')}</Text>
+                <TouchableOpacity
+                  style={styles.resendBtn}
+                  onPress={handleResendOtp}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.resendText}>{t('account.resend')}</Text>
+                </TouchableOpacity>
 
+              </>
+            ) : (
+              <>
+                <TextInput
+                  style={styles.input}
+                  placeholder={t('account.firstNamePlaceholder')}
+                  placeholderTextColor={colors.mutedText}
+                  value={name}
+                  onChangeText={(text) => {
+                    setName(text);
+                    if (!text.trim()) {
+                      setSignupStep('name');
+                    }
+                  }}
+                  editable={!isLoading}
+                />
+
+                {signupStep === 'name' && (
                   <TouchableOpacity
-                    style={[styles.authButton, styles.primaryBtn]}
-                    onPress={() => setSignupStep('email')}
-                    disabled={isLoading}
+                    style={[styles.authButton, styles.primaryBtn, (!hasName && !isLoading) && styles.primaryBtnDisabled]}
+                    onPress={handleContinueFromName}
+                    disabled={isLoading || !hasName}
                   >
-                    <Text style={styles.primaryText}>{t('account.continueWithEmail')}</Text>
+                    <Text style={styles.primaryText}>{t('account.continue')}</Text>
                   </TouchableOpacity>
+                )}
 
-                  {Platform.OS === 'ios' && (
-                    <TouchableOpacity style={[styles.authButton, styles.appleBtn]} onPress={handleAppleSignUp} disabled={isLoading}>
-                      <Text style={styles.appleText}>{t('auth.continueWithApple')}</Text>
+                {signupStep === 'method' && (
+                  <>
+                    <Text style={styles.methodHint}>{t('account.chooseMethod')}</Text>
+
+                    <TouchableOpacity
+                      style={[styles.authButton, styles.primaryBtn]}
+                      onPress={() => setSignupStep('email')}
+                      disabled={isLoading}
+                    >
+                      <Text style={styles.primaryText}>{t('account.continueWithEmail')}</Text>
                     </TouchableOpacity>
-                  )}
 
-                  <TouchableOpacity style={[styles.authButton, styles.googleBtn]} onPress={handleGoogleSignUp} disabled={isLoading}>
-                    <Text style={styles.googleText}>{t('auth.continueWithGoogle')}</Text>
-                  </TouchableOpacity>
-                </>
-              )}
+                    {Platform.OS === 'ios' && (
+                      <TouchableOpacity style={[styles.authButton, styles.appleBtn]} onPress={handleAppleSignUp} disabled={isLoading}>
+                        <Text style={styles.appleText}>{t('auth.continueWithApple')}</Text>
+                      </TouchableOpacity>
+                    )}
 
-              {signupStep === 'email' && (
-                <>
-                  <TextInput
-                    style={styles.input}
-                    placeholder={t('auth.email')}
-                    placeholderTextColor={colors.mutedText}
-                    value={email}
-                    onChangeText={setEmail}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                    editable={!isLoading}
-                  />
+                    <TouchableOpacity style={[styles.authButton, styles.googleBtn]} onPress={handleGoogleSignUp} disabled={isLoading}>
+                      <Text style={styles.googleText}>{t('auth.continueWithGoogle')}</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
 
-                  <View style={styles.passwordContainer}>
+                {signupStep === 'email' && (
+                  <>
                     <TextInput
-                      style={[styles.input, styles.passwordInput]}
-                      placeholder={t('auth.password')}
+                      style={styles.input}
+                      placeholder={t('auth.email')}
                       placeholderTextColor={colors.mutedText}
-                      value={password}
-                      onChangeText={setPassword}
-                      secureTextEntry={!showPassword}
+                      value={email}
+                      onChangeText={setEmail}
                       autoCapitalize="none"
+                      keyboardType="email-address"
                       editable={!isLoading}
                     />
+
+                    <View style={styles.passwordContainer}>
+                      <TextInput
+                        style={[styles.input, styles.passwordInput]}
+                        placeholder={t('auth.password')}
+                        placeholderTextColor={colors.mutedText}
+                        value={password}
+                        onChangeText={setPassword}
+                        secureTextEntry={!showPassword}
+                        autoCapitalize="none"
+                        editable={!isLoading}
+                      />
+                      <TouchableOpacity
+                        style={styles.eyeToggle}
+                        onPress={() => setShowPassword(!showPassword)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={22} color={colors.mutedText} />
+                      </TouchableOpacity>
+                    </View>
+
                     <TouchableOpacity
-                      style={styles.eyeToggle}
-                      onPress={() => setShowPassword(!showPassword)}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      style={styles.passwordGenerator}
+                      onPress={handleGeneratePassword}
+                      disabled={isLoading}
                     >
-                      <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={22} color={colors.mutedText} />
+                      <Text style={styles.passwordGeneratorText}>{t('account.generatePassword')}</Text>
                     </TouchableOpacity>
-                  </View>
 
-                  <TouchableOpacity
-                    style={styles.passwordGenerator}
-                    onPress={handleGeneratePassword}
-                    disabled={isLoading}
-                  >
-                    <Text style={styles.passwordGeneratorText}>{t('account.generatePassword')}</Text>
-                  </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.authButton, styles.primaryBtn, (!isEmailFormValid && !isLoading) && styles.primaryBtnDisabled]}
+                      onPress={handleEmailSignUp}
+                      disabled={isLoading || !isEmailFormValid}
+                    >
+                      {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>{t('account.createWithEmail')}</Text>}
+                    </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.authButton, styles.primaryBtn, (!isEmailFormValid && !isLoading) && styles.primaryBtnDisabled]}
-                    onPress={handleEmailSignUp}
-                    disabled={isLoading || !isEmailFormValid}
-                  >
-                    {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>{t('account.createWithEmail')}</Text>}
-                  </TouchableOpacity>
-
-                  <TouchableOpacity style={styles.resendBtn} onPress={() => setSignupStep('method')} disabled={isLoading}>
-                    <Text style={styles.resendText}>{t('account.backToOptions')}</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-            </>
-          )}
-        </View>
+                    <TouchableOpacity style={styles.resendBtn} onPress={() => setSignupStep('method')} disabled={isLoading}>
+                      <Text style={styles.resendText}>{t('account.backToOptions')}</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </>
+            )}
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>

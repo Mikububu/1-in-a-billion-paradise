@@ -586,14 +586,12 @@ const styles = StyleSheet.create({
     gifContainer: {
         flex: 1,
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'flex-end',
         marginTop: spacing.xl,
-        marginBottom: spacing.xl,
     },
     gifImage: {
-        width: '75%',
+        width: '100%',
         height: 412,
-        borderRadius: radii.card,
     },
     contentContainer: {
         flex: 1,
