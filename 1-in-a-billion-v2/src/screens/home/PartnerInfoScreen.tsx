@@ -312,7 +312,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
     <TexturedBackground style={{ flex: 1 }}>
       <SafeAreaView style={styles.container}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}
         >
           {/* Header with exit button */}
@@ -340,7 +340,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
             contentContainerStyle={{ flexGrow: 1, paddingBottom: (showTimePicker || showDatePicker) ? 400 : spacing.xl }}
           >
             <View style={styles.content}>
-              <Text style={styles.title} selectable>Tell us about...</Text>
+              <Text style={styles.title}>Tell us about...</Text>
 
               {/* Name Input */}
               <View style={styles.inputRow}>
@@ -351,7 +351,7 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
                   placeholderTextColor={colors.mutedText}
                   value={name}
                   onChangeText={setName}
-                  autoCapitalize="none"
+                  autoCapitalize="words"
                   autoCorrect={false}
                 />
               </View>
@@ -369,14 +369,17 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
                   <DateTimePicker
                     value={birthDate || new Date(1990, 0, 1)}
                     mode="date"
-                    display="spinner"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                     onChange={(_, date) => {
+                      if (Platform.OS === 'android') setShowDatePicker(false);
                       if (date) setBirthDate(date);
                     }}
                   />
-                  <TouchableOpacity style={styles.pickerDone} onPress={() => setShowDatePicker(false)}>
-                    <Text style={styles.pickerDoneText}>Done</Text>
-                  </TouchableOpacity>
+                  {Platform.OS === 'ios' && (
+                    <TouchableOpacity style={styles.pickerDone} onPress={() => setShowDatePicker(false)}>
+                      <Text style={styles.pickerDoneText}>Done</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
 
@@ -393,14 +396,17 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
                   <DateTimePicker
                     value={birthTime || new Date(2000, 0, 1, 12, 0)}
                     mode="time"
-                    display="spinner"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                     onChange={(_, time) => {
+                      if (Platform.OS === 'android') setShowTimePicker(false);
                       if (time) setBirthTime(time);
                     }}
                   />
-                  <TouchableOpacity style={styles.pickerDone} onPress={() => setShowTimePicker(false)}>
-                    <Text style={styles.pickerDoneText}>Done</Text>
-                  </TouchableOpacity>
+                  {Platform.OS === 'ios' && (
+                    <TouchableOpacity style={styles.pickerDone} onPress={() => setShowTimePicker(false)}>
+                      <Text style={styles.pickerDoneText}>Done</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
 

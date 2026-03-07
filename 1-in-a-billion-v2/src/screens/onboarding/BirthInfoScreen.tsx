@@ -158,14 +158,14 @@ export const BirthInfoScreen = () => {
 
             <KeyboardAvoidingView
                 style={styles.container}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             >
                 <ScrollView
                     contentContainerStyle={styles.scrollContent}
                     keyboardShouldPersistTaps="always"
                     showsVerticalScrollIndicator={false}
                 >
-                    <Text style={styles.title} selectable>{t('birthInfo.title')}</Text>
+                    <Text style={styles.title}>{t('birthInfo.title')}</Text>
 
                     {/* Date Input */}
                     <Pressable
@@ -182,21 +182,24 @@ export const BirthInfoScreen = () => {
                         <View style={styles.pickerWrapper} onTouchStart={() => Keyboard.dismiss()}>
                             <DateTimePicker
                                 mode="date"
-                                display="spinner"
+                                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                                 value={dateValue}
                                 onChange={(_, nextDate) => {
+                                    if (Platform.OS === 'android') setShowDatePicker(false);
                                     if (nextDate) {
                                         setDateValue(nextDate);
                                         setBirthDate(toIsoDate(nextDate));
                                     }
                                 }}
                             />
-                            <TouchableOpacity
-                                style={styles.pickerDone}
-                                onPress={() => setShowDatePicker(false)}
-                            >
-                                <Text style={styles.pickerDoneText}>{t('birthInfo.done')}</Text>
-                            </TouchableOpacity>
+                            {Platform.OS === 'ios' && (
+                                <TouchableOpacity
+                                    style={styles.pickerDone}
+                                    onPress={() => setShowDatePicker(false)}
+                                >
+                                    <Text style={styles.pickerDoneText}>{t('birthInfo.done')}</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                     )}
 
@@ -215,22 +218,25 @@ export const BirthInfoScreen = () => {
                         <View style={styles.pickerWrapper} onTouchStart={() => Keyboard.dismiss()}>
                             <DateTimePicker
                                 mode="time"
-                                display="spinner"
+                                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                                 value={timeValue}
                                 is24Hour={true}
                                 onChange={(_, nextTime) => {
+                                    if (Platform.OS === 'android') setShowTimePicker(false);
                                     if (nextTime) {
                                         setTimeValue(nextTime);
                                         setBirthTime(toTimeString(nextTime));
                                     }
                                 }}
                             />
-                            <TouchableOpacity
-                                style={styles.pickerDone}
-                                onPress={() => setShowTimePicker(false)}
-                            >
-                                <Text style={styles.pickerDoneText}>{t('birthInfo.done')}</Text>
-                            </TouchableOpacity>
+                            {Platform.OS === 'ios' && (
+                                <TouchableOpacity
+                                    style={styles.pickerDone}
+                                    onPress={() => setShowTimePicker(false)}
+                                >
+                                    <Text style={styles.pickerDoneText}>{t('birthInfo.done')}</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                     )}
 
@@ -253,7 +259,7 @@ export const BirthInfoScreen = () => {
                         selected={selectedCity}
                     />
 
-                    <Text style={styles.helper} selectable>
+                    <Text style={styles.helper}>
                         {t('birthInfo.helper')}
                     </Text>
                 </ScrollView>

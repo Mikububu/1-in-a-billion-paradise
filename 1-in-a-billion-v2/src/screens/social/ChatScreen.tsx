@@ -77,7 +77,7 @@ export const ChatScreen = ({ navigation, route }: Props) => {
         fetch(`${env.CORE_API_URL}/api/chat/conversations/${conversationId}/read`, {
           method: 'POST',
           headers: { ...authHeaders },
-        }).catch(() => {});
+        }).catch(() => { });
       } else {
         setMessages([]);
       }
@@ -237,7 +237,7 @@ export const ChatScreen = ({ navigation, route }: Props) => {
         }
       />
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={styles.inputRow}>
           <TextInput
             style={[styles.input, chatBlocked && styles.inputDisabled]}

@@ -829,6 +829,7 @@ export const AccountScreen = ({ navigation, route }: Props) => {
                   maxLength={8}
                   textAlign="center"
                   autoFocus
+                  returnKeyType="done"
                   editable={!isLoading}
                 />
 

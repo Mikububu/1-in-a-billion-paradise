@@ -163,7 +163,7 @@ export const EditBirthDataScreen = ({ navigation, route }: Props) => {
     return (
         <SafeAreaView style={styles.safeArea}>
             <BackButton onPress={() => navigation.goBack()} />
-            <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                 <View style={styles.header}>
                     <View style={{ width: 60 }} />
                     <Text style={styles.headerTitle}>{t('editBirthData.title')}</Text>
@@ -184,15 +184,18 @@ export const EditBirthDataScreen = ({ navigation, route }: Props) => {
                         <View style={styles.pickerWrapper} onTouchStart={() => Keyboard.dismiss()}>
                             <DateTimePicker
                                 mode="date"
-                                display="spinner"
+                                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                                 value={dateValue}
                                 onChange={(_, nextDate) => {
+                                    if (Platform.OS === 'android') setShowDatePicker(false);
                                     if (nextDate) setDateValue(nextDate);
                                 }}
                             />
-                            <TouchableOpacity style={styles.pickerDone} onPress={() => setShowDatePicker(false)}>
-                                <Text style={styles.pickerDoneText}>{t('editBirthData.done')}</Text>
-                            </TouchableOpacity>
+                            {Platform.OS === 'ios' && (
+                                <TouchableOpacity style={styles.pickerDone} onPress={() => setShowDatePicker(false)}>
+                                    <Text style={styles.pickerDoneText}>{t('editBirthData.done')}</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                     )}
 
@@ -204,16 +207,19 @@ export const EditBirthDataScreen = ({ navigation, route }: Props) => {
                         <View style={styles.pickerWrapper} onTouchStart={() => Keyboard.dismiss()}>
                             <DateTimePicker
                                 mode="time"
-                                display="spinner"
+                                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                                 value={timeValue}
                                 is24Hour={true}
                                 onChange={(_, nextTime) => {
+                                    if (Platform.OS === 'android') setShowTimePicker(false);
                                     if (nextTime) setTimeValue(nextTime);
                                 }}
                             />
-                            <TouchableOpacity style={styles.pickerDone} onPress={() => setShowTimePicker(false)}>
-                                <Text style={styles.pickerDoneText}>{t('editBirthData.done')}</Text>
-                            </TouchableOpacity>
+                            {Platform.OS === 'ios' && (
+                                <TouchableOpacity style={styles.pickerDone} onPress={() => setShowTimePicker(false)}>
+                                    <Text style={styles.pickerDoneText}>{t('editBirthData.done')}</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                     )}
 
