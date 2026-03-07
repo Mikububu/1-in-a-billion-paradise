@@ -15,8 +15,9 @@ import { isSupabaseConfigured } from '@/services/supabase';
 import { verifyEntitlementWithBackend } from '@/services/payments';
 import { fetchPeopleFromSupabase } from '@/services/peopleCloud';
 import { env } from '@/config/env';
-import { t, getLanguage, setLanguage, onLanguageChange, LANGUAGE_META, type LanguageCode } from '@/i18n';
+import { LANGUAGE_META, getLanguage, onLanguageChange, setLanguage, t, type LanguageCode } from '@/i18n';
 import { LanguagePicker } from '@/components/LanguagePicker';
+import { LanguagePill } from '@/components/LanguagePill';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Intro'>;
@@ -43,68 +44,13 @@ export const IntroScreen = ({ navigation }: Props) => {
   const [tapCount, setTapCount] = useState(0);
   const tapTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  // Language selector state
   const [currentLanguage, setCurrentLanguage] = useState<LanguageCode>(getLanguage());
   const [langPickerVisible, setLangPickerVisible] = useState(false);
   const insets = useSafeAreaInsets();
 
-  // Rotating language pill animation
-  const [displayLangIndex, setDisplayLangIndex] = useState(0);
-  const langFadeAnim = useRef(new Animated.Value(1)).current;
-  const langBorderAnim = useRef(new Animated.Value(0)).current;
-  // Automatically pull native names for all supported languages from the i18n config
-  const LANG_NAMES = Object.values(LANGUAGE_META).map(meta => meta.nativeName);
-
   useEffect(() => {
     return onLanguageChange(setCurrentLanguage);
   }, []);
-
-  // Auto-rotate language names every 2.5s with fade transition
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Fade out
-      Animated.timing(langFadeAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: Platform.OS !== 'web',
-        easing: Easing.out(Easing.ease),
-      }).start(() => {
-        // Switch to next language
-        setDisplayLangIndex((prev) => (prev + 1) % LANG_NAMES.length);
-        // Fade in
-        Animated.timing(langFadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: Platform.OS !== 'web',
-          easing: Easing.in(Easing.ease),
-        }).start();
-      });
-    }, 2500);
-
-    return () => clearInterval(interval);
-  }, [langFadeAnim]);
-
-  // "Marching ants" border glow — continuous pulse draws attention to the language pill
-  useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(langBorderAnim, {
-          toValue: 1,
-          duration: 1200,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false, // color interpolation needs JS driver
-        }),
-        Animated.timing(langBorderAnim, {
-          toValue: 0,
-          duration: 1200,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
-        }),
-      ])
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, [langBorderAnim]);
 
   const handleBigOneTap = () => {
     // Clear previous timeout
@@ -372,27 +318,10 @@ export const IntroScreen = ({ navigation }: Props) => {
       />
 
       {/* Language pill */}
-      <TouchableOpacity
-        onPress={() => setLangPickerVisible(true)}
-        activeOpacity={0.7}
+      <LanguagePill
         style={{ position: 'absolute', left: spacing.page, top: insets.top + spacing.sm, zIndex: 50 }}
-      >
-        <Animated.View
-          style={[
-            styles.langPill,
-            {
-              borderColor: langBorderAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [colors.border, colors.primary],
-              }),
-            },
-          ]}
-        >
-          <Animated.Text style={[styles.langPillText, { opacity: langFadeAnim }]}>
-            {LANG_NAMES[displayLangIndex]}
-          </Animated.Text>
-        </Animated.View>
-      </TouchableOpacity>
+        onPress={() => setLangPickerVisible(true)}
+      />
       <LanguagePicker visible={langPickerVisible} onClose={() => setLangPickerVisible(false)} />
 
       <SafeAreaView style={styles.safeArea}>

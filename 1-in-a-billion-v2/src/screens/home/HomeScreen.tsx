@@ -24,6 +24,7 @@ import { fetchJobSnapshot } from '@/services/jobStatus';
 import { getLanguage, onLanguageChange, LANGUAGE_META, type LanguageCode, t } from '@/i18n';
 import * as ImagePicker from 'expo-image-picker';
 import { LanguagePicker } from '@/components/LanguagePicker';
+import { LanguagePill } from '@/components/LanguagePill';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Home'>;
 
@@ -603,15 +604,10 @@ export const HomeScreen = ({ navigation }: Props) => {
   return (
     <SafeAreaView style={styles.container}>
       {/* Language pill - top left */}
-      <TouchableOpacity
-        style={[styles.langPill, { top: insets.top + spacing.sm }]}
+      <LanguagePill
+        style={{ position: 'absolute', left: spacing.page, top: insets.top + spacing.sm, zIndex: 50 }}
         onPress={() => setLangPickerVisible(true)}
-        activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityLabel="Change language"
-      >
-        <Text style={styles.langPillText}>{LANGUAGE_META[currentLang]?.nativeName || currentLang.toUpperCase()}</Text>
-      </TouchableOpacity>
+      />
 
       <TouchableOpacity style={[styles.settingsButton, { top: insets.top + spacing.sm }]} onPress={() => navigation.navigate('Settings')} accessibilityRole="button" accessibilityLabel="Settings">
         <Text style={styles.settingsIcon}>⚙</Text>
@@ -786,23 +782,6 @@ const styles = StyleSheet.create({
   headlineWrap: { alignItems: 'center' },
   headlineTop: { fontFamily: typography.headline, fontSize: 32, color: colors.text, textAlign: 'center' },
   headlineBottom: { fontFamily: typography.headline, fontSize: 32, color: colors.text, textAlign: 'center', marginTop: -2 },
-  langPill: {
-    position: 'absolute',
-    left: spacing.page,
-    zIndex: 50,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  langPillText: {
-    fontFamily: typography.sansSemiBold,
-    fontSize: 13,
-    color: colors.text,
-    letterSpacing: 0.5,
-  },
   settingsButton: { position: 'absolute', right: spacing.page, zIndex: 50, padding: spacing.sm },
   settingsIcon: { fontSize: 24, color: colors.text },
   libraryCard: { backgroundColor: colors.surface, borderRadius: radii.card, padding: spacing.md, borderWidth: 1, borderColor: colors.primary, borderStyle: 'dashed', marginTop: spacing.xs },
