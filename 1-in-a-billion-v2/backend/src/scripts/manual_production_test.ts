@@ -4,7 +4,6 @@ import path from 'path';
 import fs from 'fs';
 import axios from 'axios';
 import { swissEngine } from '../services/swissEphemeris';
-import { readingsClient } from '../services/text/readingsClient';
 import { env } from '../config/env';
 import { generateReadingPDF } from '../services/pdf/pdfGenerator';
 
@@ -51,17 +50,9 @@ async function runTest() {
       rising: placements.risingSign
     });
 
-    // 3. Generate Text (Western)
-    console.log('\n📝 Generating Text (Western)...');
-    const { reading, source } = await readingsClient.generateExtendedReading({
-      system: 'western',
-      placements,
-      birthData: { birthDate: '2000-01-01', birthTime: '12:00', timezone: 'UTC' },
-      subjectName: 'TestUser',
-      longForm: true,
-    });
-
-    const textContent = reading.content;
+    // 3. Generate Text (Western) — readings now go through textWorker pipeline
+    console.log('\n📝 Generating placeholder text for PDF/audio test...');
+    const textContent = 'Test reading content — production readings are generated via the textWorker job pipeline.';
     const textPath = path.join(OUTPUT_DIR, 'reading.txt');
     fs.writeFileSync(textPath, textContent);
     console.log(`✅ Text generated and saved to ${textPath} (${textContent.length} chars)`);
