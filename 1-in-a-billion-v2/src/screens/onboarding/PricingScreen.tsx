@@ -221,7 +221,7 @@ const karaokeStyles = StyleSheet.create({
     alignItems: 'center',
   },
   lyrics: {
-    fontFamily: typography.serifItalic || typography.serif,
+    fontFamily: typography.serif,
     fontSize: 13,
     color: 'rgba(0,0,0,0.25)',
     letterSpacing: 0.3,

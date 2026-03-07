@@ -561,6 +561,7 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         console.log(`✅ Saved ${partnerName}'s hook readings for Home carousel rotation`);
       }
 
+      const authUserId = useAuthStore.getState().user?.id;
       if (authUserId) {
         try {
           const { syncPeopleToSupabase } = await import('@/services/peopleCloud');
