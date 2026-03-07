@@ -26,7 +26,7 @@
   "common.pause": "Pause",
   "common.play": "Jouer",
   "common.optional": "Facultatif",
-  "common.removeSelection": "Supprimer la s\u00e9lection",
+  "common.removeSelection": "Supprimer la sélection",
   "languagePicker.title": "Langue",
   "auth.signIn": "Se connecter",
   "auth.signUp": "Créer un compte",
@@ -997,5 +997,16 @@
   "pricing.paymentFailed.title": "Paiement échoué",
   "myLibrary.reading.deletePrompt": "Veux-tu supprimer cette lecture ?",
   "citySearch.title": "Rechercher une ville",
-  "citySearch.placeholder": "Tape un nom de ville..."
+  "citySearch.placeholder": "Tape un nom de ville...",
+  "pricing.tapAgain": "Tap again to subscribe",
+  "pricing.tier.basic.label": "Dreamer",
+  "pricing.tier.yearly.label": "Expansion",
+  "pricing.tier.billionaire.label": "Soul Billionaire",
+  "pricing.tier.period": "/month",
+  "pricing.tier.bullet.extendedReadings": "{{count}} extended reading per month",
+  "pricing.tier.bullet.extendedReadingsPlural": "{{count}} extended readings per month",
+  "pricing.tier.bullet.dailyMatching": "Daily compatibility matching",
+  "pricing.tier.bullet.narratedReadings": "Narrated readings with audio & PDF",
+  "pricing.tier.bullet.synastrySlots": "1 synastry reading = 3 reading slots",
+  "pricing.restorePurchases": "Restore Purchases"
 }

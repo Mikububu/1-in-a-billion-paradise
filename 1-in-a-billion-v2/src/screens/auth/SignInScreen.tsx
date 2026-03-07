@@ -584,15 +584,16 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
     gifContainer: {
-        flex: 1,
         alignItems: 'center',
         justifyContent: 'flex-end',
         marginHorizontal: -spacing.page, // Break out of contentContainer padding
-        marginTop: spacing.xl,
+        marginTop: spacing.md,
+        overflow: 'hidden',
     },
     gifImage: {
-        width: '100%',
-        height: 412,
+        width: '110%', // Slightly wider to ensure edge-to-edge coverage
+        aspectRatio: 1, // Keep square aspect ratio
+        resizeMode: 'contain',
     },
     contentContainer: {
         flex: 1,

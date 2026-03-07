@@ -4,5 +4,16 @@
   "common.optional": "اختياري",
   "common.removeSelection": "إزالة التحديد",
   "citySearch.title": "البحث عن مدينة",
-  "citySearch.placeholder": "اكتب اسم المدينة..."
+  "citySearch.placeholder": "اكتب اسم المدينة...",
+  "pricing.tapAgain": "Tap again to subscribe",
+  "pricing.tier.basic.label": "Dreamer",
+  "pricing.tier.yearly.label": "Expansion",
+  "pricing.tier.billionaire.label": "Soul Billionaire",
+  "pricing.tier.period": "/month",
+  "pricing.tier.bullet.extendedReadings": "{{count}} extended reading per month",
+  "pricing.tier.bullet.extendedReadingsPlural": "{{count}} extended readings per month",
+  "pricing.tier.bullet.dailyMatching": "Daily compatibility matching",
+  "pricing.tier.bullet.narratedReadings": "Narrated readings with audio & PDF",
+  "pricing.tier.bullet.synastrySlots": "1 synastry reading = 3 reading slots",
+  "pricing.restorePurchases": "Restore Purchases"
 }

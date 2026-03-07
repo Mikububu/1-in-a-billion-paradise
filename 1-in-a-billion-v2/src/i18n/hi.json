@@ -997,5 +997,16 @@
   "hookSequence.nameRequired.title": "नाम आवश्यक",
   "hookSequence.nameRequired.message": "कृपया अपना नाम दर्ज करें",
   "citySearch.title": "शहर खोजें",
-  "citySearch.placeholder": "शहर का नाम लिखें..."
+  "citySearch.placeholder": "शहर का नाम लिखें...",
+  "pricing.tapAgain": "Tap again to subscribe",
+  "pricing.tier.basic.label": "Dreamer",
+  "pricing.tier.yearly.label": "Expansion",
+  "pricing.tier.billionaire.label": "Soul Billionaire",
+  "pricing.tier.period": "/month",
+  "pricing.tier.bullet.extendedReadings": "{{count}} extended reading per month",
+  "pricing.tier.bullet.extendedReadingsPlural": "{{count}} extended readings per month",
+  "pricing.tier.bullet.dailyMatching": "Daily compatibility matching",
+  "pricing.tier.bullet.narratedReadings": "Narrated readings with audio & PDF",
+  "pricing.tier.bullet.synastrySlots": "1 synastry reading = 3 reading slots",
+  "pricing.restorePurchases": "Restore Purchases"
 }

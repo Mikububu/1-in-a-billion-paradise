@@ -55,43 +55,51 @@ type TierDef = {
   bullets: string[];
 };
 
-const TIERS: TierDef[] = [
-  {
-    id: 'basic',
-    label: 'Dreamer',
-    priceLabel: '$20',
-    period: '/month',
-    bullets: [
-      `${TIER_MONTHLY_READINGS.basic} extended reading per month`,
-      'Daily compatibility matching',
-      'Narrated readings with audio & PDF',
-    ],
-  },
-  {
-    id: 'yearly',
-    label: 'Expansion',
-    priceLabel: '$40',
-    period: '/month',
-    bullets: [
-      `${TIER_MONTHLY_READINGS.yearly} extended readings per month`,
-      'Daily compatibility matching',
-      'Narrated readings with audio & PDF',
-      '1 synastry reading = 3 reading slots',
-    ],
-  },
-  {
-    id: 'billionaire',
-    label: 'Soul Billionaire',
-    priceLabel: '$1,000',
-    period: '/month',
-    bullets: [
-      `${TIER_MONTHLY_READINGS.billionaire} extended readings per month`,
-      'Daily compatibility matching',
-      'Narrated readings with audio & PDF',
-      '1 synastry reading = 3 reading slots',
-    ],
-  },
-];
+/** Build tier definitions using i18n — called inside the component */
+function buildTiers(): TierDef[] {
+  const readingBullet = (count: number) =>
+    count === 1
+      ? (t('pricing.tier.bullet.extendedReadings', { count }) || `${count} extended reading per month`)
+      : (t('pricing.tier.bullet.extendedReadingsPlural', { count }) || `${count} extended readings per month`);
+
+  return [
+    {
+      id: 'basic',
+      label: t('pricing.tier.basic.label') || 'Dreamer',
+      priceLabel: '', // will be replaced by RevenueCat
+      period: t('pricing.tier.period') || '/month',
+      bullets: [
+        readingBullet(TIER_MONTHLY_READINGS.basic),
+        t('pricing.tier.bullet.dailyMatching') || 'Daily compatibility matching',
+        t('pricing.tier.bullet.narratedReadings') || 'Narrated readings with audio & PDF',
+      ],
+    },
+    {
+      id: 'yearly',
+      label: t('pricing.tier.yearly.label') || 'Expansion',
+      priceLabel: '', // will be replaced by RevenueCat
+      period: t('pricing.tier.period') || '/month',
+      bullets: [
+        readingBullet(TIER_MONTHLY_READINGS.yearly),
+        t('pricing.tier.bullet.dailyMatching') || 'Daily compatibility matching',
+        t('pricing.tier.bullet.narratedReadings') || 'Narrated readings with audio & PDF',
+        t('pricing.tier.bullet.synastrySlots') || '1 synastry reading = 3 reading slots',
+      ],
+    },
+    {
+      id: 'billionaire',
+      label: t('pricing.tier.billionaire.label') || 'Soul Billionaire',
+      priceLabel: '', // will be replaced by RevenueCat
+      period: t('pricing.tier.period') || '/month',
+      bullets: [
+        readingBullet(TIER_MONTHLY_READINGS.billionaire),
+        t('pricing.tier.bullet.dailyMatching') || 'Daily compatibility matching',
+        t('pricing.tier.bullet.narratedReadings') || 'Narrated readings with audio & PDF',
+        t('pricing.tier.bullet.synastrySlots') || '1 synastry reading = 3 reading slots',
+      ],
+    },
+  ];
+}
 
 /* ── Component ────────────────────────────────────────────────────── */
 
@@ -106,7 +114,7 @@ export const PricingScreen = ({ navigation }: Props) => {
   // Live prices from RevenueCat
   const [livePrices, setLivePrices] = useState<Record<string, string>>({});
   const [offerings, setOfferings] = useState<any>(null);
-  const [iapRange, setIapRange] = useState<string>('$20 - $1,000');
+  const [iapRange, setIapRange] = useState<string>('');
 
   // Coupon
   const [couponCode, setCouponCode] = useState('');
@@ -428,7 +436,7 @@ export const PricingScreen = ({ navigation }: Props) => {
           </Text>
 
           {/* ── Subscription tiers ── */}
-          {TIERS.map((tier) => {
+          {buildTiers().map((tier) => {
             const price = livePrices[tier.id] || tier.priceLabel;
             const isBuying = isPaying && selectedTier === tier.id;
             const isSelected = selectedTier === tier.id;
@@ -555,12 +563,12 @@ export const PricingScreen = ({ navigation }: Props) => {
             disabled={isRestoring}
             style={styles.restoreBtn}
             accessibilityRole="button"
-            accessibilityLabel="Restore Purchases"
+            accessibilityLabel={t('pricing.restorePurchases') || 'Restore Purchases'}
           >
             {isRestoring ? (
               <ActivityIndicator color={colors.textDim} size="small" />
             ) : (
-              <Text style={styles.restoreText}>Restore Purchases</Text>
+              <Text style={styles.restoreText}>{t('pricing.restorePurchases') || 'Restore Purchases'}</Text>
             )}
           </TouchableOpacity>
         </ScrollView>

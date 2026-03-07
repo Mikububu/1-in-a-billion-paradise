@@ -191,7 +191,16 @@ export const useOnboardingStore = create<OnboardingState>()(
             setBirthTime: (birthTime) => set({ birthTime }),
             setBirthCity: (birthCity) => set({ birthCity }),
             setCurrentCity: (currentCity) => set({ currentCity }),
-            setPrimaryLanguage: (primaryLanguage) => set({ primaryLanguage }),
+            setPrimaryLanguage: (primaryLanguage) => {
+                const prev = get().primaryLanguage;
+                // When language changes, clear cached readings & audio to avoid mixed-language content
+                if (prev && prev.code !== primaryLanguage.code) {
+                    console.log(`🌐 Language changed ${prev.code} → ${primaryLanguage.code} — clearing cached readings & audio`);
+                    set({ primaryLanguage, hookReadings: {}, hookAudio: {} });
+                } else {
+                    set({ primaryLanguage });
+                }
+            },
             setSecondaryLanguage: (secondaryLanguage) => set({ secondaryLanguage }),
             setLanguageImportance: (languageImportance) => set({ languageImportance }),
             setRelationshipPreferenceScale: (relationshipPreferenceScale) => set({ relationshipPreferenceScale }),
@@ -428,5 +437,5 @@ export const buildProfileSnapshot = (state: OnboardingState): ProfileSnapshot | 
 
 // DEPRECATED - causes infinite loops. Use individual selectors.
 export const useProfileSnapshot = () => {
-  throw new Error('useProfileSnapshot is deprecated. Use buildProfileSnapshot() or individual selectors instead.');
+    throw new Error('useProfileSnapshot is deprecated. Use buildProfileSnapshot() or individual selectors instead.');
 };

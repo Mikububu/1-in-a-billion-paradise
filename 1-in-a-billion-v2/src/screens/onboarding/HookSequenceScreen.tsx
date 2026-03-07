@@ -421,6 +421,9 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
   // ... 
 
   // Handle audio playback
+  // Guard against concurrent play requests
+  const isPlayingLock = useRef(false);
+
   const handlePlayAudio = useCallback(async (reading: HookReading) => {
     const type = reading.type;
 
@@ -434,6 +437,13 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
       currentPlayingType.current = null;
       return;
     }
+
+    // Prevent overlapping play requests (tapping rapidly)
+    if (isPlayingLock.current) {
+      console.log(`⚠️ Audio play locked — ignoring duplicate tap for ${type}`);
+      return;
+    }
+    isPlayingLock.current = true;
 
     // Stop any other currently playing audio
     if (soundRef.current) {
@@ -502,8 +512,13 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
         { shouldPlay: true, isLooping: false },
         (status) => {
           if (status.isLoaded && status.didJustFinish) {
+            // Audio finished — clean up sound ref to prevent stale references
             setAudioPlaying(prev => ({ ...prev, [type]: false }));
             currentPlayingType.current = null;
+            if (soundRef.current === sound) {
+              sound.unloadAsync().catch(() => { });
+              soundRef.current = null;
+            }
           }
         }
       );
@@ -517,6 +532,7 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
       Alert.alert(t('hookSequence.audioError') || 'Audio Error', t('hookSequence.audioPlaybackFailed') || 'Could not play audio. Please try again.');
     } finally {
       setAudioLoading(prev => ({ ...prev, [type]: false }));
+      isPlayingLock.current = false;
     }
 
   }, [hookAudio, startHookAudioGeneration]);

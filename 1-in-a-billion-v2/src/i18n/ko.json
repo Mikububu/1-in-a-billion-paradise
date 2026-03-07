@@ -997,5 +997,16 @@
   "hookSequence.nameRequired.title": "이름이 필요합니다",
   "hookSequence.nameRequired.message": "당신의 이름을 알려주세요",
   "citySearch.title": "도시 검색",
-  "citySearch.placeholder": "도시 이름을 입력하세요..."
+  "citySearch.placeholder": "도시 이름을 입력하세요...",
+  "pricing.tapAgain": "Tap again to subscribe",
+  "pricing.tier.basic.label": "Dreamer",
+  "pricing.tier.yearly.label": "Expansion",
+  "pricing.tier.billionaire.label": "Soul Billionaire",
+  "pricing.tier.period": "/month",
+  "pricing.tier.bullet.extendedReadings": "{{count}} extended reading per month",
+  "pricing.tier.bullet.extendedReadingsPlural": "{{count}} extended readings per month",
+  "pricing.tier.bullet.dailyMatching": "Daily compatibility matching",
+  "pricing.tier.bullet.narratedReadings": "Narrated readings with audio & PDF",
+  "pricing.tier.bullet.synastrySlots": "1 synastry reading = 3 reading slots",
+  "pricing.restorePurchases": "Restore Purchases"
 }
