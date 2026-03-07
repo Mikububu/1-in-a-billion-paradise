@@ -91,8 +91,6 @@ const TIERS: TierDef[] = [
   },
 ];
 
-const IAP_RANGE = '$20 - $1,000';
-
 /* ── Component ────────────────────────────────────────────────────── */
 
 export const PricingScreen = ({ navigation }: Props) => {
@@ -106,6 +104,7 @@ export const PricingScreen = ({ navigation }: Props) => {
   // Live prices from RevenueCat
   const [livePrices, setLivePrices] = useState<Record<string, string>>({});
   const [offerings, setOfferings] = useState<any>(null);
+  const [iapRange, setIapRange] = useState<string>('$20 - $1,000');
 
   // Coupon
   const [couponCode, setCouponCode] = useState('');
@@ -173,6 +172,25 @@ export const PricingScreen = ({ navigation }: Props) => {
       const billionairePrice = getPackagePriceString(billionaire);
       if (billionairePrice) {
         setLivePrices((prev) => ({ ...prev, billionaire: billionairePrice }));
+      }
+
+      // Calculate min/max range for in-app purchases note
+      let minPrice = Infinity;
+      let maxPrice = -Infinity;
+      let minString = '';
+      let maxString = '';
+
+      for (const p of packages) {
+        const priceNum = p?.product?.price ?? p?.storeProduct?.price;
+        const pString = getPackagePriceString(p);
+        if (typeof priceNum === 'number' && pString) {
+          if (priceNum < minPrice) { minPrice = priceNum; minString = pString; }
+          if (priceNum > maxPrice) { maxPrice = priceNum; maxString = pString; }
+        }
+      }
+
+      if (minString && maxString) {
+        setIapRange(minString === maxString ? minString : `${minString} - ${maxString}`);
       }
     })();
     return () => { alive = false; };
@@ -376,147 +394,147 @@ export const PricingScreen = ({ navigation }: Props) => {
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
-        <Text style={styles.heading}>{t('pricing.title')}</Text>
-        <Text style={styles.subheading}>
-          {t('pricing.subtitle')}
-        </Text>
+          <Text style={styles.heading}>{t('pricing.title')}</Text>
+          <Text style={styles.subheading}>
+            {t('pricing.subtitle')}
+          </Text>
 
-        {/* ── Subscription tiers ── */}
-        {TIERS.map((tier) => {
-          const price = livePrices[tier.id] || tier.priceLabel;
-          const isBuying = isPaying && selectedTier === tier.id;
-          const isSelected = selectedTier === tier.id;
+          {/* ── Subscription tiers ── */}
+          {TIERS.map((tier) => {
+            const price = livePrices[tier.id] || tier.priceLabel;
+            const isBuying = isPaying && selectedTier === tier.id;
+            const isSelected = selectedTier === tier.id;
 
-          const animatedBorderColor = isSelected
-            ? borderAnim.interpolate({
+            const animatedBorderColor = isSelected
+              ? borderAnim.interpolate({
                 inputRange: [0, 1],
                 outputRange: [colors.border, colors.primary],
               })
-            : colors.border;
-          const animatedBorderWidth = isSelected
-            ? borderAnim.interpolate({
+              : colors.border;
+            const animatedBorderWidth = isSelected
+              ? borderAnim.interpolate({
                 inputRange: [0, 1],
                 outputRange: [1, 2],
               })
-            : 1;
+              : 1;
 
-          return (
-            <TouchableOpacity
-              key={tier.id}
-              activeOpacity={0.85}
-              onPress={() => handleCardTap(tier.id)}
-              disabled={isPaying}
-              accessibilityRole="button"
-              accessibilityLabel={`Subscribe to ${tier.label} for ${price}${tier.period}`}
-            >
-              <Animated.View
+            return (
+              <TouchableOpacity
+                key={tier.id}
+                activeOpacity={0.85}
+                onPress={() => handleCardTap(tier.id)}
+                disabled={isPaying}
+                accessibilityRole="button"
+                accessibilityLabel={`Subscribe to ${tier.label} for ${price}${tier.period}`}
+              >
+                <Animated.View
+                  style={[
+                    styles.card,
+                    { borderColor: animatedBorderColor, borderWidth: animatedBorderWidth },
+                  ]}
+                >
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.tierLabel}>{tier.label}</Text>
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceText}>{price}</Text>
+                      <Text style={styles.periodText}> {tier.period}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.bulletList}>
+                    {tier.bullets.map((b, i) => (
+                      <Text key={i} style={styles.bullet}>
+                        {'  \u2022  '}{b}
+                      </Text>
+                    ))}
+                  </View>
+
+                  {isSelected && !isBuying && (
+                    <Text style={styles.tapHint}>{t('pricing.tapAgain') || 'Tap again to subscribe'}</Text>
+                  )}
+
+                  {isBuying && (
+                    <ActivityIndicator
+                      color={colors.primary}
+                      style={styles.cardLoader}
+                    />
+                  )}
+                </Animated.View>
+              </TouchableOpacity>
+            );
+          })}
+
+          {/* ── In-App Purchases note ── */}
+          <Text style={styles.iapNote}>
+            {t('pricing.iapNote')} {iapRange}
+          </Text>
+
+          {/* ── Coupon code - always visible ── */}
+          <View style={styles.couponContainer}>
+            <View style={styles.couponInputRow}>
+              <TextInput
+                style={styles.couponInput}
+                placeholder={t('pricing.couponPlaceholder')}
+                placeholderTextColor="#999"
+                value={couponCode}
+                onChangeText={(text) => {
+                  setCouponCode(text.toUpperCase());
+                  setCouponStatus('idle');
+                  setCouponMessage('');
+                }}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                returnKeyType="go"
+                onSubmitEditing={handleCouponValidate}
+              />
+              <TouchableOpacity
                 style={[
-                  styles.card,
-                  { borderColor: animatedBorderColor, borderWidth: animatedBorderWidth },
+                  styles.couponApplyBtn,
+                  couponStatus === 'valid' && styles.couponRedeemBtn,
+                ]}
+                onPress={couponStatus === 'valid' ? handleCouponRedeem : handleCouponValidate}
+                disabled={
+                  couponStatus === 'validating' ||
+                  couponStatus === 'redeeming' ||
+                  !couponCode.trim()
+                }
+              >
+                {couponStatus === 'validating' || couponStatus === 'redeeming' ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.couponApplyText}>
+                    {couponStatus === 'valid' ? t('pricing.couponRedeem') : t('pricing.couponApply')}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+            {couponMessage ? (
+              <Text
+                style={[
+                  styles.couponMessage,
+                  couponStatus === 'valid' && styles.couponMessageValid,
+                  couponStatus === 'invalid' && styles.couponMessageInvalid,
                 ]}
               >
-                <View style={styles.cardHeader}>
-                  <Text style={styles.tierLabel}>{tier.label}</Text>
-                  <View style={styles.priceRow}>
-                    <Text style={styles.priceText}>{price}</Text>
-                    <Text style={styles.periodText}> {tier.period}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.bulletList}>
-                  {tier.bullets.map((b, i) => (
-                    <Text key={i} style={styles.bullet}>
-                      {'  \u2022  '}{b}
-                    </Text>
-                  ))}
-                </View>
-
-                {isSelected && !isBuying && (
-                  <Text style={styles.tapHint}>{t('pricing.tapAgain') || 'Tap again to subscribe'}</Text>
-                )}
-
-                {isBuying && (
-                  <ActivityIndicator
-                    color={colors.primary}
-                    style={styles.cardLoader}
-                  />
-                )}
-              </Animated.View>
-            </TouchableOpacity>
-          );
-        })}
-
-        {/* ── In-App Purchases note ── */}
-        <Text style={styles.iapNote}>
-          {t('pricing.iapNote')} {IAP_RANGE}
-        </Text>
-
-        {/* ── Coupon code - always visible ── */}
-        <View style={styles.couponContainer}>
-          <View style={styles.couponInputRow}>
-            <TextInput
-              style={styles.couponInput}
-              placeholder={t('pricing.couponPlaceholder')}
-              placeholderTextColor="#999"
-              value={couponCode}
-              onChangeText={(text) => {
-                setCouponCode(text.toUpperCase());
-                setCouponStatus('idle');
-                setCouponMessage('');
-              }}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              returnKeyType="go"
-              onSubmitEditing={handleCouponValidate}
-            />
-            <TouchableOpacity
-              style={[
-                styles.couponApplyBtn,
-                couponStatus === 'valid' && styles.couponRedeemBtn,
-              ]}
-              onPress={couponStatus === 'valid' ? handleCouponRedeem : handleCouponValidate}
-              disabled={
-                couponStatus === 'validating' ||
-                couponStatus === 'redeeming' ||
-                !couponCode.trim()
-              }
-            >
-              {couponStatus === 'validating' || couponStatus === 'redeeming' ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.couponApplyText}>
-                  {couponStatus === 'valid' ? t('pricing.couponRedeem') : t('pricing.couponApply')}
-                </Text>
-              )}
-            </TouchableOpacity>
+                {couponMessage}
+              </Text>
+            ) : null}
           </View>
-          {couponMessage ? (
-            <Text
-              style={[
-                styles.couponMessage,
-                couponStatus === 'valid' && styles.couponMessageValid,
-                couponStatus === 'invalid' && styles.couponMessageInvalid,
-              ]}
-            >
-              {couponMessage}
-            </Text>
-          ) : null}
-        </View>
 
-        {/* ── Restore purchases (Apple requires visibility) ── */}
-        <TouchableOpacity
-          onPress={handleRestore}
-          disabled={isRestoring}
-          style={styles.restoreBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Restore Purchases"
-        >
-          {isRestoring ? (
-            <ActivityIndicator color={colors.textDim} size="small" />
-          ) : (
-            <Text style={styles.restoreText}>Restore Purchases</Text>
-          )}
-        </TouchableOpacity>
+          {/* ── Restore purchases (Apple requires visibility) ── */}
+          <TouchableOpacity
+            onPress={handleRestore}
+            disabled={isRestoring}
+            style={styles.restoreBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Restore Purchases"
+          >
+            {isRestoring ? (
+              <ActivityIndicator color={colors.textDim} size="small" />
+            ) : (
+              <Text style={styles.restoreText}>Restore Purchases</Text>
+            )}
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
