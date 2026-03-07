@@ -95,6 +95,16 @@ export function extractRevenueCatAppUserId(customerInfo: any): string | null {
   return null;
 }
 
+export async function restorePurchases(): Promise<{ success: boolean; customerInfo?: any; error?: string }> {
+  try {
+    await initializeRevenueCat();
+    const customerInfo = await Purchases.restorePurchases();
+    return { success: true, customerInfo };
+  } catch (e: any) {
+    return { success: false, error: e?.message || 'Restore failed' };
+  }
+}
+
 export async function getRevenueCatCustomerInfo(): Promise<any | null> {
   try {
     return await Purchases.getCustomerInfo();

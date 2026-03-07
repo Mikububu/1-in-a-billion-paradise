@@ -63,7 +63,6 @@ export function getAvailableRevenueCatPackages(offerings: AnyRecord | null | und
     for (const key of Object.keys(all)) {
       const pkgs = all[key]?.availablePackages;
       if (Array.isArray(pkgs) && pkgs.length > 0) {
-        console.log(`🔎 [RevenueCat] Using packages from offering "${key}" (current was empty)`);
         return pkgs;
       }
     }
@@ -75,29 +74,21 @@ export function getAvailableRevenueCatPackages(offerings: AnyRecord | null | und
 export function findYearlySubscriptionPackage(offerings: AnyRecord | null | undefined): AnyRecord | null {
   const packages = getAvailableRevenueCatPackages(offerings);
 
-  // Debug: log all available packages so we can see what RevenueCat returns
-  console.log('🔎 [RevenueCat] Available packages:', packages.map((p) => ({
-    id: p?.identifier,
-    type: p?.packageType,
-    productId: p?.product?.identifier || p?.storeProduct?.identifier,
-    price: p?.product?.price ?? p?.storeProduct?.price,
-  })));
-
   // 1. Try by package identifier (yearly_subscription or yearly_subscription_990)
   const byIdentifier =
     packages.find((pkg) => YEARLY_PACKAGE_IDENTIFIER_SET.has(String(pkg?.identifier || ''))) || null;
-  if (byIdentifier) { console.log('🔎 [RevenueCat] Found expansion by identifier'); return byIdentifier; }
+  if (byIdentifier) return byIdentifier;
 
   // 2. Try by App Store product ID (product ID is still 'yearly_subscription' even though it's now monthly)
   const byProductId = packages.find((pkg) => {
     const prodId = pkg?.product?.identifier || pkg?.storeProduct?.identifier || '';
     return String(prodId) === RC_PRODUCT_IDS.yearlySubscription;
   }) || null;
-  if (byProductId) { console.log('🔎 [RevenueCat] Found expansion by product ID'); return byProductId; }
+  if (byProductId) return byProductId;
 
   // 3. Try ANNUAL package type (legacy)
   const byType = packages.find((pkg) => String(pkg?.packageType || '').toUpperCase() === 'ANNUAL') || null;
-  if (byType) { console.log('🔎 [RevenueCat] Found expansion by ANNUAL type'); return byType; }
+  if (byType) return byType;
 
   // 4. Fallback: find the "middle" package (not cheapest, not most expensive)
   // Since all tiers are monthly, sort by price and pick the middle one
@@ -106,15 +97,9 @@ export function findYearlySubscriptionPackage(offerings: AnyRecord | null | unde
     const pb = b?.product?.price ?? b?.storeProduct?.price ?? 0;
     return pa - pb;
   });
-  if (sorted.length >= 3) {
-    console.log('🔎 [RevenueCat] Fallback: using middle-priced package for expansion');
-    return sorted[1]; // middle = expansion
-  }
-  if (sorted.length === 2) {
-    return sorted[0]; // cheaper of two
-  }
+  if (sorted.length >= 3) return sorted[1]; // middle = expansion
+  if (sorted.length === 2) return sorted[0]; // cheaper of two
 
-  console.warn('⚠️ [RevenueCat] Could not find expansion/yearly package');
   return null;
 }
 

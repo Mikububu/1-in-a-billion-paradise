@@ -35,6 +35,7 @@ import {
   initializeRevenueCat,
   purchasePackage,
   redeemCouponCode,
+  restorePurchases,
   validateCouponCode,
   verifyEntitlementWithBackend,
 } from '@/services/payments';
@@ -192,6 +193,40 @@ export const PricingScreen = ({ navigation }: Props) => {
       setCouponMessage(result.message || result.error || 'Invalid code');
     }
   }, [couponCode]);
+
+  /* ── Restore purchases handler ── */
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  const handleRestore = useCallback(async () => {
+    if (isRestoring) return;
+    setIsRestoring(true);
+    try {
+      const result = await restorePurchases();
+      if (!result.success) {
+        Alert.alert('Restore Failed', result.error || 'Could not restore purchases.');
+        return;
+      }
+      const info = result.customerInfo;
+      const appUserId = extractRevenueCatAppUserId(info);
+      if (!appUserId) {
+        Alert.alert('No Purchases Found', 'No previous subscriptions were found for this account.');
+        return;
+      }
+      const verification = await verifyEntitlementWithBackend({ appUserId });
+      if (verification.success && verification.active) {
+        navigation.navigate('Account', {
+          fromPayment: true,
+          revenueCatAppUserId: verification.appUserId || appUserId,
+        });
+      } else {
+        Alert.alert('No Active Subscription', 'No active subscription was found. If you believe this is an error, please contact support.');
+      }
+    } catch (e: any) {
+      Alert.alert('Restore Failed', e?.message || 'Something went wrong.');
+    } finally {
+      setIsRestoring(false);
+    }
+  }, [isRestoring, navigation]);
 
   const handleCouponRedeem = useCallback(async () => {
     const code = couponCode.trim();
@@ -467,6 +502,21 @@ export const PricingScreen = ({ navigation }: Props) => {
             </Text>
           ) : null}
         </View>
+
+        {/* ── Restore purchases (Apple requires visibility) ── */}
+        <TouchableOpacity
+          onPress={handleRestore}
+          disabled={isRestoring}
+          style={styles.restoreBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Restore Purchases"
+        >
+          {isRestoring ? (
+            <ActivityIndicator color={colors.textDim} size="small" />
+          ) : (
+            <Text style={styles.restoreText}>Restore Purchases</Text>
+          )}
+        </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -617,5 +667,19 @@ const styles = StyleSheet.create({
   },
   couponMessageInvalid: {
     color: colors.error,
+  },
+
+  /* ── Restore purchases ── */
+  restoreBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  restoreText: {
+    fontFamily: typography.sansRegular,
+    fontSize: 13,
+    color: colors.textDim,
+    textDecorationLine: 'underline',
   },
 });

@@ -371,8 +371,7 @@ export const IntroScreen = ({ navigation }: Props) => {
         resizeMode="cover"
       />
 
-      {/* Language pill — hidden until multiple translations are ready */}
-      {/* TODO: Uncomment when Deutsch, Español, etc. translations are complete
+      {/* Language pill */}
       <TouchableOpacity
         onPress={() => setLangPickerVisible(true)}
         activeOpacity={0.7}
@@ -395,7 +394,6 @@ export const IntroScreen = ({ navigation }: Props) => {
         </Animated.View>
       </TouchableOpacity>
       <LanguagePicker visible={langPickerVisible} onClose={() => setLangPickerVisible(false)} />
-      */}
 
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.wrapper}>
