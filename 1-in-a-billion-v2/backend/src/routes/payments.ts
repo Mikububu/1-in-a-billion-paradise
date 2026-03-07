@@ -154,7 +154,18 @@ payments.post('/verify-entitlement', requireAuth, async (c) => {
       console.error('verify-entitlement DB error:', error);
     }
 
-    const sub = data?.[0];
+    // Fallback: look up by user_id for coupon users whose stripe_customer_id
+    // is 'coupon_CODE' rather than 'rc_userId'.
+    let sub = data?.[0];
+    if (!sub) {
+      const { data: fallbackData } = await serviceClient
+        .from('user_subscriptions')
+        .select('id, status, current_period_end')
+        .eq('user_id', appUserId)
+        .eq('status', 'active')
+        .limit(1);
+      sub = fallbackData?.[0];
+    }
     let active = false;
     if (sub) {
       if (sub.current_period_end) {
