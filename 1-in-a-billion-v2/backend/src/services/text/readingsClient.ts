@@ -1,7 +1,7 @@
 import { env } from '../../config/env';
 import { HookReading, ReadingPayload } from '../../types';
 import { SYSTEM_PROMPT, buildReadingPrompt, PromptContext } from './prompts';
-import { llm, llmWithFallback } from '../llm'; // Centralized LLM service with fallback
+import { llm, llmWithFallback, llmPaid } from '../llm'; // Centralized LLM service with fallback
 import { buildChartDataForSystem } from '../chartDataBuilder';
 import { getLanguageInstruction, isValidLanguage, type OutputLanguage } from '../../config/languages';
 
@@ -63,6 +63,7 @@ type ExtendedRequest = {
   birthData: { birthDate: string; birthTime: string; timezone?: string; birthPlace?: string };
   subjectName: string;
   longForm: boolean;
+  language?: string;
 };
 
 const SYSTEM_NAMES: Record<string, string> = {
@@ -155,8 +156,8 @@ export const readingsClient = {
     }
   },
 
-  async generateExtendedReading(request: ExtendedRequest): Promise<{ reading: { content: string }; source: 'deepseek' }> {
-    const { system, placements, subjectName, longForm, birthData } = request;
+  async generateExtendedReading(request: ExtendedRequest): Promise<{ reading: { content: string }; source: string }> {
+    const { system, placements, subjectName, longForm, birthData, language } = request;
     const systemName = SYSTEM_NAMES[system] || 'Western Astrology';
 
     const formatDegree = (pos?: { sign: string; degree: number; minute: number }) => {
@@ -315,34 +316,42 @@ Each section should flow naturally without numbered headers.
 Start directly with the reading content, opening with ${subjectName}'s name.
 `.trim();
 
-    // Use modular LLM service with STREAMING for 3000-word readings
-    const { llm } = await import('../llm');
+    // Use PAID LLM (Claude Sonnet) for premium extended readings
+    const extLlm = llmPaid;
 
     try {
-      console.log(`📝 Starting extended ${systemName} reading for ${subjectName} (3000 words) via ${llm.getProvider()} STREAMING...`);
+      console.log(`📝 Starting extended ${systemName} reading for ${subjectName} (3000 words) via ${extLlm.getProvider()} STREAMING...`);
       const startTime = Date.now();
 
-      const systemPromptText = 'You are an expert astrologer and depth psychologist specializing in shadow work. Write comprehensive, insightful analyses. You MUST write exactly 3000 words. This is a premium reading.';
+      let systemPromptText = 'You are an expert astrologer and depth psychologist specializing in shadow work. Write comprehensive, insightful analyses. You MUST write exactly 3000 words. This is a premium reading.';
+      // Add language instruction for non-English readings
+      const lang = language || 'en';
+      if (lang !== 'en' && isValidLanguage(lang)) {
+        const langInstruction = getLanguageInstruction(lang as OutputLanguage);
+        if (langInstruction) {
+          systemPromptText = systemPromptText + '\n\n' + langInstruction;
+        }
+      }
       const fullPrompt = `${systemPromptText}\n\n${prompt}`;
 
       // 🚀 USE STREAMING to prevent timeout on long-form content
-      const content = await llm.generateStreaming(fullPrompt, `extended-${system}`, {
+      const content = await extLlm.generateStreaming(fullPrompt, `extended-${system}`, {
         maxTokens: 8000, // Allow up to 8000 tokens for 3000+ words
         temperature: 0.8,
       });
 
       const duration = ((Date.now() - startTime) / 1000).toFixed(1);
       const wordCount = content.split(/\s+/).length;
-      console.log(`✅ Extended reading complete: ${wordCount} words in ${duration}s via ${llm.getProvider()} STREAMING`);
+      console.log(`✅ Extended reading complete: ${wordCount} words in ${duration}s via ${extLlm.getProvider()} STREAMING`);
 
-      return { reading: { content: cleanText(content) }, source: 'deepseek' as const };
+      return { reading: { content: cleanText(content) }, source: extLlm.getProvider() as any };
     } catch (error: any) {
       const errorMsg = error?.message || String(error);
-      console.error(`❌ Extended reading error (${llm.getProvider()}): ${errorMsg}`);
+      console.error(`❌ Extended reading error (${extLlm.getProvider()}): ${errorMsg}`);
 
       return {
         reading: { content: cleanText(`Error generating ${systemName} reading: ${errorMsg}`) },
-        source: 'deepseek' as const,
+        source: extLlm.getProvider() as any,
       };
     }
   },
@@ -351,8 +360,9 @@ Start directly with the reading content, opening with ${subjectName}'s name.
     system: string;
     person1: { name: string; placements: any; birthData: { birthDate: string; birthTime: string; timezone?: string; birthPlace?: string } };
     person2: { name: string; placements: any; birthData: { birthDate: string; birthTime: string; timezone?: string; birthPlace?: string } };
-  }): Promise<{ reading: any; source: 'deepseek' }> {
-    const { system, person1, person2 } = request;
+    language?: string;
+  }): Promise<{ reading: any; source: string }> {
+    const { system, person1, person2, language } = request;
     const systemName = SYSTEM_NAMES[system] || 'Western Astrology';
 
     const formatDegree = (pos?: { sign: string; degree: number; minute: number }) => {
@@ -421,11 +431,19 @@ Be BRUTALLY HONEST. NO em dashes. No comfort. Only truth.
       console.log(`📝 Starting synastry reading for ${person1.name} & ${person2.name}...`);
       const startTime = Date.now();
 
-      // Use centralized LLM service (provider set by LLM_PROVIDER env)
-      const systemPrompt = 'You are a brutally honest astrologer specializing in the DARK side of relationship compatibility. Output valid JSON only. No comfort, only truth.';
+      // Use PAID LLM (Claude Sonnet) for premium synastry readings
+      let systemPrompt = 'You are a brutally honest astrologer specializing in the DARK side of relationship compatibility. Output valid JSON only. No comfort, only truth.';
+      // Add language instruction for non-English readings
+      const synLang = language || 'en';
+      if (synLang !== 'en' && isValidLanguage(synLang)) {
+        const langInstruction = getLanguageInstruction(synLang as OutputLanguage);
+        if (langInstruction) {
+          systemPrompt = systemPrompt + '\n\n' + langInstruction;
+        }
+      }
       const fullPrompt = `${systemPrompt}\n\n${prompt}`;
 
-      const rawContent = await llm.generate(fullPrompt, `synastry-${system}`, {
+      const rawContent = await llmPaid.generate(fullPrompt, `synastry-${system}`, {
         maxTokens: 3000,
         temperature: 0.8,
       });
@@ -436,7 +454,7 @@ Be BRUTALLY HONEST. NO em dashes. No comfort. Only truth.
 
       try {
         const parsed = JSON.parse(normalized);
-        return { reading: parsed, source: 'deepseek' };
+        return { reading: parsed, source: llmPaid.getProvider() };
       } catch {
         // Fallback: split raw content into sections if JSON parsing fails
         return {
@@ -449,7 +467,7 @@ Be BRUTALLY HONEST. NO em dashes. No comfort. Only truth.
             compatibilityScore: 50,
             warningLevel: 'HIGH',
           },
-          source: 'deepseek',
+          source: llmPaid.getProvider(),
         };
       }
     } catch (error: any) {
@@ -465,7 +483,7 @@ Be BRUTALLY HONEST. NO em dashes. No comfort. Only truth.
           compatibilityScore: 50,
           warningLevel: 'ERROR',
         },
-        source: 'deepseek',
+        source: llmPaid.getProvider(),
       };
     }
   },

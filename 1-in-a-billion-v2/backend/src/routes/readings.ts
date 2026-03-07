@@ -334,6 +334,7 @@ router.post('/extended', requireAuth, async (c) => {
     },
     subjectName: parsed.subjectName || 'You',
     longForm: parsed.longForm || false,
+    language: parsed.primaryLanguage || 'en',
   });
 
   const response = {
@@ -365,6 +366,7 @@ const synastrySchema = z.object({
     longitude: z.number(),
   }),
   relationshipIntensity: z.number().optional(),
+  primaryLanguage: z.string().max(100).optional(),
 });
 
 const synastryCache = new ResponseCache<any>();
@@ -420,6 +422,7 @@ router.post('/synastry', requireAuth, async (c) => {
         timezone: parsed.person2.timezone,
       }
     },
+    language: parsed.primaryLanguage || 'en',
   });
 
   const response = {
