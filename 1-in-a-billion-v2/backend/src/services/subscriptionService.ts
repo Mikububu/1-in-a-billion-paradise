@@ -169,7 +169,7 @@ export async function getMonthlyReadingsUsed(userId: string, periodStart: string
       .select('id, type')
       .eq('user_id', userId)
       .gte('created_at', periodStart)
-      .in('status', ['pending', 'processing', 'complete', 'completed']);
+      .in('status', ['queued', 'processing', 'complete']);
 
     if (error) {
       console.error('Error counting monthly readings:', error);
