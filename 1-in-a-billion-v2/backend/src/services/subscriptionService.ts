@@ -84,21 +84,7 @@ export async function checkUserSubscription(userId: string): Promise<UserSubscri
       return null;
     }
 
-    let sub = (data as UserSubscription[] | null)?.[0] ?? null;
-
-    // Fallback: if link-app-user hasn't run yet, try by stripe_customer_id
-    // (webhook sets user_id to RC appUserId, not Supabase UUID)
-    if (!sub) {
-      const rcCustomerId = `rc_${userId}`;
-      const { data: fallbackData } = await supabase
-        .from('user_subscriptions')
-        .select('*')
-        .eq('stripe_customer_id', rcCustomerId)
-        .eq('status', 'active')
-        .order('subscription_tier', { ascending: false })
-        .limit(1);
-      sub = (fallbackData as UserSubscription[] | null)?.[0] ?? null;
-    }
+    const sub = (data as UserSubscription[] | null)?.[0] ?? null;
 
     if (!sub) return null;
 
@@ -106,7 +92,7 @@ export async function checkUserSubscription(userId: string): Promise<UserSubscri
     if (sub.current_period_end) {
       const expiresAt = new Date(sub.current_period_end).getTime();
       if (expiresAt < Date.now()) {
-        console.warn(`⚠️ Subscription ${sub.stripe_subscription_id} expired at ${sub.current_period_end}, marking expired`);
+        console.warn(`⚠️ Subscription ${sub.id} expired at ${sub.current_period_end}, marking expired`);
         supabase
           .from('user_subscriptions')
           .update({ status: 'expired', updated_at: new Date().toISOString() })

@@ -141,12 +141,12 @@ payments.post('/verify-entitlement', requireAuth, async (c) => {
     }
 
     const serviceClient = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-    const rcCustomerId = `rc_${appUserId}`;
 
+    // Look up active subscription by Supabase user_id (appUserId IS the Supabase UUID).
     const { data, error } = await serviceClient
       .from('user_subscriptions')
       .select('id, status, current_period_end')
-      .eq('stripe_customer_id', rcCustomerId)
+      .eq('user_id', appUserId)
       .eq('status', 'active')
       .limit(1);
 
@@ -154,18 +154,7 @@ payments.post('/verify-entitlement', requireAuth, async (c) => {
       console.error('verify-entitlement DB error:', error);
     }
 
-    // Fallback: look up by user_id for coupon users whose stripe_customer_id
-    // is 'coupon_CODE' rather than 'rc_userId'.
-    let sub = data?.[0];
-    if (!sub) {
-      const { data: fallbackData } = await serviceClient
-        .from('user_subscriptions')
-        .select('id, status, current_period_end')
-        .eq('user_id', appUserId)
-        .eq('status', 'active')
-        .limit(1);
-      sub = fallbackData?.[0];
-    }
+    const sub = data?.[0];
     let active = false;
     if (sub) {
       if (sub.current_period_end) {
