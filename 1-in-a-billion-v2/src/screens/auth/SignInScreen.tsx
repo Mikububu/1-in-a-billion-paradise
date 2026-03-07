@@ -390,13 +390,6 @@ export const SignInScreen = () => {
         <View style={styles.container}>
             <BackButton onPress={() => navigation.navigate('Intro')} />
 
-            {/* Background GIF */}
-            <Image
-                source={require('../../../assets/images/VicandNora.gif')}
-                style={styles.backgroundImage}
-                resizeMode="cover"
-            />
-
             <KeyboardAvoidingView
                 style={styles.contentContainer}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -535,6 +528,15 @@ export const SignInScreen = () => {
                             </>
                         )}
                     </View>
+
+                    {/* GIF moved beneath the buttons */}
+                    <View style={styles.gifContainer}>
+                        <Image
+                            source={require('../../../assets/images/VicandNora.gif')}
+                            style={styles.gifImage}
+                            resizeMode="cover"
+                        />
+                    </View>
                 </ScrollView>
             </KeyboardAvoidingView>
         </View>
@@ -544,16 +546,18 @@ export const SignInScreen = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: 'transparent',
+        backgroundColor: '#000', // Provide a background color now that the image is not fullscreen
     },
-    backgroundImage: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+    gifContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: spacing.md,
+        marginBottom: spacing.md,
+    },
+    gifImage: {
         width: '100%',
-        height: '100%',
+        height: 550,
+        borderRadius: radii.card,
     },
     contentContainer: {
         flex: 1,
