@@ -15,6 +15,48 @@ import type { AppEnv } from '../types/hono';
 
 const coupons = new Hono<AppEnv>();
 
+// ─────────────────────────────────────────────────────────────
+// Simple in-memory rate limiter for public coupon endpoints.
+// Limits per IP: 10 requests per 60 seconds (sliding window).
+// ─────────────────────────────────────────────────────────────
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = 10;
+const rateLimitMap = new Map<string, number[]>();
+
+// Periodic cleanup every 5 min to prevent unbounded growth
+setInterval(() => {
+  const cutoff = Date.now() - RATE_LIMIT_WINDOW_MS;
+  for (const [key, timestamps] of rateLimitMap) {
+    const filtered = timestamps.filter((t) => t > cutoff);
+    if (filtered.length === 0) {
+      rateLimitMap.delete(key);
+    } else {
+      rateLimitMap.set(key, filtered);
+    }
+  }
+}, 5 * 60_000);
+
+function checkRateLimit(c: any): Response | null {
+  const ip =
+    c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ||
+    c.req.header('cf-connecting-ip') ||
+    'unknown';
+
+  const now = Date.now();
+  const cutoff = now - RATE_LIMIT_WINDOW_MS;
+  const timestamps = (rateLimitMap.get(ip) || []).filter((t) => t > cutoff);
+  timestamps.push(now);
+  rateLimitMap.set(ip, timestamps);
+
+  if (timestamps.length > RATE_LIMIT_MAX) {
+    return c.json(
+      { success: false, valid: false, error: 'Too many requests. Please wait a moment.' },
+      429,
+    );
+  }
+  return null;
+}
+
 /** Admin guard: requires x-admin-secret header matching ADMIN_PANEL_SECRET */
 function requireAdminSecret(c: any): Response | null {
   const secret = c.req.header('x-admin-secret');
@@ -40,6 +82,9 @@ function getServiceClient() {
 // Public endpoint - user types a code and we tell them if it's valid.
 // ─────────────────────────────────────────────────────────────
 coupons.get('/validate', async (c) => {
+  const rateLimited = checkRateLimit(c);
+  if (rateLimited) return rateLimited;
+
   const code = (c.req.query('code') || '').trim().toUpperCase();
   if (!code) {
     return c.json({ success: false, valid: false, error: 'No code provided' }, 400);
@@ -89,6 +134,9 @@ coupons.get('/validate', async (c) => {
 // Returns a coupon_redemption_id that the frontend passes to AccountScreen.
 // ─────────────────────────────────────────────────────────────
 coupons.post('/redeem', async (c) => {
+  const rateLimited = checkRateLimit(c);
+  if (rateLimited) return rateLimited;
+
   const body = await c.req.json().catch(() => ({})) as { code?: string; deviceId?: string };
   const code = (body.code || '').trim().toUpperCase();
 

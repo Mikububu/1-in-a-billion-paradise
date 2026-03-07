@@ -197,6 +197,19 @@ payments.post('/link-app-user', async (c) => {
     const serviceClient = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
     const rcCustomerId = `rc_${previousAppUserId}`;
 
+    // Idempotency guard: check if already linked to a different user
+    const { data: existing } = await serviceClient
+      .from('user_subscriptions')
+      .select('id, user_id')
+      .eq('stripe_customer_id', rcCustomerId)
+      .limit(1);
+
+    const row = existing?.[0];
+    if (row?.user_id && row.user_id !== userId) {
+      console.warn(`⚠️ link-app-user: subscription already linked to ${row.user_id}, rejecting link to ${userId}`);
+      return c.json({ success: false, error: 'Subscription already linked to another account' }, 409);
+    }
+
     const { error } = await serviceClient
       .from('user_subscriptions')
       .update({

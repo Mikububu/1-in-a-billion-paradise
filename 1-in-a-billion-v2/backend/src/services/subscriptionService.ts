@@ -70,6 +70,7 @@ export async function checkUserSubscription(userId: string): Promise<UserSubscri
   }
 
   try {
+    // Primary lookup: by Supabase user_id
     const { data, error } = await supabase
       .from('user_subscriptions')
       .select('*')
@@ -83,7 +84,22 @@ export async function checkUserSubscription(userId: string): Promise<UserSubscri
       return null;
     }
 
-    const sub = (data as UserSubscription[] | null)?.[0] ?? null;
+    let sub = (data as UserSubscription[] | null)?.[0] ?? null;
+
+    // Fallback: if link-app-user hasn't run yet, try by stripe_customer_id
+    // (webhook sets user_id to RC appUserId, not Supabase UUID)
+    if (!sub) {
+      const rcCustomerId = `rc_${userId}`;
+      const { data: fallbackData } = await supabase
+        .from('user_subscriptions')
+        .select('*')
+        .eq('stripe_customer_id', rcCustomerId)
+        .eq('status', 'active')
+        .order('subscription_tier', { ascending: false })
+        .limit(1);
+      sub = (fallbackData as UserSubscription[] | null)?.[0] ?? null;
+    }
+
     if (!sub) return null;
 
     // Expiration guard: auto-expire stale subscriptions

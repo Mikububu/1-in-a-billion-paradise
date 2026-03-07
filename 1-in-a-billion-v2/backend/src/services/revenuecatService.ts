@@ -91,7 +91,9 @@ export type SubscriptionTier = 'basic' | 'yearly' | 'billionaire';
  * Add new product IDs here as they are created in RevenueCat / App Store Connect.
  */
 export function resolveSubscriptionTier(productId: string | null | undefined): SubscriptionTier {
-  if (!productId) return 'yearly'; // safe default
+  // NOTE: "yearly_subscription" is a MONTHLY $40 subscription (Expansion tier).
+  // The product ID is locked in App Store Connect and cannot be renamed.
+  if (!productId) return 'basic'; // safest default — lowest tier
 
   const pid = productId.toLowerCase();
 
@@ -100,13 +102,13 @@ export function resolveSubscriptionTier(productId: string | null | undefined): S
     return 'billionaire';
   }
 
-  // Monthly / basic identifiers
-  if (pid.includes('monthly') || pid.includes('month') || pid.includes('basic')) {
-    return 'basic';
+  // Expansion tier — product ID says "yearly" but it's actually monthly $40
+  if (pid.includes('yearly') || pid.includes('year') || pid.includes('expansion')) {
+    return 'yearly';
   }
 
-  // Everything else is yearly (the default subscription)
-  return 'yearly';
+  // Everything else defaults to basic (cheapest tier)
+  return 'basic';
 }
 
 /**
