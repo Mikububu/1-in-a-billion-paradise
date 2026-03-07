@@ -177,9 +177,13 @@ function getDecanDescription(degree: number, decan?: 1 | 2 | 3): string {
   return decanPoetic[decan];
 }
 
-// Format house position
-function formatHouse(house?: number): string {
+// Format house position (language-aware so prompt context doesn't leak English into non-English output)
+function formatHouse(house?: number, language?: string): string {
   if (!house) return 'house position unknown';
+  if (language && language !== 'en') {
+    // For non-English: use a neutral numeric format that the LLM will naturally translate
+    return `House ${house}`;
+  }
   return `in the ${house}${house === 1 ? 'st' : house === 2 ? 'nd' : house === 3 ? 'rd' : 'th'} house`;
 }
 
@@ -202,8 +206,8 @@ export function buildReadingPrompt(ctx: PromptContext): string {
   const moonDecan = moonDeg ? getDecanDescription(moonDeg.degree, moonDeg.decan) : '';
   const risingDecan = risingDeg ? getDecanDescription(risingDeg.degree, risingDeg.decan) : '';
 
-  const sunHouse = ctx.placements?.sunHouse ? formatHouse(ctx.placements.sunHouse) : '';
-  const moonHouse = ctx.placements?.moonHouse ? formatHouse(ctx.placements.moonHouse) : '';
+  const sunHouse = ctx.placements?.sunHouse ? formatHouse(ctx.placements.sunHouse, ctx.language) : '';
+  const moonHouse = ctx.placements?.moonHouse ? formatHouse(ctx.placements.moonHouse, ctx.language) : '';
 
   // For partner readings: ALWAYS use their NAME, never pronouns
   // This makes the reading feel personal and avoids gender assumptions

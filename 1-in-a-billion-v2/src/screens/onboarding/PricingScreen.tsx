@@ -437,7 +437,7 @@ export const PricingScreen = ({ navigation }: Props) => {
 
           {/* ── Subscription tiers ── */}
           {buildTiers().map((tier) => {
-            const price = livePrices[tier.id] || tier.priceLabel;
+            const price = livePrices[tier.id] || tier.priceLabel || '...';
             const isBuying = isPaying && selectedTier === tier.id;
             const isSelected = selectedTier === tier.id;
 
