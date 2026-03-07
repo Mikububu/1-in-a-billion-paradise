@@ -208,12 +208,12 @@ const karaokeStyles = StyleSheet.create({
     marginLeft: -spacing.page,
     marginRight: -spacing.page,
     overflow: 'hidden',
-    backgroundColor: '#0a0a0a',
+    backgroundColor: colors.primary,
     paddingVertical: 12,
     marginBottom: spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(169,133,111,0.3)',
+    borderColor: 'rgba(0,0,0,0.2)',
     position: 'relative',
   },
   track: {
@@ -223,11 +223,11 @@ const karaokeStyles = StyleSheet.create({
   lyrics: {
     fontFamily: typography.serifItalic || typography.serif,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.3)',
+    color: 'rgba(0,0,0,0.25)',
     letterSpacing: 0.3,
   },
   lyricsHighlight: {
-    color: '#d10000',
+    color: '#000',
   },
   highlightOverlay: {
     position: 'absolute',
