@@ -37,6 +37,7 @@ import { AmbientMusic } from '@/services/ambientMusic';
 import { useMusicStore } from '@/store/musicStore';
 import { BackButton } from '@/components/BackButton';
 import { verifyEntitlementWithBackend } from '@/services/payments';
+import { fetchPeopleFromSupabase } from '@/services/peopleCloud';
 import { env } from '@/config/env';
 
 // Required for OAuth redirect handling
@@ -105,13 +106,44 @@ export const SignInScreen = () => {
                 return true;
             }
 
+            // Attempt to pre-fetch cloud readings so HookSequence doesn't regenerate them
+            let customReadings = undefined;
+            try {
+                const cloudProfile = await fetchPeopleFromSupabase(userId);
+                if (cloudProfile.success) {
+                    const selfProfile = cloudProfile.people.find(p => p.isUser);
+                    if (selfProfile?.hookReadings && selfProfile.hookReadings.length > 0) {
+                        customReadings = selfProfile.hookReadings.filter(Boolean);
+                    }
+                }
+            } catch (err) {
+                console.warn('Failed to pre-fetch profile for sign in', err);
+            }
+
             setHasCompletedOnboarding(false);
             setShowDashboard(false);
             navigation.reset({
                 index: 0,
-                routes: [{ name: 'HookSequence' }],
+                routes: [{
+                    name: 'HookSequence',
+                    params: customReadings && customReadings.length > 0 ? { customReadings } : undefined
+                }],
             });
             return true;
+        }
+
+        // Catch-all for unknown entitlement state
+        let customReadingsUnknown = undefined;
+        try {
+            const cloudProfile = await fetchPeopleFromSupabase(userId);
+            if (cloudProfile.success) {
+                const selfProfile = cloudProfile.people.find(p => p.isUser);
+                if (selfProfile?.hookReadings && selfProfile.hookReadings.length > 0) {
+                    customReadingsUnknown = selfProfile.hookReadings.filter(Boolean);
+                }
+            }
+        } catch (err) {
+            console.warn('Failed to pre-fetch profile for sign in', err);
         }
 
         setEntitlementState('unknown');
@@ -119,7 +151,10 @@ export const SignInScreen = () => {
         setShowDashboard(false);
         navigation.reset({
             index: 0,
-            routes: [{ name: 'HookSequence' }],
+            routes: [{
+                name: 'HookSequence',
+                params: customReadingsUnknown && customReadingsUnknown.length > 0 ? { customReadings: customReadingsUnknown } : undefined
+            }],
         });
         return true;
     }, [
