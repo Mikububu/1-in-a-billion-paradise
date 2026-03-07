@@ -109,9 +109,9 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
     () =>
       Boolean(
         name.trim() &&
-          birthDate &&
-          birthTime &&
-          selectedCity !== null
+        birthDate &&
+        birthTime &&
+        selectedCity !== null
       ),
     [name, birthDate, birthTime, selectedCity]
   );
@@ -159,7 +159,8 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
         // Default flow: go generate their 3 hook readings (Sun/Moon/Rising)
         console.log(`✅ Same person "${name}" detected - navigating to hook readings`);
         const targetScreenDup = isPrepayOnboarding ? 'Onboarding_PartnerCoreIdentities' : 'PartnerCoreIdentities';
-        navigation.navigate(targetScreenDup as any, {
+
+        const params = {
           partnerName: name,
           partnerBirthDate: birthDate ? toIsoDateLocal(birthDate) : undefined,
           partnerBirthTime: birthTime
@@ -168,7 +169,14 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
           partnerBirthCity: cityToUse,
           partnerId: existingPerson.id,
           mode: flowMode,
-        });
+        };
+
+        if (isPrepayOnboarding) {
+          navigation.replace(targetScreenDup as any, params);
+        } else {
+          navigation.navigate(targetScreenDup as any, params);
+        }
+
         return { personId: existingPerson.id, cityToUse };
       } else {
         // Different person with same name - show error
@@ -254,7 +262,8 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
     }
 
     const targetScreen = isPrepayOnboarding ? 'Onboarding_PartnerCoreIdentities' : 'PartnerCoreIdentities';
-    navigation.navigate(targetScreen as any, {
+
+    const params = {
       partnerName: name.trim(),
       partnerBirthDate: birthDate ? toIsoDateLocal(birthDate) : undefined,
       partnerBirthTime: birthTime
@@ -263,7 +272,13 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
       partnerBirthCity: cityToUse,
       partnerId: personId,
       mode: flowMode,
-    });
+    };
+
+    if (isPrepayOnboarding) {
+      navigation.replace(targetScreen as any, params);
+    } else {
+      navigation.navigate(targetScreen as any, params);
+    }
 
     return { personId, cityToUse };
   };

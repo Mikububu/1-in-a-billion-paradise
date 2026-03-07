@@ -249,31 +249,32 @@ export const IntroScreen = ({ navigation }: Props) => {
     }
   };
 
-  const canEnterDashboard = useCallback(async () => {
-    if (env.ALLOW_PAYMENT_BYPASS) {
-      setEntitlementState('active');
-      return true;
-    }
-
-    const appUserId = user?.id?.trim();
-    if (!appUserId) {
-      return false;
-    }
-
-    const verification = await verifyEntitlementWithBackend({ appUserId });
-    if (verification.success && verification.active) {
-      setEntitlementState('active');
-      return true;
-    }
-
-    // Allow inactive entitlement only for users who have already completed paid onboarding.
-    if (verification.success && !verification.active) {
-      if (hasCompletedOnboarding) {
-        setEntitlementState('inactive');
-        return true;
+  const handlePrimaryAction = useCallback(async () => {
+    if (isLoggedIn) {
+      if (env.ALLOW_PAYMENT_BYPASS) {
+        setEntitlementState('active');
+        useMusicStore.getState().setIsPlaying(false);
+        AmbientMusic.fadeOut();
+        setShowDashboard(true);
+        return;
       }
 
-      // Attempt to pre-fetch cloud readings so HookSequence doesn't regenerate them
+      const appUserId = user?.id?.trim();
+      if (!appUserId) return;
+
+      const verification = await verifyEntitlementWithBackend({ appUserId });
+      if (verification.success && verification.active) {
+        setEntitlementState('active');
+        useMusicStore.getState().setIsPlaying(false);
+        AmbientMusic.fadeOut();
+        setShowDashboard(true);
+        return;
+      }
+
+      // User is Free (inactive entitlement)
+      setEntitlementState('inactive');
+
+      // Free User goes directly to Hook Sequence
       let customReadings = undefined;
       try {
         const cloudProfile = await fetchPeopleFromSupabase(appUserId);
@@ -287,26 +288,24 @@ export const IntroScreen = ({ navigation }: Props) => {
         console.warn('Failed to pre-fetch profile on IntroScreen', err);
       }
 
-      if (customReadings && customReadings.length > 0) {
-        Alert.alert(
-          t('intro.entitlement.title'),
-          t('intro.entitlement.message'),
-          [{ text: t('common.ok'), onPress: () => navigation.navigate('HookSequence' as any, { customReadings }) }]
-        );
-      } else {
-        Alert.alert(
-          t('intro.entitlement.title'),
-          t('intro.entitlement.message'),
-          [{ text: t('common.ok'), onPress: () => navigation.navigate('CoreIdentities' as any) }]
-        );
-      }
-      return false;
-    }
+      // Stop music before navigating forward
+      useMusicStore.getState().setIsPlaying(false);
+      AmbientMusic.fadeOut();
 
-    setEntitlementState('unknown');
-    Alert.alert(t('intro.access.failed.title'), t('intro.access.failed.message'));
-    return false;
-  }, [hasCompletedOnboarding, setEntitlementState, user?.id]);
+      if (customReadings && customReadings.length > 0) {
+        navigation.navigate('HookSequence' as any, { customReadings });
+      } else {
+        navigation.navigate('CoreIdentities' as any);
+      }
+    } else {
+      // Fresh Sign Up flow
+      useOnboardingStore.getState().setHasCompletedOnboarding(false);
+      const profileStore = useProfileStore.getState();
+      const userProfile = profileStore.getUser();
+      profileStore.replacePeople(userProfile ? [userProfile] : []);
+      navigation.navigate('Relationship');
+    }
+  }, [isLoggedIn, user?.id, setEntitlementState, setShowDashboard, navigation]);
 
   return (
     <View style={styles.container}>
@@ -381,29 +380,7 @@ export const IntroScreen = ({ navigation }: Props) => {
             />
             <Button
               label={isLoggedIn ? t('intro.button.dashboard') : t('intro.button.getStarted')}
-              onPress={async () => {
-                if (isLoggedIn) {
-                  // Fade out music when going to Dashboard
-                  const accessAllowed = await canEnterDashboard();
-                  if (!accessAllowed) return;
-                  // Prevent focus handlers on next screens from immediately restarting intro music.
-                  useMusicStore.getState().setIsPlaying(false);
-                  AmbientMusic.fadeOut();
-                  setShowDashboard(true);
-                } else {
-                  // Keep intro music running through onboarding flow.
-                  // Reset onboarding completion flag when starting fresh
-                  useOnboardingStore.getState().setHasCompletedOnboarding(false);
-
-                  // Clear local people store (except user) to avoid "Already Created" block 
-                  // on third person limit from a previous app installation
-                  const profileStore = useProfileStore.getState();
-                  const userProfile = profileStore.getUser();
-                  profileStore.replacePeople(userProfile ? [userProfile] : []);
-
-                  navigation.navigate('Relationship');
-                }
-              }}
+              onPress={handlePrimaryAction}
             />
           </View>
 

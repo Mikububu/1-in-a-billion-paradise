@@ -64,18 +64,18 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
             onPress={() => {
               if (existingPartner && existingPartnerCity) {
                 // Reuse existing free partner hook reading; do not create a new one.
-                navigateWithTransition(navigation, 'Onboarding_PartnerReadings' as any, {
+                navigation.replace('Onboarding_PartnerReadings', {
                   partnerName: existingPartner.name,
                   partnerBirthDate: existingPartner.birthData?.birthDate,
                   partnerBirthTime: existingPartner.birthData?.birthTime,
                   partnerBirthCity: existingPartnerCity,
                   partnerId: existingPartner.id,
                   mode: 'onboarding_hook',
-                });
+                } as any);
                 return;
               }
-              // Navigate with transition, then clear back stack so user can't return here.
-              navigateWithTransition(navigation, 'Onboarding_PartnerInfo', { mode: 'onboarding_hook' } as any);
+              // Replace screen so user can't return here.
+              navigation.replace('Onboarding_PartnerInfo', { mode: 'onboarding_hook' } as any);
             }}
             variant="primary"
             style={styles.button}
@@ -83,7 +83,7 @@ export const AddThirdPersonPromptScreen = ({ navigation }: Props) => {
 
           <Button
             label={t('addThirdPerson.no')}
-            onPress={() => navigation.navigate('Pricing')}
+            onPress={() => navigation.replace('Pricing')}
             variant="secondary"
             style={styles.button}
           />
