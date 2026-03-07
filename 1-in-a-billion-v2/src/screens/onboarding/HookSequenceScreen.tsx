@@ -39,6 +39,7 @@ import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { HookReading, CityOption } from '@/types/forms';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { env } from '@/config/env';
+import { cleanTextForAudio } from '@/utils/textCleaner';
 
 import { audioApi, getAuthHeaders } from '@/services/api';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
@@ -426,8 +427,8 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     // Toggle off if already playing this type
     if (currentPlayingType.current === type && soundRef.current) {
       console.log(`⏹️ Stopping audio for ${type}`);
-      try { await soundRef.current.stopAsync(); } catch {}
-      try { await soundRef.current.unloadAsync(); } catch {}
+      try { await soundRef.current.stopAsync(); } catch { }
+      try { await soundRef.current.unloadAsync(); } catch { }
       soundRef.current = null;
       setAudioPlaying(prev => ({ ...prev, [type]: false }));
       currentPlayingType.current = null;
@@ -436,8 +437,8 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
 
     // Stop any other currently playing audio
     if (soundRef.current) {
-      try { await soundRef.current.stopAsync(); } catch {}
-      try { await soundRef.current.unloadAsync(); } catch {}
+      try { await soundRef.current.stopAsync(); } catch { }
+      try { await soundRef.current.unloadAsync(); } catch { }
       soundRef.current = null;
       if (currentPlayingType.current) {
         setAudioPlaying(prev => ({ ...prev, [currentPlayingType.current!]: false }));
@@ -1265,7 +1266,7 @@ ${rising.main}`;
                         textBreakStrategy="highQuality"
                         android_hyphenationFrequency="full"
                       >
-                        {item.intro}
+                        {cleanTextForAudio(item.intro)}
                       </Text>
                       <Text
                         style={styles.analysis}
@@ -1273,7 +1274,7 @@ ${rising.main}`;
                         textBreakStrategy="highQuality"
                         android_hyphenationFrequency="full"
                       >
-                        {item.main}
+                        {cleanTextForAudio(item.main)}
                       </Text>
                     </ScrollView>
                   </View>

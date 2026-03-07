@@ -27,6 +27,7 @@ import { isSupabaseConfigured } from '@/services/supabase';
 import { useProfileStore } from '@/store/profileStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useAuthStore } from '@/store/authStore';
+import { cleanTextForAudio } from '@/utils/textCleaner';
 import { AUDIO_CONFIG } from '@/config/readingConfig';
 import { BackButton } from '@/components/BackButton';
 import { useAudio } from '@/contexts/AudioContext';
@@ -626,14 +627,14 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
                           selectable
                           textBreakStrategy="highQuality"
                         >
-                          {item.intro}
+                          {cleanTextForAudio(item.intro)}
                         </Text>
                         <Text
                           style={styles.analysis}
                           selectable
                           textBreakStrategy="highQuality"
                         >
-                          {item.main}
+                          {cleanTextForAudio(item.main)}
                         </Text>
                       </ScrollView>
                     </View>
