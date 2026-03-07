@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Dimensions,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -100,6 +101,142 @@ function buildTiers(): TierDef[] {
     },
   ];
 }
+
+/* ── Song lyrics for karaoke ticker ─────────────────────────────── */
+
+const LYRICS: string[] = [
+  'I was born with questions written in my breath',
+  'Every love I reached for only guessed',
+  'I searched through lives of faces, through hope that came and went',
+  'Always feeling something had not happened yet',
+  'Then the stars began to speak my name',
+  'Not in chance but truth',
+  'Every fear I ever carried knew you too',
+  'One in a billion — not a thousand choices wide',
+  'Not another endless maybe passing by',
+  'You were written in my birth light, in the moment I began',
+  'I was never looking for many — only one',
+  'They read my sun and shadow, my longing and my flame',
+  'Every wound that shaped me, every hidden name',
+  'Through the wisdom of the ages, through the languages of time',
+  'My soul was drawn in layers until it recognized itself in mine',
+  'Not a picture, not a promise, not a game to win',
+  'Just two lives being remembered from within',
+  'One in a billion — across the world unseen',
+  'Every system telling stories that converge on me',
+  'Through the silence and the waiting, through the years undone',
+  'The universe was patient for the one',
+  'If love is more than chemistry, more than words can say',
+  'If timing is a sacred thing that cannot be rushed or played',
+  'Then let us meet in truth alone, before desire or skin',
+  'Let us hear our souls together before we let the world begin',
+  'One in a billion — now the signs align',
+  'Every fear and every craving intertwined',
+  'In a world that trades in numbers we chose depth over run',
+  'We did not swipe through destiny — we became the one',
+  'May the stars remember this when history is done',
+  'That technology once helped two souls return to one',
+];
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const SEP = '  ✦  ';
+const FULL_TEXT = LYRICS.join(SEP) + SEP;
+// Duplicate for seamless loop
+const DOUBLE_TEXT = FULL_TEXT + FULL_TEXT;
+
+/** Continuously scrolling karaoke lyrics ticker with red highlight sweep */
+const KaraokeBand = React.memo(() => {
+  const scrollAnim = useRef(new Animated.Value(0)).current;
+  const highlightAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Continuous scroll right-to-left
+    Animated.loop(
+      Animated.timing(scrollAnim, {
+        toValue: -1,
+        duration: 90000, // 90s for full scroll
+        useNativeDriver: true,
+      }),
+    ).start();
+
+    // Red highlight sweep repeats
+    Animated.loop(
+      Animated.timing(highlightAnim, {
+        toValue: 1,
+        duration: 12000,
+        useNativeDriver: false,
+      }),
+    ).start();
+  }, []);
+
+  // We estimate total text width — each character ~7px at 13px font
+  const estimatedHalfWidth = FULL_TEXT.length * 7;
+
+  const translateX = scrollAnim.interpolate({
+    inputRange: [-1, 0],
+    outputRange: [-estimatedHalfWidth, 0],
+  });
+
+  const highlightWidth = highlightAnim.interpolate({
+    inputRange: [0, 0.85, 1],
+    outputRange: ['0%', '100%', '100%'],
+  });
+
+  return (
+    <View style={karaokeStyles.band}>
+      <Animated.View style={[karaokeStyles.track, { transform: [{ translateX }] }]}>
+        <Text style={karaokeStyles.lyrics} numberOfLines={1}>
+          {DOUBLE_TEXT}
+        </Text>
+      </Animated.View>
+      {/* Red highlight overlay */}
+      <Animated.View style={[karaokeStyles.highlightOverlay, { width: highlightWidth }]}>
+        <Animated.View style={[karaokeStyles.track, { transform: [{ translateX }] }]}>
+          <Text style={[karaokeStyles.lyrics, karaokeStyles.lyricsHighlight]} numberOfLines={1}>
+            {DOUBLE_TEXT}
+          </Text>
+        </Animated.View>
+      </Animated.View>
+    </View>
+  );
+});
+
+const karaokeStyles = StyleSheet.create({
+  band: {
+    width: SCREEN_WIDTH,
+    alignSelf: 'center',
+    marginLeft: -spacing.page,
+    marginRight: -spacing.page,
+    overflow: 'hidden',
+    backgroundColor: '#0a0a0a',
+    paddingVertical: 12,
+    marginBottom: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(169,133,111,0.3)',
+    position: 'relative',
+  },
+  track: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  lyrics: {
+    fontFamily: typography.serifItalic || typography.serif,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.3)',
+    letterSpacing: 0.3,
+  },
+  lyricsHighlight: {
+    color: '#d10000',
+  },
+  highlightOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    overflow: 'hidden',
+  },
+});
 
 /* ── Component ────────────────────────────────────────────────────── */
 
@@ -434,6 +571,9 @@ export const PricingScreen = ({ navigation }: Props) => {
           <Text style={styles.subheading}>
             {t('pricing.subtitle')}
           </Text>
+
+          {/* ── Karaoke lyrics ticker ── */}
+          <KaraokeBand />
 
           {/* ── Subscription tiers ── */}
           {buildTiers().map((tier) => {
