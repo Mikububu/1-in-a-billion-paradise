@@ -59,7 +59,6 @@ export type PromptContext = {
 function formatBirthDate(dateStr: string, language: string = 'en'): string {
   const date = new Date(dateStr);
   const day = date.getDate();
-  const year = date.getFullYear();
 
   // BCP 47 mapping for Intl
   const locales: Record<string, string> = {
@@ -78,8 +77,8 @@ function formatBirthDate(dateStr: string, language: string = 'en'): string {
   const locale = locales[language] || 'en-GB';
 
   try {
-    // Let the JS internationally format the date correctly (e.g., German: "23. August 1968")
-    const formatter = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' });
+    // Let the JS internationally format the date correctly (e.g., German: "23. August")
+    const formatter = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' });
     let formattedDate = formatter.format(date);
 
     // Minor exception: if English, add ordinal mapping explicitly as before (to force TTS friendly reading "23rd")
@@ -91,7 +90,7 @@ function formatBirthDate(dateStr: string, language: string = 'en'): string {
               : 'th';
       const months = ['January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'];
-      return `${day}${suffix} ${months[date.getMonth()]} ${year}`;
+      return `${day}${suffix} ${months[date.getMonth()]}`;
     }
 
     return formattedDate;
