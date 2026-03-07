@@ -299,38 +299,6 @@ export async function logGoogleAiStudioCost(
   return cost;
 }
 
-/**
- * Log Google TTS cost
- */
-export async function logGoogleTtsCost(
-  jobId: string,
-  taskId: string | undefined,
-  charsLength: number,
-  label?: string
-): Promise<number> {
-  const tiers = await getPricingTiers();
-  let cost = 0;
-  let modelToLog = 'chirp-3-hd'; // Default fallback
-
-  if (tiers['google_tts']) {
-    const tier = tiers['google_tts'];
-    cost = (charsLength / 10000) * parseFloat(tier.tts_per_10k_chars || '0');
-    if (tier.model_name) modelToLog = tier.model_name;
-  } else {
-    cost = (charsLength / 10000) * 0.16; // $0.16 per 10k chars fallback
-  }
-
-  await logCost({
-    jobId,
-    taskId,
-    provider: 'google_tts',
-    costUsd: cost,
-    model: modelToLog,
-    label: label || 'Google TTS',
-  });
-
-  return cost;
-}
 
 // Legacy alias for backward compatibility
 export const logRunPodCost = logReplicateCost;

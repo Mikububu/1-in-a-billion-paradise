@@ -377,7 +377,7 @@ export class AudioWorker extends BaseWorker {
         console.log('═'.repeat(70));
 
         // Get default speed configure (1.0 is default, lower speeds sound robotic)
-        const MINIMAX_DEFAULT_SPEED = Number(process.env.MINIMAX_DEFAULT_SPEED || 0.95);
+        const MINIMAX_DEFAULT_SPEED = Number(process.env.MINIMAX_DEFAULT_SPEED || 1.0);
         // Get default volume configure (1.0 is default max is 10)
         const MINIMAX_DEFAULT_VOLUME = Number(process.env.MINIMAX_DEFAULT_VOLUME || 2.0);
 
