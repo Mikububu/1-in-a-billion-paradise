@@ -61,19 +61,18 @@ router.post('/signup', async (c) => {
             ? { full_name: name.trim() }
             : {};
 
-        // Use service role admin.createUser with email_confirm:true so no OTP
-        // email is sent and the account is immediately active.
-        const adminSupabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY!);
-        const { data: adminData, error: adminError } = await adminSupabase.auth.admin.createUser({
+        const anonSupabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY!);
+        const { data: signUpData, error: signUpError } = await anonSupabase.auth.signUp({
             email,
             password,
-            user_metadata: userMetadata,
-            email_confirm: true,
+            options: {
+                data: userMetadata,
+            }
         });
 
-        if (adminError) {
-            console.error('❌ Signup error:', adminError.message);
-            const msg = (adminError.message || '').toLowerCase();
+        if (signUpError) {
+            console.error('❌ Signup error:', signUpError.message);
+            const msg = (signUpError.message || '').toLowerCase();
             if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('duplicate') || msg.includes('already been registered')) {
                 return c.json({
                     success: false,
@@ -81,33 +80,16 @@ router.post('/signup', async (c) => {
                     error: 'An account with this email already exists. Please sign in instead.',
                 }, 409);
             }
-            return c.json({ success: false, error: adminError.message }, 400);
+            return c.json({ success: false, error: signUpError.message }, 400);
         }
 
-        // Sign in immediately to get a session — no OTP required.
-        const anonSupabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY!);
-        const { data: signInData, error: signInError } = await anonSupabase.auth.signInWithPassword({ email, password });
-
-        if (signInError) {
-            console.error('❌ Auto-signin after signup failed:', signInError.message);
-            // Account was created but session failed — return success with no session so
-            // the client falls back to the OTP input screen.
-            return c.json({
-                success: true,
-                user: adminData.user,
-                session: null,
-                requiresVerification: false,
-                clearLocalStorage: false,
-            });
-        }
-
-        console.log(`✅ Signup + auto-signin complete for ${email}`);
+        console.log(`✅ Signup complete for ${email}, requires OTP verification.`);
 
         return c.json({
             success: true,
-            user: signInData.user,
-            session: signInData.session,
-            requiresVerification: false,
+            user: signUpData.user,
+            session: signUpData.session,
+            requiresVerification: true,
             clearLocalStorage: false,
         });
 
