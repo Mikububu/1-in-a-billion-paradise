@@ -723,13 +723,13 @@ export const RootNavigator = () => {
     ]);
 
     // ─────────────────────────────────────────────────────────────────────
-    // 30-MINUTE IDLE RESET → Intro screen (still logged in)
-    // When user backgrounds the app for 30+ minutes, navigate back to
+    // 3-HOUR IDLE RESET → Intro screen (still logged in)
+    // When user backgrounds the app for 3+ hours, navigate back to
     // the Intro screen so they see screen 1 and can tap to dashboard.
     // Language-independent - this is pure navigation logic.
     // ─────────────────────────────────────────────────────────────────────
     const backgroundedAtRef = useRef<number | null>(null);
-    const IDLE_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
+    const IDLE_THRESHOLD_MS = 3 * 60 * 60 * 1000; // 3 hours
 
     useEffect(() => {
         const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
