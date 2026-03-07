@@ -585,13 +585,12 @@ const styles = StyleSheet.create({
     },
     gifContainer: {
         alignItems: 'center',
-        justifyContent: 'flex-end',
-        marginHorizontal: -spacing.page, // Break out of contentContainer padding
-        marginTop: spacing.md,
+        justifyContent: 'center',
+        marginTop: spacing.lg,
     },
     gifImage: {
-        width: '100%',
-        aspectRatio: 1200 / 1280, // Exact GIF dimensions (0.9375)
+        width: 180,
+        height: 180,
     },
     contentContainer: {
         flex: 1,
