@@ -320,12 +320,10 @@ export const PartnerInfoScreen = ({ navigation, route }: Props) => {
             <TouchableOpacity
               onPress={() => {
                 if (isPrepayOnboarding) {
-                  if (navigation.canGoBack()) {
-                    navigation.goBack();
-                  } else {
-                    // Skip partner flow — go straight to Pricing
-                    navigation.navigate('Pricing' as any);
-                  }
+                  // Navigate back to the Rising sign reading (last real page)
+                  // instead of goBack() which lands on the gateway spinner page
+                  // ("Just a moment…") that has no exit mechanism.
+                  (navigation as any).navigate('HookSequence', { initialReading: 'rising' });
                   return;
                 }
                 navigation.goBack();
