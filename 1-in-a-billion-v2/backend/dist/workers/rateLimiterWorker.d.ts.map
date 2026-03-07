@@ -1,0 +1,1 @@
+{"version":3,"file":"rateLimiterWorker.d.ts","sourceRoot":"","sources":["../../src/workers/rateLimiterWorker.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;GAaG;AAEH,OAAO,EAAE,MAAM,EAAO,MAAM,QAAQ,CAAC;AAIrC,OAAO,EAGL,KAAK,YAAY,EACjB,KAAK,cAAc,EACpB,MAAM,4BAA4B,CAAC;AA2IpC,wBAAgB,sBAAsB;;;EAoErC"}

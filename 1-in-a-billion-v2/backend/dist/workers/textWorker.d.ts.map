@@ -1,0 +1,1 @@
+{"version":3,"file":"textWorker.d.ts","sourceRoot":"","sources":["../../src/workers/textWorker.ts"],"names":[],"mappings":"AAAA;;;;;GAKG;AAEH,OAAO,EAAE,UAAU,EAAE,UAAU,EAAE,MAAM,cAAc,CAAC;AACtD,OAAO,EAAE,OAAO,EAAY,MAAM,4BAA4B,CAAC;AAic/D,qBAAa,UAAW,SAAQ,UAAU;;cAQxB,WAAW,CAAC,IAAI,EAAE,OAAO,GAAG,OAAO,CAAC,UAAU,CAAC;CAgyChE"}

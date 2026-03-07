@@ -1,0 +1,173 @@
+"use strict";
+/**
+ * CHAT & MATCHING ROUTES
+ *
+ * API endpoints for:
+ * - Gallery of AI portrait portraits
+ * - User matches
+ * - Chat conversations and messages
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+const hono_1 = require("hono");
+const matchingService_1 = require("../services/matchingService");
+const requireAuth_1 = require("../middleware/requireAuth");
+const router = new hono_1.Hono();
+// ═══════════════════════════════════════════════════════════════════════════
+// GALLERY ENDPOINTS
+// ═══════════════════════════════════════════════════════════════════════════
+/**
+ * GET /api/chat/gallery
+ * Get worldwide gallery of AI portrait portraits
+ */
+router.get('/gallery', requireAuth_1.optionalAuth, async (c) => {
+    const userId = c.get('userId') || undefined;
+    const limit = Math.min(Math.max(1, parseInt(c.req.query('limit') || '50') || 50), 100);
+    const offset = Math.max(0, parseInt(c.req.query('offset') || '0') || 0);
+    const gallery = await (0, matchingService_1.getGallery)({
+        limit,
+        offset,
+        excludeUserId: userId,
+    });
+    return c.json({ success: true, gallery, count: gallery.length });
+});
+/**
+ * GET /api/chat/gallery/random
+ * Get random selection of AI portrait portraits
+ * NOTE: Includes the user's own profile so they can view it
+ */
+router.get('/gallery/random', async (c) => {
+    const count = Math.min(Math.max(1, parseInt(c.req.query('count') || '20') || 20), 100);
+    // Don't exclude the user - they should be able to see their own portrait in the gallery
+    const gallery = await (0, matchingService_1.getRandomGallery)(count);
+    return c.json({ success: true, gallery, count: gallery.length });
+});
+// ═══════════════════════════════════════════════════════════════════════════
+// MATCH ENDPOINTS
+// ═══════════════════════════════════════════════════════════════════════════
+/**
+ * GET /api/chat/matches
+ * Get all matches for the current user
+ */
+router.get('/matches', requireAuth_1.requireAuth, async (c) => {
+    const userId = c.get('userId');
+    const matches = await (0, matchingService_1.getUserMatches)(userId);
+    const unseenCount = matches.filter(m => !m.seenAt).length;
+    return c.json({
+        success: true,
+        matches,
+        count: matches.length,
+        unseenCount,
+    });
+});
+/**
+ * POST /api/chat/matches
+ * Create a new match (admin/system use)
+ */
+router.post('/matches', requireAuth_1.requireAuth, async (c) => {
+    try {
+        const body = await c.req.json();
+        const { user1Id, user2Id, person1Id, person2Id, compatibilityScore, matchReason, systemsMatched } = body;
+        if (!user1Id || !user2Id) {
+            return c.json({ success: false, error: 'Missing user IDs' }, 400);
+        }
+        // Verify the authenticated user is one of the participants
+        const authUserId = c.get('userId');
+        if (authUserId !== user1Id && authUserId !== user2Id) {
+            return c.json({ error: 'Unauthorized' }, 403);
+        }
+        const result = await (0, matchingService_1.createMatch)(user1Id, user2Id, {
+            person1Id,
+            person2Id,
+            compatibilityScore,
+            matchReason,
+            systemsMatched,
+        });
+        if (!result) {
+            return c.json({ success: false, error: 'Failed to create match' }, 500);
+        }
+        return c.json({ success: true, matchId: result.matchId });
+    }
+    catch (error) {
+        console.error('Failed to create match:', error);
+        return c.json({ success: false, error: 'Failed to create match' }, 500);
+    }
+});
+/**
+ * POST /api/chat/matches/:matchId/seen
+ * Mark a match as seen
+ */
+router.post('/matches/:matchId/seen', requireAuth_1.requireAuth, async (c) => {
+    const userId = c.get('userId');
+    const matchId = c.req.param('matchId');
+    const success = await (0, matchingService_1.markMatchSeen)(matchId, userId);
+    return c.json({ success });
+});
+// ═══════════════════════════════════════════════════════════════════════════
+// CONVERSATION ENDPOINTS
+// ═══════════════════════════════════════════════════════════════════════════
+/**
+ * GET /api/chat/conversations
+ * Get all conversations for the current user
+ */
+router.get('/conversations', requireAuth_1.requireAuth, async (c) => {
+    const userId = c.get('userId');
+    const conversations = await (0, matchingService_1.getUserConversations)(userId);
+    const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
+    return c.json({
+        success: true,
+        conversations,
+        count: conversations.length,
+        totalUnread,
+    });
+});
+/**
+ * GET /api/chat/conversations/:conversationId/messages
+ * Get messages for a conversation
+ */
+router.get('/conversations/:conversationId/messages', requireAuth_1.requireAuth, async (c) => {
+    const userId = c.get('userId');
+    const conversationId = c.req.param('conversationId');
+    const limit = Math.min(Math.max(1, parseInt(c.req.query('limit') || '50') || 50), 200);
+    const before = c.req.query('before') || undefined;
+    const messages = await (0, matchingService_1.getConversationMessages)(conversationId, { limit, before });
+    return c.json({ success: true, messages, count: messages.length });
+});
+/**
+ * POST /api/chat/conversations/:conversationId/messages
+ * Send a message
+ */
+router.post('/conversations/:conversationId/messages', requireAuth_1.requireAuth, async (c) => {
+    const userId = c.get('userId');
+    try {
+        const conversationId = c.req.param('conversationId');
+        const body = await c.req.json();
+        const { content, messageType } = body;
+        if (!content || typeof content !== 'string') {
+            return c.json({ success: false, error: 'Missing message content' }, 400);
+        }
+        if (content.length > 5000) {
+            return c.json({ success: false, error: 'Message too long (max 5000 characters)' }, 400);
+        }
+        const message = await (0, matchingService_1.sendMessage)(conversationId, userId, content.trim(), messageType);
+        if (!message) {
+            return c.json({ success: false, error: 'Failed to send message' }, 500);
+        }
+        return c.json({ success: true, message });
+    }
+    catch (error) {
+        console.error('Failed to send message:', error);
+        return c.json({ success: false, error: 'Failed to send message' }, 500);
+    }
+});
+/**
+ * POST /api/chat/conversations/:conversationId/read
+ * Mark all messages in a conversation as read
+ */
+router.post('/conversations/:conversationId/read', requireAuth_1.requireAuth, async (c) => {
+    const userId = c.get('userId');
+    const conversationId = c.req.param('conversationId');
+    const success = await (0, matchingService_1.markMessagesRead)(conversationId, userId);
+    return c.json({ success });
+});
+exports.default = router;
+//# sourceMappingURL=chat.js.map

@@ -1,0 +1,624 @@
+"use strict";
+/**
+ * AUDIO PROCESSING UTILITIES - Shared audio chunking and concatenation logic
+ *
+ * This module provides reusable functions for:
+ * - Text chunking (sentence-aware, never cuts mid-sentence)
+ * - WAV buffer concatenation with crossfade transitions
+ * - WAV format detection and conversion (IEEE Float to PCM)
+ * - Per-chunk silence trimming (removes Chatterbox leading/trailing dead-air)
+ *
+ * CONFIGURATION: All tunable parameters are at the top for easy adjustment
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AUDIO_CONFIG = void 0;
+exports.splitIntoChunks = splitIntoChunks;
+exports.dedupeAdjacentSentences = dedupeAdjacentSentences;
+exports.dedupeChunkBoundaryOverlap = dedupeChunkBoundaryOverlap;
+exports.trimSilenceFromWav = trimSilenceFromWav;
+exports.buildSilenceWav = buildSilenceWav;
+exports.findWavDataChunk = findWavDataChunk;
+exports.getWavFormat = getWavFormat;
+exports.convertFloatWavToPcm = convertFloatWavToPcm;
+exports.concatenateWavBuffers = concatenateWavBuffers;
+const child_process_1 = require("child_process");
+const fs = __importStar(require("fs/promises"));
+const os = __importStar(require("os"));
+const path = __importStar(require("path"));
+// ═══════════════════════════════════════════════════════════════════════════
+// ⚠️  CRITICAL: DO NOT CHANGE THESE VALUES WITHOUT READING docs/AUDIO_OUTPUT_SPEC.md
+// ⚠️  These settings were tuned on Feb 4, 2026 to fix audio gibberish/hallucination.
+// ⚠️  Tested with 20 min audio - zero gibberish. Changing them WILL break audio quality.
+// ═══════════════════════════════════════════════════════════════════════════
+exports.AUDIO_CONFIG = {
+    // Text chunking
+    // Stable defaults tuned for Chatterbox Turbo in production.
+    // Keep sentence continuity first; avoid aggressive over-splitting.
+    CHUNK_MAX_LENGTH: 300,
+    CHUNK_OVERFLOW_TOLERANCE: 1.2, // Reduced from 1.5. A 450-char chunk risks TTS model cutoff. 1.2 keeps it <= 360.
+    CHUNK_WORD_SPLIT_THRESHOLD: 2.0,
+    // Audio crossfade
+    // ⚠️ DO NOT INCREASE CROSSFADE_DURATION_MS - 80ms caused stitching issues
+    CROSSFADE_DURATION_MS: 0, // ⚠️ CRITICAL: Keep at 0 (crossfade causes amplitude dips)
+    // Silence trimming (per-chunk, before concatenation)
+    // Chatterbox Turbo generates variable-length silence at start/end of chunks.
+    // Trimming prevents 10-20s dead-air gaps when chunks are concatenated.
+    SILENCE_TRIM_ENABLED: true,
+    SILENCE_THRESHOLD_DB: -55, // Reduced from -40 to -55 to avoid cutting off soft consonants at the end of sentences.
+    SILENCE_MIN_DURATION: 0.15, // seconds of silence before trimming kicks in
+    INTER_CHUNK_GAP_MS: 350, // controlled gap (ms) inserted between chunks after trimming
+    // WAV format
+    DEFAULT_SAMPLE_RATE: 24000, // 24kHz sample rate
+    DEFAULT_NUM_CHANNELS: 1, // Mono audio
+    DEFAULT_BITS_PER_SAMPLE: 16, // 16-bit PCM
+};
+// ═══════════════════════════════════════════════════════════════════════════
+// TEXT CHUNKING - Sentence-aware splitting
+// ═══════════════════════════════════════════════════════════════════════════
+/**
+ * Split text into chunks for TTS generation
+ *
+ * IMPROVED LOGIC:
+ * - Always completes sentences (never cuts mid-sentence)
+ * - Allows chunks to slightly exceed maxChunkLength to finish current sentence
+ * - Only splits at word boundaries if a single sentence is extremely long (>2x limit)
+ *
+ * @param text - Text to split
+ * @param maxChunkLength - Target max length per chunk (can be exceeded to complete sentences)
+ * @returns Array of text chunks
+ */
+function splitIntoChunks(text, maxChunkLength = exports.AUDIO_CONFIG.CHUNK_MAX_LENGTH) {
+    // Match sentences: one or more non-punctuation chars + punctuation, OR remaining text at end
+    // This ensures we capture actual sentence content, not just punctuation/spaces
+    const sentenceRegex = /[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g;
+    const sentences = text.match(sentenceRegex) || [text];
+    const chunks = [];
+    let currentChunk = '';
+    for (const sentence of sentences) {
+        const trimmed = sentence.trim();
+        if (!trimmed)
+            continue; // Skip empty strings
+        // If adding this sentence keeps us under limit, add it
+        if (currentChunk.length + trimmed.length + 1 <= maxChunkLength) {
+            currentChunk += (currentChunk ? ' ' : '') + trimmed;
+        }
+        else {
+            // Would exceed limit - but ALWAYS complete the current sentence first
+            // Only start a new chunk if we already have content
+            if (currentChunk) {
+                // If adding this sentence would only slightly exceed tolerance, include it anyway
+                // This prevents cutting right before a short sentence
+                if (currentChunk.length + trimmed.length + 1 <= maxChunkLength * exports.AUDIO_CONFIG.CHUNK_OVERFLOW_TOLERANCE) {
+                    currentChunk += ' ' + trimmed;
+                    chunks.push(currentChunk);
+                    currentChunk = '';
+                    continue;
+                }
+                // Otherwise save current chunk and start fresh
+                chunks.push(currentChunk);
+                currentChunk = '';
+            }
+            // Handle the new sentence
+            // If single sentence exceeds threshold, split at word boundaries
+            if (trimmed.length > maxChunkLength * exports.AUDIO_CONFIG.CHUNK_WORD_SPLIT_THRESHOLD) {
+                const words = trimmed.split(/\s+/);
+                let wordChunk = '';
+                for (const word of words) {
+                    if (wordChunk.length + word.length + 1 <= maxChunkLength) {
+                        wordChunk += (wordChunk ? ' ' : '') + word;
+                    }
+                    else {
+                        if (wordChunk)
+                            chunks.push(wordChunk);
+                        wordChunk = word;
+                    }
+                }
+                currentChunk = wordChunk;
+            }
+            else {
+                // Normal case: sentence fits and starts a new chunk
+                currentChunk = trimmed;
+            }
+        }
+    }
+    if (currentChunk)
+        chunks.push(currentChunk);
+    // Safety: if somehow no chunks, return the original text
+    if (chunks.length === 0) {
+        return [text];
+    }
+    console.log(`📝 Split into ${chunks.length} chunks: ${chunks.map(c => c.length).join(', ')} chars`);
+    return chunks;
+}
+// ═══════════════════════════════════════════════════════════════════════════
+// TEXT DE-DUPLICATION (pre-TTS safety)
+// ═══════════════════════════════════════════════════════════════════════════
+const SENTENCE_REGEX = /[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g;
+function normalizeSentenceKey(sentence) {
+    return String(sentence || '')
+        .toLowerCase()
+        .replace(/[`"“”'’]/g, '')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+function extractFirstSentence(chunk) {
+    const match = String(chunk || '').match(SENTENCE_REGEX);
+    return match?.[0]?.trim() || '';
+}
+function extractLastSentence(chunk) {
+    const match = String(chunk || '').match(SENTENCE_REGEX);
+    if (!match || match.length === 0)
+        return '';
+    return String(match[match.length - 1] || '').trim();
+}
+function stripFirstSentence(chunk) {
+    const source = String(chunk || '').trim();
+    const match = source.match(SENTENCE_REGEX);
+    if (!match || match.length === 0)
+        return source;
+    const first = String(match[0] || '');
+    const idx = source.indexOf(first);
+    if (idx < 0)
+        return source;
+    return source.slice(idx + first.length).trim();
+}
+function stripFirstNSentences(chunk, count) {
+    let out = String(chunk || '').trim();
+    for (let i = 0; i < count; i += 1) {
+        const next = stripFirstSentence(out);
+        if (!next || next === out)
+            break;
+        out = next;
+    }
+    return out;
+}
+function areLikelyDuplicateSentences(a, b) {
+    const ak = normalizeSentenceKey(a);
+    const bk = normalizeSentenceKey(b);
+    if (!ak || !bk)
+        return false;
+    if (ak === bk)
+        return true;
+    if (ak.length >= 24 && bk.length >= 24 && (ak.startsWith(bk) || bk.startsWith(ak)))
+        return true;
+    return false;
+}
+/**
+ * Remove exact/near-exact adjacent duplicate sentences in text.
+ * This does NOT remove distant thematic repetition; only immediate sentence echoes.
+ */
+function dedupeAdjacentSentences(text) {
+    const sentences = String(text || '').match(SENTENCE_REGEX) || [String(text || '')];
+    const out = [];
+    let prevKey = '';
+    let removed = 0;
+    for (const raw of sentences) {
+        const sentence = String(raw || '').trim();
+        if (!sentence)
+            continue;
+        const key = normalizeSentenceKey(sentence);
+        if (key && key === prevKey) {
+            removed += 1;
+            continue;
+        }
+        out.push(sentence);
+        prevKey = key;
+    }
+    return {
+        text: out.join(' ').replace(/\s+/g, ' ').trim(),
+        removed,
+    };
+}
+/**
+ * Remove sentence overlap between consecutive chunks.
+ * If chunk N ends with the same sentence chunk N+1 starts with, drop the leading sentence in N+1.
+ */
+function dedupeChunkBoundaryOverlap(chunks) {
+    if (!Array.isArray(chunks) || chunks.length <= 1) {
+        return { chunks: Array.isArray(chunks) ? chunks : [], removed: 0 };
+    }
+    const out = [...chunks];
+    let removed = 0;
+    for (let i = 1; i < out.length; i++) {
+        const prev = String(out[i - 1] || '');
+        const curr = String(out[i] || '');
+        if (!prev || !curr)
+            continue;
+        const prevSentences = prev.match(SENTENCE_REGEX)?.map((s) => s.trim()).filter(Boolean) || [];
+        const currSentences = curr.match(SENTENCE_REGEX)?.map((s) => s.trim()).filter(Boolean) || [];
+        if (prevSentences.length === 0 || currSentences.length === 0)
+            continue;
+        const prevLast = prevSentences[prevSentences.length - 1] || '';
+        const prevSecondLast = prevSentences.length > 1 ? prevSentences[prevSentences.length - 2] || '' : '';
+        const currFirst = currSentences[0] || '';
+        const currSecond = currSentences.length > 1 ? currSentences[1] || '' : '';
+        let dropCount = 0;
+        if (areLikelyDuplicateSentences(prevLast, currFirst) || areLikelyDuplicateSentences(prevSecondLast, currFirst)) {
+            dropCount = 1;
+            // If model echoed two full sentences at boundary, strip both.
+            if (currSecond && (areLikelyDuplicateSentences(prevLast, currSecond) || areLikelyDuplicateSentences(prevSecondLast, currSecond))) {
+                dropCount = 2;
+            }
+        }
+        if (dropCount > 0) {
+            const stripped = stripFirstNSentences(curr, dropCount);
+            if (stripped && stripped !== curr.trim()) {
+                out[i] = stripped;
+                removed += dropCount;
+            }
+        }
+    }
+    return { chunks: out, removed };
+}
+// ═══════════════════════════════════════════════════════════════════════════
+// SILENCE TRIMMING - Remove leading/trailing silence from each WAV chunk
+// ═══════════════════════════════════════════════════════════════════════════
+/**
+ * Helper: run an ffmpeg command and return stdout/file result.
+ */
+function runFfmpegBuffer(args) {
+    return new Promise((resolve, reject) => {
+        const proc = (0, child_process_1.spawn)('ffmpeg', ['-y', ...args], { stdio: ['ignore', 'ignore', 'pipe'] });
+        let stderr = '';
+        proc.stderr.on('data', (d) => (stderr += d.toString()));
+        proc.on('error', (err) => reject(err));
+        proc.on('close', (code) => {
+            if (code === 0)
+                return resolve();
+            reject(new Error(`ffmpeg silence-trim failed (code=${code}): ${stderr.slice(-400)}`));
+        });
+    });
+}
+/**
+ * Trim leading and trailing silence from a WAV buffer using FFmpeg's silenceremove filter.
+ *
+ * Strategy (two-pass):
+ *   1. silenceremove start_periods=1  → strips leading silence
+ *   2. reverse → silenceremove start_periods=1 → reverse  → strips trailing silence
+ *
+ * Conservative thresholds avoid clipping actual speech.
+ * Returns the trimmed WAV buffer (same sample rate / channels / bit depth).
+ */
+async function trimSilenceFromWav(wavBuffer) {
+    if (!exports.AUDIO_CONFIG.SILENCE_TRIM_ENABLED)
+        return wavBuffer;
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'iab-trim-'));
+    const inPath = path.join(dir, 'in.wav');
+    const outPath = path.join(dir, 'out.wav');
+    try {
+        await fs.writeFile(inPath, wavBuffer);
+        const threshDb = exports.AUDIO_CONFIG.SILENCE_THRESHOLD_DB; // e.g. -40
+        const minDur = exports.AUDIO_CONFIG.SILENCE_MIN_DURATION; // e.g. 0.15
+        // Two-pass silenceremove:
+        //   Pass 1: remove leading silence (start_periods=1)
+        //   Pass 2: reverse → remove leading (which is actually trailing) → reverse back
+        const filterChain = [
+            `silenceremove=start_periods=1:start_duration=${minDur}:start_threshold=${threshDb}dB`,
+            `areverse`,
+            `silenceremove=start_periods=1:start_duration=${minDur}:start_threshold=${threshDb}dB`,
+            `areverse`,
+        ].join(',');
+        await runFfmpegBuffer([
+            '-i', inPath,
+            '-af', filterChain,
+            '-c:a', 'pcm_s16le', // keep 16-bit PCM
+            outPath,
+        ]);
+        const trimmed = await fs.readFile(outPath);
+        // Sanity: if trimming removed everything (silence-only chunk), return original
+        if (trimmed.length < 100) {
+            console.warn(`⚠️ [trimSilence] Trimming produced near-empty output (${trimmed.length}B), keeping original (${wavBuffer.length}B)`);
+            return wavBuffer;
+        }
+        const pctReduced = (100 - (trimmed.length / wavBuffer.length) * 100).toFixed(1);
+        if (parseFloat(pctReduced) > 5) {
+            console.log(`✂️  [trimSilence] ${wavBuffer.length}B → ${trimmed.length}B (${pctReduced}% trimmed)`);
+        }
+        return trimmed;
+    }
+    catch (err) {
+        console.warn(`⚠️ [trimSilence] FFmpeg trim failed, using untrimmed chunk: ${err.message}`);
+        return wavBuffer; // graceful fallback
+    }
+    finally {
+        await fs.rm(dir, { recursive: true, force: true }).catch(() => { });
+    }
+}
+/**
+ * Build a WAV buffer containing pure silence of the given duration.
+ * Used to insert controlled inter-chunk gaps after silence trimming.
+ */
+function buildSilenceWav(durationMs, sampleRate = exports.AUDIO_CONFIG.DEFAULT_SAMPLE_RATE, numChannels = exports.AUDIO_CONFIG.DEFAULT_NUM_CHANNELS) {
+    const totalSamples = Math.max(1, Math.round((durationMs / 1000) * sampleRate));
+    const pcmData = Buffer.alloc(totalSamples * numChannels * 2); // 16-bit zeros = silence
+    const wavHeader = Buffer.alloc(44);
+    wavHeader.write('RIFF', 0);
+    wavHeader.writeUInt32LE(36 + pcmData.length, 4);
+    wavHeader.write('WAVE', 8);
+    wavHeader.write('fmt ', 12);
+    wavHeader.writeUInt32LE(16, 16);
+    wavHeader.writeUInt16LE(1, 20);
+    wavHeader.writeUInt16LE(numChannels, 22);
+    wavHeader.writeUInt32LE(sampleRate, 24);
+    wavHeader.writeUInt32LE(sampleRate * numChannels * 2, 28);
+    wavHeader.writeUInt16LE(numChannels * 2, 32);
+    wavHeader.writeUInt16LE(16, 34);
+    wavHeader.write('data', 36);
+    wavHeader.writeUInt32LE(pcmData.length, 40);
+    return Buffer.concat([wavHeader, pcmData]);
+}
+// ═══════════════════════════════════════════════════════════════════════════
+// WAV FORMAT DETECTION & CONVERSION
+// ═══════════════════════════════════════════════════════════════════════════
+/**
+ * Find the "data" chunk in a WAV file and return its offset and size
+ */
+function findWavDataChunk(buffer) {
+    // WAV structure: RIFF header (12 bytes) + chunks
+    // Each chunk: 4-byte ID + 4-byte size + data
+    let offset = 12; // Skip RIFF header
+    while (offset < buffer.length - 8) {
+        const chunkId = buffer.toString('ascii', offset, offset + 4);
+        const chunkSize = buffer.readUInt32LE(offset + 4);
+        if (chunkId === 'data') {
+            return { dataOffset: offset + 8, dataSize: chunkSize };
+        }
+        // Move to next chunk (8 bytes header + chunk data, aligned to 2 bytes)
+        offset += 8 + chunkSize;
+        if (chunkSize % 2 !== 0)
+            offset++; // Padding byte
+    }
+    throw new Error('No data chunk found in WAV file');
+}
+/**
+ * Detect WAV format (16-bit PCM vs IEEE Float)
+ */
+function getWavFormat(buffer) {
+    // Find fmt chunk
+    let offset = 12;
+    while (offset < buffer.length - 8) {
+        const chunkId = buffer.toString('ascii', offset, offset + 4);
+        const chunkSize = buffer.readUInt32LE(offset + 4);
+        if (chunkId === 'fmt ') {
+            return {
+                audioFormat: buffer.readUInt16LE(offset + 8), // 1 = PCM, 3 = IEEE Float
+                numChannels: buffer.readUInt16LE(offset + 10),
+                sampleRate: buffer.readUInt32LE(offset + 12),
+                bitsPerSample: buffer.readUInt16LE(offset + 22),
+            };
+        }
+        offset += 8 + chunkSize;
+        if (chunkSize % 2 !== 0)
+            offset++;
+    }
+    throw new Error('No fmt chunk found in WAV');
+}
+/**
+ * Convert IEEE Float WAV to 16-bit PCM WAV
+ */
+function convertFloatWavToPcm(buffer) {
+    const format = getWavFormat(buffer);
+    // If already 16-bit PCM, return as-is
+    if (format.audioFormat === 1 && format.bitsPerSample === 16) {
+        return buffer;
+    }
+    // If IEEE Float (format 3), convert to 16-bit PCM
+    if (format.audioFormat === 3 && format.bitsPerSample === 32) {
+        console.log('Converting IEEE Float WAV to 16-bit PCM...');
+        const { dataOffset, dataSize } = findWavDataChunk(buffer);
+        const numSamples = dataSize / 4; // 4 bytes per float32 sample
+        // Read float samples and convert to int16
+        const int16Data = Buffer.alloc(numSamples * 2);
+        for (let i = 0; i < numSamples; i++) {
+            const floatVal = buffer.readFloatLE(dataOffset + i * 4);
+            // Clamp to [-1, 1] and convert to int16 range
+            const clamped = Math.max(-1, Math.min(1, floatVal));
+            const int16Val = Math.round(clamped * 32767);
+            int16Data.writeInt16LE(int16Val, i * 2);
+        }
+        // Create new 16-bit PCM WAV
+        const pcmWav = Buffer.alloc(44 + int16Data.length);
+        pcmWav.write('RIFF', 0);
+        pcmWav.writeUInt32LE(36 + int16Data.length, 4);
+        pcmWav.write('WAVE', 8);
+        pcmWav.write('fmt ', 12);
+        pcmWav.writeUInt32LE(16, 16); // fmt chunk size
+        pcmWav.writeUInt16LE(1, 20); // AudioFormat: 1 = PCM
+        pcmWav.writeUInt16LE(format.numChannels, 22); // NumChannels
+        pcmWav.writeUInt32LE(format.sampleRate, 24); // SampleRate
+        pcmWav.writeUInt32LE(format.sampleRate * format.numChannels * 2, 28); // ByteRate
+        pcmWav.writeUInt16LE(format.numChannels * 2, 32); // BlockAlign
+        pcmWav.writeUInt16LE(16, 34); // BitsPerSample
+        pcmWav.write('data', 36);
+        pcmWav.writeUInt32LE(int16Data.length, 40);
+        int16Data.copy(pcmWav, 44);
+        console.log(`Converted: ${buffer.length} bytes float -> ${pcmWav.length} bytes PCM`);
+        return pcmWav;
+    }
+    console.log(`Unknown WAV format: ${format.audioFormat}, ${format.bitsPerSample}-bit`);
+    return buffer; // Return as-is for unknown formats
+}
+// ═══════════════════════════════════════════════════════════════════════════
+// WAV CONCATENATION WITH CROSSFADE
+// ═══════════════════════════════════════════════════════════════════════════
+/**
+ * Concatenate WAV buffers with crossfade transitions
+ *
+ * IMPROVED LOGIC:
+ * - Uses configurable crossfade duration (default 80ms)
+ * - Proper overlap blending (not just fade-out/fade-in)
+ * - Equal-power crossfade for perceptually smooth transitions
+ * - Converts IEEE Float to 16-bit PCM if needed
+ *
+ * @param buffers - Array of WAV buffers to concatenate
+ * @returns Single concatenated WAV buffer with crossfades
+ */
+function concatenateWavBuffers(buffers) {
+    if (buffers.length === 0)
+        return Buffer.alloc(0);
+    if (buffers.length === 1)
+        return convertFloatWavToPcm(buffers[0]);
+    // Convert and extract audio data from each buffer
+    const audioDataChunks = [];
+    let totalDataSize = 0;
+    // Determine format from the FIRST buffer (keeps original sample rate/channels)
+    let sampleRate = exports.AUDIO_CONFIG.DEFAULT_SAMPLE_RATE;
+    let numChannels = exports.AUDIO_CONFIG.DEFAULT_NUM_CHANNELS;
+    let bitsPerSample = exports.AUDIO_CONFIG.DEFAULT_BITS_PER_SAMPLE;
+    for (let i = 0; i < buffers.length; i++) {
+        const buf = buffers[i];
+        // Convert IEEE Float to 16-bit PCM if needed
+        const pcmBuf = convertFloatWavToPcm(buf);
+        // Capture format from the first (converted) buffer
+        if (i === 0) {
+            try {
+                const fmt = getWavFormat(pcmBuf);
+                sampleRate = fmt.sampleRate || sampleRate;
+                numChannels = fmt.numChannels || numChannels;
+                bitsPerSample = fmt.bitsPerSample || bitsPerSample;
+                if (fmt.sampleRate !== exports.AUDIO_CONFIG.DEFAULT_SAMPLE_RATE || fmt.numChannels !== exports.AUDIO_CONFIG.DEFAULT_NUM_CHANNELS) {
+                    console.log(`⚠️  Using source format for stitching: ${fmt.sampleRate}Hz, ${fmt.numChannels}ch, ${fmt.bitsPerSample}-bit`);
+                }
+            }
+            catch (err) {
+                console.warn('Could not read WAV fmt chunk, falling back to defaults:', err);
+            }
+        }
+        else {
+            // Sanity check for format drift between chunks
+            try {
+                const fmt = getWavFormat(pcmBuf);
+                if (fmt.sampleRate !== sampleRate || fmt.numChannels !== numChannels) {
+                    console.warn(`⚠️  Chunk ${i + 1} format mismatch (${fmt.sampleRate}Hz/${fmt.numChannels}ch) vs base (${sampleRate}Hz/${numChannels}ch). Proceeding without resample.`);
+                }
+            }
+            catch { /* ignore */ }
+        }
+        const { dataOffset, dataSize } = findWavDataChunk(pcmBuf);
+        const audioData = pcmBuf.slice(dataOffset, dataOffset + dataSize);
+        console.log(`Chunk ${i + 1} audio data: ${dataSize} bytes (offset: ${dataOffset}, total buffer: ${pcmBuf.length})`);
+        audioDataChunks.push(audioData);
+        totalDataSize += audioData.length;
+    }
+    // IMPROVED CROSSFADE: Blend overlapping regions for seamless transitions
+    const fadeMs = exports.AUDIO_CONFIG.CROSSFADE_DURATION_MS;
+    const bytesPerSample = bitsPerSample / 8;
+    const fadeSamples = Math.floor((sampleRate * fadeMs) / 1000);
+    const fadeBytes = fadeSamples * bytesPerSample * numChannels;
+    // First pass: calculate total size accounting for crossfade overlap
+    let crossfadeTotalSize = audioDataChunks[0]?.length || 0;
+    for (let i = 1; i < audioDataChunks.length; i++) {
+        const chunk = audioDataChunks[i];
+        const prevChunk = audioDataChunks[i - 1];
+        // Overlap region is subtracted (we blend instead of concatenate)
+        const overlapBytes = Math.min(fadeBytes, chunk.length, prevChunk.length);
+        crossfadeTotalSize += chunk.length - overlapBytes;
+    }
+    // Allocate result buffer with correct size
+    const crossfadeResult = Buffer.alloc(44 + crossfadeTotalSize);
+    // Write WAV header with source format
+    crossfadeResult.write('RIFF', 0);
+    crossfadeResult.writeUInt32LE(36 + crossfadeTotalSize, 4); // ChunkSize
+    crossfadeResult.write('WAVE', 8);
+    crossfadeResult.write('fmt ', 12);
+    crossfadeResult.writeUInt32LE(16, 16); // Subchunk1Size (PCM)
+    crossfadeResult.writeUInt16LE(1, 20); // AudioFormat (PCM)
+    crossfadeResult.writeUInt16LE(numChannels, 22); // NumChannels
+    crossfadeResult.writeUInt32LE(sampleRate, 24); // SampleRate
+    crossfadeResult.writeUInt32LE(sampleRate * numChannels * bytesPerSample, 28); // ByteRate
+    crossfadeResult.writeUInt16LE(numChannels * bytesPerSample, 32); // BlockAlign
+    crossfadeResult.writeUInt16LE(bitsPerSample, 34); // BitsPerSample
+    crossfadeResult.write('data', 36);
+    crossfadeResult.writeUInt32LE(crossfadeTotalSize, 40); // Subchunk2Size
+    let writeOffset = 44;
+    for (let i = 0; i < audioDataChunks.length; i++) {
+        const chunk = audioDataChunks[i];
+        if (i === 0) {
+            // First chunk: copy entirely
+            chunk.copy(crossfadeResult, writeOffset);
+            writeOffset += chunk.length;
+        }
+        else {
+            const prevChunk = audioDataChunks[i - 1];
+            const overlapBytes = Math.min(fadeBytes, chunk.length, prevChunk.length);
+            if (overlapBytes >= bytesPerSample * numChannels) {
+                // CROSSFADE: Blend the overlap region
+                // The overlap region is at the END of what we've written and START of current chunk
+                const blendStart = writeOffset - overlapBytes;
+                for (let j = 0; j < overlapBytes; j += bytesPerSample * numChannels) {
+                    // Read sample(s) from previous chunk (already in result buffer)
+                    const prevSample = bitsPerSample === 16
+                        ? crossfadeResult.readInt16LE(blendStart + j)
+                        : crossfadeResult.readInt8(blendStart + j);
+                    const currSample = bitsPerSample === 16
+                        ? chunk.readInt16LE(j)
+                        : chunk.readInt8(j);
+                    // Crossfade ratio: prev fades out (1->0), curr fades in (0->1)
+                    const t = j / overlapBytes; // 0.0 to 1.0
+                    // Use equal-power crossfade for smoother transition
+                    const prevGain = Math.cos(t * Math.PI / 2);
+                    const currGain = Math.sin(t * Math.PI / 2);
+                    // Blend samples
+                    const blended = Math.round(prevSample * prevGain + currSample * currGain);
+                    // Clamp to int range
+                    const maxVal = bitsPerSample === 16 ? 32767 : 127;
+                    const minVal = bitsPerSample === 16 ? -32768 : -128;
+                    const clamped = Math.max(minVal, Math.min(maxVal, blended));
+                    if (bitsPerSample === 16) {
+                        crossfadeResult.writeInt16LE(clamped, blendStart + j);
+                    }
+                    else {
+                        crossfadeResult.writeInt8(clamped, blendStart + j);
+                    }
+                }
+                // Copy rest of current chunk (after overlap region)
+                if (chunk.length > overlapBytes) {
+                    chunk.copy(crossfadeResult, writeOffset, overlapBytes);
+                    writeOffset += chunk.length - overlapBytes;
+                }
+            }
+            else {
+                // Chunk too small for crossfade, just append
+                chunk.copy(crossfadeResult, writeOffset);
+                writeOffset += chunk.length;
+            }
+        }
+    }
+    console.log(`WAV concatenation: ${buffers.length} chunks -> ${crossfadeTotalSize} bytes audio data (with ${fadeMs}ms crossfade, ${sampleRate}Hz, ${numChannels}ch)`);
+    return crossfadeResult;
+}
+//# sourceMappingURL=audioProcessing.js.map

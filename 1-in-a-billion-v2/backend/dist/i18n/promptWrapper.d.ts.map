@@ -1,0 +1,1 @@
+{"version":3,"file":"promptWrapper.d.ts","sourceRoot":"","sources":["../../src/i18n/promptWrapper.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;GAWG;AAEH,OAAO,EAAE,cAAc,EAA2C,MAAM,qBAAqB,CAAC;AAE9F;;;GAGG;AACH,wBAAgB,eAAe,CAAC,MAAM,EAAE,MAAM,EAAE,IAAI,EAAE,cAAc,GAAG,MAAM,CAO5E;AAED;;;GAGG;AACH,wBAAgB,gBAAgB,CAAC,IAAI,EAAE,cAAc,GAAG,MAAM,CAG7D"}

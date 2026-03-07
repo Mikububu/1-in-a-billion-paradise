@@ -1,0 +1,111 @@
+"use strict";
+/**
+ * TEXT CLEANUP UTILITY
+ *
+ * Cleans text to be TTS (Text-to-Speech) ready and audio-flawless.
+ * Removes all symbols, unicode characters, markdown, and garbage text
+ * that could cause issues with audio generation.
+ *
+ * Source: OUTPUT_FORMAT_RULES from prompts/core/output-rules.ts
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.cleanupTextForTTS = cleanupTextForTTS;
+exports.validateTextForTTS = validateTextForTTS;
+/**
+ * Clean text for TTS audio generation
+ *
+ * Removes:
+ * - All markdown syntax (#, ##, **, __, -, etc.)
+ * - Special characters and unicode (♈, ♉, °, ', ", -, -, etc.)
+ * - Emojis and symbols
+ * - HTML tags and entities
+ * - Broken words or unreadable text
+ * - Em-dashes and en-dashes (replaces with commas/semicolons)
+ *
+ * Ensures:
+ * - All text is readable and pronounceable
+ * - No symbols that would confuse TTS
+ */
+function cleanupTextForTTS(text, language = 'en') {
+    let cleaned = text;
+    // Pronunciation phonetic respellings are now handled dynamically via the LLM phoneticizer service.
+    // Remove HTML tags and entities
+    cleaned = cleaned.replace(/<[^>]*>/g, '');
+    cleaned = cleaned.replace(/&[a-z]+;/gi, '');
+    cleaned = cleaned.replace(/&#\d+;/g, '');
+    // Remove markdown syntax
+    cleaned = cleaned.replace(/^#{1,6}\s+/gm, ''); // Headers (#, ##, ###, etc.)
+    cleaned = cleaned.replace(/#/g, ''); // Stray hash marks
+    cleaned = cleaned.replace(/\*/g, ''); // Asterisks 
+    cleaned = cleaned.replace(/_/g, ''); // Underscores
+    cleaned = cleaned.replace(/\[|\]/g, ''); // Brackets
+    cleaned = cleaned.replace(/~~([^~]+)~~/g, '$1'); // Strikethrough ~~text~~
+    cleaned = cleaned.replace(/^[-+]\s+/gm, ''); // Bullet points (keep * removed by previous regex)
+    cleaned = cleaned.replace(/^\d+\.\s+/gm, ''); // Numbered lists
+    // Aggressively remove roman numeral list markers like i., (i), i) anywhere
+    cleaned = cleaned.replace(/\b[ivxlcdmIVXLCDM]+\.\s+/g, ''); // i. 
+    cleaned = cleaned.replace(/\([ivxlcdmIVXLCDM]+\)\s*/g, ''); // (i)
+    cleaned = cleaned.replace(/\b[ivxlcdmIVXLCDM]+\)\s*/g, ''); // i)
+    // Replace em-dashes and en-dashes with commas or semicolons
+    cleaned = cleaned.replace(/\u2014/g, ', '); // em-dash
+    cleaned = cleaned.replace(/\u2013/g, ', '); // en-dash
+    // Remove special characters and unicode symbols
+    // Keep all standard punctuation (including CJK full-stops, commas, etc via \p{P})
+    cleaned = cleaned.replace(/[\u2648-\u2653]/g, ''); // Zodiac symbols
+    cleaned = cleaned.replace(/[\u00B0'"]/g, ''); // Degree symbols and quotes (keep standard quotes)
+    cleaned = cleaned.replace(/[^\p{L}\p{N}\p{M}\p{P}\x20-\x7E\n\r\t]/gu, ' ');
+    // Remove emojis (common emoji ranges)
+    cleaned = cleaned.replace(/[\u{1F300}-\u{1F9FF}]/gu, ''); // Miscellaneous Symbols and Pictographs
+    cleaned = cleaned.replace(/[\u{2600}-\u{26FF}]/gu, ''); // Miscellaneous Symbols
+    cleaned = cleaned.replace(/[\u{2700}-\u{27BF}]/gu, ''); // Dingbats
+    // Clean up multiple spaces
+    cleaned = cleaned.replace(/ +/g, ' ');
+    // Ensure headlines have space after them (for TTS pauses)
+    // Match lines that look like headlines (ALL CAPS or Title Case at start of line)
+    cleaned = cleaned.replace(/^([A-Z][A-Z\s]{10,})\n/gm, (match) => {
+        // If it's all caps or title case and ends without space, add space
+        return match.trimEnd() + ' ... \n';
+    });
+    // Clean up multiple newlines (keep max 2 for paragraph breaks)
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+    // Insert explicit pause markers at paragraph breaks so TTS properly pauses
+    cleaned = cleaned.replace(/\n\n/g, ' ... ');
+    // Replace remaining single newlines with spaces to prevent abrupt TTS reading
+    cleaned = cleaned.replace(/\n/g, ' ');
+    // Remove leading/trailing whitespace
+    cleaned = cleaned.trim();
+    return cleaned;
+}
+/**
+ * Validate text is TTS-ready
+ *
+ * Checks for common issues that would cause TTS problems:
+ * - Unreadable symbols
+ * - Broken words
+ * - Missing spaces after headlines
+ */
+function validateTextForTTS(text) {
+    const issues = [];
+    // Check for problematic characters
+    if (/[\u2648-\u2653\u00B0\u2014\u2013\-]/.test(text)) {
+        issues.push('Contains zodiac symbols, degree symbols, or em-dashes');
+    }
+    // Check for markdown
+    if (/^#{1,6}\s+/m.test(text) || /\*\*.*\*\*/.test(text) || /__.*__/.test(text)) {
+        issues.push('Contains markdown syntax');
+    }
+    // Check for HTML
+    if (/<[^>]+>/.test(text)) {
+        issues.push('Contains HTML tags');
+    }
+    // Check for broken words (consecutive consonants > 5 chars without vowels)
+    const brokenWordPattern = /[bcdfghjklmnpqrstvwxyzBCDFGHJKLMNPQRSTVWXYZ]{6,}/;
+    if (brokenWordPattern.test(text)) {
+        issues.push('May contain broken/unreadable words');
+    }
+    return {
+        isValid: issues.length === 0,
+        issues,
+    };
+}
+//# sourceMappingURL=textCleanup.js.map
