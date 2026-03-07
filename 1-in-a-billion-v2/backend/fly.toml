@@ -1,5 +1,6 @@
 app = "1-in-a-billion-backend"
 primary_region = "sin"
+kill_timeout = "15s"
 
 [build]
   dockerfile = "Dockerfile"
