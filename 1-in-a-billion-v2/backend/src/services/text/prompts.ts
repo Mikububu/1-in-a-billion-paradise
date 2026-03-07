@@ -52,21 +52,53 @@ export type PromptContext = {
   // For partner readings
   subjectName?: string | undefined;
   isPartnerReading?: boolean | undefined;
+  // Output language (from payload.primaryLanguage)
+  language?: string;
 };
 
-function formatBirthDate(dateStr: string): string {
+function formatBirthDate(dateStr: string, language: string = 'en'): string {
   const date = new Date(dateStr);
-  const months = ['January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'];
   const day = date.getDate();
-  // Ordinal suffix: 1st, 2nd, 3rd, 4th, 11th, 12th, 13th, 21st, 22nd, 23rd...
-  const suffix = (day >= 11 && day <= 13) ? 'th'
-    : day % 10 === 1 ? 'st'
-      : day % 10 === 2 ? 'nd'
-        : day % 10 === 3 ? 'rd'
-          : 'th';
-  // Format: "23rd August 1968" (NOT "August 23, 1968")
-  return `${day}${suffix} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  const year = date.getFullYear();
+
+  // BCP 47 mapping for Intl
+  const locales: Record<string, string> = {
+    'en': 'en-GB', // Default to format like "23 August"
+    'de': 'de-DE',
+    'es': 'es-ES',
+    'fr': 'fr-FR',
+    'zh': 'zh-CN',
+    'ja': 'ja-JP',
+    'ko': 'ko-KR',
+    'hi': 'hi-IN',
+    'pt': 'pt-BR',
+    'it': 'it-IT'
+  };
+
+  const locale = locales[language] || 'en-GB';
+
+  try {
+    // Let the JS internationally format the date correctly (e.g., German: "23. August 1968")
+    const formatter = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' });
+    let formattedDate = formatter.format(date);
+
+    // Minor exception: if English, add ordinal mapping explicitly as before (to force TTS friendly reading "23rd")
+    if (language === 'en') {
+      const suffix = (day >= 11 && day <= 13) ? 'th'
+        : day % 10 === 1 ? 'st'
+          : day % 10 === 2 ? 'nd'
+            : day % 10 === 3 ? 'rd'
+              : 'th';
+      const months = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+      return `${day}${suffix} ${months[date.getMonth()]} ${year}`;
+    }
+
+    return formattedDate;
+  } catch (err) {
+    // Fallback if parsing fails
+    return dateStr;
+  }
 }
 
 /**
@@ -151,7 +183,7 @@ function formatHouse(house?: number): string {
 }
 
 export function buildReadingPrompt(ctx: PromptContext): string {
-  const formattedDate = formatBirthDate(ctx.birthDate);
+  const formattedDate = formatBirthDate(ctx.birthDate, ctx.language);
   const isPartner = ctx.isPartnerReading && ctx.subjectName;
   const name = ctx.subjectName || 'you';
   const nameUpper = name.toUpperCase();
@@ -291,8 +323,8 @@ Create the ${ctx.type.toUpperCase()} reading for ${name} (${sign}).
 
 ⚠️ PRONOUN RULE: NEVER use "she/he/they/them" - ALWAYS use "${name}" or "${name}'s"
 
-${ctx.type === 'sun' ? `${name.toUpperCase()}'S BIRTH DETAILS (COPY EXACTLY):
-- Date: "${formattedDate}" ← USE THIS EXACT FORMAT
+${ctx.type === 'sun' ? `${name.toUpperCase()}'S BIRTH DETAILS:
+- Date: "${formattedDate}" (incorporate this naturally in your target language)
 - Time: ${ctx.birthTime}
 - Sun position: ${sunPos}` : `PLACEMENT CONTEXT:
 - ${name}'s ${ctx.type === 'moon' ? 'Moon' : 'Rising'} Sign: ${sign}
@@ -328,8 +360,8 @@ STRUCTURE (3RD PERSON - use "${name}" not "you"):
 
 "preamble": (40-50 words):
   ${ctx.type === 'sun'
-        ? `Start with factual birth statement: "${name}, born on ${formattedDate}${ctx.birthPlace ? ` in ${ctx.birthPlace}` : ''}..." (COPY DATE AND CITY EXACTLY)
-  MUST include exact position: "${sunPos}" - use poetic language like "${sunDecan}"
+        ? `Start with factual birth statement: "${name}, born on ${formattedDate}${ctx.birthPlace ? ` in ${ctx.birthPlace}` : ''}..." (TRANSLATE "born on" and city naturally to the output language, DO NOT force English)
+  MUST include exact position: "${sunPos}" - translate poetic language like "${sunDecan}" naturally
   ${sunHouse ? `MUST mention ${sunHouse}` : ''}
   NEVER use the word "decan" - use the poetic description instead
   Emphasize this is SPECIFIC to ${sunDeg?.degree || '?'} degrees, not generic ${sign}`
@@ -374,8 +406,8 @@ OUTPUT FORMAT (JSON only):
   return `
 Create the ${ctx.type.toUpperCase()} reading for ${sign}.
 
-${ctx.type === 'sun' ? `BIRTH DETAILS (COPY EXACTLY):
-- Date: "${formattedDate}" ← USE THIS EXACT FORMAT IN YOUR PREAMBLE
+${ctx.type === 'sun' ? `BIRTH DETAILS:
+- Date: "${formattedDate}" (incorporate this naturally in your target language)
 - Time: ${ctx.birthTime}
 - Sun position: ${sunPos}` : `PLACEMENT CONTEXT:
 - ${ctx.type === 'moon' ? 'Moon' : 'Rising'} Sign: ${sign}
@@ -414,8 +446,8 @@ STRUCTURE:
 "preamble": (40-50 words):
   ${ctx.type === 'sun'
       ? `Start directly with a sweet, atmospheric greeting (use examples like: "${greetingOptions}")
-  MUST include: "born on ${formattedDate}${ctx.birthPlace ? ` in ${ctx.birthPlace}` : ''}" (COPY DATE AND CITY EXACTLY)
-  MUST include the exact degree: "${sunPos}" - use poetic language like "${sunDecan}"
+  MUST include: "born on ${formattedDate}${ctx.birthPlace ? ` in ${ctx.birthPlace}` : ''}" (TRANSLATE "born on" and city naturally to the output language, DO NOT force English)
+  MUST include the exact degree: "${sunPos}" - translate poetic language like "${sunDecan}" naturally
   ${sunHouse ? `MUST mention ${sunHouse}` : ''}
   NEVER use the word "decan" - use the poetic description instead
   Emphasize this is SPECIFIC to ${sunDeg?.degree || '?'} degrees, not generic ${sign}

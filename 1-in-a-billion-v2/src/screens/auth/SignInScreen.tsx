@@ -587,6 +587,7 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'flex-end',
+        marginHorizontal: -spacing.page, // Break out of contentContainer padding
         marginTop: spacing.xl,
     },
     gifImage: {
@@ -600,7 +601,7 @@ const styles = StyleSheet.create({
     },
     authSection: {
         gap: spacing.sm,
-        paddingTop: 140, // Position below Back button (top: 60) without overlap
+        paddingTop: 240, // Move buttons further down to balance the screen
     },
     authButton: {
         paddingVertical: spacing.md,

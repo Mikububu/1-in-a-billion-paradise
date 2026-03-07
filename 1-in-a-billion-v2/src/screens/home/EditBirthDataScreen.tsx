@@ -9,6 +9,7 @@ import {
     TouchableOpacity,
     View,
     Alert,
+    Keyboard,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -180,7 +181,7 @@ export const EditBirthDataScreen = ({ navigation, route }: Props) => {
                         <Text style={styles.inputText}>{formatDateDisplay(dateValue)}</Text>
                     </Pressable>
                     {showDatePicker && (
-                        <View style={styles.pickerWrapper}>
+                        <View style={styles.pickerWrapper} onTouchStart={() => Keyboard.dismiss()}>
                             <DateTimePicker
                                 mode="date"
                                 display="spinner"
@@ -200,7 +201,7 @@ export const EditBirthDataScreen = ({ navigation, route }: Props) => {
                         <Text style={styles.inputText}>{toTimeString(timeValue)}</Text>
                     </Pressable>
                     {showTimePicker && (
-                        <View style={styles.pickerWrapper}>
+                        <View style={styles.pickerWrapper} onTouchStart={() => Keyboard.dismiss()}>
                             <DateTimePicker
                                 mode="time"
                                 display="spinner"

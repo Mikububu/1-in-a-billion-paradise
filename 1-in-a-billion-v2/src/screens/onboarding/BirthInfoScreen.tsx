@@ -11,6 +11,7 @@ import {
     Animated,
     Image,
     ImageSourcePropType,
+    Keyboard,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -178,7 +179,7 @@ export const BirthInfoScreen = () => {
                     </Pressable>
 
                     {showDatePicker && (
-                        <View style={styles.pickerWrapper}>
+                        <View style={styles.pickerWrapper} onTouchStart={() => Keyboard.dismiss()}>
                             <DateTimePicker
                                 mode="date"
                                 display="spinner"
@@ -211,7 +212,7 @@ export const BirthInfoScreen = () => {
                     </Pressable>
 
                     {showTimePicker && (
-                        <View style={styles.pickerWrapper}>
+                        <View style={styles.pickerWrapper} onTouchStart={() => Keyboard.dismiss()}>
                             <DateTimePicker
                                 mode="time"
                                 display="spinner"

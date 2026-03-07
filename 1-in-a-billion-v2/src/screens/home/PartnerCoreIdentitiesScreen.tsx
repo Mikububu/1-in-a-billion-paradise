@@ -561,21 +561,6 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         console.log(`✅ Saved ${partnerName}'s hook readings for Home carousel rotation`);
       }
 
-      if (isPrepayOnboarding) {
-        // In onboarding: proceed to partner hook reading screens + compatibility preview.
-        navigation.replace('PartnerReadings', {
-          partnerName: name,
-          partnerBirthDate,
-          partnerBirthTime,
-          partnerBirthCity,
-          partnerId: ensuredPartnerId,
-        });
-        return;
-      }
-
-      // Non-onboarding: keep the legacy behavior (dashboard navigation + optional cloud sync).
-      // FIX: Use auth user ID (Supabase UUID), not local person ID!
-      const authUserId = useAuthStore.getState().user?.id;
       if (authUserId) {
         try {
           const { syncPeopleToSupabase } = await import('@/services/peopleCloud');
@@ -590,8 +575,15 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
           console.error('❌ Error saving partner to Supabase:', error);
         }
       }
-      console.log('✅ Partner readings complete - navigating to Dashboard');
-      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+
+      console.log('✅ Partner readings complete - navigating to PartnerReadings');
+      navigation.replace('PartnerReadings', {
+        partnerName: name,
+        partnerBirthDate,
+        partnerBirthTime,
+        partnerBirthCity,
+        partnerId: ensuredPartnerId,
+      });
 
     } catch (error) {
       console.error('Error fetching partner readings:', error);
