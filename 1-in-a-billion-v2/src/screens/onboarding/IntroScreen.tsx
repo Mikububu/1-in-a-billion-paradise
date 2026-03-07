@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { StyleSheet, Text, View, Pressable, Image, Dimensions, Alert, TouchableOpacity, Animated, Easing, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -82,6 +83,7 @@ export const IntroScreen = ({ navigation }: Props) => {
 
                   if (session?.user?.id) {
                     try {
+                      console.log('☢️ Calling backend purge for user:', session.user.id);
                       const response = await fetch(`${backendUrl}/api/account/purge`, {
                         method: 'DELETE',
                         headers: {
@@ -90,20 +92,28 @@ export const IntroScreen = ({ navigation }: Props) => {
                         },
                       });
 
+                      const responseData = await response.json().catch(() => ({}));
                       if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({}));
-                        console.warn('Backend purge failed, but continuing local reset:', errorData.error);
+                        console.error('❌ Backend purge failed:', response.status, responseData);
+                      } else {
+                        console.log('✅ Backend purge succeeded:', responseData);
                       }
                     } catch (fetchErr) {
-                      console.warn('Network error during purge, continuing local reset:', fetchErr);
+                      console.error('❌ Network error during purge:', fetchErr);
                     }
                   }
                 }
 
-                // Clear ALL local data
+                // ☢️ NUCLEAR RESET: wipe EVERYTHING from AsyncStorage
+                await AsyncStorage.clear();
+
+                // Reset all in-memory stores
                 reset(); // Clears onboarding store
                 resetProfile(); // Clears all people (person 1 and 3)
                 setShowDashboard(false);
+
+                // Reset language to English
+                await setLanguage('en');
 
                 // Sign out (clears auth session)
                 await signOut();
