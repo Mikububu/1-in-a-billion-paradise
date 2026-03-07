@@ -144,22 +144,36 @@ const FULL_TEXT = LYRICS.join(SEP) + SEP;
 // Duplicate for seamless loop
 const DOUBLE_TEXT = FULL_TEXT + FULL_TEXT;
 
-/** Continuously scrolling karaoke lyrics ticker with red highlight sweep */
+// one_in_a_billion_2.mp3 is exactly 155.19 seconds — scroll one full pass in this time
+const SONG_DURATION_MS = 155190;
+
+/** Continuously scrolling karaoke lyrics ticker — synced to song duration */
 const KaraokeBand = React.memo(() => {
   const scrollAnim = useRef(new Animated.Value(0)).current;
   const highlightAnim = useRef(new Animated.Value(0)).current;
+  // Start with a good estimate for 18px bold uppercase (~10.5px/char average),
+  // then replace with the real measured value via onLayout.
+  const [halfTextWidth, setHalfTextWidth] = useState(FULL_TEXT.length * 10.5);
+  const scrollLoopRef = useRef<Animated.CompositeAnimation | null>(null);
 
-  useEffect(() => {
-    // Continuous scroll right-to-left
-    Animated.loop(
+  const startScroll = useCallback((width: number) => {
+    scrollLoopRef.current?.stop();
+    scrollAnim.setValue(0);
+    scrollLoopRef.current = Animated.loop(
       Animated.timing(scrollAnim, {
         toValue: -1,
-        duration: 90000, // 90s for full scroll
+        duration: SONG_DURATION_MS, // exactly one song length per full pass
+        easing: (t) => t,           // linear — no ease in/out
         useNativeDriver: true,
       }),
-    ).start();
+    );
+    scrollLoopRef.current.start();
+  }, [scrollAnim]);
 
-    // Red highlight sweep repeats
+  useEffect(() => {
+    startScroll(halfTextWidth);
+
+    // White highlight sweep across the band (repeats every ~12s)
     Animated.loop(
       Animated.timing(highlightAnim, {
         toValue: 1,
@@ -167,14 +181,23 @@ const KaraokeBand = React.memo(() => {
         useNativeDriver: false,
       }),
     ).start();
+
+    return () => { scrollLoopRef.current?.stop(); };
   }, []);
 
-  // We estimate total text width — each character ~7px at 13px font
-  const estimatedHalfWidth = FULL_TEXT.length * 7;
+  // When the real text width arrives from onLayout, restart scroll with exact pixels
+  const handleTrackLayout = useCallback((e: any) => {
+    // DOUBLE_TEXT = FULL_TEXT + FULL_TEXT → total width / 2 = one full pass
+    const measured = e.nativeEvent.layout.width / 2;
+    if (measured > 200 && Math.abs(measured - halfTextWidth) > 20) {
+      setHalfTextWidth(measured);
+      startScroll(measured);
+    }
+  }, [halfTextWidth, startScroll]);
 
   const translateX = scrollAnim.interpolate({
     inputRange: [-1, 0],
-    outputRange: [-estimatedHalfWidth, 0],
+    outputRange: [-halfTextWidth, 0],
   });
 
   const highlightWidth = highlightAnim.interpolate({
@@ -184,12 +207,16 @@ const KaraokeBand = React.memo(() => {
 
   return (
     <View style={karaokeStyles.band}>
-      <Animated.View style={[karaokeStyles.track, { transform: [{ translateX }] }]}>
+      {/* Dim white base text */}
+      <Animated.View
+        style={[karaokeStyles.track, { transform: [{ translateX }] }]}
+        onLayout={handleTrackLayout}
+      >
         <Text style={karaokeStyles.lyrics} numberOfLines={1}>
           {DOUBLE_TEXT}
         </Text>
       </Animated.View>
-      {/* Red highlight overlay */}
+      {/* Bright white highlight overlay sweeps left-to-right */}
       <Animated.View style={[karaokeStyles.highlightOverlay, { width: highlightWidth }]}>
         <Animated.View style={[karaokeStyles.track, { transform: [{ translateX }] }]}>
           <Text style={[karaokeStyles.lyrics, karaokeStyles.lyricsHighlight]} numberOfLines={1}>
@@ -209,11 +236,11 @@ const karaokeStyles = StyleSheet.create({
     marginRight: -spacing.page,
     overflow: 'hidden',
     backgroundColor: colors.primary,
-    paddingVertical: 12,
-    marginBottom: spacing.md,
+    paddingVertical: 14,
+    marginBottom: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0,0,0,0.2)',
+    borderColor: 'rgba(255,255,255,0.15)',
     position: 'relative',
   },
   track: {
@@ -222,13 +249,13 @@ const karaokeStyles = StyleSheet.create({
   },
   lyrics: {
     fontFamily: typography.sansBold,
-    fontSize: 16,
-    color: 'rgba(0,0,0,0.25)',
-    letterSpacing: 0.3,
+    fontSize: 18,
+    color: 'rgba(255,255,255,0.38)',
+    letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
   lyricsHighlight: {
-    color: '#000',
+    color: '#FFFFFF',
   },
   highlightOverlay: {
     position: 'absolute',
@@ -727,7 +754,7 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingHorizontal: spacing.page,
-    paddingTop: 80,
+    paddingTop: 52,
     justifyContent: 'center',
   },
   heading: {
