@@ -11,8 +11,9 @@ import { colors, spacing, typography, radii } from '@/theme/tokens';
 import { OnboardingStackParamList } from '@/navigation/RootNavigator';
 import { AmbientMusic } from '@/services/ambientMusic';
 import { useMusicStore } from '@/store/musicStore';
-import { supabase, isSupabaseConfigured } from '@/services/supabase';
+import { isSupabaseConfigured } from '@/services/supabase';
 import { verifyEntitlementWithBackend } from '@/services/payments';
+import { fetchPeopleFromSupabase } from '@/services/peopleCloud';
 import { env } from '@/config/env';
 import { t, getLanguage, setLanguage, onLanguageChange, LANGUAGE_META, type LanguageCode } from '@/i18n';
 import { LanguagePicker } from '@/components/LanguagePicker';
@@ -130,6 +131,7 @@ export const IntroScreen = ({ navigation }: Props) => {
                 const backendUrl = env.CORE_API_URL || 'https://1-in-a-billion-backend.fly.dev';
 
                 if (isSupabaseConfigured) {
+                  const { supabase } = await import('@/services/supabase');
                   const { data: { session } } = await supabase.auth.getSession();
 
                   if (session?.user?.id) {
@@ -256,6 +258,7 @@ export const IntroScreen = ({ navigation }: Props) => {
                 const backendUrl = env.CORE_API_URL || 'https://1-in-a-billion-backend.fly.dev';
 
                 if (isSupabaseConfigured) {
+                  const { supabase } = await import('@/services/supabase');
                   const { data: { session } } = await supabase.auth.getSession();
 
                   if (session?.user?.id) {
@@ -323,11 +326,34 @@ export const IntroScreen = ({ navigation }: Props) => {
         setEntitlementState('inactive');
         return true;
       }
-      Alert.alert(
-        t('intro.entitlement.title'),
-        t('intro.entitlement.message'),
-        [{ text: t('common.ok'), onPress: () => navigation.navigate('CoreIdentities' as any) }]
-      );
+
+      // Attempt to pre-fetch cloud readings so HookSequence doesn't regenerate them
+      let customReadings = undefined;
+      try {
+        const cloudProfile = await fetchPeopleFromSupabase(appUserId);
+        if (cloudProfile.success) {
+          const selfProfile = cloudProfile.people.find(p => p.isUser);
+          if (selfProfile?.hookReadings && selfProfile.hookReadings.length > 0) {
+            customReadings = selfProfile.hookReadings.filter(Boolean);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to pre-fetch profile on IntroScreen', err);
+      }
+
+      if (customReadings && customReadings.length > 0) {
+        Alert.alert(
+          t('intro.entitlement.title'),
+          t('intro.entitlement.message'),
+          [{ text: t('common.ok'), onPress: () => navigation.navigate('HookSequence' as any, { customReadings }) }]
+        );
+      } else {
+        Alert.alert(
+          t('intro.entitlement.title'),
+          t('intro.entitlement.message'),
+          [{ text: t('common.ok'), onPress: () => navigation.navigate('CoreIdentities' as any) }]
+        );
+      }
       return false;
     }
 
