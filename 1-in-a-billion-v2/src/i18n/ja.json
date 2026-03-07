@@ -406,7 +406,6 @@
   "account.passwordPlaceholder": "パスワード",
   "account.generatePassword": "強力なパスワードを生成",
   "account.createWithEmail": "メールで作成",
-  "account.backToOptions": "← オプションに戻る",
   "account.paymentVerificationFailed": "決済の確認に失敗しました",
   "account.missingPurchaseIdentity": "購入情報が見つかりません。お戻りいただき、再度ご購入ください。",
   "account.paymentRequired": "決済が必要です",

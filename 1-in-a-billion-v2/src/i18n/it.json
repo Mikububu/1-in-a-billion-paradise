@@ -406,7 +406,6 @@
   "account.passwordPlaceholder": "Password",
   "account.generatePassword": "Genera password sicura",
   "account.createWithEmail": "Crea con Email",
-  "account.backToOptions": "← Torna alle opzioni",
   "account.paymentVerificationFailed": "Verifica del pagamento non riuscita",
   "account.missingPurchaseIdentity": "Identità d'acquisto mancante. Torna indietro e acquista di nuovo.",
   "account.paymentRequired": "Pagamento richiesto",

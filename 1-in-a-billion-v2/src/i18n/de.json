@@ -408,7 +408,6 @@
   "account.passwordPlaceholder": "Passwort",
   "account.generatePassword": "Starkes Passwort generieren",
   "account.createWithEmail": "Mit E-Mail erstellen",
-  "account.backToOptions": "← Zurück zu den Optionen",
   "account.paymentVerificationFailed": "Zahlungsbestätigung fehlgeschlagen",
   "account.missingPurchaseIdentity": "Kaufnachweis fehlt. Bitte kehre zurück und erwirb erneut.",
   "account.paymentRequired": "Zahlung erforderlich",

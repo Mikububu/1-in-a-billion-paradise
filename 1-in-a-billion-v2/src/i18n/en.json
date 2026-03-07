@@ -417,7 +417,6 @@
   "account.passwordPlaceholder": "Password",
   "account.generatePassword": "Generate strong password",
   "account.createWithEmail": "Create with Email",
-  "account.backToOptions": "← Back to options",
   "account.paymentVerificationFailed": "Payment verification failed",
   "account.missingPurchaseIdentity": "Missing purchase identity. Please return and purchase again.",
   "account.paymentRequired": "Payment required",

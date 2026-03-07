@@ -406,7 +406,6 @@
   "account.passwordPlaceholder": "비밀번호",
   "account.generatePassword": "강력한 비밀번호 생성",
   "account.createWithEmail": "이메일로 시작하기",
-  "account.backToOptions": "← 옵션으로 돌아가기",
   "account.paymentVerificationFailed": "결제 확인 실패",
   "account.missingPurchaseIdentity": "구매 정보가 없습니다. 돌아가서 다시 구매해 주세요.",
   "account.paymentRequired": "결제 필요",

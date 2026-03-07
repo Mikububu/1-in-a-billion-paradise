@@ -380,7 +380,6 @@
   "account.passwordPlaceholder": "Contraseña",
   "account.generatePassword": "Generar contraseña segura",
   "account.createWithEmail": "Crear con Email",
-  "account.backToOptions": "← Volver a opciones",
   "account.paymentVerificationFailed": "Error en la verificación del pago",
   "account.missingPurchaseIdentity": "Identidad de compra no encontrada. Vuelve atrás y compra de nuevo.",
   "account.paymentRequired": "Pago requerido",

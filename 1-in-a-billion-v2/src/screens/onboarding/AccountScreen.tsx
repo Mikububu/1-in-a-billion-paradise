@@ -948,9 +948,6 @@ export const AccountScreen = ({ navigation, route }: Props) => {
                       {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>{t('account.createWithEmail')}</Text>}
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.resendBtn} onPress={() => setSignupStep('method')} disabled={isLoading}>
-                      <Text style={styles.resendText}>{t('account.backToOptions')}</Text>
-                    </TouchableOpacity>
                   </>
                 )}
               </>

@@ -396,7 +396,6 @@
   "account.passwordPlaceholder": "Mot de passe",
   "account.generatePassword": "Mot de passe sécurisé",
   "account.createWithEmail": "Créer avec e-mail",
-  "account.backToOptions": "← Retour aux options",
   "account.paymentVerificationFailed": "Échec de la vérification du paiement",
   "account.missingPurchaseIdentity": "Identité d'achat manquante. Veuillez revenir en arrière et effectuer un nouvel achat.",
   "account.paymentRequired": "Paiement requis",

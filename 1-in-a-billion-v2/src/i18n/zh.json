@@ -405,7 +405,6 @@
   "account.passwordPlaceholder": "密码",
   "account.generatePassword": "生成安全密码",
   "account.createWithEmail": "邮箱创建账户",
-  "account.backToOptions": "← 返回选项",
   "account.paymentVerificationFailed": "支付验证失败",
   "account.missingPurchaseIdentity": "购买身份缺失。请返回重新购买。",
   "account.paymentRequired": "需要付款",

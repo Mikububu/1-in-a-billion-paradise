@@ -406,7 +406,6 @@
   "account.passwordPlaceholder": "Пароль",
   "account.generatePassword": "Создать надёжный пароль",
   "account.createWithEmail": "Создать через Email",
-  "account.backToOptions": "← Назад к вариантам",
   "account.paymentVerificationFailed": "Ошибка подтверждения платежа",
   "account.missingPurchaseIdentity": "Отсутствует идентификатор покупки. Пожалуйста, вернитесь и совершите покупку заново.",
   "account.paymentRequired": "Требуется оплата",

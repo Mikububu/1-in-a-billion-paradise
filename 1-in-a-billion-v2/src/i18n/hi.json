@@ -406,7 +406,6 @@
   "account.passwordPlaceholder": "पासवर्ड",
   "account.generatePassword": "सुदृढ़ पासवर्ड बनाएं",
   "account.createWithEmail": "ईमेल से खाता बनाएं",
-  "account.backToOptions": "← विकल्पों पर वापस",
   "account.paymentVerificationFailed": "भुगतान सत्यापन असफल",
   "account.missingPurchaseIdentity": "खरीदारी की पहचान गुम है। कृपया वापस जाकर पुनः खरीदारी करें।",
   "account.paymentRequired": "भुगतान आवश्यक",
