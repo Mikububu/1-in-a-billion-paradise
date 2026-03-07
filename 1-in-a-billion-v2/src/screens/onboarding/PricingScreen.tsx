@@ -567,14 +567,13 @@ export const PricingScreen = ({ navigation }: Props) => {
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
+          {/* ── Karaoke lyrics ticker ── */}
+          <KaraokeBand />
+
           <Text style={styles.heading}>{t('pricing.title')}</Text>
           <Text style={styles.subheading}>
             {t('pricing.subtitle')}
           </Text>
-
-          {/* ── Karaoke lyrics ticker ── */}
-          <KaraokeBand />
-
           {/* ── Subscription tiers ── */}
           {buildTiers().map((tier) => {
             const price = livePrices[tier.id] || tier.priceLabel || '...';
