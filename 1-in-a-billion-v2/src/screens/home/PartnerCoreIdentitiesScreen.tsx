@@ -224,12 +224,14 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         setProgress(100);
         setStatusText(t('partnerCore.loadingExisting'));
         await delay(500);
-        navigation.replace('PartnerReadings', {
+        const cachedTarget = isPrepayOnboarding ? 'Onboarding_PartnerReadings' : 'PartnerReadings';
+        navigation.replace(cachedTarget as any, {
           partnerName: name,
           partnerBirthDate: partnerBirthDate || existingPerson.birthData?.birthDate,
           partnerBirthTime: partnerBirthTime || existingPerson.birthData?.birthTime,
           partnerBirthCity: cachedCity,
           partnerId: existingPerson.id,
+          ...(isPrepayOnboarding ? { mode: 'onboarding_hook' } : {}),
         });
         return;
       }
@@ -577,13 +579,15 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         }
       }
 
-      console.log('✅ Partner readings complete - navigating to PartnerReadings');
-      navigation.replace('PartnerReadings', {
+      const successTarget = isPrepayOnboarding ? 'Onboarding_PartnerReadings' : 'PartnerReadings';
+      console.log(`✅ Partner readings complete - navigating to ${successTarget}`);
+      navigation.replace(successTarget as any, {
         partnerName: name,
         partnerBirthDate,
         partnerBirthTime,
         partnerBirthCity,
         partnerId: ensuredPartnerId,
+        ...(isPrepayOnboarding ? { mode: 'onboarding_hook' } : {}),
       });
 
     } catch (error) {
@@ -605,12 +609,14 @@ export const PartnerCoreIdentitiesScreen = ({ navigation, route }: Props) => {
         },
       });
 
-      navigation.replace('PartnerReadings', {
+      const errorTarget = isPrepayOnboarding ? 'Onboarding_PartnerReadings' : 'PartnerReadings';
+      navigation.replace(errorTarget as any, {
         partnerName,
         partnerBirthDate,
         partnerBirthTime,
         partnerBirthCity,
         partnerId,
+        ...(isPrepayOnboarding ? { mode: 'onboarding_hook' } : {}),
       });
     }
   };
