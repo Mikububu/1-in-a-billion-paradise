@@ -9,6 +9,9 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, Session } from '@supabase/supabase-js';
+import { useProfileStore } from '@/store/profileStore';
+import { useOnboardingStore } from '@/store/onboardingStore';
+
 
 export type EntitlementState = 'unknown' | 'active' | 'inactive';
 export type SubscriptionTier = 'basic' | 'yearly' | 'billionaire' | null;
@@ -93,6 +96,14 @@ export const useAuthStore = create<AuthState>()(
                 }
 
                 // Then clear local state
+                try {
+                    useProfileStore.getState().reset();
+                    useOnboardingStore.getState().reset();
+                    console.log('✅ Local stores reset successfully');
+                } catch (err) {
+                    console.warn('⚠️ Could not reset local stores:', err);
+                }
+
                 // NavigationContainer will automatically switch to OnboardingNavigator when user becomes null
                 set({
                     user: null,
