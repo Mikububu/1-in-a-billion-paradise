@@ -36,6 +36,7 @@ PUNCTUATION:
 AUDIO-READY FORMATTING (CRITICAL FOR TTS):
 - Spell out all numbers: "twenty-three degrees" not "23°"
 - Spell out positions: "zero degrees Virgo" not "0° Virgo"  
+- Spell out all YEARS: "nineteen ninety-five" not "1995" (or the equivalent spoken words in the target language)
 - No abbreviations: "Human Design" not "HD"
 - Natural rhythm for listening
 - Varied sentence length creates musicality
@@ -89,7 +90,7 @@ VOICE:
 - Intimate, direct address
 `;
   }
-  
+
   return `
 VOICE:
 - Use "they/their/${personName}" voice - speaking ABOUT ${personName}
@@ -121,7 +122,7 @@ export function buildOutputRulesSection(
   personName?: string
 ): string {
   let rules = OUTPUT_FORMAT_RULES;
-  
+
   // Add voice rules based on reading type
   if (readingType === 'individual' && voiceMode && personName) {
     rules += getVoiceRules(voiceMode, personName);
@@ -129,11 +130,11 @@ export function buildOutputRulesSection(
     // Deep dive readings always use 3rd person
     rules += VOICE_RULES_DEEP_DIVE;
   }
-  
+
   // Add relationship status rules for overlays/nuclear
   if (readingType === 'overlay' || readingType === 'nuclear') {
     rules += RELATIONSHIP_STATUS_RULES;
   }
-  
+
   return rules;
 }

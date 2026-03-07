@@ -20,10 +20,10 @@
  * - Em-dashes and en-dashes (replaces with commas/semicolons)
  * 
  * Ensures:
- * - Headlines have proper spacing after them for TTS pauses
  * - All text is readable and pronounceable
  * - No symbols that would confuse TTS
  */
+
 export function cleanupTextForTTS(text: string, language: string = 'en'): string {
   let cleaned = text;
 
