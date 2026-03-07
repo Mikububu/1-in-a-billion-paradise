@@ -28,6 +28,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useProfileStore } from '@/store/profileStore';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
 import {
+  activateBypassSubscription,
   linkCouponUser,
   linkRevenueCatAppUser,
   logInRevenueCat,
@@ -322,6 +323,16 @@ export const AccountScreen = ({ navigation, route }: Props) => {
             });
             if (!linkRes.success && !paymentBypassEnabled) {
               throw new Error(linkRes.error || 'Could not link subscription to your account.');
+            }
+          }
+        } else if (manualBypass) {
+          // ILOVEYOU bypass: create a real subscription record in the database
+          const { data: sessionData } = await supabase.auth.getSession();
+          const accessToken = sessionData.session?.access_token;
+          if (accessToken) {
+            const bypassRes = await activateBypassSubscription(accessToken);
+            if (!bypassRes.success) {
+              console.warn('⚠️ Bypass subscription activation warning:', bypassRes.error);
             }
           }
         } else if (!paymentBypassEnabled) {

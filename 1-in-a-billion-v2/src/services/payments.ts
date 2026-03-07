@@ -341,3 +341,37 @@ export async function linkRevenueCatAppUser(params: {
     return { success: false, error: e?.message || 'Link request failed' };
   }
 }
+
+// ─────────────────────────────────────────────────────────────
+// BYPASS SUBSCRIPTION ACTIVATION
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Activate a bypass subscription (ILOVEYOU code).
+ * Creates a user_subscriptions row in the database so all downstream
+ * entitlement checks (RootNavigator, VoiceSelection, etc.) pass.
+ */
+export async function activateBypassSubscription(
+  accessToken: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!accessToken) {
+    return { success: false, error: 'No access token' };
+  }
+
+  try {
+    const response = await fetch(`${env.CORE_API_URL}/api/payments/activate-bypass`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, error: json?.error || `Bypass activation failed (${response.status})` };
+    }
+    return { success: Boolean(json?.success), error: json?.error };
+  } catch (e: any) {
+    return { success: false, error: e?.message || 'Bypass activation request failed' };
+  }
+}
