@@ -35,12 +35,12 @@ export function cleanupTextForTTS(text: string, language: string = 'en'): string
 
   // Remove markdown syntax
   cleaned = cleaned.replace(/^#{1,6}\s+/gm, ''); // Headers (#, ##, ###, etc.)
+  cleaned = cleaned.replace(/#/g, ''); // Stray hash marks
   cleaned = cleaned.replace(/\*/g, ''); // Asterisks 
-
-  cleaned = cleaned.replace(/__([^_]+)__/g, '$1'); // Bold __text__
-  cleaned = cleaned.replace(/_([^_]+)_/g, '$1'); // Italic _text_
+  cleaned = cleaned.replace(/_/g, ''); // Underscores
+  cleaned = cleaned.replace(/\[|\]/g, ''); // Brackets
   cleaned = cleaned.replace(/~~([^~]+)~~/g, '$1'); // Strikethrough ~~text~~
-  cleaned = cleaned.replace(/^[-*+]\s+/gm, ''); // Bullet points
+  cleaned = cleaned.replace(/^[-+]\s+/gm, ''); // Bullet points (keep * removed by previous regex)
   cleaned = cleaned.replace(/^\d+\.\s+/gm, ''); // Numbered lists
 
   // Aggressively remove roman numeral list markers like i., (i), i) anywhere
