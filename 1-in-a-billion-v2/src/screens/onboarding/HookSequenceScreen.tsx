@@ -445,6 +445,9 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
     }
     isPlayingLock.current = true;
 
+    // IMMEDIATELY mark loading so the button disables on the very next render
+    setAudioLoading(prev => ({ ...prev, [type]: true }));
+
     // Stop any other currently playing audio
     if (soundRef.current) {
       try { await soundRef.current.stopAsync(); } catch { }
@@ -455,8 +458,6 @@ export const HookSequenceScreen = ({ navigation, route }: Props) => {
       }
       currentPlayingType.current = null;
     }
-
-    setAudioLoading(prev => ({ ...prev, [type]: true }));
 
     try {
       // RESOLVE AUDIO SOURCE
@@ -1259,7 +1260,7 @@ ${rising.main}`;
                         onPress={() => {
                           console.log('🔊 Audio button pressed for:', item.type); handlePlayAudio(item as HookReading);
                         }}
-                        disabled={audioLoading[item.type]}
+                        disabled={audioLoading[item.type] || Object.values(audioLoading).some(Boolean)}
                         activeOpacity={0.7}
                         accessibilityRole="button"
                         accessibilityLabel={audioPlaying[item.type] ? `Stop ${SIGN_LABELS[item.type]} audio` : `Play ${SIGN_LABELS[item.type]} audio`}

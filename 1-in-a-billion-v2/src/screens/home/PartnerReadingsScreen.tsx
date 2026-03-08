@@ -603,7 +603,7 @@ export const PartnerReadingsScreen = ({ navigation, route }: Props) => {
                             audioPlaying[item.type] && styles.audioBtnActive,
                           ]}
                           onPress={() => (item.type as string) !== 'gateway' && handlePlayAudio(item as HookReading)}
-                          disabled={audioLoading[item.type]}
+                          disabled={audioLoading[item.type] || Object.values(audioLoading).some(Boolean)}
                           activeOpacity={0.7}
                         >
                           {audioLoading[item.type] ? (
