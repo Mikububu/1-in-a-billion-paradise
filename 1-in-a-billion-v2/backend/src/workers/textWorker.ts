@@ -23,7 +23,6 @@ import {
 } from '../prompts/config/wordCounts';
 import { LANGUAGE_CONFIG } from '../config/languages';
 import { logLLMCost } from '../services/costTracking';
-import { composePromptFromJobStartPayload } from '../promptEngine/fromJobPayload';
 import { buildChartDataForSystem } from '../services/chartDataBuilder';
 import { buildChartReferencePage } from '../services/chartReferencePage';
 import {
@@ -712,7 +711,6 @@ export class TextWorker extends BaseWorker {
     console.log(`📋 [TextWorker] Chart reference page built: ${chartRefPage.length} chars${chartRefPageRight ? `, right: ${chartRefPageRight.length} chars` : ''}`);
 
     let prompt = '';
-    let composedV2: Awaited<ReturnType<typeof composePromptFromJobStartPayload>> | null = null;
     let label = `job:${jobId}:doc:${docNum}`;
     let text = '';
     let wordCount = 0;
@@ -1336,47 +1334,24 @@ export class TextWorker extends BaseWorker {
         generationComplete = true;
       }
 
-      // V2 prompt engine (MD prompt layers) is the source of truth for all systems.
-      // Map docType into the prompt-engine job type.
+      // All system×docType combinations are handled by the trigger engine above.
+      // If we reach here without generationComplete, something is wrong.
       if (!generationComplete) {
-        const promptPayload: any = {
-          type: docType === 'overlay' ? 'synastry' : 'extended',
-          systems: [system],
-          person1: docType === 'person2' ? person2 : person1,
-          ...(docType === 'overlay' ? { person2 } : {}),
-          chartData: chartDataForPrompt,
-          relationshipPreferenceScale: spiceLevel,
-          personalContext: params.personalContext,
-          relationshipContext: params.relationshipContext,
-          outputLanguage: params.outputLanguage,
-          outputLengthContract: params.outputLengthContract,
-          promptLayerDirective: params.promptLayerDirective,
-        };
-
-        const composed = await composePromptFromJobStartPayload(promptPayload);
-        composedV2 = composed;
-        prompt = composed.prompt;
-        label += `:v2prompt:${docType}:${system}`;
-
-        console.log(
-          `🧩 [PromptEngine] style=${composed.diagnostics.styleLayerId} systems=${composed.diagnostics.systemLayerIds
-            .map((s) => `${s.system}:${s.layerId}`)
-            .join(',')} chars=${composed.diagnostics.totalChars}`
-        );
+        throw new Error(`[TextWorker] No trigger-engine handler for system="${system}" docType="${docType}". This should never happen.`);
       }
     }
 
     // Use centralized LLM service with per-system provider config
     const configuredProvider = getProviderForSystem(system || 'western');
     let llmInstance: typeof llm | typeof llmPaid = llm;
-    const llmSystemPrompt = composedV2?.systemPrompt || undefined;
+    const llmSystemPrompt: string | undefined = undefined;
     let extractedFooter = { body: '', footer: '' };
     // Headline inference is disabled globally for stable plain-prose output.
     const preserveSurrealHeadlines = false;
 
     if (!generationComplete) {
       console.log(`🔧 System "${system}" → Provider: ${configuredProvider}`);
-      const llmUserMessage = composedV2?.userMessage || prompt;
+      const llmUserMessage = prompt;
       const promptLength = llmUserMessage.length;
       const promptWordCount = llmUserMessage.split(/\s+/).filter(Boolean).length;
       console.log(`📝 [TextWorker] Prompt stats: ${promptLength} chars, ~${promptWordCount} words`);

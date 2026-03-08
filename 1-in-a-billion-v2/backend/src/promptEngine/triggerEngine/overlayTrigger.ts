@@ -3,6 +3,7 @@ import {
   RELATIONAL_TRIGGER_LABEL,
   RELATIONAL_TRIGGER_TITLE,
 } from './triggerConfig';
+import { buildOverlayWritingEnhancements } from './writingEnhancements';
 import { stripWesternChartData } from './westernTrigger';
 import { stripVedicChartData } from './vedicTrigger';
 import { stripHDChartData } from './humanDesignTrigger';
@@ -79,6 +80,8 @@ function buildOverlayWritingPromptBase(params: {
     '- You are reading CHART ENERGIES, not narrating a relationship story. The charts speak in the present.',
     '- Do NOT structure the reading by seasons (spring, summer, autumn, winter). Structure by DYNAMICS and THEMES.',
     `- ALTERNATE who you mention first. Do not always lead with the same person. This is about the PAIR.`,
+    '',
+    buildOverlayWritingEnhancements(),
     '',
     '══════════════════════════════════════════════════════════',
     `${relationalTriggerTitle} - THIS IS THE SPINE OF EVERYTHING YOU WRITE:`,

@@ -4,6 +4,7 @@ import {
   NARRATIVE_TRIGGER_TITLE,
 } from './triggerConfig';
 import { buildWesternSection } from '../../prompts/systems/western';
+import { buildWritingEnhancements } from './writingEnhancements';
 
 /**
  * WESTERN TRIGGER ENGINE
@@ -180,6 +181,8 @@ export function buildWesternWritingPrompt(params: {
     'This is NOT a generic horoscope. It is a Western astrological reading: grounded in specific planetary placements, aspects, house positions, and chart patterns.',
     '',
     westernGuidance,
+    '',
+    buildWritingEnhancements(),
     '',
     '══════════════════════════════════════════════════════════',
     `${triggerTitle} - THIS IS THE SPINE OF EVERYTHING YOU WRITE:`,

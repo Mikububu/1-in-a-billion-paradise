@@ -4,6 +4,7 @@ import {
   NARRATIVE_TRIGGER_TITLE,
 } from './triggerConfig';
 import { buildVedicSection } from '../../prompts/systems/vedic';
+import { buildWritingEnhancements } from './writingEnhancements';
 
 /**
  * VEDIC TRIGGER ENGINE
@@ -168,6 +169,8 @@ export function buildVedicWritingPrompt(params: {
     'Deliver it with fatalistic irony - the cosmos has written the story, and it\'s often brutal, but there\'s something absurdly funny about that too.',
     '',
     vedicGuidance,
+    '',
+    buildWritingEnhancements(),
     '',
     '══════════════════════════════════════════════════════════',
     `${triggerTitle} - THIS IS THE SPINE OF EVERYTHING YOU WRITE:`,

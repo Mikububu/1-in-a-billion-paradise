@@ -4,6 +4,7 @@ import {
   NARRATIVE_TRIGGER_TITLE,
 } from './triggerConfig';
 import { buildKabbalahSection } from '../../prompts/systems/kabbalah';
+import { buildWritingEnhancements } from './writingEnhancements';
 
 /**
  * KABBALAH TRIGGER ENGINE
@@ -171,6 +172,8 @@ export function buildKabbalahWritingPrompt(params: {
     'This is NOT a generic spiritual essay. It is a Kabbalistic reading: grounded in specific Sephiroth, Tikkun patterns, Klipothic shadows, and the Four Worlds.',
     '',
     kabbalahGuidance,
+    '',
+    buildWritingEnhancements(),
     '',
     '══════════════════════════════════════════════════════════',
     `${triggerTitle} - THIS IS THE SPINE OF EVERYTHING YOU WRITE:`,

@@ -4,6 +4,7 @@ import {
   NARRATIVE_TRIGGER_TITLE,
 } from './triggerConfig';
 import { buildHumanDesignSection } from '../../prompts/systems/human-design';
+import { buildWritingEnhancements } from './writingEnhancements';
 
 /**
  * HUMAN DESIGN TRIGGER ENGINE
@@ -159,6 +160,8 @@ export function buildHDWritingPrompt(params: {
     'This is NOT a generic spiritual essay. It is a Human Design reading: grounded in specific Type, Strategy, Authority, Centers, Channels, and the Incarnation Cross.',
     '',
     hdGuidance,
+    '',
+    buildWritingEnhancements(),
     '',
     '══════════════════════════════════════════════════════════',
     `${triggerTitle} - THIS IS THE SPINE OF EVERYTHING YOU WRITE:`,

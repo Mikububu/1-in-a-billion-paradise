@@ -4,6 +4,7 @@ import {
   NARRATIVE_TRIGGER_TITLE,
 } from './triggerConfig';
 import { buildGeneKeysSection } from '../../prompts/systems/gene-keys';
+import { buildWritingEnhancements } from './writingEnhancements';
 
 /**
  * GENE KEYS TRIGGER ENGINE
@@ -103,6 +104,8 @@ export function buildGeneKeysWritingPrompt(params: {
     'This is NOT a generic spiritual essay. It is a Gene Keys reading: grounded in specific Key numbers, Shadow names, Gift potentials, and the architecture of their hologenetic profile.',
     '',
     geneKeysGuidance,
+    '',
+    buildWritingEnhancements(),
     '',
     '══════════════════════════════════════════════════════════',
     `${triggerTitle} - THIS IS THE SPINE OF EVERYTHING YOU WRITE:`,

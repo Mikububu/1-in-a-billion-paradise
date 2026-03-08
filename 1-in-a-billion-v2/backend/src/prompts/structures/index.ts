@@ -6,7 +6,6 @@
 
 export * from './individual';
 export * from './overlay';
-export * from './nuclear';
 
 export type ReadingType = 'individual' | 'overlay' | 'nuclear';
 
