@@ -1349,58 +1349,6 @@ export class TextWorker extends BaseWorker {
     // Headline inference is disabled globally for stable plain-prose output.
     const preserveSurrealHeadlines = false;
 
-    if (!generationComplete) {
-      console.log(`🔧 System "${system}" → Provider: ${configuredProvider}`);
-      const llmUserMessage = prompt;
-      const promptLength = llmUserMessage.length;
-      const promptWordCount = llmUserMessage.split(/\s+/).filter(Boolean).length;
-      console.log(`📝 [TextWorker] Prompt stats: ${promptLength} chars, ~${promptWordCount} words`);
-      console.log(`📝 [TextWorker] systemPrompt: ${llmSystemPrompt ? `${llmSystemPrompt.length} chars` : 'none'}`);
-      console.log(`📝 [TextWorker] Prompt preview (first 500 chars): ${llmUserMessage.substring(0, 500)}`);
-
-      if (configuredProvider === 'claude') {
-        llmInstance = llmPaid;
-        text = await llmPaid.generateStreaming(llmUserMessage, label, {
-          maxTokens: 16384,
-          temperature: 0.8,
-          maxRetries: 3,
-          systemPrompt: llmSystemPrompt,
-        });
-      } else {
-        llmInstance = llm;
-        text = await llm.generate(llmUserMessage, label, {
-          maxTokens: 12000,
-          temperature: 0.8,
-          provider: configuredProvider as LLMProvider,
-          systemPrompt: llmSystemPrompt,
-        });
-      }
-
-      // 💰 LOG COST for this LLM call
-      const usageData = llmInstance.getLastUsage();
-      if (usageData) {
-        await logLLMCost(
-          jobId,
-          task.id,
-          {
-            provider: usageData.provider,
-            inputTokens: usageData.usage.inputTokens,
-            outputTokens: usageData.usage.outputTokens,
-          },
-          `text_${system || 'verdict'}_${docType}`
-        );
-      }
-
-      // Post-process: Clean LLM output for spoken audio
-      text = tightenParagraphs(
-        cleanReadingText(text, { preserveSurrealHeadlines }),
-        { preserveSurrealHeadlines }
-      );
-      extractedFooter = extractChartSignatureFooter(text);
-      text = extractedFooter.body;
-      wordCount = countWords(text);
-    } // end !generationComplete
-
     // Length backstop:
     // Prompts already ask for ~4500 words, but some models stop early.
     // We enforce a hard floor and auto-continue in a few passes instead of failing the job.
